@@ -8,6 +8,7 @@ workspace = true
 
 [dependencies]
 adl-errors = { path = "../errors" }
+adl-hosted = { path = "../adl-hosted" }
 tokio = { workspace = true }
 reqwest = { workspace = true }
 tracing.workspace = true

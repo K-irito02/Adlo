@@ -78,8 +78,16 @@ pub fn bundled_version(bundle_dir: &Path) -> Result<Option<String>, AppError> {
 /// 把内置包「收编」成宿主版本目录下的一条普通已装版本。
 ///
 /// 布局转换：`<bundle_dir>/package` → `<versions>/installed/<v>/node_modules/@deepseek-ai/dsh`。
-/// 同卷直接 `rename`（O(1)），跨卷退化为「递归复制 + 删源」。收编成功后删除整个
-/// 内置包目录（删除失败只告警，不影响已完成的收编）：内置包只消费一次，**不留第二份副本**。
+/// 位移语义收敛至 hosted `swap_into_place`（同卷 `rename` O(1)，跨卷退化为
+/// 「递归复制 + 删源」，失败尽力恢复旧版）。
+/// 注：hosted 通用 `adopt_bundle` 以整目录搬运为整版本，无法表达 dsh 的深层
+/// `node_modules/@deepseek-ai/dsh` 目标布局（改布局会破坏 `host_bin` 契约），
+/// 故此处只复用其位移原语，来源检测与布局拼装保留 dsh 侧。
+/// 差异：复制退化路径遇链接即报错（hosted 口径），旧实现静默物化链接——
+/// 仅跨卷收编且包内含链接时触发（npm `.bin` 常见），此时返回 Err 留痕。
+///
+/// 收编成功后删除整个内置包目录（删除失败只告警，不影响已完成的收编）：
+/// 内置包只消费一次，**不留第二份副本**。
 ///
 /// 返回被收编的版本号；无内置包返回 `None`。若该版本已有完整安装副本（用户自己
 /// 下过同一版本），保留用户那份并删除内置包，返回 `None`——用户下载的不算内置。
@@ -105,28 +113,7 @@ pub fn adopt(bundle_dir: &Path, versions_dir: &Path) -> Result<Option<String>, A
         std::fs::create_dir_all(parent)
             .map_err(|e| AppError::Io(format!("create {}: {e}", parent.display())))?;
     }
-    // 半成品目标目录先清掉，避免 rename 因目标非空失败。
-    if target_pkg.exists() {
-        std::fs::remove_dir_all(&target_pkg)
-            .map_err(|e| AppError::Io(format!("clean {}: {e}", target_pkg.display())))?;
-    }
-    match std::fs::rename(&bundled.path, &target_pkg) {
-        Ok(()) => {},
-        Err(rename_err) => {
-            // 跨卷/占用等情形：退化为复制后删源（仍保证只有一份）。复制中途失败必须
-            // 清掉半成品，否则下次启动只凭 bin.js 判定“已装”，会删掉唯一的源。
-            tracing::info!(%version, error = %rename_err, "dsh-bundle: rename failed, falling back to copy");
-            if let Err(copy_err) = copy_dir(&bundled.path, &target_pkg) {
-                let _ = std::fs::remove_dir_all(&target_pkg);
-                return Err(copy_err);
-            }
-            if let Err(e) = std::fs::remove_dir_all(&bundled.path) {
-                // 源目录残留不影响收编结果（目标已完整），删不掉只留痕；
-                // 否则会丢掉来源记录、让「内置」标识凭空消失。
-                tracing::warn!(path = %bundled.path.display(), error = %e, "dsh-bundle: remove copy source failed");
-            }
-        },
-    }
+    adl_hosted::swap_into_place(&bundled.path, &target_pkg)?;
     if !target_pkg.join(BIN_JS).is_file() {
         // 此时源已移走，删目标会让两份都没了：只报错留痕，交给人工/下次安装处理。
         return Err(AppError::Io(format!("adopted bundled {version} without bin.js")));
@@ -148,29 +135,6 @@ fn remove_bundle_dir(bundle_dir: &Path) {
             );
         }
     }
-}
-
-/// 递归复制目录（内置包内不应有链接；遇到读不了的条目直接报错，不静默丢文件）。
-fn copy_dir(from: &Path, to: &Path) -> Result<(), AppError> {
-    std::fs::create_dir_all(to)
-        .map_err(|e| AppError::Io(format!("create {}: {e}", to.display())))?;
-    let entries = std::fs::read_dir(from)
-        .map_err(|e| AppError::Io(format!("read {}: {e}", from.display())))?;
-    for entry in entries {
-        let entry =
-            entry.map_err(|e| AppError::Io(format!("read entry in {}: {e}", from.display())))?;
-        let src = entry.path();
-        let dst = to.join(entry.file_name());
-        let file_type =
-            entry.file_type().map_err(|e| AppError::Io(format!("stat {}: {e}", src.display())))?;
-        if file_type.is_dir() {
-            copy_dir(&src, &dst)?;
-        } else {
-            std::fs::copy(&src, &dst)
-                .map_err(|e| AppError::Io(format!("copy {}: {e}", src.display())))?;
-        }
-    }
-    Ok(())
 }
 
 #[cfg(test)]

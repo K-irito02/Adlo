@@ -18,6 +18,7 @@ adl-dsh-bundle = { path = "../dsh-bundle" }
 adl-dsh-version = { path = "../dsh-version" }
 adl-errors = { path = "../errors" }
 adl-fs-ops = { path = "../fs-ops" }
+adl-hosted = { path = "../adl-hosted" }
 adl-kernel = { path = "../kernel" }
 adl-logging = { path = "../adl-logging" }
 adl-migration = { path = "../migration" }

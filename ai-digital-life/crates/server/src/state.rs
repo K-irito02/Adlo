@@ -76,7 +76,8 @@ pub struct ServerState {
     /// 串行化版本目录变更（安装/卸载/切换/重装），避免并发写入同一目录。
     pub dsh_version_lock: Arc<AsyncMutex<()>>,
     /// 当前版本任务进度（安装/卸载/重装的真实进度与取消标志）。
-    pub dsh_version_task: adl_dsh_version::TaskReporter,
+    /// 实现收敛至 hosted（字段名不变，只换类型；结构体内部持 Arc，可直接存 state）。
+    pub dsh_version_task: adl_hosted::ProgressTask,
     /// dsh 来源缓存：避免每次打开 dsh 时都重新检测来源
     pub dsh_source_cache: Arc<RwLock<Option<adl_dsh_version::DshSource>>>,
     /// 官方版本目录缓存（聚合快照 `/dsh/settings-snapshot` 用）：TTL 内直接复用，

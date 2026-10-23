@@ -184,8 +184,8 @@ pub async fn init_server_state(
     let dsh_state = Arc::new(AsyncMutex::new(None));
     let dsh_starting = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let dsh_start_lock = Arc::new(AsyncMutex::new(()));
-    let dsh_version_lock = Arc::new(AsyncMutex::new(()));
-    let dsh_version_task = adl_dsh_version::TaskReporter::new();
+    let dsh_version_lock = adl_hosted::InstallLock::new();
+    let dsh_version_task = adl_hosted::ProgressTask::new();
     let dsh_source_cache = Arc::new(RwLock::new(None));
     let dsh_catalog_cache = Arc::new(RwLock::new(None));
 

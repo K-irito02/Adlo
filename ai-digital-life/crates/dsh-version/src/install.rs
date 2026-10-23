@@ -365,32 +365,6 @@ async fn run_npm_with_progress(
     }
 }
 
-async fn swap_into_place(tmp: &Path, final_dir: &Path) -> Result<(), AppError> {
-    let backup = final_dir.with_file_name(format!(
-        ".old-{}-{}",
-        final_dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
-        nonce()
-    ));
-    let had_old = final_dir.exists();
-    if had_old {
-        tokio::fs::rename(final_dir, &backup)
-            .await
-            .map_err(|e| AppError::Io(format!("backup {}: {e}", final_dir.display())))?;
-    }
-    if let Err(e) = tokio::fs::rename(tmp, final_dir).await {
-        if had_old {
-            let _ = tokio::fs::rename(&backup, final_dir).await;
-        }
-        return Err(AppError::Io(format!("replace {}: {e}", final_dir.display())));
-    }
-    if had_old {
-        if let Err(e) = tokio::fs::remove_dir_all(&backup).await {
-            tracing::warn!(path = %backup.display(), error = %e, "dsh install: remove backup failed");
-        }
-    }
-    Ok(())
-}
-
 pub async fn install(
     root: &Path,
     data_dir: &Path,
@@ -475,7 +449,8 @@ pub async fn install(
     task.update(VersionTaskPhase::Finalizing, Some(98), total, total, false);
     let final_dir = installed_dir(root).join(version);
     tracing::debug!(%version, path = %final_dir.display(), "dsh install: swapping into place");
-    if let Err(e) = swap_into_place(&tmp, &final_dir).await {
+    // 原子换位收敛至 hosted（同卷 rename，跨卷复制后删源；失败尽力恢复旧版）。
+    if let Err(e) = adl_hosted::swap_into_place(&tmp, &final_dir) {
         // 与 npm 失败路径同构：swap 失败也要清 tmp（此前直接 `?` 传播会残留）。
         let _ = tokio::fs::remove_dir_all(&tmp).await;
         return Err(e);
@@ -688,7 +663,7 @@ mod tests {
 
         let reporter = TaskReporter::new();
         let task_reporter = reporter.clone();
-        reporter.begin(crate::task::VersionTaskKind::Uninstall, "1.0.0");
+        reporter.begin(crate::task::VersionTaskKind::UNINSTALL, "1.0.0");
         let root_for_task = root.clone();
         let handle =
             tokio::spawn(async move { uninstall(&root_for_task, "1.0.0", &task_reporter).await });
@@ -721,7 +696,8 @@ mod tests {
         std::fs::write(tmp.join("node_modules").join("new"), "").unwrap();
         std::fs::create_dir_all(&final_dir).unwrap();
         std::fs::write(final_dir.join("old"), "").unwrap();
-        swap_into_place(&tmp, &final_dir).await.expect("swap ok");
+        // 换位语义收敛至 hosted：此处只断言结果，覆盖其同步实现。
+        adl_hosted::swap_into_place(&tmp, &final_dir).expect("swap ok");
         assert!(final_dir.join("node_modules").join("new").is_file());
         assert!(!final_dir.join("old").exists());
         assert!(!root.join(".tmp").exists());
@@ -811,7 +787,7 @@ mod tests {
         }
         std::fs::write(selected_file(&root), "3.0.0\n").unwrap();
         let task = TaskReporter::new();
-        task.begin(crate::task::VersionTaskKind::Uninstall, "3.0.0");
+        task.begin(crate::task::VersionTaskKind::UNINSTALL, "3.0.0");
         uninstall(&root, "3.0.0", &task).await.expect("uninstall ok");
         assert_eq!(read_selected(&root).unwrap().as_deref(), Some("2.0.0"));
         assert!(!is_host_version_installed(&root, "3.0.0"));
@@ -826,7 +802,7 @@ mod tests {
         make_complete_version(&root, "2.0.0");
         std::fs::write(root.join("bundled.txt"), "2.0.0\n").unwrap();
         let task = TaskReporter::new();
-        task.begin(crate::task::VersionTaskKind::Uninstall, "2.0.0");
+        task.begin(crate::task::VersionTaskKind::UNINSTALL, "2.0.0");
         crate::uninstall_with_task(&root, "2.0.0", &task).await.expect("uninstall ok");
         assert!(!is_host_version_installed(&root, "2.0.0"));
         assert!(!root.join("bundled.txt").exists());

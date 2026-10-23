@@ -98,11 +98,7 @@ async fn finish_version_mutation(
 }
 
 /// 版本任务占位（四变更端点共用）：已有任务在跑则拒绝，避免并发变更。
-fn try_begin_version_task(
-    state: &ServerState,
-    kind: adl_dsh_version::VersionTaskKind,
-    version: &str,
-) -> Result<(), AppError> {
+fn try_begin_version_task(state: &ServerState, kind: &str, version: &str) -> Result<(), AppError> {
     if state.dsh_version_task.begin(kind, version) {
         Ok(())
     } else {
@@ -660,7 +656,7 @@ pub async fn get_version_status(State(state): State<ServerState>) -> impl IntoRe
 /// POST `/dsh/update` — 升级 dsh 至最新可用版本，返回新版本串。
 pub async fn update(State(state): State<ServerState>) -> impl IntoResponse {
     if let Err(e) =
-        try_begin_version_task(&state, adl_dsh_version::VersionTaskKind::Update, "latest")
+        try_begin_version_task(&state, adl_dsh_version::VersionTaskKind::UPDATE, "latest")
     {
         return ipc::to_response(Err(e));
     }
@@ -713,7 +709,7 @@ pub async fn uninstall(
     };
     tracing::debug!(version = %input.version, "dsh::uninstall: request");
     if let Err(e) =
-        try_begin_version_task(&state, adl_dsh_version::VersionTaskKind::Uninstall, &input.version)
+        try_begin_version_task(&state, adl_dsh_version::VersionTaskKind::UNINSTALL, &input.version)
     {
         return ipc::to_response(Err(e));
     }
@@ -753,7 +749,7 @@ pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
     };
     tracing::debug!(version = %selected, "dsh::reinstall: request");
     if let Err(e) =
-        try_begin_version_task(&state, adl_dsh_version::VersionTaskKind::Reinstall, &selected)
+        try_begin_version_task(&state, adl_dsh_version::VersionTaskKind::REINSTALL, &selected)
     {
         return ipc::to_response(Err(e));
     }
@@ -854,9 +850,9 @@ pub async fn install_version(
     // Install/Reinstall 分类只影响进度条 kind 标签：判定在锁外，结果可能与
     // 实际执行略有出入（并发变更），正确性不受影响，故接受此近似。
     let kind = if adl_dsh_version::is_host_version_installed(&root, input.version.trim()) {
-        adl_dsh_version::VersionTaskKind::Reinstall
+        adl_dsh_version::VersionTaskKind::REINSTALL
     } else {
-        adl_dsh_version::VersionTaskKind::Install
+        adl_dsh_version::VersionTaskKind::INSTALL
     };
     if let Err(e) = try_begin_version_task(&state, kind, input.version.trim()) {
         return ipc::to_response(Err(e));

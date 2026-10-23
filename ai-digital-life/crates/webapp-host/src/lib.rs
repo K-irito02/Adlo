@@ -7,6 +7,9 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 
 pub use port::pick_free_port;
 
+/// 进程句柄收敛至 hosted（与 env 侧共用同一实现；字段同名，调用方零改）。
+pub use adl_hosted::HostedProcess;
+
 pub mod port;
 
 /// dsh web profile 默认监听端口（`@deepseek-ai/dsh` 启动时不传 `--port` 的默认值）。
@@ -94,13 +97,6 @@ pub fn redact_token_param(line: &str) -> String {
 /// 避免误判未运行而重复 spawn 撞上 `EADDRINUSE`。
 pub fn is_auth_required_body(body: &str) -> bool {
     body.contains(DSH_AUTH_REQUIRED_BODY)
-}
-
-/// 一个已被宿主拉起、就绪的 Web 应用进程句柄。
-pub struct HostedProcess {
-    pub child: tokio::process::Child,
-    pub url: String,
-    pub port: u16,
 }
 
 /// 从一行 stdout 中提取打印出的真实入口 URL（通用层）。
@@ -372,84 +368,25 @@ pub async fn spawn_and_wait_ready(
 ///
 /// 与 `spawn_and_wait_ready` 类似，但专门用于 `node <script_path> [extra_args...]` 场景。
 /// 构建参数时将 `script_path` 作为第一参数，`extra_args` 追加其后。
-/// 轮询两个端口：`pick_free_port()` 返回的临时端口和 `DSH_DEFAULT_PORT` (3080)。
+/// 拉起管线收敛至 hosted `spawn_with_marker`：候选端口为「空闲端口 + 默认端口」
+///（R1 口径；dsh 受 loopback patch 约束恒绑 3080，空闲端口为兜底）。
+/// 轮询顺序为候选序（先空闲、后默认），旧实现先默认——正常只会命中其一，结果一致。
 pub async fn spawn_node_direct(
     node_bin: &str,
     script_path: &str,
     extra_args: &[String],
     timeout: Duration,
 ) -> Result<HostedProcess, AppError> {
-    let port = pick_free_port()?;
-    let url = format!("http://127.0.0.1:{port}");
-    let default_url = format!("http://127.0.0.1:{DSH_DEFAULT_PORT}");
-
     let mut args = vec![script_path.to_string()];
     args.extend_from_slice(extra_args);
-
-    tracing::info!(?node_bin, ?script_path, ?port, ?url, "spawn_node_direct: starting process");
-    let (mut child, url_slot) = spawn_capturing(node_bin, &args, DSH_URL_MARKER)?;
-
-    if let Some(pid) = child.id() {
-        tracing::info!(?node_bin, ?pid, "spawn_node_direct: child process started");
-    }
-
-    let deadline = tokio::time::Instant::now() + timeout;
-    let mut check_count = 0;
-    let spawn_start = std::time::Instant::now();
-
-    loop {
-        if tokio::time::Instant::now() >= deadline {
-            tracing::error!(?node_bin, ?port, ?check_count, "spawn_node_direct: timeout");
-            tracing::error!(?node_bin, captured_url = %redact_url_for_log(&resolve_url_slot(&url_slot, "")), "spawn_node_direct: captured URL at timeout");
-            if let Err(e) = child.kill().await {
-                tracing::error!(?node_bin, "spawn_node_direct: failed to kill on timeout: {e}");
-            }
-            return Err(AppError::Timeout(format!("{node_bin} not ready within {timeout:?}")));
-        }
-        check_count += 1;
-
-        let check_start = std::time::Instant::now();
-        // 快速检查默认端口3080（TCP 连接检查，比 HTTP 请求更快）
-        if check_port_fast(DSH_DEFAULT_PORT).await {
-            let final_url =
-                wait_for_authenticated_url(&url_slot, &default_url, Duration::from_secs(5)).await;
-            tracing::info!(
-                ?node_bin,
-                redacted_url = %redact_url_for_log(&final_url),
-                ?check_count,
-                elapsed_ms = check_start.elapsed().as_millis(),
-                total_elapsed_ms = spawn_start.elapsed().as_millis(),
-                "spawn_node_direct: process is ready on default port"
-            );
-            return Ok(HostedProcess { child, url: final_url, port: DSH_DEFAULT_PORT });
-        }
-
-        // 检查指定端口（TCP 连接检查）
-        if check_port_fast(port).await {
-            let final_url =
-                wait_for_authenticated_url(&url_slot, &url, Duration::from_secs(5)).await;
-            tracing::info!(
-                ?node_bin,
-                redacted_url = %redact_url_for_log(&final_url),
-                ?port,
-                ?check_count,
-                elapsed_ms = check_start.elapsed().as_millis(),
-                total_elapsed_ms = spawn_start.elapsed().as_millis(),
-                "spawn_node_direct: process is ready on specified port"
-            );
-            return Ok(HostedProcess { child, url: final_url, port });
-        }
-
-        tracing::debug!(
-            ?node_bin,
-            ?check_count,
-            elapsed_ms = check_start.elapsed().as_millis(),
-            "spawn_node_direct: check failed, sleeping"
-        );
-
-        // 使用 100ms 轮询间隔，平衡响应速度与 CPU 占用
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
+    adl_hosted::spawn_with_marker(
+        node_bin,
+        &args,
+        DSH_URL_MARKER,
+        &[pick_free_port()?, DSH_DEFAULT_PORT],
+        timeout,
+    )
+    .await
 }
 
 /// 快速检查端口是否可达（TCP 连接检查，带超时）。

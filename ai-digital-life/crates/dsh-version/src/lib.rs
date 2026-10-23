@@ -6,6 +6,7 @@ use tokio::process::Command as TokioCommand;
 use serde::{Deserialize, Serialize};
 
 use adl_errors::AppError;
+use adl_hosted::HostedVersions;
 
 pub mod install;
 pub mod task;
@@ -84,32 +85,29 @@ pub(crate) fn installed_dir(root: &Path) -> PathBuf {
     root.join("installed")
 }
 
+/// dsh 真安装的 bin.js 相对版本目录路径（`installed/<version>/` 下的 marker）。
+const DSH_MARKER_REL: &str = "node_modules/@deepseek-ai/dsh/lib/bin.js";
+
+/// dsh 版本目录的 hosted 视图：dsh-version 的 `root` 即版本目录本身
+/// （`installed/` 与 `selected.txt` 同级），`HostedVersions` 按
+/// `<root>/<name>/installed` 寻址，故 `name` 取空串做直通映射。
+fn dsh_versions(root: &Path) -> HostedVersions {
+    HostedVersions::open(root, "", DSH_MARKER_REL)
+}
+
 /// 宿主版本可执行入口（真安装后的 bin.js）。
 pub fn host_bin(root: &Path, version: &str) -> PathBuf {
-    installed_dir(root)
-        .join(version)
-        .join("node_modules")
-        .join("@deepseek-ai")
-        .join("dsh")
-        .join("lib")
-        .join("bin.js")
+    dsh_versions(root).installed_marker(version)
 }
 
 /// 宿主版本是否完整安装（以 bin.js 存在为准；空目录不算已安装）。
 pub fn is_host_version_installed(root: &Path, version: &str) -> bool {
-    host_bin(root, version).is_file()
+    dsh_versions(root).is_installed(version)
 }
 
 /// 读取当前选中的版本号。
 pub fn read_selected(root: &Path) -> Result<Option<String>, AppError> {
-    let p = selected_file(root);
-    let raw = match std::fs::read_to_string(&p) {
-        Ok(s) => s,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(e) => return Err(AppError::Io(format!("read {}: {e}", p.display()))),
-    };
-    let v = raw.trim().to_string();
-    Ok((!v.is_empty()).then_some(v))
+    dsh_versions(root).read_selected()
 }
 
 /// 内置来源记录文件名（位于版本目录根，与 `selected.txt` 同级）。
@@ -153,23 +151,9 @@ pub fn clear_bundled_version_if(root: &Path, version: &str) -> Result<(), AppErr
 }
 
 pub(crate) fn list_installed(root: &Path) -> Result<Vec<String>, AppError> {
-    let dir = installed_dir(root);
-    if !dir.exists() {
-        return Ok(vec![]);
-    }
-    let mut versions: Vec<String> = std::fs::read_dir(&dir)
-        .map_err(|e| AppError::Io(format!("read dir {}: {e}", dir.display())))?
-        .filter_map(|e| match e {
-            Ok(entry) => Some(entry),
-            Err(e) => {
-                tracing::warn!(path = %dir.display(), error = %e, "dsh-version: failed to read dir entry");
-                None
-            }
-        })
-        .map(|e| e.file_name().to_string_lossy().into_owned())
-        .filter(|v| semver::Version::parse(v).is_ok())
-        .filter(|v| is_host_version_installed(root, v))
-        .collect();
+    // 枚举收敛至 hosted（已按 semver 合法 + marker 完整过滤），排序口径保留
+    // dsh 原语义：semver 降序（hosted 只保证集合正确，不保证顺序）。
+    let mut versions = dsh_versions(root).installed_versions();
     versions.sort_by(|a, b| {
         let na = semver::Version::parse(a)
             .unwrap_or_else(|_| semver::Version::parse("0.0.0").expect("0.0.0 parses"));
