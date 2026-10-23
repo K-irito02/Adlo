@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 
 use adl_hosted::{HostedVersions, ProgressPhase, ProgressTask, swap_into_place};
 
+use crate::UninstallOutcome;
+
 /// `HostedVersions` name: the install dir is the version dir itself
 /// (`<data_dir>/env-hosted/git/installed/<v>/cmd/git.exe`).
 pub const HOSTED_NAME: &str = "env-hosted/git";
@@ -137,6 +139,34 @@ pub fn adopt_staging(
     Ok(Installed { version: version.to_string(), path: target.to_string_lossy().into_owned() })
 }
 
+/// Remove the hosted copy of `version`. System installs are never touched.
+/// Non-hosted version → [`AppError::InvalidInput`]. Removing the selected
+/// version falls back to the highest remaining one, or clears the selection
+/// when none remain.
+pub fn uninstall(data_dir: &Path, version: &str) -> Result<UninstallOutcome, AppError> {
+    let hv = hosted(data_dir);
+    if !hv.is_installed(version) {
+        return Err(AppError::InvalidInput("not-hosted".into()));
+    }
+    let was_selected = hv.read_selected()?.as_deref() == Some(version);
+    let target = hv.version_dir(version);
+    std::fs::remove_dir_all(&target)
+        .map_err(|e| AppError::Io(format!("remove {}: {e}", target.display())))?;
+    let selected = if was_selected {
+        let next = hv.best_fallback(None);
+        match &next {
+            Some(v) => hv.write_selected(v)?,
+            None => {
+                let _ = std::fs::remove_file(hv.selected_file_path());
+            },
+        }
+        next
+    } else {
+        hv.read_selected()?
+    };
+    Ok(UninstallOutcome { removed: version.to_string(), selected })
+}
+
 /// Download the MinGit zip (via the shared registry/proxy-aware client),
 /// extract, and adopt. Failure records the error on `reporter` and leaves the
 /// task open for progress polling; success finishes it.
@@ -178,4 +208,59 @@ pub async fn install(
     };
     reporter.finish();
     Ok(installed)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{HOSTED_NAME, MARKER_REL, adopt_staging, uninstall};
+    use std::path::{Path, PathBuf};
+
+    fn nanos() -> u128 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or_default()
+    }
+
+    fn make_staging(tmp: &Path, version: &str) -> PathBuf {
+        let staging = tmp.join(format!("stage-{version}"));
+        std::fs::create_dir_all(staging.join("cmd")).expect("mkdir staging");
+        std::fs::write(staging.join(MARKER_REL), "").expect("write marker");
+        staging
+    }
+
+    #[test]
+    fn uninstall_selected_falls_back_to_highest_remaining() {
+        let tmp = std::env::temp_dir().join(format!("adl_un_git_{}", nanos()));
+        adopt_staging(&make_staging(&tmp, "2.47.1"), &tmp, "2.47.1").expect("stage 1");
+        adopt_staging(&make_staging(&tmp, "2.56.0"), &tmp, "2.56.0").expect("stage 2");
+        let hv = adl_hosted::HostedVersions::open(&tmp, HOSTED_NAME, MARKER_REL);
+        hv.write_selected("2.56.0").expect("select");
+        let out = uninstall(&tmp, "2.56.0").expect("uninstall");
+        assert_eq!(out.removed, "2.56.0");
+        assert_eq!(out.selected.as_deref(), Some("2.47.1"));
+        assert!(!hv.is_installed("2.56.0"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn uninstall_last_version_clears_selection() {
+        let tmp = std::env::temp_dir().join(format!("adl_un_git3_{}", nanos()));
+        adopt_staging(&make_staging(&tmp, "2.47.1"), &tmp, "2.47.1").expect("stage");
+        let hv = adl_hosted::HostedVersions::open(&tmp, HOSTED_NAME, MARKER_REL);
+        hv.write_selected("2.47.1").expect("select");
+        let out = uninstall(&tmp, "2.47.1").expect("uninstall");
+        assert_eq!(out.removed, "2.47.1");
+        assert_eq!(out.selected, None);
+        assert!(!hv.selected_file_path().exists(), "selection must be cleared");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn uninstall_rejects_non_hosted_version() {
+        let tmp = std::env::temp_dir().join(format!("adl_un_git2_{}", nanos()));
+        let err = uninstall(&tmp, "2.47.1").expect_err("not hosted");
+        assert!(matches!(err, adl_errors::AppError::InvalidInput(_)));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 }

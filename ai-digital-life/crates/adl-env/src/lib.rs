@@ -80,6 +80,15 @@ pub struct Resolved {
     pub effective: EffectiveSource,
 }
 
+/// Outcome of removing a hosted install: `selected` is the version still
+/// selected afterwards (`None` when the removal left no installed versions).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UninstallOutcome {
+    pub removed: String,
+    pub selected: Option<String>,
+}
+
 /// Resolve the effective source from user preference and availability.
 ///
 /// Priority mirrors `dsh-version::resolve_effective_source`:

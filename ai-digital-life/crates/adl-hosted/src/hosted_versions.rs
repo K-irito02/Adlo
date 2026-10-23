@@ -50,8 +50,11 @@ impl HostedVersions {
     pub fn best_fallback(&self, except: Option<&str>) -> Option<String> {
         self.installed_versions().into_iter().rev().find(|v| Some(v.as_str()) != except)
     }
+    pub fn selected_file_path(&self) -> PathBuf {
+        self.root.join(&self.name).join("selected.txt")
+    }
     pub fn read_selected(&self) -> Result<Option<String>, AppError> {
-        let p = self.root.join(&self.name).join("selected.txt");
+        let p = self.selected_file_path();
         if !p.exists() {
             return Ok(None);
         }
@@ -64,7 +67,7 @@ impl HostedVersions {
         if !self.is_installed(v) {
             return Err(AppError::InvalidInput(format!("{v} not installed")));
         }
-        let p = self.root.join(&self.name).join("selected.txt");
+        let p = self.selected_file_path();
         if let Some(parent) = p.parent() {
             std::fs::create_dir_all(parent)
                 .map_err(|e| AppError::Io(format!("create {}: {e}", parent.display())))?;
@@ -98,5 +101,11 @@ mod tests {
         hv.write_selected("22.14.0").expect("select");
         assert_eq!(hv.read_selected().expect("read").as_deref(), Some("22.14.0"));
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn selected_file_path_lands_under_name_dir() {
+        let hv = HostedVersions::open(Path::new("D:/d"), "env-hosted/node", "node.exe");
+        assert_eq!(hv.selected_file_path(), PathBuf::from("D:/d/env-hosted/node/selected.txt"));
     }
 }
