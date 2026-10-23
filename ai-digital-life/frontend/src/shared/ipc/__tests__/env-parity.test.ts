@@ -21,7 +21,14 @@ import { createTauriBridge } from '../../../tauri-bridge/index';
 import { createMockEnv } from '../../../mock/mock-env';
 import type { EnvBridge } from '../env';
 
-const EXPECTED = ['getStatus', 'install', 'selectSource', 'setCustomPath', 'recheck'] as const;
+const EXPECTED = [
+  'getStatus',
+  'install',
+  'uninstall',
+  'selectSource',
+  'setCustomPath',
+  'recheck',
+] as const;
 
 describe('env bridge method parity', () => {
   const sortedKeys = (bridge: EnvBridge): string[] => Object.keys(bridge).sort();

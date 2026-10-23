@@ -30,6 +30,10 @@ export interface EnvDepRowActions {
   selectSource: (dep: string, mode: EnvSourceMode) => Promise<unknown>;
   /** 打开安装确认框（确认后由父组件执行安装，行内不直接调安装）。 */
   requestInstall: (dep: string) => void;
+  /** 卸载宿主来源的已装版本（行内两段确认后直调）。 */
+  uninstall: (dep: string, version?: string) => Promise<unknown>;
+  /** 按当前已装版本重装（复用安装动作）。 */
+  reinstall: (dep: string, version: string) => Promise<unknown>;
   setCustomPath: (dep: string, path: string) => Promise<unknown>;
   copyForAgent: (dep: EnvDepKey | 'all') => Promise<void>;
   /** 打开块级恢复默认确认框（来源回自动 + 清空手动路径，不卸载）。 */
@@ -146,6 +150,8 @@ export function EnvDepRow({
   const { t } = useTCopy();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [pathDraft, setPathDraft] = useState<string | null>(null);
+  // 卸载两段确认（照抄 DshVersionManagement：首击武装，再击执行）。
+  const [uninstallArmed, setUninstallArmed] = useState(false);
 
   const section = depSection(status, dep);
   // 浏览器模式：系统级行（node/git/bash）的变更类控件置灰 + 追加仅桌面说明
@@ -213,7 +219,11 @@ export function EnvDepRow({
   };
 
   const taskForDep =
-    section !== null && status.task !== null && status.task.kind === `env-${dep}-install`
+    section !== null &&
+    status.task !== null &&
+    (status.task.kind === `env-${dep}-install` ||
+      status.task.kind === `env-${dep}-uninstall` ||
+      status.task.kind === `env-${dep}-reinstall`)
       ? status.task
       : null;
   // 断网降级（spec §6.2）：下载源不可达时安装必失败，安装按钮由复制按钮
@@ -232,6 +242,38 @@ export function EnvDepRow({
     !isEnvDepReady(section) &&
     taskForDep === null &&
     offline;
+
+  // 卸载/重装仅对宿主托管的安装类依赖（node/git）可见；系统来源或未安装不出现。
+  const showUninstallReinstall =
+    section !== null &&
+    INSTALLABLE_DEPS.has(dep) &&
+    section.effective === 'host' &&
+    section.installedVersion !== null;
+
+  useEffect(() => {
+    if (!showUninstallReinstall) {
+      setUninstallArmed(false);
+    }
+  }, [showUninstallReinstall, dep, section?.installedVersion]);
+
+  const handleUninstallClick = () => {
+    if (!showUninstallReinstall || section === null || section.installedVersion === null) {
+      return;
+    }
+    if (!uninstallArmed) {
+      setUninstallArmed(true);
+      return;
+    }
+    setUninstallArmed(false);
+    void actions.uninstall(dep, section.installedVersion);
+  };
+
+  const handleReinstallClick = () => {
+    if (!showUninstallReinstall || section === null || section.installedVersion === null) {
+      return;
+    }
+    void actions.reinstall(dep, section.installedVersion);
+  };
 
   const bashVariant = dep === 'bash' && section !== null ? bashVariantOf(section) : null;
   const showBashVariant = bashVariant !== null && section?.mode === 'system';
@@ -407,6 +449,30 @@ export function EnvDepRow({
               >
                 {t.environmentInstall}
               </button>
+            ) : null}
+            {showUninstallReinstall ? (
+              <>
+                <button
+                  type="button"
+                  className={`adl-dsh-settings__action-btn${
+                    uninstallArmed ? ' adl-dsh-settings__action-btn--danger' : ''
+                  }`}
+                  data-settings-row={t.environmentUninstall}
+                  disabled={controlsDisabled}
+                  onClick={handleUninstallClick}
+                >
+                  {t.environmentUninstall}
+                </button>
+                <button
+                  type="button"
+                  className="adl-dsh-settings__action-btn"
+                  data-settings-row={t.environmentReinstall}
+                  disabled={controlsDisabled}
+                  onClick={handleReinstallClick}
+                >
+                  {t.environmentReinstall}
+                </button>
+              </>
             ) : null}
             {/* 离线复制刻意仅 busy 门控（不限 browserGated）：浏览器模式下复制诊断信息仍可用。 */}
             {showOfflineCopy ? (

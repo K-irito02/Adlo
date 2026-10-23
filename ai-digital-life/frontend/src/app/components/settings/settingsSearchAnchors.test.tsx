@@ -41,6 +41,7 @@ const fetchVersionCatalog = vi.fn();
 const fetchEnvStatus = vi.fn();
 const selectEnvSource = vi.fn();
 const installEnvDep = vi.fn();
+const uninstallEnvDep = vi.fn();
 const setEnvCustomPath = vi.fn();
 const recheckEnv = vi.fn();
 const pollEnvTaskWhileRunning = vi.fn();
@@ -65,6 +66,7 @@ vi.mock('@hooks/useAppActions', () => ({
     fetchEnvStatus: (...args: unknown[]) => fetchEnvStatus(...args),
     selectEnvSource: (...args: unknown[]) => selectEnvSource(...args),
     installEnvDep: (...args: unknown[]) => installEnvDep(...args),
+    uninstallEnvDep: (...args: unknown[]) => uninstallEnvDep(...args),
     setEnvCustomPath: (...args: unknown[]) => setEnvCustomPath(...args),
     recheckEnv: (...args: unknown[]) => recheckEnv(...args),
     pollEnvTaskWhileRunning: (...args: unknown[]) => pollEnvTaskWhileRunning(...args),
@@ -207,12 +209,13 @@ const CONDITIONAL_ROW_MARKERS: string[] = [
   'dshSettingsProxyHttp',
   'dshSettingsProxyHttps',
   'dshSettingsProxyNoProxy',
-  // 环境组五个操作行：仅 Task 7 填充后的 EnvironmentSettings 渲染（空壳期无行）。
-  // 登记即约束——Task 7 渲染行时须带同名 `data-settings-row` 标记，否则本守卫失败。
-  // 卸载/重装（environmentUninstall/environmentReinstall）暂无后端路由、无渲染行，
-  // 故不在索引登记、亦不在此列（Phase 3 随按钮一起加回）。
+  // 环境组操作行：仅 EnvironmentSettings 渲染后出现。
+  // 登记即约束——组件渲染行时须带同名 `data-settings-row` 标记，否则本守卫失败。
+  // 卸载/重装仅在宿主来源且已安装的行渲染（本套件未写 envStatus，故列为条件行）。
   'environmentInstall',
   'environmentSwitch',
+  'environmentUninstall',
+  'environmentReinstall',
   'environmentRecheck',
   'environmentCopyForAgent',
   'environmentGoToSettings',
@@ -318,6 +321,7 @@ describe('settings search anchors', () => {
     fetchEnvStatus.mockReset().mockResolvedValue(true);
     selectEnvSource.mockReset().mockResolvedValue(true);
     installEnvDep.mockReset().mockResolvedValue(true);
+    uninstallEnvDep.mockReset().mockResolvedValue(true);
     setEnvCustomPath.mockReset().mockResolvedValue(true);
     recheckEnv.mockReset().mockResolvedValue(true);
     pollEnvTaskWhileRunning.mockReset().mockReturnValue(() => {});

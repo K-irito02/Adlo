@@ -33,6 +33,7 @@ export const environmentEn = {
   environmentInstallStarted: 'Starting install of {dep}…',
   environmentInstallSuccess: 'Installed {dep} {version}',
   environmentInstallFailed: 'Failed to install {dep}',
+  environmentUninstallFailed: 'Failed to uninstall {dep}',
   environmentInstallProgress: 'Installing {dep} ({done}/{total})',
   environmentAggregateReady: '{ready}/{total} ready',
   environmentCopyAllForAgent: 'Copy all for agent',

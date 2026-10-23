@@ -186,6 +186,8 @@ export function EnvironmentSettings() {
   const rowActions: EnvDepRowActions = {
     selectSource: (dep, mode: EnvSourceMode) => actions.selectEnvSource(dep, mode),
     requestInstall: (dep) => setInstallConfirmDep(dep),
+    uninstall: (dep, version) => actions.uninstallEnvDep(dep, version),
+    reinstall: (dep, version) => actions.installEnvDep(dep, version),
     setCustomPath: (dep, path) => actions.setEnvCustomPath(dep, path),
     copyForAgent,
     requestBlockReset: (dep) => setBlockResetDep(dep),

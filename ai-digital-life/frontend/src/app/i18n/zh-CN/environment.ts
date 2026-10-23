@@ -33,6 +33,7 @@ export const environmentZh = {
   environmentInstallStarted: '开始安装 {dep}…',
   environmentInstallSuccess: '已安装 {dep} {version}',
   environmentInstallFailed: '安装 {dep} 失败',
+  environmentUninstallFailed: '卸载 {dep} 失败',
   environmentInstallProgress: '正在安装 {dep}（{done}/{total}）',
   environmentAggregateReady: '{ready}/{total} 就绪',
   environmentCopyAllForAgent: '复制全部给 agent',

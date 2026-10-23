@@ -1132,6 +1132,8 @@ export function createHttpBridge({
       getStatus: () => call<EnvStatus>(baseUrl, '/env/status', GET()),
       install: (dep: string, version?: string) =>
         call<boolean>(baseUrl, '/env/install', POST({ dep, version })),
+      uninstall: (dep: string, version?: string) =>
+        call<{ started: boolean }>(baseUrl, '/env/uninstall', POST({ dep, version })),
       selectSource: (dep: string, mode: EnvSourceMode) =>
         call<boolean>(baseUrl, '/env/select-source', POST({ dep, mode })),
       setCustomPath: (dep: string, path: string) =>

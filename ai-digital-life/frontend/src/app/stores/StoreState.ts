@@ -338,6 +338,7 @@ interface EnvActions {
   fetchEnvStatus: (silent?: boolean) => Promise<boolean>;
   selectEnvSource: (dep: string, mode: EnvSourceMode) => Promise<boolean>;
   installEnvDep: (dep: string, version?: string) => Promise<boolean>;
+  uninstallEnvDep: (dep: string, version?: string) => Promise<boolean>;
   setEnvCustomPath: (dep: string, path: string) => Promise<boolean>;
   recheckEnv: (dep?: string) => Promise<boolean>;
   pollEnvTaskWhileRunning: () => () => void;

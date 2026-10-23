@@ -63,6 +63,7 @@ export function useAppActions() {
       fetchEnvStatus: state.fetchEnvStatus,
       selectEnvSource: state.selectEnvSource,
       installEnvDep: state.installEnvDep,
+      uninstallEnvDep: state.uninstallEnvDep,
       setEnvCustomPath: state.setEnvCustomPath,
       recheckEnv: state.recheckEnv,
       pollEnvTaskWhileRunning: state.pollEnvTaskWhileRunning,

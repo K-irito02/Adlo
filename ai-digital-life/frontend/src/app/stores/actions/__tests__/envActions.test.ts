@@ -25,6 +25,7 @@ interface EnvTestStore {
   fetchEnvStatus: (silent?: boolean) => Promise<boolean>;
   selectEnvSource: (dep: string, mode: 'auto' | 'system' | 'host') => Promise<boolean>;
   installEnvDep: (dep: string, version?: string) => Promise<boolean>;
+  uninstallEnvDep: (dep: string, version?: string) => Promise<boolean>;
   setEnvCustomPath: (dep: string, path: string) => Promise<boolean>;
   recheckEnv: (dep?: string) => Promise<boolean>;
   pollEnvTaskWhileRunning: () => () => void;
@@ -65,6 +66,7 @@ function fakeStatus(): EnvStatus {
 
 const mockGetStatus = vi.fn();
 const mockInstall = vi.fn();
+const mockUninstall = vi.fn();
 const mockSelectSource = vi.fn();
 const mockSetCustomPath = vi.fn();
 const mockRecheck = vi.fn();
@@ -75,6 +77,7 @@ function setupBridge() {
     env: {
       getStatus: (...args: unknown[]) => mockGetStatus(...args),
       install: (...args: unknown[]) => mockInstall(...args),
+      uninstall: (...args: unknown[]) => mockUninstall(...args),
       selectSource: (...args: unknown[]) => mockSelectSource(...args),
       setCustomPath: (...args: unknown[]) => mockSetCustomPath(...args),
       recheck: (...args: unknown[]) => mockRecheck(...args),
@@ -89,6 +92,7 @@ function makeStore() {
       | 'fetchEnvStatus'
       | 'selectEnvSource'
       | 'installEnvDep'
+      | 'uninstallEnvDep'
       | 'setEnvCustomPath'
       | 'recheckEnv'
       | 'pollEnvTaskWhileRunning'
@@ -278,6 +282,132 @@ describe('envActions installEnvDep', () => {
     const callsAfterCap = mockGetStatus.mock.calls.length;
     await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
     expect(mockGetStatus.mock.calls.length).toBe(callsAfterCap);
+  });
+});
+
+describe('envActions uninstallEnvDep', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupBridge();
+  });
+
+  afterEach(() => {
+    (window as unknown as { digitalLife?: unknown }).digitalLife = undefined;
+    vi.useRealTimers();
+  });
+
+  it('uninstall failure surfaces uninstall toast and keeps old status', async () => {
+    const old = fakeStatus();
+    mockUninstall.mockResolvedValue({
+      ok: false,
+      error: { code: 'INVALID_INPUT', message: 'not-managed' },
+    });
+    const store = makeStore();
+    store.getState().setEnvStatus(old);
+    const ok = await store.getState().uninstallEnvDep('git', '2.52.0');
+    expect(ok).toBe(false);
+    expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('git'), 'error');
+    expect(store.getState().envStatus).toBe(old);
+    expect(store.getState().envBusy).toBe(false);
+  });
+
+  it('uninstall success polls the uninstall task to completion', async () => {
+    vi.useFakeTimers();
+    const running = fakeStatus();
+    running.task = {
+      kind: 'env-git-uninstall',
+      version: '2.52.0',
+      phase: 'removing',
+      percent: null,
+      done: 0,
+      total: 0,
+      cancellable: false,
+    };
+    const finished = fakeStatus();
+    mockUninstall.mockResolvedValue({ ok: true, data: { started: true } });
+    mockGetStatus
+      .mockResolvedValueOnce({ ok: true, data: running })
+      .mockResolvedValue({ ok: true, data: finished });
+    const store = makeStore();
+    const ok = await store.getState().uninstallEnvDep('git', '2.52.0');
+    expect(ok).toBe(true);
+    expect(mockUninstall).toHaveBeenCalledWith('git', '2.52.0');
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS);
+    expect(store.getState().envStatus?.task).toBeNull();
+    expect(store.getState().envBusy).toBe(false);
+    // 卸载成功不复用安装成功文案（“已安装 …”对卸载是错误反馈）。
+    expect(mockShowToast).not.toHaveBeenCalledWith(expect.any(String), 'success');
+    const callsAfterStop = mockGetStatus.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
+    expect(mockGetStatus.mock.calls.length).toBe(callsAfterStop);
+  });
+
+  it('task.error 终止卸载轮询：busy 复位 + 卸载域 error toast，不拖到 10 分钟上限', async () => {
+    vi.useFakeTimers();
+    const running = fakeStatus();
+    running.task = {
+      kind: 'env-git-uninstall',
+      version: '2.52.0',
+      phase: 'removing',
+      percent: null,
+      done: 0,
+      total: 0,
+      cancellable: false,
+    };
+    const failed = fakeStatus();
+    failed.task = {
+      kind: 'env-git-uninstall',
+      version: '2.52.0',
+      phase: 'removing',
+      percent: null,
+      done: 0,
+      total: 0,
+      cancellable: false,
+      error: 'access denied',
+    };
+    mockUninstall.mockResolvedValue({ ok: true, data: { started: true } });
+    mockGetStatus
+      .mockResolvedValueOnce({ ok: true, data: running })
+      .mockResolvedValue({ ok: true, data: failed });
+    const store = makeStore();
+    await store.getState().uninstallEnvDep('git', '2.52.0');
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS);
+    expect(store.getState().envBusy).toBe(false);
+    expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('git'), 'error');
+    const callsAfterStop = mockGetStatus.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
+    expect(mockGetStatus.mock.calls.length).toBe(callsAfterStop);
+  });
+
+  it('task.error also terminates install polling (existing hang fix)', async () => {
+    vi.useFakeTimers();
+    const running = fakeStatus();
+    running.task = {
+      kind: 'env-node-install',
+      version: '24.22.1',
+      phase: 'installing',
+      percent: null,
+      done: 0,
+      total: 0,
+      cancellable: true,
+    };
+    const failed = fakeStatus();
+    failed.task = {
+      ...running.task,
+      error: 'download failed',
+    };
+    mockInstall.mockResolvedValue({ ok: true, data: true });
+    mockGetStatus
+      .mockResolvedValueOnce({ ok: true, data: running })
+      .mockResolvedValue({ ok: true, data: failed });
+    const store = makeStore();
+    await store.getState().installEnvDep('node');
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS);
+    expect(store.getState().envBusy).toBe(false);
+    expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('node'), 'error');
+    const callsAfterStop = mockGetStatus.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
+    expect(mockGetStatus.mock.calls.length).toBe(callsAfterStop);
   });
 });
 

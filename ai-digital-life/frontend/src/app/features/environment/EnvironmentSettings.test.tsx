@@ -17,6 +17,7 @@ vi.mock('@features/preview/openByMethod', () => ({
 const fetchEnvStatus = vi.fn();
 const selectEnvSource = vi.fn();
 const installEnvDep = vi.fn();
+const uninstallEnvDep = vi.fn();
 const setEnvCustomPath = vi.fn();
 const recheckEnv = vi.fn();
 const pollEnvTaskWhileRunning = vi.fn((): (() => void) => () => {});
@@ -28,6 +29,7 @@ vi.mock('@hooks/useAppActions', () => {
     fetchEnvStatus: (...args: unknown[]) => fetchEnvStatus(...args),
     selectEnvSource: (...args: unknown[]) => selectEnvSource(...args),
     installEnvDep: (...args: unknown[]) => installEnvDep(...args),
+    uninstallEnvDep: (...args: unknown[]) => uninstallEnvDep(...args),
     setEnvCustomPath: (...args: unknown[]) => setEnvCustomPath(...args),
     recheckEnv: (...args: unknown[]) => recheckEnv(...args),
     pollEnvTaskWhileRunning: () => pollEnvTaskWhileRunning(),
@@ -133,6 +135,7 @@ beforeEach(() => {
   });
   selectEnvSource.mockResolvedValue(true);
   installEnvDep.mockResolvedValue(true);
+  uninstallEnvDep.mockResolvedValue(true);
   setEnvCustomPath.mockResolvedValue(true);
   recheckEnv.mockResolvedValue(true);
 });
@@ -237,6 +240,45 @@ describe('EnvironmentSettings', () => {
     });
   });
 
+  it('卸载/重装按钮只在宿主来源且已安装的行出现', async () => {
+    const { container } = await renderWithRows();
+    const git = container.querySelector('[data-testid="env-dep-git"]') as HTMLElement;
+    expect(within(git).getByRole('button', { name: 'environmentUninstall' })).not.toBeNull();
+    expect(within(git).getByRole('button', { name: 'environmentReinstall' })).not.toBeNull();
+    // 系统来源行（bash）与缺失行（node）不得出现。
+    const bash = container.querySelector('[data-testid="env-dep-bash"]') as HTMLElement;
+    expect(within(bash).queryByRole('button', { name: 'environmentUninstall' })).toBeNull();
+    expect(within(bash).queryByRole('button', { name: 'environmentReinstall' })).toBeNull();
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    expect(within(node).queryByRole('button', { name: 'environmentUninstall' })).toBeNull();
+    // 非安装类托管行（adlserver）同样不在可卸载白名单内。
+    const adlserver = container.querySelector('[data-testid="env-dep-adlserver"]') as HTMLElement;
+    expect(within(adlserver).queryByRole('button', { name: 'environmentUninstall' })).toBeNull();
+  });
+
+  it('卸载走两段确认：首击武装（不调用），再击执行一次', async () => {
+    const { container } = await renderWithRows();
+    const git = container.querySelector('[data-testid="env-dep-git"]') as HTMLElement;
+    const uninstall = within(git).getByRole('button', { name: 'environmentUninstall' });
+    fireEvent.click(uninstall);
+    expect(uninstallEnvDep).not.toHaveBeenCalled();
+    expect((uninstall as HTMLButtonElement).className).toContain('danger');
+    fireEvent.click(uninstall);
+    await waitFor(() => {
+      expect(uninstallEnvDep).toHaveBeenCalledTimes(1);
+    });
+    expect(uninstallEnvDep).toHaveBeenCalledWith('git', '2.52.0');
+  });
+
+  it('重装复用 installEnvDep 且传入当前已装版本', async () => {
+    const { container } = await renderWithRows();
+    const git = container.querySelector('[data-testid="env-dep-git"]') as HTMLElement;
+    fireEvent.click(within(git).getByRole('button', { name: 'environmentReinstall' }));
+    await waitFor(() => {
+      expect(installEnvDep).toHaveBeenCalledWith('git', '2.52.0');
+    });
+  });
+
   it('聚合条重测调 recheckEnv，复制全部写整包 JSON', async () => {
     await renderWithRows();
     fireEvent.click(screen.getByRole('button', { name: 'environmentRecheck' }));
@@ -307,6 +349,16 @@ describe('EnvironmentSettings', () => {
         .disabled,
     ).toBe(true);
     expect(node.textContent).toContain('settingsAgentDesktopOnlyHint');
+    const git = container.querySelector('[data-testid="env-dep-git"]') as HTMLElement;
+    expect(
+      (within(git).getByRole('button', { name: 'environmentUninstall' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(
+      (within(git).getByRole('button', { name: 'environmentReinstall' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(git.textContent).toContain('settingsAgentDesktopOnlyHint');
   });
 
   it('resume 横幅：skippedAt + 未就绪 → 显示 N 项，继续向导置回 done=false', async () => {

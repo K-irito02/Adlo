@@ -512,6 +512,8 @@ describe('i18n en-US namespace keys', () => {
       'environmentInstallSuccess',
       'environmentInstallFailed',
       'environmentInstallProgress',
+      // 卸载失败（Task 3：轮询消费 task.error 后的专用文案）
+      'environmentUninstallFailed',
       // 环境行组 UI（Task 7：七依赖行 + 聚合条 + 复制 + 重置）
       'environmentAggregateReady',
       'environmentCopyAllForAgent',
@@ -576,6 +578,7 @@ describe('i18n en-US namespace keys', () => {
       'environmentInstallProgress',
       'environmentInstallConfirmTitle',
       'environmentInstallConfirmMessage',
+      'environmentUninstallFailed',
     ] as const) {
       expect(String(enUS[key]), `en:${key}`).toContain('{dep}');
       expect(String(zhCN[key]), `zh:${key}`).toContain('{dep}');

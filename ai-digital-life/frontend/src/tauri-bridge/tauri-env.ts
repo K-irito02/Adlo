@@ -13,6 +13,7 @@ export function createTauriEnvBridge(httpEnv: EnvBridge): EnvBridge {
   return {
     getStatus: () => httpEnv.getStatus(),
     install: httpEnv.install,
+    uninstall: httpEnv.uninstall,
     selectSource: httpEnv.selectSource,
     setCustomPath: httpEnv.setCustomPath,
     recheck: httpEnv.recheck,

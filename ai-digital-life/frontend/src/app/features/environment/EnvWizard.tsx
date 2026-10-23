@@ -119,6 +119,8 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
   const rowActions: EnvDepRowActions = {
     selectSource: (dep, mode) => actions.selectEnvSource(dep, mode),
     requestInstall: (dep) => setInstallConfirmDep(dep),
+    uninstall: (dep, version) => actions.uninstallEnvDep(dep, version),
+    reinstall: (dep, version) => actions.installEnvDep(dep, version),
     setCustomPath: (dep, path) => actions.setEnvCustomPath(dep, path),
     copyForAgent,
     // compact 行隐藏块级恢复按钮，此回调不可达（接口占位）。
