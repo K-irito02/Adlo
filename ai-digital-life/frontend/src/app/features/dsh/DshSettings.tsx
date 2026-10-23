@@ -20,8 +20,15 @@ function StaticResetSpacer() {
 }
 
 /**
- * 「DSH」设置组：版本管理块（Task 5 起仅剩此块——源/代理/测试三块已搬入网络组，
+ * 「DSH」设置组：顶部只读源摘要 + 版本管理块（Task 5 起仅剩此块——源/代理/测试三块已搬入网络组，
  * 类名与锚点 `dsh:version` 不变）。
+ *
+ * 摘要行只读展示当前下载源（`sourceStatus.config.npm_registry`）与跳转入口：
+ * `DshSourceStatus` 无延迟字段（延迟仅 `testSource` 探针返回、不常驻 store），
+ * 故延迟恒为未知；`sourceStatus` 未知时源同样未知——一律 fail-open 显示未知符，
+ * 不阻塞版本管理块。修改走网络组（`setActiveSettingsGroup('network')`，
+ * 照抄 `App.tsx::handleOpenShortcutsSettings` 的组跳转语义；本组已在设置面板内，
+ * 无需再 `navigateRightTool('settings')`）。
  *
  * 块头（装饰图标 + 主标题）在卡外，块体复用 `DshVersionManagement` 自有卡片
  * （不另套 `adl-settings-card`，避免双层卡嵌套）。
@@ -29,11 +36,14 @@ function StaticResetSpacer() {
  * 组级恢复走自有流程（侧边栏置 `dshGroupResetPending` → 此处消费开框）：
  * 版本来源=自动，委托共享 `executeDshResetPlan` 单计划一次写入；
  * 维护 `dshBlocksAtDefault` 聚合信号（版本来源是否默认）供侧边栏禁用判定。
+ * 源/代理 pending 消费无残留：本文件仅消费 `dshGroupResetPending`
+ *（源/代理恢复归网络组，见 `NetworkSettings`）。
  */
 export function DshSettings() {
   const { t } = useTCopy();
   const actions = useAppActions();
   const sourceStatus = useAppStore((s) => s.sourceStatus);
+  const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
   const showToast = useAppStore((s) => s.showToast);
   const setDshBlocksAtDefault = useAppStore((s) => s.setDshBlocksAtDefault);
   const dshGroupResetPending = useAppStore((s) => s.dshGroupResetPending);
@@ -119,8 +129,35 @@ export function DshSettings() {
     group: t.settingsDsh,
   });
 
+  const handleGoNetwork = useCallback(() => {
+    setActiveSettingsGroup('network');
+  }, [setActiveSettingsGroup]);
+
+  const summaryText = formatT(t, 'dshSourceSummary', {
+    registry: sourceStatus?.config.npm_registry ?? t.dshSourceSummaryUnknown,
+    latency: t.dshSourceSummaryUnknown,
+  });
+
   return (
     <div className="adl-settings-section adl-dsh-settings">
+      <div className="adl-settings-card">
+        <div className="adl-settings-row">
+          <div className="adl-settings-row__label">
+            <div className="adl-settings-row__label-text">
+              <span>{summaryText}</span>
+            </div>
+          </div>
+          <div className="adl-settings-row__control">
+            <button
+              type="button"
+              className="adl-dsh-settings__action-btn"
+              onClick={handleGoNetwork}
+            >
+              {t.dshSourceSummaryGoModify}
+            </button>
+          </div>
+        </div>
+      </div>
       <div
         className="adl-dsh-settings__header adl-dsh-settings__header--section"
         data-settings-anchor={anchorFor('dsh', 'version')}

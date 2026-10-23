@@ -1170,9 +1170,9 @@ export function DshVersionManagement() {
 
   const taskCancelLabel = useCallback(
     (kind: DshVersionTaskKind) =>
-      kind === 'uninstall'
+      kind === 'dsh-uninstall'
         ? t.dshCancelUninstall
-        : kind === 'reinstall'
+        : kind === 'dsh-reinstall'
           ? t.dshCancelReinstall
           : t.dshCancelInstall,
     [t],

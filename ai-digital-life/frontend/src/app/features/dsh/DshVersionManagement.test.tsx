@@ -1626,6 +1626,38 @@ describe('DshVersionManagement', () => {
     await waitFor(() => expect(cancelVersionTask).toHaveBeenCalled());
   });
 
+  it('取消按钮按 dsh- 前缀 kind 显示专属文案', async () => {
+    seed({ currentSelected: '0.2.0', installed: ['0.2.0'] });
+    seedCatalog(['0.2.0'], ['0.2.1-rc.2']);
+    useAppStore.setState({
+      versionTask: {
+        kind: 'dsh-uninstall',
+        version: '0.2.0',
+        phase: 'removing',
+        percent: 50,
+        done: 5,
+        total: 10,
+        cancellable: true,
+      },
+    });
+    renderBlock();
+    // 此前回退为通用 dshCancelInstall；后端只发 dsh-*（Phase 1 Task 6），此处必须专属。
+    expect(screen.getByText('dshCancelUninstall')).toBeTruthy();
+    expect(screen.queryByText('dshCancelInstall')).toBeNull();
+    useAppStore.setState({
+      versionTask: {
+        kind: 'dsh-reinstall',
+        version: '0.2.0',
+        phase: 'installing',
+        percent: 50,
+        done: 5,
+        total: 10,
+        cancellable: true,
+      },
+    });
+    expect(await screen.findByText('dshCancelReinstall')).toBeTruthy();
+  });
+
   it('下载盲区（total 为 0）显示“正在下载”而非计数', async () => {
     seed({ currentSelected: '0.2.0', installed: ['0.2.0'] });
     seedCatalog(['0.2.0'], ['0.2.1-rc.2']);

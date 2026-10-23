@@ -3,6 +3,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup, fireEvent, waitFor, act, screen } from '@testing-library/react';
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
+import { dshZh } from '../../i18n/zh-CN/dsh';
 import { useAppStore } from '../../stores/slicedStore';
 import { DshSettings } from './DshSettings';
 import type { DshSourceStatus } from '../../../shared/ipc/dsh';
@@ -56,6 +57,27 @@ function TestProvider({ children }: { children: React.ReactNode }) {
     <TCopyProvider t={mockT} locale="en-US">
       {children}
     </TCopyProvider>
+  );
+}
+
+/**
+ * 摘要行用真实中文模板（mockT 按 key 原样返回，`formatT` 占位符渲不出 registry）；
+ * 其余键保持 key 形态以便按 key 选中元素（照抄 DshVersionManagement.test 的 emptyNoteT）。
+ */
+const summaryT = new Proxy({} as Record<string, string>, {
+  get: (_, key) =>
+    typeof key === 'string' && key.startsWith('dshSourceSummary')
+      ? ((dshZh as Record<string, string>)[key] ?? key)
+      : typeof key === 'string'
+        ? key
+        : '',
+}) as unknown as CopyDict;
+
+function renderSettingsWithSummary() {
+  return render(
+    <TCopyProvider t={summaryT} locale="zh-CN">
+      <DshSettings />
+    </TCopyProvider>,
   );
 }
 
@@ -114,6 +136,7 @@ describe('DshSettings', () => {
       sourceStatus: null,
       dshGroupResetPending: false,
       dshBlocksAtDefault: null,
+      activeSettingsGroup: 'general',
       toasts: [],
     });
   });
@@ -242,5 +265,22 @@ describe('DshSettings', () => {
     await waitFor(() => {
       expect(useAppStore.getState().dshBlocksAtDefault).toBe(true);
     });
+  });
+
+  it('顶部摘要行只读展示当前源，点击前往修改跳转网络组', () => {
+    useAppStore.setState({ sourceStatus: makeStatus(), activeSettingsGroup: 'dsh' });
+    renderSettingsWithSummary();
+    // 只读：registry 来自 sourceStatus.config；延迟无常驻数据源，恒为未知。
+    expect(screen.getByText(`当前源：${NPMJS_URL}（延迟 —）`)).not.toBeNull();
+    expect(saveSourceConfig).not.toHaveBeenCalled();
+    expect(fetchSourceStatus).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '前往修改' }));
+    expect(useAppStore.getState().activeSettingsGroup).toBe('network');
+  });
+
+  it('摘要行 sourceStatus 未知时 fail-open 显示未知符', () => {
+    useAppStore.setState({ sourceStatus: null });
+    renderSettingsWithSummary();
+    expect(screen.getByText('当前源：—（延迟 —）')).not.toBeNull();
   });
 });
