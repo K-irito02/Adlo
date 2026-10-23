@@ -56,6 +56,7 @@ export function isWellFormedEnvStatus(data: unknown): data is EnvStatus {
     typeof candidate.netprobe === 'object' &&
     candidate.netprobe !== null &&
     (candidate.task === null || typeof candidate.task === 'object') &&
+    typeof candidate.dataDir === 'string' &&
     typeof candidate.dshReady === 'boolean'
   );
 }

@@ -34,6 +34,7 @@ function fakeStatus(): EnvStatus {
     adlserver: { ...dep },
     netprobe: { registryOk: true, registryLatencyMs: 1, ciTokenConfigured: false },
     task: null,
+    dataDir: 'C:/data-root',
     dshReady: true,
   };
 }

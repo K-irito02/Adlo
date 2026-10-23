@@ -1,3 +1,9 @@
+---
+dep: git-bash
+baseline: 2.56.0
+detect: git --version ; where.exe git ; bash --version ; where.exe bash
+---
+
 # Git 与 Bash（env-git-bash）
 
 ## 症状
@@ -31,7 +37,7 @@ Bash 的三类来源可这样辨认：
 1. 打开 Git for Windows 官方发布页 https://github.com/git-for-windows/git/releases 。
 2. 下载 `MinGit-*-64-bit.zip`（轻量，够用）或 `Git-*-64-bit.exe`（完整安装包）。
 3. 校验完整性：发布页附带 `.sha256` 文件，执行
-   `certutil -hashfile <下载文件> SHA256`，与清单比对。
+   `certutil -hashfile "<下载文件>" SHA256`，与清单比对。
 4. 解压或安装到自选目录，记下 `cmd\git.exe` 与 `bin\bash.exe` 的完整路径。
 
 ## 装后回填

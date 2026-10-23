@@ -41,6 +41,7 @@ const status: EnvStatus = {
     ciTokenConfigured: false,
   },
   task: null,
+  dataDir: 'C:/ProgramData/AI-Digital-Life',
   dshReady: true,
 };
 

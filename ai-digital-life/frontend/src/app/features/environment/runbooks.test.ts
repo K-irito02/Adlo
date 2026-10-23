@@ -32,4 +32,15 @@ describe('env runbooks', () => {
       expect(text).not.toContain(bad);
     }
   });
+
+  it.each(RUNBOOK_KEYS)('%s 以机器可读 frontmatter 开头', (key) => {
+    const text = RUNBOOKS[key];
+    expect(text.startsWith('---\n')).toBe(true);
+    const end = text.indexOf('\n---\n', 4);
+    expect(end).toBeGreaterThan(0);
+    const frontmatter = text.slice(4, end);
+    for (const field of ['dep:', 'baseline:', 'detect:']) {
+      expect(frontmatter).toContain(field);
+    }
+  });
 });

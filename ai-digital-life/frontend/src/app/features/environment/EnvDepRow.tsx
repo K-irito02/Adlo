@@ -247,11 +247,19 @@ export function EnvDepRow({
     offline;
 
   // 卸载/重装仅对宿主托管的安装类依赖（node/git）可见；系统来源或未安装不出现。
+  // 运行中任务（含 remount 后仍带 task 快照）同样不提供按钮，避免重复触发。
   const showUninstallReinstall =
     section !== null &&
     INSTALLABLE_DEPS.has(dep) &&
     section.effective === 'host' &&
-    section.installedVersion !== null;
+    section.installedVersion !== null &&
+    taskForDep === null;
+  // Git 后端只接受 baseline 版本安装：已装版本与基线不一致时重装必然 4xx，
+  // 因此只保留卸载（行内仍可用「安装」升到基线）。
+  const showReinstall =
+    showUninstallReinstall &&
+    section !== null &&
+    !(dep === 'git' && section.installedVersion !== section.baselineVersion);
 
   useEffect(() => {
     if (!showUninstallReinstall) {
@@ -272,7 +280,7 @@ export function EnvDepRow({
   };
 
   const handleReinstallClick = () => {
-    if (!showUninstallReinstall || section === null || section.installedVersion === null) {
+    if (!showReinstall || section === null || section.installedVersion === null) {
       return;
     }
     // 重装是另一条执行路径：取消已武装的卸载，避免残留危险态误触。
@@ -470,15 +478,17 @@ export function EnvDepRow({
                 >
                   {t.environmentUninstall}
                 </button>
-                <button
-                  type="button"
-                  className="adl-dsh-settings__action-btn"
-                  data-settings-row={t.environmentReinstall}
-                  disabled={controlsDisabled}
-                  onClick={handleReinstallClick}
-                >
-                  {t.environmentReinstall}
-                </button>
+                {showReinstall ? (
+                  <button
+                    type="button"
+                    className="adl-dsh-settings__action-btn"
+                    data-settings-row={t.environmentReinstall}
+                    disabled={controlsDisabled}
+                    onClick={handleReinstallClick}
+                  >
+                    {t.environmentReinstall}
+                  </button>
+                ) : null}
               </>
             ) : null}
             {/* 离线复制刻意仅 busy 门控（不限 browserGated）：浏览器模式下复制诊断信息仍可用。 */}

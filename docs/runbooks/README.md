@@ -38,9 +38,15 @@
 
 ## 复制载荷
 
-「复制给助手」输出 JSON，在原有 `{ dep, statusJson, baseline, copyContext }` 基础上增加：
+「复制给助手」输出 JSON，完整形状为
+`{ dep, statusJson, baseline, runbook, dataDir, copyContext }`：
 
+- `statusJson: string` — 单依赖行（`dep = "all"` 时为整包 `EnvStatus`）的 JSON 文本。
+- `baseline: string | null` — 该依赖的基线版本；`net` / `model` / `all` 为 `null`。
 - `runbook: string | null` — 该依赖对应的 runbook 全文。
+- `dataDir: string` — 环境检测使用的数据根（`EnvStatus.dataDir`），助手可据此定位
+  `env-hosted/`、配置与日志。
+- `copyContext: { source, bridge, locale, copiedAt }` — 复制来源与环境元信息。
 - 依赖映射：`node → env-node`、`git / bash → env-git-bash`、`webview2 → env-webview2`、
   `adlserver → env-adlserver`、`net → env-net-download`、`model → env-model-credential`。
 - `dep = "all"` 时只拼接**未就绪项**的 runbook（Git 与 Bash 共用一份时只出现一次）；

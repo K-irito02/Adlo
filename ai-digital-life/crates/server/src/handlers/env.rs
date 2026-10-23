@@ -115,8 +115,9 @@ pub struct NetprobeState {
 }
 
 /// `GET /env/status` response: six dependency sections plus the in-flight
-/// install `task` snapshot (seven sections), plus the derived `dshReady`
-/// flag (`dsh_ready = node.meetsBaseline` — the harness needs node).
+/// install `task` snapshot (seven sections), the environment data root
+/// (`dataDir`) the providers resolve hosted dirs against, plus the derived
+/// `dshReady` flag (`dsh_ready = node.meetsBaseline` — the harness needs node).
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EnvStatus {
@@ -127,6 +128,9 @@ pub struct EnvStatus {
     pub adlserver: adl_env::DependencyState,
     pub netprobe: NetprobeState,
     pub task: Option<adl_hosted::ProgressSnapshot>,
+    /// Environment data root (`state.storage.paths().root`), display string.
+    /// Same root the env providers use for hosted installs/config.
+    pub data_dir: String,
     pub dsh_ready: bool,
 }
 
@@ -192,6 +196,7 @@ async fn status_inner(state: &ServerState) -> Result<serde_json::Value, AppError
             ci_token_configured,
         },
         task: state.env_task.snapshot(),
+        data_dir: root.to_string_lossy().into_owned(),
         dsh_ready,
     };
     serde_json::to_value(&status).map_err(|e| AppError::Internal(e.to_string()))
@@ -620,13 +625,22 @@ async fn uninstall_inner(
     state: &ServerState,
     input: UninstallInput,
 ) -> Result<serde_json::Value, AppError> {
+    tracing::info!(dep = %input.dep, version = ?input.version, "env: uninstall requested");
     let dep = validate_uninstall(&input.dep)?;
     let root = state.storage.paths().root.clone();
-    let version = match input.version.filter(|v| !v.trim().is_empty()) {
-        Some(v) => v,
+    let version = match input.version {
+        Some(v) => {
+            // 显式版本先 trim；空白版本是调用方错误（4xx），不得静默回落到 selected。
+            let trimmed = v.trim();
+            if trimmed.is_empty() {
+                return Err(AppError::InvalidInput(format!("bad {dep} version: empty")));
+            }
+            trimmed.to_string()
+        },
         None => selected_hosted_version(&root, dep)?
             .ok_or_else(|| AppError::InvalidInput("no-selected-version".into()))?,
     };
+    tracing::info!(dep, %version, "env: uninstall accepted");
     try_begin_env_task(state, &uninstall_kind(dep), &version)?;
     spawn_uninstall(state, dep, version);
     Ok(serde_json::json!({ "started": true }))
@@ -654,9 +668,11 @@ fn selected_hosted_version(root: &Path, dep: &str) -> Result<Option<String>, App
 /// for polling, reclaimed by the next env task (`try_begin_env_task`).
 fn spawn_uninstall(state: &ServerState, dep: &'static str, version: String) {
     let task_state = state.clone();
+    let log_version = version.clone();
     tokio::spawn(async move {
         let _guard = task_state.env_install_lock.clone().lock_owned().await;
         let root = task_state.storage.paths().root.clone();
+        tracing::info!(dep, version = %log_version, "env: uninstall starting");
         // `/env/status` should show removing while the provider works.
         task_state.env_task.update(ProgressPhase::Removing, Some(0), 0, 0, true);
         // `remove_dir_all` is blocking IO — keep it off the runtime.
@@ -667,9 +683,28 @@ fn spawn_uninstall(state: &ServerState, dep: &'static str, version: String) {
         })
         .await;
         match result {
-            Ok(Ok(())) => task_state.env_task.finish(),
-            Ok(Err(e)) => task_state.env_task.set_error(&e.to_string()),
-            Err(e) => task_state.env_task.set_error(&format!("uninstall task failed: {e}")),
+            Ok(Ok(())) => {
+                tracing::info!(dep, version = %log_version, "env: uninstall succeeded");
+                task_state.env_task.finish();
+            },
+            Ok(Err(e)) => {
+                tracing::warn!(
+                    dep,
+                    version = %log_version,
+                    error = %e,
+                    "env: uninstall failed"
+                );
+                task_state.env_task.set_error(&e.to_string());
+            },
+            Err(e) => {
+                tracing::error!(
+                    dep,
+                    version = %log_version,
+                    error = %e,
+                    "env: uninstall task failed"
+                );
+                task_state.env_task.set_error(&format!("uninstall task failed: {e}"));
+            },
         }
     });
 }
@@ -1029,15 +1064,31 @@ mod tests {
                 ci_token_configured: false,
             },
             task: None,
+            data_dir: "C:/data-root".into(),
             dsh_ready: true,
         };
         let v = serde_json::to_value(&status).unwrap();
         assert_eq!(v.get("dshReady").and_then(|b| b.as_bool()), Some(true));
+        assert_eq!(v.get("dataDir").and_then(|s| s.as_str()), Some("C:/data-root"));
         assert_eq!(v["node"].get("meetsBaseline").and_then(|b| b.as_bool()), Some(true));
         assert_eq!(v["netprobe"].get("registryOk").and_then(|b| b.as_bool()), Some(true));
         assert_eq!(v["netprobe"].get("ciTokenConfigured").and_then(|b| b.as_bool()), Some(false));
         assert!(v.get("task").is_some());
         assert!(v.get("dsh_ready").is_none());
+        assert!(v.get("data_dir").is_none());
         assert!(v["node"].get("meets_baseline").is_none());
+    }
+
+    /// 显式空白版本 → 4xx，且不启动后台任务（不静默回落到 selected）。
+    #[tokio::test]
+    async fn uninstall_inner_rejects_blank_version_without_starting_task() {
+        let state = crate::test_util::test_server_state();
+        let input = UninstallInput { dep: "node".into(), version: Some("   ".into()) };
+        let err = uninstall_inner(&state, input).await.expect_err("blank version");
+        assert!(
+            matches!(err, AppError::InvalidInput(ref m) if m.contains("empty")),
+            "unexpected error: {err}"
+        );
+        assert!(state.env_task.snapshot().is_none());
     }
 }

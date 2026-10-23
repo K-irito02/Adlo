@@ -1,3 +1,9 @@
+---
+dep: webview2
+baseline: 140.0.0.0
+detect: reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv ; reg query "HKCU\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv
+---
+
 # WebView2 运行时（env-webview2）
 
 ## 症状
@@ -19,7 +25,7 @@ reg query "HKCU\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-0
 
 1. 打开微软官方下载页 https://developer.microsoft.com/microsoft-edge/webview2/ 。
 2. 选择 Evergreen 的 Bootstrapper（体积小、需联网）或 Standalone Installer（离线可用），x64 架构。
-3. 校验签名：`Get-AuthenticodeSignature <下载文件>`，确认签名状态为 `Valid` 且签发者为 Microsoft。
+3. 校验签名：`Get-AuthenticodeSignature "<下载文件>"`，确认签名状态为 `Valid` 且签发者为 Microsoft。
 4. 运行安装程序，按默认选项完成。
 
 ## 装后回填

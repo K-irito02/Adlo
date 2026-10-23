@@ -104,6 +104,7 @@ function fixture(): EnvStatus {
     }),
     netprobe: { registryOk: true, registryLatencyMs: 12, ciTokenConfigured: false },
     task: null,
+    dataDir: 'C:/data-root',
     dshReady: false,
   };
 }
@@ -214,6 +215,7 @@ describe('EnvironmentSettings', () => {
     const section = JSON.parse(payload.statusJson as string) as { baselineVersion: string };
     expect(section.baselineVersion).toBe('22.0.0');
     expect(payload.baseline).toBe('22.0.0');
+    expect(payload.dataDir).toBe('C:/data-root');
     expect(payload.copyContext).toBeTruthy();
     // Phase 3：载荷附带匹配 runbook 全文（未就绪项必须有可执行指引）。
     expect(typeof payload.runbook).toBe('string');
@@ -283,6 +285,43 @@ describe('EnvironmentSettings', () => {
     });
   });
 
+  it('Git 已装版本与基线不一致时隐藏重装（保留卸载），一致时显示重装', async () => {
+    const mismatch = fixture();
+    mismatch.git = depState({
+      installedVersion: '2.52.0',
+      baselineVersion: '2.56.0',
+      meetsBaseline: false,
+      path: 'C:/hosted/git/2.52.0/cmd/git.exe',
+    });
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: mismatch });
+      return true;
+    });
+    seedStore({ envStatus: mismatch });
+    const first = await renderWithRows();
+    const git = first.container.querySelector('[data-testid="env-dep-git"]') as HTMLElement;
+    expect(within(git).queryByRole('button', { name: 'environmentReinstall' })).toBeNull();
+    expect(within(git).getByRole('button', { name: 'environmentUninstall' })).not.toBeNull();
+    // 行内仍可用「安装」升到基线。
+    expect(within(git).getByRole('button', { name: 'environmentInstall' })).not.toBeNull();
+
+    cleanup();
+    const equal = fixture();
+    equal.git = depState({
+      installedVersion: '2.56.0',
+      baselineVersion: '2.56.0',
+      path: 'C:/hosted/git/2.56.0/cmd/git.exe',
+    });
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: equal });
+      return true;
+    });
+    seedStore({ envStatus: equal });
+    const second = await renderWithRows();
+    const equalGit = second.container.querySelector('[data-testid="env-dep-git"]') as HTMLElement;
+    expect(within(equalGit).getByRole('button', { name: 'environmentReinstall' })).not.toBeNull();
+  });
+
   it('失败任务残留 error task 不阻塞行：安装按钮可见且无进行中扫光', async () => {
     const status = fixture();
     status.task = {
@@ -337,6 +376,7 @@ describe('EnvironmentSettings', () => {
     const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
     expect(payload.dep).toBe('all');
     expect(typeof payload.statusJson).toBe('string');
+    expect(payload.dataDir).toBe('C:/data-root');
     // fixture 里 node 未就绪 → 全量载荷只带未就绪项 runbook。
     expect(typeof payload.runbook).toBe('string');
     const runbook = payload.runbook as string;

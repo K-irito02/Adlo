@@ -41,6 +41,8 @@ export interface EnvStatus {
   adlserver: EnvDependencyState;
   netprobe: EnvNetState;
   task: EnvTask | null;
+  /** 环境检测使用的数据根（后端 `storage.paths().root`），助手据此定位 env-hosted/。 */
+  dataDir: string;
   dshReady: boolean;
 }
 export interface EnvBridge {

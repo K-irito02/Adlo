@@ -34,13 +34,14 @@ pub fn parse_ad_server_port_line(line: &str) -> Option<u16> {
     trimmed.strip_prefix(AD_SERVER_PORT_PREFIX)?.trim().parse().ok()
 }
 
-/// Bundled sidecar file name for the current platform. Tauri's `externalBin`
-/// pattern is `binary-name{-target-triple}{.system-extension}`, so the Windows
-/// bundle looks for `adl-server-x86_64-pc-windows-msvc.exe` next to the host
-/// binary (copied there by `scripts/copy-adl-server-sidecar.ps1` before
-/// bundling). Non-Windows keeps the plain bin name (dev-only path today).
+/// Bundled sidecar file name for the current platform. The target triple in
+/// Tauri's `externalBin` pattern (`binary-name{-target-triple}{.system-extension}`)
+/// is a **build-time selector only**: the bundler copies the artifact next to
+/// the app binary under the plain name. Runtime therefore looks for
+/// `adl-server.exe` on Windows (matching the dev artifact in `target/debug/`
+/// and the `adl-env` provider) and `adl-server` elsewhere (dev-only path today).
 fn sidecar_file_name() -> &'static str {
-    if cfg!(target_os = "windows") { "adl-server-x86_64-pc-windows-msvc.exe" } else { "adl-server" }
+    if cfg!(target_os = "windows") { "adl-server.exe" } else { "adl-server" }
 }
 
 /// Pure sibling-sidecar lookup: `Some(sibling)` when `dir/sidecar_file_name`
@@ -255,6 +256,16 @@ mod tests {
         };
         assert_eq!(handle.base_url(), Some("http://127.0.0.1:54321".into()));
         assert!(!handle.is_running());
+    }
+
+    /// 运行时 sidecar 名是 bundle 后的纯名：target triple 只是构建期选择器，
+    /// 打包器不会把 triple 带进落盘文件名。
+    #[test]
+    fn sidecar_file_name_is_plain_bundle_name() {
+        #[cfg(target_os = "windows")]
+        assert_eq!(sidecar_file_name(), "adl-server.exe");
+        #[cfg(not(target_os = "windows"))]
+        assert_eq!(sidecar_file_name(), "adl-server");
     }
 
     #[test]

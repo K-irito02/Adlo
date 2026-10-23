@@ -1,3 +1,9 @@
+---
+dep: net-download
+baseline: n/a
+detect: curl.exe -sS -o NUL -w "%{http_code}\n" https://registry.npmjs.org/ ; Get-Content Env:\HTTP_PROXY, Env:\HTTPS_PROXY -ErrorAction SilentlyContinue
+---
+
 # 下载通道与网络（env-net-download）
 
 ## 症状

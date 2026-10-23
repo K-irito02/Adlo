@@ -85,15 +85,29 @@ export interface EnvDepPayload {
   baseline: string | null;
   /** 匹配的 runbook 全文；`all` 未就绪项为空时 null。 */
   runbook: string | null;
+  /** 环境检测数据根（`EnvStatus.dataDir`），供助手定位 hosted 安装与日志。 */
+  dataDir: string;
 }
 
 export function depPayload(dep: EnvDepKey | 'all', status: EnvStatus): EnvDepPayload {
   const runbook = dep === 'all' ? allRunbooks(status) : RUNBOOKS[DEP_RUNBOOK[dep]];
   if (dep === 'all') {
-    return { dep, statusJson: JSON.stringify(status), baseline: null, runbook };
+    return {
+      dep,
+      statusJson: JSON.stringify(status),
+      baseline: null,
+      runbook,
+      dataDir: status.dataDir,
+    };
   }
   if (dep === 'net') {
-    return { dep, statusJson: JSON.stringify(status.netprobe), baseline: null, runbook };
+    return {
+      dep,
+      statusJson: JSON.stringify(status.netprobe),
+      baseline: null,
+      runbook,
+      dataDir: status.dataDir,
+    };
   }
   if (dep === 'model') {
     return {
@@ -104,6 +118,7 @@ export function depPayload(dep: EnvDepKey | 'all', status: EnvStatus): EnvDepPay
       }),
       baseline: null,
       runbook,
+      dataDir: status.dataDir,
     };
   }
   const section = status[dep];
@@ -112,6 +127,7 @@ export function depPayload(dep: EnvDepKey | 'all', status: EnvStatus): EnvDepPay
     statusJson: JSON.stringify(section),
     baseline: section.baselineVersion,
     runbook,
+    dataDir: status.dataDir,
   };
 }
 

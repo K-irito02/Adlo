@@ -1,18 +1,25 @@
+---
+dep: adlserver
+baseline: n/a
+detect: Get-ChildItem -Path "<安装目录>" -Filter adl-server*.exe
+---
+
 # adl-server 后端（env-adlserver）
 
 ## 症状
 
 - 工作区、补丁、快照等业务功能不可用，只剩系统能力（终端、浏览器等壳层功能）。
-- 「环境」设置组 adl-server 行显示「缺失」或版本与壳不匹配，日志提示后端连接失败。
+- 「环境」设置组 adl-server 行显示「缺失」，日志提示后端连接失败。
 
 ## 检测命令
 
 ```powershell
-Get-ChildItem -Path <安装目录> -Filter adl-server*.exe
+Get-ChildItem -Path "<安装目录>" -Filter adl-server*.exe
 ```
 
-- 正常安装包里，后端 sidecar 名为 `adl-server-x86_64-pc-windows-msvc.exe`，与本应用主程序位于同一安装目录。
-- 文件不存在 → 安装包不完整；文件存在但版本行不符 → 壳与 sidecar 版本不匹配。
+- 正常安装包里，后端 sidecar 名为 `adl-server.exe`，与本应用主程序位于同一安装目录。
+- 该行只做存在性检测：文件存在即视为就绪，没有独立版本号可对比。
+- 文件不存在 → 安装包不完整；文件存在但状态仍为「缺失」→ 确认文件存在后重装应用。
 
 ## 安装步骤
 
@@ -20,11 +27,11 @@ Get-ChildItem -Path <安装目录> -Filter adl-server*.exe
 
 1. 退出本应用，确认没有残留进程仍在运行。
 2. 运行当前版本的官方安装包，覆盖安装（安装程序会一并落盘 sidecar）。
-3. 不要手工从旧版本复制或替换 `adl-server-x86_64-pc-windows-msvc.exe`：壳与后端需版本配套，手工替换会破坏签名与协议兼容。
+3. 不要手工从其它目录复制或替换 `adl-server.exe`；如需恢复，直接重装应用。
 
 ## 装后回填
 
-重新启动应用，打开「环境」设置组点「重新检测」，确认 adl-server 行版本与状态恢复正常。
+重新启动应用，打开「环境」设置组点「重新检测」，确认 adl-server 行状态恢复为就绪。
 
 ## 回滚
 

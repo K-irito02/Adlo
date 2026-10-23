@@ -1,3 +1,9 @@
+---
+dep: model-credential
+baseline: n/a
+detect: where.exe dsh
+---
+
 # 模型凭据（env-model-credential）
 
 ## 症状

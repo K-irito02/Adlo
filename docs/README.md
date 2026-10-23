@@ -17,6 +17,7 @@
 | [plans/](./plans/) | 功能实施计划（按领域与月份归档：browser/git/ui/refactoring/workspace 等） |
 | [specs/](./specs/) | 功能规格设计（与 plans/ 对应） |
 | [operations/](./operations/) | 操作手册与 UI 使用说明（ui-manual） |
+| [runbooks/](./runbooks/) | 环境依赖 runbook 索引（正文在前端源码目录，随诊断载荷复制） |
 | [root-cause-resolution/](./root-cause-resolution/) | 根因排查进度记录（按月归档） |
 | [closing-workflow/](./closing-workflow/) | 收尾工作流分月归档（progress 执行记录与评审报告） |
 | [superpowers/](./superpowers/) | Superpowers 技能产出的实施计划（plans）与规格设计（specs） |

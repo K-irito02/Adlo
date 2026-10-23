@@ -97,6 +97,7 @@ function fixture(): EnvStatus {
     }),
     netprobe: { registryOk: true, registryLatencyMs: 12, ciTokenConfigured: false },
     task: null,
+    dataDir: 'C:/data-root',
     dshReady: false,
   };
 }
