@@ -174,7 +174,9 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     rows: DOWNLOAD_PATH_ROWS,
   },
   {
-    group: 'dsh',
+    // 网络组三块：复用 dsh 域源/代理/测试三块文案 key（Task 3 Ruling：key 只是
+    // 标识符，不迁移领域）。行级文案与 DshSettings 搬迁前同源（Task 5 填充三块时补登记）。
+    group: 'network',
     anchorId: 'source',
     labelKey: 'dshSettingsSource',
     rows: [
@@ -186,7 +188,7 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     ],
   },
   {
-    group: 'dsh',
+    group: 'network',
     anchorId: 'proxy',
     labelKey: 'dshSettingsProxy',
     rows: [
@@ -200,7 +202,7 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     ],
   },
   {
-    group: 'dsh',
+    group: 'network',
     anchorId: 'test',
     labelKey: 'dshSettingsTestConnection',
     rows: [
@@ -211,7 +213,7 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     ],
   },
   {
-    // 「版本管理」块内五行：当前版本行、检查更新行、正式版本行、预发布行、官方版本信息行。
+    // 「版本管理」块内六行：版本来源行、当前版本行、检查更新行、正式版本行、预发布行、官方版本信息行。
     group: 'dsh',
     anchorId: 'version',
     labelKey: 'dshVersionManagement',
@@ -241,23 +243,6 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
         hintKeys: ['dshOfficialLinksDesc'],
       },
     ],
-  },
-  {
-    // 网络组三锚点：复用 dsh 域源/代理/测试三块文案 key（Task 3 Ruling：key 只是
-    // 标识符，不迁移领域）。行级文案 Task 5 填充三块时补登记，此处仅锚点级。
-    group: 'network',
-    anchorId: 'source',
-    labelKey: 'dshSettingsSource',
-  },
-  {
-    group: 'network',
-    anchorId: 'proxy',
-    labelKey: 'dshSettingsProxy',
-  },
-  {
-    group: 'network',
-    anchorId: 'test',
-    labelKey: 'dshSettingsTestConnection',
   },
   {
     // 环境组：单块七行 —— 七个操作行（安装/切换/卸载/重装/重测/复制/前往配置）

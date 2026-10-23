@@ -60,7 +60,6 @@ function TestProvider({ children }: { children: React.ReactNode }) {
 }
 
 const NPMJS_URL = 'https://registry.npmjs.org';
-const NPMMIRROR_URL = 'https://registry.npmmirror.com';
 
 function makeStatus(patch: Partial<DshSourceStatus['config']> = {}): DshSourceStatus {
   return {
@@ -119,32 +118,22 @@ describe('DshSettings', () => {
     });
   });
 
-  it('四块结构：块头在卡外，每块头 + 卡片配对，测试块/版本块用装饰图标对齐', () => {
+  it('版本块结构：单个块头 + 版本管理卡片（源/代理/测试三块已搬入网络组）', () => {
     useAppStore.setState({ sourceStatus: makeStatus() });
     renderSettings();
     const root = document.querySelector('.adl-dsh-settings');
     expect(root).not.toBeNull();
     const headers = root?.querySelectorAll('.adl-dsh-settings__header') ?? [];
-    expect(headers.length).toBe(4);
-    const cards = root?.querySelectorAll(':scope > .adl-settings-card') ?? [];
-    // 下载源/代理/测试连接各 1 张 + 版本块 1 张（内含当前版本 + 版本操作两行）。
-    expect(cards.length).toBe(4);
-    // 块头在卡片之外（settings 组通用结构，不是卡内标题）。
-    expect(root?.querySelector('.adl-settings-card .adl-dsh-settings__header')).toBeNull();
-    // 前两块（下载源/代理设置）带恢复按钮，测试连接块带装饰图标（非按钮，仅对齐）。
-    expect(headers[0]?.querySelector('[data-testid="dsh-source-reset"]')).not.toBeNull();
-    expect(headers[1]?.querySelector('[data-testid="dsh-proxy-reset"]')).not.toBeNull();
-    expect(headers[2]?.querySelector('button')).toBeNull();
-    const staticIcon = headers[2]?.querySelector(
-      'span.adl-settings-row__reset--static[aria-hidden="true"]',
-    );
-    expect(staticIcon).not.toBeNull();
-    // 第四块（版本管理）：装饰图标 + 一张 settings 卡
-    //（当前版本 + 检查更新 + 正式版 + 预发布 + 官方版本信息五行）。
-    expect(headers[3]?.textContent).toContain('dshVersionManagement');
-    expect(headers[3]?.querySelector('button')).toBeNull();
+    expect(headers.length).toBe(1);
+    // 源/代理/测试三块的恢复按钮与测试按钮均已搬走。
+    expect(root?.querySelector('[data-testid="dsh-source-reset"]')).toBeNull();
+    expect(root?.querySelector('[data-testid="dsh-proxy-reset"]')).toBeNull();
+    expect(root?.querySelector('[data-testid="dsh-test-button"]')).toBeNull();
+    // 版本块：装饰图标 + 版本管理标题 + 版本管理组件。
+    expect(headers[0]?.textContent).toContain('dshVersionManagement');
+    expect(headers[0]?.querySelector('button')).toBeNull();
     expect(
-      headers[3]?.querySelector('span.adl-settings-row__reset--static[aria-hidden="true"]'),
+      headers[0]?.querySelector('span.adl-settings-row__reset--static[aria-hidden="true"]'),
     ).not.toBeNull();
     // 检查更新行渲染文字按钮（设置组操作按钮样式）且带行内提示说明图标。
     const versionRow = root?.querySelector('[data-settings-row="dshCheckUpdate"]');
@@ -162,321 +151,12 @@ describe('DshSettings', () => {
     expect(fetchSourceStatus).not.toHaveBeenCalled();
   });
 
-  it('sourceStatus 未知（拉取失败/延迟）时下拉保持可用（fail-open 回归）', () => {
-    // fetch mock 只 resolve true、不写 sourceStatus → 模拟拉取失败后的 null 态。
-    useAppStore.setState({ sourceStatus: null });
-    renderSettings();
-    expect((screen.getByLabelText('dshSettingsSource') as HTMLButtonElement).disabled).toBe(false);
-    expect((screen.getByLabelText('dshSettingsProxyMode') as HTMLButtonElement).disabled).toBe(
-      false,
-    );
-    expect((screen.getByTestId('dsh-test-button') as HTMLButtonElement).disabled).toBe(false);
-  });
-
-  it('sourceStatus 未知时块恢复按钮只看本地选项（fail-open，不再永久砖化）', () => {
-    // 拉取失败 sourceStatus 恒 null：初始源为 npmjs（非默认）→ 源恢复可用；
-    // 代理初始 auto（已默认）→ 代理恢复禁用。
-    useAppStore.setState({ sourceStatus: null });
-    renderSettings();
-    expect((screen.getByTestId('dsh-source-reset') as HTMLButtonElement).disabled).toBe(false);
-    expect((screen.getByTestId('dsh-proxy-reset') as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it('按 source_mode + registry 往返播种：manual+镜像 → 镜像，manual+官方 → 官方', () => {
-    useAppStore.setState({ sourceStatus: makeStatus({ npm_registry: NPMMIRROR_URL }) });
-    renderSettings();
-    expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
-      'dshSettingsSourceNpmmirror',
-    );
-    cleanup();
-
-    useAppStore.setState({ sourceStatus: makeStatus({ npm_registry: NPMJS_URL }) });
-    renderSettings();
-    expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
-      'dshSettingsSourceNpmjs',
-    );
-  });
-
-  it('manual+未知地址播种为自定义并回填输入框', () => {
-    useAppStore.setState({
-      sourceStatus: makeStatus({ npm_registry: 'https://custom.example' }),
-    });
-    renderSettings();
-    expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
-      'dshSettingsSourceCustom',
-    );
-    const input = document.querySelector(
-      '.adl-dsh-settings .adl-settings-row__control input.adl-settings-input',
-    ) as HTMLInputElement;
-    expect(input.value).toBe('https://custom.example');
-  });
-
-  it('auto 种子静默实测选优：取低延迟源写回，不弹成功 toast', async () => {
-    useAppStore.setState({
-      sourceStatus: makeStatus({ source_mode: 'auto', npm_registry: NPMJS_URL }),
-    });
-    testSource
-      .mockResolvedValueOnce({ reachable: true, latency_ms: 100, error: null })
-      .mockResolvedValueOnce({ reachable: true, latency_ms: 30, error: null });
-    renderSettings();
-    expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
-      'dshSettingsSourceAuto',
-    );
-    await waitFor(() => {
-      // 检测写回为显式路径（silent=false），后台防抖路径才传 true。
-      expect(saveSourceConfig).toHaveBeenCalledWith(
-        {
-          source_mode: 'auto',
-          npm_registry: NPMMIRROR_URL,
-        },
-        false,
-      );
-    });
-    // silent：静默写回，不弹「已自动选择」成功提示。
-    expect(useAppStore.getState().toasts).toHaveLength(0);
-    // 源选择停留在「自动检测」（检测不改用户可见选中项）。
-    expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
-      'dshSettingsSourceAuto',
-    );
-  });
-
-  it('双源均不可达（挂载静默）：保留当前、不打扰', async () => {
-    useAppStore.setState({
-      sourceStatus: makeStatus({ source_mode: 'auto', npm_registry: NPMJS_URL }),
-    });
-    testSource.mockResolvedValue({ reachable: false, latency_ms: null, error: 'ENOTFOUND' });
-    renderSettings();
-    await waitFor(() => {
-      expect(testSource).toHaveBeenCalledTimes(2);
-    });
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    });
-    expect(
-      useAppStore.getState().toasts.some((t) => t.message === 'dshSettingsAutoDetectFailed'),
-    ).toBe(false);
-    expect(saveSourceConfig).not.toHaveBeenCalled();
-  });
-
-  it('用户手动选自动检测而双源均不可达：弹失败提示并落盘 source_mode', async () => {
-    useAppStore.setState({
-      sourceStatus: makeStatus({ source_mode: 'manual', npm_registry: NPMJS_URL }),
-    });
-    testSource.mockResolvedValue({ reachable: false, latency_ms: null, error: 'ENOTFOUND' });
-    renderSettings();
-    fireEvent.click(screen.getByLabelText('dshSettingsSource'));
-    fireEvent.click(await screen.findByRole('option', { name: 'dshSettingsSourceAuto' }));
-    await waitFor(() => {
-      expect(
-        useAppStore.getState().toasts.some((t) => t.message === 'dshSettingsAutoDetectFailed'),
-      ).toBe(true);
-    });
-    // 空候选也把本次选择落盘（后端与 UI 一致），不带 registry（保持上次检测值）。
-    await waitFor(() => {
-      expect(saveSourceConfig).toHaveBeenCalledWith({ source_mode: 'auto' }, false);
-    });
-  });
-
-  it('静默检测遇桥失败（null 结果）：不弹失败提示、不写回', async () => {
-    useAppStore.setState({
-      sourceStatus: makeStatus({ source_mode: 'auto', npm_registry: NPMJS_URL }),
-    });
-    // 桥级失败（后端不可达）：action 返回 null，而非 reachable:false 结构。
-    testSource.mockResolvedValue(null);
-    renderSettings();
-    await waitFor(() => {
-      expect(testSource).toHaveBeenCalledTimes(2);
-    });
-    // 给检测后续留出完成窗口，再断言全程静默。
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    });
-    expect(
-      useAppStore.getState().toasts.some((t) => t.message === 'dshSettingsAutoDetectFailed'),
-    ).toBe(false);
-    expect(saveSourceConfig).not.toHaveBeenCalled();
-  });
-
-  it('静默检测单桥失败：另一路可达仍选优写回、不打扰', async () => {
-    useAppStore.setState({
-      sourceStatus: makeStatus({ source_mode: 'auto', npm_registry: NPMJS_URL }),
-    });
-    // 官方桥失败（null），镜像可达：照常选镜像写回，全程无 toast。
-    testSource
-      .mockResolvedValueOnce(null)
-      .mockResolvedValue({ reachable: true, latency_ms: 30, error: null });
-    renderSettings();
-    await waitFor(() => {
-      expect(saveSourceConfig).toHaveBeenCalledWith(
-        {
-          source_mode: 'auto',
-          npm_registry: NPMMIRROR_URL,
-        },
-        false,
-      );
-    });
-    expect(useAppStore.getState().toasts).toHaveLength(0);
-  });
-
-  it('代理字段变更经 500ms 防抖静默落盘，成功不 toast、失败 toast', async () => {
-    vi.useFakeTimers();
-    useAppStore.setState({
-      sourceStatus: makeStatus({
-        source_mode: 'manual',
-        proxy: {
-          mode: 'manual',
-          http_proxy: null,
-          https_proxy: null,
-          no_proxy: null,
-        },
-      }),
-    });
-    renderSettings();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    const input = screen.getByLabelText('dshSettingsProxyHttp') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'http://proxy:8080' } });
-    expect(saveSourceConfig).not.toHaveBeenCalled();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(501);
-    });
-    expect(saveSourceConfig).toHaveBeenCalledTimes(1);
-    // 后台防抖路径传 silent=true（失败仅 toast，不记全局错误卡）。
-    expect(saveSourceConfig).toHaveBeenCalledWith(
-      expect.objectContaining({
-        source_mode: 'manual',
-        proxy: expect.objectContaining({ mode: 'manual', http_proxy: 'http://proxy:8080' }),
-      }),
-      true,
-    );
-    expect(useAppStore.getState().toasts.some((t) => t.message === 'dshSettingsSaveFailed')).toBe(
-      false,
-    );
-
-    saveSourceConfig.mockResolvedValueOnce(false);
-    fireEvent.change(input, { target: { value: 'http://other:9090' } });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(501);
-    });
-    expect(useAppStore.getState().toasts.some((t) => t.message === 'dshSettingsSaveFailed')).toBe(
-      true,
-    );
-  });
-
-  it('测试按钮：点击后按钮内变结果，2 秒后恢复原文案', async () => {
-    vi.useFakeTimers();
-    useAppStore.setState({ sourceStatus: makeStatus({ npm_registry: NPMJS_URL }) });
-    renderSettings();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    const button = screen.getByTestId('dsh-test-button') as HTMLButtonElement;
-    expect(button.textContent).toContain('dshSettingsTestButton');
-    testSource.mockResolvedValueOnce({ reachable: true, latency_ms: 42, error: null });
-    fireEvent.click(button);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    expect(testSource).toHaveBeenCalledWith(NPMJS_URL);
-    expect(button.textContent).toContain('dshSettingsTestSuccess');
-    // 2 秒后恢复按钮文案。
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000);
-    });
-    expect(button.textContent).toContain('dshSettingsTestButton');
-  });
-
-  it('代理块恢复默认：确认立刻关框刷新，写 auto（乐观执行）', async () => {
-    useAppStore.setState({
-      sourceStatus: makeStatus({
-        source_mode: 'manual',
-        proxy: {
-          mode: 'manual',
-          http_proxy: 'http://old:1',
-          https_proxy: null,
-          no_proxy: null,
-        },
-      }),
-    });
-    renderSettings();
-    fireEvent.click(screen.getByTestId('dsh-proxy-reset'));
-    expect(screen.getByText('settingsResetGroupConfirmTitle')).not.toBeNull();
-    expect(saveSourceConfig).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
-    await waitFor(() => {
-      // 显式恢复路径传 silent=false（失败走全局错误卡 + toast 双通道）。
-      expect(saveSourceConfig).toHaveBeenCalledWith(
-        {
-          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
-        },
-        false,
-      );
-    });
-    await waitFor(() => {
-      expect(screen.queryByText('settingsResetGroupConfirmTitle')).toBeNull();
-    });
-    // 字段随状态清空（manual → auto 隐藏字段），代理下拉回 auto。
-    expect(screen.getByLabelText('dshSettingsProxyMode').textContent).toContain(
-      'dshSettingsProxyModeAuto',
-    );
-  });
-
-  it('下载源块恢复默认：确认立刻关框刷新，随后静默实测', async () => {
-    useAppStore.setState({
-      sourceStatus: makeStatus({ source_mode: 'manual', npm_registry: NPMMIRROR_URL }),
-    });
-    renderSettings();
-    fireEvent.click(screen.getByTestId('dsh-source-reset'));
-    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
-    await waitFor(() => {
-      expect(saveSourceConfig).toHaveBeenCalledWith(
-        {
-          source_mode: 'auto',
-          npm_registry: NPMJS_URL,
-        },
-        false,
-      );
-    });
-    expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
-      'dshSettingsSourceAuto',
-    );
-    // 恢复后自动触发检测（官方 + 镜像并发实测，静默模式）。
-    await waitFor(() => {
-      expect(testSource).toHaveBeenCalledWith(NPMMIRROR_URL, true);
-    });
-  });
-
-  it('下载源块恢复失败：弹失败提示并回滚到确认前的值', async () => {
-    useAppStore.setState({
-      sourceStatus: makeStatus({ source_mode: 'manual', npm_registry: NPMMIRROR_URL }),
-    });
-    saveSourceConfig.mockResolvedValue(false);
-    renderSettings();
-    fireEvent.click(screen.getByTestId('dsh-source-reset'));
-    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
-    // 乐观执行：对话框先关（不等落盘结果）。
-    await waitFor(() => {
-      expect(screen.queryByText('settingsResetGroupConfirmTitle')).toBeNull();
-    });
-    await waitFor(() => {
-      expect(useAppStore.getState().toasts.some((t) => t.message === 'dshSettingsSaveFailed')).toBe(
-        true,
-      );
-    });
-    // 回滚：下拉回到确认前的镜像选项。
-    await waitFor(() => {
-      expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
-        'dshSettingsSourceNpmmirror',
-      );
-    });
-  });
-
-  it('组级恢复：承接 pending 开自有确认框，确认后一次写入源+代理默认并消费信号', async () => {
+  it('组级恢复：承接 pending 开自有确认框，确认后只写版本来源并消费信号', async () => {
     useAppStore.setState({
       sourceStatus: makeStatus({
         source_mode: 'manual',
         npm_registry: 'https://custom.example',
+        version_source: 'host',
         proxy: {
           mode: 'manual',
           http_proxy: 'http://old:1',
@@ -495,57 +175,53 @@ describe('DshSettings', () => {
     expect(saveSourceConfig).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
     await waitFor(() => {
-      expect(saveSourceConfig).toHaveBeenCalledWith(
-        {
-          source_mode: 'auto',
-          npm_registry: NPMJS_URL,
-          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
-        },
-        false,
-      );
+      // Task 5 拆分：本组只写版本来源（源/代理归网络组单计划）。
+      expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'auto' });
     });
-    await waitFor(() => {
-      // Task 4 拆分：源/代理（network 计划）与版本来源（dsh 计划）顺序写两次。
-      expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'auto' }, false);
-    });
+    expect(saveSourceConfig).toHaveBeenCalledTimes(1);
     await waitFor(() => {
       expect(useAppStore.getState().toasts.some((t) => t.message === 'settingsResetComplete')).toBe(
         true,
       );
     });
-    expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
-      'dshSettingsSourceAuto',
-    );
-    expect(screen.getByLabelText('dshSettingsProxyMode').textContent).toContain(
-      'dshSettingsProxyModeAuto',
-    );
   });
 
-  it('两块全默认写聚合信号 dshBlocksAtDefault，卸载保留', async () => {
-    useAppStore.setState({
-      sourceStatus: makeStatus({
-        source_mode: 'auto',
-        npm_registry: NPMJS_URL,
-        proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
-      }),
+  it('组级恢复失败：弹失败提示', async () => {
+    useAppStore.setState({ sourceStatus: makeStatus({ version_source: 'host' }) });
+    saveSourceConfig.mockResolvedValue(false);
+    renderSettings();
+    act(() => {
+      useAppStore.setState({ dshGroupResetPending: true });
     });
-    testSource.mockResolvedValue({ reachable: true, latency_ms: 10, error: null });
+    expect(await screen.findByText('settingsResetGroupConfirmTitle')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(useAppStore.getState().toasts.some((t) => t.message === 'dshSettingsSaveFailed')).toBe(
+        true,
+      );
+    });
+  });
+
+  it('版本来源默认写聚合信号 dshBlocksAtDefault，卸载保留', async () => {
+    useAppStore.setState({
+      sourceStatus: makeStatus({ version_source: 'auto' }),
+    });
     const { unmount } = renderSettings();
     await waitFor(() => {
       expect(useAppStore.getState().dshBlocksAtDefault).toBe(true);
     });
     unmount();
     // 卸载不清（事项 12d）：保留最后已知聚合供侧边栏禁用判定，
-    // 切出后由 SettingsPanel 未激活校正刷新。
+    // 切出后由 SettingsPanel 未激活校正随 store 变化刷新。
     expect(useAppStore.getState().dshBlocksAtDefault).toBe(true);
   });
 
-  it('未全默认（代理非 auto）时聚合信号为 false', async () => {
+  it('版本来源非默认时聚合信号为 false（源/代理偏离不再影响本组）', async () => {
     useAppStore.setState({
       sourceStatus: makeStatus({
-        source_mode: 'auto',
-        npm_registry: NPMJS_URL,
-        proxy: { mode: 'none', http_proxy: null, https_proxy: null, no_proxy: null },
+        source_mode: 'manual',
+        proxy: { mode: 'manual', http_proxy: 'http://old:1', https_proxy: null, no_proxy: null },
+        version_source: 'host',
       }),
     });
     renderSettings();
@@ -554,197 +230,17 @@ describe('DshSettings', () => {
     });
   });
 
-  it('显式恢复与在途防抖落盘串行执行（调用顺序即落盘顺序）', async () => {
-    vi.useFakeTimers();
+  it('版本来源默认时源/代理偏离不拉低聚合（只看版本来源）', async () => {
     useAppStore.setState({
       sourceStatus: makeStatus({
         source_mode: 'manual',
-        npm_registry: NPMMIRROR_URL,
-        proxy: { mode: 'manual', http_proxy: null, https_proxy: null, no_proxy: null },
+        proxy: { mode: 'manual', http_proxy: 'http://old:1', https_proxy: null, no_proxy: null },
+        version_source: 'auto',
       }),
     });
-    let resolveFirst!: (v: boolean) => void;
-    saveSourceConfig
-      .mockImplementationOnce(
-        () =>
-          new Promise<boolean>((r) => {
-            resolveFirst = r;
-          }),
-      )
-      .mockResolvedValue(true);
     renderSettings();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    // 改字段触发防抖保存，推进到落盘开始（第一次 persist 在途挂起）。
-    fireEvent.change(screen.getByLabelText('dshSettingsProxyHttp'), {
-      target: { value: 'http://proxy:8080' },
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(501);
-    });
-    expect(saveSourceConfig).toHaveBeenCalledTimes(1);
-    // 在途时点代理块恢复：显式写入排队，不并发双写。
-    fireEvent.click(screen.getByTestId('dsh-proxy-reset'));
-    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
-    expect(saveSourceConfig).toHaveBeenCalledTimes(1);
-    await act(async () => {
-      resolveFirst(true);
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    // 先防抖快照（含刚填的代理地址，后台路径 silent=true），后恢复默认（清空，显式路径 false）。
-    expect(saveSourceConfig).toHaveBeenCalledTimes(2);
-    expect(saveSourceConfig).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        proxy: expect.objectContaining({ mode: 'manual', http_proxy: 'http://proxy:8080' }),
-      }),
-      true,
-    );
-    expect(saveSourceConfig).toHaveBeenNthCalledWith(
-      2,
-      {
-        proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
-      },
-      false,
-    );
-  });
-
-  it('确认落盘失败前用户已改值：不回滚，新输入优先', async () => {
-    useAppStore.setState({
-      sourceStatus: makeStatus({ source_mode: 'manual', npm_registry: NPMMIRROR_URL }),
-    });
-    let resolveSave!: (v: boolean) => void;
-    saveSourceConfig
-      .mockImplementationOnce(
-        () =>
-          new Promise<boolean>((r) => {
-            resolveSave = r;
-          }),
-      )
-      .mockResolvedValue(true);
-    renderSettings();
-    fireEvent.click(screen.getByTestId('dsh-source-reset'));
-    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
-    // 落盘挂起期间用户改选镜像（经真实下拉交互）。
-    fireEvent.click(screen.getByLabelText('dshSettingsSource'));
-    fireEvent.click(await screen.findByRole('option', { name: 'dshSettingsSourceNpmmirror' }));
-    await act(async () => {
-      resolveSave(false);
-    });
     await waitFor(() => {
-      expect(useAppStore.getState().toasts.some((t) => t.message === 'dshSettingsSaveFailed')).toBe(
-        true,
-      );
+      expect(useAppStore.getState().dshBlocksAtDefault).toBe(true);
     });
-    // 用户的新选择保留，不被回滚覆盖。
-    expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
-      'dshSettingsSourceNpmmirror',
-    );
-    // 收尾：被 500ms 防抖延迟的「新选择」落盘由本用例负责消费，避免该真实计时器在
-    // 组件卸载后（有意保留防抖，见 DshSettings 卸载清理注释）泄漏到后续用例。
-    await waitFor(() => {
-      expect(saveSourceConfig).toHaveBeenCalledWith(
-        expect.objectContaining({ npm_registry: NPMMIRROR_URL }),
-        true,
-      );
-    });
-  });
-
-  it('sourceStatus 后到更新不覆盖编辑中表单（seed-once 锁定）', () => {
-    useAppStore.setState({
-      sourceStatus: makeStatus({ source_mode: 'manual', npm_registry: NPMMIRROR_URL }),
-    });
-    renderSettings();
-    expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
-      'dshSettingsSourceNpmmirror',
-    );
-    act(() => {
-      useAppStore.setState({
-        sourceStatus: makeStatus({ source_mode: 'manual', npm_registry: NPMJS_URL }),
-      });
-    });
-    expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
-      'dshSettingsSourceNpmmirror',
-    );
-  });
-
-  it('块确认框开着时侧边栏重置不吞信号：pending 保留，关块框后组框出现', async () => {
-    useAppStore.setState({
-      sourceStatus: makeStatus({ source_mode: 'manual', npm_registry: NPMMIRROR_URL }),
-    });
-    renderSettings();
-    fireEvent.click(screen.getByTestId('dsh-source-reset'));
-    expect(screen.getByText('settingsResetGroupConfirmTitle')).not.toBeNull();
-    act(() => {
-      useAppStore.setState({ dshGroupResetPending: true });
-    });
-    // 守卫命中：组框未弹，pending 保留（仍有一个对话框，即块确认框）。
-    expect(useAppStore.getState().dshGroupResetPending).toBe(true);
-    expect(screen.queryAllByText('settingsResetGroupConfirmTitle')).toHaveLength(1);
-    expect(saveSourceConfig).not.toHaveBeenCalled();
-    // 关掉块确认框 → effect 重试 → 组框承接并消费信号。
-    fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
-    await waitFor(() => {
-      expect(useAppStore.getState().dshGroupResetPending).toBe(false);
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
-    await waitFor(() => {
-      // Task 4 拆分：先 network 计划（源/代理），再 dsh 计划（版本来源）。
-      expect(saveSourceConfig).toHaveBeenCalledWith(
-        {
-          source_mode: 'auto',
-          npm_registry: NPMJS_URL,
-          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
-        },
-        false,
-      );
-    });
-    await waitFor(() => {
-      expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'auto' }, false);
-    });
-  });
-
-  it('组级恢复取消在途防抖：显式写入只落一次（旧快照不补写）', async () => {
-    vi.useFakeTimers();
-    useAppStore.setState({
-      sourceStatus: makeStatus({
-        source_mode: 'manual',
-        npm_registry: NPMMIRROR_URL,
-        proxy: { mode: 'manual', http_proxy: null, https_proxy: null, no_proxy: null },
-      }),
-    });
-    // 检测不可达：恢复后的静默实测不产生写回，断言窗口内应只有恢复这一次写。
-    testSource.mockResolvedValue({ reachable: false, latency_ms: null, error: 'ENOTFOUND' });
-    renderSettings();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    // 改代理字段触发 500ms 防抖保存（此刻在途、尚未落盘）。
-    fireEvent.change(screen.getByLabelText('dshSettingsProxyHttp'), {
-      target: { value: 'http://proxy:8080' },
-    });
-    expect(saveSourceConfig).not.toHaveBeenCalled();
-    // 防抖窗口内触发组级恢复并确认（不推进计时器）。
-    act(() => {
-      useAppStore.setState({ dshGroupResetPending: true });
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
-    // 推进超过防抖窗口：在途防抖已被 saveNow 取消，旧快照不得补写（恢复两次写 + 零补写）。
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1000);
-    });
-    expect(saveSourceConfig).toHaveBeenCalledTimes(2);
-    // 恢复分两次写：先 network 计划（源/代理），再 dsh 计划（版本来源）。
-    expect(saveSourceConfig).toHaveBeenNthCalledWith(
-      1,
-      {
-        source_mode: 'auto',
-        npm_registry: NPMJS_URL,
-        proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
-      },
-      false,
-    );
-    expect(saveSourceConfig).toHaveBeenNthCalledWith(2, { version_source: 'auto' }, false);
   });
 });

@@ -88,6 +88,7 @@ export const createUISlice = (
     dshGroupResetPending: false,
     dshBlocksAtDefault: null,
     networkGroupResetPending: false,
+    networkBlocksAtDefault: null,
     environmentGroupResetPending: false,
     siblingWebviewNonce: 0,
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
@@ -249,6 +250,13 @@ export const createUISlice = (
     },
     requestNetworkGroupReset: () => set({ networkGroupResetPending: true }),
     consumeNetworkGroupReset: () => set({ networkGroupResetPending: false }),
+    setNetworkBlocksAtDefault: (value) => {
+      // 同值不写：聚合 effect 每次谓词重算都调用，守卫避免订阅者无效通知。
+      if (get().networkBlocksAtDefault === value) {
+        return;
+      }
+      set({ networkBlocksAtDefault: value });
+    },
     requestEnvironmentGroupReset: () => set({ environmentGroupResetPending: true }),
     consumeEnvironmentGroupReset: () => set({ environmentGroupResetPending: false }),
     bumpSiblingWebviewNonce: () =>

@@ -137,6 +137,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     storageBlocksAtDefault,
     browserBlocksAtDefault,
     dshBlocksAtDefault,
+    networkBlocksAtDefault,
     adServerReachable,
   } = useAppStore(
     useShallow((s) => ({
@@ -154,15 +155,16 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       toggleNavigator: s.toggleNavigator,
       settingsNavigatorWidth: s.settingsNavigatorWidth,
       setSettingsNavigatorWidth: s.setSettingsNavigatorWidth,
-    requestStorageGroupReset: s.requestStorageGroupReset,
-    requestBrowserGroupReset: s.requestBrowserGroupReset,
-    requestDshGroupReset: s.requestDshGroupReset,
-    requestNetworkGroupReset: s.requestNetworkGroupReset,
-    requestEnvironmentGroupReset: s.requestEnvironmentGroupReset,
+      requestStorageGroupReset: s.requestStorageGroupReset,
+      requestBrowserGroupReset: s.requestBrowserGroupReset,
+      requestDshGroupReset: s.requestDshGroupReset,
+      requestNetworkGroupReset: s.requestNetworkGroupReset,
+      requestEnvironmentGroupReset: s.requestEnvironmentGroupReset,
       config: s.appInfo?.config,
       storageBlocksAtDefault: s.storageBlocksAtDefault,
       browserBlocksAtDefault: s.browserBlocksAtDefault,
       dshBlocksAtDefault: s.dshBlocksAtDefault,
+      networkBlocksAtDefault: s.networkBlocksAtDefault,
       adServerReachable: s.adServerReachable,
     })),
   );
@@ -220,11 +222,22 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     if (dshBlocksAtDefault === true) {
       disabled.add('dsh');
     }
+    if (networkBlocksAtDefault === true) {
+      disabled.add('network');
+    }
     return disabled;
-  }, [config, storageBlocksAtDefault, browserBlocksAtDefault, dshBlocksAtDefault]);
+  }, [
+    config,
+    storageBlocksAtDefault,
+    browserBlocksAtDefault,
+    dshBlocksAtDefault,
+    networkBlocksAtDefault,
+  ]);
 
-  // 七组全默认 → 顶部「恢复全部默认」禁用（口径与侧边栏行 disabled 同源）。
-  const allGroupsAtDefault = disabledResetGroups.size === SETTINGS_GROUPS.length;
+  // 除环境组外全默认 → 顶部「恢复全部默认」禁用（口径与侧边栏行 disabled 同源）。
+  // 环境组不进 ResetAll 自动序列且无聚合信号（Task 7 定是否纳入禁用口径），故排除在外。
+  const allGroupsAtDefault =
+    disabledResetGroups.size === SETTINGS_GROUPS.filter((g) => g.id !== 'environment').length;
 
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
   const changeDownloadPath = useAppStore((s) => s.changeDownloadPath);
@@ -338,7 +351,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   /**
    * 顶部「恢复全部默认」开框：先后台算好存储计划，再弹框（等计算好再出现，
    * 框内无“计算中”闪烁）。两段式（预计算→开框）与 StorageSettings.openGroupResetDialog
-   * 一致；失败策略不同：聚合框 fail-open（存储不可判定时仍开框、执行其余三组），
+   * 一致；失败策略不同：聚合框 fail-open（存储不可判定时仍开框、执行其余四组），
    * 组框 fail-closed（toast 且不开框，见 StorageSettings openGroupResetDialog）。
    * 按钮在途禁用 + aria-busy（可感知反馈），`resetAllPreparingRef` 防重复点击。
    * 已知可并行未做：tree 拉取与计划内 `refreshStatus` 无依赖但串行（本地 IPC 实测约 67ms，
@@ -517,21 +530,36 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   }, [activeGroup, config, downloadSettings, downloadSettingsLoaded, setBrowserBlocksAtDefault]);
 
   // DSH 组聚合初始化/校正（事项 12d）：DSH 组未激活（DshSettings 未挂载）时，据 store
-  // sourceStatus（已持久化 config.source_mode / proxy.mode）重算；sourceStatus 未知
-  //（null）不写。激活期间由 DshSettings 用本地编辑态实时维护（可能领先防抖落盘
-  // ≤200ms），两侧在落盘后收敛。
+  // sourceStatus（已持久化 config.version_source）重算；sourceStatus 未知
+  // （null）不写。激活期间由 DshSettings 用本地判定实时维护，两侧在落盘后收敛。
+  // 源/代理部分 Task 5 起归网络组（见下方网络校正），此处只看版本来源。
   const sourceStatus = useAppStore((s) => s.sourceStatus);
   const setDshBlocksAtDefault = useAppStore((s) => s.setDshBlocksAtDefault);
   useEffect(() => {
     if (activeGroup === 'dsh' || !sourceStatus) {
       return;
     }
-    const value =
-      sourceStatus.config.source_mode === 'auto' && sourceStatus.config.proxy.mode === 'auto';
+    const value = sourceStatus.config.version_source === 'auto';
     if (value !== useAppStore.getState().dshBlocksAtDefault) {
       setDshBlocksAtDefault(value);
     }
   }, [activeGroup, sourceStatus, setDshBlocksAtDefault]);
+
+  // 网络组聚合初始化/校正：网络组未激活（NetworkSettings 未挂载）时，据 store
+  // sourceStatus（已持久化 config.source_mode / proxy.mode）重算；sourceStatus 未知
+  // （null）不写。激活期间由 NetworkSettings 用本地编辑态实时维护（可能领先防抖落盘
+  // ≤500ms），两侧在落盘后收敛。
+  const setNetworkBlocksAtDefault = useAppStore((s) => s.setNetworkBlocksAtDefault);
+  useEffect(() => {
+    if (activeGroup === 'network' || !sourceStatus) {
+      return;
+    }
+    const value =
+      sourceStatus.config.source_mode === 'auto' && sourceStatus.config.proxy.mode === 'auto';
+    if (value !== useAppStore.getState().networkBlocksAtDefault) {
+      setNetworkBlocksAtDefault(value);
+    }
+  }, [activeGroup, sourceStatus, setNetworkBlocksAtDefault]);
 
   // 悬停/聚焦侧边栏存储行再预热一次：移动→点击的天然延迟是免费的命中窗口。
   // Tech-debt 注记：面板直连具体 feature 模块的预热函数；当第二个组需要预热时，

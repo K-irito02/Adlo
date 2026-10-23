@@ -285,7 +285,7 @@ describe('SettingsPanel shell header', () => {
       fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
       expect(await screen.findByText('settingsResetConfirmTitle')).not.toBeNull();
       expect(updatePreferences).not.toHaveBeenCalled();
-      // 无存储桥 → 计划为 null → 单确认键（其余三组照常执行）。
+      // 无存储桥 → 计划为 null → 单确认键（其余四组照常执行）。
       fireEvent.click(await screen.findByRole('button', { name: 'storageGroupResetConfirm' }));
       await waitFor(() => {
         // 恢复全部确含挂起默认值（F7：getDefaultPreferences 自引恒过，此断言锁行为）。
@@ -752,7 +752,7 @@ describe('SettingsPanel group reset', () => {
   });
 
   it('corrects the dsh aggregate from the store when the dsh group is inactive', () => {
-    // 源=auto 且代理=auto → 聚合应从过期 false 校正为 true（事项 12d）。
+    // 版本来源=auto → 聚合应从过期 false 校正为 true（源/代理偏离不再影响 dsh 组）。
     setupStore();
     const prevAppInfo = useAppStore.getState().appInfo;
     const prevAggregate = useAppStore.getState().dshBlocksAtDefault;
@@ -771,9 +771,9 @@ describe('SettingsPanel group reset', () => {
         config: {
           npm_registry: 'https://registry.npmjs.org',
           dsh_mirror: null,
-          source_mode: 'auto',
+          source_mode: 'manual',
           version_source: 'auto',
-          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+          proxy: { mode: 'manual', http_proxy: 'http://old:1', https_proxy: null, no_proxy: null },
         },
       },
       dshBlocksAtDefault: false,
@@ -784,6 +784,45 @@ describe('SettingsPanel group reset', () => {
     } finally {
       useAppStore.setState({
         dshBlocksAtDefault: prevAggregate,
+        appInfo: prevAppInfo,
+        sourceStatus: prevSource,
+      });
+    }
+  });
+
+  it('corrects the network aggregate from the store when the network group is inactive', () => {
+    // 源=auto 且代理=auto → 聚合应从过期 false 校正为 true。
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().networkBlocksAtDefault;
+    const prevSource = useAppStore.getState().sourceStatus;
+    setNavConfig();
+    useAppStore.setState({
+      sourceStatus: {
+        system: null,
+        running: null,
+        versionSource: {
+          mode: 'auto',
+          effective: 'host',
+          resolvedByMode: { auto: 'host', host: 'host', system: 'none' },
+          hostVersion: '0.1.0',
+        },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'host',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+      networkBlocksAtDefault: false,
+    });
+    try {
+      renderPanel();
+      expect(useAppStore.getState().networkBlocksAtDefault).toBe(true);
+    } finally {
+      useAppStore.setState({
+        networkBlocksAtDefault: prevAggregate,
         appInfo: prevAppInfo,
         sourceStatus: prevSource,
       });
@@ -1279,32 +1318,62 @@ describe('SettingsPanel group reset', () => {
     }
   });
 
-  // 顶部「恢复全部默认」按钮禁用口径：全组默认才禁用（与侧边栏行同源聚合）。
-  // network/environment 暂无聚合信号（Task 5 拆分 networkBlocksAtDefault 后补；
-  // environment 不进 ResetAll，是否纳入禁用口径由 Task 7 定）——fail-open 下禁用态
-  // 暂时不可达，本用例锁定该过渡行为，防静默回退。
+  // 顶部「恢复全部默认」按钮禁用口径：除环境组外全默认才禁用（与侧边栏行同源聚合）。
+  // 环境组不进 ResetAll 且无聚合信号（是否纳入禁用口径由 Task 7 定），故排除在外。
   function topResetDisabled(): boolean {
     return (screen.getByRole('button', { name: 'settingsResetAll' }) as HTMLButtonElement).disabled;
   }
 
-  it('七组全默认但两新组无聚合时顶部按钮保持可用（fail-open 过渡态）', () => {
+  it('除环境组外全默认时顶部恢复全部默认按钮禁用', () => {
     setupStore();
     const prevAppInfo = useAppStore.getState().appInfo;
     const prevStorage = useAppStore.getState().storageBlocksAtDefault;
     const prevBrowser = useAppStore.getState().browserBlocksAtDefault;
     const prevDsh = useAppStore.getState().dshBlocksAtDefault;
+    const prevNetwork = useAppStore.getState().networkBlocksAtDefault;
     const prevSource = useAppStore.getState().sourceStatus;
     setNavConfig();
     useAppStore.setState({
       storageBlocksAtDefault: true,
       browserBlocksAtDefault: true,
       dshBlocksAtDefault: true,
-      // 源状态置空：跳过未激活 dsh 组的校正 effect（否则会用残留 sourceStatus 覆写聚合）。
+      networkBlocksAtDefault: true,
+      // 源状态置空：跳过未激活 dsh/network 组的校正 effect（否则会用残留 sourceStatus 覆写聚合）。
       sourceStatus: null,
     });
     try {
       renderPanel();
-      // 过渡态：network/environment 无聚合可判 → 永不全默认 → 按钮保持可用。
+      expect(topResetDisabled()).toBe(true);
+    } finally {
+      useAppStore.setState({
+        appInfo: prevAppInfo,
+        storageBlocksAtDefault: prevStorage,
+        browserBlocksAtDefault: prevBrowser,
+        dshBlocksAtDefault: prevDsh,
+        networkBlocksAtDefault: prevNetwork,
+        sourceStatus: prevSource,
+      });
+    }
+  });
+
+  it('网络组非默认时顶部恢复全部默认按钮保持可用', () => {
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevStorage = useAppStore.getState().storageBlocksAtDefault;
+    const prevBrowser = useAppStore.getState().browserBlocksAtDefault;
+    const prevDsh = useAppStore.getState().dshBlocksAtDefault;
+    const prevNetwork = useAppStore.getState().networkBlocksAtDefault;
+    const prevSource = useAppStore.getState().sourceStatus;
+    setNavConfig();
+    useAppStore.setState({
+      storageBlocksAtDefault: true,
+      browserBlocksAtDefault: true,
+      dshBlocksAtDefault: true,
+      networkBlocksAtDefault: false,
+      sourceStatus: null,
+    });
+    try {
+      renderPanel();
       expect(topResetDisabled()).toBe(false);
     } finally {
       useAppStore.setState({
@@ -1312,6 +1381,7 @@ describe('SettingsPanel group reset', () => {
         storageBlocksAtDefault: prevStorage,
         browserBlocksAtDefault: prevBrowser,
         dshBlocksAtDefault: prevDsh,
+        networkBlocksAtDefault: prevNetwork,
         sourceStatus: prevSource,
       });
     }
