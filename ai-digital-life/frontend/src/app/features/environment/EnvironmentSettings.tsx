@@ -8,8 +8,15 @@ import { openUrlByMethod } from '@features/preview/openByMethod';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
 import { ConfirmDialog } from '@components/ConfirmDialog';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
-import { EnvDepRow, OPERABLE_DEPS, type EnvDepKey, type EnvDepRowActions } from './EnvDepRow';
+import {
+  EnvDepRow,
+  OPERABLE_DEPS,
+  isEnvDepReady,
+  type EnvDepKey,
+  type EnvDepRowActions,
+} from './EnvDepRow';
 import { getCachedEnvStatus, isWellFormedEnvStatus, setCachedEnvStatus } from './envStatusCache';
+import { RUNBOOKS, type RunbookKey } from './runbooks';
 import type { EnvSourceMode, EnvStatus } from '../../../shared/ipc/env';
 
 /** 七依赖行渲染顺序（与 wire 的 node/git/bash/webview2/adlserver/netprobe + 模型引导行对应）。 */
@@ -33,15 +40,60 @@ export function countEnvReadyDeps(status: EnvStatus): number {
   return versionReady + (status.netprobe.registryOk ? 1 : 0);
 }
 
-export function depPayload(
-  dep: EnvDepKey | 'all',
-  status: EnvStatus,
-): { dep: string; statusJson: string; baseline: string | null } {
+/** 依赖 → runbook 映射（git/bash 共用同一份）。 */
+const DEP_RUNBOOK: Record<EnvDepKey, RunbookKey> = {
+  node: 'env-node',
+  git: 'env-git-bash',
+  bash: 'env-git-bash',
+  webview2: 'env-webview2',
+  adlserver: 'env-adlserver',
+  net: 'env-net-download',
+  model: 'env-model-credential',
+};
+
+/**
+ * 全量载荷参与聚合的依赖：模型行无可检测就绪信号（与 ENV_READY_TOTAL 同口径
+ * 排除），否则全量载荷永远不可能为 null。
+ */
+const ALL_RUNBOOK_DEPS = ['node', 'git', 'bash', 'webview2', 'adlserver', 'net'] as const;
+
+function isDepReady(status: EnvStatus, dep: (typeof ALL_RUNBOOK_DEPS)[number]): boolean {
+  if (dep === 'net') {
+    return status.netprobe.registryOk;
+  }
+  return isEnvDepReady(status[dep]);
+}
+
+/** `all` 载荷只带未就绪项 runbook；全部就绪返回 null（此时不应声称有操作指引）。 */
+function allRunbooks(status: EnvStatus): string | null {
+  const keys: RunbookKey[] = [];
+  for (const dep of ALL_RUNBOOK_DEPS) {
+    if (isDepReady(status, dep)) {
+      continue;
+    }
+    const key = DEP_RUNBOOK[dep];
+    if (!keys.includes(key)) {
+      keys.push(key);
+    }
+  }
+  return keys.length === 0 ? null : keys.map((key) => RUNBOOKS[key]).join('\n\n---\n\n');
+}
+
+export interface EnvDepPayload {
+  dep: string;
+  statusJson: string;
+  baseline: string | null;
+  /** 匹配的 runbook 全文；`all` 未就绪项为空时 null。 */
+  runbook: string | null;
+}
+
+export function depPayload(dep: EnvDepKey | 'all', status: EnvStatus): EnvDepPayload {
+  const runbook = dep === 'all' ? allRunbooks(status) : RUNBOOKS[DEP_RUNBOOK[dep]];
   if (dep === 'all') {
-    return { dep, statusJson: JSON.stringify(status), baseline: null };
+    return { dep, statusJson: JSON.stringify(status), baseline: null, runbook };
   }
   if (dep === 'net') {
-    return { dep, statusJson: JSON.stringify(status.netprobe), baseline: null };
+    return { dep, statusJson: JSON.stringify(status.netprobe), baseline: null, runbook };
   }
   if (dep === 'model') {
     return {
@@ -51,10 +103,16 @@ export function depPayload(
         dshReady: status.dshReady,
       }),
       baseline: null,
+      runbook,
     };
   }
   const section = status[dep];
-  return { dep, statusJson: JSON.stringify(section), baseline: section.baselineVersion };
+  return {
+    dep,
+    statusJson: JSON.stringify(section),
+    baseline: section.baselineVersion,
+    runbook,
+  };
 }
 
 function writeTextFallback(text: string): boolean {
@@ -167,7 +225,8 @@ export function EnvironmentSettings() {
       if (status === null) {
         return;
       }
-      // runbook 全文 Phase 3 追加；此处载荷契约 = { dep, statusJson, baseline, copyContext }。
+      // 载荷契约：{ dep, statusJson, baseline, runbook, copyContext }，
+      // runbook 为对应依赖（`all` 时为未就绪项）的操作指引全文。
       const payload = {
         ...depPayload(dep, status),
         copyContext: {

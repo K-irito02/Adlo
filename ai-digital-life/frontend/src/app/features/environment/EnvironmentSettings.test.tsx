@@ -215,6 +215,10 @@ describe('EnvironmentSettings', () => {
     expect(section.baselineVersion).toBe('22.0.0');
     expect(payload.baseline).toBe('22.0.0');
     expect(payload.copyContext).toBeTruthy();
+    // Phase 3：载荷附带匹配 runbook 全文（未就绪项必须有可执行指引）。
+    expect(typeof payload.runbook).toBe('string');
+    expect(payload.runbook as string).toContain('## 症状');
+    expect(payload.runbook as string).toContain('## 检测命令');
   });
 
   it('来源切换调用 selectEnvSource', async () => {
@@ -333,6 +337,35 @@ describe('EnvironmentSettings', () => {
     const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
     expect(payload.dep).toBe('all');
     expect(typeof payload.statusJson).toBe('string');
+    // fixture 里 node 未就绪 → 全量载荷只带未就绪项 runbook。
+    expect(typeof payload.runbook).toBe('string');
+    expect(payload.runbook as string).toContain('## 症状');
+    expect(payload.runbook as string).toContain('Node.js');
+  });
+
+  it('全量载荷：所有可检测项就绪时 runbook 为 null', async () => {
+    const ready = fixture();
+    ready.node = depState({
+      mode: 'auto',
+      effective: 'host',
+      installedVersion: '22.0.0',
+      baselineVersion: '22.0.0',
+      meetsBaseline: true,
+      path: 'C:/hosted/node/22.0.0/node.exe',
+    });
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: ready });
+      return true;
+    });
+    seedStore({ envStatus: ready });
+    await renderWithRows();
+    fireEvent.click(screen.getByRole('button', { name: 'environmentCopyAllForAgent' }));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
+    const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
+    expect(payload.dep).toBe('all');
+    expect(payload.runbook).toBeNull();
   });
 
   it('组级重置 pending 打开确认框，确认后来源回自动并清空手动路径', async () => {
