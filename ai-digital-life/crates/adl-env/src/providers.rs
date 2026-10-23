@@ -136,6 +136,30 @@ mod tests {
     }
 
     #[test]
+    fn webview2_queries_documented_clients_keys() {
+        assert_eq!(
+            webview2::hklm_machine_keys(),
+            [
+                r"HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+                r"HKLM\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+            ]
+        );
+        assert_eq!(
+            webview2::hkcu_key(),
+            r"HKCU\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+        );
+    }
+
+    #[test]
+    fn picks_highest_across_three_hives() {
+        let machine_best = webview2::pick_highest(Some("139.0.0.0"), Some("155.0.4283.62"));
+        assert_eq!(
+            webview2::pick_highest(machine_best.as_deref(), Some("140.0.0.0")),
+            Some("155.0.4283.62".into())
+        );
+    }
+
+    #[test]
     fn host_bash_derives_from_git_selection() {
         let p = bash::host_bash_path(Path::new("D:/d"), "2.47.1");
         assert_eq!(p, PathBuf::from("D:/d/env-hosted/git/installed/2.47.1/bin/bash.exe"));
