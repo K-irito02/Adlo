@@ -268,12 +268,14 @@ async fn wait_for_authenticated_url(slot: &UrlSlot, fallback: &str, wait: Durati
 /// 快速检查端口是否可达（TCP 连接检查，带超时）。
 async fn check_port_fast(port: u16) -> bool {
     use tokio::net::TcpStream;
-    tokio::time::timeout(
-        Duration::from_millis(100),
-        TcpStream::connect(format!("127.0.0.1:{port}")),
+    matches!(
+        tokio::time::timeout(
+            Duration::from_millis(100),
+            TcpStream::connect(format!("127.0.0.1:{port}")),
+        )
+        .await,
+        Ok(Ok(_))
     )
-    .await
-    .is_ok()
 }
 
 /// 在候选端口上 spawn 指定程序，并轮询直到任一端口 TCP 可达或超时。
@@ -349,6 +351,21 @@ pub async fn spawn_with_marker(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn check_port_fast_refused_and_listening() {
+        // 监听中的端口必须返回 true。
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let live_port = listener.local_addr().unwrap().port();
+        assert!(check_port_fast(live_port).await);
+        drop(listener);
+        // 绑定后立即释放的端口：连接被拒绝，必须返回 false（回归：旧 `.is_ok()`
+        // 只查外层 timeout Result，会把 `Ok(Err(refused))` 误判为就绪）。
+        let dropped = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let refused_port = dropped.local_addr().unwrap().port();
+        drop(dropped);
+        assert!(!check_port_fast(refused_port).await);
+    }
 
     #[tokio::test]
     async fn spawn_captures_marker_url() {
