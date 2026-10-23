@@ -11,3 +11,4 @@ workspace = true
 [dependencies]
 adl-errors = { path = "../errors" }
 semver = "1"
+tracing.workspace = true

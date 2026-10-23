@@ -25,7 +25,7 @@ fn nonce() -> u128 {
         .unwrap_or_default()
 }
 
-fn swap_rename_or_copy(staging: &Path, target: &Path) -> Result<(), AppError> {
+pub(crate) fn swap_rename_or_copy(staging: &Path, target: &Path) -> Result<(), AppError> {
     if std::fs::rename(staging, target).is_ok() {
         return Ok(());
     }
