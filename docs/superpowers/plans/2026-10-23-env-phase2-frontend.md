@@ -67,23 +67,34 @@ ai-digital-life/frontend/src/app/App.tsx # 向导触发 effect（照抄 dsh 自�
 - [ ] **Step 1: Write the failing test** — `shared/ipc/__tests__/env-parity.test.ts`（照抄 `storage-parity.test.ts` 的“方法集”用例骨架）：
 
 ```ts
-import { describe, it, expect } from 'vitest';
-import { httpBridge } from '../../httpBridge';
-import { mockBridge } from '../../mock-bridge';
-import { createTauriEnvBridge } from '../../tauri-bridge/tauri-env';
+// 照抄 storage-parity.test.ts 的工厂模式（vi.mock tauri 模块 + createHttpBridge /
+// createTauriBridge(from '../../../tauri-bridge/index') / createMockEnv(from '../../../mock/mock-env')），
+// 不用 httpBridge/mockBridge 单例。 tauri-bridge/index.ts 中 dsh 域如何注册，env 域就如何注册。
+import { describe, it, expect, vi } from 'vitest';
+
+const { mockInvoke } = vi.hoisted(() => ({ mockInvoke: vi.fn() }));
+vi.mock('@tauri-apps/api/core', () => ({ invoke: mockInvoke }));
+vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn() }));
+vi.mock('@tauri-apps/plugin-shell', () => ({ open: vi.fn() }));
+
+import { createHttpBridge } from '../../../httpBridge';
+import { createTauriBridge } from '../../../tauri-bridge/index';
+import { createMockEnv } from '../../../mock/mock-env';
 
 const EXPECTED = ['getStatus', 'install', 'selectSource', 'setCustomPath', 'recheck'] as const;
 
 describe('env bridge method parity', () => {
   it('exposes the same method set on tauri / http / mock', () => {
+    const http = createHttpBridge('http://127.0.0.1:9');
     for (const name of EXPECTED) {
-      expect(typeof (httpBridge.env as any)[name]).toBe('function');
-      expect(typeof (mockBridge.env as any)[name]).toBe('function');
-      expect(typeof (createTauriEnvBridge(httpBridge.env) as any)[name]).toBe('function');
+      expect(typeof (http.env as any)[name]).toBe('function');
+      expect(typeof (createMockEnv() as any)[name]).toBe('function');
+      expect(typeof (createTauriBridge(http).env as any)[name]).toBe('function');
     }
   });
 });
 ```
+（`createHttpBridge`/`createTauriBridge` 的真实签名以仓库现状为准——先读 `storage-parity.test.ts` 与两工厂定义，签名不符时按仓库现状调用，本块仅为形状示例。）
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -105,11 +116,12 @@ export interface EnvDependencyState {
 export interface EnvNetState {
   registryOk: boolean; registryLatencyMs: number; ciTokenConfigured: boolean;
 }
+// wire-exact: 后端 ProgressSnapshot 为 snake_case（Task 5 决议），前端照原样接收，不做 camelCase 映射
 export type EnvTaskKind = `env-${string}-install` | `env-${string}-uninstall` | `env-${string}-reinstall`;
-export interface EnvTask { kind: EnvTaskKind; label: string; phase: 'preparing'|'installing'|'removing'|'finalizing'; done: number; total: number; cancellable: boolean; error?: string | null }
+export interface EnvTask { kind: string; version: string; phase: 'preparing'|'installing'|'removing'|'finalizing'; percent: number; done: number; total: number; cancellable: boolean; error?: string | null }
 export interface EnvStatus {
   node: EnvDependencyState; git: EnvDependencyState; bash: EnvDependencyState;
-  webview2: EnvDependencyState; adlserver: EnvDependencyState; net: EnvNetState;
+  webview2: EnvDependencyState; adlserver: EnvDependencyState; netprobe: EnvNetState;
   task: EnvTask | null; dshReady: boolean;
 }
 export interface EnvBridge {
