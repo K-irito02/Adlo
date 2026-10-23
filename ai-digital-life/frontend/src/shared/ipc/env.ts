@@ -18,10 +18,7 @@ export interface EnvNetState {
   ciTokenConfigured: boolean;
 }
 // wire-exact: 后端 ProgressSnapshot 为 snake_case（Task 5 决议），前端照原样接收，不做 camelCase 映射
-export type EnvTaskKind =
-  | `env-${string}-install`
-  | `env-${string}-uninstall`
-  | `env-${string}-reinstall`;
+export type EnvTaskKind = `env-${string}-install` | `env-${string}-uninstall`;
 export interface EnvTask {
   kind: EnvTaskKind;
   version: string;

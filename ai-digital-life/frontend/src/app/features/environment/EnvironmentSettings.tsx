@@ -14,6 +14,7 @@ import {
   isEnvDepReady,
   type EnvDepKey,
   type EnvDepRowActions,
+  type OperableDep,
 } from './EnvDepRow';
 import { getCachedEnvStatus, isWellFormedEnvStatus, setCachedEnvStatus } from './envStatusCache';
 import { RUNBOOKS, type RunbookKey } from './runbooks';
@@ -31,12 +32,9 @@ export const ENV_READY_TOTAL = 6;
 
 /** 就绪项计数（聚合条与向导完成步/跳过横幅共用同一口径）。 */
 export function countEnvReadyDeps(status: EnvStatus): number {
-  const versionReady = (['node', 'git', 'bash', 'webview2', 'adlserver'] as const).filter((dep) => {
-    const section = status[dep];
-    return (
-      section.installedVersion !== null && section.meetsBaseline && section.effective !== 'none'
-    );
-  }).length;
+  const versionReady = (['node', 'git', 'bash', 'webview2', 'adlserver'] as const).filter((dep) =>
+    isEnvDepReady(status[dep]),
+  ).length;
   return versionReady + (status.netprobe.registryOk ? 1 : 0);
 }
 
@@ -125,7 +123,8 @@ export function depPayload(dep: EnvDepKey | 'all', status: EnvStatus): EnvDepPay
   return {
     dep,
     statusJson: JSON.stringify(section),
-    baseline: section.baselineVersion,
+    // bash/adlserver 无版本基线（wire 为空串）：载荷按“无基线”输出 null。
+    baseline: section.baselineVersion === '' ? null : section.baselineVersion,
     runbook,
     dataDir: status.dataDir,
   };
@@ -137,9 +136,10 @@ function writeTextFallback(text: string): boolean {
     textarea.value = text;
     document.body.appendChild(textarea);
     textarea.select();
-    document.execCommand('copy');
+    const copied =
+      typeof document.execCommand === 'function' ? document.execCommand('copy') : false;
     document.body.removeChild(textarea);
-    return true;
+    return copied;
   } catch {
     return false;
   }
@@ -183,7 +183,7 @@ export function EnvironmentSettings() {
   const status = storeStatus ?? cachedStatus;
 
   const [installConfirmDep, setInstallConfirmDep] = useState<string | null>(null);
-  const [blockResetDep, setBlockResetDep] = useState<string | null>(null);
+  const [blockResetDep, setBlockResetDep] = useState<OperableDep | null>(null);
   const [groupResetOpen, setGroupResetOpen] = useState(false);
   const [groupResetBusy, setGroupResetBusy] = useState(false);
 
@@ -304,12 +304,9 @@ export function EnvironmentSettings() {
 
   /** 单行恢复默认：来源恢复 + 单行重测。 */
   const resetOneDep = useCallback(
-    async (dep: string): Promise<boolean> => {
+    async (dep: OperableDep): Promise<boolean> => {
       if (status === null) {
         return false;
-      }
-      if (dep !== 'node' && dep !== 'git' && dep !== 'bash') {
-        return actions.recheckEnv(dep);
       }
       if (!(await resetOneDepSource(dep))) {
         return false;
@@ -459,7 +456,7 @@ export function EnvironmentSettings() {
                   <button
                     type="button"
                     className="adl-dsh-settings__action-btn"
-                    data-settings-row={t.environmentCopyForAgent}
+                    data-settings-row={t.environmentCopyAllForAgent}
                     disabled={envBusy}
                     onClick={() => {
                       void copyForAgent('all');

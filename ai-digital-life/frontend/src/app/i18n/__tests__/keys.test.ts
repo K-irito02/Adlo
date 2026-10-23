@@ -478,6 +478,7 @@ describe('i18n en-US namespace keys', () => {
       'environmentStatusNeedManual',
       'environmentStatusMissing',
       'environmentStatusTooOld',
+      'environmentStatusDetected',
       // 来源三态
       'environmentSourceAuto',
       'environmentSourceSystem',
@@ -497,7 +498,6 @@ describe('i18n en-US namespace keys', () => {
       'environmentGoToSettings',
       // 引导
       'environmentWebview2DownloadPage',
-      'environmentAdlserverReinstall',
       'environmentDshCredentialNote',
       // wizard 四键
       'environmentWizardWelcome',
@@ -511,7 +511,6 @@ describe('i18n en-US namespace keys', () => {
       'environmentInstallStarted',
       'environmentInstallSuccess',
       'environmentInstallFailed',
-      'environmentInstallProgress',
       // 卸载失败（Task 3：轮询消费 task.error 后的专用文案）
       'environmentUninstallFailed',
       // 环境行组 UI（Task 7：七依赖行 + 聚合条 + 复制 + 重置）
@@ -535,7 +534,6 @@ describe('i18n en-US namespace keys', () => {
       'environmentFieldVersion',
       'environmentFieldPath',
       'environmentFieldSource',
-      'environmentBashVariant',
       'environmentBashHostedNote',
       'environmentCustomPathLabel',
       'environmentCustomPathPlaceholder',
@@ -557,25 +555,17 @@ describe('i18n en-US namespace keys', () => {
       'environmentTaskPhaseInstalling',
       'environmentTaskPhaseRemoving',
       'environmentTaskPhaseFinalizing',
-      // 网络域：组 labelKey（供 Task 4 注册）+ 组标题/副标题/状态灯/重试
-      // （RULING：DSH 旧键不迁移，NetworkSettings 复用 dsh.* 旧 key，新文案才用 network 域）
+      // 网络域：仅组 labelKey（块内文案复用 dsh.* 旧 key）。
       'settingsNetwork',
-      'networkTitle',
-      'networkDesc',
-      'networkStatusOk',
-      'networkStatusUnstable',
-      'networkStatusOffline',
-      'networkRetry',
     ] as const;
     for (const key of keys) {
       expect((enUS as Record<string, unknown>)[key], `en:${key}`).toBeTruthy();
       expect((zhCN as Record<string, unknown>)[key], `zh:${key}`).toBeTruthy();
     }
-    // 插值占位符两侧一致（install 文案带 {dep}，成功另带 {version}；进度带 {dep}/{done}/{total}）。
+    // 插值占位符两侧一致（install 文案带 {dep}，成功另带 {version}）。
     for (const key of [
       'environmentInstallStarted',
       'environmentInstallFailed',
-      'environmentInstallProgress',
       'environmentInstallConfirmTitle',
       'environmentInstallConfirmMessage',
       'environmentUninstallFailed',
@@ -593,10 +583,6 @@ describe('i18n en-US namespace keys', () => {
     expect(String(zhCN.environmentInstallSuccess)).toContain('{dep}');
     expect(String(enUS.environmentInstallSuccess)).toContain('{version}');
     expect(String(zhCN.environmentInstallSuccess)).toContain('{version}');
-    expect(String(enUS.environmentInstallProgress)).toContain('{done}');
-    expect(String(zhCN.environmentInstallProgress)).toContain('{done}');
-    expect(String(enUS.environmentInstallProgress)).toContain('{total}');
-    expect(String(zhCN.environmentInstallProgress)).toContain('{total}');
     expect(String(enUS.environmentBashVariantNote)).toContain('{variant}');
     expect(String(zhCN.environmentBashVariantNote)).toContain('{variant}');
     expect(String(enUS.environmentWizardResumeBanner)).toContain('{count}');

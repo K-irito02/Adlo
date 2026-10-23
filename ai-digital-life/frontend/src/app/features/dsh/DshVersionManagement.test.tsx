@@ -1607,7 +1607,7 @@ describe('DshVersionManagement', () => {
     seedCatalog(['0.2.0'], ['0.2.1-rc.2']);
     useAppStore.setState({
       versionTask: {
-        kind: 'install',
+        kind: 'dsh-install',
         version: '0.2.0',
         phase: 'installing',
         percent: 42,
@@ -1663,7 +1663,7 @@ describe('DshVersionManagement', () => {
     seedCatalog(['0.2.0'], ['0.2.1-rc.2']);
     useAppStore.setState({
       versionTask: {
-        kind: 'install',
+        kind: 'dsh-install',
         version: '0.2.0',
         phase: 'installing',
         percent: null,
@@ -1681,7 +1681,7 @@ describe('DshVersionManagement', () => {
     seedCatalog(['0.2.0'], ['0.2.1-rc.2']);
     useAppStore.setState({
       versionTask: {
-        kind: 'install',
+        kind: 'dsh-install',
         version: '0.2.0',
         phase: 'installing',
         percent: 95,

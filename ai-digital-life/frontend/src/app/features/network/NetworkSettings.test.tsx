@@ -9,6 +9,7 @@ import type { DshSourceStatus } from '../../../shared/ipc/dsh';
 
 const testSource = vi.fn();
 const saveSourceConfig = vi.fn();
+const fetchSourceStatus = vi.fn();
 
 vi.mock('../../hooks/useAppActions', () => {
   // 单例对象：保持 useAppActions 返回引用稳定（真实实现经 useShallow 也稳定），
@@ -16,6 +17,7 @@ vi.mock('../../hooks/useAppActions', () => {
   const actions = {
     testSource: (...args: unknown[]) => testSource(...args),
     saveSourceConfig: (...args: unknown[]) => saveSourceConfig(...args),
+    fetchSourceStatus: (...args: unknown[]) => fetchSourceStatus(...args),
   };
   return { useAppActions: () => actions };
 });
@@ -70,8 +72,10 @@ describe('NetworkSettings', () => {
     vi.useRealTimers();
     testSource.mockReset();
     saveSourceConfig.mockReset();
+    fetchSourceStatus.mockReset();
     testSource.mockResolvedValue({ reachable: true, latency_ms: 12, error: null });
     saveSourceConfig.mockResolvedValue(true);
+    fetchSourceStatus.mockResolvedValue(true);
     useAppStore.setState({
       sourceStatus: null,
       networkGroupResetPending: false,
@@ -115,6 +119,32 @@ describe('NetworkSettings', () => {
       false,
     );
     expect((screen.getByTestId('dsh-test-button') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('sourceStatus 未知时挂载静默拉取源状态', () => {
+    useAppStore.setState({ sourceStatus: null });
+    renderSettings();
+    expect(fetchSourceStatus).toHaveBeenCalledWith(true);
+  });
+
+  it('sourceStatus 未知时只改代理：落盘仅含 proxy，不猜测 source_mode/npm_registry', async () => {
+    useAppStore.setState({ sourceStatus: null });
+    renderSettings();
+    expect(fetchSourceStatus).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByLabelText('dshSettingsProxyMode'));
+    fireEvent.click(await screen.findByRole('option', { name: 'dshSettingsProxyModeManual' }));
+    await waitFor(() => {
+      expect(saveSourceConfig).toHaveBeenCalledTimes(1);
+    });
+    const config = saveSourceConfig.mock.calls[0][0] as Record<string, unknown>;
+    expect(config).not.toHaveProperty('source_mode');
+    expect(config).not.toHaveProperty('npm_registry');
+    expect(config.proxy).toEqual({
+      mode: 'manual',
+      http_proxy: null,
+      https_proxy: null,
+      no_proxy: null,
+    });
   });
 
   it('sourceStatus 未知时块恢复按钮只看本地选项（fail-open，不再永久砖化）', () => {

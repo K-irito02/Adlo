@@ -458,7 +458,24 @@ describe('SettingsPanel group reset', () => {
       // 会让后续「查询为空」的瞬间渲染出历史卡片（顺序耦合的隐性脆弱点）。
       settingsSearchHistory: [],
       navigatorCollapsedByTool: { ...s.navigatorCollapsedByTool, settings: false },
+      envStatus: null,
     }));
+  });
+
+  it('environment nav reset disabled while env status unknown, enabled after load', () => {
+    const prevAppInfo = useAppStore.getState().appInfo;
+    try {
+      setupStore();
+      useAppStore.setState({ envStatus: null });
+      renderPanel();
+      expect(navResetDisabled('Reset settingsEnvironment all defaults')).toBe(true);
+      cleanup();
+      useAppStore.setState({ envStatus: {} as never });
+      renderPanel();
+      expect(navResetDisabled('Reset settingsEnvironment all defaults')).toBe(false);
+    } finally {
+      useAppStore.setState({ appInfo: prevAppInfo, envStatus: null });
+    }
   });
 
   it('组级重置弹分组文案（含组名插值）而非“恢复全部”文案', async () => {

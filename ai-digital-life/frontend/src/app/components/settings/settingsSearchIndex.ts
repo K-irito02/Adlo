@@ -259,6 +259,7 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
       { labelKey: 'environmentReinstall' },
       { labelKey: 'environmentRecheck' },
       { labelKey: 'environmentCopyForAgent' },
+      { labelKey: 'environmentCopyAllForAgent' },
       { labelKey: 'environmentGoToSettings' },
     ],
   },

@@ -17,7 +17,10 @@ export type EnvDepKey = 'node' | 'git' | 'bash' | 'webview2' | 'adlserver' | 'ne
 const INSTALLABLE_DEPS: ReadonlySet<string> = new Set(['node', 'git']);
 /** 可切换来源 + 填手动路径的依赖（与后端 `custom_path_supported` 同口径；向导/设置组共用同一真源）。 */
 export const OPERABLE_DEPS = ['node', 'git', 'bash'] as const;
+export type OperableDep = (typeof OPERABLE_DEPS)[number];
 const OPERABLE_DEP_SET: ReadonlySet<string> = new Set<string>(OPERABLE_DEPS);
+/** 仅有“存在性”信号、后端从不报告版本的依赖（版本段显示检测态而非“缺失”）。 */
+const VERSIONLESS_DEPS: ReadonlySet<string> = new Set(['bash', 'adlserver']);
 
 const OFFICIAL_URLS: Record<string, string> = {
   node: 'https://nodejs.org/',
@@ -36,8 +39,8 @@ export interface EnvDepRowActions {
   reinstall: (dep: string, version: string) => Promise<unknown>;
   setCustomPath: (dep: string, path: string) => Promise<unknown>;
   copyForAgent: (dep: EnvDepKey | 'all') => Promise<void>;
-  /** 打开块级恢复默认确认框（来源回自动 + 清空手动路径，不卸载）。 */
-  requestBlockReset: (dep: string) => void;
+  /** 打开块级恢复默认确认框（来源回自动 + 清空手动路径，不卸载）；仅在非 compact 行使用。 */
+  requestBlockReset?: (dep: OperableDep) => void;
   goGroup: (group: 'dsh' | 'network') => void;
   openExternal: (url: string) => void;
 }
@@ -61,9 +64,12 @@ function depSection(status: EnvStatus, dep: EnvDepKey): EnvDependencyState | nul
   return status[dep];
 }
 
-/** 依赖就绪判定：有版本 + 达基线 + 来源非空（向导复用此口径挑未就绪项）。 */
+/**
+ * 依赖就绪判定：来源非空 + 达基线。版本号可为 null（bash/adlserver 仅有存在性信号），
+ * 这不是缺失，故不得把 `installedVersion !== null` 混入就绪条件。
+ */
 export function isEnvDepReady(section: EnvDependencyState): boolean {
-  return section.installedVersion !== null && section.meetsBaseline && section.effective !== 'none';
+  return section.effective !== 'none' && section.meetsBaseline;
 }
 
 /** 状态灯：五态（就绪/需安装/需手动安装/缺失/版本过低）→ pill 文案与色调。 */
@@ -72,7 +78,7 @@ function depPill(
   dep: string,
   section: EnvDependencyState,
 ): { text: string; tone: PillTone } {
-  const missing = section.installedVersion === null || section.effective === 'none';
+  const missing = section.effective === 'none';
   if (!missing && section.meetsBaseline) {
     return { text: t.environmentStatusReady, tone: 'success' };
   }
@@ -224,9 +230,7 @@ export function EnvDepRow({
     section !== null &&
     status.task !== null &&
     (status.task.error ?? '') === '' &&
-    (status.task.kind === `env-${dep}-install` ||
-      status.task.kind === `env-${dep}-uninstall` ||
-      status.task.kind === `env-${dep}-reinstall`)
+    (status.task.kind === `env-${dep}-install` || status.task.kind === `env-${dep}-uninstall`)
       ? status.task
       : null;
   // 断网降级（spec §6.2）：下载源不可达时安装必失败，安装按钮由复制按钮
@@ -301,9 +305,12 @@ export function EnvDepRow({
 
   const renderStatusLine = () => {
     if (section !== null) {
-      const parts = [
-        `${t.environmentFieldVersion} ${section.installedVersion ?? t.environmentStatusMissing}`,
-      ];
+      // bash/adlserver 后端不报告版本（仅存在性）：显示「已检测」而非「缺失」，无检测时用破折号。
+      const parts = VERSIONLESS_DEPS.has(dep)
+        ? [section.effective === 'none' ? '—' : t.environmentStatusDetected]
+        : [
+            `${t.environmentFieldVersion} ${section.installedVersion ?? t.environmentStatusMissing}`,
+          ];
       if (section.path !== null) {
         parts.push(`${t.environmentFieldPath} ${section.path}`);
       }
@@ -377,14 +384,14 @@ export function EnvDepRow({
           <div className="adl-settings-row__label-text">
             <span>{depTitle}</span>
             {section !== null ? <EnvDepPill dep={dep} section={section} /> : null}
-            {OPERABLE_DEP_SET.has(dep) && !compact ? (
+            {OPERABLE_DEP_SET.has(dep) && !compact && actions.requestBlockReset ? (
               <button
                 type="button"
                 className="adl-settings-row__reset"
                 title={t.environmentResetSource}
                 aria-label={t.environmentResetSource}
                 disabled={controlsDisabled}
-                onClick={() => actions.requestBlockReset(dep)}
+                onClick={() => actions.requestBlockReset?.(dep as OperableDep)}
               >
                 <IconResetDefaults size={14} decorative />
               </button>

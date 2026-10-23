@@ -123,8 +123,6 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
     reinstall: (dep, version) => actions.installEnvDep(dep, version),
     setCustomPath: (dep, path) => actions.setEnvCustomPath(dep, path),
     copyForAgent,
-    // compact 行隐藏块级恢复按钮，此回调不可达（接口占位）。
-    requestBlockReset: () => {},
     goGroup: (group) => setActiveSettingsGroup(group),
     openExternal: (url) => openUrlByMethod(url),
   };

@@ -218,6 +218,9 @@ const CONDITIONAL_ROW_MARKERS: string[] = [
   'environmentReinstall',
   'environmentRecheck',
   'environmentCopyForAgent',
+  // 聚合条仅在环境状态加载后渲染。
+  'environmentCopyAllForAgent',
+  // net/model 两行的「前往配置」共用同一索引行（只登记一次），落点取首个等值行。
   'environmentGoToSettings',
 ];
 

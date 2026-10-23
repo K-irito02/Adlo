@@ -93,11 +93,7 @@ export interface DshSettingsSnapshot {
   catalog: DshVersionCatalog | null;
 }
 
-export type DshVersionTaskKind =
-  | 'install'
-  | 'uninstall'
-  | 'reinstall'
-  | `dsh-${'install' | 'uninstall' | 'reinstall'}`;
+export type DshVersionTaskKind = `dsh-${'install' | 'uninstall' | 'reinstall'}`;
 export type DshVersionTaskPhase = 'preparing' | 'installing' | 'removing' | 'finalizing';
 
 /** 版本任务（安装/卸载/重装）真实进度。 */

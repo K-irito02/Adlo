@@ -4,7 +4,7 @@ import { render, cleanup, fireEvent, screen, waitFor, within } from '@testing-li
 import type { CopyDict } from '@i18n';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
-import { EnvironmentSettings } from './EnvironmentSettings';
+import { copyTextToClipboard, EnvironmentSettings } from './EnvironmentSettings';
 import { resetEnvSettingsCache } from './envStatusCache';
 import type { EnvDependencyState, EnvStatus } from '../../../shared/ipc/env';
 import { openUrlByMethod } from '@features/preview/openByMethod';
@@ -82,8 +82,8 @@ function fixture(): EnvStatus {
     bash: depState({
       mode: 'system',
       effective: 'system',
-      installedVersion: '5.2.21',
-      baselineVersion: '5.2.21',
+      installedVersion: null,
+      baselineVersion: '',
       meetsBaseline: true,
       path: 'C:/Program Files/Git/bin/bash.exe',
     }),
@@ -97,9 +97,11 @@ function fixture(): EnvStatus {
       path: null,
     },
     adlserver: depState({
+      effective: 'system',
       origin: 'bundled',
-      installedVersion: '0.1.0',
-      baselineVersion: '0.1.0',
+      installedVersion: null,
+      baselineVersion: '',
+      meetsBaseline: true,
       path: 'C:/hosted/adlserver/adl-server.exe',
     }),
     netprobe: { registryOk: true, registryLatencyMs: 12, ciTokenConfigured: false },
@@ -411,7 +413,7 @@ describe('EnvironmentSettings', () => {
     status.bash = depState({
       effective: 'none',
       installedVersion: null,
-      baselineVersion: '5.2.21',
+      baselineVersion: '',
       meetsBaseline: false,
       path: null,
     });
@@ -457,7 +459,65 @@ describe('EnvironmentSettings', () => {
     });
     const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
     expect(payload.dep).toBe('all');
+    // bash/adlserver 的真实 wire 是 null 版本 + 空基线；健康时全部就绪 → 无操作指引。
+    const status = JSON.parse(payload.statusJson as string) as EnvStatus;
+    expect(status.bash.installedVersion).toBeNull();
+    expect(status.adlserver.installedVersion).toBeNull();
     expect(payload.runbook).toBeNull();
+  });
+
+  it('全量载荷：bash/adlserver 未就绪时收录各自 runbook', async () => {
+    const status = fixture();
+    status.node = depState({
+      mode: 'auto',
+      effective: 'host',
+      installedVersion: '22.0.0',
+      baselineVersion: '22.0.0',
+      meetsBaseline: true,
+      path: 'C:/hosted/node/22.0.0/node.exe',
+    });
+    status.bash = depState({
+      mode: 'system',
+      effective: 'none',
+      installedVersion: null,
+      baselineVersion: '',
+      meetsBaseline: false,
+      path: null,
+    });
+    status.adlserver = depState({
+      effective: 'none',
+      origin: 'bundled',
+      installedVersion: null,
+      baselineVersion: '',
+      meetsBaseline: false,
+      path: null,
+    });
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: status });
+      return true;
+    });
+    seedStore({ envStatus: status });
+    await renderWithRows();
+    fireEvent.click(screen.getByRole('button', { name: 'environmentCopyAllForAgent' }));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
+    const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
+    const runbook = payload.runbook as string;
+    expect(runbook).toContain('（env-git-bash）');
+    expect(runbook).toContain('（env-adlserver）');
+  });
+
+  it('版本无关依赖的载荷 baseline 为 null（wire 空串）', async () => {
+    const { container } = await renderWithRows();
+    // bash 行固定渲染复制按钮。
+    const bash = container.querySelector('[data-testid="env-dep-bash"]') as HTMLElement;
+    fireEvent.click(within(bash).getByRole('button', { name: 'environmentCopyForAgentNote' }));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
+    const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
+    expect(payload.baseline).toBeNull();
   });
 
   it('组级重置 pending 打开确认框，确认后来源回自动并清空手动路径', async () => {
@@ -500,6 +560,39 @@ describe('EnvironmentSettings', () => {
       </TCopyProvider>,
     );
     expect(await screen.findByText('5/6 就绪')).not.toBeNull();
+  });
+
+  it('bash/adlserver 无版本号（真实 wire）仍按 meetsBaseline 计为就绪：6/6', async () => {
+    const ready = fixture();
+    ready.node = depState({
+      mode: 'auto',
+      effective: 'host',
+      installedVersion: '22.0.0',
+      baselineVersion: '22.0.0',
+      meetsBaseline: true,
+      path: 'C:/hosted/node/22.0.0/node.exe',
+    });
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: ready });
+      return true;
+    });
+    seedStore({ envStatus: ready });
+    const hybridT = new Proxy({} as Record<string, string>, {
+      get: (_, key) =>
+        typeof key === 'string' ? ((environmentZh as Record<string, string>)[key] ?? key) : '',
+    }) as unknown as CopyDict;
+    const { container } = render(
+      <TCopyProvider t={hybridT} locale="zh-CN">
+        <EnvironmentSettings />
+      </TCopyProvider>,
+    );
+    expect(await screen.findByText('6/6 就绪')).not.toBeNull();
+    const bash = container.querySelector('[data-testid="env-dep-bash"]') as HTMLElement;
+    expect(bash.textContent).toContain('已检测');
+    expect(bash.textContent).not.toContain('缺失');
+    const adlserver = container.querySelector('[data-testid="env-dep-adlserver"]') as HTMLElement;
+    expect(adlserver.textContent).toContain('已检测');
+    expect(adlserver.textContent).not.toContain('缺失');
   });
 
   it('浏览器模式：系统级行变更控件置灰并追加仅桌面说明', async () => {
@@ -564,5 +657,24 @@ describe('EnvironmentSettings', () => {
       expect(screen.getByTestId('env-aggregate')).not.toBeNull();
     });
     expect(container.querySelector('[data-testid="env-wizard-resume"]')).toBeNull();
+  });
+
+  it('剪贴板降级返回 execCommand 的真实结果（不支持时为 false）', async () => {
+    const original = document.execCommand;
+    const execCommand = vi.fn(() => true);
+    Object.defineProperty(document, 'execCommand', { value: execCommand, configurable: true });
+    Object.assign(navigator, { clipboard: undefined });
+    try {
+      await expect(copyTextToClipboard('hello')).resolves.toBe(true);
+      expect(execCommand).toHaveBeenCalledWith('copy');
+
+      execCommand.mockReturnValue(false);
+      await expect(copyTextToClipboard('hello')).resolves.toBe(false);
+
+      Object.defineProperty(document, 'execCommand', { value: undefined, configurable: true });
+      await expect(copyTextToClipboard('hello')).resolves.toBe(false);
+    } finally {
+      Object.defineProperty(document, 'execCommand', { value: original, configurable: true });
+    }
   });
 });

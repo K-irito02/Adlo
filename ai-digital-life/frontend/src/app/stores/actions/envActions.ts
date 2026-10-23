@@ -28,6 +28,8 @@ export const ENV_POLL_MAX_ELAPSED_MS = 10 * 60 * 1000;
 
 /** 轮询定时器（模块级）：install 重入先清旧轮询，避免双 interval 并跑。 */
 let envPollTimer: number | null = null;
+/** 当前轮询实例的取消器：新轮询启动时先停旧实例（含在途 tick），避免旧写覆盖新状态。 */
+let cancelActiveEnvPoll: (() => void) | null = null;
 
 function envDict(get: () => StoreState) {
   const locale = resolveAppLanguage(get().appInfo?.config?.language);
@@ -49,11 +51,20 @@ function fill(template: string, vars: Record<string, string | number>): string {
 }
 
 /**
- * 从任务 kind（`env-{dep}-{install|uninstall|reinstall}`，见 shared/ipc/env.ts
+ * 从任务 kind（`env-{dep}-{install|uninstall}`，见 shared/ipc/env.ts
  * EnvTaskKind）反解依赖名，供安装 toast 的 {dep} 插值。
  */
 function depOfTaskKind(kind: string): string {
-  return kind.replace(/^env-/, '').replace(/-(install|uninstall|reinstall)$/, '');
+  return kind.replace(/^env-/, '').replace(/-(install|uninstall)$/, '');
+}
+
+/**
+ * 后端安装任务 label 已含 `<dep> <version>`（handlers/env.rs），而 task.version
+ * 原样携带该 label；toast 再插值 dep 会渲染成 "node node 24.22.1"。
+ * 仅剥离开头的 `<dep> `，卸载任务（label=version）原样保留。
+ */
+function taskVersionOf(task: { version: string }, dep: string): string {
+  return dep !== '' ? task.version.replace(new RegExp('^' + dep + '\\s+'), '') : task.version;
 }
 
 /** 变异成功后的状态刷新：best-effort 静默，不记录错误卡片（主操作已成功）。 */
@@ -103,7 +114,10 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
       if (result.ok) {
         get().setEnvStatus(result.data);
         if (!silent) {
-          get().setEnvBusy(false);
+          // 后端仍在执行（task 非空且无 error）时保持 busy，避免主操作刚刷新完
+          // 就被非静默 fetch 提前解锁；终态/失败才复位。
+          const task = result.data.task;
+          get().setEnvBusy(task !== null && (task.error ?? '') === '');
         }
         return true;
       }
@@ -167,6 +181,8 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         get().setEnvBusy(false);
         return false;
       }
+      // 静默刷新是 best-effort（内部吞错，不影响控制流）：无论成功与否都启动轮询，
+      // 已接受的任务不会因刷新失败而无人跟进。
       await refreshEnvStatusSilently(get);
       get().pollEnvTaskWhileRunning();
       return true;
@@ -196,6 +212,8 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         get().setEnvBusy(false);
         return false;
       }
+      // 静默刷新是 best-effort（内部吞错，不影响控制流）：无论成功与否都启动轮询，
+      // 已接受的任务不会因刷新失败而无人跟进。
       await refreshEnvStatusSilently(get);
       get().pollEnvTaskWhileRunning();
       return true;
@@ -260,49 +278,95 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
     },
 
     /**
-     * [pollEnvTaskWhileRunning - 安装任务进行中才轮询全量状态]
+     * [pollEnvTaskWhileRunning - 任务进行中才轮询全量状态]
      *
-     * 仅当 `envStatus.task` 非空时启动 3s 轮询；某次 tick 拿到 `task: null`
-     * 即清定时器 + 终态刷新（tick 内已写）+ 成功 toast（仅安装类任务）+
-     * envBusy 复位。`task.error` 非空视为后端终态失败：立即停轮询、
-     * 复位 busy、toast 对应域错误（安装/卸载），不再空等到 10min 上限。
-     * 轮询 tick fail-open：桥抛错 / !ok 静默跳过（下一轮自愈），不记卡；
-     * 持续失败熔断（防 stale busy）：连续失败达
-     * `ENV_POLL_MAX_CONSECUTIVE_FAILURES`（10 tick ≈ 30s）或自启动起
-     * 超过 `ENV_POLL_MAX_ELAPSED_MS`（10min），清定时器 + envBusy 复位 +
-     * 单次节流 error toast（按任务 kind 走安装/卸载失败文案）。
-     * 成功 tick 重置连续失败计数、刷新状态。
+     * 启动时不强制要求 `envStatus` 已加载：状态为 null 时照常起 3s 轮询，由首个
+     * tick 取回状态并采用其中的任务；若首轮即 `task: null` 则静默收尾（非本次操作）。
+     * 某次 tick 拿到 `task: null` 即停轮询 + 成功 toast（仅安装类任务）+ 复位 busy。
+     * `task.error` 非空视为终态失败：停轮询、清本地 task、复位 busy、toast 域错误。
+     * 启动时捕获的 task 已带 error 属陈旧快照：只清本地 task + 复位 busy，不重放提示。
+     * tick fail-open：桥抛错 / !ok 静默跳过（下一轮自愈），持续失败达
+     * `ENV_POLL_MAX_CONSECUTIVE_FAILURES` 或总时长超过 `ENV_POLL_MAX_ELAPSED_MS`
+     * 即熔断（停轮询 + 清本地 task + 复位 busy + 单次 error toast）。
      *
-     * 清除契约：返回清除函数，调用方必须在 useEffect 返回里调用
-     * （组件卸载清——照抄 DshVersionManagement 的 versionTask 轮询处置）；
-     * 下一次 install/调用会先清旧定时器再起新的，不会并跑。
+     * 所有权：每次轮询捕获自己的 `active` 与 timer id；新轮询/调用方 clear 只停
+     * 本实例，所有 await 之后的 store 写入与 toast 都必须过 `active` 检查，
+     * 防止已卸载组件的旧 tick 覆盖新状态。
      *
      * @returns 清除函数（幂等，可重调）
      */
     pollEnvTaskWhileRunning: (): (() => void) => {
+      cancelActiveEnvPoll?.();
+      cancelActiveEnvPoll = null;
       clearEnvPollTimer();
-      const started = get().envStatus?.task;
-      if (!started) {
+
+      const started = get().envStatus?.task ?? null;
+      if (
+        started !== null &&
+        started.error !== null &&
+        started.error !== undefined &&
+        started.error !== ''
+      ) {
+        // 陈旧 error 快照：本地终态化即可，重复 toast/错误卡是无意义回放。
+        const status = get().envStatus;
+        if (status !== null) {
+          get().setEnvStatus({ ...status, task: null });
+        }
         get().setEnvBusy(false);
         return () => {};
       }
-      const version = started.version;
-      const dep = depOfTaskKind(started.kind);
-      const isUninstall = started.kind.endsWith('-uninstall');
-      const failureTemplate = (): string =>
-        isUninstall ? envDict(get).uninstallFailed : envDict(get).installFailed;
+
+      if (started === null && get().envStatus !== null) {
+        get().setEnvBusy(false);
+        return () => {};
+      }
+
+      let active = true;
+      let timer: number | null = null;
       const pollStart = Date.now();
       let consecutiveFailures = 0;
       let capToastShown = false;
-      const stopWithError = (): void => {
-        clearEnvPollTimer();
-        get().setEnvBusy(false);
-        if (!capToastShown) {
-          capToastShown = true;
-          get().showToast(fill(failureTemplate(), { dep }), 'error');
+      let dep = started === null ? '' : depOfTaskKind(started.kind);
+      let version = started === null ? '' : taskVersionOf(started, dep);
+      let isUninstall = started?.kind.endsWith('-uninstall') ?? false;
+      let hasTask = started !== null;
+
+      const cleanup = (): void => {
+        active = false;
+        if (timer !== null) {
+          window.clearInterval(timer);
+          if (envPollTimer === timer) {
+            envPollTimer = null;
+          }
+          timer = null;
+        }
+        if (cancelActiveEnvPoll === cleanup) {
+          cancelActiveEnvPoll = null;
         }
       };
+
+      const stopWithError = (): void => {
+        if (!active) {
+          return;
+        }
+        // 失败终态：本地清掉 task，行回到可操作态（失败信息只留在 toast/错误卡）。
+        const status = get().envStatus;
+        if (status !== null && status.task !== null) {
+          get().setEnvStatus({ ...status, task: null });
+        }
+        get().setEnvBusy(false);
+        if (hasTask && !capToastShown) {
+          capToastShown = true;
+          const template = isUninstall ? envDict(get).uninstallFailed : envDict(get).installFailed;
+          get().showToast(fill(template, { dep }), 'error');
+        }
+        cleanup();
+      };
+
       const tick = async (): Promise<void> => {
+        if (!active) {
+          return;
+        }
         if (Date.now() - pollStart > ENV_POLL_MAX_ELAPSED_MS) {
           stopWithError();
           return;
@@ -311,10 +375,16 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         try {
           result = await window.digitalLife.env.getStatus();
         } catch {
+          if (!active) {
+            return;
+          }
           consecutiveFailures += 1;
           if (consecutiveFailures >= ENV_POLL_MAX_CONSECUTIVE_FAILURES) {
             stopWithError();
           }
+          return;
+        }
+        if (!active) {
           return;
         }
         if (!result.ok) {
@@ -326,18 +396,33 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         }
         consecutiveFailures = 0;
         get().setEnvStatus(result.data);
+        if (!active) {
+          return;
+        }
         if (Date.now() - pollStart > ENV_POLL_MAX_ELAPSED_MS) {
           stopWithError();
           return;
         }
         const task = result.data.task;
+        if (!hasTask) {
+          if (task === null) {
+            // 启动时状态未知且首轮即无任务：无法证明任务归属，静默收尾不弹成功提示。
+            get().setEnvBusy(false);
+            cleanup();
+            return;
+          }
+          hasTask = true;
+          dep = depOfTaskKind(task.kind);
+          version = taskVersionOf(task, dep);
+          isUninstall = task.kind.endsWith('-uninstall');
+        }
         if (task === null) {
-          clearEnvPollTimer();
           get().setEnvBusy(false);
           // 卸载成功不弹“已安装”文案：状态刷新已如实反映移除/回落结果。
           if (!isUninstall) {
             get().showToast(fill(envDict(get).installSuccess, { dep, version }), 'success');
           }
+          cleanup();
           return;
         }
         if (task.error !== null && task.error !== undefined && task.error !== '') {
@@ -348,12 +433,13 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
           stopWithError();
         }
       };
-      envPollTimer = window.setInterval(() => {
+
+      timer = window.setInterval(() => {
         void tick();
       }, ENV_POLL_INTERVAL_MS);
-      return () => {
-        clearEnvPollTimer();
-      };
+      envPollTimer = timer;
+      cancelActiveEnvPoll = cleanup;
+      return cleanup;
     },
   };
 }

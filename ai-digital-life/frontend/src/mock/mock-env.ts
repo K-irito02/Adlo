@@ -15,7 +15,15 @@ function depAvailable(version: string, path: string): EnvDependencyState {
 const status: EnvStatus = {
   node: depAvailable('24.22.1', 'C:/ProgramData/AI-Digital-Life/hosted/node/24.22.1/node.exe'),
   git: depAvailable('2.52.0.windows.1', 'C:/ProgramData/AI-Digital-Life/hosted/git/2.52.0/cmd/git.exe'),
-  bash: depAvailable('5.2.21', 'C:/ProgramData/AI-Digital-Life/hosted/git/2.52.0/bin/bash.exe'),
+  bash: {
+    mode: 'auto',
+    effective: 'system',
+    origin: 'path',
+    installedVersion: null,
+    baselineVersion: '',
+    meetsBaseline: true,
+    path: 'C:/ProgramData/AI-Digital-Life/hosted/git/2.52.0/bin/bash.exe',
+  },
   webview2: {
     mode: 'auto',
     effective: 'system',
@@ -27,10 +35,10 @@ const status: EnvStatus = {
   },
   adlserver: {
     mode: 'auto',
-    effective: 'host',
+    effective: 'system',
     origin: 'bundled',
-    installedVersion: '0.1.0',
-    baselineVersion: '0.1.0',
+    installedVersion: null,
+    baselineVersion: '',
     meetsBaseline: true,
     path: 'C:/ProgramData/AI-Digital-Life/hosted/adlserver/adl-server.exe',
   },

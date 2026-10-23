@@ -75,6 +75,8 @@ export function NetworkSettings() {
 
   const sourceTypeRef = useRef<SourceType>('npmjs');
   const initializedRef = useRef(false);
+  /** 用户是否显式改过下载源字段；未改且状态未知时不得把默认 npmjs 当作已知值落盘。 */
+  const sourceTouchedRef = useRef(false);
   const formRef = useRef({ sourceType, customUrl, proxyMode, httpProxy, httpsProxy, noProxy });
   const debounceTimerRef = useRef<number | null>(null);
   const pendingSaveRef = useRef(false);
@@ -97,14 +99,19 @@ export function NetworkSettings() {
     if (s.sourceType === 'custom' && !s.customUrl.trim()) {
       return null;
     }
+    const proxy = {
+      mode: s.proxyMode,
+      http_proxy: s.proxyMode === 'manual' ? s.httpProxy || null : null,
+      https_proxy: s.proxyMode === 'manual' ? s.httpsProxy || null : null,
+      no_proxy: s.proxyMode === 'manual' ? s.noProxy || null : null,
+    };
+    // 源状态未加载且用户尚未显式改源：只写代理，绝不把初始占位的 npmjs 当已知源。
+    if (useAppStore.getState().sourceStatus === null && !sourceTouchedRef.current) {
+      return { proxy };
+    }
     const config: DshSourceConfig = {
       source_mode: s.sourceType === 'auto' ? 'auto' : 'manual',
-      proxy: {
-        mode: s.proxyMode,
-        http_proxy: s.proxyMode === 'manual' ? s.httpProxy || null : null,
-        https_proxy: s.proxyMode === 'manual' ? s.httpsProxy || null : null,
-        no_proxy: s.proxyMode === 'manual' ? s.noProxy || null : null,
-      },
+      proxy,
     };
     if (s.sourceType === 'npmjs') {
       config.npm_registry = NPMJS_URL;
@@ -232,8 +239,14 @@ export function NetworkSettings() {
     [actions, showToast, t, persist],
   );
 
-  // 挂载拉取由 DshSettings 内嵌版本管理块的首屏原子快照统一供给 sourceStatus，
-  // 此处不再重复请求（避免两路并发返回时序造成块内跳动）。
+  // 源状态缺失时自行静默拉取：网络组可能先于 DSH 组挂载（或 DSH 快照失败），
+  // 不能假设 sourceStatus 一定由别处供给；失败保持 null，表单继续 fail-open。
+  useEffect(() => {
+    if (useAppStore.getState().sourceStatus === null) {
+      void actions.fetchSourceStatus(true);
+    }
+  }, [actions]);
+
   // 首次拿到 sourceStatus 时播种表单：按 source_mode + registry URL 往返映射
   //（旧实现只认 dsh_mirror 分支，npmmirror 会被误判为自定义）。
   useEffect(() => {
@@ -465,6 +478,7 @@ export function NetworkSettings() {
   const handleSourceChange = useCallback(
     (v: string) => {
       const next = v as SourceType;
+      sourceTouchedRef.current = true;
       applySourceType(next);
       setTestResult(null);
       clearTestTimer();
@@ -481,6 +495,7 @@ export function NetworkSettings() {
 
   const handleCustomUrlChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
+      sourceTouchedRef.current = true;
       setCustomUrl(e.target.value);
       // 地址变了旧结论即 stale：与切源一致清掉按钮内结果（事项 11 Phase 4 A1-L6）。
       setTestResult(null);

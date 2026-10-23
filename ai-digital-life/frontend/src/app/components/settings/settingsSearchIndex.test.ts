@@ -57,6 +57,16 @@ describe('buildSettingsSearchIndex', () => {
     const keys = index.map((e) => anchorFor(e.group, e.anchorId));
     expect(new Set(keys).size).toBe(keys.length);
   });
+
+  it('environment 共享落点标记只登记一次，复制全部使用独立标记', () => {
+    const env = index.find((entry) => entry.group === 'environment')!;
+    const locates = (env.details ?? []).map((detail) => detail.locate as string);
+    const countOf = (locate: string) => locates.filter((value) => value === locate).length;
+    // net/model 两行共用「前往配置」：索引只登记一条，findSettingsRow 取首个等值行。
+    expect(countOf('environmentGoToSettings')).toBe(1);
+    expect(countOf('environmentCopyAllForAgent')).toBe(1);
+    expect(countOf('environmentCopyForAgent')).toBe(1);
+  });
 });
 
 describe('filterSearchIndex', () => {

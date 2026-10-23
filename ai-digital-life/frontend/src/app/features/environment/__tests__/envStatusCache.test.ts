@@ -18,10 +18,16 @@ function fakeStatus(): EnvStatus {
     meetsBaseline: true,
     path: 'C:/hosted/x',
   };
+  const versionless = {
+    ...dep,
+    effective: 'system' as const,
+    installedVersion: null,
+    baselineVersion: '',
+  };
   return {
     node: { ...dep },
     git: { ...dep },
-    bash: { ...dep },
+    bash: { ...versionless },
     webview2: {
       mode: 'auto',
       effective: 'system',
@@ -31,7 +37,7 @@ function fakeStatus(): EnvStatus {
       meetsBaseline: true,
       path: null,
     },
-    adlserver: { ...dep },
+    adlserver: { ...versionless },
     netprobe: { registryOk: true, registryLatencyMs: 1, ciTokenConfigured: false },
     task: null,
     dataDir: 'C:/data-root',

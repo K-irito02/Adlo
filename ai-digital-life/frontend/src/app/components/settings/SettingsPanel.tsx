@@ -138,6 +138,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     browserBlocksAtDefault,
     dshBlocksAtDefault,
     networkBlocksAtDefault,
+    envStatus,
     adServerReachable,
   } = useAppStore(
     useShallow((s) => ({
@@ -165,6 +166,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       browserBlocksAtDefault: s.browserBlocksAtDefault,
       dshBlocksAtDefault: s.dshBlocksAtDefault,
       networkBlocksAtDefault: s.networkBlocksAtDefault,
+      envStatus: s.envStatus,
       adServerReachable: s.adServerReachable,
     })),
   );
@@ -176,6 +178,10 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   // config：窗口期内两侧可能短暂不一致，持久化后收敛，无数据丢失。
   const disabledResetGroups = useMemo(() => {
     const disabled = new Set<SettingsGroupId>();
+    // 环境状态未知（挂载中/拉取失败）时组级恢复无依据：禁用重置，避免用空状态执行流程。
+    if (envStatus === null) {
+      disabled.add('environment');
+    }
     if (!config) {
       return disabled;
     }
@@ -232,12 +238,14 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     browserBlocksAtDefault,
     dshBlocksAtDefault,
     networkBlocksAtDefault,
+    envStatus,
   ]);
 
   // 除环境组外全默认 → 顶部「恢复全部默认」禁用（口径与侧边栏行 disabled 同源）。
-  // 环境组不进 ResetAll 自动序列且无聚合信号（Task 7 定是否纳入禁用口径），故排除在外。
+  // 环境组不进 ResetAll 自动序列，故不参与顶部判定（其状态未知时的单独禁用也不会误伤）。
   const allGroupsAtDefault =
-    disabledResetGroups.size === SETTINGS_GROUPS.filter((g) => g.id !== 'environment').length;
+    SETTINGS_GROUPS.filter((g) => g.id !== 'environment' && !disabledResetGroups.has(g.id))
+      .length === 0;
 
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
   const changeDownloadPath = useAppStore((s) => s.changeDownloadPath);
