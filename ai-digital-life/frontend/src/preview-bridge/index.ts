@@ -190,7 +190,7 @@ export async function setupPreviewBridge(): Promise<void> {
     ),
     dsh: mockDigitalLifeBridge.dsh,
     // env 复用 storage 的可达性代理模式：ad-server 可达走 http `/env/*`，
-    // 否则回退 mock 固定可用快照。
+    // 否则回退 mock 固定可用快照。注：与 dsh（mock-only）有意不同 —— env 有真实 GET 路由故走 http 优先，勿“对齐”回 mock-only。
     env: preferHttpWhenReachable<EnvBridge>(adlServerBaseUrl, http.env, mockDigitalLifeBridge.env),
     patch: preferHttpWhenReachable<PatchBridge>(adlServerBaseUrl, http.patch, patchBridge),
     browser: {

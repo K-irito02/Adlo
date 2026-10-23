@@ -23,10 +23,11 @@ export type EnvTaskKind =
   | `env-${string}-uninstall`
   | `env-${string}-reinstall`;
 export interface EnvTask {
-  kind: string;
+  kind: EnvTaskKind;
   version: string;
   phase: 'preparing' | 'installing' | 'removing' | 'finalizing';
-  percent: number;
+  /** 0-100；null 表示总量未知（不确定进度条）。 */
+  percent: number | null;
   done: number;
   total: number;
   cancellable: boolean;
