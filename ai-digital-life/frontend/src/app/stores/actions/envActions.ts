@@ -41,7 +41,7 @@ function envDict(get: () => StoreState) {
 function fill(template: string, vars: Record<string, string | number>): string {
   let out = template;
   for (const [key, value] of Object.entries(vars)) {
-    out = out.replace(`{${key}}`, String(value));
+    out = out.replaceAll(`{${key}}`, String(value));
   }
   return out;
 }

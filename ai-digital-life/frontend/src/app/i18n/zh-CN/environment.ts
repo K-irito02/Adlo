@@ -25,7 +25,7 @@ export const environmentZh = {
   environmentAdlserverReinstall: 'adl-server 重装',
   environmentDshCredentialNote: 'dsh 凭据去向',
   environmentWizardWelcome: '欢迎',
-  environmentWizardDetecting: '检测中',
+  environmentWizardDetecting: '检测中…',
   environmentWizardSkip: '跳过',
   environmentWizardEnter: '进入应用',
   environmentInstallStarted: '开始安装 {dep}…',
