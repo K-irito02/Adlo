@@ -16,6 +16,7 @@ function deps(overrides: Partial<ResetAllDeps> = {}): ResetAllDeps {
       migrateAtOpen: false,
     },
     dsh: { saveSourceConfig: vi.fn(async () => true) },
+    network: { saveSourceConfig: vi.fn(async () => true) },
     storage: {
       setPaths: vi.fn(async () => ({
         ok: true as const,
@@ -45,7 +46,7 @@ const STORAGE_PLAN = {
 };
 
 describe('resetAllSettings', () => {
-  it('顺序为 preferences → browser → dsh → storage，且进度逐步回调', async () => {
+  it('顺序为 preferences → browser → dsh → network → storage，且进度逐步回调', async () => {
     const d = deps();
     const seen: string[] = [];
     const outcome = await resetAllSettings(
@@ -54,12 +55,12 @@ describe('resetAllSettings', () => {
       (k) => seen.push(k),
     );
     expect(d.updatePreferences).toHaveBeenCalledWith(getDefaultPreferences());
-    expect(seen).toEqual(['preferences', 'browser', 'dsh', 'storage']);
-    expect(outcome.done).toEqual(['preferences', 'browser', 'dsh', 'storage']);
+    expect(seen).toEqual(['preferences', 'browser', 'dsh', 'network', 'storage']);
+    expect(outcome.done).toEqual(['preferences', 'browser', 'dsh', 'network', 'storage']);
     expect(outcome.skipped).toEqual([]);
   });
 
-  it('preferences 失败即停：其余三组都不执行并计入 skipped', async () => {
+  it('preferences 失败即停：其余四组都不执行并计入 skipped', async () => {
     const d = deps({ updatePreferences: vi.fn(async () => false) });
     const outcome = await resetAllSettings(d, {
       storagePlan: STORAGE_PLAN,
@@ -70,14 +71,15 @@ describe('resetAllSettings', () => {
       done: [],
       failedAt: 'preferences',
       failedStep: 'preferences',
-      skipped: ['browser', 'dsh', 'storage'],
+      skipped: ['browser', 'dsh', 'network', 'storage'],
       restartRequired: false,
     });
     expect(d.browser.updatePreferences).not.toHaveBeenCalled();
     expect(d.dsh.saveSourceConfig).not.toHaveBeenCalled();
+    expect(d.network.saveSourceConfig).not.toHaveBeenCalled();
   });
 
-  it('browser 失败即停：dsh 与 storage 都不执行，且计入 skipped', async () => {
+  it('browser 失败即停：dsh、network 与 storage 都不执行，且计入 skipped', async () => {
     const d = deps({ browser: { ...deps().browser, updatePreferences: vi.fn(async () => false) } });
     const outcome = await resetAllSettings(d, {
       storagePlan: STORAGE_PLAN,
@@ -88,10 +90,27 @@ describe('resetAllSettings', () => {
       done: ['preferences'],
       failedAt: 'browser',
       failedStep: 'suspend',
-      skipped: ['dsh', 'storage'],
+      skipped: ['dsh', 'network', 'storage'],
       restartRequired: false,
     });
     expect(d.dsh.saveSourceConfig).not.toHaveBeenCalled();
+    expect(d.network.saveSourceConfig).not.toHaveBeenCalled();
+  });
+
+  it('network 失败即停：只写源/代理（无下载无安装），storage 计入 skipped', async () => {
+    const d = deps({ network: { saveSourceConfig: vi.fn(async () => false) } });
+    const outcome = await resetAllSettings(d, {
+      storagePlan: STORAGE_PLAN,
+      applyNow: false,
+      retainSource: false,
+    });
+    expect(outcome).toEqual({
+      done: ['preferences', 'browser', 'dsh'],
+      failedAt: 'network',
+      failedStep: 'saveSourceConfig',
+      skipped: ['storage'],
+      restartRequired: false,
+    });
   });
 
   it('storagePlan 为 null 时存储计入 skipped，其余照常执行', async () => {
@@ -101,7 +120,7 @@ describe('resetAllSettings', () => {
       applyNow: false,
       retainSource: false,
     });
-    expect(outcome.done).toEqual(['preferences', 'browser', 'dsh']);
+    expect(outcome.done).toEqual(['preferences', 'browser', 'dsh', 'network']);
     expect(outcome.skipped).toEqual(['storage']);
   });
 
@@ -150,8 +169,9 @@ describe('resetAllSettings', () => {
     expect(outcome.failedAt).toBe('browser');
     expect(outcome.failedStep).toBe('unexpected');
     expect(outcome.done).toEqual(['preferences']);
-    expect(outcome.skipped).toEqual(['dsh', 'storage']);
+    expect(outcome.skipped).toEqual(['dsh', 'network', 'storage']);
     expect(d.dsh.saveSourceConfig).not.toHaveBeenCalled();
+    expect(d.network.saveSourceConfig).not.toHaveBeenCalled();
   });
 
   it('抛出原生 Error 时把 message 透传到 outcome.error（不再吞掉错误信息）', async () => {
@@ -171,7 +191,7 @@ describe('resetAllSettings', () => {
     expect(outcome.failedStep).toBe('unexpected');
     expect(outcome.error?.message).toBe('boom');
     expect(outcome.done).toEqual(['preferences', 'browser']);
-    expect(outcome.skipped).toEqual(['storage']);
+    expect(outcome.skipped).toEqual(['network', 'storage']);
   });
 
   it('抛出非 Error 值时仍 resolve（不 reject），error 归一化为通用结构化错误', async () => {

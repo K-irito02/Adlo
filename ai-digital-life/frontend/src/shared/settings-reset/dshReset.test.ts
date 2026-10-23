@@ -7,10 +7,11 @@ function deps(overrides: Partial<DshResetDeps> = {}): DshResetDeps {
 }
 
 describe('executeDshResetPlan', () => {
-  it('写回 auto + 官方 registry + 自动代理', async () => {
+  it('只写回版本来源自动（源/代理已拆归 network，不重复执行）', async () => {
     const d = deps();
     expect((await executeDshResetPlan(d)).ok).toBe(true);
     expect(d.saveSourceConfig).toHaveBeenCalledWith(DSH_RESET_PAYLOAD);
+    expect(DSH_RESET_PAYLOAD).toEqual({ version_source: 'auto' });
   });
 
   it('落盘失败时返回 failedStep=saveSourceConfig', async () => {

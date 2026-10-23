@@ -87,6 +87,8 @@ export const createUISlice = (
     browserBlocksAtDefault: null,
     dshGroupResetPending: false,
     dshBlocksAtDefault: null,
+    networkGroupResetPending: false,
+    environmentGroupResetPending: false,
     siblingWebviewNonce: 0,
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
     changesStatusFilter: new Set(),
@@ -245,6 +247,10 @@ export const createUISlice = (
       }
       set({ dshBlocksAtDefault: value });
     },
+    requestNetworkGroupReset: () => set({ networkGroupResetPending: true }),
+    consumeNetworkGroupReset: () => set({ networkGroupResetPending: false }),
+    requestEnvironmentGroupReset: () => set({ environmentGroupResetPending: true }),
+    consumeEnvironmentGroupReset: () => set({ environmentGroupResetPending: false }),
     bumpSiblingWebviewNonce: () =>
       set((state) => ({ siblingWebviewNonce: state.siblingWebviewNonce + 1 })),
     setNavigatorCollapsed: (tool, collapsed) =>

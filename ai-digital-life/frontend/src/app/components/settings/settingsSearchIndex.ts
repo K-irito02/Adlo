@@ -86,7 +86,8 @@ const DOWNLOAD_PATH_ROWS: BlockRowEntry[] = [
 
 /**
  * 各组「段/块」锚点与文案 key 的就近声明（单一真源：此处登记 + 组件挂同名锚点）。
- * 仅覆盖由固定块构成、且不由传入 `settings` 派生的组：workspace / storage / browser / dsh。
+ * 仅覆盖由固定块构成、且不由传入 `settings` 派生的组：workspace / storage /
+ * browser / dsh / network / environment。
  * `general` 由传入 `settings` 逐项派生，`shortcuts` 由 `DEFAULT_COMMANDS` 逐命令派生。
  *
  * `rows` 覆盖块内的行副标题与提示说明：块级固定组件的行文案写在各自 JSX 里，
@@ -239,6 +240,41 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
         labelKey: 'dshOfficialLinksLabel',
         hintKeys: ['dshOfficialLinksDesc'],
       },
+    ],
+  },
+  {
+    // 网络组三锚点：复用 dsh 域源/代理/测试三块文案 key（Task 3 Ruling：key 只是
+    // 标识符，不迁移领域）。行级文案 Task 5 填充三块时补登记，此处仅锚点级。
+    group: 'network',
+    anchorId: 'source',
+    labelKey: 'dshSettingsSource',
+  },
+  {
+    group: 'network',
+    anchorId: 'proxy',
+    labelKey: 'dshSettingsProxy',
+  },
+  {
+    group: 'network',
+    anchorId: 'test',
+    labelKey: 'dshSettingsTestConnection',
+  },
+  {
+    // 环境组：单块七行 —— 七个操作行（安装/切换/卸载/重装/重测/复制/前往配置）
+    // 即 Task 7 七依赖行共用的操作键，行级落点经 `data-settings-row` 同名标记。
+    // 空壳期（Task 4）无行渲染，七键暂列条件清单；Task 7 渲染行时核对标记一致。
+    group: 'environment',
+    anchorId: 'deps',
+    labelKey: 'environmentTitle',
+    descriptionKey: 'environmentDesc',
+    rows: [
+      { labelKey: 'environmentInstall' },
+      { labelKey: 'environmentSwitch' },
+      { labelKey: 'environmentUninstall' },
+      { labelKey: 'environmentReinstall' },
+      { labelKey: 'environmentRecheck' },
+      { labelKey: 'environmentCopyForAgent' },
+      { labelKey: 'environmentGoToSettings' },
     ],
   },
 ];

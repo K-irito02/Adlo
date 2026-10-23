@@ -7,6 +7,10 @@ import {
 } from '@shared/settings-reset/browserReset';
 import { executeDshResetPlan, type DshResetDeps } from '@shared/settings-reset/dshReset';
 import {
+  executeNetworkResetPlan,
+  type NetworkResetDeps,
+} from '@shared/settings-reset/networkReset';
+import {
   executeStorageResetPlan,
   type StorageResetExecuteDeps,
   type StorageResetExecutePlan,
@@ -17,6 +21,7 @@ export interface ResetAllDeps {
   updatePreferences: (patch: AppPreferencePatch) => Promise<boolean>;
   browser: BrowserResetDeps;
   dsh: DshResetDeps;
+  network: NetworkResetDeps;
   storage: StorageResetExecuteDeps;
 }
 
@@ -30,8 +35,13 @@ export interface ResetAllOutcome {
   restartRequired: boolean;
 }
 
-/** 先行的三组（存储组必须最后：其核心路径恢复可能触发文件迁移与重启）。 */
-const FIRST_GROUPS = ['preferences', 'browser', 'dsh'] as const;
+/**
+ * 先行的四组（存储组必须最后：其核心路径恢复可能触发文件迁移与重启）。
+ * network 紧随 dsh：其重置 = 旧 dsh 重置中的源/代理部分（源→自动、代理→自动、
+ * 清空自定义地址；无下载无安装），dsh 腿只剩版本来源，两腿不重复执行。
+ * environment 不进自动序列（见本函数注释）。
+ */
+const FIRST_GROUPS = ['preferences', 'browser', 'dsh', 'network'] as const;
 type FirstGroupKey = (typeof FIRST_GROUPS)[number];
 const ORDER: GroupKey[] = [...FIRST_GROUPS, 'storage'];
 
@@ -72,6 +82,9 @@ async function runFirstGroup(key: FirstGroupKey, deps: ResetAllDeps): Promise<St
   if (key === 'browser') {
     return { result: await executeBrowserResetPlan(deps.browser), restartRequired: false };
   }
+  if (key === 'network') {
+    return { result: await executeNetworkResetPlan(deps.network), restartRequired: false };
+  }
   return { result: await executeDshResetPlan(deps.dsh), restartRequired: false };
 }
 
@@ -102,8 +115,9 @@ function pendingAfter(failedAt: GroupKey, done: GroupKey[]): GroupKey[] {
 }
 
 /**
- * 「恢复全部默认」编排：preferences → browser → dsh → storage（存储最后，
- * 因其可能触发文件迁移与重启）。任一失败即停，已成功的保留、未执行的计入 skipped；
+ * 「恢复全部默认」编排：preferences → browser → dsh → network → storage（存储最后，
+ * 因其可能触发文件迁移与重启）。environment 不进自动序列（避免批量操作改动用户
+ * 工具链；其组级恢复仅侧边栏自助）。任一失败即停，已成功的保留、未执行的计入 skipped；
  * 任一步抛出异常也会被收敛为 `failedStep: 'unexpected'` 的失败（本函数永不 reject）。
  * `storagePlan` 为 null 表示存储组无事可做或计划计算失败 → 跳过并计入 skipped。
  */

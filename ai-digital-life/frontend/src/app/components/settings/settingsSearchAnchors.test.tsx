@@ -12,13 +12,17 @@ import { WorkspaceSettings } from '@features/workspace-settings/WorkspaceSetting
 import { StorageSettings } from '@features/storage-settings/StorageSettings';
 import { BrowserSettings } from '@features/browser-settings/BrowserSettings';
 import { DshSettings } from '@features/dsh/DshSettings';
+import { NetworkSettings } from '@features/network/NetworkSettings';
+import { EnvironmentSettings } from '@features/environment/EnvironmentSettings';
 import { KeybindSettings } from './KeybindSettings';
 import { settingsZh } from '@i18n/zh-CN/settings';
 import { browserZh } from '@i18n/zh-CN/browser';
 import { dshZh } from '@i18n/zh-CN/dsh';
+import { environmentZh } from '@i18n/zh-CN/environment';
 import { settingsEn } from '@i18n/en-US/settings';
 import { browserEn } from '@i18n/en-US/browser';
 import { dshEn } from '@i18n/en-US/dsh';
+import { environmentEn } from '@i18n/en-US/environment';
 import { SettingsControls } from './SettingsControls';
 import { buildSettingsSearchIndex, anchorFor } from './settingsSearchIndex';
 import { SETTINGS_ROW_ATTRIBUTE } from './settingsRowLocate';
@@ -189,9 +193,18 @@ const CONDITIONAL_ROW_MARKERS: string[] = [
   'dshSettingsProxyHttp',
   'dshSettingsProxyHttps',
   'dshSettingsProxyNoProxy',
+  // 环境组七个操作行：仅 Task 7 填充后的 EnvironmentSettings 渲染（空壳期无行）。
+  // 登记即约束——Task 7 渲染行时须带同名 `data-settings-row` 标记，否则本守卫失败。
+  'environmentInstall',
+  'environmentSwitch',
+  'environmentUninstall',
+  'environmentReinstall',
+  'environmentRecheck',
+  'environmentCopyForAgent',
+  'environmentGoToSettings',
 ];
 
-// 七组各一个渲染用例：索引中属于该组的每个锚点都必须在该组渲染容器内命中。
+// 九组各一个渲染用例：索引中属于该组的每个锚点都必须在该组渲染容器内命中。
 const CASES: { group: SettingsGroupId; render: () => ReturnType<typeof render> }[] = [
   {
     group: 'general',
@@ -251,6 +264,24 @@ const CASES: { group: SettingsGroupId; render: () => ReturnType<typeof render> }
       ),
   },
   {
+    group: 'network',
+    render: () =>
+      render(
+        <TestProvider>
+          <NetworkSettings />
+        </TestProvider>,
+      ),
+  },
+  {
+    group: 'environment',
+    render: () =>
+      render(
+        <TestProvider>
+          <EnvironmentSettings />
+        </TestProvider>,
+      ),
+  },
+  {
     group: 'storage',
     render: () =>
       render(
@@ -284,8 +315,8 @@ describe('settings search anchors', () => {
   });
 
   it('索引中每组的锚点都能在对应组 DOM 命中', async () => {
-    // 防空洞通过：用例必须覆盖全部七组，缺组即失败（不允许测试断言为空）。
-    expect(CASES).toHaveLength(7);
+    // 防空洞通过：用例必须覆盖全部九组，缺组即失败（不允许测试断言为空）。
+    expect(CASES).toHaveLength(9);
 
     const index = buildSettingsSearchIndex({
       t: mockT,
@@ -347,7 +378,7 @@ describe('settings search anchors', () => {
     // 同一组内**不同块**不得共用同一条行定位文案：`findSettingsRow` 取首个等值命中，
     // 跨块重复会让落点静默落到另一个块的行上（同块内两行同文案由 i18n 文案唯一性保证，
     // 属已知边界 —— 索引是扁平结构，此处无法逐行区分）。
-    for (const group of ['workspace', 'storage', 'browser', 'dsh'] as const) {
+    for (const group of ['workspace', 'storage', 'browser', 'dsh', 'environment'] as const) {
       const locates = index
         .filter((entry) => entry.group === group)
         .flatMap((entry) => [...new Set((entry.details ?? []).map((detail) => detail.locate))]);
@@ -360,11 +391,11 @@ describe('settings search anchors', () => {
     // 都能译出文案，且同组内文案值两两不同（单 locale 撞车会让该语言下跳转静默落到
     // 同组第一行，另一 locale 的断言拦不住）。
     const localeCopies: [string, Record<string, string>][] = [
-      ['zh-CN', { ...settingsZh, ...browserZh, ...dshZh } as Record<string, string>],
-      ['en-US', { ...settingsEn, ...browserEn, ...dshEn } as Record<string, string>],
+      ['zh-CN', { ...settingsZh, ...browserZh, ...dshZh, ...environmentZh } as Record<string, string>],
+      ['en-US', { ...settingsEn, ...browserEn, ...dshEn, ...environmentEn } as Record<string, string>],
     ];
     for (const [locale, dict] of localeCopies) {
-      for (const group of ['workspace', 'storage', 'browser', 'dsh'] as const) {
+      for (const group of ['workspace', 'storage', 'browser', 'dsh', 'environment'] as const) {
         const texts = index
           .filter((entry) => entry.group === group)
           .flatMap((entry) => [

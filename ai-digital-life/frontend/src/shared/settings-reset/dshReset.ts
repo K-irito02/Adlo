@@ -1,15 +1,13 @@
 import type { DshSourceConfig } from '@shared/ipc/dsh';
 import type { GroupResetResult } from './types';
 
-/** 官方 npm registry 地址（DSH 下载源「官方」选项与恢复默认共用，单一事实来源）。 */
-export const NPMJS_URL = 'https://registry.npmjs.org';
-
-/** DSH 组恢复默认的目标配置（与 DshSettings 组级恢复同源）。 */
+/**
+ * DSH 组恢复默认的目标配置（版本来源部分，与 DshSettings 组级恢复同源）。
+ * 源/代理部分已拆归 `networkReset.ts`（Network 组）：ResetAll 先 dsh 后 network，
+ * 此处只写版本来源，避免两腿重复执行。
+ */
 export const DSH_RESET_PAYLOAD: DshSourceConfig = {
-  source_mode: 'auto',
   version_source: 'auto',
-  npm_registry: NPMJS_URL,
-  proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
 };
 
 export interface DshResetDeps {

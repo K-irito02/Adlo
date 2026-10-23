@@ -498,12 +498,15 @@ describe('DshSettings', () => {
       expect(saveSourceConfig).toHaveBeenCalledWith(
         {
           source_mode: 'auto',
-          version_source: 'auto',
           npm_registry: NPMJS_URL,
           proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
         },
         false,
       );
+    });
+    await waitFor(() => {
+      // Task 4 拆分：源/代理（network 计划）与版本来源（dsh 计划）顺序写两次。
+      expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'auto' }, false);
     });
     await waitFor(() => {
       expect(useAppStore.getState().toasts.some((t) => t.message === 'settingsResetComplete')).toBe(
@@ -687,15 +690,18 @@ describe('DshSettings', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
     await waitFor(() => {
+      // Task 4 拆分：先 network 计划（源/代理），再 dsh 计划（版本来源）。
       expect(saveSourceConfig).toHaveBeenCalledWith(
         {
           source_mode: 'auto',
-          version_source: 'auto',
           npm_registry: NPMJS_URL,
           proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
         },
         false,
       );
+    });
+    await waitFor(() => {
+      expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'auto' }, false);
     });
   });
 
@@ -724,19 +730,21 @@ describe('DshSettings', () => {
       useAppStore.setState({ dshGroupResetPending: true });
     });
     fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
-    // 推进超过防抖窗口：在途防抖已被 saveNow 取消，旧快照不得补写第二次。
+    // 推进超过防抖窗口：在途防抖已被 saveNow 取消，旧快照不得补写（恢复两次写 + 零补写）。
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1000);
     });
-    expect(saveSourceConfig).toHaveBeenCalledTimes(1);
-    expect(saveSourceConfig).toHaveBeenCalledWith(
+    expect(saveSourceConfig).toHaveBeenCalledTimes(2);
+    // 恢复分两次写：先 network 计划（源/代理），再 dsh 计划（版本来源）。
+    expect(saveSourceConfig).toHaveBeenNthCalledWith(
+      1,
       {
         source_mode: 'auto',
-        version_source: 'auto',
         npm_registry: NPMJS_URL,
         proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
       },
       false,
     );
+    expect(saveSourceConfig).toHaveBeenNthCalledWith(2, { version_source: 'auto' }, false);
   });
 });

@@ -373,9 +373,9 @@ describe('SettingsPanel shell header', () => {
       // 首组（preferences）失败 → done 为空 → 用「无已完成组」变体，避免「已恢复：；」残缺文案。
       // 返回式失败无结构化 error → reason 回退 t.settingsUpdateFailed（真模板插值）。
       expect(showToast).toHaveBeenCalledWith('Failed: Preferences (settingsUpdateFailed)', 'error');
-      // 失败即停：未执行的组以 skipped 提示补出。
+      // 失败即停：未执行的组以 skipped 提示补出（含新 network 腿）。
       expect(showToast).toHaveBeenCalledWith(
-        'Not executed: settingsBrowser, settingsDsh, storageTitle',
+        'Not executed: settingsBrowser, settingsDsh, settingsNetwork, storageTitle',
         'warning',
       );
     });
@@ -1279,12 +1279,15 @@ describe('SettingsPanel group reset', () => {
     }
   });
 
-  // 顶部「恢复全部默认」按钮禁用口径：七组全默认才禁用（与侧边栏行同源聚合）。
+  // 顶部「恢复全部默认」按钮禁用口径：全组默认才禁用（与侧边栏行同源聚合）。
+  // network/environment 暂无聚合信号（Task 5 拆分 networkBlocksAtDefault 后补；
+  // environment 不进 ResetAll，是否纳入禁用口径由 Task 7 定）——fail-open 下禁用态
+  // 暂时不可达，本用例锁定该过渡行为，防静默回退。
   function topResetDisabled(): boolean {
     return (screen.getByRole('button', { name: 'settingsResetAll' }) as HTMLButtonElement).disabled;
   }
 
-  it('七组全默认时顶部恢复全部默认按钮禁用', () => {
+  it('七组全默认但两新组无聚合时顶部按钮保持可用（fail-open 过渡态）', () => {
     setupStore();
     const prevAppInfo = useAppStore.getState().appInfo;
     const prevStorage = useAppStore.getState().storageBlocksAtDefault;
@@ -1301,7 +1304,8 @@ describe('SettingsPanel group reset', () => {
     });
     try {
       renderPanel();
-      expect(topResetDisabled()).toBe(true);
+      // 过渡态：network/environment 无聚合可判 → 永不全默认 → 按钮保持可用。
+      expect(topResetDisabled()).toBe(false);
     } finally {
       useAppStore.setState({
         appInfo: prevAppInfo,

@@ -1,7 +1,7 @@
 import type { IpcError, IpcResult } from '@ai-digital-life/kernel';
 
 /** 「恢复全部默认」的执行单元（顺序即 UI 展示顺序）。 */
-export type GroupKey = 'preferences' | 'browser' | 'dsh' | 'storage';
+export type GroupKey = 'preferences' | 'browser' | 'dsh' | 'network' | 'environment' | 'storage';
 
 /**
  * 组级恢复的失败步骤码（内部契约，绝不展示给用户）：编排器与各组执行器的

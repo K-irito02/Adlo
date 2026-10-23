@@ -441,6 +441,8 @@ export type SettingsGroupId =
   | 'terminal'
   | 'browser'
   | 'dsh'
+  | 'network'
+  | 'environment'
   | 'storage'
   | 'openMethod';
 

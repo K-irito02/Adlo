@@ -246,7 +246,7 @@ describe('ResetAllDialog', () => {
     );
   });
 
-  it('存储不可用：无分组行，单确认键仍执行其余三组', async () => {
+  it('存储不可用：无分组行，单确认键仍执行其余四组', async () => {
     installStoreActions();
     const onCommitted = vi.fn();
     const { onClose } = renderDialog({
@@ -260,13 +260,13 @@ describe('ResetAllDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'storageGroupResetConfirm' }));
     await waitFor(() => expect(onCommitted).toHaveBeenCalledTimes(1));
     const outcome = onCommitted.mock.calls[0][0] as ResetAllOutcome;
-    expect(outcome.done).toEqual(['preferences', 'browser', 'dsh']);
+    expect(outcome.done).toEqual(['preferences', 'browser', 'dsh', 'network']);
     expect(outcome.failedAt).toBeUndefined();
     expect(outcome.skipped).toEqual(['storage']);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('四块全默认：无分组行，单确认键仍执行其余三组', async () => {
+  it('四块全默认：无分组行，单确认键仍执行其余四组', async () => {
     installStoreActions();
     const onCommitted = vi.fn();
     const { onClose } = renderDialog({
@@ -280,7 +280,7 @@ describe('ResetAllDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'storageGroupResetConfirm' }));
     await waitFor(() => expect(onCommitted).toHaveBeenCalledTimes(1));
     const outcome = onCommitted.mock.calls[0][0] as ResetAllOutcome;
-    expect(outcome.done).toEqual(['preferences', 'browser', 'dsh']);
+    expect(outcome.done).toEqual(['preferences', 'browser', 'dsh', 'network']);
     expect(outcome.skipped).toEqual(['storage']);
     expect(onClose).toHaveBeenCalledTimes(1);
   });

@@ -3,7 +3,8 @@ import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
-import { executeDshResetPlan, NPMJS_URL } from '@shared/settings-reset/dshReset';
+import { executeDshResetPlan } from '@shared/settings-reset/dshReset';
+import { executeNetworkResetPlan, NPMJS_URL } from '@shared/settings-reset/networkReset';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
 import { DshVersionManagement } from './DshVersionManagement';
@@ -329,9 +330,11 @@ export function DshSettings() {
   }, [dshGroupResetPending, openGroupResetDialog]);
 
   /** 组级恢复：源=自动检测（落盘后静默实测选优）、代理=自动、清空自定义地址与代理字段。
-   * 乐观执行：点确认立刻关框并刷新卡片，后台落盘（委托共享 `executeDshResetPlan`，经
-   * saveNow 显式写入以取消在途防抖，避免旧快照在恢复之后补写）；失败则 toast（persist
-   * 内）并回滚到确认前的值（期间用户若已手动改过则不回滚，新输入优先）。 */
+   * 乐观执行：点确认立刻关框并刷新卡片，后台落盘（委托共享 `executeNetworkResetPlan` +
+   * `executeDshResetPlan` 顺序写两次——源/代理与版本来源分属两计划，UI 组级保持旧语义
+   * 三者全回默认；经 saveNow 显式写入以取消在途防抖，避免旧快照在恢复之后补写）；
+   * 失败则 toast（persist 内）并回滚到确认前的值（期间用户若已手动改过则不回滚，
+   * 新输入优先）。Task 5 将源/代理块搬走后本组只剩版本来源，届时再收窄此处。 */
   const handleGroupConfirm = useCallback(() => {
     if (groupResetBusy) {
       return;
@@ -358,10 +361,14 @@ export function DshSettings() {
     };
     void (async () => {
       try {
-        // saveNow（非 persist）：显式写入前取消在途防抖并清 pending，避免旧快照
-        // 在恢复写盘之后补写（显式写入契约见 saveNow 定义）。
-        const result = await executeDshResetPlan({ saveSourceConfig: (cfg) => saveNow(cfg) });
-        if (!result.ok) {
+      // saveNow（非 persist）：显式写入前取消在途防抖并清 pending，避免旧快照
+      // 在恢复写盘之后补写（显式写入契约见 saveNow 定义）。
+      // 源/代理与版本来源分属 network/dsh 两共享计划：顺序写两次保持 UI 组级旧语义
+      // （三者全回默认）；任一失败即回滚（Task 4 拆分语义，Task 5 搬走源/代理块）。
+      const save = { saveSourceConfig: (cfg: DshSourceConfig) => saveNow(cfg) };
+      const networkResult = await executeNetworkResetPlan(save);
+      const result = networkResult.ok ? await executeDshResetPlan(save) : networkResult;
+      if (!result.ok) {
           const s = formRef.current;
           if (
             s.sourceType === 'auto' &&

@@ -43,6 +43,8 @@ import { KeybindSettings } from './KeybindSettings';
 import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSettings';
 import { BrowserSettings } from '../../features/browser-settings/BrowserSettings';
 import { DshSettings } from '../../features/dsh/DshSettings';
+import { NetworkSettings } from '../../features/network/NetworkSettings';
+import { EnvironmentSettings } from '../../features/environment/EnvironmentSettings';
 import { StorageSettings } from '../../features/storage-settings/StorageSettings';
 import {
   prefetchStorageSettings,
@@ -51,6 +53,7 @@ import {
   isWellFormedStatus,
   setCachedStorageStatus,
 } from '../../features/storage-settings/storageStatusCache';
+import { prefetchEnvSettings } from '../../features/environment/envStatusCache';
 import { computeStorageBlocksAtDefault } from '../../features/storage-settings/storageAtDefault';
 import {
   TREE_CACHE_DEFAULTS,
@@ -84,6 +87,8 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   workspace: WorkspaceSettings,
   browser: BrowserSettings,
   dsh: DshSettings,
+  network: NetworkSettings,
+  environment: EnvironmentSettings,
   storage: StorageSettings,
 };
 
@@ -126,6 +131,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     requestStorageGroupReset,
     requestBrowserGroupReset,
     requestDshGroupReset,
+    requestNetworkGroupReset,
+    requestEnvironmentGroupReset,
     config,
     storageBlocksAtDefault,
     browserBlocksAtDefault,
@@ -147,9 +154,11 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       toggleNavigator: s.toggleNavigator,
       settingsNavigatorWidth: s.settingsNavigatorWidth,
       setSettingsNavigatorWidth: s.setSettingsNavigatorWidth,
-      requestStorageGroupReset: s.requestStorageGroupReset,
-      requestBrowserGroupReset: s.requestBrowserGroupReset,
-      requestDshGroupReset: s.requestDshGroupReset,
+    requestStorageGroupReset: s.requestStorageGroupReset,
+    requestBrowserGroupReset: s.requestBrowserGroupReset,
+    requestDshGroupReset: s.requestDshGroupReset,
+    requestNetworkGroupReset: s.requestNetworkGroupReset,
+    requestEnvironmentGroupReset: s.requestEnvironmentGroupReset,
       config: s.appInfo?.config,
       storageBlocksAtDefault: s.storageBlocksAtDefault,
       browserBlocksAtDefault: s.browserBlocksAtDefault,
@@ -436,8 +445,10 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
 
   // 方案 C 预取：设置面板打开即预热「存储」组快照（写入方案 B 的进场缓存），
   // 用户随后点击时数据多已就绪，首次进入也基本无加载骨架。
+  // 「环境」组同理：打开即 `prefetchEnvSettings()` 冷填充，Task 7 实装挂载即瞬显。
   useEffect(() => {
     void prefetchStorageSettings();
+    void prefetchEnvSettings();
   }, []);
 
   // 存储组聚合初始化/校正（事项 7）：存储组未激活（StorageSettings 未挂载、无路径
@@ -984,6 +995,26 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         requestDshGroupReset();
         return;
       }
+      if (group === 'network') {
+        // 网络组为自有流程（源/代理恢复，语义同旧 dsh 重置中的源/代理部分）：
+        // 先关通用确认框，再切组 + 置 pending 信号，由 NetworkSettings
+        // （Task 5 实装）弹出自有确认对话框并执行。
+        setConfirmResetOpen(false);
+        setPendingResetGroup(null);
+        setActiveGroup('network');
+        requestNetworkGroupReset();
+        return;
+      }
+      if (group === 'environment') {
+        // 环境组为自有流程（不进 ResetAll 自动序列，仅侧边栏自助）：
+        // 先关通用确认框，再切组 + 置 pending 信号，由 EnvironmentSettings
+        // （Task 7 实装）弹出自有确认对话框并执行。
+        setConfirmResetOpen(false);
+        setPendingResetGroup(null);
+        setActiveGroup('environment');
+        requestEnvironmentGroupReset();
+        return;
+      }
       setPendingResetGroup(group);
       setConfirmResetOpen(true);
     },
@@ -993,6 +1024,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       requestStorageGroupReset,
       requestBrowserGroupReset,
       requestDshGroupReset,
+      requestNetworkGroupReset,
+      requestEnvironmentGroupReset,
       setActiveGroup,
     ],
   );

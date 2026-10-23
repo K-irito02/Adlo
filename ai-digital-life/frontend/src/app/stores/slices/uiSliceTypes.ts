@@ -194,6 +194,18 @@ export interface UISlice {
    */
   dshBlocksAtDefault: boolean | null;
   /**
+   * 「网络」组级恢复默认**待处理**信号（transient，不持久化）：与 dsh 同构
+   * ——侧边栏重置按钮置 true，NetworkSettings 承接消费（源/代理走 saveSourceConfig 桥，
+   * 无偏好 patch，须自有确认对话框与执行流程；Task 5 填充实装）。
+   */
+  networkGroupResetPending: boolean;
+  /**
+   * 「环境」组级恢复默认**待处理**信号（transient，不持久化）：与 network 同构
+   * ——侧边栏重置按钮置 true，EnvironmentSettings 承接消费（Task 7 填充实装；
+   * 环境不进 ResetAll 自动序列，其组级重置仅侧边栏自助）。
+   */
+  environmentGroupResetPending: boolean;
+  /**
    * 兄弟子窗口（dsh/浏览器 tab 原生 WebView）创建计数器（transient，不持久化）：
    * 每次新建原生子窗口即 +1（新窗口盖在最上层），透明桥接条据此重建回到最上层。
    */
@@ -282,6 +294,14 @@ export interface UISlice {
   consumeDshGroupReset: () => void;
   /** 设置 DSH 两块全默认聚合信号（DshSettings 挂载维护，卸载清 null）。 */
   setDshBlocksAtDefault: (value: boolean | null) => void;
+  /** 置位网络组级恢复待处理（幂等：已 pending 再点保持 true）。 */
+  requestNetworkGroupReset: () => void;
+  /** 消费网络组级恢复待处理（NetworkSettings 开框前/入口守卫丢弃时调用）。 */
+  consumeNetworkGroupReset: () => void;
+  /** 置位环境组级恢复待处理（幂等：已 pending 再点保持 true）。 */
+  requestEnvironmentGroupReset: () => void;
+  /** 消费环境组级恢复待处理（EnvironmentSettings 开框前/入口守卫丢弃时调用）。 */
+  consumeEnvironmentGroupReset: () => void;
   /** 兄弟子窗口新建即 +1（透明桥接条 z-order 重建信号）。 */
   bumpSiblingWebviewNonce: () => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;

@@ -43,7 +43,7 @@ function groupLabel(t: CopyDict, key: GroupKey): string {
  * retain 复选框 + 迁移时机两键）；非核心场景仅单确认键。
  * 有意不区分 unavailable / allDefault：两者执行语义相同（存储腿跳过、其余三组照常），
  * 且产品要求确认框不列分组细节，故统一渲染通用确认文案。
- * 执行走 `resetAllSettings`（preferences → browser → dsh → storage），进度逐组回调；
+  * 执行走 `resetAllSettings`（preferences → browser → dsh → network → storage），进度逐组回调；
  * 执行期间锁定关闭/取消/遮罩/Esc（存储迁移不可中断）。结果交 `onCommitted` 由调用方汇总。
  * 偏好/浏览器/DSH 的依赖取执行时实时 store 值；下载迁移开关同样取实时值覆盖计划快照
  *（R2：开关反映用户最新意图；preflight 与路径判定仍用开框快照）。
@@ -158,6 +158,7 @@ export function ResetAllDialog({
           migrateAtOpen: liveMigrateAtOpen,
         },
         dsh: { saveSourceConfig: (config) => store.saveSourceConfig(config) },
+        network: { saveSourceConfig: (config) => store.saveSourceConfig(config) },
         storage: deps,
       };
     },
