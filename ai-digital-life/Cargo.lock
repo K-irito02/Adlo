@@ -149,6 +149,10 @@ version = "0.1.0"
 dependencies = [
  "adl-errors",
  "semver",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
