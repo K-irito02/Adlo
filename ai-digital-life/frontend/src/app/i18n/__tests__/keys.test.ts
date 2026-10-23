@@ -594,6 +594,8 @@ describe('i18n en-US namespace keys', () => {
     expect(String(zhCN.environmentInstallProgress)).toContain('{done}');
     expect(String(enUS.environmentInstallProgress)).toContain('{total}');
     expect(String(zhCN.environmentInstallProgress)).toContain('{total}');
+    expect(String(enUS.environmentBashVariantNote)).toContain('{variant}');
+    expect(String(zhCN.environmentBashVariantNote)).toContain('{variant}');
     expect(String(enUS.environmentWizardResumeBanner)).toContain('{count}');
     expect(String(zhCN.environmentWizardResumeBanner)).toContain('{count}');
   });

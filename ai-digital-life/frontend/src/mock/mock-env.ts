@@ -58,7 +58,7 @@ function cloneStatus(): EnvStatus {
 }
 
 /**
- * Mock env bridge：固定六段可用数据 + task null + dshReady true
+ * Mock env bridge：固定八键可用数据（6 段依赖 + task null + dshReady true）
  *（`EnvStatus` 代表态；`install` 恒 accepted，不置演示 task）。
  */
 export function createMockEnv(): EnvBridge {

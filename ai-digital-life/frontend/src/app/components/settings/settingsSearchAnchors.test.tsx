@@ -207,12 +207,12 @@ const CONDITIONAL_ROW_MARKERS: string[] = [
   'dshSettingsProxyHttp',
   'dshSettingsProxyHttps',
   'dshSettingsProxyNoProxy',
-  // 环境组七个操作行：仅 Task 7 填充后的 EnvironmentSettings 渲染（空壳期无行）。
+  // 环境组五个操作行：仅 Task 7 填充后的 EnvironmentSettings 渲染（空壳期无行）。
   // 登记即约束——Task 7 渲染行时须带同名 `data-settings-row` 标记，否则本守卫失败。
+  // 卸载/重装（environmentUninstall/environmentReinstall）暂无后端路由、无渲染行，
+  // 故不在索引登记、亦不在此列（Phase 3 随按钮一起加回）。
   'environmentInstall',
   'environmentSwitch',
-  'environmentUninstall',
-  'environmentReinstall',
   'environmentRecheck',
   'environmentCopyForAgent',
   'environmentGoToSettings',

@@ -245,9 +245,10 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     ],
   },
   {
-    // 环境组：单块七行 —— 七个操作行（安装/切换/卸载/重装/重测/复制/前往配置）
-    // 即 Task 7 七依赖行共用的操作键，行级落点经 `data-settings-row` 同名标记。
-    // 空壳期（Task 4）无行渲染，七键暂列条件清单；Task 7 渲染行时核对标记一致。
+    // 环境组：单块五行 —— 五个操作行（安装/切换/重测/复制/前往配置）。
+    // 卸载/重装键（environmentUninstall/environmentReinstall）暂无后端路由、无渲染行，
+    // 故不在此登记（Phase 3 随按钮一起加回）；行级落点经 `data-settings-row` 同名标记。
+    // 空壳期（Task 4）无行渲染，五键暂列条件清单；Task 7 渲染行时核对标记一致。
     group: 'environment',
     anchorId: 'deps',
     labelKey: 'environmentTitle',
@@ -255,8 +256,6 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     rows: [
       { labelKey: 'environmentInstall' },
       { labelKey: 'environmentSwitch' },
-      { labelKey: 'environmentUninstall' },
-      { labelKey: 'environmentReinstall' },
       { labelKey: 'environmentRecheck' },
       { labelKey: 'environmentCopyForAgent' },
       { labelKey: 'environmentGoToSettings' },
