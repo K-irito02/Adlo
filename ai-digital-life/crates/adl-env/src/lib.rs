@@ -12,6 +12,12 @@ use serde::{Deserialize, Serialize};
 /// Hosted-install providers (`node` now; `git`/`bash`/… arrive in Tasks 9-10).
 pub mod providers;
 
+/// Source preferences (`env-sources.json`, Task 11).
+pub mod config;
+
+/// Baseline version pins (`env-baseline.json` resource, Task 11).
+pub mod baseline;
+
 /// Well-known environment dependency keys, in canonical order.
 pub const ENV_DEPS: [&str; 6] = ["node", "git", "bash", "webview2", "adlserver", "netprobe"];
 

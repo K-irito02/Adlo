@@ -186,6 +186,8 @@ pub async fn init_server_state(
     let dsh_start_lock = Arc::new(AsyncMutex::new(()));
     let dsh_version_lock = adl_hosted::InstallLock::new();
     let dsh_version_task = adl_hosted::ProgressTask::new();
+    let env_install_lock = adl_hosted::InstallLock::new();
+    let env_task = adl_hosted::ProgressTask::new();
     let dsh_source_cache = Arc::new(RwLock::new(None));
     let dsh_catalog_cache = Arc::new(RwLock::new(None));
 
@@ -210,6 +212,8 @@ pub async fn init_server_state(
         dsh_start_lock,
         dsh_version_lock,
         dsh_version_task,
+        env_install_lock,
+        env_task,
         dsh_source_cache,
         dsh_catalog_cache,
         workspace_watcher: Arc::new(StdMutex::new(None)),

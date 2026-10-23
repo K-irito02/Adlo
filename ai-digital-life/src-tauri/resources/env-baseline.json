@@ -1,0 +1,15 @@
+{
+  "node": {
+    "stable": "24.22.1",
+    "dist_base": "https://nodejs.org/dist"
+  },
+  "git": {
+    "stable": "2.56.0",
+    "tag": "v2.56.0.windows.2",
+    "asset": "MinGit-2.56.0.2-64-bit.zip",
+    "base": "https://github.com/git-for-windows/git/releases/download"
+  },
+  "webview2": {
+    "minimum": "140.0.0.0"
+  }
+}

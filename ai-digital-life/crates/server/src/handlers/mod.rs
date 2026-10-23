@@ -3,6 +3,7 @@ pub mod ci;
 pub mod clipboard;
 pub mod dsh;
 pub mod durable;
+pub mod env;
 pub mod health;
 pub mod patch;
 pub mod reference;

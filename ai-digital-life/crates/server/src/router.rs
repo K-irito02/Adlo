@@ -111,6 +111,12 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/dsh/running", post(handlers::dsh::get_running))
         .route("/dsh/source-config", post(handlers::dsh::save_source_config))
         .route("/dsh/test-source", post(handlers::dsh::test_source))
+        // Env domain (Task 11 — environment dependencies status + installs)
+        .route("/env/status", get(handlers::env::status))
+        .route("/env/install", post(handlers::env::install))
+        .route("/env/select-source", post(handlers::env::select_source))
+        .route("/env/set-custom-path", post(handlers::env::set_custom_path))
+        .route("/env/recheck", post(handlers::env::recheck))
         // CI / GitHub domain
         .route("/ci/status", post(handlers::ci::get_status))
         .route("/ci/status-without-token", post(handlers::ci::get_status_without_token))
