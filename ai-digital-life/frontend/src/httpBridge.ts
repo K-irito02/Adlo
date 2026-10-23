@@ -92,6 +92,7 @@ import type {
   DshVersionTaskResult,
 } from './shared/ipc/dsh';
 import type { DurableSessionState } from './shared/ipc/durable';
+import type { EnvBridge, EnvSourceMode, EnvStatus } from './shared/ipc/env';
 import type { ClipboardBridge, ClipboardSaveToFileResult } from './shared/ipc/clipboard';
 import type { SystemMonitorBridge } from './shared/ipc/system_monitor';
 import type {
@@ -1121,6 +1122,23 @@ export function createHttpBridge({
         call<boolean>(baseUrl, '/dsh/source-config', POST(config)),
       testSource: (url: string) => call<DshTestResult>(baseUrl, '/dsh/test-source', POST({ url })),
     },
+
+    // ── env 环境依赖 domain (`GET /env/status` + `POST /env/*`,
+    // crates/server handlers/env.rs). 请求体与 Task 2 锁定的后端口径一致：
+    // install `{ dep, version? }`、select-source `{ dep, mode }`、
+    // set-custom-path `{ dep, path }`、recheck `{ dep? }`（无 dep 即空体，
+    // 后端空 body 视为 `{}` 全量重检）。
+    env: {
+      getStatus: () => call<EnvStatus>(baseUrl, '/env/status', GET()),
+      install: (dep: string, version?: string) =>
+        call<boolean>(baseUrl, '/env/install', POST({ dep, version })),
+      selectSource: (dep: string, mode: EnvSourceMode) =>
+        call<boolean>(baseUrl, '/env/select-source', POST({ dep, mode })),
+      setCustomPath: (dep: string, path: string) =>
+        call<boolean>(baseUrl, '/env/set-custom-path', POST({ dep, path })),
+      recheck: (dep?: string) =>
+        call<boolean>(baseUrl, '/env/recheck', POST(dep !== undefined ? { dep } : {})),
+    } satisfies EnvBridge,
 
     // ── Workspace domain (workspace_* + sidebar + git + git-vis).
     patch: {

@@ -14,6 +14,7 @@ import type {
 } from '../shared/ipc/clipboard';
 import type { SystemMonitorBridge } from '../shared/ipc/system_monitor';
 import type { StorageBridge } from '../shared/ipc/storage';
+import type { EnvBridge } from '../shared/ipc/env';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
 import { createHttpBridge, resolveAdlServerBaseUrl } from '../httpBridge';
 import { requestPreviewApi } from '../shared/ipc/preview-api';
@@ -188,6 +189,9 @@ export async function setupPreviewBridge(): Promise<void> {
       retrieval,
     ),
     dsh: mockDigitalLifeBridge.dsh,
+    // env 复用 storage 的可达性代理模式：ad-server 可达走 http `/env/*`，
+    // 否则回退 mock 固定可用快照。
+    env: preferHttpWhenReachable<EnvBridge>(adlServerBaseUrl, http.env, mockDigitalLifeBridge.env),
     patch: preferHttpWhenReachable<PatchBridge>(adlServerBaseUrl, http.patch, patchBridge),
     browser: {
       createForTab: (

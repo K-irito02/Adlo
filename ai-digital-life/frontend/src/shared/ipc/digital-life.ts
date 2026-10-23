@@ -18,6 +18,7 @@ import type { AppBridge } from './app';
 import type { WorkspaceBridge } from './workspace';
 import type { RetrievalBridge } from './retrieval';
 import type { DshBridge } from './dsh';
+import type { EnvBridge } from './env';
 import type { PatchBridge } from './patch';
 import type { PtyBridge } from './pty';
 import type { BrowserBridge } from './browser';
@@ -129,6 +130,8 @@ export interface DigitalLifeBridge {
   retrieval: RetrievalBridge;
   /** dsh 宿主壳子模块 (拉起/关闭 + 版本管理) */
   dsh: DshBridge;
+  /** 环境依赖管理子模块 (检测/安装/来源偏好，`GET /env/status` + `POST /env/*`) */
+  env: EnvBridge;
   /** 补丁管理子模块 */
   patch: PatchBridge;
   /** PTY 终端子模块 */
