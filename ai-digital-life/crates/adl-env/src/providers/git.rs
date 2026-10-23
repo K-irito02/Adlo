@@ -144,6 +144,9 @@ pub fn adopt_staging(
 /// version falls back to the highest remaining one, or clears the selection
 /// when none remain.
 pub fn uninstall(data_dir: &Path, version: &str) -> Result<UninstallOutcome, AppError> {
+    if version.parse::<semver::Version>().is_err() {
+        return Err(AppError::InvalidInput("invalid-version".into()));
+    }
     let hv = hosted(data_dir);
     if !hv.is_installed(version) {
         return Err(AppError::InvalidInput("not-hosted".into()));
@@ -157,7 +160,17 @@ pub fn uninstall(data_dir: &Path, version: &str) -> Result<UninstallOutcome, App
         match &next {
             Some(v) => hv.write_selected(v)?,
             None => {
-                let _ = std::fs::remove_file(hv.selected_file_path());
+                let selected_file = hv.selected_file_path();
+                match std::fs::remove_file(&selected_file) {
+                    Ok(()) => {},
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+                    Err(e) => {
+                        return Err(AppError::Io(format!(
+                            "remove {}: {e}",
+                            selected_file.display()
+                        )));
+                    },
+                }
             },
         }
         next
@@ -261,6 +274,22 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("adl_un_git2_{}", nanos()));
         let err = uninstall(&tmp, "2.47.1").expect_err("not hosted");
         assert!(matches!(err, adl_errors::AppError::InvalidInput(_)));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn uninstall_rejects_invalid_version_and_leaves_disk_untouched() {
+        let tmp = std::env::temp_dir().join(format!("adl_un_git_bad_{}", nanos()));
+        adopt_staging(&make_staging(&tmp, "2.47.1"), &tmp, "2.47.1").expect("stage");
+        let hv = adl_hosted::HostedVersions::open(&tmp, HOSTED_NAME, MARKER_REL);
+        for bad in ["../evil", "./2.47.1"] {
+            let err = uninstall(&tmp, bad).expect_err("invalid version");
+            assert!(
+                matches!(err, adl_errors::AppError::InvalidInput(ref m) if m == "invalid-version"),
+                "unexpected error: {err}"
+            );
+            assert!(hv.is_installed("2.47.1"), "disk must be untouched for {bad}");
+        }
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }
