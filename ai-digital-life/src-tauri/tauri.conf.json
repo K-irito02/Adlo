@@ -6,7 +6,8 @@
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://127.0.0.1:5173",
-    "beforeBuildCommand": "pnpm --dir ../frontend run build"
+    "beforeBuildCommand": "pnpm --dir ../frontend run build",
+    "beforeBundleCommand": "powershell -File ../scripts/copy-adl-server-sidecar.ps1 -Profile release"
   },
   "app": {
     "windows": [
@@ -34,6 +35,14 @@
     "active": true,
     "targets": "all",
     "resources": ["resources/env-baseline.json"],
+    "externalBin": ["binaries/adl-server"],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper",
+        "silent": true
+      },
+      "bundleVCRuntime": true
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

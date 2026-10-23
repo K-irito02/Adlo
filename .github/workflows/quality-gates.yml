@@ -48,6 +48,14 @@ jobs:
           New-Item -ItemType Directory -Force -Path frontend/dist | Out-Null
           Set-Content -Path frontend/dist/index.html -Value '<!doctype html><title>ci</title>'
 
+      # tauri.conf.json declares bundle.externalBin (adl-server sidecar);
+      # tauri-build copies it in its build script and fails the build when
+      # the staged file is missing — so stage a dev-built sidecar first.
+      - name: Stage adl-server sidecar
+        run: |
+          cargo build -p adl-server
+          powershell -NoProfile -File scripts/copy-adl-server-sidecar.ps1 -Profile debug
+
       - name: cargo fmt
         run: cargo fmt --all -- --check
 
@@ -80,6 +88,12 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path frontend/dist | Out-Null
           Set-Content -Path frontend/dist/index.html -Value '<!doctype html><title>ci</title>'
+
+      # Same externalBin prerequisite as rust-clippy (see comment there).
+      - name: Stage adl-server sidecar
+        run: |
+          cargo build -p adl-server
+          powershell -NoProfile -File scripts/copy-adl-server-sidecar.ps1 -Profile debug
 
       - name: cargo test
         run: cargo test --workspace

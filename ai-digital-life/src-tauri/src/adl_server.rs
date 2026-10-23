@@ -34,10 +34,35 @@ pub fn parse_ad_server_port_line(line: &str) -> Option<u16> {
     trimmed.strip_prefix(AD_SERVER_PORT_PREFIX)?.trim().parse().ok()
 }
 
-/// Resolve the `adl-server` binary path for the current build profile. Dev uses
-/// the workspace `target/debug`; release uses `target/release`. Returns `None`
-/// (→ graceful system-only shell) when the binary has not been built yet.
+/// Bundled sidecar file name for the current platform. Tauri's `externalBin`
+/// pattern is `binary-name{-target-triple}{.system-extension}`, so the Windows
+/// bundle looks for `adl-server-x86_64-pc-windows-msvc.exe` next to the host
+/// binary (copied there by `scripts/copy-adl-server-sidecar.ps1` before
+/// bundling). Non-Windows keeps the plain bin name (dev-only path today).
+fn sidecar_file_name() -> &'static str {
+    if cfg!(target_os = "windows") { "adl-server-x86_64-pc-windows-msvc.exe" } else { "adl-server" }
+}
+
+/// Pure sibling-sidecar lookup: `Some(sibling)` when `dir/sidecar_file_name`
+/// exists, else `None` (the caller then walks the workspace `target/`
+/// fallback). Kept pure so unit tests need not touch `current_exe`.
+fn resolve_in(dir: &Path) -> Option<PathBuf> {
+    let sibling = dir.join(sidecar_file_name());
+    if sibling.is_file() { Some(sibling) } else { None }
+}
+
+/// Resolve the `adl-server` binary path: ① the sidecar bundled next to the
+/// running host binary (release/`cargo tauri build` layout), ② the workspace
+/// `target/{debug,release}` output (dev/`cargo tauri dev` layout). Returns
+/// `None` (→ graceful system-only shell) when neither exists.
 fn resolve_ad_server_binary() -> Option<PathBuf> {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            if let Some(sibling) = resolve_in(dir) {
+                return Some(sibling);
+            }
+        }
+    }
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).parent()?; // src-tauri → workspace
     let profile = if cfg!(debug_assertions) { "debug" } else { "release" };
     let exe = if cfg!(target_os = "windows") { "adl-server.exe" } else { "adl-server" };
@@ -230,5 +255,29 @@ mod tests {
         };
         assert_eq!(handle.base_url(), Some("http://127.0.0.1:54321".into()));
         assert!(!handle.is_running());
+    }
+
+    #[test]
+    fn prefers_sibling_sidecar_over_target_dir() {
+        // `resolve_in` is a pure helper so tests need not touch `current_exe`:
+        // a sibling sidecar next to the host binary wins; when absent the
+        // caller falls back to the workspace target/ lookup.
+        let tag = format!(
+            "adl-resolve-in-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        );
+        let dir = std::env::temp_dir().join(tag);
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let sibling = dir.join(sidecar_file_name());
+        // Absent → None (caller walks the target/ fallback).
+        assert_eq!(resolve_in(&dir), None);
+        // Present → Some(sibling).
+        std::fs::write(&sibling, b"stub").expect("write stub sidecar");
+        assert_eq!(resolve_in(&dir), Some(sibling));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
