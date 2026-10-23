@@ -20,6 +20,12 @@ const SCOPE = 'env';
  */
 export const ENV_POLL_INTERVAL_MS = 3000;
 
+/** 持续失败熔断：连续失败达此次数（约 30s）即停轮询、复位 busy、单次 toast。 */
+export const ENV_POLL_MAX_CONSECUTIVE_FAILURES = 10;
+
+/** 轮询总时长上限：超时即停（防 task 常驻非空 + 后端可达时的无限轮询）。 */
+export const ENV_POLL_MAX_ELAPSED_MS = 10 * 60 * 1000;
+
 /** 轮询定时器（模块级）：install 重入先清旧轮询，避免双 interval 并跑。 */
 let envPollTimer: number | null = null;
 
@@ -218,7 +224,12 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
      *
      * 仅当 `envStatus.task` 非空时启动 3s 轮询；某次 tick 拿到 `task: null`
      * 即清定时器 + 终态刷新（tick 内已写）+ 成功 toast + envBusy 复位。
-     * 轮询 tick fail-open：桥抛错 / !ok 静默跳过（下一轮自愈），不记卡不 toast。
+     * 轮询 tick fail-open：桥抛错 / !ok 静默跳过（下一轮自愈），不记卡；
+     * 持续失败熔断（防 stale busy）：连续失败达
+     * `ENV_POLL_MAX_CONSECUTIVE_FAILURES`（10 tick ≈ 30s）或自启动起
+     * 超过 `ENV_POLL_MAX_ELAPSED_MS`（10min），清定时器 + envBusy 复位 +
+     * 单次节流 error toast（复用通用 `common.operationFailed`，不新增 key）。
+     * 成功 tick 重置连续失败计数、刷新状态。
      *
      * 清除契约：返回清除函数，调用方必须在 useEffect 返回里调用
      * （组件卸载清——照抄 DshVersionManagement 的 versionTask 轮询处置）；
@@ -234,17 +245,45 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         return () => {};
       }
       const version = started.version;
+      const pollStart = Date.now();
+      let consecutiveFailures = 0;
+      let capToastShown = false;
+      const stopOnCap = (): void => {
+        clearEnvPollTimer();
+        get().setEnvBusy(false);
+        if (!capToastShown) {
+          capToastShown = true;
+          get().showToast(envDict(get).failure, 'error');
+        }
+      };
       const tick = async (): Promise<void> => {
+        if (Date.now() - pollStart > ENV_POLL_MAX_ELAPSED_MS) {
+          stopOnCap();
+          return;
+        }
         let result: Awaited<ReturnType<typeof window.digitalLife.env.getStatus>>;
         try {
           result = await window.digitalLife.env.getStatus();
         } catch {
+          consecutiveFailures += 1;
+          if (consecutiveFailures >= ENV_POLL_MAX_CONSECUTIVE_FAILURES) {
+            stopOnCap();
+          }
           return;
         }
         if (!result.ok) {
+          consecutiveFailures += 1;
+          if (consecutiveFailures >= ENV_POLL_MAX_CONSECUTIVE_FAILURES) {
+            stopOnCap();
+          }
           return;
         }
+        consecutiveFailures = 0;
         get().setEnvStatus(result.data);
+        if (Date.now() - pollStart > ENV_POLL_MAX_ELAPSED_MS) {
+          stopOnCap();
+          return;
+        }
         if (result.data.task === null) {
           clearEnvPollTimer();
           get().setEnvBusy(false);

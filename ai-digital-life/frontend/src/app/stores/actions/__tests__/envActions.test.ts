@@ -1,6 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createStore } from 'zustand';
-import { createEnvActions, ENV_POLL_INTERVAL_MS } from '../envActions';
+import {
+  createEnvActions,
+  ENV_POLL_INTERVAL_MS,
+  ENV_POLL_MAX_CONSECUTIVE_FAILURES,
+} from '../envActions';
 import type { EnvStatus } from '../../../../shared/ipc/env';
 
 /** envActions 依赖的最小 store 表面（其余动作字段以 unknown 桩代） */
@@ -241,6 +245,32 @@ describe('envActions installEnvDep', () => {
     const callsAfterCleanup = mockGetStatus.mock.calls.length;
     await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
     expect(mockGetStatus.mock.calls.length).toBe(callsAfterCleanup);
+  });
+
+  it('持续失败熔断：N 次失败后停轮询、busy 复位、单次 error toast', async () => {
+    vi.useFakeTimers();
+    const running = fakeStatus();
+    running.task = {
+      kind: 'env-node-install',
+      version: '24.22.1',
+      phase: 'installing',
+      percent: null,
+      done: 3,
+      total: 10,
+      cancellable: true,
+    };
+    mockGetStatus.mockRejectedValue(new Error('tick boom'));
+    const store = makeStore();
+    store.getState().setEnvStatus(running);
+    store.getState().setEnvBusy(true);
+    store.getState().pollEnvTaskWhileRunning();
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * ENV_POLL_MAX_CONSECUTIVE_FAILURES);
+    expect(store.getState().envBusy).toBe(false);
+    expect(mockShowToast).toHaveBeenCalledTimes(1);
+    expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'error');
+    const callsAfterCap = mockGetStatus.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
+    expect(mockGetStatus.mock.calls.length).toBe(callsAfterCap);
   });
 });
 
