@@ -1,10 +1,11 @@
 //! Env domain HTTP handlers — environment dependency status + hosted installs.
 //!
 //! Follows the dsh domain recipe: `State(state): State<ServerState>`, results
-//! wrapped with [`crate::ipc::to_response`]. Installs run under
-//! `env_install_lock` with progress on `env_task` (kind `"env-{dep}-install"`);
-//! the install itself runs in a background `tokio::spawn` and the frontend
-//! polls the `task` section of `GET /env/status` while it runs — the same
+//! wrapped with [`crate::ipc::to_response`]. Installs and uninstalls run under
+//! the shared `env_install_lock` with progress on `env_task` (kind
+//! `"env-{dep}-install"` / `"env-{dep}-uninstall"`); the work itself runs in a
+//! background `tokio::spawn` and the frontend polls the `task` section of
+//! `GET /env/status` while it runs — the same
 //! split as `/dsh/install-version` + `/dsh/version-task` (see `dsh.rs`).
 //!
 //! `EnvStatus` owns the camelCase wire shape; providers stay snake_case
@@ -41,6 +42,19 @@ pub fn parse_mode(mode: &str) -> Result<adl_env::SourceMode, AppError> {
         "system" => Ok(adl_env::SourceMode::System),
         "host" => Ok(adl_env::SourceMode::Host),
         _ => Err(AppError::InvalidInput(format!("invalid source mode: {mode}"))),
+    }
+}
+
+/// Whitelist deps that own a hosted install root for uninstall: `node|git`.
+/// `bash` ships inside the hosted git dir; `webview2`/`adlserver`/`netprobe`
+/// are not managed through hosted version dirs. Machine codes (not prose) so
+/// the frontend can branch on them.
+pub fn validate_uninstall(dep: &str) -> Result<&'static str, AppError> {
+    let dep = parse_dep(dep)?;
+    match dep {
+        "node" | "git" => Ok(dep),
+        "bash" => Err(AppError::InvalidInput("bash-follows-git".into())),
+        _ => Err(AppError::InvalidInput("not-managed".into())),
     }
 }
 
@@ -455,7 +469,7 @@ struct InstallInput {
     version: Option<String>,
 }
 
-/// Install 占位（已有任务在跑则拒绝；上次失败残留的 error 快照在新请求时回收，
+/// Env 任务占位（安装/卸载共用 `env_task`，已有任务在跑则拒绝；上次失败残留的 error 快照在新请求时回收，
 /// 否则一次失败会永久阻塞后续安装——成功路径由 provider `finish()` 清理）。
 fn try_begin_env_task(state: &ServerState, kind: &str, label: &str) -> Result<(), AppError> {
     if state.env_task.begin(kind, label) {
@@ -468,8 +482,8 @@ fn try_begin_env_task(state: &ServerState, kind: &str, label: &str) -> Result<()
             return Ok(());
         }
     }
-    tracing::debug!(?kind, %label, "env::install: begin rejected (another task running)");
-    Err(AppError::InvalidInput("another env install is already running".into()))
+    tracing::debug!(?kind, %label, "env: begin rejected (another task running)");
+    Err(AppError::InvalidInput("another env task is already running".into()))
 }
 
 async fn install_inner(
@@ -574,6 +588,79 @@ fn spawn_git_install(
             download: &download,
         };
         let _ = git::install(&version, &cfg, &task_state.env_task).await;
+    });
+}
+
+/// POST `/env/uninstall` — remove hosted `{ dep, version? }`. Missing
+/// `version` means the currently selected hosted version. Accepted removals
+/// run in the background (same `env_install_lock` as installs) and the
+/// response is `{ started: true }`; progress/results are polled via
+/// `GET /env/status`'s `task` section and refreshed status.
+pub async fn uninstall(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: UninstallInput = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let result = uninstall_inner(&state, input).await;
+    ipc::to_response(result)
+}
+
+#[derive(serde::Deserialize)]
+struct UninstallInput {
+    dep: String,
+    #[serde(default)]
+    version: Option<String>,
+}
+
+async fn uninstall_inner(
+    state: &ServerState,
+    input: UninstallInput,
+) -> Result<serde_json::Value, AppError> {
+    let dep = validate_uninstall(&input.dep)?;
+    let root = state.storage.paths().root.clone();
+    let version = match input.version.filter(|v| !v.trim().is_empty()) {
+        Some(v) => v,
+        None => selected_hosted_version(&root, dep)?
+            .ok_or_else(|| AppError::InvalidInput("no-selected-version".into()))?,
+    };
+    try_begin_env_task(state, &format!("env-{dep}-uninstall"), &version)?;
+    spawn_uninstall(state, dep, version);
+    Ok(serde_json::json!({ "started": true }))
+}
+
+/// Selected hosted version for an uninstall-eligible dep (provider-owned
+/// layout: `env-hosted/{node,git}/selected.txt`).
+fn selected_hosted_version(root: &Path, dep: &str) -> Result<Option<String>, AppError> {
+    let (name, marker) = match dep {
+        "node" => (node::HOSTED_NAME, node::MARKER_REL),
+        "git" => (git::HOSTED_NAME, git::MARKER_REL),
+        _ => return Ok(None),
+    };
+    adl_hosted::HostedVersions::open(root, name, marker).read_selected()
+}
+
+/// Background hosted uninstall (serialized with installs on
+/// `env_install_lock`). Success finishes the task; failure records the error
+/// for polling, reclaimed by the next env task (`try_begin_env_task`).
+fn spawn_uninstall(state: &ServerState, dep: &'static str, version: String) {
+    let task_state = state.clone();
+    tokio::spawn(async move {
+        let _guard = task_state.env_install_lock.clone().lock_owned().await;
+        let root = task_state.storage.paths().root.clone();
+        // `remove_dir_all` is blocking IO — keep it off the runtime.
+        let result = tokio::task::spawn_blocking(move || match dep {
+            "node" => node::uninstall(&root, &version).map(|_| ()),
+            _ => git::uninstall(&root, &version).map(|_| ()),
+        })
+        .await;
+        match result {
+            Ok(Ok(())) => task_state.env_task.finish(),
+            Ok(Err(e)) => task_state.env_task.set_error(&e.to_string()),
+            Err(e) => task_state.env_task.set_error(&format!("uninstall task failed: {e}")),
+        }
     });
 }
 
@@ -725,8 +812,8 @@ struct RecheckInput {
 #[cfg(test)]
 mod tests {
     use super::{
-        EnvStatus, NetprobeState, SelectInput, meets_dotted, meets_semver, parse_dep, parse_mode,
-        select_source_inner,
+        EnvStatus, NetprobeState, SelectInput, UninstallInput, meets_dotted, meets_semver,
+        parse_dep, parse_mode, select_source_inner, uninstall_inner, validate_uninstall,
     };
     use adl_env::{DependencyState, EffectiveSource, Origin, SourceMode};
     use adl_errors::AppError;
@@ -808,6 +895,87 @@ mod tests {
         select_source_inner(&state, input).await.unwrap();
         let config = adl_env::config::load(&state.storage.paths().root).unwrap();
         assert_eq!(config.node.mode, SourceMode::Host);
+    }
+
+    /// `/env/uninstall` 白名单：仅 node/git 拥有托管版本目录。
+    #[test]
+    fn validate_uninstall_whitelists_hosted_deps() {
+        assert_eq!(validate_uninstall("node").unwrap(), "node");
+        assert_eq!(validate_uninstall("git").unwrap(), "git");
+    }
+
+    #[test]
+    fn validate_uninstall_rejects_unknown_dep() {
+        let err = validate_uninstall("bogus").expect_err("unknown dep");
+        assert!(
+            matches!(err, AppError::InvalidInput(ref m) if m.contains("unknown env dependency")),
+            "unexpected error: {err}"
+        );
+    }
+
+    /// webview2/adlserver/netprobe 不归托管版本目录管理 → 机器码 `not-managed`。
+    #[test]
+    fn validate_uninstall_rejects_unmanaged_dep() {
+        for dep in ["webview2", "adlserver", "netprobe"] {
+            let err = validate_uninstall(dep).expect_err("unmanaged dep");
+            assert!(
+                matches!(err, AppError::InvalidInput(ref m) if m == "not-managed"),
+                "{dep}: unexpected error: {err}"
+            );
+        }
+    }
+
+    /// bash 随宿主 git 一起装 → 机器码 `bash-follows-git`。
+    #[test]
+    fn validate_uninstall_points_bash_at_git() {
+        let err = validate_uninstall("bash").expect_err("bash follows git");
+        assert!(
+            matches!(err, AppError::InvalidInput(ref m) if m == "bash-follows-git"),
+            "unexpected error: {err}"
+        );
+    }
+
+    /// 缺省 version 且该 dep 没有 selected 托管版本 → 4xx，不启动后台任务。
+    #[tokio::test]
+    async fn uninstall_inner_requires_selected_version_when_omitted() {
+        let state = crate::test_util::test_server_state();
+        let input = UninstallInput { dep: "node".into(), version: None };
+        let err = uninstall_inner(&state, input).await.expect_err("no selection");
+        assert!(
+            matches!(err, AppError::InvalidInput(ref m) if m == "no-selected-version"),
+            "unexpected error: {err}"
+        );
+        assert!(state.env_task.snapshot().is_none(), "no task must be started");
+    }
+
+    /// 不归托管依赖经 handler 层同样是 4xx，且不启动任务。
+    #[tokio::test]
+    async fn uninstall_inner_rejects_unmanaged_dep_without_starting_task() {
+        let state = crate::test_util::test_server_state();
+        let input = UninstallInput { dep: "webview2".into(), version: Some("1.0.0".into()) };
+        let err = uninstall_inner(&state, input).await.expect_err("unmanaged dep");
+        assert!(
+            matches!(err, AppError::InvalidInput(ref m) if m == "not-managed"),
+            "unexpected error: {err}"
+        );
+        assert!(state.env_task.snapshot().is_none());
+    }
+
+    /// 路由已挂载：POST /env/uninstall 命中 handler（未挂载会是 404，
+    /// 这里断言校验失败返回 400），不触发真实卸载。
+    #[tokio::test]
+    async fn uninstall_route_is_mounted() {
+        use tower::ServiceExt;
+        let state = crate::test_util::test_server_state();
+        let app = crate::router::app_router(state.clone()).with_state(state);
+        let request = axum::http::Request::builder()
+            .method("POST")
+            .uri("/env/uninstall")
+            .header("content-type", "application/json")
+            .body(axum::body::Body::from(r#"{"dep":"webview2"}"#))
+            .expect("request");
+        let response = app.oneshot(request).await.expect("route");
+        assert_eq!(response.status(), axum::http::StatusCode::BAD_REQUEST);
     }
 
     /// EnvStatus DTO 自有 camelCase：七节 + dshReady 全 camelCase，

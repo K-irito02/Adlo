@@ -114,6 +114,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         // Env domain (Task 11 — environment dependencies status + installs)
         .route("/env/status", get(handlers::env::status))
         .route("/env/install", post(handlers::env::install))
+        .route("/env/uninstall", post(handlers::env::uninstall))
         .route("/env/select-source", post(handlers::env::select_source))
         .route("/env/set-custom-path", post(handlers::env::set_custom_path))
         .route("/env/recheck", post(handlers::env::recheck))
