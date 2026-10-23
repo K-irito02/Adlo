@@ -342,6 +342,9 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         }
         if (task.error !== null && task.error !== undefined && task.error !== '') {
           captureError(get, task.error, SCOPE);
+          // 终态失败：本地清掉 task（失败信息只留在 toast/错误卡），否则行会一直
+          // 停在 "安装中" 扫光态且安装按钮不再出现（remount 由 taskForDep 兜底）。
+          get().setEnvStatus({ ...result.data, task: null });
           stopWithError();
         }
       };

@@ -409,6 +409,41 @@ describe('envActions uninstallEnvDep', () => {
     await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
     expect(mockGetStatus.mock.calls.length).toBe(callsAfterStop);
   });
+
+  it('失败安装任务终态化：本地清 task 停轮询、busy 复位、单次 error toast', async () => {
+    vi.useFakeTimers();
+    const running = fakeStatus();
+    running.node = { ...depState(null, false), effective: 'none', path: null };
+    running.task = {
+      kind: 'env-node-install',
+      version: '24.22.1',
+      phase: 'installing',
+      percent: null,
+      done: 0,
+      total: 0,
+      cancellable: true,
+    };
+    const failed = fakeStatus();
+    failed.node = running.node;
+    failed.task = { ...running.task, error: 'download failed' };
+    mockInstall.mockResolvedValue({ ok: true, data: true });
+    mockGetStatus
+      .mockResolvedValueOnce({ ok: true, data: running })
+      .mockResolvedValue({ ok: true, data: failed });
+    const store = makeStore();
+    await store.getState().installEnvDep('node');
+    expect(store.getState().envStatus?.task).not.toBeNull();
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS);
+    // 失败信息只留在 toast/错误卡：本地 task 清空，行不再显示“安装中”。
+    expect(store.getState().envStatus?.task).toBeNull();
+    expect(store.getState().envBusy).toBe(false);
+    const errorToasts = mockShowToast.mock.calls.filter(([, type]) => type === 'error');
+    expect(errorToasts).toHaveLength(1);
+    expect(String(errorToasts[0][0])).toContain('node');
+    const callsAfterStop = mockGetStatus.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
+    expect(mockGetStatus.mock.calls.length).toBe(callsAfterStop);
+  });
 });
 
 describe('envActions mutations', () => {

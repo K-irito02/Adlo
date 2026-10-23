@@ -279,6 +279,47 @@ describe('EnvironmentSettings', () => {
     });
   });
 
+  it('失败任务残留 error task 不阻塞行：安装按钮可见且无进行中扫光', async () => {
+    const status = fixture();
+    status.task = {
+      kind: 'env-node-install',
+      version: '24.22.1',
+      phase: 'installing',
+      percent: null,
+      done: 0,
+      total: 0,
+      cancellable: true,
+      error: 'download failed',
+    };
+    // 不覆盖 seed 的状态：模拟 remount 后后端快照仍带 error task。
+    fetchEnvStatus.mockImplementation(async () => true);
+    seedStore({ envStatus: status });
+    const { container } = await renderWithRows();
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    expect(within(node).getByRole('button', { name: 'environmentInstall' })).not.toBeNull();
+    expect(node.textContent).not.toContain('environmentTaskPhaseInstalling');
+  });
+
+  it('busy 时行内安装/卸载/重装按钮全部禁用', async () => {
+    fetchEnvStatus.mockImplementation(async () => true);
+    seedStore({ envBusy: true, envStatus: fixture() });
+    const { container } = await renderWithRows();
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    expect(
+      (within(node).getByRole('button', { name: 'environmentInstall' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    const git = container.querySelector('[data-testid="env-dep-git"]') as HTMLElement;
+    expect(
+      (within(git).getByRole('button', { name: 'environmentUninstall' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(
+      (within(git).getByRole('button', { name: 'environmentReinstall' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+  });
+
   it('聚合条重测调 recheckEnv，复制全部写整包 JSON', async () => {
     await renderWithRows();
     fireEvent.click(screen.getByRole('button', { name: 'environmentRecheck' }));

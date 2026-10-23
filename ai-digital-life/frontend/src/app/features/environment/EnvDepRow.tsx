@@ -218,9 +218,12 @@ export function EnvDepRow({
     });
   };
 
+  // task.error 非空 = 后端终态失败：不再当作进行中任务渲染，行回到可操作态
+  //（轮询侧已停；后端快照若仍带 error，remount/refetch 也不会复活扫光）。
   const taskForDep =
     section !== null &&
     status.task !== null &&
+    (status.task.error ?? '') === '' &&
     (status.task.kind === `env-${dep}-install` ||
       status.task.kind === `env-${dep}-uninstall` ||
       status.task.kind === `env-${dep}-reinstall`)
@@ -272,6 +275,8 @@ export function EnvDepRow({
     if (!showUninstallReinstall || section === null || section.installedVersion === null) {
       return;
     }
+    // 重装是另一条执行路径：取消已武装的卸载，避免残留危险态误触。
+    setUninstallArmed(false);
     void actions.reinstall(dep, section.installedVersion);
   };
 
@@ -432,6 +437,8 @@ export function EnvDepRow({
                   value={section.mode}
                   options={sourceOptions}
                   onChange={(v) => {
+                    // 来源变更会重算可卸载性：先解除武装，避免跨来源残留危险态。
+                    setUninstallArmed(false);
                     void actions.selectSource(dep, v as EnvSourceMode);
                   }}
                   label={t.environmentSwitch}
