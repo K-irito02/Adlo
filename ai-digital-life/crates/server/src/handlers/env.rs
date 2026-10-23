@@ -86,15 +86,17 @@ fn cmp_padded(a: &[u64], b: &[u64]) -> std::cmp::Ordering {
     pad(a).cmp(&pad(b))
 }
 
-/// `netprobe` section of `EnvStatus`: two probe lights plus the credential
-/// presence third light (existence only — the value is never read into the
+/// `netprobe` section of `EnvStatus`: two probe lights plus the CI-token
+/// presence third light — CI/GitHub token only, NOT the dsh model-key status
+/// (unknowable from the backend; Phase 2 renders the model-key row as
+/// guidance-only). Existence only — the value is never read into the
 /// response; see `has_access_token` in the ci domain for the same pattern).
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NetprobeState {
     pub registry_ok: bool,
     pub registry_latency_ms: u64,
-    pub credential_configured: bool,
+    pub ci_token_configured: bool,
 }
 
 /// `GET /env/status` response: six dependency sections plus the in-flight
@@ -150,11 +152,13 @@ async fn status_inner(state: &ServerState) -> Result<serde_json::Value, AppError
         adl_download_source::resolve_registry(&download),
     )
     .await;
-    // 凭据第三灯：存在性检查只问有无（`get_…` 返回的值直接丢弃，永不进响应；
-    // 无合适的存在性专用 API，故复用现有 `get_ci_access_token_in_dir` ——
+    // CI/GitHub token presence only — NOT dsh model-key status (unknowable
+    // from backend; Phase 2 renders the model-key row as guidance-only).
+    // Existence check only (`get_…` returned value discarded, never in response;
+    // no suitable presence-only API, so reuse existing `get_ci_access_token_in_dir` ——
     // 本 crate 在此任务内不扩展，见 concerns）。阻塞 keyring/文件 IO 走
     // `spawn_blocking`（同 ci 域 `read_ci_access_token` 模式）。
-    let credential_configured = tokio::task::spawn_blocking(move || {
+    let ci_token_configured = tokio::task::spawn_blocking(move || {
         adl_credential::get_ci_access_token_in_dir(&credentials_dir).is_some()
     })
     .await
@@ -170,7 +174,7 @@ async fn status_inner(state: &ServerState) -> Result<serde_json::Value, AppError
         netprobe: NetprobeState {
             registry_ok: probe.registry_ok,
             registry_latency_ms: probe.registry_latency_ms,
-            credential_configured,
+            ci_token_configured,
         },
         task: state.env_task.snapshot(),
         dsh_ready,
@@ -819,7 +823,7 @@ mod tests {
             netprobe: NetprobeState {
                 registry_ok: true,
                 registry_latency_ms: 12,
-                credential_configured: false,
+                ci_token_configured: false,
             },
             task: None,
             dsh_ready: true,
@@ -828,10 +832,7 @@ mod tests {
         assert_eq!(v.get("dshReady").and_then(|b| b.as_bool()), Some(true));
         assert_eq!(v["node"].get("meetsBaseline").and_then(|b| b.as_bool()), Some(true));
         assert_eq!(v["netprobe"].get("registryOk").and_then(|b| b.as_bool()), Some(true));
-        assert_eq!(
-            v["netprobe"].get("credentialConfigured").and_then(|b| b.as_bool()),
-            Some(false)
-        );
+        assert_eq!(v["netprobe"].get("ciTokenConfigured").and_then(|b| b.as_bool()), Some(false));
         assert!(v.get("task").is_some());
         assert!(v.get("dsh_ready").is_none());
         assert!(v["node"].get("meets_baseline").is_none());
