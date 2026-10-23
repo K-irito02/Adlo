@@ -23,6 +23,7 @@ members = [
     "crates/download-source",
     "crates/dsh-bundle",
     "crates/adl-hosted",
+    "crates/adl-env",
     "src-tauri",
 ]
 

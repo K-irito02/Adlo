@@ -1,0 +1,19 @@
+[package]
+name = "adl-env"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+adl-errors = { path = "../errors" }
+adl-hosted = { path = "../adl-hosted" }
+adl-download-source = { path = "../download-source" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+semver = "1"
+tracing.workspace = true
+reqwest = { workspace = true }

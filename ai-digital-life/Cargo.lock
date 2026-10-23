@@ -128,6 +128,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "adl-env"
+version = "0.1.0"
+dependencies = [
+ "adl-download-source",
+ "adl-errors",
+ "adl-hosted",
+ "reqwest",
+ "semver",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "adl-errors"
 version = "0.1.0"
 dependencies = [
