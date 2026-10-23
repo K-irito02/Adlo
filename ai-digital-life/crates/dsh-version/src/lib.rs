@@ -1221,4 +1221,23 @@ mod tests {
         assert!(is_host_version_installed(&root, "1.0.0"));
         let _ = std::fs::remove_dir_all(&root);
     }
+
+    #[test]
+    fn read_selected_returns_none_when_selected_dangles() {
+        let root = fresh_root("selected_dangles");
+        std::fs::create_dir_all(&root).expect("mkdir root");
+        std::fs::write(selected_file(&root), "9.9.9\n").expect("write selected");
+        assert_eq!(read_selected(&root).expect("read"), None);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn hosted_paths_match_legacy_layout() {
+        let root = fresh_root("hosted_paths");
+        assert_eq!(
+            HostedVersions::open(&root, "", DSH_MARKER_REL).installed_marker("1.0.0"),
+            host_bin(&root, "1.0.0")
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }
