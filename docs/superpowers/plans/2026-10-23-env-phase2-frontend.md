@@ -217,7 +217,9 @@ git commit -m "feat(frontend): add environment and network i18n domains"
 ### Task 4: 设置注册表 + 面板接线 + 搜索索引
 
 **Files:**
-- Modify: `kernel/types.ts`（`SettingsGroupId += 'network' | 'environment'`）、`components/settings/settingsGroups.ts`（`SETTINGS_GROUPS` 在 dsh 后追加 network、environment；`RESET_ALL_GROUP_LABEL_KEYS` += 两组；`getGroupResetPatch` 对两组返回 null；`RESETTABLE_GROUPS` += 两组）、`shared/settings-reset/types.ts`（`GroupKey += 'network' | 'environment'`）、`stores/slices/uiSlice.ts` + `uiSliceTypes.ts`（`networkGroupResetPending/environmentGroupResetPending` + request/consume，照抄 dsh 四行）、`components/settings/SettingsPanel.tsx`（group→组件映射 += network/environment；打开即 `prefetchEnvSettings()`；`handleRequestResetGroup` 对两组分支置 pending；聚合初始化/校正段落照抄 storage/dsh 注释体例）、`components/settings/settingsSearchIndex.ts`（两组 BlockEntry：network 复用源/代理/测试三锚点文案 key；environment 按七依赖行登记）
+- Modify: `kernel/types.ts`（`SettingsGroupId += 'network' | 'environment'`）、`components/settings/settingsGroups.ts`（`SETTINGS_GROUPS` 在 dsh 后追加 network、environment；`RESET_ALL_GROUP_LABEL_KEYS` += 两组；`getGroupResetPatch` 对两组返回 null；`RESETTABLE_GROUPS` += 两组）、`shared/settings-reset/types.ts`（`GroupKey += 'network' | 'environment'`）、`stores/slices/uiSlice.ts` + `uiSliceTypes.ts`（`networkGroupResetPending/environmentGroupResetPending` + request/consume，照抄 dsh 四行）、`components/settings/SettingsPanel.tsx`（group→组件映射 += network/environment；打开即 `prefetchEnvSettings()`；`handleRequestResetGroup` 对两组分支置 pending；聚合初始化/校正段落照抄 storage/dsh 注释体例）、`components/settings/settingsSearchIndex.ts`（两组 BlockEntry：network 复用源/代理/测试三锚点文案 key；environment 按七依赖行登记）、`components/settings/resetAllSettings.ts` + `resetAllSettings.test.ts` + `ResetAllDialog.tsx`（如硬编码组列表则同步）
+- Create: `shared/settings-reset/networkReset.ts` + `networkReset.test.ts`（从 `dshReset.ts` 拆出源/代理恢复逻辑；`dshReset.ts` 缩为版本来源重置，同步改 `dshReset.test.ts`——拆分提前到本任务，Task 5 只消费成品）
+- Modify: `shared/settings-reset/dshReset.ts`、`dshReset.test.ts`（见上）
 
 **Interfaces:**
 - Consumes: Task 3 labelKey
@@ -230,7 +232,7 @@ git commit -m "feat(frontend): add environment and network i18n domains"
 Run: `npx vitest run src/app/components/settings/settingsGroups.test.ts`
 Expected: FAIL（缺新组）
 
-- [ ] **Step 3: Write minimal implementation** — 按 Files 逐项改；ResetAll `ORDER` 不动（network 不进全自动序列？不——Ruling 见下）；两组件空壳 `NetworkSettings.tsx` / `EnvironmentSettings.tsx`（Header + 空 card + 正确 anchor，消费各自 pending 信号清零——照抄 DshSettings 的 `consumeXGroupReset` 挂载行为，避免侧边栏 pending 悬空）。
+- [ ] **Step 3: Write minimal implementation** — 按 Files 逐项改；ResetAll 接线：`FIRST_GROUPS` 追加 `'network'`（dsh 之后），`ORDER` 随之变为 `[..., 'dsh', 'network', 'storage']`，`runFirstGroup` 加 `key === 'network'` 分支调 `executeNetworkResetPlan`（语义=旧 dsh 重置中的源/代理部分：源→自动、代理→自动、清空自定义地址；无下载无安装）；environment 不进 ORDER（Ruling 见下）。`ResetAllDialog.tsx` 如硬编码组列表则同步；`resetAllSettings.test.ts` 补 network 段用例。两组件空壳 `NetworkSettings.tsx` / `EnvironmentSettings.tsx`（Header + 空 card + 正确 anchor，消费各自 pending 信号清零——照抄 DshSettings 的 `consumeXGroupReset` 挂载行为，避免侧边栏 pending 悬空）。`dshReset.ts` 收缩后 dsh 在 ORDER 中的重置只含版本来源（源/代理已归 network，避免重复执行）。
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -252,8 +254,7 @@ git commit -m "feat(frontend): register network and environment settings groups"
 
 **Files:**
 - Create: `ai-digital-life/frontend/src/app/features/network/NetworkSettings.tsx`
-- Create: `ai-digital-life/frontend/src/shared/settings-reset/networkReset.ts` + `networkReset.test.ts`（从 `dshReset.ts` 拆出源/代理恢复逻辑；`dshReset.ts` 缩为版本来源重置，同步改 `dshReset.test.ts`）
-- Modify: `SettingsPanel.tsx`（network 映射由空壳换实装——如 Task 4 用直接 import 则改引入；pending 消费位由空壳迁入实装）
+- Modify: `SettingsPanel.tsx`（network 映射由空壳换实装——如 Task 4 用直接 import 则改引入；pending 消费位由空壳迁入实装；`networkReset.ts` 已在 Task 4 就绪，本任务只消费 `executeNetworkResetPlan` + `networkGroupResetPending`）
 
 **Interfaces:**
 - Consumes: Task 2（saveSourceConfig/testSource 经 actions？DshSettings 现调 `window.digitalLife.dsh.*` 直调+防抖——搬迁保持调用路径不变，只换文件位置；Task 3 key（复用 dsh 域旧 key，不新增））
@@ -266,12 +267,12 @@ git commit -m "feat(frontend): register network and environment settings groups"
 Run: `npx vitest run src/app/features/network/NetworkSettings.test.tsx`
 Expected: FAIL（无此文件）
 
-- [ ] **Step 3: Write minimal implementation** — 以 `DshSettings.tsx` 第 601–790 行三块 JSX + 其 state/防抖/测试/重置逻辑为搬迁单元（按 `data-settings-anchor` 与 `SettingsHeader` 标题定位块边界，不按行号硬切）：整块移动，`anchorFor('dsh',…)` → `anchorFor('network',…)`；`dshBlocksAtDefault` 拆分为 `networkBlocksAtDefault`（源/代理）留本文件、`dshBlocksAtDefault` 缩为版本来源；`executeDshResetPlan` 源/代理部分迁入 `executeNetworkResetPlan`，dsh 侧保留版本来源重置；组级重置 pending 由 `dshGroupResetPending` 改 `networkGroupResetPending`（DshSettings 不再消费 dsh 的源/代理 pending）。
+- [ ] **Step 3: Write minimal implementation** — 以 `DshSettings.tsx` 三块 JSX（源/代理/测试连接，按 `data-settings-anchor` 与 `SettingsHeader` 标题定位块边界，不按行号硬切）+ 其 state/防抖/测试连接逻辑为搬迁单元：整块移动，`anchorFor('dsh',…)` → `anchorFor('network',…)`；`dshBlocksAtDefault` 拆分为 `networkBlocksAtDefault`（源/代理）留本文件；重置逻辑不搬（`executeNetworkResetPlan` 与 `networkGroupResetPending` 已在 Task 4 就绪，本任务只接线消费：块级/组级恢复按钮调 Task 4 成品）；DshSettings 不再消费 dsh 的源/代理 pending（Task 6 清理）。
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run src/app/features/network src/app/features/dsh/DshSettings.test.tsx && npx tsc --noEmit`
-Expected: PASS（DshSettings 旧三块用例在本任务同步删除/迁移，不允许残留失败）
+Run: `npx vitest run src/app/features/network src/shared/settings-reset src/app/features/dsh/DshSettings.test.tsx && npx tsc --noEmit`
+Expected: PASS（搬迁即删除：三块 JSX 移出 DshSettings 的同时，其 UI 用例同步从 `DshSettings.test.tsx` 迁入 `NetworkSettings.test.tsx`，不允许同一用例两处并存、不允许残留失败；`dshReset.test.ts` 已在 Task 4 随拆分更新）
 
 - [ ] **Step 5: Commit**
 
@@ -285,7 +286,7 @@ git commit -m "feat(frontend): extract network settings group from DSH"
 ### Task 6: DshSettings 瘦身 + 摘要行 + taskCancelLabel 修复（parked）
 
 **Files:**
-- Modify: `DshSettings.tsx`（删源/代理/测试三块及专属 state/防抖/测试逻辑；保留版本来源下拉 + `DshVersionManagement`；顶部加只读摘要行“当前源：{registry}（延迟 {ms}）［前往修改］”→ 跳转 network 组（`setActiveSettingsGroup('network')`，照抄 shortcuts 跳转）；`dshBlocksAtDefault` 只含版本来源）、`DshVersionManagement.tsx`（`taskCancelLabel` 匹配 `dsh-uninstall`/`dsh-reinstall`，kind 类型已在 Task 1 加宽）、`DshSettings.test.tsx` + `DshVersionManagement.test.tsx`（删迁移走的用例；加摘要行跳转 + cancel 标签用例：task kind `dsh-uninstall` 显示 `dshCancelUninstall`）
+- Modify: `DshSettings.tsx`（Task 5 已删三块 JSX + 专属 state/防抖/测试逻辑 + 旧用例已迁走；本任务做剩余瘦身：顶部加只读摘要行“当前源：{registry}（延迟 {ms}）［前往修改］”→ 跳转 network 组（`setActiveSettingsGroup('network')`，照抄 shortcuts 跳转）；确认无残留源/代理 pending 消费）、`DshVersionManagement.tsx`（`taskCancelLabel` 匹配 `dsh-uninstall`/`dsh-reinstall`，kind 类型已在 Task 1 加宽）、`DshSettings.test.tsx` + `DshVersionManagement.test.tsx`（加摘要行跳转 + cancel 标签用例：task kind `dsh-uninstall` 显示 `dshCancelUninstall`）
 
 **Interfaces:**
 - Consumes: Task 1 加宽类型；Task 5 搬迁完成面
