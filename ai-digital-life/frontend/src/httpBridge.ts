@@ -1131,7 +1131,7 @@ export function createHttpBridge({
     env: {
       getStatus: () => call<EnvStatus>(baseUrl, '/env/status', GET()),
       install: (dep: string, version?: string) =>
-        call<boolean>(baseUrl, '/env/install', POST({ dep, version })),
+        call<{ started: boolean }>(baseUrl, '/env/install', POST({ dep, version })),
       uninstall: (dep: string, version?: string) =>
         call<{ started: boolean }>(baseUrl, '/env/uninstall', POST({ dep, version })),
       selectSource: (dep: string, mode: EnvSourceMode) =>
@@ -1139,7 +1139,7 @@ export function createHttpBridge({
       setCustomPath: (dep: string, path: string) =>
         call<boolean>(baseUrl, '/env/set-custom-path', POST({ dep, path })),
       recheck: (dep?: string) =>
-        call<boolean>(baseUrl, '/env/recheck', POST(dep !== undefined ? { dep } : {})),
+        call<{ started: boolean }>(baseUrl, '/env/recheck', POST(dep !== undefined ? { dep } : {})),
     } satisfies EnvBridge,
 
     // ── Workspace domain (workspace_* + sidebar + git + git-vis).

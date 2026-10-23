@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, waitFor } from '@testing-library/react';
 import type { CopyDict } from '@i18n';
 import type { SettingItem, SettingsGroupId } from '@shared/ipc';
+import type { EnvStatus } from '@shared/ipc/env';
 import { STORAGE_CATEGORY_KEYS } from '@shared/ipc/storage';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
@@ -193,6 +194,57 @@ const storageStatus = {
   pending: null,
   lastReport: null,
 };
+
+/** 环境组行标记唯一性夹具：node 缺失（安装）、git 宿主已装（卸载/重装）。 */
+function envFixture(): EnvStatus {
+  const dep = (patch: Record<string, unknown> = {}) => ({
+    mode: 'auto' as const,
+    effective: 'host' as const,
+    origin: 'path' as const,
+    installedVersion: '1.0.0',
+    baselineVersion: '1.0.0',
+    meetsBaseline: true,
+    path: 'C:/hosted/1.0.0/bin.exe',
+    ...patch,
+  });
+  return {
+    node: dep({
+      effective: 'none',
+      installedVersion: null,
+      baselineVersion: '22.0.0',
+      meetsBaseline: false,
+      path: null,
+    }),
+    git: dep({ installedVersion: '2.52.0', baselineVersion: '2.52.0' }),
+    bash: dep({
+      mode: 'system',
+      effective: 'system',
+      installedVersion: null,
+      baselineVersion: '',
+      path: 'C:/Program Files/Git/bin/bash.exe',
+    }),
+    webview2: {
+      mode: 'auto',
+      effective: 'system',
+      origin: 'registry',
+      installedVersion: '140.0.3485.94',
+      baselineVersion: '140.0.0.0',
+      meetsBaseline: true,
+      path: null,
+    },
+    adlserver: dep({
+      effective: 'system',
+      origin: 'bundled',
+      installedVersion: null,
+      baselineVersion: '',
+      path: 'C:/hosted/adlserver/adl-server.exe',
+    }),
+    netprobe: { registryOk: true, registryLatencyMs: 12, ciTokenConfigured: false },
+    task: null,
+    dataDir: 'C:/data-root',
+    dshReady: false,
+  } as EnvStatus;
+}
 
 /**
  * 条件渲染的设置行：其 `data-settings-row` 标记只在特定编辑态/数据态下出现，
@@ -471,5 +523,37 @@ describe('settings search anchors', () => {
       });
       unmount();
     }
+  });
+
+  it('环境块每个登记行标记在 DOM 中恰好出现一次（R1-11 唯一性）', async () => {
+    const status = envFixture();
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: status });
+      return true;
+    });
+    useAppStore.setState({ envStatus: status });
+    const { container, unmount } = render(
+      <TestProvider>
+        <EnvironmentSettings />
+      </TestProvider>,
+    );
+    await waitFor(() => {
+      expect(container.querySelector('[data-testid="env-aggregate"]')).not.toBeNull();
+    });
+    const markers = [
+      'environmentInstall',
+      'environmentSwitch',
+      'environmentUninstall',
+      'environmentReinstall',
+      'environmentRecheck',
+      'environmentCopyForAgent',
+      'environmentCopyAllForAgent',
+      'environmentGoToSettings',
+    ];
+    for (const marker of markers) {
+      const count = container.querySelectorAll(`[data-settings-row="${marker}"]`).length;
+      expect(count, `${marker} occurrences`).toBe(1);
+    }
+    unmount();
   });
 });

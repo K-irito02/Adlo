@@ -169,11 +169,13 @@ describe('DshSettings', () => {
     expect(currentRow?.querySelector('.adl-icon-button--info')).not.toBeNull();
   });
 
-  it('版本管理块挂载即拉取首屏原子快照（DshSettings 不再重复拉取 sourceStatus）', () => {
+  it('版本管理块挂载即拉取首屏原子快照；sourceStatus 为 null 时静默补拉一次', () => {
     renderSettings();
     // 首屏数据由内嵌版本块的原子快照一次供给，避免两路并发返回时序造成块内跳动。
     expect(fetchDshSettingsSnapshot).toHaveBeenCalledTimes(1);
-    expect(fetchSourceStatus).not.toHaveBeenCalled();
+    // 直接落到 DSH 组（未经网络组）时摘要也要有数据：null 才补拉，且只拉一次。
+    expect(fetchSourceStatus).toHaveBeenCalledTimes(1);
+    expect(fetchSourceStatus).toHaveBeenCalledWith(true);
   });
 
   it('组级恢复：承接 pending 开自有确认框，确认后只写版本来源并消费信号', async () => {

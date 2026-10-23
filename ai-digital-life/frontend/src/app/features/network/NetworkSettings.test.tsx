@@ -628,6 +628,34 @@ describe('NetworkSettings', () => {
     });
   });
 
+  it('sourceStatus 晚到且用户已编辑：只播种未编辑字段，不覆盖用户输入', async () => {
+    useAppStore.setState({ sourceStatus: null });
+    renderSettings();
+    expect(fetchSourceStatus).toHaveBeenCalledWith(true);
+    // 用户先把代理切 manual 并填地址（此时 sourceStatus 仍未知）。
+    fireEvent.click(screen.getByLabelText('dshSettingsProxyMode'));
+    fireEvent.click(await screen.findByRole('option', { name: 'dshSettingsProxyModeManual' }));
+    const http = screen.getByLabelText('dshSettingsProxyHttp') as HTMLInputElement;
+    fireEvent.change(http, { target: { value: 'http://user:1' } });
+    // 晚到的源状态：来源字段未编辑应被播种，代理字段应保留用户输入。
+    act(() => {
+      useAppStore.setState({
+        sourceStatus: makeStatus({ source_mode: 'manual', npm_registry: NPMJS_URL }),
+      });
+    });
+    await waitFor(() => {
+      expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
+        'dshSettingsSourceNpmjs',
+      );
+    });
+    expect((screen.getByLabelText('dshSettingsProxyHttp') as HTMLInputElement).value).toBe(
+      'http://user:1',
+    );
+    expect(screen.getByLabelText('dshSettingsProxyMode').textContent).toContain(
+      'dshSettingsProxyModeManual',
+    );
+  });
+
   it('sourceStatus 后到更新不覆盖编辑中表单（seed-once 锁定）', () => {
     useAppStore.setState({
       sourceStatus: makeStatus({ source_mode: 'manual', npm_registry: NPMMIRROR_URL }),

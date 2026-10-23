@@ -18,6 +18,7 @@ import {
 } from './EnvDepRow';
 import { getCachedEnvStatus, isWellFormedEnvStatus, setCachedEnvStatus } from './envStatusCache';
 import { RUNBOOKS, type RunbookKey } from './runbooks';
+import { envDepLabel } from './depLabels';
 import type { EnvSourceMode, EnvStatus } from '../../../shared/ipc/env';
 
 /** 七依赖行渲染顺序（与 wire 的 node/git/bash/webview2/adlserver/netprobe + 模型引导行对应）。 */
@@ -174,7 +175,7 @@ export function EnvironmentSettings() {
   const showToast = useAppStore((s) => s.showToast);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
   const envWizardSkippedAt = useAppStore((s) => s.envWizardSkippedAt);
-  const setEnvWizardDone = useAppStore((s) => s.setEnvWizardDone);
+  const requestEnvWizard = useAppStore((s) => s.requestEnvWizard);
   const environmentGroupResetPending = useAppStore((s) => s.environmentGroupResetPending);
   const consumeEnvironmentGroupReset = useAppStore((s) => s.consumeEnvironmentGroupReset);
 
@@ -188,10 +189,22 @@ export function EnvironmentSettings() {
   const [groupResetBusy, setGroupResetBusy] = useState(false);
 
   useEffect(() => {
-    void actions.fetchEnvStatus();
-    const stopPolling = actions.pollEnvTaskWhileRunning();
+    let cancelled = false;
+    // 先等首屏拉取落 store，再按「是否有进行中任务/操作」决定是否起轮询：
+    // 避免用旧快照误判（N-02），也避免空闲挂载多打一次全量检测（N-03）。
+    void actions.fetchEnvStatus().then(() => {
+      if (cancelled) {
+        return;
+      }
+      const { envStatus, envBusy } = useAppStore.getState();
+      if (envBusy || (envStatus?.task ?? null) !== null) {
+        actions.pollEnvTaskWhileRunning();
+      }
+    });
+    // 轮询归 store 所有：本组件只是启动者/查看者，卸载不得清除共享轮询；
+    // 任务终态（task 变 null / error / 持续失败熔断）由轮询自身收尾。
     return () => {
-      stopPolling();
+      cancelled = true;
     };
   }, [actions]);
 
@@ -276,7 +289,7 @@ export function EnvironmentSettings() {
     if (dep === null) {
       return;
     }
-    showToast(formatT(t, 'environmentInstallStarted', { dep }), 'success');
+    showToast(formatT(t, 'environmentInstallStarted', { dep: envDepLabel(t, dep) }), 'success');
     void actions.installEnvDep(dep);
   }, [installConfirmDep, showToast, t, actions]);
 
@@ -420,7 +433,7 @@ export function EnvironmentSettings() {
                       className="adl-dsh-settings__action-btn"
                       data-settings-row={t.environmentWizardResume}
                       onClick={() => {
-                        setEnvWizardDone(false);
+                        requestEnvWizard();
                       }}
                     >
                       {t.environmentWizardResume}
@@ -485,8 +498,12 @@ export function EnvironmentSettings() {
 
       <ConfirmDialog
         open={installConfirmDep !== null}
-        title={formatT(t, 'environmentInstallConfirmTitle', { dep: installConfirmDep ?? '' })}
-        message={formatT(t, 'environmentInstallConfirmMessage', { dep: installConfirmDep ?? '' })}
+        title={formatT(t, 'environmentInstallConfirmTitle', {
+          dep: installConfirmDep === null ? '' : envDepLabel(t, installConfirmDep),
+        })}
+        message={formatT(t, 'environmentInstallConfirmMessage', {
+          dep: installConfirmDep === null ? '' : envDepLabel(t, installConfirmDep),
+        })}
         confirmLabel={t.confirm}
         cancelLabel={t.cancel}
         onConfirm={handleInstallConfirm}

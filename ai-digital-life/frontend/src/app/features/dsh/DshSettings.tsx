@@ -62,6 +62,14 @@ export function DshSettings() {
     [],
   );
 
+  // 源状态缺失时自行静默拉取（与 NetworkSettings 同法）：直接落到持久化的 DSH 组
+  // 时也必须有摘要数据，不假设网络组先访问过；失败保持 null，摘要 fail-open。
+  useEffect(() => {
+    if (useAppStore.getState().sourceStatus === null) {
+      void actions.fetchSourceStatus(true);
+    }
+  }, [actions]);
+
   // 聚合信号：版本来源=自动 → 默认（供侧边栏 DSH 行禁用）。
   // 保留 sourceStatus 门（未知 → false → 侧边栏启用，本来就是 fail-open）。
   const versionSourceAtDefault = (sourceStatus?.config.version_source ?? 'auto') === 'auto';

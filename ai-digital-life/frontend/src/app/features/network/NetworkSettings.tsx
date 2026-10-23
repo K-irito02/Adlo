@@ -77,6 +77,21 @@ export function NetworkSettings() {
   const initializedRef = useRef(false);
   /** 用户是否显式改过下载源字段；未改且状态未知时不得把默认 npmjs 当作已知值落盘。 */
   const sourceTouchedRef = useRef(false);
+  /**
+   * 用户已编辑的字段集合：sourceStatus 可能晚于用户输入到达，播种时只填未被编辑的
+   * 字段，绝不用旧快照覆盖用户新输入（也避免随后防抖把种子值反向落盘）。
+   */
+  const dirtyFieldsRef = useRef<
+    Set<'source' | 'proxyMode' | 'httpProxy' | 'httpsProxy' | 'noProxy'>
+  >(new Set());
+  const markDirty = useCallback(
+    (...fields: ('source' | 'proxyMode' | 'httpProxy' | 'httpsProxy' | 'noProxy')[]) => {
+      for (const field of fields) {
+        dirtyFieldsRef.current.add(field);
+      }
+    },
+    [],
+  );
   const formRef = useRef({ sourceType, customUrl, proxyMode, httpProxy, httpsProxy, noProxy });
   const debounceTimerRef = useRef<number | null>(null);
   const pendingSaveRef = useRef(false);
@@ -255,24 +270,38 @@ export function NetworkSettings() {
     }
     initializedRef.current = true;
     const { config } = sourceStatus;
-    if (config.source_mode === 'auto') {
-      applySourceType('auto');
-    } else if (config.npm_registry === NPMJS_URL) {
-      applySourceType('npmjs');
-    } else if (config.npm_registry === NPMMIRROR_URL) {
-      applySourceType('npmmirror');
-    } else {
-      applySourceType('custom');
-      setCustomUrl(config.npm_registry);
+    const dirty = dirtyFieldsRef.current;
+    // 只播种用户尚未编辑过的字段：慢速 source-status 在用户开始输入后到达时，
+    // 保留用户草稿（并让后续防抖落用户值，而非种子旧值）。
+    if (!dirty.has('source')) {
+      if (config.source_mode === 'auto') {
+        applySourceType('auto');
+      } else if (config.npm_registry === NPMJS_URL) {
+        applySourceType('npmjs');
+      } else if (config.npm_registry === NPMMIRROR_URL) {
+        applySourceType('npmmirror');
+      } else {
+        applySourceType('custom');
+        setCustomUrl(config.npm_registry);
+      }
     }
-    setProxyMode(
-      config.proxy.mode === 'manual' ? 'manual' : config.proxy.mode === 'none' ? 'none' : 'auto',
-    );
-    setHttpProxy(config.proxy.http_proxy ?? '');
-    setHttpsProxy(config.proxy.https_proxy ?? '');
-    setNoProxy(config.proxy.no_proxy ?? '');
-    // 自动模式挂载即静默实测选优（种子之后执行，sourceTypeRef 已同步）。
-    if (config.source_mode === 'auto') {
+    if (!dirty.has('proxyMode')) {
+      setProxyMode(
+        config.proxy.mode === 'manual' ? 'manual' : config.proxy.mode === 'none' ? 'none' : 'auto',
+      );
+    }
+    if (!dirty.has('httpProxy')) {
+      setHttpProxy(config.proxy.http_proxy ?? '');
+    }
+    if (!dirty.has('httpsProxy')) {
+      setHttpsProxy(config.proxy.https_proxy ?? '');
+    }
+    if (!dirty.has('noProxy')) {
+      setNoProxy(config.proxy.no_proxy ?? '');
+    }
+    // 自动模式挂载即静默实测选优（种子之后执行，sourceTypeRef 已同步）；
+    // 用户已手动改源时不得用检测结果覆盖其选择。
+    if (config.source_mode === 'auto' && !dirty.has('source')) {
       void runAutoDetect(true);
     }
   }, [sourceStatus, applySourceType, runAutoDetect]);
@@ -340,6 +369,7 @@ export function NetworkSettings() {
       return;
     }
     setGroupResetBusy(true);
+    markDirty('source', 'proxyMode', 'httpProxy', 'httpsProxy', 'noProxy');
     const prev = { sourceType, customUrl, proxyMode, httpProxy, httpsProxy, noProxy };
     applySourceType('auto');
     setCustomUrl('');
@@ -392,6 +422,7 @@ export function NetworkSettings() {
     })();
   }, [
     groupResetBusy,
+    markDirty,
     saveNow,
     applySourceType,
     showToast,
@@ -415,6 +446,7 @@ export function NetworkSettings() {
    * 无 busy 守卫：确认即关框卸载所以双击不可达；万一重入，同载荷经串行链排队幂等
    * （收尾 F7，刻意不再加守卫）。 */
   const handleSourceResetConfirm = useCallback(() => {
+    markDirty('source');
     const prev = { sourceType, customUrl, testResult };
     applySourceType('auto');
     setCustomUrl('');
@@ -435,10 +467,11 @@ export function NetworkSettings() {
       }
       void runAutoDetect(true);
     })();
-  }, [saveNow, applySourceType, runAutoDetect, sourceType, customUrl, testResult]);
+  }, [markDirty, saveNow, applySourceType, runAutoDetect, sourceType, customUrl, testResult]);
 
   /** 代理块恢复：代理=自动 + 清空三个字段；乐观执行，失败回滚。 */
   const handleProxyResetConfirm = useCallback(() => {
+    markDirty('proxyMode', 'httpProxy', 'httpsProxy', 'noProxy');
     const prev = { proxyMode, httpProxy, httpsProxy, noProxy };
     setProxyMode('auto');
     setHttpProxy('');
@@ -473,12 +506,13 @@ export function NetworkSettings() {
         return;
       }
     })();
-  }, [saveNow, proxyMode, httpProxy, httpsProxy, noProxy]);
+  }, [markDirty, saveNow, proxyMode, httpProxy, httpsProxy, noProxy]);
 
   const handleSourceChange = useCallback(
     (v: string) => {
       const next = v as SourceType;
       sourceTouchedRef.current = true;
+      markDirty('source');
       applySourceType(next);
       setTestResult(null);
       clearTestTimer();
@@ -490,35 +524,39 @@ export function NetworkSettings() {
         scheduleSave();
       }
     },
-    [applySourceType, clearTestTimer, scheduleSave, runAutoDetect],
+    [applySourceType, clearTestTimer, markDirty, scheduleSave, runAutoDetect],
   );
 
   const handleCustomUrlChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       sourceTouchedRef.current = true;
+      markDirty('source');
       setCustomUrl(e.target.value);
       // 地址变了旧结论即 stale：与切源一致清掉按钮内结果（事项 11 Phase 4 A1-L6）。
       setTestResult(null);
       clearTestTimer();
       scheduleSave();
     },
-    [clearTestTimer, scheduleSave],
+    [clearTestTimer, markDirty, scheduleSave],
   );
 
   const handleProxyModeChange = useCallback(
     (v: string) => {
+      markDirty('proxyMode');
       setProxyMode(v as ProxyMode);
       scheduleSave();
     },
-    [scheduleSave],
+    [markDirty, scheduleSave],
   );
 
   const handleProxyField = useCallback(
-    (setter: (value: string) => void) => (e: ChangeEvent<HTMLInputElement>) => {
-      setter(e.target.value);
-      scheduleSave();
-    },
-    [scheduleSave],
+    (field: 'httpProxy' | 'httpsProxy' | 'noProxy', setter: (value: string) => void) =>
+      (e: ChangeEvent<HTMLInputElement>) => {
+        markDirty(field);
+        setter(e.target.value);
+        scheduleSave();
+      },
+    [markDirty, scheduleSave],
   );
 
   const handleTest = useCallback(async () => {
@@ -705,6 +743,7 @@ export function NetworkSettings() {
               [
                 {
                   key: 'http',
+                  dirtyField: 'httpProxy' as const,
                   label: t.dshSettingsProxyHttp,
                   value: httpProxy,
                   placeholder: t.dshSettingsProxyPlaceholder,
@@ -712,6 +751,7 @@ export function NetworkSettings() {
                 },
                 {
                   key: 'https',
+                  dirtyField: 'httpsProxy' as const,
                   label: t.dshSettingsProxyHttps,
                   value: httpsProxy,
                   placeholder: t.dshSettingsProxyPlaceholder,
@@ -719,6 +759,7 @@ export function NetworkSettings() {
                 },
                 {
                   key: 'no',
+                  dirtyField: 'noProxy' as const,
                   label: t.dshSettingsProxyNoProxy,
                   value: noProxy,
                   placeholder: t.dshSettingsProxyNoProxyPlaceholder,
@@ -739,7 +780,7 @@ export function NetworkSettings() {
                     aria-label={field.label}
                     placeholder={field.placeholder}
                     value={field.value}
-                    onChange={handleProxyField(field.setter)}
+                    onChange={handleProxyField(field.dirtyField, field.setter)}
                   />
                 </div>
               </div>

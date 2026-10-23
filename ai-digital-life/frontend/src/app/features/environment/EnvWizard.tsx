@@ -19,6 +19,7 @@ import {
   copyTextToClipboard,
   depPayload,
 } from './EnvironmentSettings';
+import { envDepLabel } from './depLabels';
 
 export type EnvWizardStep = 'welcome' | 'detecting' | 'items' | 'done';
 
@@ -92,7 +93,7 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
     if (dep === null) {
       return;
     }
-    showToast(formatT(t, 'environmentInstallStarted', { dep }), 'success');
+    showToast(formatT(t, 'environmentInstallStarted', { dep: envDepLabel(t, dep) }), 'success');
     void actions.installEnvDep(dep);
   }, [installConfirmDep, showToast, t, actions]);
 
@@ -155,6 +156,9 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
             });
 
   const goManualPath = () => {
+    // 关闭即视为本向导会话结束（落盘 done）；resume 复用 nonce 重新打开，
+    // 不依赖 done 的 false→false 变化。浏览器模式下手动路径输入可用，链接保留。
+    setEnvWizardDone(true);
     setActiveSettingsGroup('environment');
     onClose();
   };
@@ -284,8 +288,12 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
       </div>
       <ConfirmDialog
         open={installConfirmDep !== null}
-        title={formatT(t, 'environmentInstallConfirmTitle', { dep: installConfirmDep ?? '' })}
-        message={formatT(t, 'environmentInstallConfirmMessage', { dep: installConfirmDep ?? '' })}
+        title={formatT(t, 'environmentInstallConfirmTitle', {
+          dep: installConfirmDep === null ? '' : envDepLabel(t, installConfirmDep),
+        })}
+        message={formatT(t, 'environmentInstallConfirmMessage', {
+          dep: installConfirmDep === null ? '' : envDepLabel(t, installConfirmDep),
+        })}
         confirmLabel={t.confirm}
         cancelLabel={t.cancel}
         onConfirm={handleInstallConfirm}

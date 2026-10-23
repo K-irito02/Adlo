@@ -17,11 +17,19 @@ export interface EnvSlice {
    * null = 未跳过；Task 8 读写，本任务只定义字段与读写器）。
    */
   envWizardSkippedAt: number | null;
+  /**
+   * 向导重新打开请求序号（session-only，不落盘）：每次「继续向导」自增，
+   * App 侧 effect 以它为依赖重新打开向导。`envWizardDone` 已为 false 时
+   * 单纯置 false 不会产生状态变化，故必须靠这个 nonce 触发。
+   */
+  envWizardRequestId: number;
 
   setEnvStatus: (status: EnvStatus | null) => void;
   setEnvBusy: (busy: boolean) => void;
   setEnvWizardDone: (done: boolean) => void;
   setEnvWizardSkippedAt: (at: number | null) => void;
+  /** 请求打开首启向导：重置 done（持久化）+ 自增 session nonce。 */
+  requestEnvWizard: () => void;
 }
 
 export const createEnvSlice = (
@@ -32,9 +40,15 @@ export const createEnvSlice = (
   envBusy: false,
   envWizardDone: false,
   envWizardSkippedAt: null,
+  envWizardRequestId: 0,
 
   setEnvStatus: (status) => set({ envStatus: status }),
   setEnvBusy: (busy) => set({ envBusy: busy }),
   setEnvWizardDone: (done) => set(persistField('adl:env.wizardDone', done)),
   setEnvWizardSkippedAt: (at) => set(persistField('adl:env.wizardSkippedAt', at)),
+  requestEnvWizard: () =>
+    set((state) => ({
+      ...persistField('adl:env.wizardDone', false),
+      envWizardRequestId: state.envWizardRequestId + 1,
+    })),
 });

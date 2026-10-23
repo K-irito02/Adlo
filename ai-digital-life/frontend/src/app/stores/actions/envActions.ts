@@ -1,6 +1,7 @@
 import type { StoreApi } from 'zustand';
 import type { StoreState } from '../StoreState';
-import type { EnvSourceMode } from '../../../shared/ipc/env';
+import type { EnvSourceMode, EnvTask } from '../../../shared/ipc/env';
+import { envDepLabel } from '../../features/environment/depLabels';
 import { captureError, clearError } from '../shared';
 // Store 侧提示文案取静态语言包（与 gitBranchActions 同模式，不走 hook）：
 // 非安装变异失败走通用 `common.operationFailed`，安装相关走 `environment.*`
@@ -33,12 +34,14 @@ let cancelActiveEnvPoll: (() => void) | null = null;
 
 function envDict(get: () => StoreState) {
   const locale = resolveAppLanguage(get().appInfo?.config?.language);
+  const environment = locale === 'en-US' ? environmentEn : environmentZh;
   return {
     failure: (locale === 'en-US' ? commonEn : commonZh).operationFailed,
-    installSuccess: (locale === 'en-US' ? environmentEn : environmentZh).environmentInstallSuccess,
-    installFailed: (locale === 'en-US' ? environmentEn : environmentZh).environmentInstallFailed,
-    uninstallFailed: (locale === 'en-US' ? environmentEn : environmentZh)
-      .environmentUninstallFailed,
+    installSuccess: environment.environmentInstallSuccess,
+    installFailed: environment.environmentInstallFailed,
+    uninstallFailed: environment.environmentUninstallFailed,
+    /** 插值进 toast 的依赖名必须是本地化展示名，而不是 wire slug。 */
+    depName: (dep: string) => envDepLabel(environment, dep),
   };
 }
 
@@ -65,6 +68,17 @@ function depOfTaskKind(kind: string): string {
  */
 function taskVersionOf(task: { version: string }, dep: string): string {
   return dep !== '' ? task.version.replace(new RegExp('^' + dep + '\\s+'), '') : task.version;
+}
+
+/**
+ * 失败任务的身份键：`kind + version + error`。
+ * 轮询启动时捕获一次（安装/卸载路径捕获变异前的快照），tick 上遇到 task.error
+ * 只有身份一致才视为「启动前就存在的陈旧快照」静默清除；否则是本次操作窗口内
+ * 新产生的失败，必须照常 toast + 错误卡（N-01）。
+ */
+function taskErrorKey(task: EnvTask | null): string | null {
+  const error = task?.error ?? '';
+  return task !== null && error !== '' ? `${task.kind}\u0000${task.version}\u0000${error}` : null;
 }
 
 /** 变异成功后的状态刷新：best-effort 静默，不记录错误卡片（主操作已成功）。 */
@@ -164,6 +178,9 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
      * @see httpBridge.ts → env.install (/env/install)
      */
     installEnvDep: async (dep: string, version?: string): Promise<boolean> => {
+      // 变异前快照：只有它才是「启动前已存在」的陈旧失败身份；变异窗口内新产生的
+      // 失败（含 refresh 已写回 error 的情况）必须照常提示（N-01）。
+      const initialErrorKey = taskErrorKey(get().envStatus?.task ?? null);
       clearError(get, SCOPE);
       get().setEnvBusy(true);
       let result: Awaited<ReturnType<typeof window.digitalLife.env.install>>;
@@ -171,20 +188,26 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         result = await window.digitalLife.env.install(dep, version);
       } catch (e) {
         captureError(get, e, SCOPE);
-        get().showToast(fill(envDict(get).installFailed, { dep }), 'error');
+        get().showToast(
+          fill(envDict(get).installFailed, { dep: envDict(get).depName(dep) }),
+          'error',
+        );
         get().setEnvBusy(false);
         return false;
       }
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
-        get().showToast(fill(envDict(get).installFailed, { dep }), 'error');
+        get().showToast(
+          fill(envDict(get).installFailed, { dep: envDict(get).depName(dep) }),
+          'error',
+        );
         get().setEnvBusy(false);
         return false;
       }
-      // 静默刷新是 best-effort（内部吞错，不影响控制流）：无论成功与否都启动轮询，
-      // 已接受的任务不会因刷新失败而无人跟进。
+      // 静默刷新是 best-effort（内部吞错/!ok，不影响控制流）：无论成功与否都启动轮询，
+      // 已接受的任务不会因刷新失败而无人跟进（busy 仍为 true，poll 不会因空闲提前退出）。
       await refreshEnvStatusSilently(get);
-      get().pollEnvTaskWhileRunning();
+      get().pollEnvTaskWhileRunning(initialErrorKey);
       return true;
     },
 
@@ -195,6 +218,7 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
      * @see httpBridge.ts → env.uninstall (/env/uninstall)
      */
     uninstallEnvDep: async (dep: string, version?: string): Promise<boolean> => {
+      const initialErrorKey = taskErrorKey(get().envStatus?.task ?? null);
       clearError(get, SCOPE);
       get().setEnvBusy(true);
       let result: Awaited<ReturnType<typeof window.digitalLife.env.uninstall>>;
@@ -202,20 +226,26 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         result = await window.digitalLife.env.uninstall(dep, version);
       } catch (e) {
         captureError(get, e, SCOPE);
-        get().showToast(fill(envDict(get).uninstallFailed, { dep }), 'error');
+        get().showToast(
+          fill(envDict(get).uninstallFailed, { dep: envDict(get).depName(dep) }),
+          'error',
+        );
         get().setEnvBusy(false);
         return false;
       }
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
-        get().showToast(fill(envDict(get).uninstallFailed, { dep }), 'error');
+        get().showToast(
+          fill(envDict(get).uninstallFailed, { dep: envDict(get).depName(dep) }),
+          'error',
+        );
         get().setEnvBusy(false);
         return false;
       }
-      // 静默刷新是 best-effort（内部吞错，不影响控制流）：无论成功与否都启动轮询，
-      // 已接受的任务不会因刷新失败而无人跟进。
+      // 静默刷新是 best-effort（内部吞错/!ok，不影响控制流）：无论成功与否都启动轮询，
+      // 已接受的任务不会因刷新失败而无人跟进（busy 仍为 true，poll 不会因空闲提前退出）。
       await refreshEnvStatusSilently(get);
-      get().pollEnvTaskWhileRunning();
+      get().pollEnvTaskWhileRunning(initialErrorKey);
       return true;
     },
 
@@ -282,32 +312,40 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
      *
      * 启动时不强制要求 `envStatus` 已加载：状态为 null 时照常起 3s 轮询，由首个
      * tick 取回状态并采用其中的任务；若首轮即 `task: null` 则静默收尾（非本次操作）。
+     * 空闲（`task === null` 且 `envBusy === false`）不起轮询，避免每次挂载多打一次
+     * 全量检测（N-03）。
      * 某次 tick 拿到 `task: null` 即停轮询 + 成功 toast（仅安装类任务）+ 复位 busy。
      * `task.error` 非空视为终态失败：停轮询、清本地 task、复位 busy、toast 域错误。
-     * 启动时捕获的 task 已带 error 属陈旧快照：只清本地 task + 复位 busy，不重放提示。
+     * 启动前就已存在的失败快照（身份键 `initialErrorKey`）只静默清除，不重放提示；
+     * 安装/卸载路径传入变异前的身份键，从而区分「陈旧快照」与「变异窗口内的新失败」
+     *（N-01）。
      * tick fail-open：桥抛错 / !ok 静默跳过（下一轮自愈），持续失败达
      * `ENV_POLL_MAX_CONSECUTIVE_FAILURES` 或总时长超过 `ENV_POLL_MAX_ELAPSED_MS`
      * 即熔断（停轮询 + 清本地 task + 复位 busy + 单次 error toast）。
      *
-     * 所有权：每次轮询捕获自己的 `active` 与 timer id；新轮询/调用方 clear 只停
-     * 本实例，所有 await 之后的 store 写入与 toast 都必须过 `active` 检查，
-     * 防止已卸载组件的旧 tick 覆盖新状态。
+     * 所有权：每次轮询捕获自己的 `active` 与 timer id；新轮询只停旧实例的计时器。
+     * 轮询由 store 持有：查看组件的卸载不得清除正在进行的任务轮询（component 挂载
+     * 只在需要时启动，终态自停）。所有 await 之后的 store 写入与 toast 都必须过
+     * `active` 检查，防止已卸载组件的旧 tick 覆盖新状态。
      *
+     * @param initialErrorKey 变异前快照的失败身份键（安装/卸载传入，含 null 表示
+     *   变异前无失败）；省略表示由当前 store 快照自行推导（挂载/采纳路径）。
      * @returns 清除函数（幂等，可重调）
      */
-    pollEnvTaskWhileRunning: (): (() => void) => {
+    pollEnvTaskWhileRunning: (initialErrorKey?: string | null): (() => void) => {
       cancelActiveEnvPoll?.();
       cancelActiveEnvPoll = null;
       clearEnvPollTimer();
 
       const started = get().envStatus?.task ?? null;
-      if (
-        started !== null &&
-        started.error !== null &&
-        started.error !== undefined &&
-        started.error !== ''
-      ) {
-        // 陈旧 error 快照：本地终态化即可，重复 toast/错误卡是无意义回放。
+      const startedErrorKey = taskErrorKey(started);
+      const explicitInitialKey = initialErrorKey !== undefined;
+      const errorKey = explicitInitialKey ? initialErrorKey : startedErrorKey;
+
+      // 挂载/采纳路径：启动时快照已带 error 属陈旧失败，本地终态化即可。
+      // 变异路径（显式 key）不得在此提前返回——即使 refresh 失败且快照仍是旧 error，
+      // 也必须让后续 tick 取回新任务（R1-05）。
+      if (!explicitInitialKey && startedErrorKey !== null) {
         const status = get().envStatus;
         if (status !== null) {
           get().setEnvStatus({ ...status, task: null });
@@ -316,20 +354,24 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         return () => {};
       }
 
-      if (started === null && get().envStatus !== null) {
+      // N-03：空闲挂载不启动轮询（无任务且无进行中操作）。
+      if (started === null && !get().envBusy) {
         get().setEnvBusy(false);
         return () => {};
       }
+
+      // 带 error 的启动快照不是「进行中任务」：交给首个 tick 重新采纳/判定。
+      const liveStarted = started !== null && startedErrorKey === null ? started : null;
 
       let active = true;
       let timer: number | null = null;
       const pollStart = Date.now();
       let consecutiveFailures = 0;
       let capToastShown = false;
-      let dep = started === null ? '' : depOfTaskKind(started.kind);
-      let version = started === null ? '' : taskVersionOf(started, dep);
-      let isUninstall = started?.kind.endsWith('-uninstall') ?? false;
-      let hasTask = started !== null;
+      let dep = liveStarted === null ? '' : depOfTaskKind(liveStarted.kind);
+      let version = liveStarted === null ? '' : taskVersionOf(liveStarted, dep);
+      let isUninstall = liveStarted?.kind.endsWith('-uninstall') ?? false;
+      let hasTask = liveStarted !== null;
 
       const cleanup = (): void => {
         active = false;
@@ -357,8 +399,9 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         get().setEnvBusy(false);
         if (hasTask && !capToastShown) {
           capToastShown = true;
-          const template = isUninstall ? envDict(get).uninstallFailed : envDict(get).installFailed;
-          get().showToast(fill(template, { dep }), 'error');
+          const dict = envDict(get);
+          const template = isUninstall ? dict.uninstallFailed : dict.installFailed;
+          get().showToast(fill(template, { dep: dict.depName(dep) }), 'error');
         }
         cleanup();
       };
@@ -420,16 +463,27 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
           get().setEnvBusy(false);
           // 卸载成功不弹“已安装”文案：状态刷新已如实反映移除/回落结果。
           if (!isUninstall) {
-            get().showToast(fill(envDict(get).installSuccess, { dep, version }), 'success');
+            const dict = envDict(get);
+            get().showToast(
+              fill(dict.installSuccess, { dep: dict.depName(dep), version }),
+              'success',
+            );
           }
           cleanup();
           return;
         }
         if (task.error !== null && task.error !== undefined && task.error !== '') {
-          captureError(get, task.error, SCOPE);
+          const key = taskErrorKey(task);
           // 终态失败：本地清掉 task（失败信息只留在 toast/错误卡），否则行会一直
           // 停在 "安装中" 扫光态且安装按钮不再出现（remount 由 taskForDep 兜底）。
           get().setEnvStatus({ ...result.data, task: null });
+          if (key !== null && key === errorKey) {
+            // 启动前就存在的同一失败快照：静默终态化，不重放 toast/错误卡。
+            get().setEnvBusy(false);
+            cleanup();
+            return;
+          }
+          captureError(get, task.error, SCOPE);
           stopWithError();
         }
       };

@@ -174,7 +174,6 @@ async function renderWithRows() {
       expect(screen.getByText(dep)).not.toBeNull();
     });
   }
-  expect(pollEnvTaskWhileRunning).toHaveBeenCalled();
   return result;
 }
 
@@ -595,7 +594,55 @@ describe('EnvironmentSettings', () => {
     expect(adlserver.textContent).not.toContain('缺失');
   });
 
-  it('浏览器模式：系统级行变更控件置灰并追加仅桌面说明', async () => {
+  it('挂载轮询：空闲不启动；有任务/操作时启动，卸载不清除共享轮询', async () => {
+    seedStore({ envStatus: fixture() });
+    const first = renderSettings();
+    await waitFor(() => {
+      expect(fetchEnvStatus).toHaveBeenCalled();
+    });
+    expect(pollEnvTaskWhileRunning).not.toHaveBeenCalled();
+    first.unmount();
+
+    const stop = vi.fn();
+    pollEnvTaskWhileRunning.mockReturnValueOnce(stop);
+    seedStore({ envStatus: fixture(), envBusy: true });
+    fetchEnvStatus.mockImplementation(async () => true);
+    const second = renderSettings();
+    await waitFor(() => {
+      expect(pollEnvTaskWhileRunning).toHaveBeenCalledTimes(1);
+    });
+    second.unmount();
+    // 轮询归 store 所有：卸载只是不再观察，不得停止正在进行的任务轮询。
+    expect(stop).not.toHaveBeenCalled();
+  });
+
+  it('安装确认与开始 toast 使用本地化依赖名而非 slug', async () => {
+    const hybridT = new Proxy({} as Record<string, string>, {
+      get: (_, key) =>
+        typeof key === 'string' ? ((environmentZh as Record<string, string>)[key] ?? key) : '',
+    }) as unknown as CopyDict;
+    seedStore({ envStatus: fixture() });
+    const { container } = render(
+      <TCopyProvider t={hybridT} locale="zh-CN">
+        <EnvironmentSettings />
+      </TCopyProvider>,
+    );
+    await waitFor(() => {
+      expect(container.querySelector('[data-testid="env-dep-node"]')).not.toBeNull();
+    });
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    fireEvent.click(within(node).getByRole('button', { name: '安装' }));
+    expect(await screen.findByText('确认安装 Node.js')).not.toBeNull();
+    expect(screen.queryByText('确认安装 node')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(
+        useAppStore.getState().toasts.some((toast) => toast.message === '开始安装 Node.js…'),
+      ).toBe(true);
+    });
+  });
+
+  it('浏览器模式：仅变更动作置灰；来源切换与手动路径保持可用', async () => {
     seedStore({ isTauri: false, envStatus: fixture() });
     const { container } = renderSettings();
     const node = (await waitFor(() => {
@@ -608,6 +655,13 @@ describe('EnvironmentSettings', () => {
         .disabled,
     ).toBe(true);
     expect(node.textContent).toContain('settingsAgentDesktopOnlyHint');
+    // 本地配置（来源选择 + 手动路径）在浏览器模式仍可用（R1-07/R1-14）。
+    expect((within(node).getByLabelText('environmentSwitch') as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+    expect(
+      (within(node).getByLabelText('environmentCustomPathLabel') as HTMLInputElement).disabled,
+    ).toBe(false);
     const git = container.querySelector('[data-testid="env-dep-git"]') as HTMLElement;
     expect(
       (within(git).getByRole('button', { name: 'environmentUninstall' }) as HTMLButtonElement)
@@ -620,13 +674,14 @@ describe('EnvironmentSettings', () => {
     expect(git.textContent).toContain('settingsAgentDesktopOnlyHint');
   });
 
-  it('resume 横幅：skippedAt + 未就绪 → 显示 N 项，继续向导置回 done=false', async () => {
+  it('resume 横幅：skippedAt + 未就绪 → 显示 N 项，继续向导通过 nonce 重新请求', async () => {
     // fixture：node 缺失 + 其余就绪 + 注册表通 = 1 项未就绪。
     const hybridT = new Proxy({} as Record<string, string>, {
       get: (_, key) =>
         typeof key === 'string' ? ((environmentZh as Record<string, string>)[key] ?? key) : '',
     }) as unknown as CopyDict;
     seedStore({ envStatus: fixture(), envWizardDone: true, envWizardSkippedAt: 123 });
+    const before = useAppStore.getState().envWizardRequestId;
     render(
       <TCopyProvider t={hybridT} locale="zh-CN">
         <EnvironmentSettings />
@@ -635,6 +690,25 @@ describe('EnvironmentSettings', () => {
     expect(await screen.findByText('上次跳过了 1 项')).not.toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '继续向导' }));
     expect(useAppStore.getState().envWizardDone).toBe(false);
+    expect(useAppStore.getState().envWizardRequestId).toBe(before + 1);
+  });
+
+  it('resume 横幅：done 已为 false 时继续向导仍自增 nonce（避免 no-op 死按钮）', async () => {
+    const hybridT = new Proxy({} as Record<string, string>, {
+      get: (_, key) =>
+        typeof key === 'string' ? ((environmentZh as Record<string, string>)[key] ?? key) : '',
+    }) as unknown as CopyDict;
+    seedStore({ envStatus: fixture(), envWizardDone: false, envWizardSkippedAt: 123 });
+    const before = useAppStore.getState().envWizardRequestId;
+    render(
+      <TCopyProvider t={hybridT} locale="zh-CN">
+        <EnvironmentSettings />
+      </TCopyProvider>,
+    );
+    expect(await screen.findByText('上次跳过了 1 项')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '继续向导' }));
+    expect(useAppStore.getState().envWizardDone).toBe(false);
+    expect(useAppStore.getState().envWizardRequestId).toBe(before + 1);
   });
 
   it('resume 横幅：skippedAt + 全就绪 → 不显示', async () => {

@@ -44,10 +44,12 @@ export interface EnvStatus {
 }
 export interface EnvBridge {
   getStatus: () => Promise<IpcResult<EnvStatus>>;
-  install: (dep: string, version?: string) => Promise<IpcResult<boolean>>;
+  /** 后端已接受的安装请求（`{started:true}`）；终态经 `/env/status` 的 task 轮询。 */
+  install: (dep: string, version?: string) => Promise<IpcResult<{ started: boolean }>>;
   /** 后端已接受的卸载请求（`{started:true}`）；终态经 `/env/status` 的 task 轮询。 */
   uninstall: (dep: string, version?: string) => Promise<IpcResult<{ started: boolean }>>;
   selectSource: (dep: string, mode: EnvSourceMode) => Promise<IpcResult<boolean>>;
   setCustomPath: (dep: string, path: string) => Promise<IpcResult<boolean>>;
-  recheck: (dep?: string) => Promise<IpcResult<boolean>>;
+  /** 重检请求已受理（`{started:true}`）；结果经后续状态刷新/轮询读取。 */
+  recheck: (dep?: string) => Promise<IpcResult<{ started: boolean }>>;
 }

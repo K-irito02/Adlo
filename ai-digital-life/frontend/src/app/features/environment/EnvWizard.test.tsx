@@ -7,6 +7,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { EnvWizard } from './EnvWizard';
 import type { EnvDependencyState, EnvStatus } from '../../../shared/ipc/env';
 import { openUrlByMethod } from '@features/preview/openByMethod';
+import { environmentZh } from '@i18n/zh-CN/environment';
 
 vi.mock('@features/preview/openByMethod', () => ({
   openUrlByMethod: vi.fn(),
@@ -219,5 +220,46 @@ describe('EnvWizard', () => {
     expect(within(node).queryByRole('button', { name: 'environmentInstall' })).toBeNull();
     expect(within(node).getByRole('button', { name: 'environmentCopyForAgent' })).not.toBeNull();
     expect(openUrlByMethod).not.toHaveBeenCalled();
+  });
+
+  it('安装确认与开始 toast 使用本地化依赖名而非 slug', async () => {
+    const hybridT = new Proxy({} as Record<string, string>, {
+      get: (_, key) =>
+        typeof key === 'string' ? ((environmentZh as Record<string, string>)[key] ?? key) : '',
+    }) as unknown as CopyDict;
+    seedStore({ envStatus: fixture() });
+    render(
+      <TCopyProvider t={hybridT} locale="zh-CN">
+        <EnvWizard onClose={onClose} />
+      </TCopyProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('env-dep-node')).not.toBeNull();
+    });
+    const node = screen.getByTestId('env-dep-node') as HTMLElement;
+    fireEvent.click(within(node).getByRole('button', { name: '安装' }));
+    expect(await screen.findByText('确认安装 Node.js')).not.toBeNull();
+    expect(screen.queryByText('确认安装 node')).toBeNull();
+    const confirmButtons = screen.getAllByRole('button', { name: 'confirm' });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]);
+    await waitFor(() => {
+      expect(
+        useAppStore.getState().toasts.some((toast) => toast.message === '开始安装 Node.js…'),
+      ).toBe(true);
+    });
+  });
+
+  it('浏览器模式下仍展示前往设置的手动路径入口（路径输入已可用）', async () => {
+    seedStore({ envStatus: fixture(), isTauri: false });
+    renderWizard();
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('env-dep-node')).not.toBeNull();
+    });
+    // 手动路径入口与行同级（不在 env-dep-node section 内）。
+    expect(
+      screen.getAllByRole('button', { name: 'environmentGoToSettings' }).length,
+    ).toBeGreaterThan(0);
   });
 });

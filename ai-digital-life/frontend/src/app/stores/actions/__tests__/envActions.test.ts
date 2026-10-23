@@ -28,7 +28,7 @@ interface EnvTestStore {
   uninstallEnvDep: (dep: string, version?: string) => Promise<boolean>;
   setEnvCustomPath: (dep: string, path: string) => Promise<boolean>;
   recheckEnv: (dep?: string) => Promise<boolean>;
-  pollEnvTaskWhileRunning: () => () => void;
+  pollEnvTaskWhileRunning: (initialErrorKey?: string | null) => () => void;
 }
 
 function depState(version: string | null, meets: boolean) {
@@ -209,7 +209,7 @@ describe('envActions installEnvDep', () => {
     expect(ok).toBe(false);
     expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'error');
     // Task 3：安装失败走 environment 域文案（含 dep），不再是通用 operationFailed。
-    expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('node'), 'error');
+    expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('Node.js'), 'error');
     expect(store.getState().envStatus).toBe(old);
     expect(store.getState().envBusy).toBe(false);
   });
@@ -245,10 +245,10 @@ describe('envActions installEnvDep', () => {
     // Task 3：成功 toast 用 environment 域文案（含 dep + version），不再复用 dsh.dshInstallSuccess。
     const successCalls = mockShowToast.mock.calls.filter(([, type]) => type === 'success');
     expect(successCalls).toHaveLength(1);
-    expect(String(successCalls[0][0])).toContain('node');
+    expect(String(successCalls[0][0])).toContain('Node.js');
     expect(String(successCalls[0][0])).toContain('24.22.1');
     // task.version 已含 "node " 前缀：toast 插值后不得重复成 "node node"。
-    expect(String(successCalls[0][0])).not.toContain('node node');
+    expect(String(successCalls[0][0])).not.toContain('Node.js node');
     const callsAfterStop = mockGetStatus.mock.calls.length;
     // 已停止：再推进两个周期也不再拉取。
     await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
@@ -346,6 +346,9 @@ describe('envActions installEnvDep', () => {
     mockGetStatus.mockResolvedValue({ ok: true, data: running });
     const store = makeStore();
     expect(store.getState().envStatus).toBeNull();
+    // 未知状态 + 操作进行中（install 已置 busy）才轮询；空闲（task null + busy false）
+    // 不启动（N-03）。
+    store.getState().setEnvBusy(true);
     const cleanup = store.getState().pollEnvTaskWhileRunning();
     await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS);
     expect(mockGetStatus).toHaveBeenCalledTimes(1);
@@ -370,6 +373,81 @@ describe('envActions installEnvDep', () => {
     expect(mockGetStatus).toHaveBeenCalledTimes(2);
     expect(store.getState().envStatus).not.toBeNull();
   });
+
+  it('静默刷新返回 !ok 且旧状态非空：仍启动轮询并取回运行中任务（R1-05）', async () => {
+    vi.useFakeTimers();
+    const old = fakeStatus();
+    const running = fakeStatus();
+    running.task = {
+      kind: 'env-node-install',
+      version: 'node 24.22.1',
+      phase: 'installing',
+      percent: null,
+      done: 1,
+      total: 10,
+      cancellable: true,
+    };
+    mockInstall.mockResolvedValue({ ok: true, data: { started: true } });
+    mockGetStatus
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: 'NETWORK_ERROR', message: 'refresh boom' },
+      })
+      .mockResolvedValue({ ok: true, data: running });
+    const store = makeStore();
+    store.getState().setEnvStatus(old);
+    await expect(store.getState().installEnvDep('node')).resolves.toBe(true);
+    // refresh !ok：旧快照保留，busy 仍为 true（install 未解锁）。
+    expect(store.getState().envStatus).toBe(old);
+    expect(store.getState().envBusy).toBe(true);
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS);
+    expect(mockGetStatus).toHaveBeenCalledTimes(2);
+    expect(store.getState().envStatus?.task?.kind).toBe('env-node-install');
+  });
+
+  it('变异窗口内的新失败必须上报（refresh 已写回 error 也不得静默吞掉，N-01）', async () => {
+    vi.useFakeTimers();
+    const failed = fakeStatus();
+    failed.node = depState(null, false);
+    failed.node.effective = 'none';
+    failed.node.path = null;
+    failed.task = {
+      kind: 'env-node-install',
+      version: 'node 24.22.1',
+      phase: 'installing',
+      percent: null,
+      done: 0,
+      total: 0,
+      cancellable: true,
+      error: 'download failed',
+    };
+    mockInstall.mockResolvedValue({ ok: true, data: { started: true } });
+    // 第一次 refresh 已写回失败任务；后续 tick 仍是同一失败（后端保留到下一任务）。
+    mockGetStatus.mockResolvedValue({ ok: true, data: failed });
+    const store = makeStore();
+    await expect(store.getState().installEnvDep('node')).resolves.toBe(true);
+    expect(store.getState().envStatus?.task?.error).toBe('download failed');
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS);
+    // 变异前无失败（initialErrorKey=null）→ 本次失败必须 toast + 错误卡各一次。
+    expect(store.getState().errorToasts).toHaveLength(1);
+    const errorToasts = mockShowToast.mock.calls.filter(([, type]) => type === 'error');
+    expect(errorToasts).toHaveLength(1);
+    expect(String(errorToasts[0][0])).toContain('Node.js');
+    expect(store.getState().envStatus?.task).toBeNull();
+    expect(store.getState().envBusy).toBe(false);
+    const callsAfterStop = mockGetStatus.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
+    expect(mockGetStatus.mock.calls.length).toBe(callsAfterStop);
+  });
+
+  it('空闲（task null 且 busy false）不启动轮询（N-03）', async () => {
+    vi.useFakeTimers();
+    const store = makeStore();
+    store.getState().setEnvStatus(fakeStatus());
+    store.getState().pollEnvTaskWhileRunning();
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
+    expect(mockGetStatus).not.toHaveBeenCalled();
+  });
 });
 
 describe('envActions uninstallEnvDep', () => {
@@ -393,7 +471,7 @@ describe('envActions uninstallEnvDep', () => {
     store.getState().setEnvStatus(old);
     const ok = await store.getState().uninstallEnvDep('git', '2.52.0');
     expect(ok).toBe(false);
-    expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('git'), 'error');
+    expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('Git'), 'error');
     expect(store.getState().envStatus).toBe(old);
     expect(store.getState().envBusy).toBe(false);
   });
@@ -429,6 +507,36 @@ describe('envActions uninstallEnvDep', () => {
     expect(mockGetStatus.mock.calls.length).toBe(callsAfterStop);
   });
 
+  it('卸载后的静默刷新 !ok：仍启动轮询跟进新任务（R1-05）', async () => {
+    vi.useFakeTimers();
+    const old = fakeStatus();
+    const running = fakeStatus();
+    running.task = {
+      kind: 'env-git-uninstall',
+      version: '2.52.0',
+      phase: 'removing',
+      percent: null,
+      done: 0,
+      total: 0,
+      cancellable: false,
+    };
+    mockUninstall.mockResolvedValue({ ok: true, data: { started: true } });
+    mockGetStatus
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: 'NETWORK_ERROR', message: 'refresh boom' },
+      })
+      .mockResolvedValue({ ok: true, data: running });
+    const store = makeStore();
+    store.getState().setEnvStatus(old);
+    await expect(store.getState().uninstallEnvDep('git', '2.52.0')).resolves.toBe(true);
+    expect(store.getState().envStatus).toBe(old);
+    expect(store.getState().envBusy).toBe(true);
+    await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS);
+    expect(mockGetStatus).toHaveBeenCalledTimes(2);
+    expect(store.getState().envStatus?.task?.kind).toBe('env-git-uninstall');
+  });
+
   it('task.error 终止卸载轮询：busy 复位 + 卸载域 error toast，不拖到 10 分钟上限', async () => {
     vi.useFakeTimers();
     const running = fakeStatus();
@@ -460,7 +568,7 @@ describe('envActions uninstallEnvDep', () => {
     await store.getState().uninstallEnvDep('git', '2.52.0');
     await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS);
     expect(store.getState().envBusy).toBe(false);
-    expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('git'), 'error');
+    expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('Git'), 'error');
     const callsAfterStop = mockGetStatus.mock.calls.length;
     await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
     expect(mockGetStatus.mock.calls.length).toBe(callsAfterStop);
@@ -491,7 +599,7 @@ describe('envActions uninstallEnvDep', () => {
     await store.getState().installEnvDep('node');
     await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS);
     expect(store.getState().envBusy).toBe(false);
-    expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('node'), 'error');
+    expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('Node.js'), 'error');
     const callsAfterStop = mockGetStatus.mock.calls.length;
     await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
     expect(mockGetStatus.mock.calls.length).toBe(callsAfterStop);
@@ -526,7 +634,7 @@ describe('envActions uninstallEnvDep', () => {
     expect(store.getState().envBusy).toBe(false);
     const errorToasts = mockShowToast.mock.calls.filter(([, type]) => type === 'error');
     expect(errorToasts).toHaveLength(1);
-    expect(String(errorToasts[0][0])).toContain('node');
+    expect(String(errorToasts[0][0])).toContain('Node.js');
     const callsAfterStop = mockGetStatus.mock.calls.length;
     await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
     expect(mockGetStatus.mock.calls.length).toBe(callsAfterStop);

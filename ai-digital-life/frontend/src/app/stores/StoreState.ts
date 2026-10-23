@@ -341,7 +341,7 @@ interface EnvActions {
   uninstallEnvDep: (dep: string, version?: string) => Promise<boolean>;
   setEnvCustomPath: (dep: string, path: string) => Promise<boolean>;
   recheckEnv: (dep?: string) => Promise<boolean>;
-  pollEnvTaskWhileRunning: () => () => void;
+  pollEnvTaskWhileRunning: (initialErrorKey?: string | null) => () => void;
 }
 
 type AllActions = [

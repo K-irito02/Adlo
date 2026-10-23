@@ -182,6 +182,7 @@ export function App() {
   const applyPendingVersionSource = useAppStore((s) => s.applyPendingVersionSource);
   const fetchEnvStatus = useAppStore((s) => s.fetchEnvStatus);
   const envWizardDone = useAppStore((s) => s.envWizardDone);
+  const envWizardRequestId = useAppStore((s) => s.envWizardRequestId);
   const [envWizardResolved, setEnvWizardResolved] = useState(false);
   const [showEnvWizard, setShowEnvWizard] = useState(false);
   useEffect(() => {
@@ -200,6 +201,14 @@ export function App() {
       setShowEnvWizard(true);
     }
   }, [envWizardResolved, envWizardDone]);
+
+  // 「继续向导」nonce：done 已为 false 时单纯置 false 无状态变化，必须由
+  // requestEnvWizard() 自增的序号驱动重新打开（含 goManualPath 已写 done=true 的场景）。
+  useEffect(() => {
+    if (envWizardResolved && envWizardRequestId > 0) {
+      setShowEnvWizard(true);
+    }
+  }, [envWizardResolved, envWizardRequestId]);
 
   // Guard: wait for i18n before rendering (safe to return after all hooks)
   if (!t) {

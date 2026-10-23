@@ -64,6 +64,17 @@ function depSection(status: EnvStatus, dep: EnvDepKey): EnvDependencyState | nul
   return status[dep];
 }
 
+/** 指定依赖的进行中任务（error 快照不算进行中）。 */
+function taskFor(status: EnvStatus, dep: EnvDepKey): EnvTask | null {
+  const task = status.task;
+  if (task === null || (task.error ?? '') !== '') {
+    return null;
+  }
+  return task.kind === `env-${dep}-install` || task.kind === `env-${dep}-uninstall` ? task : null;
+}
+
+const INSTALLABLE_ORDER = ['node', 'git'] as const;
+
 /**
  * 依赖就绪判定：来源非空 + 达基线。版本号可为 null（bash/adlserver 仅有存在性信号），
  * 这不是缺失，故不得把 `installedVersion !== null` 混入就绪条件。
@@ -160,10 +171,11 @@ export function EnvDepRow({
   const [uninstallArmed, setUninstallArmed] = useState(false);
 
   const section = depSection(status, dep);
-  // 浏览器模式：系统级行（node/git/bash）的变更类控件置灰 + 追加仅桌面说明
-  //（照抄智能体拦截开关模式）；检测展示（重测/复制）与 net/model 行不受影响。
+  // 浏览器模式：安装/卸载/重装等变更动作置灰 + 追加仅桌面说明；来源切换与
+  // 手动路径是本地配置（浏览器模式也可用），只受 busy 门控（R1-07/R1-14）。
   const browserGated = !isTauri && OPERABLE_DEP_SET.has(dep);
   const controlsDisabled = busy || browserGated;
+  const localControlsDisabled = busy;
 
   const depTitle =
     dep === 'net'
@@ -226,17 +238,33 @@ export function EnvDepRow({
 
   // task.error 非空 = 后端终态失败：不再当作进行中任务渲染，行回到可操作态
   //（轮询侧已停；后端快照若仍带 error，remount/refetch 也不会复活扫光）。
-  const taskForDep =
-    section !== null &&
-    status.task !== null &&
-    (status.task.error ?? '') === '' &&
-    (status.task.kind === `env-${dep}-install` || status.task.kind === `env-${dep}-uninstall`)
-      ? status.task
-      : null;
+  const taskForDep = taskFor(status, dep);
   // 断网降级（spec §6.2）：下载源不可达时安装必失败，安装按钮由复制按钮
   // 替代（复制诊断 JSON 给 agent，手动装后重测）；精简/全量模式共用同一行逻辑，
   // 向导（compact）与设置组同时生效，无需向导侧重复实现。
   const offline = !status.netprobe.registryOk;
+
+  // 搜索行标记唯一性：多个依赖行共享同一操作文案时，只让「首个可用行」携带
+  // `data-settings-row`，保证每个登记的行标记在 DOM 中恰好出现一次（R1-11）。
+  const firstInstallDep =
+    INSTALLABLE_ORDER.find(
+      (candidate) => !isEnvDepReady(status[candidate]) && taskFor(status, candidate) === null,
+    ) ?? null;
+  const installMarkerDep = offline ? null : firstInstallDep;
+  const firstUninstallDep =
+    INSTALLABLE_ORDER.find((candidate) => {
+      const candidateSection = status[candidate];
+      return (
+        candidateSection.effective === 'host' &&
+        candidateSection.installedVersion !== null &&
+        taskFor(status, candidate) === null
+      );
+    }) ?? null;
+  const firstReinstallDep =
+    firstUninstallDep !== null &&
+    !(firstUninstallDep === 'git' && status.git.installedVersion !== status.git.baselineVersion)
+      ? firstUninstallDep
+      : null;
   const showInstall =
     section !== null &&
     INSTALLABLE_DEPS.has(dep) &&
@@ -390,7 +418,7 @@ export function EnvDepRow({
                 className="adl-settings-row__reset"
                 title={t.environmentResetSource}
                 aria-label={t.environmentResetSource}
-                disabled={controlsDisabled}
+                disabled={localControlsDisabled}
                 onClick={() => actions.requestBlockReset?.(dep as OperableDep)}
               >
                 <IconResetDefaults size={14} decorative />
@@ -414,7 +442,7 @@ export function EnvDepRow({
                   type="text"
                   value={pathValue}
                   placeholder={t.environmentCustomPathPlaceholder}
-                  disabled={controlsDisabled}
+                  disabled={localControlsDisabled}
                   onChange={(e) => setPathDraft(e.target.value)}
                   onBlur={handlePathBlur}
                   aria-label={t.environmentCustomPathLabel}
@@ -447,7 +475,7 @@ export function EnvDepRow({
         {(OPERABLE_DEP_SET.has(dep) && section !== null) || showInstall || showOfflineCopy ? (
           <div className="adl-settings-row__control">
             {OPERABLE_DEP_SET.has(dep) && section !== null ? (
-              <span data-settings-row={t.environmentSwitch}>
+              <span data-settings-row={dep === 'node' ? t.environmentSwitch : undefined}>
                 <SettingsSelect
                   value={section.mode}
                   options={sourceOptions}
@@ -457,7 +485,7 @@ export function EnvDepRow({
                     void actions.selectSource(dep, v as EnvSourceMode);
                   }}
                   label={t.environmentSwitch}
-                  disabled={controlsDisabled}
+                  disabled={localControlsDisabled}
                 />
               </span>
             ) : null}
@@ -465,7 +493,7 @@ export function EnvDepRow({
               <button
                 type="button"
                 className="adl-dsh-settings__action-btn"
-                data-settings-row={t.environmentInstall}
+                data-settings-row={dep === installMarkerDep ? t.environmentInstall : undefined}
                 disabled={controlsDisabled}
                 onClick={() => actions.requestInstall(dep)}
               >
@@ -479,7 +507,7 @@ export function EnvDepRow({
                   className={`adl-dsh-settings__action-btn${
                     uninstallArmed ? ' adl-dsh-settings__action-btn--danger' : ''
                   }`}
-                  data-settings-row={t.environmentUninstall}
+                  data-settings-row={dep === firstUninstallDep ? t.environmentUninstall : undefined}
                   disabled={controlsDisabled}
                   onClick={handleUninstallClick}
                 >
@@ -489,7 +517,9 @@ export function EnvDepRow({
                   <button
                     type="button"
                     className="adl-dsh-settings__action-btn"
-                    data-settings-row={t.environmentReinstall}
+                    data-settings-row={
+                      dep === firstReinstallDep ? t.environmentReinstall : undefined
+                    }
                     disabled={controlsDisabled}
                     onClick={handleReinstallClick}
                   >
@@ -503,7 +533,6 @@ export function EnvDepRow({
               <button
                 type="button"
                 className="adl-dsh-settings__action-btn"
-                data-settings-row={t.environmentCopyForAgent}
                 disabled={busy}
                 onClick={() => {
                   void actions.copyForAgent(dep);
@@ -520,7 +549,7 @@ export function EnvDepRow({
           <button
             type="button"
             className="adl-dsh-settings__action-btn"
-            data-settings-row={t.environmentCopyForAgent}
+            data-settings-row={dep === 'node' ? t.environmentCopyForAgent : undefined}
             disabled={busy}
             onClick={() => {
               void actions.copyForAgent(dep);
@@ -551,7 +580,6 @@ export function EnvDepRow({
             <button
               type="button"
               className="adl-dsh-settings__action-btn"
-              data-settings-row={t.environmentGoToSettings}
               onClick={() => actions.goGroup('dsh')}
             >
               {t.environmentGoToSettings}
