@@ -45,8 +45,19 @@ impl ProgressTask {
     }
 
     pub fn begin(&self, kind: &str, label: &str) -> bool {
+        self.begin_with(kind, label, true)
+    }
+
+    /// Begin a task with an explicit cancellability flag. Tasks covered by no
+    /// cancel route (`/env/*`) pass `false` so the UI never offers a cancel
+    /// affordance that cannot work.
+    ///
+    /// A snapshot carrying an `error` is a *finished-but-failed* task, not a
+    /// running one: it must not block the next `begin` (a panicking/dead task
+    /// must never wedge later installs). The errored snapshot is replaced.
+    pub fn begin_with(&self, kind: &str, label: &str, cancellable: bool) -> bool {
         let mut guard = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        if guard.is_some() {
+        if guard.as_ref().is_some_and(|task| task.error.is_none()) {
             return false;
         }
         self.cancelled.store(false, Ordering::SeqCst);
@@ -57,7 +68,7 @@ impl ProgressTask {
             percent: Some(0),
             done: 0,
             total: 0,
-            cancellable: true,
+            cancellable,
             error: None,
         });
         true
@@ -93,6 +104,19 @@ impl ProgressTask {
         if let Some(task) = guard.as_mut() {
             task.error = Some(message.to_string());
         }
+    }
+
+    /// Fail the task and release the "running" slot without discarding the
+    /// reason: the error snapshot stays pollable, and `begin`/`begin_with`
+    /// treats it as finished (see [`ProgressTask::begin_with`]).
+    pub fn abort_with(&self, message: &str) {
+        let mut guard = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(task) = guard.as_mut() {
+            task.error = Some(message.to_string());
+            task.cancellable = false;
+            task.phase = ProgressPhase::Finalizing;
+        }
+        self.cancelled.store(false, Ordering::SeqCst);
     }
 
     pub fn snapshot(&self) -> Option<ProgressSnapshot> {
@@ -176,5 +200,29 @@ mod tests {
         assert_eq!(json["kind"], "env-node-install");
         assert_eq!(json["phase"], "preparing");
         assert_eq!(json["version"], "node 22.14.0");
+    }
+
+    #[test]
+    fn begin_with_sets_cancellable_false_for_env_tasks() {
+        let task = ProgressTask::new();
+        assert!(task.begin_with("env-node-install", "node 22.14.0", false));
+        assert!(!task.snapshot().expect("task").cancellable);
+        task.finish();
+        assert!(task.begin("dsh-install", "1.2.3"));
+        assert!(task.snapshot().expect("task").cancellable);
+    }
+
+    /// 失败快照不是运行中任务：`abort_with` 留错因但不阻塞下一次 `begin`
+    ///（防 panic/提前返回把后续安装永久卡在 "another task is running"）。
+    #[test]
+    fn abort_with_keeps_error_and_unblocks_next_begin() {
+        let task = ProgressTask::new();
+        assert!(task.begin_with("env-node-install", "node 22.14.0", false));
+        task.abort_with("task aborted unexpectedly");
+        let snap = task.snapshot().expect("error snapshot stays pollable");
+        assert_eq!(snap.error.as_deref(), Some("task aborted unexpectedly"));
+        assert!(!snap.cancellable);
+        assert!(task.begin_with("env-node-install", "node 22.14.0", false));
+        assert!(task.snapshot().expect("fresh task").error.is_none());
     }
 }

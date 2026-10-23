@@ -121,6 +121,16 @@ pub fn resolve_registry(config: &DownloadSourceConfig) -> &str {
 }
 
 pub fn build_http_client(config: &DownloadSourceConfig) -> Result<reqwest::Client, AppError> {
+    build_http_client_with_timeout(config, Duration::from_secs(30))
+}
+
+/// Same as [`build_http_client`] with an explicit request timeout. Callers that
+/// must never stall a polling endpoint (e.g. `/env/status` probe) pass a short
+/// timeout instead of the 30s transfer-sized default.
+pub fn build_http_client_with_timeout(
+    config: &DownloadSourceConfig,
+    timeout: Duration,
+) -> Result<reqwest::Client, AppError> {
     let mut builder = reqwest::Client::builder();
 
     match config.proxy.mode {
@@ -167,7 +177,7 @@ pub fn build_http_client(config: &DownloadSourceConfig) -> Result<reqwest::Clien
     }
 
     builder
-        .timeout(Duration::from_secs(30))
+        .timeout(timeout)
         .build()
         .map_err(|e| AppError::Internal(format!("Failed to build HTTP client: {e}")))
 }

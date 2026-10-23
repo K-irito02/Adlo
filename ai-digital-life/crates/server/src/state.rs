@@ -83,6 +83,12 @@ pub struct ServerState {
     pub env_install_lock: Arc<AsyncMutex<()>>,
     /// 当前 env 安装任务进度（`env-{dep}-install` kind；结构体内部持 Arc）。
     pub env_task: adl_hosted::ProgressTask,
+    /// `/env/status` 序列化快照缓存（2s TTL）：安装期间前端每 3s 轮询，
+    /// 避免每次都重新探测 registry。安装/卸载完成与 `/env/recheck` 显式失效。
+    pub env_status_cache: Arc<AsyncMutex<Option<(std::time::Instant, serde_json::Value)>>>,
+    /// 短超时（2s）registry 探测客户端缓存：key 为下载源配置快照，
+    /// 配置变更即重建（`build_http_client` 不按请求重复构造）。
+    pub env_probe_client: Arc<AsyncMutex<Option<(String, reqwest::Client)>>>,
     /// dsh 来源缓存：避免每次打开 dsh 时都重新检测来源
     pub dsh_source_cache: Arc<RwLock<Option<adl_dsh_version::DshSource>>>,
     /// 官方版本目录缓存（聚合快照 `/dsh/settings-snapshot` 用）：TTL 内直接复用，

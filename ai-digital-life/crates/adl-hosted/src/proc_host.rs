@@ -367,15 +367,17 @@ mod tests {
         assert!(!check_port_fast(refused_port).await);
     }
 
+    #[cfg(windows)]
     #[tokio::test]
     async fn spawn_captures_marker_url() {
-        // python 不可用环境下跳过：用 cmd 模拟一个“打印 marker 后常驻”的子进程
+        // cmd 只在 Windows 可用；用 cmd 模拟一个“打印 marker 后常驻”的子进程。
+        // 2s 超时足够覆盖 spawn + marker 解析，同时避免拖慢测试套件。
         let hp = spawn_with_marker(
             "cmd",
             &["/c".into(), "echo READY http://127.0.0.1:9 & ping -n 6 127.0.0.1 >nul".into()],
             "READY",
             &[9],
-            std::time::Duration::from_secs(20),
+            std::time::Duration::from_secs(2),
         )
         .await;
         // 端口 9 大概率未监听 → 期望超时错误，关键断言是 marker 管线未 panic 且错误为 Timeout

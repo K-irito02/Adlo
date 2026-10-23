@@ -191,10 +191,10 @@ pub async fn install(
     if version.parse::<semver::Version>().is_err() {
         return Err(AppError::InvalidInput(format!("bad git version {version}")));
     }
-    reporter.begin("env-git-install", &format!("git {version}"));
+    reporter.begin_with("env-git-install", &format!("git {version}"), false);
     let base = if cfg.mingit_base.is_empty() { OFFICIAL_MINGIT_BASE } else { cfg.mingit_base };
     let url = mingit_url(base, cfg.mingit_tag, cfg.mingit_asset);
-    reporter.update(ProgressPhase::Installing, Some(10), 0, 100, true);
+    reporter.update(ProgressPhase::Installing, Some(10), 0, 100, false);
     let client = adl_download_source::build_http_client(cfg.download).inspect_err(|e| {
         reporter.set_error(&e.to_string());
     })?;
@@ -212,11 +212,24 @@ pub async fn install(
         return Err(err);
     }
     reporter.update(ProgressPhase::Finalizing, Some(90), 90, 100, false);
-    let installed = match adopt_staging(&staging, cfg.data_dir, version) {
-        Ok(installed) => installed,
-        Err(e) => {
+    // rename/copy 是阻塞文件系统操作：搬到 blocking 池，别占运行时。
+    let staging_for_adopt = staging.clone();
+    let data_dir = cfg.data_dir.to_path_buf();
+    let version_owned = version.to_string();
+    let installed = match tokio::task::spawn_blocking(move || {
+        adopt_staging(&staging_for_adopt, &data_dir, &version_owned)
+    })
+    .await
+    {
+        Ok(Ok(installed)) => installed,
+        Ok(Err(e)) => {
             reporter.set_error(&e.to_string());
             return Err(e);
+        },
+        Err(e) => {
+            let err = AppError::Io(format!("git adopt task failed: {e}"));
+            reporter.set_error(&err.to_string());
+            return Err(err);
         },
     };
     reporter.finish();

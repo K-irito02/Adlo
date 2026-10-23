@@ -26,8 +26,8 @@ use adl_errors::AppError;
 /// Marker missing (or bad zip / HTTP error) → staging is removed and `Err`.
 /// Task 9 reuses this for MinGit (`marker_rel = "cmd/git.exe"`).
 ///
-/// Note: blocking fs/zip work runs inline in this `async` fn — same accepted
-/// trade-off as the dsh install path (sync `swap_into_place` in async ctx).
+/// Zip extraction runs on `spawn_blocking` so a large archive never stalls the
+/// async runtime (JoinError propagates as `AppError::Io`).
 pub async fn fetch_and_stage(
     client: &reqwest::Client,
     url: &str,
@@ -53,14 +53,28 @@ pub async fn fetch_and_stage(
         .await
         .map_err(|e| abort(&staging, AppError::Network(format!("read {url}: {e}"))))?;
 
-    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|e| {
-        abort(&staging, AppError::InvalidInput(format!("open zip from {url}: {e}")))
-    })?;
-    // `extract` rejects absolute / `..` entries via `enclosed_name` (zip 2.x).
-    archive.extract(&staging).map_err(|e| {
-        abort(&staging, AppError::InvalidInput(format!("extract zip from {url}: {e}")))
-    })?;
-    unwrap_single_top_dir(&staging, marker_rel);
+    // zip 解压是阻塞 CPU+IO（几十 MB 归档可达数秒）：搬到 blocking 池。
+    let staging_for_zip = staging.clone();
+    let marker_owned = marker_rel.to_string();
+    let url_owned = url.to_string();
+    let extracted = tokio::task::spawn_blocking(move || -> Result<(), AppError> {
+        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))
+            .map_err(|e| AppError::InvalidInput(format!("open zip from {url_owned}: {e}")))?;
+        // `extract` rejects absolute / `..` entries via `enclosed_name` (zip 2.x).
+        archive
+            .extract(&staging_for_zip)
+            .map_err(|e| AppError::InvalidInput(format!("extract zip from {url_owned}: {e}")))?;
+        unwrap_single_top_dir(&staging_for_zip, &marker_owned);
+        Ok(())
+    })
+    .await;
+    match extracted {
+        Ok(Ok(())) => {},
+        Ok(Err(e)) => return Err(abort(&staging, e)),
+        Err(e) => {
+            return Err(abort(&staging, AppError::Io(format!("zip extract task failed: {e}"))));
+        },
+    }
 
     if !staging.join(marker_rel).is_file() {
         return Err(abort(

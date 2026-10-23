@@ -144,14 +144,31 @@ pub struct EnvStatus {
     pub dsh_ready: bool,
 }
 
-/// GET `/env/status` — full environment snapshot (detections are live on
-/// every call; there is no detection cache in this phase).
+/// GET `/env/status` — full environment snapshot. Detection runs live (cheap
+/// `spawn_blocking` probes) but the serialized response is cached for
+/// [`STATUS_CACHE_TTL`] and the registry probe never uses the 30s transfer
+/// timeout; install/uninstall progress polling therefore never waits on the
+/// network.
 pub async fn status(State(state): State<ServerState>) -> impl IntoResponse {
     let result = status_inner(&state).await;
     ipc::to_response(result)
 }
 
+/// `/env/status` 响应缓存 TTL（前端安装期间 3s 轮询，2s 内重复请求直接复用）。
+const STATUS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(2);
+/// registry 探测请求超时：轮询端点绝不能等共享 client 的 30s。
+const PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
+
 async fn status_inner(state: &ServerState) -> Result<serde_json::Value, AppError> {
+    // 活动任务期间不走缓存（task 快照必须新鲜）且绝不触网：安装进度轮询
+    // 不能被 registry 探测阻塞。
+    let task = state.env_task.snapshot();
+    if task.is_none() {
+        if let Some(cached) = cache_get(&state.env_status_cache, STATUS_CACHE_TTL).await {
+            return Ok(cached);
+        }
+    }
+
     let paths = state.storage.paths();
     let root = paths.root.clone();
     let credentials_dir = paths.credentials_dir.clone();
@@ -173,14 +190,6 @@ async fn status_inner(state: &ServerState) -> Result<serde_json::Value, AppError
             .map_err(|e| AppError::Internal(format!("env detection task failed: {e}")))?
     };
 
-    // netprobe：共享 registry/proxy 感知 client（不另建第二个 client）。
-    let download = adl_download_source::load(&root)?;
-    let client = adl_download_source::build_http_client(&download)?;
-    let probe = adl_env::providers::netprobe::check(
-        &client,
-        adl_download_source::resolve_registry(&download),
-    )
-    .await;
     // CI/GitHub token presence only — NOT dsh model-key status (unknowable
     // from backend; Phase 2 renders the model-key row as guidance-only).
     // Existence check only (`get_…` returned value discarded, never in response;
@@ -193,6 +202,27 @@ async fn status_inner(state: &ServerState) -> Result<serde_json::Value, AppError
     .await
     .unwrap_or(false);
 
+    let netprobe = if task.is_some() {
+        // 有任务在跑：只报上次已知的 registry 结果（未知时 false），不探测。
+        let (registry_ok, registry_latency_ms) = last_known_registry(state).await;
+        NetprobeState { registry_ok, registry_latency_ms, ci_token_configured }
+    } else {
+        let download = adl_download_source::load(&root)?;
+        let registry = adl_download_source::resolve_registry(&download).to_string();
+        let probe = match probe_client(state, &download).await {
+            Ok(client) => Some(adl_env::providers::netprobe::check(&client, &registry).await),
+            Err(e) => {
+                tracing::warn!(error = %e, "env: probe client build failed; registry unknown");
+                None
+            },
+        };
+        NetprobeState {
+            registry_ok: probe.as_ref().is_some_and(|p| p.registry_ok),
+            registry_latency_ms: probe.map(|p| p.registry_latency_ms).unwrap_or(0),
+            ci_token_configured,
+        }
+    };
+
     let dsh_ready = det.node.meets_baseline;
     let status = EnvStatus {
         node: det.node,
@@ -200,16 +230,106 @@ async fn status_inner(state: &ServerState) -> Result<serde_json::Value, AppError
         bash: det.bash,
         webview2: det.webview2,
         adlserver: det.adlserver,
-        netprobe: NetprobeState {
-            registry_ok: probe.registry_ok,
-            registry_latency_ms: probe.registry_latency_ms,
-            ci_token_configured,
-        },
-        task: state.env_task.snapshot(),
+        netprobe,
+        task,
         data_dir: root.to_string_lossy().into_owned(),
         dsh_ready,
     };
-    serde_json::to_value(&status).map_err(|e| AppError::Internal(e.to_string()))
+    let value = serde_json::to_value(&status).map_err(|e| AppError::Internal(e.to_string()))?;
+    if status.task.is_none() {
+        cache_put(&state.env_status_cache, value.clone()).await;
+    }
+    Ok(value)
+}
+
+/// 复用缓存的短超时探测 client；仅下载源配置变化时重建。
+async fn probe_client(
+    state: &ServerState,
+    download: &adl_download_source::DownloadSourceConfig,
+) -> Result<reqwest::Client, AppError> {
+    let key = serde_json::to_string(download).unwrap_or_default();
+    let mut slot = state.env_probe_client.lock().await;
+    if let Some((cached_key, client)) = slot.as_ref() {
+        if cached_key == &key {
+            return Ok(client.clone());
+        }
+    }
+    let client = adl_download_source::build_http_client_with_timeout(download, PROBE_TIMEOUT)?;
+    *slot = Some((key, client.clone()));
+    Ok(client)
+}
+
+/// 上次缓存里的 registry 字段（忽略 TTL：安装期间只作“最后已知值”）。
+async fn last_known_registry(state: &ServerState) -> (bool, u64) {
+    let guard = state.env_status_cache.lock().await;
+    let Some((_, value)) = guard.as_ref() else {
+        return (false, 0);
+    };
+    let netprobe = &value["netprobe"];
+    (
+        netprobe.get("registryOk").and_then(|v| v.as_bool()).unwrap_or(false),
+        netprobe.get("registryLatencyMs").and_then(|v| v.as_u64()).unwrap_or(0),
+    )
+}
+
+async fn cache_get(
+    cache: &tokio::sync::Mutex<Option<(std::time::Instant, serde_json::Value)>>,
+    ttl: std::time::Duration,
+) -> Option<serde_json::Value> {
+    let guard = cache.lock().await;
+    match guard.as_ref() {
+        Some((at, value)) if at.elapsed() < ttl => Some(value.clone()),
+        _ => None,
+    }
+}
+
+async fn cache_put(
+    cache: &tokio::sync::Mutex<Option<(std::time::Instant, serde_json::Value)>>,
+    value: serde_json::Value,
+) {
+    *cache.lock().await = Some((std::time::Instant::now(), value));
+}
+
+async fn cache_clear(cache: &tokio::sync::Mutex<Option<(std::time::Instant, serde_json::Value)>>) {
+    *cache.lock().await = None;
+}
+
+/// 同步失效（`Drop` 里用）：锁被状态请求短暂占用时异步补一次清理。
+fn invalidate_status_cache(state: &ServerState) {
+    match state.env_status_cache.try_lock() {
+        Ok(mut guard) => *guard = None,
+        Err(_) => {
+            if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                let cache = state.env_status_cache.clone();
+                handle.spawn(async move {
+                    *cache.lock().await = None;
+                });
+            }
+        },
+    }
+}
+
+/// 后台 env 任务收尾守卫。正常失败路径已由 provider `set_error`（错误快照保留
+/// 供轮询）；panic 或提前返回未留错误时补一条并释放运行槽
+///（错误快照不再阻塞 `begin`）。Drop 同时失效 `/env/status` 缓存。
+struct RunGuard {
+    state: ServerState,
+}
+
+impl RunGuard {
+    fn new(state: &ServerState) -> Self {
+        Self { state: state.clone() }
+    }
+}
+
+impl Drop for RunGuard {
+    fn drop(&mut self) {
+        if self.state.env_task.snapshot().is_some_and(|s| s.error.is_none()) {
+            tracing::error!("env: task ended without success/error; marking aborted");
+            self.state.env_task.abort_with("env task aborted unexpectedly");
+        }
+        invalidate_status_cache(&self.state);
+    }
 }
 
 /// Blocking-side detection results (built inside one `spawn_blocking`).
@@ -358,13 +478,22 @@ fn git_state(
 }
 
 fn bash_state(root: &Path, sources: &adl_env::config::EnvSourcesConfig) -> DependencyState {
+    bash_state_from_candidates(root, sources, bash::detect())
+}
+
+/// Candidate-ranking half of [`bash_state`] (pure w.r.t. real machine probes so
+/// tests can inject a fake detected candidate).
+fn bash_state_from_candidates(
+    root: &Path,
+    sources: &adl_env::config::EnvSourcesConfig,
+    mut candidates: Vec<bash::BashCandidate>,
+) -> DependencyState {
     let mode = sources.bash.mode;
     let custom = sources.bash.custom_path.clone().filter(|p| !p.is_empty());
     let git_host = adl_hosted::HostedVersions::open(root, git::HOSTED_NAME, git::MARKER_REL)
         .read_selected()
         .ok()
         .flatten();
-    let mut candidates = bash::detect();
     // 宿主 bash 挂在宿主 git 目录下（`host_bash_path`）：选中 git 且文件存在才算 host 侧可用。
     let mut host_version: Option<String> = None;
     if let Some(git_version) = git_host {
@@ -380,10 +509,14 @@ fn bash_state(root: &Path, sources: &adl_env::config::EnvSourcesConfig) -> Depen
             host_version = Some(git_version);
         }
     }
+    // 显式自定义路径是 `Manual`，在 system 侧优先于探测到的候选（不得排到末尾）。
     if let Some(p) = custom.as_deref() {
-        if Path::new(p).is_file() && !candidates.iter().any(|c| c.path == p) {
-            candidates
-                .push(bash::BashCandidate { kind: bash::BashKind::Manual, path: p.to_string() });
+        if Path::new(p).is_file() {
+            candidates.retain(|c| c.path != p);
+            candidates.insert(
+                0,
+                bash::BashCandidate { kind: bash::BashKind::Manual, path: p.to_string() },
+            );
         }
     }
     // manual 显式路径计入 system 侧可用（`mode: system + origin: manual` 语义）。
@@ -485,18 +618,12 @@ struct InstallInput {
     version: Option<String>,
 }
 
-/// Env 任务占位（安装/卸载共用 `env_task`，已有任务在跑则拒绝；上次失败残留的 error 快照在新请求时回收，
-/// 否则一次失败会永久阻塞后续安装——成功路径由 provider `finish()` 清理）。
+/// Env 任务占位（安装/卸载共用 `env_task`，已有任务在跑则拒绝）。错误快照是
+/// 已结束任务，`begin_with` 会直接替换（不再需要手工回收）；env 无取消路由，
+/// 任务一律 `cancellable: false`。
 fn try_begin_env_task(state: &ServerState, kind: &str, label: &str) -> Result<(), AppError> {
-    if state.env_task.begin(kind, label) {
+    if state.env_task.begin_with(kind, label, false) {
         return Ok(());
-    }
-    let stale_error = state.env_task.snapshot().is_some_and(|s| s.error.is_some());
-    if stale_error {
-        state.env_task.finish();
-        if state.env_task.begin(kind, label) {
-            return Ok(());
-        }
     }
     tracing::debug!(?kind, %label, "env: begin rejected (another task running)");
     Err(AppError::InvalidInput("another env task is already running".into()))
@@ -562,7 +689,8 @@ async fn install_inner(
 fn spawn_node_install(state: &ServerState, version: String, dist_base: String) {
     let task_state = state.clone();
     tokio::spawn(async move {
-        let _guard = task_state.env_install_lock.clone().lock_owned().await;
+        let _lock = task_state.env_install_lock.clone().lock_owned().await;
+        let _run = RunGuard::new(&task_state);
         let root = task_state.storage.paths().root.clone();
         let download = match adl_download_source::load(&root) {
             Ok(c) => c,
@@ -587,7 +715,8 @@ fn spawn_git_install(
 ) {
     let task_state = state.clone();
     tokio::spawn(async move {
-        let _guard = task_state.env_install_lock.clone().lock_owned().await;
+        let _lock = task_state.env_install_lock.clone().lock_owned().await;
+        let _run = RunGuard::new(&task_state);
         let root = task_state.storage.paths().root.clone();
         let download = match adl_download_source::load(&root) {
             Ok(c) => c,
@@ -680,11 +809,12 @@ fn spawn_uninstall(state: &ServerState, dep: &'static str, version: String) {
     let task_state = state.clone();
     let log_version = version.clone();
     tokio::spawn(async move {
-        let _guard = task_state.env_install_lock.clone().lock_owned().await;
+        let _lock = task_state.env_install_lock.clone().lock_owned().await;
+        let _run = RunGuard::new(&task_state);
         let root = task_state.storage.paths().root.clone();
         tracing::info!(dep, version = %log_version, "env: uninstall starting");
         // `/env/status` should show removing while the provider works.
-        task_state.env_task.update(ProgressPhase::Removing, Some(0), 0, 0, true);
+        task_state.env_task.update(ProgressPhase::Removing, Some(0), 0, 0, false);
         // `remove_dir_all` is blocking IO — keep it off the runtime.
         let result = tokio::task::spawn_blocking(move || match dep {
             "node" => node::uninstall(&root, &version).map(|_| ()),
@@ -834,8 +964,8 @@ async fn check_custom_version_bin(bin: &str, dep: &str) -> Result<(), AppError> 
 }
 
 /// POST `/env/recheck` — fresh detection snapshot (`{ dep? }` optional;
-/// unknown dep is 4xx). Detection is uncached/live, so this is a fresh
-/// `status` by construction ("clear cache" is a no-op: no cache exists).
+/// unknown dep is 4xx). Detection itself is live, but `/env/status` responses
+/// are TTL-cached, so recheck explicitly invalidates that cache first.
 pub async fn recheck(
     State(state): State<ServerState>,
     body: axum::body::Bytes,
@@ -856,6 +986,7 @@ async fn recheck_inner(
             parse_dep(dep)?;
         }
     }
+    cache_clear(&state.env_status_cache).await;
     status_inner(state).await
 }
 
@@ -868,11 +999,12 @@ struct RecheckInput {
 #[cfg(test)]
 mod tests {
     use super::{
-        EnvStatus, NetprobeState, SelectInput, UninstallInput, meets_dotted, meets_semver,
-        parse_dep, parse_mode, select_source_inner, selected_hosted_version, uninstall_inner,
-        uninstall_kind, validate_hosted_source, validate_uninstall,
+        EnvStatus, NetprobeState, RunGuard, STATUS_CACHE_TTL, SelectInput, UninstallInput,
+        bash_state_from_candidates, cache_clear, cache_get, cache_put, meets_dotted, meets_semver,
+        parse_dep, parse_mode, select_source_inner, selected_hosted_version, try_begin_env_task,
+        uninstall_inner, uninstall_kind, validate_hosted_source, validate_uninstall,
     };
-    use adl_env::providers::node;
+    use adl_env::providers::{bash, node};
     use adl_env::{DependencyState, EffectiveSource, Origin, SourceMode};
     use adl_errors::AppError;
 
@@ -1134,5 +1266,78 @@ mod tests {
             "unexpected error: {err}"
         );
         assert!(state.env_task.snapshot().is_none());
+    }
+
+    /// 状态缓存：TTL 内命中、过期失效、显式清理。离线单元测试（不触网）。
+    #[tokio::test]
+    async fn status_cache_hits_within_ttl_expires_and_clears() {
+        let cache = tokio::sync::Mutex::new(None);
+        cache_put(&cache, serde_json::json!({ "a": 1 })).await;
+        let hit = cache_get(&cache, STATUS_CACHE_TTL).await.expect("fresh entry");
+        assert_eq!(hit["a"], 1);
+        cache_clear(&cache).await;
+        assert!(cache_get(&cache, STATUS_CACHE_TTL).await.is_none(), "clear must invalidate");
+
+        cache_put(&cache, serde_json::json!({ "b": 2 })).await;
+        tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+        assert!(
+            cache_get(&cache, std::time::Duration::from_millis(10)).await.is_none(),
+            "entry older than the TTL must not be served"
+        );
+    }
+
+    /// M2：bash 显式自定义路径按 `Manual` 处理，并在 system 侧优先于探测候选。
+    #[test]
+    fn bash_custom_path_is_preferred_manual_system_source() {
+        let dir = std::env::temp_dir().join(format!(
+            "adl-server-env-bash-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let manual = dir.join("bash.exe");
+        std::fs::write(&manual, "").expect("write manual bash");
+        let manual = manual.to_string_lossy().into_owned();
+
+        let mut sources = adl_env::config::EnvSourcesConfig::default();
+        sources.bash.mode = SourceMode::System;
+        sources.bash.custom_path = Some(manual.clone());
+        let detected = bash::BashCandidate {
+            kind: bash::BashKind::GitBundled,
+            path: "C:/Program Files/Git/bin/bash.exe".into(),
+        };
+        let state = bash_state_from_candidates(&dir, &sources, vec![detected]);
+        assert_eq!(state.effective, EffectiveSource::System);
+        assert_eq!(state.origin, Origin::Manual);
+        assert_eq!(state.path, Some(manual));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// M8：未 finish 的后台任务（panic/提前返回）由守卫补错误并释放运行槽，
+    /// 下一次 `try_begin` 必须成功；正常失败路径的错误不被守卫覆盖。
+    #[test]
+    fn run_guard_releases_aborted_task_for_next_begin() {
+        let state = crate::test_util::test_server_state();
+        assert!(state.env_task.begin_with("env-node-install", "node 22.14.0", false));
+        {
+            let _guard = RunGuard::new(&state);
+        }
+        let snap = state.env_task.snapshot().expect("errored snapshot stays pollable");
+        assert!(snap.error.is_some(), "guard must record the abort reason");
+        assert!(!snap.cancellable, "env tasks are never cancellable");
+        assert!(try_begin_env_task(&state, "env-node-install", "node 22.14.0").is_ok());
+
+        state.env_task.set_error("boom");
+        {
+            let _guard = RunGuard::new(&state);
+        }
+        assert_eq!(
+            state.env_task.snapshot().and_then(|s| s.error).as_deref(),
+            Some("boom"),
+            "handled failure errors must be preserved"
+        );
     }
 }

@@ -470,7 +470,14 @@ pub async fn install(
     let final_dir = installed_dir(root).join(version);
     tracing::debug!(%version, path = %final_dir.display(), "dsh install: swapping into place");
     // 原子换位收敛至 hosted（同卷 rename，跨卷复制后删源；失败尽力恢复旧版）。
-    if let Err(e) = adl_hosted::swap_into_place(&tmp, &final_dir) {
+    // rename/跨卷复制是阻塞文件系统操作：搬到 blocking 池。
+    let swap_tmp = tmp.clone();
+    let swap_target = final_dir.clone();
+    let swap_result =
+        tokio::task::spawn_blocking(move || adl_hosted::swap_into_place(&swap_tmp, &swap_target))
+            .await
+            .unwrap_or_else(|e| Err(AppError::Io(format!("swap task failed: {e}"))));
+    if let Err(e) = swap_result {
         // 与 npm 失败路径同构：swap 失败也要清 tmp（此前直接 `?` 传播会残留）。
         let _ = tokio::fs::remove_dir_all(&tmp).await;
         return Err(e);
