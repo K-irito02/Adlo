@@ -157,7 +157,7 @@ alwaysApply: false
 | `multi-dimensional-architecture-design.md` | 始终 | 多维度架构（代码 / 部署 / 数据 / 安全 / 接口 / 性能）与架构事实的唯一真源 |
 | `phase-boundary.md` | 始终 | 项目形态、范围边界与排除项，防止范围蔓延 |
 | `codebase-map.md` | `ai-digital-life/**` | 代码地图：Cargo 工作区、前端目录、包列表与索引策略 |
-| `dev-rules.md` | 始终 | 代理交互与执行规则：询问卡片、终端命令、代码修改、问题排查、编码风格 |
+| `dev-rules.md` | 始终 | 代理交互与执行规则：询问卡片、终端命令、代码修改、问题排查、编码风格、并行工作树约束 |
 
 ### 6.2 质量与验收（3）
 
@@ -292,4 +292,5 @@ alwaysApply: false
 | 验收流程 / 测试分级变化 | `mandatory-testing.md` |
 | 桌面端验证流程变化 | `desktop-ui-verification.md` |
 | 代理交互 / 终端执行规则变化 | `dev-rules.md` |
+| 并行开发流程 / 工作树策略变化 | `dev-rules.md`、[parallel-branch-development.md](./parallel-branch-development.md) |
 | 外部参考源码（`references/`）变化 | `project-overview.md`、`AGENTS.md` |

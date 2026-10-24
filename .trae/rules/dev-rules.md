@@ -130,6 +130,16 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 - **Commit 信息**：`type(scope): summary`（feat/fix/docs/chore/refactor/test）
 - Scope 选项：`core` / `frontend` / `rust` / `stores` / `browser` / `terminal` / `ipc` / `docs` / `deps`
 
+### 并行工作树约束
+- **隔离单位**：一分支 = 一工作树 = 一会话；并发会话各自在 `SourceWorkspace-worktrees/` 下的独立工作树中开发，禁止两个会话共用同一目录
+- **不跨树编辑**：禁止直接修改其他工作树的文件；跨分支协作只通过提交与合并
+- **不共享构建目录**：禁止共享 `CARGO_TARGET_DIR`（dev 脚本按 exe 路径查杀进程，共享后跨槽互杀）
+- **契约单写者**：IPC 四端、store slices/actions、i18n 字典、依赖与构建配置同时只允许一个会话修改
+- **记忆不落分支**：分支工作树内禁止写 `.workbuddy/memory/**`（该目录被 git 跟踪，多分支并行必然冲突）
+- **保留优先**：工作树默认保留（含合并后），清理须用户明确要求
+
+完整流程（开工自检、新建 / 复用槽位、异常处置）见 [parallel-branch-development.md](../../parallel-branch-development.md)。
+
 ## 磁盘清理与 target 治理
 
 构建产物由 `.cargo/config.toml` 统一治理（第三方依赖 `debug=1`，自有 crate 白名单 `debug=2`）。遵循以下规范：
