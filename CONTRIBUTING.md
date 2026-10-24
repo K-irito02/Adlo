@@ -52,14 +52,16 @@ pnpm run dev:both
 git config core.hooksPath .githooks
 ```
 
-钩子运行前端的 `check:static`（lint / typecheck / format / i18n / 术语表 / 生成物一致性）。需要连测试一起跑（约 5 分钟）时：
+默认只跑**受影响范围**（`check:changed`）：变更文件 lint/format + 类型与契约不变量 + `vitest related` 受影响用例；没有 `src/` 变更时不跑测试。
+
+全量门禁（`check:full`，约 5 分钟）**需要人工批准**，仅在发布打包前或明确需要时执行：
 
 ```powershell
-$env:ADL_PREPUSH_FULL = '1'   # 本次 push 额外执行 pnpm test
+$env:ADL_PREPUSH_FULL = '1'   # 经批准后的全量推送门禁
 git push
 ```
 
-测试也可随时手动执行：`pnpm --dir ai-digital-life/frontend test`。
+日常手动验证建议：`pnpm --dir ai-digital-life/frontend run check:changed`；需要跑某组测试用 `vitest run <目录/文件>`。
 
 ### 多会话并行开发
 

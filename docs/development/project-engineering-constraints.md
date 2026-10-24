@@ -290,7 +290,7 @@
 - `light`、`dark`、`system` 在主要页面和高风险对话框上表现一致
 - Windows 主路径正常；其他平台不因路径、字体或主题监听假设而结构性失败
 
-门禁在**本地**执行（本项目无远程 CI）。前端用 `pnpm --dir ai-digital-life/frontend check:static`（聚合 lint / typecheck / typecheck:dev / format / i18n / 术语表 / 生成物一致性）与 `check:full`（再加 `test`）；Rust 用 `cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`。
+门禁在**本地**执行（本项目无远程 CI），默认按变更范围：前端 `pnpm --dir ai-digital-life/frontend check:changed`（变更文件 lint/format + 类型与跨语言契约不变量 + `vitest related` 受影响用例；无 `src/` 变更则跳过测试）。全量门禁 `check:full`（再加 `test`）与 `cargo test --workspace`、Tauri 发布打包必须在执行前通知用户并获批准。Rust 侧受影响测试用 `cargo test -p <crate>`。
 
 ## 文档与治理同步
 

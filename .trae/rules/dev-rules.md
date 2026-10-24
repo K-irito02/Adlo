@@ -19,7 +19,7 @@ alwaysApply: true
 - 类型检查与测试执行
 - 结果处理与失败升级机制
 
-验证顺序：先用 `vitest run <目录/文件>` 定位问题，收尾时再跑一次全量；不要每轮都跑全量。前端格式化配置以 `ai-digital-life/frontend/` 下的 `.prettierrc` / `.prettierignore` 为准（根目录同名文件不生效，CI 工作目录也在前端）。
+验证顺序：默认只跑**受变更影响**的测试（前端 `pnpm check:changed` / `vitest run <目录>`，Rust `cargo test -p <crate>`）；**全量测试与全量门禁（`check:full`、`cargo test --workspace`）在发布打包 Tauri 前必须执行，但执行前必须通知用户并获得批准**，不得自行全量。前端格式化配置以 `ai-digital-life/frontend/` 下的 `.prettierrc` / `.prettierignore` 为准（根目录同名文件不生效）。
 
 Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，必须自动执行该流程，**不得跳过**。
 

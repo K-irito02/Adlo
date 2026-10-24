@@ -37,6 +37,16 @@ alwaysApply: false
 
 > 双端一致性验证项详情见 [desktop-ui-verification.md](./desktop-ui-verification.md) 和 [tauri-shell.md](./tauri-shell.md)。
 
+## 执行范围（默认受影响，全量需批准）
+
+| 场景 | 命令 | 说明 |
+|------|------|------|
+| 日常改动 / 提交前 | `pnpm --dir frontend run check:changed` | 变更文件 lint/format + 类型/契约不变量 + `vitest related` 受影响用例；无 `src/` 变更则跳过测试 |
+| Rust 单 crate | `cargo test -p <crate>` | 只跑受影响 crate |
+| 发布打包 Tauri 前 | `check:full` + `cargo test --workspace` + 双端验证 | **必须先通知用户并获批准**，不得自行执行 |
+
+**禁止**在未获用户批准时执行全量测试、`check:full` 或 `cargo tauri build`。
+
 ## 高风险改动
 
 | 改动类型 | 必须覆盖 |

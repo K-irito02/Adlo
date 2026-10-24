@@ -61,7 +61,7 @@ The Rust backend provides shared DTOs, SQLite-backed metadata tables, workspace 
 
 ## Validation Status
 
-Quality gates see `.agents/rules/quality-gates.md` and `mandatory-testing.md`. They run **locally only** (no remote CI): `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, plus frontend `lint` / `typecheck` / `typecheck:dev` / `format:check` / `check:i18n` / `check:glossary` / `gen:check` / `test`. `pnpm --dir ai-digital-life/frontend check:static` aggregates the frontend static checks and is what the pre-push hook runs.
+Quality gates see `.agents/rules/quality-gates.md` and `mandatory-testing.md`. They run **locally only** (no remote CI), scoped to the change by default: `pnpm --dir ai-digital-life/frontend check:changed` runs lint/format on changed files, type and contract invariants, and `vitest related` for affected tests. Full gates (`check:full`, `cargo test --workspace`) and Tauri packaging are executed only after explicit user approval.
 
 ## Security Baseline
 

@@ -1,9 +1,12 @@
 #!/bin/sh
 # Install once per clone: git config core.hooksPath .githooks
-# This is the only gate for this repo (no remote CI). Set ADL_PREPUSH_FULL=1 to also run tests.
+# Default: affected-scope gate only (changed-file lint/format + invariants + affected tests).
+# Full gate (whole suite) needs explicit human approval: set ADL_PREPUSH_FULL=1 only after approval.
 set -e
 cd "$(git rev-parse --show-toplevel)/ai-digital-life/frontend"
-pnpm check:static
 if [ "$ADL_PREPUSH_FULL" = "1" ]; then
-  pnpm test
+  echo "[pre-push] FULL gate (user-approved): check:full"
+  pnpm check:full
+else
+  pnpm check:changed
 fi

@@ -24,6 +24,7 @@
     "gen:md-theme": "node scripts/generate-md-theme-vars.mjs",
     "gen:check": "node scripts/generate-md-theme-vars.mjs && git diff --exit-code -- src/styles/vendor",
     "check:static": "pnpm lint && pnpm typecheck && pnpm typecheck:dev && pnpm format:check && pnpm check:i18n && pnpm check:glossary && pnpm gen:check",
+    "check:changed": "node scripts/check-changed.mjs",
     "check:full": "pnpm check:static && pnpm test"
   },
   "dependencies": {

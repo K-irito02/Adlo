@@ -125,8 +125,10 @@ Rust 受影响测试：
 **执行策略**：
 1. **L1 变更**（文案/样式）：仅 lint + format，跳过测试
 2. **L2 变更**（单模块）：仅运行受影响 crate/vitest 文件
-3. **L3 变更**（架构/跨模块）：执行全量测试
-4. **合并前**：必须执行全量测试确认无回归
+3. **L3 变更**（架构/跨模块）：先运行受影响的多个 crate / 测试文件
+4. **合并前 / 发布打包 Tauri 前**：全量测试 + 双端验证
+
+**全量审批**：第 4 步（以及任何 `check:full`、`cargo test --workspace`、`cargo tauri build`）执行前**必须通知用户并取得批准**，不得自行全量。日常开发只跑受影响测试（前端 `pnpm check:changed` 或 `vitest related`，Rust `cargo test -p <crate>`）。
 
 ### 关于修复
 

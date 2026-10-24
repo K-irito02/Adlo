@@ -55,6 +55,7 @@
 - 低层 crate 依赖高层 crate
 - 凭据写入普通配置或日志（必须通过 `crates/credential/` 存储）
 - UI/UX 或功能变更后跳过红绿测试
+- 未获用户批准就执行全量测试 / 全量门禁（`check:full`、`cargo test --workspace`）或发布打包（`cargo tauri build`）；日常只跑受变更影响的测试
 - 在 capability 文件中使用 `"all"` / `"**"` 通配权限
 - 功能或显示效果仅在 Tauri 或浏览器单一模式下可用（必须双端一致）
 - WebView URL 变化被动触发 Tauri navigateTab（必须由前端发起操作显式调用，见 `browserpanel.tsx:submitAddress`、`BrowserPanelActionsContext.ts:handleOpenTabFromTree`）
