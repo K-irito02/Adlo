@@ -41,7 +41,7 @@ description: Audit and sync governance docs (rules, AGENTS.md, READMEs, root doc
 | 规则文件 | 全部 `*.md` | `.agents/rules/`（真源，同步后仅审计此目录） | 七维全量 |
 | AGENTS.md | 根 / 实现工作区 | `AGENTS.md`、`ai-digital-life/AGENTS.md` | 七维全量 |
 | README.md | 根 / 实现工作区 | `README.md`、`ai-digital-life/README.md` | 七维全量 |
-| 根治理文档（Tier 1） | `CONTEXT.md`、`CONTRIBUTING.md`、`ai-digital-life/CONTRIBUTING.md`、`SECURITY.md`、`FUTURE-ROADMAP.md`、`SKILLS.md`、`docs/development/project-engineering-constraints.md` | 见路径 | 七维全量 |
+| 根治理文档（Tier 1） | `CONTEXT.md`、`CONTRIBUTING.md`、`ai-digital-life/CONTRIBUTING.md`、`SECURITY.md`、`FUTURE-ROADMAP.md`、`RULES.md`、`SKILLS.md`、`docs/development/project-engineering-constraints.md` | 见路径 | 七维全量 |
 | 内容目录（Tier 2） | 全部 `*.md` | `docs/analysis/`、`docs/architecture/`、`docs/design-system/`、`docs/development/`、`docs/operations/` | 治理一致性（见阶段 2）；不要求 frontmatter |
 | 工程基线（Tier 3） | CI `.github/workflows/quality-gates.yml`；Tauri `ai-digital-life/src-tauri/capabilities/*.json`、`ai-digital-life/src-tauri/tauri.conf.json`；构建 `ai-digital-life/.cargo/config.toml`、`ai-digital-life/clippy.toml`、`ai-digital-life/rustfmt.toml`、根 `.editorconfig` | 见路径 | 仅核对被规则引用的关键字段 |
 
@@ -59,7 +59,7 @@ description: Audit and sync governance docs (rules, AGENTS.md, READMEs, root doc
 
 1. **清单比对**：比对三规则目录 `*.md` 与三技能目录子目录清单，标记缺失 / 多余 / 同名漂移
 2. **哈希比对**：同名文件内容哈希，技能按子目录递归比对（脚本见"快速参考"）
-3. **同步**：缺失 / 漂移 → 从真源复制到副本；副本多出真源 → 核对，正确则补入真源（规则须在 `.agents/rules/README.md` 登记），否则删除（须确认）
+3. **同步**：缺失 / 漂移 → 从真源复制到副本；副本多出真源 → 核对，正确则补入真源（规则须在根 `RULES.md` 的规则清单登记），否则删除（须确认）
 4. **技能目录联动核对**：比对 README/AGENTS 声明的技能数与实际目录数，漂移记入报告，不擅自改动
 5. **同步验证**：重算哈希确认三目录完全一致，**然后才进入阶段 2**
 
@@ -71,7 +71,7 @@ Tier 1 七维全量；Tier 2 治理一致性；Tier 3 一致性校验。
 |------|--------|-----------|
 | 一致性 | 交叉引用 | 引用文件 / 目录 / 章节锚点存在，相对路径正确 |
 | 一致性 | 与真实状态 | 文件数、技能数、阶段、工具链版本与代码库一致（Grep/Read 验证） |
-| 一致性 | 与索引表 | 每个规则文件都在 `.agents/rules/README.md` 登记，无遗漏、无多登记 |
+| 一致性 | 与索引表 | 每个规则文件都在根 `RULES.md` 规则清单登记，无遗漏、无多登记 |
 | 真实性 | 数字与事实 | 路径、数量、版本、日期可验证且准确，禁止编造 |
 | 规范性 | frontmatter | 规则文件必有 `description`；触发二选一：`alwaysApply: true` 或 `globs: <pattern>`（+ `alwaysApply: false`） |
 | 规范性 | 命名 / Markdown | 文件名 kebab-case 英文；链接、表格、代码块、标题层级规范 |
@@ -116,7 +116,7 @@ Tier 1 七维全量；Tier 2 治理一致性；Tier 3 一致性校验。
 2. 全部通过才结束：
    - [ ] 三规则目录清单 + 哈希一致
    - [ ] 三技能目录清单 + 哈希一致
-   - [ ] `.agents/rules/README.md` 登记全部规则文件
+   - [ ] 根 `RULES.md` 规则清单登记全部规则文件
    - [ ] 内部链接 / 锚点全部可解析
    - [ ] 数字与当前项目状态一致
    - [ ] AGENTS.md 与 README.md 无重复段落、交叉引用正确
@@ -182,7 +182,7 @@ Copy-Item ".agents/skills/*"    ".trae/skills/"     -Recurse -Force
 | 在 `.opencode/` 或 `.trae/` 直接改规则 / 技能 | 真源是 `.agents/`，改后必须回同步 |
 | 用 `.agents/skills/*.md` 同步技能 | 技能是子目录，须递归复制技能文件夹 |
 | 未经确认删除 / 新增文件 | 删除、新增须显式确认；删除前先消除所有引用 |
-| 只改规则不更新索引表 | 增删规则必须同步 `.agents/rules/README.md` |
+| 只改规则不更新索引表 | 增删规则必须同步根 `RULES.md` 规则清单 |
 | 编造或臆测数字（技能数、文件数等） | 用 Grep/Read 统计真实状态再下结论 |
 | 写死易变数字（如内容目录文件数） | 以运行时统计为准 |
 | 修复后忘记重新同步副本 | 阶段 5 必须重新哈希验证 |

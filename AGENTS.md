@@ -104,6 +104,7 @@ TypeScript/Rust 风格指南、Commit 规范详见 [dev-rules.md](.agents/rules/
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 未来想法
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — 贡献指南
 - [CONTEXT.md](./CONTEXT.md) — 领域术语表
+- [RULES.md](./RULES.md) — 规则系统（分层与优先级、三目录同步、文件规范、规则清单）
 - [SKILLS.md](./SKILLS.md) — 技能系统（来源分类、三技能目录、同步规则、技能摘要）
 - [SECURITY.md](./SECURITY.md) — 安全策略
 - [docs/development/project-engineering-constraints.md](./docs/development/project-engineering-constraints.md) — 工程约束

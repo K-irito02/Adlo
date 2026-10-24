@@ -290,7 +290,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 
 | 类别 | 路径 | 检查内容 |
 |------|------|---------|
-| 规则 | `.agents/rules/`（真源）→ `.opencode/rules/`、`.trae/rules/` | 编码、架构、工具链变化；增删规则同步 `.agents/rules/README.md` 登记 |
+| 规则 | `.agents/rules/`（真源）→ `.opencode/rules/`、`.trae/rules/` | 编码、架构、工具链变化；增删规则在根 `RULES.md` 规则清单登记 |
 | 技能 | `.agents/skills/`（真源）→ `.opencode/skills/`、`.trae/skills/` | 指令/触发条件变化；改后按子目录递归做三目录哈希比对（如 `Get-FileHash`） |
 | 治理 | `AGENTS.md`、`ai-digital-life/AGENTS.md`、`CONTEXT.md` | 术语、功能、架构层级 |
 | 根文档 | `README.md`、`ai-digital-life/README.md`、`CONTRIBUTING.md`、`ai-digital-life/CONTRIBUTING.md`、`SECURITY.md`、`FUTURE-ROADMAP.md`、`docs/development/project-engineering-constraints.md` | 安装使用、协作流程、安全策略、后续规划、工程约束 |

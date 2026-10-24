@@ -31,6 +31,7 @@ AI 数字生命桌面应用的规划与治理仓库。远期规划支持**移动
 ## 快速入口
 
 - [AGENTS.md](./AGENTS.md) — 项目治理规则、编码规范
+- [RULES.md](./RULES.md) — 规则系统（分层与优先级、三目录同步、文件规范、规则清单）
 - [SKILLS.md](./SKILLS.md) — 技能系统（来源分类、三技能目录、同步规则、技能摘要）
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — 贡献指南
 - [CONTEXT.md](./CONTEXT.md) — 领域术语表
