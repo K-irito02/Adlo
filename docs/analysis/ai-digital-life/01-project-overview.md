@@ -17,6 +17,7 @@ AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿�
 | 编辑器 | CodeMirror 6 + 文件预览 + 差异查看器 |
 | 内置浏览器 | Tauri WebView / iframe 双模式 + 网站元数据缓存 + 智能体站点链接拦截（白名单 origin 整站匹配，仅 WebView2 可注入） |
 | 存储治理 | adl-kernel::storage 统一路径解析 + 启动期迁移 + 设置面板存储组 |
+| 环境依赖管理 | adl-env 六依赖检测/来源模型 + adl-hosted 宿主版本托管；设置面板「网络」「环境」组、首启向导、runbook；卸载/重装，adl-server sidecar 随包 |
 | 系统能力 | 剪贴板历史、系统监视器、CI 状态、GitHub 面板、凭据存储 |
 
 ## 技术栈
@@ -39,11 +40,11 @@ AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿�
 
 | 指标 | 数量 |
 |------|------|
-| Rust Crates | 22 |
+| Rust Crates | 24 |
 | Tauri Commands | 见源码 `src-tauri/src/commands/`（约 74 个，截至 2026-10-13，按 `#[tauri::command]` 标注口径） |
 | Zustand 切片 | 32（slicedStore.ts 实测，`AGENTS.md` 已同步） |
 | Action 模块 | 18（`AGENTS.md` 已同步） |
-| 前端功能域 | 25（见 `frontend/src/app/features/`） |
+| 前端功能域 | 26（见 `frontend/src/app/features/`） |
 | IPC 接口域 | 25 个文件（见 `frontend/src/shared/ipc/`） |
 | i18n 文件 | 约 46（中英各约 23，以实现为准） |
 | Rust 测试 | 616（截至 2026-09-15，见 `ai-digital-life/AGENTS.md`） |
@@ -59,7 +60,7 @@ AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿�
 
 ```
 ai-digital-life/
-├── Cargo.toml              # Rust 工作区（22 crate）
+├── Cargo.toml              # Rust 工作区（24 crate）
 ├── crates/                 # 独立 crate
 │   ├── kernel/             # 共享内核（app_info/config/events/storage/types）
 │   ├── types/              # 共享类型
@@ -81,6 +82,8 @@ ai-digital-life/
 │   ├── dsh-bundle/         # 内置 dsh 包
 │   ├── dsh-version/        # dsh 版本管理
 │   ├── download-source/    # 下载源与镜像
+│   ├── adl-hosted/         # 宿主版本托管（版本目录/原子换装/进程宿主/进度任务）
+│   ├── adl-env/            # 环境依赖（providers + 来源偏好 + 基线）
 │   └── tauri-runtime-wry-patched/ # Tauri 运行时补丁
 ├── src-tauri/              # Tauri 入口
 │   ├── src/main.rs          # 主函数
@@ -93,7 +96,7 @@ ai-digital-life/
 ├── frontend/               # React 前端
 │   └── src/
 │       ├── app/            # 应用主体
-│       │   ├── features/  # 25 功能域（含 center 中间区宿主、dsh、storage-settings）
+│       │       ├── features/  # 26 功能域（含 center 中间区宿主、dsh、storage-settings、environment、network）
 │       │   ├── components/ # 通用组件
 │       │   ├── stores/    # Zustand 状态（32 切片，slicedStore.ts）
 │       │   ├── hooks/     # 自定义 Hook
@@ -123,6 +126,7 @@ ai-digital-life/
 │  Backend (Rust + Tokio)                      │
 │  ├─ Tauri Binary: 窗口/命令/capabilities     │
 │  ├─ 宿主集成 Crates: webapp-host/dsh-bundle/dsh-version/download-source │
+│  ├─ 环境依赖: adl-env（providers/来源/基线）+ adl-hosted（版本托管/进度任务）│
 │  ├─ 领域服务: workspace/pty/fs-ops/outline/credential/ci-status/clipboard/sysmon/change-engine/server │
 │  └─ Infrastructure: storage/logger/errors   │
 └─────────────────────────────────────────────┘

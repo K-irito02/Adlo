@@ -1,10 +1,10 @@
 # AI Digital Life 包索引
 
 > 每个 crate/包/目录的职责、关键文件、依赖。
-> 快照数字以源码为准（本页数字已按实测 22 crate / 13 命令文件 / 25 功能域 / 32 切片 / 25 IPC 文件核对）;
+> 快照数字以源码为准（本页数字已按实测 24 crate / 13 命令文件 / 26 功能域 / 32 切片 / 25 IPC 文件核对）;
 > 规范约束见 `.agents/rules/`。
 
-## Rust 后端 Crates（22 个）
+## Rust 后端 Crates（24 个）
 
 ### 基础设施层
 
@@ -86,6 +86,20 @@
 - **路径**：`crates/server/src/`
 - **职责**：浏览器模式真实后端（HTTP API + WebSocket），与 Tauri 壳共用领域逻辑
 
+### 环境依赖层
+
+#### `adl-env` — 环境依赖
+- **路径**：`crates/adl-env/src/`（`lib.rs`/`providers.rs`/`config.rs`/`baseline.rs` + `providers/{node,git,bash,webview2,adlserver,netprobe}.rs`）
+- **职责**：六依赖 provider 检测与宿主安装/卸载；来源偏好（`env-sources.json`）与基线（`env-baseline.json` 资源）；纯函数 `resolve()` 解析实际来源（auto 宿主优先，强制来源不静默降级）；`DependencyState` 统一状态形状
+- **入口**：`adl_env::ENV_DEPS`、`resolve()`、`providers::*`、`config::load/save`、`baseline::load`
+- **依赖**：`adl-errors`, `adl-hosted`, `adl-download-source`, `semver`, `serde`, `tokio`, `reqwest`, `zip`
+
+#### `adl-hosted` — 宿主版本托管
+- **路径**：`crates/adl-hosted/src/`（`hosted_versions.rs`/`atomic_swap.rs`/`lock.rs`/`proc_host.rs`/`progress.rs`）
+- **职责**：通用托管安装层：版本目录（`<data>/env-hosted/<dep>/installed/<v>` + `selected.txt`）、原子换装与残留备份告警、adopt 既有安装、安装锁、子进程宿主（参数脱敏）、可轮询进度任务（安装/卸载阶段）
+- **入口**：`HostedVersions`、`swap_into_place`、`InstallLock`、`spawn_with_marker`/`HostedProcess`、`ProgressTask`/`ProgressSnapshot`/`ProgressPhase`
+- **依赖**：`adl-errors`, `semver`, `serde`, `tokio`, `tracing`
+
 ### dsh 宿主集成层
 
 #### `webapp-host` — dsh 进程托管
@@ -134,7 +148,7 @@
 
 ## 前端包
 
-### Features（25 功能域）
+### Features（26 功能域）
 
 | 功能域 | 目录 |
 |--------|------|
@@ -147,6 +161,8 @@
 | 分隔线桥接条 | `features/divider-strip/` |
 | dsh 宿主 | `features/dsh/` |
 | 编辑器 | `features/editor/`（CodeMirror + FoldTooltipOverlay） |
+| 环境依赖 | `features/environment/`（7 依赖行 + 聚合条 + 首启向导 + `runbooks/` 6 份手册） |
+| 网络设置 | `features/network/`（源/代理/测试连接，自 DSH 搬迁） |
 | 文件树 | `features/file-tree/` |
 | Git 可视化 | `features/git-visualization/` |
 | 多工作区 | `features/multi-workspace/` |

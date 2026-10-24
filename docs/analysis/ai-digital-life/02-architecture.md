@@ -43,6 +43,10 @@
 │  clipboard │ sysmon       │ change-engine │
 │  server（adl-server 后端引擎）             │
 ├──────────────────────────────────────────┤
+│  环境依赖层                               │
+│  adl-env（providers/来源偏好/基线）        │
+│  adl-hosted（版本托管/原子换装/进度任务）  │
+├──────────────────────────────────────────┤
 │  dsh 宿主集成层（第三方 harness 由 dsh 提供）│
 │  webapp-host │ dsh-bundle │ dsh-version   │
 │  download-source                          │
@@ -127,6 +131,23 @@ Zustand Store 更新 → UI 响应渲染
 流式路径:
   Rust 命令执行/pty 输出 → Tauri Event → frontend onEvent → Store 增量更新 → UI 逐步渲染
 ```
+
+## 环境依赖层数据流
+
+环境依赖管理走 **adl-server HTTP 路由**（非 Tauri command），Tauri 壳的 `tauri-env.ts` 仅转发到同一组 `/env/*` 端点，双端共用一套后端逻辑：
+
+```
+EnvironmentSettings / EnvWizard（features/environment、features/network）
+  → env 桥（tauri-env.ts 转发 / preview httpBridge env 域）
+  → adl-server  GET /env/status
+                POST /env/install|uninstall|select-source|set-custom-path|recheck
+  → adl-env     providers（node/git/bash/webview2/adlserver/netprobe）
+                env-sources.json（来源偏好）+ env-baseline.json（基线）
+  → adl-hosted  HostedVersions / AtomicSwap / InstallLock / ProcHost / ProgressTask
+  → <data>/env-hosted/<dep>/installed/<v>（selected.txt 记当前选中版）
+```
+
+`EnvStatus` 返回六依赖状态 + 进行中任务快照（`task`）+ 数据根（`dataDir`）+ `dshReady`（= node 达标）；安装/卸载进度由前端 3s 轮询 `GET /env/status` 读取，响应有 2s TTL 且活动任务期间不触网。
 
 ## IPC 三桥接契约
 

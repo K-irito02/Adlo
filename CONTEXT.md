@@ -73,6 +73,21 @@ DSH 版本管理系统，位于 `crates/dsh-version/`。管理已安装版本列
 ### Download Source
 可配置的下载源系统，位于 `crates/download-source/`。支持 npm 仓库地址、镜像源（如 npmmirror）、代理设置。配置文件为 `<data_dir>/config/download-sources.json`。
 
+### 环境依赖 (Env Dependency)
+应用运行所需的六项外部依赖：`node`、`git`、`bash`、`webview2`、`adlserver`、`netprobe`。由 `crates/adl-env/` 的 provider 检测/安装，状态经 adl-server 的 `GET /env/status` 暴露（`EnvStatus`：六依赖状态 + 任务快照 + `dataDir` + `dshReady`）。
+
+### 宿主内置来源 (Host Source)
+依赖的一种来源类型：由应用自己下载并安装到数据目录的副本（区别于系统已安装版本）。实际来源由 `auto`（宿主优先）/`system`/`host` 三种偏好解析，强制来源缺失时返回 `none` 而不静默降级。宿主版本由 `crates/adl-hosted/` 托管。
+
+### env-baseline.json
+环境依赖的最低/稳定版本基线资源（`ai-digital-life/src-tauri/resources/env-baseline.json`，随包发布）。记录 node stable 与 dist 源、git stable/tag/asset/base、webview2 minimum；用于判定 `meetsBaseline` 与安装版本。
+
+### runbook
+面向人/agent 的可执行修复手册，按依赖各一份（Node、Git/Bash、WebView2、adl-server、网络下载、模型凭据）。唯一真源为 `ai-digital-life/frontend/src/app/features/environment/runbooks/`（前端 `?raw` 内联），`docs/runbooks/README.md` 仅为索引。固定五段：症状 / 检查命令 / 安装步骤 / 验证步骤 / 回滚。
+
+### 首启环境向导 (First-run Env Wizard)
+首次启动时引导用户检查并补齐环境依赖的四步向导；可跳过（记录跳过状态并显示续接横幅），设置面板「环境」组可随时重新进入。
+
 ---
 
 ## 前端概念

@@ -62,6 +62,8 @@ ai-digital-life/
 | `dsh-version` | DSH 版本管理（已安装版本列表、版本切换、npm 仓库查询、系统 dsh 检测、智能源选择） |
 | `dsh-bundle` | 内置 DSH 包管理（manifest 检测、版本查询、启动命令构建） |
 | `download-source` | 下载源配置（npm 仓库/镜像源、代理设置、连通性测试） |
+| `adl-hosted` | 通用宿主版本托管（`env-hosted/<dep>/installed/<v>`、原子换装、adopt、安装锁、子进程宿主、进度任务） |
+| `adl-env` | 环境依赖（6 providers：node/git/bash/webview2/adlserver/netprobe；`env-sources.json` 来源偏好 + `env-baseline.json` 基线；`resolve()` 来源解析） |
 
 ## 前端关键目录
 
@@ -72,6 +74,8 @@ ai-digital-life/
 | `app/utils/` | 纯函数（含 tooltipPosition、clipboard、preferencesMerger） |
 | `app/stores/` | Zustand 状态管理（切片合并模式 + actions/ 领域模块） |
 | `app/features/` | 按功能域分层的模块化组件（含 terminal/ 中 3 个子 hook、tree/ 中 MultiTreeEntryShell 共享骨架） |
+| `app/features/environment/` | 环境依赖设置（7 依赖行、聚合条、复制给 agent、卸载/重装、`runbooks/` 6 份手册、首启向导） |
+| `app/features/network/` | 网络设置组（源/代理/测试连接，自 DSH 搬迁） |
 | `app/regions/` | 区域布局组件（left-sidebar / right-panel(panels+editor-support+hooks) / center-pane；per-panel prop hooks 集中到 hooks/ 目录） |
 | `design-system/` | 设计 Token 类型定义（tokens.ts / theme.ts / icons.ts） |
 | `styles/` | CSS 样式文件（themes.css / tokens.css / regions/*.css 等）；`styles/vendor/` 存**生成**的第三方主题变量表（如 `markdown-theme-vars.css`，由脚本生成，勿手改） |
