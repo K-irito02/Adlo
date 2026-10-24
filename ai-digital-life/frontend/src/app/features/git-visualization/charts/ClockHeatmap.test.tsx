@@ -33,6 +33,7 @@ vi.mock('@visx/responsive', () => ({
   }) => children({ width: 600, height: 200 }),
 }));
 
+const reactRequireCache = vi.hoisted(() => ({ mod: undefined as ReturnType<typeof require> }));
 vi.mock('motion/react', () => {
   const createMV = (v = 0) => ({ get: () => v, set: () => {}, stop: () => {}, on: () => () => {} });
   return {
@@ -40,7 +41,7 @@ vi.mock('motion/react', () => {
       {},
       {
         get: () => (p: Record<string, unknown>) => {
-          const R = require('react');
+          const R = (reactRequireCache.mod ??= require('react'));
           const { children, ...rest } = p;
           return R.createElement('div', { className: rest.className, key: rest.key }, children);
         },

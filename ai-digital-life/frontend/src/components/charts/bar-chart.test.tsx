@@ -3,13 +3,14 @@ import { render } from '@testing-library/react';
 import React from 'react';
 import { BarChart, Bar } from './bar-chart';
 
+const reactRequireCache = vi.hoisted(() => ({ mod: undefined as ReturnType<typeof require> }));
 vi.mock('motion/react', () => ({
   motion: new Proxy(
     {},
     {
       get: (_t: never, tag: string) =>
         function MotionTag({ children, ...rest }: Record<string, unknown>) {
-          const React = require('react');
+          const React = (reactRequireCache.mod ??= require('react'));
           return React.createElement(
             tag === 'default' ? 'div' : tag,
             { className: rest.className, key: rest.key },

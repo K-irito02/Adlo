@@ -4,13 +4,14 @@ import React from 'react';
 import { LineChart } from './line-chart';
 import { Area } from './area';
 
+const reactRequireCache = vi.hoisted(() => ({ mod: undefined as ReturnType<typeof require> }));
 vi.mock('motion/react', () => ({
   motion: new Proxy(
     {},
     {
       get: (_t: never, tag: string) =>
         function M({ children, ...rest }: Record<string, unknown>) {
-          const R = require('react');
+          const R = (reactRequireCache.mod ??= require('react'));
           const p: Record<string, unknown> = {};
           for (const [k, v] of Object.entries(rest)) {
             if (k !== 'className' && k !== 'children' && k !== 'key') {

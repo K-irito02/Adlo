@@ -38,12 +38,13 @@ vi.mock('@i18n/useTCopy', () => ({
   }),
 }));
 
+const reactRequireCache = vi.hoisted(() => ({ mod: undefined as ReturnType<typeof require> }));
 vi.mock('motion/react', () => ({
   motion: new Proxy(
     {},
     {
       get: () => (p: Record<string, unknown>) => {
-        const R = require('react');
+        const R = (reactRequireCache.mod ??= require('react'));
         const { children, ...rest } = p;
         return R.createElement('div', { className: rest.className, key: rest.key }, children);
       },

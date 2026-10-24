@@ -5,13 +5,14 @@ import { HeatmapCardGroup } from './HeatmapCardGroup';
 import { defaultTimeRange } from '@stores/slices/gitVisSlice';
 import { CHART_IDS } from './chartIds';
 
+const reactRequireCache = vi.hoisted(() => ({ mod: undefined as ReturnType<typeof require> }));
 vi.mock('motion/react', () => ({
   motion: new Proxy(
     {},
     {
       get: () =>
         function MotionTag({ children, ...rest }: Record<string, unknown>) {
-          const React = require('react');
+          const React = (reactRequireCache.mod ??= require('react'));
           return React.createElement('div', { className: rest.className }, children);
         },
     },

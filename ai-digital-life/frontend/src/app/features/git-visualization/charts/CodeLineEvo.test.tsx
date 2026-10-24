@@ -30,6 +30,7 @@ function createMotionValue(initial = 0) {
   };
 }
 
+const reactRequireCache = vi.hoisted(() => ({ mod: undefined as ReturnType<typeof require> }));
 vi.mock('motion/react', () => ({
   motion: new Proxy(
     {},
@@ -47,7 +48,7 @@ vi.mock('motion/react', () => ({
           _style,
           ...rest
         }: Record<string, unknown>) {
-          const React = require('react');
+          const React = (reactRequireCache.mod ??= require('react'));
           const elProps: Record<string, unknown> = {};
           for (const [k, v] of Object.entries(rest)) {
             if (k !== 'className' && k !== 'children' && k !== 'key') {
