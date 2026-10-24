@@ -754,4 +754,28 @@ describe('NetworkSettings', () => {
       false,
     );
   });
+
+  it('卸载后到达的自动探测结果不再落盘（不串写到后续会话）', async () => {
+    const pendingResolvers: ((value: unknown) => void)[] = [];
+    testSource.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          pendingResolvers.push(resolve as (value: unknown) => void);
+        }),
+    );
+    useAppStore.setState({
+      sourceStatus: makeStatus({ source_mode: 'auto', npm_registry: NPMMIRROR_URL }),
+    });
+    const { unmount } = renderSettings();
+    // 播种 effect 里的静默实测：官方 + 镜像各一次
+    expect(pendingResolvers.length).toBe(2);
+    unmount();
+    await act(async () => {
+      for (const resolve of pendingResolvers) {
+        resolve({ reachable: true, latency_ms: 1, error: null });
+      }
+      await Promise.resolve();
+    });
+    expect(saveSourceConfig).not.toHaveBeenCalled();
+  });
 });

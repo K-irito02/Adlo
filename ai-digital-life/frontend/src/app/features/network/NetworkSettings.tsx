@@ -97,6 +97,20 @@ export function NetworkSettings() {
   const pendingSaveRef = useRef(false);
   const drainingRef = useRef(false);
   const testTimerRef = useRef<number | null>(null);
+  /** 卸载标记：异步探测/防抖在组件消失后不得再落盘（否则会写到后续会话）。 */
+  const aliveRef = useRef(true);
+
+  // 卸载即失效：清理在途防抖定时器；异步回调统一以 `aliveRef` 兜底丢弃。
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+      if (debounceTimerRef.current !== null) {
+        window.clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const applySourceType = useCallback((next: SourceType) => {
     sourceTypeRef.current = next;
@@ -219,7 +233,8 @@ export function NetworkSettings() {
         actions.testSource(NPMJS_URL, silent),
         actions.testSource(NPMMIRROR_URL, silent),
       ]);
-      if (sourceTypeRef.current !== 'auto') {
+      // 卸载后到达的探测结果直接丢弃：ref 仍保留旧值，不拦会继续落盘。
+      if (!aliveRef.current || sourceTypeRef.current !== 'auto') {
         return;
       }
       const candidates = [
