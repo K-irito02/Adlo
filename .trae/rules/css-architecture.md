@@ -28,7 +28,7 @@ alwaysApply: false
 适配第三方主题（如 `github-markdown-css`）时，**不要把官方 CSS 原样引入再逐主题换文件**——换文件意味着取数 + 解析，切换瞬间旧样式已卸、新样式未到，必然闪烁/拖慢（实测三轮弯路：按需 `<link>` 换 href → 预载 + 翻 `disabled`（`disabled` 表不取数，等于没预载）→ 构建期内联 + 双槽换文本）。约定做法：
 
 - **变量驱动单表**：把颜色逐槽参数化为 `--md-*` 之类变量，多套配色只给多组变量定义；切换只翻容器属性（如 `data-md-theme`），纯变量重算、同一任务内完成、零取数零 FOUC。
-- **生成器 + 自校验 + 精确 pin**：写脚本从上游包生成该单表（产物首行标注 `GENERATED FILE — 请勿手改` 与再生成命令，源脚本与产物都入库）；脚本内置自校验（值级比对、映射键存在性、发射选择器形态），`package.json` 对上游**精确 pin**（不带 `^`）以免小版本静默漂移。参考：`frontend/scripts/generate-md-theme-vars.mjs`。
+- **生成器 + 自校验 + 精确 pin**：写脚本从上游包生成该单表（产物首行标注 `GENERATED FILE — 请勿手改` 与再生成命令，源脚本与产物都入库）；脚本内置自校验（值级比对、映射键存在性、发射选择器形态），`package.json` 对上游**精确 pin**（不带 `^`）以免小版本静默漂移。参考：`frontend/scripts/generate-md-theme-vars.mjs`。产物必须加入 `.prettierignore`（格式化会改写引号/前导零，造成产物与生成器漂移），并由 `pnpm gen:check`（重跑生成器 + `git diff --exit-code`）在 CI 校验一致性。
 - **构建期 `?inline` 注入**：产物以 `?inline` 作为模块字符串于首次挂载注入 `<style>`（`el.textContent = css`，勿用 `innerHTML` 以免 `</style>` 破出），避免运行时额外请求；需 CSP 允许 `style-src 'unsafe-inline'`（本项目已允许）；注入用 `useLayoutEffect` 以免首帧无样式。
 - **同元素限定覆盖**：容器常为同一元素多 class，覆盖规则必须写成 `.markdown-body[data-md-theme=x] h1`（同元素属性限定）；**不能**写成 `.adl-markdown-preview[data-md-theme=x] .markdown-body h1`（后代组合恒不命中，且两族色值巧合相等时会「零视觉症状」地失效）。
 - 应用自身 chrome 的主题仍走 `themes.css` 语义 token；预览类第三方主题是**独立轴**（亮暗分组跟随应用主题），不与应用 token 混用。

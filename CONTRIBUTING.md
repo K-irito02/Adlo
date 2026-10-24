@@ -44,6 +44,18 @@ pnpm run dev:browser
 pnpm run dev:both
 ```
 
+### 提交前门禁（本地钩子）
+
+CI 的 `Quality Gates` 是最终门禁。为免 push 之后才发现红灯，建议每个克隆安装一次 pre-push 钩子：
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+钩子运行前端的 `check:static`（lint / typecheck / format / i18n / 术语表 / 生成物一致性）；测试仍由 CI 分片执行。
+
+> 维护者：需在 GitHub 分支保护中把 `Quality Gates` 设为 `main` 的 required check，否则红灯不会阻断合并。
+
 ### 多会话并行开发
 
 多个会话 / 多 agent 同时开发时，按 **一分支 = 一工作树 = 一会话** 隔离，不要共用同一目录：

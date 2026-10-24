@@ -10,6 +10,8 @@ How the engineering skills should consume this repo's domain documentation when 
 
 If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
 
+`GLOSSARY.md` shape is machine-checked by `pnpm --dir ai-digital-life/frontend check:glossary`: every term needs an `_Avoid_` line, and implementation tokens (paths, file names) or numeric counts are rejected.
+
 ## File structure
 
 Single-context repo (most repos):

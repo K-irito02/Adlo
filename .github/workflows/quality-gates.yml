@@ -134,6 +134,12 @@ jobs:
       - name: i18n coverage check
         run: pnpm check:i18n
 
+      - name: Glossary check
+        run: pnpm check:glossary
+
+      - name: Generated artifact check
+        run: pnpm gen:check
+
   frontend-test:
     name: Frontend (vitest shard ${{ matrix.shard }})
     runs-on: windows-latest
