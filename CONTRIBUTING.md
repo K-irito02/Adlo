@@ -44,17 +44,22 @@ pnpm run dev:browser
 pnpm run dev:both
 ```
 
-### 提交前门禁（本地钩子）
+### 提交前门禁（本地执行）
 
-CI 的 `Quality Gates` 是最终门禁。为免 push 之后才发现红灯，建议每个克隆安装一次 pre-push 钩子：
+本项目**不使用远程 CI**：lint / 类型检查 / 格式 / i18n / 术语表 / 生成物一致性 / 测试全部在本地完成。装一次 pre-push 钩子即可获得推送前拦截：
 
 ```powershell
 git config core.hooksPath .githooks
 ```
 
-钩子运行前端的 `check:static`（lint / typecheck / format / i18n / 术语表 / 生成物一致性）；测试仍由 CI 分片执行。
+钩子运行前端的 `check:static`（lint / typecheck / format / i18n / 术语表 / 生成物一致性）。需要连测试一起跑（约 5 分钟）时：
 
-> 维护者：需在 GitHub 分支保护中把 `Quality Gates` 设为 `main` 的 required check，否则红灯不会阻断合并。
+```powershell
+$env:ADL_PREPUSH_FULL = '1'   # 本次 push 额外执行 pnpm test
+git push
+```
+
+测试也可随时手动执行：`pnpm --dir ai-digital-life/frontend test`。
 
 ### 多会话并行开发
 

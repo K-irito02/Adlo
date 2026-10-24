@@ -297,7 +297,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 | 架构/开发/分析 | `docs/architecture/`、`docs/development/`（上行点名文件除外）、`docs/analysis/` | 决策、流程、分析结论 |
 | 设计/运维 | `docs/design-system/`、`docs/operations/`（UI 交互落 `ui-manual/`） | 可复用 UI 模式、运维手册 |
 | 沉淀 | `docs/knowledge-base/` | 经验教训 |
-| 工程基线 | `.github/workflows/quality-gates.yml`、`ai-digital-life/src-tauri/capabilities/*.json`、`ai-digital-life/src-tauri/tauri.conf.json`、`ai-digital-life/.cargo/config.toml`、`ai-digital-life/clippy.toml`、`ai-digital-life/rustfmt.toml`、根 `.editorconfig` | 触及 CI 命令 / 新增 Command 登记与通配 / CSP 与 `withGlobalTauri` / 构建基线时同步；未触及表态无需 |
+| 工程基线 | `.githooks/pre-push`、`ai-digital-life/src-tauri/capabilities/*.json`、`ai-digital-life/src-tauri/tauri.conf.json`、`ai-digital-life/.cargo/config.toml`、`ai-digital-life/clippy.toml`、`ai-digital-life/rustfmt.toml`、根 `.editorconfig` | 触及门禁命令 / 新增 Command 登记与通配 / CSP 与 `withGlobalTauri` / 构建基线时同步；未触及表态无需 |
 | 本技能归档 | `docs/root-cause-to-close/YYYY-MM/README.md` | 追加 `progress-...md` 链接（最新在最后）；用过 brainstorming 则确认设计文档（`docs/superpowers/specs/`）已索引 |
 
 UI 引入可复用模式或修正规范时，提取为标准并更新 `docs/design-system/` 与对应手册。

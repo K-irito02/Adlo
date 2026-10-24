@@ -15,7 +15,7 @@
 | 前端质量 | ESLint v9（flat config）+ Prettier + TypeScript-ESLint + React Hooks plugin |
 | Rust Lint | `cargo clippy --workspace --all-targets` |
 | 前端 Lint | `cd frontend && npx eslint . && npx tsc --noEmit` |
-| CI/CD | GitHub Actions（`../.github/workflows/quality-gates.yml`，Windows-only） |
+| 门禁 | 本地执行（无远程 CI）：前端 `pnpm check:static` / `check:full`；Rust 见 `cargo` 命令；pre-push 钩子见 `.githooks/` |
 | 凭据存储 | `crates/credential/`（keyring + 加密文件降级） |
 
 ### 存储路径解析（`adl-kernel::storage`）
@@ -235,7 +235,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 
 不再按时间窗口判断；超过 30 GB 直接全量清理。
 
-> CI（`quality-gates.yml`）每次无条件调用 `clean-target.ps1`，30GB 阈值判断在脚本内部（`$Threshold = 30`，未超阈即跳过），CI 层不做条件判断。
+> 清理脚本 `clean-target.ps1` 自身带 30GB 阈值判断（`$Threshold = 30`，未超阈即跳过）；本项目无远程 CI，清理只在本地按需执行。
 
 > 所有删除均为**永久删除**：`cargo clean`（及 `clean-target.ps1`）直接物理删除构建产物，**不进入回收站/垃圾箱**，删除后无需清空回收站。
 

@@ -48,7 +48,7 @@ alwaysApply: true
 
 - **构建**：前端 pnpm/Vite 构建 + Rust Cargo；打包命令 `cargo tauri build`（release: `codegen-units=1, lto=true, strip=true`）。
 - **开发**：`pnpm run dev:both` 双端并行；浏览器模式终端用轮询替代 SSE（Vite 会中断长连接，改中间件需重启 dev server）。
-- **CI/CD**：GitHub Actions `quality-gates.yml`（Windows-only）。
+- **质量门禁**：仅本地执行（无远程 CI）——前端 `check:static` / `check:full`，Rust 走 `cargo` 命令，pre-push 钩子见 `.githooks/`。
 - **harness 下载**：`crates/download-source` 管理 npm 仓库/镜像源/代理与连通性测试。
 - **磁盘治理**：`target/debug` > 30 GB 触发全量 `cargo clean`；`.cargo/config.toml` 控制调试符号体积。详见 `commands.md`、`quality-gates.md`、`mandatory-testing.md`。
 
