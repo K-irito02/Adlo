@@ -15,18 +15,16 @@ beforeEach(() => {
   mockParentSize = { width: 600, height: 200 };
 });
 
-const reactRequireCache = vi.hoisted(() => ({ mod: undefined as ReturnType<typeof require> }));
 vi.mock('motion/react', () => ({
   motion: new Proxy(
     {},
     {
       get: (_t: never, tag: string) =>
         function MotionTag({ children, ...rest }: Record<string, unknown>) {
-          const React = (reactRequireCache.mod ??= require('react'));
           return React.createElement(
             tag === 'default' ? 'div' : tag,
-            { className: rest.className, key: rest.key },
-            children,
+            { className: rest.className as string, key: rest.key as string },
+            children as React.ReactNode,
           );
         },
     },

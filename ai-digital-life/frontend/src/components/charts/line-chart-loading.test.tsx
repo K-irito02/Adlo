@@ -3,18 +3,16 @@ import { render } from '@testing-library/react';
 import React from 'react';
 import { LineChartLoading } from './line-chart-loading';
 
-const reactRequireCache = vi.hoisted(() => ({ mod: undefined as ReturnType<typeof require> }));
 vi.mock('motion/react', () => ({
   motion: new Proxy(
     {},
     {
       get: (_t: never, tag: string) =>
         function MotionTag({ children, ...rest }: Record<string, unknown>) {
-          const React = (reactRequireCache.mod ??= require('react'));
           const initial = rest.initial as Record<string, unknown> | undefined;
           const attrs: Record<string, unknown> = {
-            className: rest.className,
-            key: rest.key,
+            className: rest.className as string,
+            key: rest.key as string,
           };
           if (initial && typeof initial === 'object') {
             Object.entries(initial).forEach(([k, v]) => {
@@ -23,7 +21,11 @@ vi.mock('motion/react', () => ({
               }
             });
           }
-          return React.createElement(tag === 'default' ? 'div' : tag, attrs, children);
+          return React.createElement(
+            tag === 'default' ? 'div' : tag,
+            attrs,
+            children as React.ReactNode,
+          );
         },
     },
   ),

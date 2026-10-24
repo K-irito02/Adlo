@@ -5,18 +5,16 @@ import { HeatmapChart } from './heatmap-chart';
 import { HeatmapXAxis } from './heatmap-x-axis';
 import type { HeatmapColumn } from './heatmap-context';
 
-const reactRequireCache = vi.hoisted(() => ({ mod: undefined as ReturnType<typeof require> }));
 vi.mock('motion/react', () => ({
   motion: new Proxy(
     {},
     {
       get: (_t: never, tag: string) =>
         function MotionTag({ children, ...rest }: Record<string, unknown>) {
-          const React = (reactRequireCache.mod ??= require('react'));
           return React.createElement(
             tag === 'default' ? 'div' : tag,
-            { className: rest.className, key: rest.key },
-            children,
+            { className: rest.className as string, key: rest.key as string },
+            children as React.ReactNode,
           );
         },
     },
