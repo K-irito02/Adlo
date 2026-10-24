@@ -7,6 +7,7 @@ coverage
 src/shared/ipc-types.generated.ts
 src/shared/ipc/generated/
 src/vite-env.d.ts
+src/styles/vendor/markdown-theme-vars.css
 
 # Test fixtures & mocks (mirrors ESLint ignores)
 src/test-fixtures/
