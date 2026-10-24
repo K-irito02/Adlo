@@ -1,15 +1,16 @@
-//! Environment dependency source model (`adl-env` skeleton, Task 7).
+//! Environment dependency source model (`adl-env`).
 //!
 //! Low-level crate: source preference model + pure [`resolve()`] function with
 //! the same priority semantics as `dsh-version::resolve_effective_source`
 //! (read-only reference, do not modify there):
 //! auto prefers host over system, forced modes never silently downgrade.
-//! Providers (`node`/`git`/`bash`/`webview2`/`adlserver`/`netprobe`) and
-//! server routes arrive in Tasks 8-11.
+//! Providers (`node`/`git`/`bash`/`webview2`/`adlserver`/`netprobe`), baseline
+//! pins and source config live here; the `/env/*` routes are served by
+//! `adl-server` on top of this crate.
 
 use serde::{Deserialize, Serialize};
 
-/// Hosted-install providers (`node` now; `git`/`bash`/… arrive in Tasks 9-10).
+/// Hosted-install providers plus detect-only probes.
 pub mod providers;
 
 /// Source preferences (`env-sources.json`, Task 11).

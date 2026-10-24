@@ -96,7 +96,7 @@ pub(crate) fn swap_rename_or_copy(staging: &Path, target: &Path) -> Result<(), A
     Ok(())
 }
 
-/// 递归复制目录（照抄 `dsh-bundle::copy_dir`；链接/junction 遇错直接报错，不静默丢文件）。
+/// 递归复制目录（从原 `dsh-bundle` 内部 helper 提取而来；链接/junction 遇错直接报错，不静默丢文件）。
 fn copy_dir(from: &Path, to: &Path) -> Result<(), AppError> {
     std::fs::create_dir_all(to)
         .map_err(|e| AppError::Io(format!("create {}: {e}", to.display())))?;

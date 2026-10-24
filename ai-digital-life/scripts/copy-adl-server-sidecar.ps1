@@ -29,7 +29,10 @@ $DestDir = Join-Path $WorkspaceRoot "src-tauri\binaries"
 $Dest = Join-Path $DestDir "adl-server-x86_64-pc-windows-msvc.exe"
 
 if (-not (Test-Path -LiteralPath $Src)) {
-    Write-Error "adl-server binary not found at $Src. Build it first: cargo build -p adl-server --profile $Profile"
+    $BuildHint =
+        if ($Profile -eq "release") { "cargo build -p adl-server --release" }
+        else { "cargo build -p adl-server" }
+    Write-Error "adl-server binary not found at $Src. Build it first: $BuildHint (or run pnpm run stage:sidecar from ai-digital-life/)"
     exit 1
 }
 

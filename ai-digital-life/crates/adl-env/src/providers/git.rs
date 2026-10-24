@@ -156,7 +156,7 @@ pub fn uninstall(data_dir: &Path, version: &str) -> Result<UninstallOutcome, App
     std::fs::remove_dir_all(&target)
         .map_err(|e| AppError::Io(format!("remove {}: {e}", target.display())))?;
     let selected = if was_selected {
-        let next = hv.best_fallback(None);
+        let next = hv.best_fallback();
         match &next {
             Some(v) => hv.write_selected(v)?,
             None => {

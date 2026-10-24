@@ -15,7 +15,7 @@
 # i.e. this script lives at `scripts/build-stage-sidecar.ps1` from there.
 #
 # Usage (run from `ai-digital-life/`):
-#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-stage-sidecar.ps1 [-Profile release] [-Force]
+#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-stage-sidecar.ps1 [-Profile release]
 #
 # The staged file must exist before ANY cargo build of src-tauri (dev, test,
 # clippy included): tauri-build copies `externalBin` entries in its build
@@ -25,13 +25,11 @@
 # Always invokes cargo: the build is the freshness check. A mtime-based skip is
 # unsafe because the staged file name is shared by debug and release profiles,
 # so an up-to-date debug stage would silently satisfy a release build. Cargo's
-# own incremental no-op keeps repeat runs cheap. `-Force` remains accepted for
-# backwards-compatible invocation but has no additional effect.
+# own incremental no-op keeps repeat runs cheap.
 
 param(
     [ValidateSet("debug", "release")]
-    [string]$Profile = "release",
-    [switch]$Force
+    [string]$Profile = "release"
 )
 
 $ErrorActionPreference = "Stop"
@@ -43,10 +41,6 @@ $Manifest = Join-Path $WorkspaceRoot "Cargo.toml"
 $ProfileArgs = if ($Profile -eq "release") { @("--release") } else { @() }
 
 $Staged = Join-Path $WorkspaceRoot "src-tauri\binaries\adl-server-x86_64-pc-windows-msvc.exe"
-
-# `-Force` intentionally unused: the build always runs so profile changes can
-# never be masked by a stale staged artifact.
-$null = $Force
 
 # Preserve any caller-provided flags (e.g. CI's `-D warnings`) and append the
 # static CRT requirement.

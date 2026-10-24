@@ -96,8 +96,7 @@ fn hosted(data_dir: &Path) -> HostedVersions {
     HostedVersions::open(data_dir, HOSTED_NAME, MARKER_REL)
 }
 
-/// Absolute path of the hosted `node.exe` for `version` (no existence check;
-/// the offline-tested half of [`run_host_bin`]).
+/// Absolute path of the hosted `node.exe` for `version` (no existence check).
 pub fn host_bin_path(data_dir: &Path, version: &str) -> PathBuf {
     hosted(data_dir).installed_marker(version)
 }
@@ -144,7 +143,7 @@ pub fn uninstall(data_dir: &Path, version: &str) -> Result<UninstallOutcome, App
     std::fs::remove_dir_all(&target)
         .map_err(|e| AppError::Io(format!("remove {}: {e}", target.display())))?;
     let selected = if was_selected {
-        let next = hv.best_fallback(None);
+        let next = hv.best_fallback();
         match &next {
             Some(v) => hv.write_selected(v)?,
             None => {
@@ -222,28 +221,6 @@ pub async fn install(
     };
     reporter.finish();
     Ok(installed)
-}
-
-/// Run the hosted `node.exe` for `version` with the hosted dir prepended to
-/// `PATH` (Phase 2 dsh launch reuses this PATH injection; this phase only
-/// provides the interface).
-pub fn run_host_bin(
-    data_dir: &Path,
-    version: &str,
-    args: &[&str],
-) -> Result<std::process::Output, AppError> {
-    let bin = host_bin_path(data_dir, version);
-    if !bin.is_file() {
-        return Err(AppError::NotFound(format!("hosted node {version} not installed")));
-    }
-    let Some(dir) = bin.parent() else {
-        return Err(AppError::Internal(format!("host bin {} has no parent", bin.display())));
-    };
-    let sep = if cfg!(windows) { ";" } else { ":" };
-    let path = std::env::var("PATH").unwrap_or_default();
-    let mut cmd = std::process::Command::new(&bin);
-    cmd.args(args).env("PATH", format!("{}{sep}{path}", dir.display()));
-    cmd.output().map_err(|e| AppError::Io(format!("run {}: {e}", bin.display())))
 }
 
 #[cfg(test)]

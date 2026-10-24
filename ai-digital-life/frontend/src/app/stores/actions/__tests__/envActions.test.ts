@@ -428,7 +428,7 @@ describe('envActions installEnvDep', () => {
     await expect(store.getState().installEnvDep('node')).resolves.toBe(true);
     expect(store.getState().envStatus?.task?.error).toBe('download failed');
     await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS);
-    // 变异前无失败（initialErrorKey=null）→ 本次失败必须 toast + 错误卡各一次。
+    // install 传 suppressInitialError=false（启动前无失败快照）→ 本次失败必须 toast + 错误卡各一次。
     expect(store.getState().errorToasts).toHaveLength(1);
     const errorToasts = mockShowToast.mock.calls.filter(([, type]) => type === 'error');
     expect(errorToasts).toHaveLength(1);

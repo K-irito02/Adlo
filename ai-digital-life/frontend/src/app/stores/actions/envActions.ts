@@ -72,9 +72,9 @@ function taskVersionOf(task: { version: string }, dep: string): string {
 
 /**
  * 失败任务的身份键：`kind + version + error`。
- * 轮询启动时捕获一次（安装/卸载路径捕获变异前的快照），tick 上遇到 task.error
- * 只有身份一致才视为「启动前就存在的陈旧快照」静默清除；否则是本次操作窗口内
- * 新产生的失败，必须照常 toast + 错误卡（N-01）。
+ * 仅供轮询启动时判断启动快照是否已经失败：`suppressInitialError` 为 true
+ * （挂载/采纳）时据此静默清除既有失败快照；install/uninstall 传 false，首个
+ * error 一律视为本次操作的新失败并照常上报（文本可能完全相同，见 N-F2）。
  */
 function taskErrorKey(task: EnvTask | null): string | null {
   const error = task?.error ?? '';

@@ -12,15 +12,6 @@ pub struct HostedProcess {
     pub port: u16,
 }
 
-/// 绑定一个临时端口以探测空闲端口号，随后关闭监听返回端口。
-pub fn pick_free_port() -> Result<u16, AppError> {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0")
-        .map_err(|e| AppError::Io(format!("bind ephemeral port failed: {e}")))?;
-    let port =
-        listener.local_addr().map_err(|e| AppError::Io(format!("local_addr failed: {e}")))?.port();
-    Ok(port)
-}
-
 /// 去掉 ANSI 转义序列（如 `\x1b[0m`），避免残留控制字符进日志。
 fn strip_ansi(s: &str) -> String {
     let mut out = String::with_capacity(s.len());

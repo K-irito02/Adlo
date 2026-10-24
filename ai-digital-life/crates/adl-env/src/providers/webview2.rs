@@ -21,20 +21,17 @@ pub const WEBVIEW2_CLIENT_GUID: &str = "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
 /// The frontend maps this code to i18n copy (download link + explanation).
 pub const MANAGED_BY_INSTALLER: &str = "webview2-managed-by-installer";
 
-const HKLM_MACHINE_64: &str = r"HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
-const HKLM_MACHINE_32: &str =
-    r"HKLM\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
-const HKCU_USER: &str =
-    r"HKCU\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
-
 /// 64-bit machine-wide key first, then 32-bit Windows machine-wide key.
-pub(crate) fn hklm_machine_keys() -> [&'static str; 2] {
-    [HKLM_MACHINE_64, HKLM_MACHINE_32]
+pub(crate) fn hklm_machine_keys() -> [String; 2] {
+    [
+        format!(r"HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{WEBVIEW2_CLIENT_GUID}"),
+        format!(r"HKLM\SOFTWARE\Microsoft\EdgeUpdate\Clients\{WEBVIEW2_CLIENT_GUID}"),
+    ]
 }
 
 /// Per-user key (no `WOW6432Node` per Microsoft docs).
-pub(crate) fn hkcu_key() -> &'static str {
-    HKCU_USER
+pub(crate) fn hkcu_key() -> String {
+    format!(r"HKCU\SOFTWARE\Microsoft\EdgeUpdate\Clients\{WEBVIEW2_CLIENT_GUID}")
 }
 
 /// System-side detection outcome (same shape as `node`/`git`).
@@ -106,9 +103,9 @@ fn reg_pv(hive_key: &str) -> Option<String> {
 /// a version, not a path.
 pub fn detect() -> Detection {
     let keys = hklm_machine_keys();
-    let v64 = reg_pv(keys[0]);
-    let v32 = reg_pv(keys[1]);
-    let hkcu = reg_pv(hkcu_key());
+    let v64 = reg_pv(&keys[0]);
+    let v32 = reg_pv(&keys[1]);
+    let hkcu = reg_pv(&hkcu_key());
     let machine_best = pick_highest(v64.as_deref(), v32.as_deref());
     match pick_highest(machine_best.as_deref(), hkcu.as_deref()) {
         Some(version) => Detection { available: true, version: Some(version), path: None },

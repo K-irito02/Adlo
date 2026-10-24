@@ -1,4 +1,4 @@
-//! Hosted-install providers for environment dependencies (Tasks 8-9).
+//! Hosted-install providers for environment dependencies.
 //!
 //! `node`/`git`/`bash` are hosted-install providers; `webview2`/`adlserver`
 //! are detect-only (registry / bundled binary) and `netprobe` is a

@@ -109,10 +109,6 @@ pub fn adopt(bundle_dir: &Path, versions_dir: &Path) -> Result<Option<String>, A
         return Ok(None);
     }
 
-    if let Some(parent) = target_pkg.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| AppError::Io(format!("create {}: {e}", parent.display())))?;
-    }
     adl_hosted::swap_into_place(&bundled.path, &target_pkg)?;
     if !target_pkg.join(BIN_JS).is_file() {
         // 此时源已移走，删目标会让两份都没了：只报错留痕，交给人工/下次安装处理。

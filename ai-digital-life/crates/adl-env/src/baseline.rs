@@ -49,18 +49,6 @@ pub fn load_from(path: &Path) -> Result<EnvBaseline, AppError> {
         .map_err(|e| AppError::Config(format!("Failed to parse env baseline: {e}")))
 }
 
-/// The baseline install target for `dep`: `node`/`git` stable, `None` for
-/// the rest (`bash` rides the git install, `webview2`/`adlserver` are not
-/// installed by us, `netprobe` is a probe). Unknown deps are also `None`
-/// (callers validate `dep` separately via `config`).
-pub fn stable_of(baseline: &EnvBaseline, dep: &str) -> Option<String> {
-    match dep {
-        "node" => Some(baseline.node.stable.clone()),
-        "git" => Some(baseline.git.stable.clone()),
-        _ => None,
-    }
-}
-
 /// Where to look for the bundled baseline at runtime, in order:
 /// packaged layout (`<exe_dir>/resources/…`, Tauri `bundle.resources`) first,
 /// then the dev-tree fallback (compile-time manifest path, only exists when
@@ -90,7 +78,7 @@ pub fn load(exe_dir: &Path) -> Result<EnvBaseline, AppError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{candidates, load, load_from, stable_of};
+    use super::{candidates, load, load_from};
     use std::path::{Path, PathBuf};
 
     const SAMPLE: &str = r#"{
@@ -112,7 +100,7 @@ mod tests {
     }
 
     #[test]
-    fn load_from_parses_and_stable_of_covers_matrix() {
+    fn load_from_parses_baseline() {
         let tmp = std::env::temp_dir().join(format!(
             "adl_env_base_{}",
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
@@ -126,11 +114,6 @@ mod tests {
         // tag+asset 逐字透传：不得由 short semver 推导。
         assert!(base.git.tag.starts_with('v'));
         assert_ne!(base.git.asset, format!("MinGit-{}.zip", base.git.stable));
-        assert_eq!(stable_of(&base, "node").as_deref(), Some("24.22.1"));
-        assert_eq!(stable_of(&base, "git").as_deref(), Some("2.56.0"));
-        assert_eq!(stable_of(&base, "bash"), None);
-        assert_eq!(stable_of(&base, "webview2"), None);
-        assert_eq!(stable_of(&base, "bogus"), None);
         let _ = std::fs::remove_dir_all(&tmp);
     }
 

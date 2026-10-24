@@ -52,8 +52,8 @@ impl HostedVersions {
         parsed.sort_by(|a, b| a.0.cmp(&b.0));
         parsed.into_iter().map(|(_, v)| v).collect()
     }
-    pub fn best_fallback(&self, except: Option<&str>) -> Option<String> {
-        self.installed_versions().into_iter().rev().find(|v| Some(v.as_str()) != except)
+    pub fn best_fallback(&self) -> Option<String> {
+        self.installed_versions().into_iter().next_back()
     }
     pub fn selected_file_path(&self) -> PathBuf {
         self.root.join(&self.name).join("selected.txt")
@@ -106,7 +106,7 @@ mod tests {
         std::fs::create_dir_all(tmp.join("node").join("installed").join("xx")).unwrap();
         hv.mark_installed("22.14.0").expect("mark");
         assert_eq!(hv.installed_versions(), vec!["22.14.0".to_string()]);
-        assert_eq!(hv.best_fallback(None).as_deref(), Some("22.14.0"));
+        assert_eq!(hv.best_fallback().as_deref(), Some("22.14.0"));
         hv.write_selected("22.14.0").expect("select");
         assert_eq!(hv.read_selected().expect("read").as_deref(), Some("22.14.0"));
         let _ = std::fs::remove_dir_all(&tmp);
@@ -133,7 +133,7 @@ mod tests {
         hv.mark_installed("10.0.0").expect("mark 10");
         hv.mark_installed("9.0.0").expect("mark 9");
         assert_eq!(hv.installed_versions(), vec!["9.0.0".to_string(), "10.0.0".to_string()]);
-        assert_eq!(hv.best_fallback(None).as_deref(), Some("10.0.0"));
+        assert_eq!(hv.best_fallback().as_deref(), Some("10.0.0"));
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -146,7 +146,7 @@ mod tests {
             hv.installed_versions(),
             vec!["24.22.1-rc.1".to_string(), "24.22.1".to_string()]
         );
-        assert_eq!(hv.best_fallback(None).as_deref(), Some("24.22.1"));
+        assert_eq!(hv.best_fallback().as_deref(), Some("24.22.1"));
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
