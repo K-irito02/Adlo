@@ -14,9 +14,10 @@
 | 分类 | 说明 | 数量 |
 |------|------|------|
 | Superpowers 体系技能 | 来自开源项目 [obra/superpowers](https://github.com/obra/superpowers) 的技能体系，覆盖需求澄清、计划、执行、审查、验证等研发全流程 | 14 |
+| Matt Pocock 工程技能 | 来自 [mattpocock/skills](https://github.com/mattpocock/skills)（[aihero.dev](https://www.aihero.dev/skills)）的 Engineering 分类，覆盖需求成型、规格与工单、实现、TDD、审查、诊断、域建模与代码库架构 | 20 |
 | 其他社区技能 | 从社区技能仓库安装的技能（来源见 `.agents/.skill-lock.json`），涵盖技能创建、浏览器自动化、UI/UX 设计等 | 8 |
 | 项目自建技能 | 为本仓库定制的技能，与本项目的治理规则、文档体系、运行方式强绑定 | 7 |
-| **合计** | 数量以 `.agents/skills/` 实际目录为准 | **29** |
+| **合计** | 数量以 `.agents/skills/` 实际目录为准 | **49** |
 
 ### 1.2 使用与维护约定
 
@@ -110,3 +111,30 @@
 | `parallel-branch-development` | `parallel-branch-development` | 多会话 / 多 agent 并行开发本仓库时使用：开工环境自检、新建或复用分支工作树（槽位）、隔离与保留约定；细则以仓库根 `parallel-branch-development.md` 为准。 |
 | `root-cause-to-close` | `root-cause-to-close` | 当 Bug、测试失败、回归、偶发或意外行为需要根因调查与修复时使用（未找到根因前禁止修复）；也用于已完成会话的收尾——结项、审查、文档同步、清理。不适用于新功能或琐碎改动。 |
 | `run-project-surfaces` | `run-project-surfaces` | 启动 AI Digital Life 的三种运行模式（浏览器预览、Tauri 桌面、双端并行），自动选择空闲端口并统一管理子进程生命周期；用户要求运行、启动或预览应用时使用。 |
+
+### 4.4 Matt Pocock 工程技能（20）
+
+> 安装命令：`npx skills@latest add mattpocock/skills --agent universal --skill <name>`。其中标「仅用户调用」者在其 `SKILL.md` 中声明 `disable-model-invocation: true`，只能由用户显式触发，模型不会自行调用。
+
+| 技能目录 | 调用名 | 说明 |
+|----------|--------|------|
+| `ask-matt` | `ask-matt` | 询问当前情境适合使用哪个技能或流程；对本技能集的用户调用入口路由（仅用户调用）。 |
+| `code-review` | `code-review` | 以固定基点（提交、分支、标签或 merge-base）沿两条轴审查改动：规范（是否遵循仓库编码规范）与规格（是否忠实实现来源 issue/spec），两条审查并行运行并并列汇报；适用于审查分支、PR 或进行中的改动。 |
+| `codebase-design` | `codebase-design` | 设计深模块的共享词汇与纪律：小接口、清晰接缝、可通过接口测试；用于设计或改进模块接口、寻找加深机会、决定接缝位置，或为其他技能提供深模块词汇。 |
+| `diagnosing-bugs` | `diagnosing-bugs` | 针对难缠 Bug 与性能回归的纪律化诊断循环：先建立能在该 Bug 上变红的反馈回路 → 最小化 → 假设 → 插桩 → 修复 → 回归测试。 |
+| `domain-modeling` | `domain-modeling` | 主动构建并打磨项目领域模型：质疑术语、用场景做压力测试、就地更新 `GLOSSARY.md` 与 ADR。 |
+| `grill-with-docs` | `grill-with-docs` | 高强度追问以打磨方案或设计，并同步产出文档（ADR 与术语表）（仅用户调用）。 |
+| `implement` | `implement` | 依据 spec 或一组工单实施工作，在约定接缝处驱动 `/tdd`，提交前以 `/code-review` 收尾（仅用户调用）。 |
+| `implement-spec` | `implement-spec` | 在单一集成分支上实现完整 spec：把工单当成任务图，在就绪前沿并发运行实施子代理，最后以 `/code-review` 收尾（仅用户调用）。 |
+| `improve-codebase-architecture` | `improve-codebase-architecture` | 扫描代码库中的「加深」机会，以可视化 HTML 报告呈现，再对选定项进行追问（仅用户调用）。 |
+| `pr` | `pr` | 撰写 PR 描述的结构：用最小可视化摘要说明改动、用前后证据证明可用、给出合并风险判断（单向门/双向门与影响半径）。 |
+| `prototype` | `prototype` | 构建一次性原型回答设计问题：单个可分享 HTML 文件用于验证状态与逻辑，或多个可切换 UI 方案。 |
+| `research` | `research` | 针对高可信一手来源调研问题，并将结论以带引用的 Markdown 文件写入仓库；适合把资料搜集交给后台代理。 |
+| `retro` | `retro` | 会话结束后提出对编码代理环境的改进建议（导航、自动化检查、编码规范、引导文件、工具），按严重程度排序（仅用户调用）。 |
+| `setup-matt-pocock-skills` | `setup-matt-pocock-skills` | 仓库一次性配置：设定 issue tracker、triage 标签词表与领域文档布局；首次使用其他工程技能前运行（仅用户调用）。 |
+| `tdd` | `tdd` | 测试驱动开发的红-绿-重构循环，按垂直切片逐片构建功能或修复 Bug。 |
+| `to-spec` | `to-spec` | 把当前对话综合成 spec 并发布到项目 issue tracker：不做访谈，只综合已讨论内容（仅用户调用）。 |
+| `to-tickets` | `to-tickets` | 把计划、spec 或当前对话拆成一组「曳光弹」工单，每单声明阻塞边；本地以文本记录，真实 tracker 上以原生阻塞链接表达（仅用户调用）。 |
+| `triage` | `triage` | 按 triage 角色状态机推进 issue 与外部 PR：分类、核验、必要时追问，并写出可供代理直接执行的简报（仅用户调用）。 |
+| `wayfinder` | `wayfinder` | 把超出单会话容量的大块工作规划为 issue tracker 上的决策工单共享地图，逐张解决直到通往目标的路径清晰（仅用户调用）。 |
+| `wizard` | `wizard` | 生成交互式 bash 向导，引导人完成只有本人能做的步骤（基础设施开通、凭据/CI secret 配置、陌生第三方控制台操作、一次性迁移或切换）。 |
