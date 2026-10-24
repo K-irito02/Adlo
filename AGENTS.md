@@ -105,6 +105,20 @@ TypeScript/Rust 风格指南、Commit 规范详见 [dev-rules.md](.agents/rules/
 
 测试规范详见 [mandatory-testing.md](.agents/rules/mandatory-testing.md)。
 
+## Agent skills
+
+### Issue tracker
+
+Issue 与 spec 存放在 GitHub Issues（`K-irito02/Kora`），使用 `gh` CLI。详见 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+五个规范标签：`needs-triage` / `needs-info` / `ready-for-agent` / `ready-for-human` / `wontfix`。详见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+单上下文：术语表为仓库根 `GLOSSARY.md`，决策记录在 `docs/adr/`。详见 `docs/agents/domain.md`。
+
 ## 相关文档
 
 - [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md) — 实现工作区治理（技术栈、功能清单、Stores 架构）
