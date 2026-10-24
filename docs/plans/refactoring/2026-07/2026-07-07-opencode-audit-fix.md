@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust 1.85+ / Tauri 2.x / Tokio / reqwest / rmcp 1.x / pulldown-cmark / readability
 
-**审计来源:** [opencode-audit-2026-07-07.md](../../../refactoring-insight/report/audit/opencode-audit-2026-07-07.md)
+**审计来源:** `opencode-audit-2026-07-07.md`（原文已归档）
 
 ## Global Constraints
 

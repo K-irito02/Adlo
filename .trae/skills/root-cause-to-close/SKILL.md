@@ -196,7 +196,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 4. 加验证日志（进出、转换前后值、错误路径、依赖假设），加完必须触发一次（见调试埋点触发节），禁止加完不跑。
 5. 记进度文件 → 进 P3。
 
-**失败迭代：** 第 1–2 次返回 P0 或补外部调研；第 3 次起**停止**并质疑架构（每次修爆新位置 / 需大规模重构 / 修一处坏一处 → 与用户讨论，配合 `refactoring-insight` + 外部调研）。
+**失败迭代：** 第 1–2 次返回 P0 或补外部调研；第 3 次起**停止**并质疑架构（每次修爆新位置 / 需大规模重构 / 修一处坏一处 → 与用户讨论，配合外部调研做架构评估）。
 
 ### P2B：预防性措施（无根因）
 
@@ -374,7 +374,6 @@ P5 逐项表态完成后直接进 P6（阶段之间不停留；结算性工作�
 - `codegraph-knowledge-graph` — P0/预检的代码探索
 - `test-driven-development` — P2A 失败测试
 - `systematic-debugging` — P0 方法论补充
-- `refactoring-insight` — 架构质疑时评估
 - `verification-before-completion` — 宣告成功前验证
 - `run-project-surfaces` — 按手册启动 Tauri / 浏览器 / 双端（启动器，不代操作；与自动化 Skill 组合用）
 - `playwright-cli` — 浏览器模式自动化触发（快照 refs 定位、eval 断言、console/requests 排障、route mock；经验见 `references/playwright-cli-experience.md`）

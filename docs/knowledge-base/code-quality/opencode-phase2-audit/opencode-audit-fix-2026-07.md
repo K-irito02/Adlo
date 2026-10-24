@@ -57,5 +57,5 @@ Phase 2 功能落地后，对照参考实现进行功能审计，发现 10 项�
 
 ## 相关文件
 
-- [重构进度报告](../../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md#第九十三轮opencode-功能审计缺陷修复2026-07-08)
+- `重构进度报告`（原文已归档）
 - [前次缺陷修复经验](./opencode-feature-defects-2026-07-06.md)

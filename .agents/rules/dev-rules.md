@@ -85,7 +85,7 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 
 ### 根因优先
 
-排查问题时，**先定位根本原因**，不要急于添加预防措施/防御性代码/解决方案。使用 `systematic-debugging` 技能进行根因调查，找到根因后用 `root-cause-resolution` 技能进行方案设计、验证与清理。仅在确认不存在根本因素（或无法定位）后，方可补充预防措施。所有新增的预防/防御/解决方案必须**真实有效**，杜绝任何无效或不必要的措施。
+排查问题时，**先定位根本原因**，不要急于添加预防措施/防御性代码/解决方案。使用 `systematic-debugging` 技能进行根因调查，找到根因后用 `root-cause-to-close` 技能进行方案设计、验证与清理。仅在确认不存在根本因素（或无法定位）后，方可补充预防措施。所有新增的预防/防御/解决方案必须**真实有效**，杜绝任何无效或不必要的措施。
 
 ### 常见根因速查
 
@@ -134,7 +134,7 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 
 构建产物由 `.cargo/config.toml` 统一治理（第三方依赖 `debug=1`，自有 crate 白名单 `debug=2`）。遵循以下规范：
 
-1. 收尾流程（closing-workflow Step 0）执行 `powershell -File "ai-digital-life\.cargo\clean-target.ps1" -WhatIf` 干跑检查
+1. 收尾流程（`root-cause-to-close` P6 清理阶段）执行 `powershell -File "ai-digital-life\.cargo\clean-target.ps1" -WhatIf` 干跑检查
 2. 空间阈值触发全量清理：`target/debug` 超 30 GB → 执行 `clean-target.ps1` 全量 `cargo clean`（不按时间窗口判断）
 3. 手动全清使用 `cargo clean`（或 `cargo prune` 别名 = `clean`）
 

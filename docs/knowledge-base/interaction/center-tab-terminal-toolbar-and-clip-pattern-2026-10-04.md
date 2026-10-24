@@ -51,6 +51,6 @@
 
 ## 相关
 
-- 根因档案：[progress-2026-10-04-145855.md](../../root-cause-resolution/2026-10/progress-2026-10-04-145855.md)
+- 根因档案：`progress-2026-10-04-145855.md`（原文已归档）
 - 代码：`frontend/src/styles/components/tab-clip.css`、`frontend/src/styles/utilities.css`、
   `frontend/src/app/hooks/useTabTitleRename.ts`、`frontend/src/app/regions/CenterTabStrip.tsx`

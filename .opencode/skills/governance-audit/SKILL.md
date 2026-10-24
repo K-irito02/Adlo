@@ -23,7 +23,7 @@ description: Audit and sync governance docs (rules, AGENTS.md, READMEs, root doc
 
 **使用**：要求审视 / 检查 / 审阅 / 清理 / 规范化规则文件、AGENTS.md、README.md、根治理文档、docs 内容目录、工程基线；治理文档之间矛盾、过时或与代码库实际状态不符；要求保证三规则目录或三技能目录一致。
 
-**不使用**：审计源码或其他非治理文档（改用 `refactoring-insight` / `documentation-organizer`）。
+**不使用**：审计源码或其他非治理文档（源码审计走代码审查流程；文档整理改用 `documentation-organizer`）。
 
 ## 执行模式
 

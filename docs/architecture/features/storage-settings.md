@@ -5,7 +5,7 @@
 > 实施计划见 [storage-foundation-and-wiring.md](../../superpowers/plans/2026-09-14-storage-foundation-and-wiring.md)、
 > [storage-migration-engine.md](../../superpowers/plans/2026-09-14-storage-migration-engine.md)、
 > [storage-ipc-and-ui.md](../../superpowers/plans/2026-09-14-storage-ipc-and-ui.md)；
-> 无限 loading 根因见 [progress-2026-09-15-134108.md](../../root-cause-resolution/2026-09/progress-2026-09-15-134108.md)。
+> 无限 loading 根因见 `progress-2026-09-15-134108.md`（原文已归档）。
 
 ## 摘要
 

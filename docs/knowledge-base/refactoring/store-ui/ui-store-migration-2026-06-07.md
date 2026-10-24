@@ -164,5 +164,5 @@ const { a, b, c } = useAppStore(useShallow((s) => ({
 
 ## 相关文档
 
-- [REFACTORING_PROGRESS_REPORT.md](../../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md) — 重构进度报告
+- `REFACTORING_PROGRESS_REPORT.md`（原文已归档） — 重构进度报告
 - [zustand-patterns.md](../../../../.trae/rules/zustand-patterns.md) — Zustand 状态管理模式

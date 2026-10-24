@@ -8,4 +8,3 @@
 - [plans/](../plans/) — 功能实施计划（按领域分类）
 - [specs/](../specs/) — 功能规格设计（按领域分类）
 - [knowledge-base/](../knowledge-base/) — 经验教训知识库
-- [refactoring-insight/](../refactoring-insight/) — 重构阶段总结与洞察报告
