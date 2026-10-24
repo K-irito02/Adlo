@@ -60,7 +60,7 @@ ai-digital-life/src-tauri/
 
 **Interfaces:**
 - Consumes: `adl-errors::AppError`
-- Produces: `HostedVersions::open(root, name)`, `installed_marker(version)`, `is_installed(version)`, `read_selected()`, `write_selected(v)`, `best_fallback(except) -> Option<String>`, `installed_versions() -> Vec<String>`（仅 marker 完整者；空目录/非 semver 忽略——照抄 dsh 语义）
+- Produces: `HostedVersions::open(root, name)`, `installed_marker(version)`, `is_installed(version)`, `read_selected()`, `write_selected(v)`, `best_fallback() -> Option<String>`, `installed_versions() -> Vec<String>`（仅 marker 完整者；空目录/非 semver 忽略——照抄 dsh 语义）
 
 - [ ] **Step 1: Write the failing test** — `crates/adl-hosted/src/hosted_versions.rs` 底部 `#[cfg(test)]`：
 
@@ -74,7 +74,7 @@ fn ignores_empty_dirs_and_non_semver() {
     std::fs::create_dir_all(tmp.join("installed").join("xx")).unwrap();
     hv.mark_installed("22.14.0").expect("mark");
     assert_eq!(hv.installed_versions(), vec!["22.14.0".to_string()]);
-    assert_eq!(hv.best_fallback(None).as_deref(), Some("22.14.0"));
+    assert_eq!(hv.best_fallback().as_deref(), Some("22.14.0"));
     hv.write_selected("22.14.0").expect("select");
     assert_eq!(hv.read_selected().expect("read").as_deref(), Some("22.14.0"));
     let _ = std::fs::remove_dir_all(&tmp);
@@ -118,8 +118,8 @@ impl HostedVersions {
         out.sort();
         out
     }
-    pub fn best_fallback(&self, except: Option<&str>) -> Option<String> {
-        self.installed_versions().into_iter().rev().find(|v| Some(v.as_str()) != except)
+    pub fn best_fallback(&self) -> Option<String> {
+        self.installed_versions().into_iter().next_back()
     }
     pub fn read_selected(&self) -> Result<Option<String>, AppError> {
         let p = self.root.join(&self.name).join("selected.txt");
@@ -273,7 +273,7 @@ async fn spawn_captures_marker_url() {
 Run: `cargo test -p adl-hosted proc_host 2>&1 | Select-Object -Last 3`
 Expected: FAIL（无此模块）
 
-- [ ] **Step 3: Write minimal implementation** — 逐行搬 `webapp-host::{spawn_capturing, drain_and_watch, spawn_node_direct}`，改动仅三处：① `program/args` 泛化（删 `node_bin` 特化命名）；② marker 从 `DSH_URL_MARKER` 常量改参数；③ 端口列表参数化（调用方传候选端口；dsh 传 `[pick_free, 3080]` 保持现有语义，`pick_free_port` 一并搬入）。`HostedProcess` 定义搬入本 crate。
+- [ ] **Step 3: Write minimal implementation** — 逐行搬 `webapp-host::{spawn_capturing, drain_and_watch, spawn_node_direct}`，改动仅三处：① `program/args` 泛化（删 `node_bin` 特化命名）；② marker 从 `DSH_URL_MARKER` 常量改参数；③ 端口列表参数化（调用方传候选端口；dsh 传 `[pick_free, 3080]` 保持现有语义；`pick_free_port` 仍留在 webapp-host，不迁移）。`HostedProcess` 定义搬入本 crate。
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -429,7 +429,7 @@ git commit -m "feat(rust): add adl-env skeleton and source resolution"
 
 **Interfaces:**
 - Consumes: Task 7；`adl-download-source::build_http_client`（registry/proxy 复用）；`HostedVersions::open(data_dir, "env-hosted", ...)` 注意：HostedVersions::open(root, name, marker) 中 name="env-hosted/node"? 按 Task 1 签名 `open(root, name, marker_rel)`，node 用 `open(data_dir, "env-hosted/node", "node.exe")`——安装目录即版本目录本身（`installed/<v>/node.exe`）。
-- Produces: `node::detect() -> Detection { available, version, path }`（跑 `node --version`，解析 `v22.14.0`；失败/`where node` 无命中 → unavailable）；`node::install(version, registry_cfg, reporter) -> Installed`（URL 模板取自 baseline：`{node_base}/v{version}/node-v{version}-win-x64.zip` → 下载 → 解压到 staging → marker `node.exe` 校验 → `swap_into_place` → `write_selected`）；`node::run_host_bin(version, args)`（供 dsh 启动复用 PATH 注入，Phase 2 接线，本期只备接口+单测）
+- Produces: `node::detect() -> Detection { available, version, path }`（跑 `node --version`，解析 `v22.14.0`；失败/`where node` 无命中 → unavailable）；`node::install(version, registry_cfg, reporter) -> Installed`（URL 模板取自 baseline：`{node_base}/v{version}/node-v{version}-win-x64.zip` → 下载 → 解压到 staging → marker `node.exe` 校验 → `swap_into_place` → `write_selected`）
 
 - [ ] **Step 1: Write the failing test**（离线：探测走真实 PATH；安装走本地 zip 桩——单测内用 `zip`？仓库无 zip 依赖……改用“已解压目录桩”：install 拆两步 `fetch_zip(url)->bytes` 与 `adopt_staging(dir)`，单测只测后者 + URL 拼接）：
 
@@ -579,7 +579,7 @@ git commit -m "feat(rust): add adl-env webview2 adlserver netprobe providers"
 Run: `cargo test -p adl-server --lib env 2>&1 | Select-Object -Last 3`
 Expected: FAIL（无 env handler）
 
-- [ ] **Step 3: Write minimal implementation** — config.rs（load/save，`#[serde(default)]`）、baseline.rs（`load_from(path)` + `stable_of(dep)`）、handlers（每个 handler ≤60 行，校验→锁→执行→快照；install 后台 `tokio::spawn` + 前端轮询 `env_task` 快照——照抄 `/dsh/install-version` + `/dsh/version-task` 结构，见 `dsh.rs:843-900`）、state/router 接线、baseline resource 文件 + tauri.conf resources。
+- [ ] **Step 3: Write minimal implementation** — config.rs（load/save，`#[serde(default)]`）、baseline.rs（`load_from(path)` / `candidates` / `load`）、handlers（每个 handler ≤60 行，校验→锁→执行→快照；install 后台 `tokio::spawn` + 前端轮询 `env_task` 快照——照抄 `/dsh/install-version` + `/dsh/version-task` 结构，见 `dsh.rs:843-900`）、state/router 接线、baseline resource 文件 + tauri.conf resources。
 
 - [ ] **Step 4: Run test to verify it passes**
 
