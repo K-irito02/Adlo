@@ -44,6 +44,16 @@ pnpm run dev:browser
 pnpm run dev:both
 ```
 
+### 多会话并行开发
+
+多个会话 / 多 agent 同时开发时，按 **一分支 = 一工作树 = 一会话** 隔离，不要共用同一目录：
+
+```bash
+git worktree add "E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/<branch>" -b <branch> main
+```
+
+开工自检、复用旧槽位（免冷构建）、合并后保留等完整流程见 [parallel-branch-development.md](./parallel-branch-development.md)。
+
 ### 目录结构
 
 ```
@@ -114,6 +124,7 @@ pnpm run dev:both
 ## 相关文档
 
 - [AGENTS.md](./AGENTS.md) — 项目治理规则、编码规范
+- [parallel-branch-development.md](./parallel-branch-development.md) — 并行分支开发手册（工作树隔离与复用）
 - [CONTEXT.md](./CONTEXT.md) — 领域术语表
 - [SECURITY.md](./SECURITY.md) — 安全策略
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划

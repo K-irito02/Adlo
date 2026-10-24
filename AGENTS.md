@@ -28,6 +28,12 @@
 
 技术栈详情与已实现功能清单见 [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)。范围边界与排除项见 [phase-boundary.md](.agents/rules/phase-boundary.md).
 
+## 并行开发（多会话 / 多 agent）
+
+并发会话一律在 `SourceWorkspace-worktrees/` 下的独立工作树中开发，遵循 **一分支 = 一工作树 = 一会话**：禁止两个会话进入同一目录，禁止跨工作树直接编辑文件。
+
+开工自检、新建与复用槽位、保留策略、异常处置见 [parallel-branch-development.md](./parallel-branch-development.md)（唯一操作手册）。硬约束摘要：契约文件单写者、禁止共享 `CARGO_TARGET_DIR`、分支工作树不写 `.workbuddy/memory`、工作树默认保留。
+
 ## 问题排查与调试
 
 排查问题时**先定位根本原因**，不要急于添加预防措施/防御性代码/解决方案。无法定位根因时，使用调试日志收起器（最高优先级）、复制调试日志按钮等调试手段，**禁止凭空猜测**。
@@ -61,6 +67,7 @@
 - 未发布产品的开发阶段禁止添加/保留数据格式兼容或旧版本迁移代码（产品发布后需添加时须先与用户确认）
 - 禁止「向后兼容」重导出或类似仅为旧导入路径保留的兼容层
 - 未经用户允许禁止擅自使用蓝色（含 `var(--accent)` 系）作为特殊提示警醒色、填充色等；此类场景一律使用白/灰/黑中性色（明度/纯度自行设计，须兼顾亮暗主题可见性），需其它颜色时先与用户确认（规范见 `.agents/rules/hint-color-usage.md`）
+- 并行开发时两个会话共用同一工作树目录、共享 `CARGO_TARGET_DIR`、或在分支工作树写 `.workbuddy/memory`（见 [parallel-branch-development.md](./parallel-branch-development.md)）
 
 ## 双端一致性
 
@@ -101,6 +108,7 @@ TypeScript/Rust 风格指南、Commit 规范详见 [dev-rules.md](.agents/rules/
 ## 相关文档
 
 - [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md) — 实现工作区治理（技术栈、功能清单、Stores 架构）
+- [parallel-branch-development.md](./parallel-branch-development.md) — 并行分支开发手册（工作树/槽位、开工自检、复用与保留策略）
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 未来想法
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — 贡献指南
 - [CONTEXT.md](./CONTEXT.md) — 领域术语表

@@ -145,6 +145,7 @@ app/stores/
 
 - [README.md](./README.md)
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [parallel-branch-development.md](../parallel-branch-development.md) — 并行分支开发手册（工作树/槽位、开工自检）
 - [docs/architecture/core/system-overview.md](../docs/architecture/core/system-overview.md)
 - [docs/design-system/README.md](../docs/design-system/README.md)
 
