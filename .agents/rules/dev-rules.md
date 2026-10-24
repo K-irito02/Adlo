@@ -19,6 +19,8 @@ alwaysApply: true
 - 类型检查与测试执行
 - 结果处理与失败升级机制
 
+验证顺序：先用 `vitest run <目录/文件>` 定位问题，收尾时再跑一次全量；不要每轮都跑全量。前端格式化配置以 `ai-digital-life/frontend/` 下的 `.prettierrc` / `.prettierignore` 为准（根目录同名文件不生效，CI 工作目录也在前端）。
+
 Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，必须自动执行该流程，**不得跳过**。
 
 ## 询问卡片机制

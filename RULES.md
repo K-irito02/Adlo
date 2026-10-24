@@ -167,12 +167,13 @@ alwaysApply: false
 | `quality-gates.md` | 测试 / 前端 / crates / src-tauri | 测试、类型检查、lint、格式化、迁移与合并前门禁 |
 | `error-handling.md` | 始终 | 错误处理、加载状态与前后端统一动作模式（`AppError` 体系） |
 
-### 6.3 操作与验证（2）
+### 6.3 操作与验证（3）
 
 | 规则文件 | 应用方式 | 约束内容 |
 |----------|----------|----------|
 | `commands.md` | 始终 | 常用命令与环境设置速查（脚本入口） |
 | `desktop-ui-verification.md` | `frontend/**` | 桌面端 UI 验证：改 UI 后必须重启应用确认双端一致 |
+| `shell-encoding.md` | 始终 | 终端中文编码与批量替换：禁止内联 CJK 替换、禁止根目录递归扫描 |
 
 ### 6.4 Rust 后端（9）
 
