@@ -2,12 +2,12 @@
 
 ## 背景
 
-dsh 改为普通浏览器标签后，「中间部分-新建标签页」可承载任意网址，中心区与右侧面板成为**两个对等宿主**，共享同一个浏览器 WebView 池。本轮（root-cause-resolution 事项 6/8/9 + closing-workflow 复审）完成三项机制改造，其中桥接条经历两次显隐判据返工，教训值得沉淀。
+dsh 改为普通浏览器标签后，「中心-新建标签页」可承载任意网址，中心与右侧面板成为**两个对等宿主**，共享同一个浏览器 WebView 池。本轮（root-cause-resolution 事项 6/8/9 + closing-workflow 复审）完成三项机制改造，其中桥接条经历两次显隐判据返工，教训值得沉淀。
 
 ## 机制现状（final）
 
 - **桥接条职责**：DOM 拖拽手柄命中带只有 3px 且位于**面板内部**（`::before { left: 8px }`，容器 `left: -8px`）。面板导航器收起时面板内容整体左移，面板自身 WebView 左缘与面板左缘重合，把命中带整条盖住 → 桥接条（6px 透明原生子 WebView，straddle 边界）抢回命中权。
-- **显隐判据**（`shouldShowStrip`）：`panelWebViewAtBoundary` = 导航器收起 **且** 面板活动 tab 承载可见原生 WebView（`isLiveBrowserWebView`：有 URL、非 about:blank、已入池）。与中心区状态、docked/overlay **无关**（overlay 态恰恰更需要它）。
+- **显隐判据**（`shouldShowStrip`）：`panelWebViewAtBoundary` = 导航器收起 **且** 面板活动 tab 承载可见原生 WebView（`isLiveBrowserWebView`：有 URL、非 about:blank、已入池）。与中心状态、docked/overlay **无关**（overlay 态恰恰更需要它）。
 - **排序指纹**（`stripGenerationKey`）：仅含 z-order 信号（中心 tabId / 面板活动 tabId / tab 数 / `siblingNonce`），**不含 URL**。
 - **Rust 侧**：`activate_tab` 只 `show` 目标 tab；各宿主隐藏自己不再显示的 tab 由前端按 bounds 移出画面（`shouldHostHideTab` E1 守卫）。`WebViewHandle::hide()` 等死代码已删除。
 

@@ -65,7 +65,7 @@ function deferred<T>() {
 }
 
 describe('openFileGeneric generation guard (事项 13 收敛)', () => {
-  it('迟到的旧读被新意图作废：不写缓存不进主区', async () => {
+  it('迟到的旧读被新意图作废：不写缓存不进内容区', async () => {
     const { set, get } = setup({
       selectedFilePath: 'old.md',
       fileContent: 'old content',
@@ -89,7 +89,7 @@ describe('openFileGeneric generation guard (事项 13 收敛)', () => {
     });
     fast.resolve({ ok: true, data: { content: 'new content', lastModifiedAt: 2 } });
     await second;
-    // 旧读后落地：必须被丢弃，主区保持新内容
+    // 旧读后落地：必须被丢弃，内容区保持新内容
     slow.resolve({ ok: true, data: { content: 'stale content', lastModifiedAt: 1 } });
     await first;
     expect(get().fileContent).toBe('new content');
@@ -111,7 +111,7 @@ describe('openFileGeneric hold-until-ready (事项 46 调整项)', () => {
       workspaceId: 'ws-1',
       readFile: () => gate.promise as never,
     });
-    // 同步前缀执行后：主区必须仍是旧文件（不得出现中间态）
+    // 同步前缀执行后：内容区必须仍是旧文件（不得出现中间态）
     expect(get().selectedFilePath).toBe('old.md');
     expect(get().fileContent).toBe('old content');
 
@@ -142,7 +142,7 @@ describe('openFileGeneric hold-until-ready (事项 46 调整项)', () => {
         Promise.resolve({ ok: false, error: { code: 'NOT_FOUND', message: 'gone' } }) as never,
     });
 
-    // 主区切到目标路径但展示错误，不回退显示旧文件内容
+    // 内容区切到目标路径但展示错误，不回退显示旧文件内容
     expect(get().selectedFilePath).toBe('gone.md');
     expect(get().fileContent).not.toBe('old content');
     const fileOpenError = (get() as unknown as Snap).fileOpenError;

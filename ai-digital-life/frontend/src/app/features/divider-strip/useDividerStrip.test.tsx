@@ -214,8 +214,8 @@ describe('useDividerStrip 显隐口径', () => {
   });
 
   it('回归：面板进入 overlay 态（中心 WebView 已被隐藏）后桥接条不得消失', async () => {
-    // 用户实测：拖拽边界使中间区 WebView2 隐藏后边界再也拖不动。
-    // 桥接条的职责是"抢回被面板自身 WebView 盖住的命中带"，与中心区状态、
+    // 用户实测：拖拽边界使中心 WebView2 隐藏后边界再也拖不动。
+    // 桥接条的职责是"抢回被面板自身 WebView 盖住的命中带"，与中心状态、
     // docked/overlay 无关；overlay 态缺少其它兜底，恰恰更依赖它。
     const panelRef = makePanelRef();
     const options = makeOptions(panelRef);

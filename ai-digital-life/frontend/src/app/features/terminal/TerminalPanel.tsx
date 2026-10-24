@@ -134,7 +134,7 @@ export function TerminalPanel() {
   }, [visibleWorkspaces, terminalWorkspaceExpanded]);
 
   // 左侧导航标题固定为“终端目录”。“命令历史”模式与只读历史区均已彻底删除
-  // （无入口、无 store、无主区展示），不要在此处加回 navigatorMode 分支。
+  // （无入口、无 store、无内容区展示），不要在此处加回 navigatorMode 分支。
   const terminalNavigatorTitle = t.terminalLabel;
 
   const handleExpandAllTerminal = useCallback(() => {

@@ -1066,7 +1066,7 @@ export const registry = {
   }),
 
   // ─────────────────────────────────────────────────────────────
-  // 中心标签宿主（Task 5）：中间部分常驻的中心标签（launcher / browser / terminal）。
+  // 中心标签宿主（Task 5）：中心常驻的中心标签（launcher / browser / terminal）。
   // 水合后、以及每次标签集合变化剪枝后，保证至少一个 launcher 的
   // 不变量分别落在 pruneWiring.applyTabPrune 与 centerTabsSlice.centerRemoveTab。
   // 剪枝参照 ctx.tabIds（终端 + 浏览器标签 id 并集，见 pruneWiring.currentCtx）。

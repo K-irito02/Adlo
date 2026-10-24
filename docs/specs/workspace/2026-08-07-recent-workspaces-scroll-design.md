@@ -5,7 +5,7 @@
 
 ## 背景与目标
 
-中心面板欢迎区（`center-pane/WelcomeState.tsx`）与状态栏工作区菜单（`StatusBar.tsx`）各有一份「最近工作区」列表。当前问题：
+中心欢迎区（`center-pane/WelcomeState.tsx`）与状态栏工作区菜单（`StatusBar.tsx`）各有一份「最近工作区」列表。当前问题：
 
 - 两处分别截断：WelcomeState `.slice(0, 5)`，StatusBar `.slice(0, 6)`，超出的工作区无法看到。
 - 两处显示口径/交互不一致：WelcomeState 为图标+名称+路径三列；StatusBar 为名称+路径两列，且 StatusBar 已有 `max-height:180px` 原生滚动条常驻。

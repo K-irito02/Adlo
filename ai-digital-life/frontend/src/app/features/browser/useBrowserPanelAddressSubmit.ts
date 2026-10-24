@@ -87,7 +87,7 @@ export function useBrowserPanelAddressSubmit({
 
     // 需认证本地端口分流（事项 2）：裸 3080 必 401，先经后端取真实入口
     // （含 `?token=`，首次访问种 cookie）。命中则就地面板 tab 导航到真实
-    // 地址（面板归属，不劫持到中间区），并跳过 checkEmbed 预检——HEAD 不带
+    // 地址（面板归属，不劫持到中心），并跳过 checkEmbed 预检——HEAD 不带
     // cookie 会 401 误判为“被拦截”。未命中保持原同步行为。
     let targetUrl = finalUrl;
     let authed: { url: string; freedPort: boolean } | null = null;

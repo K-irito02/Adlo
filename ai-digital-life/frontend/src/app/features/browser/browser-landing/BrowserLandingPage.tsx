@@ -103,7 +103,7 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
       // 再走调用方的归属落点（中心就地导航当前标签 / 面板新建面板标签），
       // 而非直接打开裸地址，避免 "authentication required" 401。
       // 取真实地址失败时回退裸开（用户仍可看到服务本身或 dsh 的 401 指引页）。
-      // 注意：此处刻意不用 openDsh——它会把标签劫持到中间区并聚焦，
+      // 注意：此处刻意不用 openDsh——它会把标签劫持到中心并聚焦，
       // 面板欢迎页点击会显得“没有任何反应”。
       // 非分发表 URL 保持原同步行为（回归测试同步断言依赖）。
       if (routeLocalUrl(url)?.opener !== 'dsh') {

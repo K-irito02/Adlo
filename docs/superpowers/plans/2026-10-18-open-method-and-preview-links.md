@@ -723,7 +723,7 @@ export function OriginListControl({ item, t, onChange }: OriginListControlProps)
   settingsOpenMethod: '打开方式',
   settingsLinkOpenMethod: '网址链接打开方式',
   settingsLinkOpenMethodDesc: '点击网址链接时的打开位置（Markdown 预览与智能体站点拦截链接统一生效）',
-  settingsLinkOpenMiddle: '中间区打开',
+  settingsLinkOpenMiddle: '中心打开',
   settingsLinkOpenPanel: '右侧浏览器面板打开',
   settingsLinkOpenExternal: '外部浏览器打开',
   settingsFileOpenMethod: '文件打开方式',
@@ -880,7 +880,7 @@ function openExternal(url: string): void {
   }
 }
 
-/** 按「网址链接打开方式」设置打开一个 URL。中间区/右面板均为新建标签，绕过就地/新建双态开关。 */
+/** 按「网址链接打开方式」设置打开一个 URL。中心/右面板均为新建标签，绕过就地/新建双态开关。 */
 export function openUrlByMethod(url: string): void {
   const state = useAppStore.getState();
   const method = state.appInfo?.config?.linkOpenMethod ?? 'panel';

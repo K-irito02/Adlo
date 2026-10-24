@@ -300,7 +300,7 @@ describe('CenterBrowserView', () => {
       const content = container.querySelector('.adl-center-browser__content');
       expect(content?.hasAttribute('data-webview-active')).toBe(true);
 
-      // 拖拽右侧面板覆盖中间区 → shell body 获得浮层类（useRightPanelLayout 写入）。
+      // 拖拽右侧面板覆盖中心 → shell body 获得浮层类（useRightPanelLayout 写入）。
       // 两个类都要覆盖：-expanded = overlay_full，-active = overlay_partial（含 expanded）。
       for (const overlayClass of [
         'is-rightpanel-overlay-expanded',

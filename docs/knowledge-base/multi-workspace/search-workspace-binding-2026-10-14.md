@@ -4,7 +4,7 @@
 
 内容检索恒绑后端当前工作区（最后 open 的），与文件面板高亮不一致且不可切换；
 2MB 文件因 1MB 硬跳过而搜不到（能打开却搜不到）；命中打开仍走后端当前根导致
-"failed to resolve workspace root"；右面板覆盖锚列陈旧致拖窄翻转时中间区跳动。
+"failed to resolve workspace root"；右面板覆盖锚列陈旧致拖窄翻转时中心跳动。
 
 ## 根因与修复要点
 

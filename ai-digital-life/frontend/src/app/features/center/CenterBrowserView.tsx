@@ -160,7 +160,7 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
     bookmarkDialogOpen ||
     createDirDialog.open;
 
-  // 右侧面板进入浮层态时会以 absolute 盖住中间区 —— DOM 盖不住原生 WebView2，
+  // 右侧面板进入浮层态时会以 absolute 盖住中心 —— DOM 盖不住原生 WebView2，
   // 必须主动把中心 WebView2 移出画面（否则原生表面反过来盖住右侧面板）。
   const centerObscured = useCenterObscured();
 

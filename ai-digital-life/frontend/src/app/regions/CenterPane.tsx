@@ -4,7 +4,7 @@ import { useAppStore } from '../stores/slicedStore';
 import { CenterBrowserView, CenterEntryPage, CenterTerminalView } from '../features/center';
 
 /**
- * 中部主区域 — 中心标签视图调度器。
+ * 中心 — 中心标签视图调度器。
  *
  * 按 `centerTabs` / `centerActiveTabId` 分发当前活动中心标签：
  * browser → `CenterBrowserView`；terminal → `CenterTerminalView`；launcher →

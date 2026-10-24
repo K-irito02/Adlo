@@ -33,7 +33,7 @@ export interface SessionLastFile {
  */
 export type SessionRestoreNotice = 'sessionLastFileMissing';
 
-/** 主区开文件失败信息（事项 46 调整项，Phase 4 审查 L1 抽为共享类型）。 */
+/** 内容区开文件失败信息（事项 46 调整项，Phase 4 审查 L1 抽为共享类型）。 */
 export interface FileOpenError {
   path: string;
   code: string;
@@ -64,12 +64,12 @@ export interface EditorSlice {
    */
   fileMediaLoading?: boolean;
   /**
-   * 主区开文件失败信息（事项 46 调整项）：失败时主区展示友好错误，
+   * 内容区开文件失败信息（事项 46 调整项）：失败时内容区展示友好错误，
    * 不回退显示旧文件内容；成功打开任意文件时清掉。
    */
   fileOpenError?: FileOpenError | null;
   /**
-   * 正在定位中的路径（事项 46 调整项）：主区隐藏该文件表面直到揭示完成，
+   * 正在定位中的路径（事项 46 调整项）：内容区隐藏该文件表面直到揭示完成，
    * 全程不绘制中间态；揭示成功/放弃时清掉。
    */
   positioningPath?: string | null;

@@ -46,13 +46,13 @@ async function refreshVersionStatusSilently(get: () => StoreState): Promise<void
 /**
  * 重启后重建 dsh 标签（旧地址的 token 已失效）：按原位置逐个重建并导航到新地址。
  * 顺序必须是先开后关：`centerRemoveTab` 在中心变空时会同步补一个 launcher
- * 入口页，先关后开会让中间区瞬间变空，使用户看到多出的入口页
+ * 入口页，先关后开会让中心瞬间变空，使用户看到多出的入口页
  *（用户实测 2026-10-26）。先开后关则中心永不为空，无此问题。
- * 位置保持：原在中间区的仍回中间区，原在右侧面板的仍留在面板，不劫持用户布局
+ * 位置保持：原在中心的仍回中心，原在右侧面板的仍留在面板，不劫持用户布局
  *（用户实测 2026-10-26：重装后右侧面板的 dsh 标签不应消失）。
  * 严格逐个配对：开辟失败则保留旧标签，宁可留一个待手动刷新的旧标签也不静默丢标签。
  * 用户没开 dsh 标签时不自动新建（事项 2026-10-20/5：对话框“立即生效”重启
- * 不得在中间区凭空开标签；用户需要时自己点开，openDsh 会复用新进程）。
+ * 不得在中心凭空开标签；用户需要时自己点开，openDsh 会复用新进程）。
  */
 function syncDshTab(get: () => StoreState, url: string): void {
   const stale = get().browserTabs.filter((tab) => sameServiceOrigin(tab.url, url));

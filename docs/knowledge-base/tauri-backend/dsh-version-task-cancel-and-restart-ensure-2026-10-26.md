@@ -23,5 +23,5 @@
 
 ## 关联修复
 
-- `syncDshTab` 改为“先开新标签、再关旧标签”：`centerRemoveTab` 在中心变空时会**同步**补一个 launcher 入口页，先关后开必中招（重装后多出入口页的根因）。按原位置逐个重建（中间区回中间区，面板留面板）。
+- `syncDshTab` 改为“先开新标签、再关旧标签”：`centerRemoveTab` 在中心变空时会**同步**补一个 launcher 入口页，先关后开必中招（重装后多出入口页的根因）。按原位置逐个重建（中心回中心，面板留面板）。
 - `TaskReporter::cancel()` 把 phase 置为 finalizing 是有意的即时反馈（取消后 100ms 内 UI 即显示“正在收尾”），不是 bug；之前看起来像“闪烁”纯因根因 1 的 ticker 恢复后又写回 installing。

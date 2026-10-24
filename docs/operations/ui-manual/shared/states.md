@@ -125,5 +125,5 @@ async function waitForElementGone(selector, timeout = 5000) {
 |------|--------------|----------|
 | 正常停靠 | (无修饰) | 占据布局空间 |
 | 折叠 | `.adl-leftbar--collapsed` / `.adl-rightpanel--collapsed` | 隐藏内容 |
-| 覆盖模式 | `.adl-rightpanel--overlay-active` | 覆盖中心区域 |
+| 覆盖模式 | `.adl-rightpanel--overlay-active` | 覆盖中心 |
 | 完全展开 | `.adl-rightpanel--overlay-expanded` | 占满剩余空间 |

@@ -55,7 +55,7 @@ export interface StripVisibilityInput {
    * 这是桥接条**唯一**的显隐依据：DOM 拖拽手柄的命中带只有 3px 且位于面板内部
    * （`.adl-rightpanel__resize-handle::before { left: 8px }`，容器 `left: -8px`），
    * 面板自己的 WebView 一旦贴边就把它整条盖住 → 必须由桥接条把命中权抢回来。
-   * 中心侧是否有 WebView **不影响**该判定：中心区有无原生表面，都不改变"面板
+   * 中心侧是否有 WebView **不影响**该判定：中心有无原生表面，都不改变"面板
    * WebView 盖住命中带"这一事实。
    */
   panelWebViewAtBoundary: boolean;
@@ -71,9 +71,9 @@ export interface StripVisibilityInput {
  * 仅当面板侧 WebView 压住边界命中带时展示桥接条。
  *
  * 注意**不含** `rightPanelMode`：面板处于 overlay 态时它仍以 `absolute` 贴左缘
- * 浮在中心区之上，命中带同样被自己的 WebView 盖住（此时中心 WebView 已被隐藏，
+ * 浮在中心之上，命中带同样被自己的 WebView 盖住（此时中心 WebView 已被隐藏，
  * 更没有别的东西能兜住），因此 overlay 态恰恰**更需要**桥接条 —— 早期版本用
- * "centerObscured ⇒ 不展示"把它关掉，导致"拖到中间区 WebView 隐藏后边界再也拖不动"。
+ * "centerObscured ⇒ 不展示"把它关掉，导致"拖到中心 WebView 隐藏后边界再也拖不动"。
  */
 export function shouldShowStrip(input: StripVisibilityInput): boolean {
   return (
@@ -95,7 +95,7 @@ export interface CenterWebViewInput {
 }
 
 export interface CenterWebViewState {
-  /** 中心区是否有可见的原生 WebView（true 时才可能有新的原生子窗口压到条带上）。 */
+  /** 中心是否有可见的原生 WebView（true 时才可能有新的原生子窗口压到条带上）。 */
   active: boolean;
   /** 中心活动浏览器标签 id（非 active 时为空串，避免把陈旧 id 喂给排序指纹）。 */
   tabId: string;
@@ -121,7 +121,7 @@ export function isLiveBrowserWebView(
 }
 
 /**
- * 推算中心区当前承载的浏览器 WebView 是否真实可见。
+ * 推算中心当前承载的浏览器 WebView 是否真实可见。
  *
  * 用途：**仅**作为兄弟排序指纹（见 `stripGenerationKey`）的输入 —— 中心活动标签
  * 变化意味着可能有新的原生子窗口压到桥接条之上，必须销毁重建以回到最上层。
@@ -130,8 +130,8 @@ export function isLiveBrowserWebView(
  * 终端中心标签是 DOM 渲染（无原生子窗口），空 URL / `about:blank` 标签的 WebView
  * 已被 `useWebViewLifecycle` 移出画面，故都不算 active。
  *
- * 历史：显隐判定曾直接读 dsh 专属状态（`dshSlice.isOpen` / `url`）——那时中心区
- * 只可能由 dsh 占据。dsh 改为普通浏览器标签后该状态不再代表"中心区有 WebView"，
+ * 历史：显隐判定曾直接读 dsh 专属状态（`dshSlice.isOpen` / `url`）——那时中心
+ * 只可能由 dsh 占据。dsh 改为普通浏览器标签后该状态不再代表"中心有 WebView"，
  * 属于陈旧判定，已随显隐判定一并改为面板侧口径。
  */
 export function resolveCenterWebView(input: CenterWebViewInput): CenterWebViewState {

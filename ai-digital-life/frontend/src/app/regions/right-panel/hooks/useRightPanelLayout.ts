@@ -109,7 +109,7 @@ export function useRightPanelLayout(collapsed: boolean) {
 
   // 宽度只导出 docked / overlay_partial；overlay_full 是显式模式（见 applyPanelGeometry
   // 的 maximized 位），不再由"宽度≈上限"反推——否则左栏切换致 rightMaxWidth 变化时，
-  // 用户主动扩大的 full 会被误降级为 partial、中间区重现。
+  // 用户主动扩大的 full 会被误降级为 partial、中心重现。
   const deriveRightPanelMode = useCallback(
     (width: number, metrics: RightPanelLayoutMetrics): RightPanelMode => {
       if (width >= metrics.overlayThreshold) {

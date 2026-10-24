@@ -35,9 +35,9 @@ export interface RightPanelViewProps {
   fileMedia?: WorkspaceMediaDocument | null;
   /** 媒体读取中：区分加载骨架与空态（见 editorSlice.fileMediaLoading） */
   fileMediaLoading?: boolean;
-  /** 主区开文件失败信息（事项 46 调整项）：失败时主区展示友好错误，不回退旧内容 */
+  /** 内容区开文件失败信息（事项 46 调整项）：失败时内容区展示友好错误，不回退旧内容 */
   fileOpenError?: FileOpenError | null;
-  /** 正在定位中的路径（事项 46 调整项）：主区隐藏该文件表面直到揭示完成 */
+  /** 正在定位中的路径（事项 46 调整项）：内容区隐藏该文件表面直到揭示完成 */
   positioningPath?: string | null;
   externalChangePath?: string;
   editorLanguage: string;

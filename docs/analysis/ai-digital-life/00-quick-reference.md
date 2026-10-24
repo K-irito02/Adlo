@@ -74,7 +74,7 @@ frontend/package.json           # 前端依赖
 frontend/src/app/features/browser/              # 内置浏览器面板
 frontend/src/app/features/browser-settings/     # 浏览器设置
 frontend/src/app/features/browser-tree/         # 浏览器树形目录
-frontend/src/app/features/center/               # 中间区多标签宿主（CenterEntryPage：dsh/浏览器/终端）
+frontend/src/app/features/center/               # 中心多标签宿主（CenterEntryPage：dsh/浏览器/终端）
 frontend/src/app/features/clipboard-history/     # 剪贴板历史
 frontend/src/app/features/diff-viewer/          # 差异查看器
 frontend/src/app/features/divider-strip/        # 分隔线透明桥接条
@@ -114,8 +114,8 @@ frontend/src/app/components/ErrorBoundary.tsx # 错误边界
 
 ```
 frontend/src/app/regions/TitleBar.tsx        # 标题栏
-frontend/src/app/regions/CenterPane.tsx       # 中间区（adl-center--tab-host 多标签宿主）
-frontend/src/app/regions/CenterTabStrip.tsx   # 中间区标签条
+frontend/src/app/regions/CenterPane.tsx       # 中心（adl-center--tab-host 多标签宿主）
+frontend/src/app/regions/CenterTabStrip.tsx   # 中心标签条
 frontend/src/app/regions/LeftSidebar.tsx      # 左侧边栏（剪切看板 + 系统监控）
 frontend/src/app/regions/RightPanel.tsx       # 右侧面板（6 工具切换）
 frontend/src/app/regions/HamburgerMenu.tsx    # 汉堡菜单（adl-hamburger__*）

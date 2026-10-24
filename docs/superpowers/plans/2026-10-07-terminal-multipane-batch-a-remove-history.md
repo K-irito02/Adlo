@@ -476,7 +476,7 @@ export function TerminalRegionActions({ onClear, titles, alwaysVisible }: Termin
 - 删除 import：`TerminalHistoryList`、`readTerminalPalette`、`readTerminalCellMetrics`、`isCollapseButtonVisible/isRegionVisible`、`HISTORY_RATIO_MAX/HISTORY_RATIO_MIN`、`useResolvedTheme`、`useCallback`（若不再使用）、`IconAreaSwap`。
 - 删除 `useResolvedTheme()` 调用与 `historyPalette`、`readHistoryCellMetrics`、`hasHistory/isDual/collapse/historyVisible/liveVisible/canCollapse` 派生、`regionActionTitles` 中的 `deleteLabel/deleteTitle/restore/maximize`（仅留 `clear`）。
 - 工具栏：删除 `terminalViewLayoutLabel` 分段选择器整块与 `terminalSwapAreas` 按钮块；保留 `TerminalMenuDropdown`。
-- 主区改为：
+- 内容区改为：
 
 ```tsx
         <div className="adl-tool-primary">
@@ -519,7 +519,7 @@ export function TerminalRegionActions({ onClear, titles, alwaysVisible }: Termin
 - 删除 import：`TerminalHistoryList`、`readTerminalCellMetrics`、`readTerminalPalette`、`isCollapseButtonVisible/isRegionVisible`、`HISTORY_RATIO_MAX/HISTORY_RATIO_MIN`、`useResolvedTheme`、`IconAreaSwap`、`useCallback`（若不再使用）。
 - 删除主题订阅、`historyPalette`、`readHistoryCellMetrics`、`hasHistory/isDual/collapse/...` 派生、`regionActionTitles` 多余项。
 - 工具栏：删除布局分段块与交换按钮块；保留 `TerminalMenuDropdown`。
-- 主区改为与 Task A6 Step 2 同构的 `XtermTerminal + TerminalRegionActions(onClear=view.handleClear, alwaysVisible)`。
+- 内容区改为与 Task A6 Step 2 同构的 `XtermTerminal + TerminalRegionActions(onClear=view.handleClear, alwaysVisible)`。
 - `CenterTerminalChooser` 保持不变。
 
 - [ ] **Step 4: 清理死 CSS 选择器**
@@ -697,7 +697,7 @@ git commit -m "refactor(settings): remove terminal history disk budget block"
 
 - [ ] **Step 2: 更新受影响测试**
 
-- `features/center/__tests__/CenterTerminalView.test.tsx`：删除只读历史/单双列/交换相关断言与 mock 键；改为断言工具栏只剩菜单、主区只有一个 `.adl-terminal-canvas`。
+- `features/center/__tests__/CenterTerminalView.test.tsx`：删除只读历史/单双列/交换相关断言与 mock 键；改为断言工具栏只剩菜单、内容区只有一个 `.adl-terminal-canvas`。
 - `components/terminal/__tests__/TerminalRegionActions.test.tsx`：重写为新签名（仅清空按钮；断言 `aria-label`/`title` 来自 `titles.clearLabel/clearTitle`）。
 - i18n 类型检查：`npx tsc --noEmit` 会捕获仍引用已删键之处，逐一修正。
 

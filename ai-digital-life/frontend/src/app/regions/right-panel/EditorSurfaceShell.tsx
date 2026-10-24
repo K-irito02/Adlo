@@ -182,7 +182,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     return editorHint ? <p className="adl-tool-hint">{editorHint}</p> : null;
   }
 
-  // 开文件失败优先：主区展示友好错误，不回退显示旧文件内容（事项 46 调整项，用户决策）。
+  // 开文件失败优先：内容区展示友好错误，不回退显示旧文件内容（事项 46 调整项，用户决策）。
   // 必须在重型门之前——失败时 store 可能残留旧 fileContent，门会遮蔽错误视图。
   if (fileOpenError && fileOpenError.path === selectedFilePath) {
     const isNotFound = isNotFoundCode(fileOpenError.code);

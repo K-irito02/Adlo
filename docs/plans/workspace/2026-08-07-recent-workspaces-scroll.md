@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 让中心面板欢迎区与状态栏工作区菜单两处「最近工作区」都显示全量工作区（无数量限制），可见区域最多 3 行，超出的通过自定义垂直滚动条查看（悬停显示、移出隐藏、滑块可拖拽）。
+**Goal:** 让中心欢迎区与状态栏工作区菜单两处「最近工作区」都显示全量工作区（无数量限制），可见区域最多 3 行，超出的通过自定义垂直滚动条查看（悬停显示、移出隐藏、滑块可拖拽）。
 
 **Architecture:** 新增共享 hook `useRevealScrollbar`（管理悬停态、溢出检测、滚动进度、拖拽换算）与纯展示组件 `RevealScrollbar`（渲染覆盖式滚动条 DOM）；两处各自把现有列表容器挂上 hook 的 ref/hover 事件并追加该组件，删除 `.slice()` 截断；滚动容器统一用 `.adl-reveal-scroll` 类（隐藏原生滚动条 + `overflow-y:auto`），行样式各自保留。
 

@@ -16,7 +16,7 @@
    - 点击「文件索引」（指向文件的链接）→ 打开显示对应文件。
    - 点击「网址链接」→ 在浏览器打开，且**不受**「在当前标签页打开链接 / 在新标签页打开链接」双态按钮影响（始终新建标签，见 §2 澄清）。
 2. 设置面板新增「打开方式」设置组：
-   - 网址链接打开方式：中间区 / 右侧浏览器面板 / 外部浏览器（系统默认应用）三选一，**统一**管理所有相关入口的网址链接落点。
+   - 网址链接打开方式：中心 / 右侧浏览器面板 / 外部浏览器（系统默认应用）三选一，**统一**管理所有相关入口的网址链接落点。
    - 智能体站点正文中 agent 输出的「网址链接、文件」打开方式的**拦截**开关（启用 / 关闭）：启用时按本项目落点打开；关闭时保持站点自身行为。
    - 拦截白名单：支持用户添加 dsh 以外的其它智能体网址（**dsh 不内置**，需用户自行添加）；设置项需带**填写示例**。
    - 文件打开方式：右侧文件面板 / 系统默认应用二选一。
@@ -47,7 +47,7 @@
 ### 2.2 浏览器标签打开机制
 
 - `browserOpenTab(url?, title?, wsId?, folderId?)`（`frontend/src/app/stores/slices/browserTabsSlice.ts:56`）新建标签，`location` 缺省 → 面板标签（`isPanelTab` 于 `slices/tabLocation.ts`）。
-- 「中间区打开」= `browserOpenTab` + `centerShowBrowserTab`（`frontend/src/app/stores/actions/centerActions.ts:20`；封装见 `useOpenInCenterAction.ts:17`）。
+- 「中心打开」= `browserOpenTab` + `centerShowBrowserTab`（`frontend/src/app/stores/actions/centerActions.ts:20`；封装见 `useOpenInCenterAction.ts:17`）。
 - 「右侧面板打开」= `browserOpenTab`（新建面板标签）。
 - 外部：`window.digitalLife.window.openExternal(url)`（`shared/ipc/window.ts:75`；Tauri 走 `@tauri-apps/plugin-shell` `open()`，浏览器走 `window.open`）。
 - 「就地/新建标签」双态开关：`browserNavigateInPlace`（`useBrowserPanelHandlers.ts:44-83`）。本次设置路径**绕过**该开关，始终新建标签。
@@ -152,7 +152,7 @@ pub agent_site_whitelist: Vec<String>,  // 默认 []
 - 新组 `SettingsGroupId: 'openMethod'`，`SETTINGS_GROUPS` 增加 `{ id: 'openMethod', labelKey: 'settingsOpenMethod' }`（排在「浏览器」组之后、「DSH」之前）。
 - 注册到 `SETTINGS_COMPONENTS.openMethod`（自定义组件，遵循 `BrowserSettings`/`DshSettings` 先例；便于承载白名单编辑器）。
 - 组内四项：
-  - 网址链接打开方式（select：中间区 / 右侧浏览器面板 / 外部浏览器）
+  - 网址链接打开方式（select：中心 / 右侧浏览器面板 / 外部浏览器）
   - 文件打开方式（select：右侧文件面板 / 系统默认应用）
   - 智能体站点链接拦截（toggle；浏览器模式 disabled + 说明）
   - 智能体网址白名单（**列表编辑器**：逐行输入；占位/描述含**示例**，如 `http://127.0.0.1:3080`、`https://my-agent.example.com`；说明「整站匹配，填 origin，不要带路径」）

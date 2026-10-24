@@ -32,7 +32,7 @@ const VERSION_TOAST_MS = 5000;
 
 /**
  * 卸载到空后关闭残留 dsh 标签：宿主无可用版本且进程已停时，WebView 仍冻结显示
- * 旧页面（用户实测 2026-10-21）。按卸载前运行中 URL 的 origin 同源关闭（含中间区
+ * 旧页面（用户实测 2026-10-21）。按卸载前运行中 URL 的 origin 同源关闭（含中心
  * 承载标签）；此前无运行中 URL 则无法安全识别，不关（边界如实记录）。
  */
 function closeDshTabsByUrl(url: string | null): number {
@@ -1028,7 +1028,7 @@ export function DshVersionManagement() {
     }
   }, [sourceDialogOpen]);
 
-  /** 官方版本信息外链：跟随「打开方式」设置的网址落点（面板/中间区/外部浏览器）。 */
+  /** 官方版本信息外链：跟随「打开方式」设置的网址落点（面板/中心/外部浏览器）。 */
   const handleOpenOfficial = useCallback((url: string) => {
     openUrlByMethod(url);
   }, []);

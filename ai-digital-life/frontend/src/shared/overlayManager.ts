@@ -29,7 +29,7 @@ export const WEBVIEW_OVERLAY_SELECTOR = OVERLAY_SELECTORS.join(', ');
 /**
  * WebView2 隐藏坐标：移出画面而不卸载页面（保留 SPA 状态）。
  * `32767` 为 `Int16.MAX_VALUE` —— WebView2 视为"远在屏外"的安全值。
- * 浏览器面板与 DSH 中间区共用，改动时两侧同步生效。
+ * 浏览器面板与 DSH 中心共用，改动时两侧同步生效。
  */
 export const HIDDEN_WEBVIEW_OFFSCREEN_COORD = 32767;
 

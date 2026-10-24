@@ -416,7 +416,7 @@ interface TerminalPaneViewProps {
 
 - [ ] **Step 5: 两处视图接线**
 
-`TerminalPanel.tsx` 主区替换为：
+`TerminalPanel.tsx` 内容区替换为：
 ```tsx
 {hasActiveTab ? (
   <TerminalPaneGrid
@@ -465,7 +465,7 @@ interface TerminalPaneViewProps {
 - [ ] **Step 8: 更新测试 + tsc**
 
 - 删除 `TerminalRegionActions.test.tsx`；新增 `TerminalPaneActions.test.tsx`（断言三按钮、aria/title、回调、danger 类）。
-- `CenterTerminalView.test.tsx`：断言工具栏含「增加终端」、主区含一个 `.adl-terminal-pane`。
+- `CenterTerminalView.test.tsx`：断言工具栏含「增加终端」、内容区含一个 `.adl-terminal-pane`。
 - Run: `cd ai-digital-life/frontend && npx tsc --noEmit`（必须干净）+ 定向 vitest。
 
 - [ ] **Step 9: Commit**

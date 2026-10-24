@@ -145,7 +145,7 @@ export const commonZh = {
   centerBrowserTabMissing: '浏览器标签不可用',
   centerTabShowInBrowserPanel: '在浏览器面板显示',
   centerTabShowInTerminalPanel: '在终端面板显示',
-  centerTabShowInCenter: '在中间部分显示',
+  centerTabShowInCenter: '在中心显示',
 
   jobCount: '{count} 个 Job',
   debugCopyLogs: '复制调试日志',

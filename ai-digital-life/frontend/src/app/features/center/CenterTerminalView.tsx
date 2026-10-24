@@ -32,7 +32,7 @@ const PROFILES: TerminalProfile[] = ['powershell', 'bash', 'cmd'];
  * 中心终端视图：承载一个 `location === 'center'` 的终端标签，或（`refId === null`）终端选择器。
  *
  * 顶部工具栏**只含**「菜单」，不含新建终端复合按钮与左侧目录导航；
- * 主区渲染单个实时 `XtermTerminal`（含清空按钮）。
+ * 内容区渲染单个实时 `XtermTerminal`（含清空按钮）。
  * 视图与叶子 Hook 的接线见 `useTerminalView`。
  */
 export function CenterTerminalView({ centerTabId, terminalTabId }: CenterTerminalViewProps) {
@@ -144,7 +144,7 @@ function CenterTerminalChooser({ centerTabId }: { centerTabId: string }) {
   );
 }
 
-/** 已绑定终端标签的中心视图：工具栏子集 + 单个实时终端主区。 */
+/** 已绑定终端标签的中心视图：工具栏子集 + 单个实时终端内容区。 */
 function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
   const { t } = useTCopy();
 
@@ -190,7 +190,7 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
 
   return (
     <div className="adl-tool-panel adl-tool-panel--terminal adl-center-terminal">
-      {/* 中间区终端工具栏布局（跟进 24，中心专属）：
+      {/* 中心终端工具栏布局（跟进 24，中心专属）：
           - 左侧组：分段控制器（均分/自由）+ 恢复自动布局 + 增加终端 +
             自定义布局（含卡片锚点），全部靠左；
           - 右侧组：只留「更多终端操作」菜单。

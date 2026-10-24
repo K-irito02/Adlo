@@ -602,7 +602,7 @@
   }
 }
 
-/* 选中（当前在中间区显示的）标签：中性灰底 + 四角偏圆弧（--radius-md）。
+/* 选中（当前在中心显示的）标签：中性灰底 + 四角偏圆弧（--radius-md）。
    未选中的标签不显示底色；选中标签即使被悬停也保持选中灰底。 */
 .adl-center-tab.is-active,
 .adl-center-tab.is-active:hover {
@@ -715,7 +715,7 @@
 }
 
 /* 「新建入口页」+ 按钮：固定在中间标签区最右侧（滚动区之外），
-   与标签同属中间区；与右侧控件组的分隔线由 .adl-titlebar__right 提供。 */
+   与标签同属中心；与右侧控件组的分隔线由 .adl-titlebar__right 提供。 */
 .adl-center-tab-strip__add {
   display: flex;
   align-items: center;

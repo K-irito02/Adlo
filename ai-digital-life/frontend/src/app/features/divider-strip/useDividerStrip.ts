@@ -54,7 +54,7 @@ function resolveStripTheme(): StripTheme {
  * WebView（`adl-divider-strip`）并拥有拖拽。
  *
  * - 显隐：面板浏览器 WebView 压住边界的命中带（导航器收起 + 活动 tab 承载可见
- *   原生 WebView）才展示；与中心区/面板处于 docked 还是 overlay 无关（详见
+ *   原生 WebView）才展示；与中心/面板处于 docked 还是 overlay 无关（详见
  *   `shouldShowStrip`）。
  * - 排序：兄弟子窗口的新建会盖住桥接条，generation（中心 tab / 面板活动 tab /
  *   tab 数 / 兄弟创建计数）变化即销毁重建（重建即回到最上层）。

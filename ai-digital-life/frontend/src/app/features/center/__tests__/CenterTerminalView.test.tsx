@@ -7,7 +7,7 @@ import type { CopyDict } from '@i18n/types';
 import type { TerminalTabState } from '@stores/slices/terminalSlice';
 
 // 中心终端视图的渲染组合测试：隔离 PTY 生命周期（本文件不验证真实 PTY，
-// 只验证「选择器 → 绑定 → 会话工具栏/主区」的视图接线）。真实 PTY 行为由
+// 只验证「选择器 → 绑定 → 会话工具栏/内容区」的视图接线）。真实 PTY 行为由
 // terminal 回归套件覆盖。
 vi.mock('@features/terminal/useTerminalPtyLifecycle', () => ({
   useTerminalPtyLifecycle: () => ({
@@ -235,7 +235,7 @@ describe('CenterTerminalView', () => {
     expect(created?.workspaceId).toBe('');
   });
 
-  it('terminalTabId 非空时工具栏含菜单与增加终端，主区渲染一个窗格', () => {
+  it('terminalTabId 非空时工具栏含菜单与增加终端，内容区渲染一个窗格', () => {
     const centerTerm = makeTerminalTab('tc', 'center');
     useAppStore.setState({
       terminalTabs: [centerTerm],
@@ -253,7 +253,7 @@ describe('CenterTerminalView', () => {
     expect(screen.queryByRole('button', { name: /交换/ })).toBeNull();
     expect(screen.queryByRole('button', { name: '新建终端' })).toBeNull();
     expect(screen.queryByRole('button', { name: '终端目录' })).toBeNull();
-    // 主区渲染一个窗格，内含一个实时终端
+    // 内容区渲染一个窗格，内含一个实时终端
     expect(container.querySelectorAll('.adl-terminal-pane')).toHaveLength(1);
     expect(container.querySelectorAll('.adl-terminal-canvas')).toHaveLength(1);
     expect(container.querySelector('.adl-terminal-live')).not.toBeNull();

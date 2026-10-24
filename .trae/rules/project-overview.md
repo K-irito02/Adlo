@@ -68,7 +68,8 @@ alwaysApply: true
 - [AGENTS.md](../../AGENTS.md) — 治理规则、编码规范
 - [SKILLS.md](../../SKILLS.md) — 技能系统（来源分类、三技能目录、同步规则、技能摘要）
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) — 贡献指南
-- [CONTEXT.md](../../CONTEXT.md) — 领域术语表
+- [GLOSSARY.md](../../GLOSSARY.md) — 领域术语表
+- [CONTEXT.md](../../CONTEXT.md) — 架构与实现说明
 - [SECURITY.md](../../SECURITY.md) — 安全策略
 - [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 未来想法
 - [commands.md](./commands.md) — 常用命令速查

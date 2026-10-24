@@ -1,4 +1,4 @@
-# 中心标签宿主改造设计（中间部分多标签 + 浏览器双宿主 + dsh 统一）
+# 中心标签宿主改造设计（中心多标签 + 浏览器双宿主 + dsh 统一）
 
 - 日期：2026-10-01
 - 状态：待用户复审
@@ -6,17 +6,17 @@
 
 ## 1. 背景与目标
 
-当前「中间部分」（`CenterPane`）是**单一宿主**：dsh 打开时渲染 `DshHostRegion`（Tauri 下为专属原生 WebView2 子窗口），dsh 关闭时渲染 `WelcomePage`（dsh 打开 + 版本管理）。浏览器标签、终端标签都只能存在于右侧面板。
+当前「中心」（`CenterPane`）是**单一宿主**：dsh 打开时渲染 `DshHostRegion`（Tauri 下为专属原生 WebView2 子窗口），dsh 关闭时渲染 `WelcomePage`（dsh 打开 + 版本管理）。浏览器标签、终端标签都只能存在于右侧面板。
 
-本设计将中间部分改造为**多标签宿主**，让浏览器 WebView 与终端视图可以在「右侧面板 ↔ 中间部分」之间双向转移，并在标题栏以标签条形式统一呈现。
+本设计将中心改造为**多标签宿主**，让浏览器 WebView 与终端视图可以在「右侧面板 ↔ 中心」之间双向转移，并在标题栏以标签条形式统一呈现。
 
 ### 目标
 
-1. 浏览器面板的书签标签、已打开标签、欢迎页快捷站点/端口，提供「在中间部分显示」入口。
-2. 终端面板的终端标签提供「在中间部分显示」入口（右键菜单）。
+1. 浏览器面板的书签标签、已打开标签、欢迎页快捷站点/端口，提供「在中心显示」入口。
+2. 终端面板的终端标签提供「在中心显示」入口（右键菜单）。
 3. 标题栏显示中心标签条，可切换、关闭、移回对应面板；支持固定区域的溢出横向滚动与「新建空标签页」按钮。
-4. 中间部分新增三入口引导页（打开 dsh / 打开浏览器欢迎页 / 打开终端欢迎页）。
-5. 转入中间部分的标签不在对应面板重复显示；面板的「关闭/清空/删除」不影响已转入中心的标签。
+4. 中心新增三入口引导页（打开 dsh / 打开浏览器欢迎页 / 打开终端欢迎页）。
+5. 转入中心的标签不在对应面板重复显示；面板的「关闭/清空/删除」不影响已转入中心的标签。
 6. dsh 统一为普通浏览器 WebView 标签，面板↔中心为同一原生 WebView 的纯位置移动。
 
 ### 非目标
@@ -27,10 +27,10 @@
 
 ## 2. 术语
 
-- **中心标签（CenterTab）**：标题栏中显示、在中间部分承载的标签。
-- **位置（location）**：浏览器/终端标签所属宿主，`'panel'`（右侧面板）或 `'center'`（中间部分），排他。
+- **中心标签（CenterTab）**：标题栏中显示、在中心承载的标签。
+- **位置（location）**：浏览器/终端标签所属宿主，`'panel'`（右侧面板）或 `'center'`（中心），排他。
 - **launcher**：三入口引导页中心标签。
-- **双宿主管理器**：支持「右侧面板 + 中间部分」两个宿主各自驱动一个活动浏览器 WebView 的前端机制。
+- **双宿主管理器**：支持「右侧面板 + 中心」两个宿主各自驱动一个活动浏览器 WebView 的前端机制。
 
 ## 3. 总体架构
 
@@ -41,7 +41,7 @@ TitleBar（标签条 + 新建标签按钮）
 CenterPane（视图调度器）
    ├── launcher      → CenterLauncherPage（三入口 + dsh 版本管理卡片）
    ├── browser       → CenterBrowserView（完整工具栏 + 内容区）
-   └── terminal      → CenterTerminalView（工具栏子集 + 主区）
+   └── terminal      → CenterTerminalView（工具栏子集 + 内容区）
                                    │
 右侧面板                            │ 共享
    ├── BrowserPanel ──┐            │
@@ -110,8 +110,8 @@ location?: 'panel' | 'center';   // 缺省 'panel'
 
 | 操作 | 语义 |
 |---|---|
-| 在中间部分显示（已打开标签） | 移动：`location='center'`，追加中心标签，激活之；若它是面板活动标签，重夹面板活动标签到最后一个 `panel` 标签 |
-| 在中间部分显示（书签/历史/快捷站点/端口，非已打开标签） | 新建：以该 URL/title 新建一个 `location='center'` 的浏览器标签 |
+| 在中心显示（已打开标签） | 移动：`location='center'`，追加中心标签，激活之；若它是面板活动标签，重夹面板活动标签到最后一个 `panel` 标签 |
+| 在中心显示（书签/历史/快捷站点/端口，非已打开标签） | 新建：以该 URL/title 新建一个 `location='center'` 的浏览器标签 |
 | 在浏览器/终端面板显示（标题栏悬停） | 移动：`location='panel'`，移除中心标签，激活对应面板标签 |
 | 关闭（标题栏悬停） | 真关闭：走既有完整关闭路径（浏览器 `browserCloseTab` + `removeSiteMetaIfUnreferenced`；终端杀 PTY、释放 xterm 池、删历史），并移除中心标签 |
 | 关闭最后一个中心标签 | 自动新建一个 launcher 标签 |
@@ -167,7 +167,7 @@ location?: 'panel' | 'center';   // 缺省 'panel'
 ### 7.3 `CenterTerminalView`
 
 - 顶部工具栏**只含**「单双列 / 区域交换 / 菜单」，不含新建终端复合按钮与左侧目录导航。
-- 主区复用只读历史区 + 分割线 + 实时 `XtermTerminal`，含区域折叠、删除历史等既有行为。
+- 内容区复用只读历史区 + 分割线 + 实时 `XtermTerminal`，含区域折叠、删除历史等既有行为。
 - 终端选择器（`refId=null`）：复刻 `TerminalShellSelector` 复合菜单（profile 列表 + 工作区子菜单）；未绑定工作区默认 `__independent__`（默认终端目录）。选定后 `terminalCreateTab(profile, workspaceId)` 并以 `location='center'` 创建，回填 `refId`。
 
 ### 7.4 复用与抽取
@@ -206,17 +206,17 @@ location?: 'panel' | 'center';   // 缺省 'panel'
 
 1. **工作区目录 / 非工作区目录 / 历史目录的书签标签**
    - 「更多操作」菜单卡片（`BrowserTreeEntryMenu` 的 `entryMenuItems`）与右键菜单卡片（`browser-tab-context-menu`）。
-   - 新增「在中间部分显示」；语义：新建中心浏览器标签（`browserOpenTab(url, title, ws)` 且 `location='center'`）。
+   - 新增「在中心显示」；语义：新建中心浏览器标签（`browserOpenTab(url, title, ws)` 且 `location='center'`）。
 2. **「已打开标签页」列表**（`BrowserOpenTabFlatListItem`）
-   - 新增右键菜单卡片，含「在中间部分显示」；语义：移动。
+   - 新增右键菜单卡片，含「在中心显示」；语义：移动。
    - 悬停关闭按钮已存在，保留。
 3. **空标签欢迎引导页**的快捷站点 / 本地端口
-   - 右键菜单卡片新增「在中间部分显示」；语义：新建中心浏览器标签。
+   - 右键菜单卡片新增「在中心显示」；语义：新建中心浏览器标签。
 
 ### 9.2 终端面板
 
 1. **默认终端目录 / 工作区目录下的终端标签**（`WorkspaceTerminalEntry` → `TerminalTabBar`）
-   - 接上右键菜单卡片（当前 `onContextMenu` 为空实现），新增「在中间部分显示」；语义：移动。
+   - 接上右键菜单卡片（当前 `onContextMenu` 为空实现），新增「在中心显示」；语义：移动。
    - 悬停关闭按钮维持现状（已是悬停出现）。
 2. 各「清空/删除」类按钮跳过中心标签（§5）。
 
@@ -249,7 +249,7 @@ location?: 'panel' | 'center';   // 缺省 'panel'
 
 ## 12. i18n
 
-新增 key（zh-CN + en-US 双份，无硬编码）：`centerTabShowInCenter`（在中间部分显示）、`centerTabShowInBrowserPanel`、`centerTabShowInTerminalPanel`、`centerNewTab`（新建标签页）、终端选择器/入口相关文案等。
+新增 key（zh-CN + en-US 双份，无硬编码）：`centerTabShowInCenter`（在中心显示）、`centerTabShowInBrowserPanel`、`centerTabShowInTerminalPanel`、`centerNewTab`（新建标签页）、终端选择器/入口相关文案等。
 
 ## 13. 边界与错误处理
 
@@ -273,7 +273,7 @@ location?: 'panel' | 'center';   // 缺省 'panel'
 
 - 两个原生 WebView2 同屏的 z-order，以及与 dsh↔浏览器「分隔线透明桥接条（`divider_strip_*`）」的相互影响。
 - Rust `browser_set_tab_bounds` 允许两个 tab 同时处于非离屏坐标（预期可行，按 tabId 独立寻址）。
-- 中间区浏览器 WebView 与右侧面板浏览器 WebView 相邻时是否互相遮挡。
+- 中心浏览器 WebView 与右侧面板浏览器 WebView 相邻时是否互相遮挡。
 - 面板 WebView 管理重构（共享池单例 + per-host 驱动）的回归风险。
 - Tauri `data-tauri-drag-region` 对子元素（标签按钮）的处理是否满足「标签处不可拖、空白处可拖」。
 

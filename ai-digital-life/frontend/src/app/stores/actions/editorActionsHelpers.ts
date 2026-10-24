@@ -147,7 +147,7 @@ export async function openFileGeneric(
     return true;
   }
   // 就绪才切换（事项 46 调整项）：标签页即时出现作为点击反馈，
-  // 但 selectedFilePath/fileContent 保持旧值直到内容读到，主区全程无中间态。
+  // 但 selectedFilePath/fileContent 保持旧值直到内容读到，内容区全程无中间态。
   // pending 期不变量：除 openTabs 外一切派生状态（selected/content/outline/
   // diagnostics/preview/fileOpenError）均保持旧值；fileOpenError 刻意不清，
   // 使重试 pending 期仍显示错误视图而非跌落空编辑器（Phase 4 审查 M2）。
@@ -168,12 +168,12 @@ export async function openFileGeneric(
     return false;
   }
   if (!isCurrentFileGen(config.cacheKey, gen)) {
-    // 已被更新的同路径意图（新打开/新保存）超车：旧回复丢弃，不写缓存不进主区。
+    // 已被更新的同路径意图（新打开/新保存）超车：旧回复丢弃，不写缓存不进内容区。
     return false;
   }
   if (!fileResult.ok) {
     captureError(get, fileResult.error, SCOPE);
-    // 失败不在主区回退显示旧文件内容：切到目标路径并展示友好错误（用户决策）。
+    // 失败不在内容区回退显示旧文件内容：切到目标路径并展示友好错误（用户决策）。
     submitOpenFailure(set, relativePath, config, fileResult.error);
     return false;
   }

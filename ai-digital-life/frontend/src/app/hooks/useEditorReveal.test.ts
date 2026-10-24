@@ -342,7 +342,7 @@ describe('useEditorReveal pending handshake (事项 46)', () => {
   });
 
   it('abandons the pending reveal and shows the surface when opening fails', () => {
-    // 开文件失败：主区错误视图即终态，不揭示、不隐藏。
+    // 开文件失败：内容区错误视图即终态，不揭示、不隐藏。
     const contentA = makeContent('old', 57);
     const docLines = { value: 57 };
     const { result, setProps, mockEditor, pendingRevealRef } = setup(

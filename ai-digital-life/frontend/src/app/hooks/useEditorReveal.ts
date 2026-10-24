@@ -177,7 +177,7 @@ export function useEditorReveal(
   // 防止旧定时器误伤新落点。
   const revealEpochRef = useRef(0);
 
-  // 定位显隐（事项 46 调整项）：pending 跳转期间主区隐藏目标文件表面，
+  // 定位显隐（事项 46 调整项）：pending 跳转期间内容区隐藏目标文件表面，
   // 揭示完成/放弃才显现，全程无中间态。守卫读取避免无谓重渲染。
   const setPositioning = useCallback((path: string | null) => {
     if (useAppStore.getState().positioningPath !== path) {
@@ -349,7 +349,7 @@ export function useEditorReveal(
     if (!snap.selectedFilePath || snap.selectedFilePath !== pending.path) {
       return false;
     }
-    // 开文件失败：主区展示错误视图即终态，直接放弃 pending 并显现（事项 46 调整项）。
+    // 开文件失败：内容区展示错误视图即终态，直接放弃 pending 并显现（事项 46 调整项）。
     if (useAppStore.getState().fileOpenError?.path === pending.path) {
       resetPendingState();
       clearOwnedPositioning();

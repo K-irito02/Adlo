@@ -30,7 +30,7 @@
 
 **选择**：分层宿主 + 第三方 harness 集成
 
-主体采用分层架构保证清晰可控：UI → Bridge → Backend 命令 → Domain crates → 存储，层间单向依赖。Agent 对话、模型接入与编排不由本仓库实现，宿主通过第三方 harness 集成提供 Agent 能力（当前为 deepseek dsh：`crates/webapp-host` 进程托管、`dsh-bundle` / `dsh-version` 版本管理、`download-source` 下载源/镜像、中间区宿主渲染）。
+主体采用分层架构保证清晰可控：UI → Bridge → Backend 命令 → Domain crates → 存储，层间单向依赖。Agent 对话、模型接入与编排不由本仓库实现，宿主通过第三方 harness 集成提供 Agent 能力（当前为 deepseek dsh：`crates/webapp-host` 进程托管、`dsh-bundle` / `dsh-version` 版本管理、`download-source` 下载源/镜像、中心宿主渲染）。
 
 | 分层宿主 | harness 集成 |
 |----------|--------------|
@@ -258,7 +258,7 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 
 ### 👨‍💻 专业视角
 
-采用分层宿主架构。严格遵循层间单向依赖原则：**UI → Bridge → Backend Commands → Storage**。前端经三桥接（tauri-bridge / preview-bridge / mock-bridge）调用统一 IPC，经 `#[tauri::command]`（桌面）或 HTTP（浏览器预览）到达 Rust domain crates。第三方 harness（deepseek dsh）为外部进程：`webapp-host` 负责拉起与健康检查，`dsh-bundle` / `dsh-version` 管版本，中间区负责渲染（Tauri 独立 WebView2 子窗口 / 浏览器 iframe）。关键契约（IPC 接口、共享类型）使用 TypeScript 类型作为单一真源（Rust→TS 自动生成）。
+采用分层宿主架构。严格遵循层间单向依赖原则：**UI → Bridge → Backend Commands → Storage**。前端经三桥接（tauri-bridge / preview-bridge / mock-bridge）调用统一 IPC，经 `#[tauri::command]`（桌面）或 HTTP（浏览器预览）到达 Rust domain crates。第三方 harness（deepseek dsh）为外部进程：`webapp-host` 负责拉起与健康检查，`dsh-bundle` / `dsh-version` 管版本，中心负责渲染（Tauri 独立 WebView2 子窗口 / 浏览器 iframe）。关键契约（IPC 接口、共享类型）使用 TypeScript 类型作为单一真源（Rust→TS 自动生成）。
 
 ### 🧑 通俗视角
 
@@ -268,7 +268,7 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 2. 服务员（Bridge）把订单传给后厨
 3. 后厨（Backend 命令 + domain crates）备菜、存档、记账
 4. 冷库（Storage）存着食材和历史订单
-5. 主厨（第三方 harness，外请）只管做"智能菜"，上菜口（中间区渲染）由餐厅提供
+5. 主厨（第三方 harness，外请）只管做"智能菜"，上菜口（中心渲染）由餐厅提供
 
 想换主厨？不用装修餐厅，换个外请团队就行。
 
@@ -289,7 +289,7 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 `SQLite 状态（工作区/补丁快照索引/站点元数据/剪贴板…）` `文件（日志/dsh bundle）` `storage-locator 指针` `启动期迁移`
 
 **🤖 外部 harness（非层内，宿主集成）**
-`webapp-host 拉起 + 健康检查` `dsh-bundle 内嵌版本` `dsh-version 系统版本检测/升级回退` `download-source 下载源/镜像` `中间区宿主渲染`
+`webapp-host 拉起 + 健康检查` `dsh-bundle 内嵌版本` `dsh-version 系统版本检测/升级回退` `download-source 下载源/镜像` `中心宿主渲染`
 
 ### 🔌 宿主集成点（harness 相关）
 
@@ -356,7 +356,7 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 
 ### 风险 01 · dsh 宿主进程托管可靠性
 
-dsh 为外部进程：拉起失败、端口占用、版本不匹配、进程意外退出都会让中间区无内容可渲染。
+dsh 为外部进程：拉起失败、端口占用、版本不匹配、进程意外退出都会让中心无内容可渲染。
 
 **✅ 应对策略**
 

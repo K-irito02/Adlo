@@ -248,7 +248,7 @@ export const IconReplace = make(
 );
 
 /**
- * 移入中间部分图标（面板标签 → 中间区宿主）。
+ * 移入中心图标（面板标签 → 中心宿主）。
  * 源 SVG 为白色 stroke（#ffffff）的 Tabler 风格位移路径，此处收敛为 currentColor
  * 继承主题，经 make 统一 viewBox 24 / strokeWidth 2 / round caps。
  * 禁止内联使用，请统一 import 此组件。

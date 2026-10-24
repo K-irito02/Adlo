@@ -385,12 +385,12 @@ describe('dshActions.restartDsh', () => {
       url: 'http://127.0.0.1:3080/?token=new',
       failed: false,
     });
-    // 旧标签被关闭且仅剩一个新标签（先开后关，中间区永不为空）。
+    // 旧标签被关闭且仅剩一个新标签（先开后关，中心永不为空）。
     expect(store.getState().browserTabs).toHaveLength(1);
     expect(store.getState().browserTabs[0].url).toBe('http://127.0.0.1:3080/?token=new');
   });
 
-  it('面板 dsh 标签重建后仍留在面板（不被劫持到中间区）', async () => {
+  it('面板 dsh 标签重建后仍留在面板（不被劫持到中心）', async () => {
     const store = makeStore();
     store.getState().browserOpenTab('http://127.0.0.1:3080/?token=old', 'dsh');
     (window as any).digitalLife.dsh.restart.mockResolvedValue({
@@ -404,7 +404,7 @@ describe('dshActions.restartDsh', () => {
     expect(store.getState().centerTabs).toHaveLength(0);
   });
 
-  it('中间区 dsh 标签重建后仍在中间区且不产生入口页', async () => {
+  it('中心 dsh 标签重建后仍在中心且不产生入口页', async () => {
     const store = makeStore();
     store.getState().browserOpenTab('http://127.0.0.1:3080/?token=old', 'dsh');
     const oldId = store.getState().browserActiveTabId;

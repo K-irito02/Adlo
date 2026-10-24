@@ -250,7 +250,7 @@ describe('tooltipPosition', () => {
     it('keeps a right-side toolbar button tooltip centered instead of sliding to the WebView right edge', () => {
       // 用户截图里的「Tooltip 飞到屏幕最右」即此类几何：触发点中心 x=830、tooltip 宽 40
       // → 原位 x=810；矩形逃逸点 16/840 中 840 更近，故旧实现贴着矩形右缘 x=840 显示
-      // （即中心区/右侧面板交界处）。
+      // （即中心/右侧面板交界处）。
       const triggerRect = createMockDOMRect({
         top: 44,
         left: 816,

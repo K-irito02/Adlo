@@ -58,7 +58,8 @@ git worktree add "E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/<branch>" -b <bra
 
 ```
 ├── AGENTS.md            # 项目治理规则、编码规范
-├── CONTEXT.md           # 领域术语表
+├── GLOSSARY.md          # 领域术语表
+├── CONTEXT.md           # 架构与实现说明
 ├── SECURITY.md          # 安全策略
 ├── FUTURE-ROADMAP.md    # 远期规划
 ├── ai-digital-life/     # 实现工作区（Rust + Tauri + React）
@@ -125,7 +126,8 @@ git worktree add "E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/<branch>" -b <bra
 
 - [AGENTS.md](./AGENTS.md) — 项目治理规则、编码规范
 - [parallel-branch-development.md](./parallel-branch-development.md) — 并行分支开发手册（工作树隔离与复用）
-- [CONTEXT.md](./CONTEXT.md) — 领域术语表
+- [GLOSSARY.md](./GLOSSARY.md) — 领域术语表
+- [CONTEXT.md](./CONTEXT.md) — 架构与实现说明
 - [SECURITY.md](./SECURITY.md) — 安全策略
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
 - [docs/](./docs/) — 架构设计、知识库、设计系统

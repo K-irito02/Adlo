@@ -61,7 +61,7 @@ pub enum Theme {
     Dark,
 }
 
-/// 网址链接的默认打开落点：`middle` = 中间区新标签，`panel` = 右侧浏览器面板新标签，
+/// 网址链接的默认打开落点：`middle` = 中心新标签，`panel` = 右侧浏览器面板新标签，
 /// `external` = 系统默认浏览器（外部打开）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, Default)]
 // 注：`rename_all` 现仅约束序列化（反序列化走下方手写 `Deserialize`，与 LogLevel 同口径）。

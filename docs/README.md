@@ -5,6 +5,7 @@
 | 目录 | 内容 |
 |------|------|
 | [architecture/](./architecture/) | 系统架构、技术栈对齐、国际化、主题、工作区与检索 |
+| [adr/](./adr/) | 架构决策记录（ADR，按序号归档） |
 | [design-system/](./design-system/) | 设计 Token、主题、组件规范、可访问性、响应式、测试 |
 | [development/](./development/) | 工程约束（技术栈、双端、安全、Store、i18n）与日志系统操作手册 |
 | [plans/agent/](./plans/agent/) | Agent 系统实施计划（核心引擎、SSE 服务器、Tauri 接线、会话页面等） |
@@ -40,4 +41,5 @@
 - ADL 源码地图 → [analysis/ai-digital-life/README.md](./analysis/ai-digital-life/README.md)
 - 贡献指南 → [CONTRIBUTING.md](../CONTRIBUTING.md)
 - 安全策略 → [SECURITY.md](../SECURITY.md)
-- 领域术语表 → [CONTEXT.md](../CONTEXT.md)
+- 领域术语表 → [GLOSSARY.md](../GLOSSARY.md)
+- 架构与实现说明 → [CONTEXT.md](../CONTEXT.md)

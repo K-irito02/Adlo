@@ -22,20 +22,20 @@
 
 ## 区域索引
 
-| 区域 | 文档路径 | 说明 |
-|------|----------|------|
-| 标题栏 | [titlebar/](./titlebar/README.md) | 汉堡菜单、操作按钮、中间区标签条、窗口控制 |
-| 左侧边栏 | [leftbar/](./leftbar/README.md) | 剪切看板、系统监控 |
-| 中心面板 | [center/](./center/README.md) | 中间区多标签宿主（dsh/浏览器/终端） |
-| 右侧面板 | [rightpanel/](./rightpanel/README.md) | 工具切换（6 工具）、工具面板、浏览器、通信面板 |
+  区域   文档路径   说明  
+ ------ ---------- ------ 
+  标题栏   [titlebar/](./titlebar/README.md)   汉堡菜单、操作按钮、中心标签条、窗口控制  
+  左侧边栏   [leftbar/](./leftbar/README.md)   剪切看板、系统监控  
+  中心   [center/](./center/README.md)   中心多标签宿主（dsh/浏览器/终端）  
+  右侧面板   [rightpanel/](./rightpanel/README.md)   工具切换（6 工具）、工具面板、浏览器、通信面板  
 
 ## 共享定义
 
-| 文件 | 说明 |
-|------|------|
-| [shared/selectors.md](./shared/selectors.md) | 选择器定位策略 |
-| [shared/states.md](./shared/states.md) | 通用元素状态定义 |
-| [shared/wait-conditions.md](./shared/wait-conditions.md) | 通用等待条件模板 |
+  文件   说明  
+ ------ ------ 
+  [shared/selectors.md](./shared/selectors.md)   选择器定位策略  
+  [shared/states.md](./shared/states.md)   通用元素状态定义  
+  [shared/wait-conditions.md](./shared/wait-conditions.md)   通用等待条件模板  
 
 ## 使用方式
 
@@ -68,20 +68,20 @@
 
 ### 常用操作入口
 
-| 操作 | 入口位置 | 文档 |
-|------|----------|------|
-| 打开工作区 | 标题栏 → 文件菜单 → 打开文件夹 | [titlebar/menus/file-menu.md](./titlebar/menus/file-menu.md) |
-| 切换工具 | 右侧面板 → 工具切换器 | [rightpanel/tool-switcher.md](./rightpanel/tool-switcher.md) |
-| 切换主题 | 标题栏 → 主题按钮 | [titlebar/actions.md](./titlebar/actions.md) |
-| 打开设置 | `Ctrl+Shift+Comma` 或标题栏 → 设置按钮 | [titlebar/actions.md](./titlebar/actions.md) |
+  操作   入口位置   文档  
+ ------ ---------- ------ 
+  打开工作区   标题栏 → 文件菜单 → 打开文件夹   [titlebar/menus/file-menu.md](./titlebar/menus/file-menu.md)  
+  切换工具   右侧面板 → 工具切换器   [rightpanel/tool-switcher.md](./rightpanel/tool-switcher.md)  
+  切换主题   标题栏 → 主题按钮   [titlebar/actions.md](./titlebar/actions.md)  
+  打开设置   `Ctrl+Shift+Comma` 或标题栏 → 设置按钮   [titlebar/actions.md](./titlebar/actions.md)  
 
 ### 全局快捷键
 
-| 快捷键 | 功能 | 测试方式 |
-|--------|------|----------|
-| `Ctrl+O` | 打开工作区 | 模拟键盘输入 |
-| `Ctrl+N` | 新建工作区 | 模拟键盘输入 |
-| `Ctrl+Shift+Comma` | 打开设置 | 模拟键盘输入 |
+  快捷键   功能   测试方式  
+ -------- ------ ---------- 
+  `Ctrl+O`   打开工作区   模拟键盘输入  
+  `Ctrl+N`   新建工作区   模拟键盘输入  
+  `Ctrl+Shift+Comma`   打开设置   模拟键盘输入  
 
 ## 注意事项
 

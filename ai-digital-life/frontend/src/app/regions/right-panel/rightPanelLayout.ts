@@ -80,7 +80,7 @@ export function deriveRightPanelOverlayState(
  *   最小化过渡态的 144x19，而 shell 矩形会滞后给出 395 这种"看似正常"的值）
  *   说明窗口正处在最小化过渡态。此时按 `rightMaxWidth` 收窄会把面板宽度错误
  *   钳小并提交到 store（`setRightPanelWidth` 持久化），恢复后右面板变窄、
- *   中间区侵占（2026-09-30 最小化→恢复 regression）。
+ *   中心侵占（2026-09-30 最小化→恢复 regression）。
  *   浏览器模式下无最小尺寸约束、极小视口同样跳过：方向是安全的（只推迟同步、
  *   不污染持久化宽度；窗口放大后即补算），而非显示回归。
  */
@@ -97,7 +97,7 @@ export const MINIMIZED_VIEWPORT_HEIGHT_GUARD = 240;
  * 它在进入覆盖时按当时阈值设定，之后保持稳定（窗口连续变化时不跟随，保证编辑器
  * 换行稳定）。但左栏收起/展开是离散的布局基变更，阈值随之跳变；若锚不跟进，
  * 后续覆盖→停靠翻转瞬间网格中心宽会跳变（旧锚 vs 新阈值之差，左栏 260px 即 260px
- * 跳变 → 中间区按钮整体瞬移，事项 8）。因此左栏切换时必须用 `rebaseAnchor` 把锚
+ * 跳变 → 中心按钮整体瞬移，事项 8）。因此左栏切换时必须用 `rebaseAnchor` 把锚
  * 重定到实时阈值；连续变化（窗口/拖拽）不 rebase。
  */
 export function resolveOverlayAnchorWidth(

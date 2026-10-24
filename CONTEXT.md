@@ -1,6 +1,6 @@
-# 项目领域术语表
+# 架构与实现说明
 
-本文档记录 AI 数字生命项目的核心领域概念、架构术语和关键术语定义。帮助贡献者统一理解项目上下文。
+本文档记录 AI 数字生命的架构概念、实现落点与文件路径。规范用词（术语定义与同义项禁用）见 [GLOSSARY.md](./GLOSSARY.md)；本文档不重复定义术语。
 
 ---
 
@@ -64,8 +64,9 @@ Tracing 日志系统的配置层，支持文件输出和结构化字段。
 ### Sidecar
 桌面端启动的独立后端子进程（当前 Tauri 模式）。未来移动端可通过 SSH/Sidecar 连接桌面端或服务器。
 
-### DSH (DeepSeek Shell)
-DeepSeek Harness 的简称，一个基于 npm 的 Web 应用，启动方式为 `npx @deepseek-ai/dsh@<version> --profile web --no-open`。在应用中作为**普通浏览器标签**承载于中间部分的多标签宿主（`location='center'` + `isDsh`），面板↔中心为同一原生 WebView 的位置移动；关闭 dsh 标签即彻底退出进程（`dsh.close(false)`），不跨重启持久化。
+### DSH 宿主渲染
+
+dsh 基于 npm 发布，启动方式为 `npx @deepseek-ai/dsh@<version> --profile web --no-open`。在应用中作为**普通浏览器标签**承载于中心的多标签宿主（`location='center'` + `isDsh`），面板↔中心为同一原生 WebView 的位置移动；关闭 dsh 标签即彻底退出进程（`dsh.close(false)`），不跨重启持久化。
 
 ### DSH Bundle
 内置的 DSH 预安装包，位于 `<data_dir>/dsh-bundle/`。包含 `manifest.json`（版本元数据）和 `package/` 目录（实际 dsh 代码）。离线环境下可直接使用，无需 npm 下载。
@@ -108,13 +109,13 @@ DSH 版本管理系统，位于 `crates/dsh-version/`。管理已安装版本列
 桥接层按功能域拆分为多个子接口文件（`shared/ipc/` 目录），每个域文件定义该域的接口类型。
 
 ### 中心标签（Center Tab）
-中间部分多标签宿主中的标签，`kind` 为 `launcher`（统一入口页 `CenterEntryPage`，三入口：deepseek harness / 浏览器 / 终端；标签与 `+` 按钮显示「新建入口页」）/`browser`（浏览器视图）/`terminal`（终端视图）。浏览器/终端中心标签通过 `refId` 指向底层标签；底层标签以 `location: 'panel' | 'center'` 标记所属宿主，位置排他。面板的破坏性操作（关闭/清空/删除）跳过 `location === 'center'` 的标签；标题栏标签条支持切换、真关闭与移回对应面板。
+中心多标签宿主中的标签，`kind` 为 `launcher`（统一入口页 `CenterEntryPage`，三入口：deepseek harness / 浏览器 / 终端；标签与 `+` 按钮显示「新建入口页」）/`browser`（浏览器视图）/`terminal`（终端视图）。浏览器/终端中心标签通过 `refId` 指向底层标签；底层标签以 `location: 'panel' | 'center'` 标记所属宿主，位置排他。面板的破坏性操作（关闭/清空/删除）跳过 `location === 'center'` 的标签；标题栏标签条支持切换、真关闭与移回对应面板。
 
 ### 浏览器宿主会话隔离（UDF Isolation）
-WebView2 的 `PreferredColorScheme` 在同一用户数据目录（UDF）会话内实际全局（上游 WebView2Feedback #4920），新建控制器会闪到另一宿主。故面板沿用默认 UDF，中心/静默各走独立 `data_directory`（`webview/center`、`webview/silent`）。代价：独立 UDF = 独立空 profile，中心与面板的 Cookie/localStorage/登录态互不共享（中心升级后需重新登录一次）；后端主题另有"是否已显式同步"状态位，启动窗口内用创建时刻前端值，防重启首帧落到硬编码默认主题。
+WebView2 的 `PreferredColorScheme` 在同一用户数据目录（UDF）会话内实际全局（上游 WebView2Feedback #4920），新建控制器会闪到另一宿主。故面板沿用默认 UDF，中心/静默各走独立 `data_directory`（`webview/center`、`webview/silent`）。代价：独立 UDF = 独立空 profile，中心与面板的 Cookie/localStorage/登录态互不共享（中心升级后需重新登录一次）；后端主题另有"是否已显式同步"状态位，启动窗口内用创建时刻前端值，防重启首帧落到硬编码默认主题。决策记录见 [ADR-0001](./docs/adr/0001-browser-udf-isolation.md)。
 
 ### Divider Strip（分隔线桥接条）
-中心区浏览器 WebView2 与右侧面板浏览器 WebView2（面板导航器收起时）零间隙贴边时，两者均为 OS 级子窗口，吃掉右面板 resize handle 命中带。修复是在接缝上架一条 6px 全高透明子 WebView（`adl-divider-strip`），夺回命中权并把拖拽增量回传主窗口；兄弟窗口（重）建经 store `siblingWebviewNonce` 重建回到最上层。显隐只看面板侧不变量（导航器收起 **且** 面板活动 tab 已入池承载可见 WebView，见 `shouldShowStrip`）；排序指纹仅含 z-order 信号（tabId/tab 数/nonce，不含 URL）；面板进入 overlay 态（中心 WebView 已隐藏）时**仍需**条带兜底。
+中心浏览器 WebView2 与右侧面板浏览器 WebView2（面板导航器收起时）零间隙贴边时，两者均为 OS 级子窗口，吃掉右面板 resize handle 命中带。修复是在接缝上架一条 6px 全高透明子 WebView（`adl-divider-strip`），夺回命中权并把拖拽增量回传主窗口；兄弟窗口（重）建经 store `siblingWebviewNonce` 重建回到最上层。显隐只看面板侧不变量（导航器收起 **且** 面板活动 tab 已入池承载可见 WebView，见 `shouldShowStrip`）；排序指纹仅含 z-order 信号（tabId/tab 数/nonce，不含 URL）；面板进入 overlay 态（中心 WebView 已隐藏）时**仍需**条带兜底。
 
 ### Branded Types（标记类型）
 编译时名义类型（nominal typing）模式，定义在 `frontend/src/shared/branded.ts`。使用 TypeScript `unique symbol` 交叉类型实现零运行时开销的类型安全：
@@ -123,7 +124,7 @@ WebView2 的 `PreferredColorScheme` 在同一用户数据目录（UDF）会话�
 - 桥接层保持使用 `string` 传输，前端边界处通过 `as string` 剥离品牌
 
 ### Typed Error Classes（类型化错误类）
-前端定义在 `frontend/src/shared/typedErrors.ts`，16 个具体错误类（其中 14 个对应 Rust `AppError` 变体，另 `InvokeError`、`PreviewApiError` 为前端专用；Rust 端共 17 个变体）。支持 `instanceof` 判断，`fromIpcErrorCode(code, message)` 工厂函数从 IPC 错误码转换。
+前端定义在 `frontend/src/shared/typedErrors.ts`，17 个具体错误类（其中 15 个对应 Rust `AppError` 变体，另 `InvokeError`、`PreviewApiError` 为前端专用；Rust 端共 18 个变体，`Timeout` / `RateLimit` / `AuthError` 无对应前端类，经 `fromIpcErrorCode` 回落到 `InternalError`）。支持 `instanceof` 判断，`fromIpcErrorCode(code, message)` 工厂函数从 IPC 错误码转换。
 
 ### EventBuffer（事件缓冲区）
 前端定义在 `frontend/src/shared/eventBuffer.ts`，泛型缓冲区类，用于收集高频事件

@@ -35,7 +35,8 @@ AI 数字生命桌面应用的规划与治理仓库。远期规划支持**移动
 - [RULES.md](./RULES.md) — 规则系统（分层与优先级、三目录同步、文件规范、规则清单）
 - [SKILLS.md](./SKILLS.md) — 技能系统（来源分类、三技能目录、同步规则、技能摘要）
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — 贡献指南
-- [CONTEXT.md](./CONTEXT.md) — 领域术语表
+- [GLOSSARY.md](./GLOSSARY.md) — 领域术语表
+- [CONTEXT.md](./CONTEXT.md) — 架构与实现说明
 - [SECURITY.md](./SECURITY.md) — 安全策略
 - [ai-digital-life/README.md](./ai-digital-life/README.md) — 实现工作区快速开始
 - [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md) — 技术栈、功能清单、Store 架构

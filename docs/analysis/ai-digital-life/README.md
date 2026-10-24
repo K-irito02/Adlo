@@ -34,7 +34,7 @@
 |----------|-----------|
 | Rust 后端所有 Crate 详解 | [features/rust-crates.md](./features/rust-crates.md)（22 个，以源码为准） |
 | 前端组件架构 | [features/frontend-structure.md](./features/frontend-structure.md) |
-| dsh 宿主集成（进程托管/版本管理/宿主渲染） | 中间区多标签宿主 + `crates/webapp-host`、`dsh-bundle`、`dsh-version` |
+| dsh 宿主集成（进程托管/版本管理/宿主渲染） | 中心多标签宿主 + `crates/webapp-host`、`dsh-bundle`、`dsh-version` |
 | 内置浏览器 WebView 管理 | [features/builtin-browser.md](./features/builtin-browser.md) |
 | Zustand Store 架构 | [features/store-architecture.md](./features/store-architecture.md) |
 | 终端系统（PTY + xterm.js） | [features/terminal-system.md](./features/terminal-system.md) |

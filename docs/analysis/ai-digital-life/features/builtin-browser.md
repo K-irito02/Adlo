@@ -144,7 +144,7 @@
 
 | 组件 | 文件 | 用途 |
 |------|------|------|
-| `BrowserPanel` | `features/browser/BrowserPanel.tsx` | 浏览器主面板容器 |
+| `BrowserPanel` | `features/browser/BrowserPanel.tsx` | 浏览器中心容器 |
 | `BrowserPanelStateContext` | `features/browser/BrowserPanelStateContext.ts` | 面板状态上下文（替代 ~66 个 props 传递） |
 | `BrowserPanelActionsContext` | `features/browser/BrowserPanelActionsContext.ts` | 面板操作上下文 |
 | `BrowserPanelDialogs` | `features/browser/BrowserPanelDialogs.tsx` | 面板对话框管理 |

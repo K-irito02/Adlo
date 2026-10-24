@@ -11,7 +11,7 @@ AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿�
 |------|------|
 | 桌面原生 | Rust + Tauri 2.x，原生性能与系统能力 |
 | 双端架构 | Tauri 桌面 + 浏览器预览双模式（功能行为一致） |
-| 第三方 harness 集成 | deepseek dsh：进程托管（webapp-host）、版本管理（dsh-bundle/dsh-version）、下载源与镜像（download-source）、中间区多标签宿主渲染 |
+| 第三方 harness 集成 | deepseek dsh：进程托管（webapp-host）、版本管理（dsh-bundle/dsh-version）、下载源与镜像（download-source）、中心多标签宿主渲染 |
 | 工作区 | 多工作区管理、Git 操作、文件树、大纲解析、搜索 |
 | 终端 | xterm.js 交互式终端（多会话 PTY + 单标签多窗格布局） |
 | 编辑器 | CodeMirror 6 + 文件预览 + 差异查看器 |
@@ -96,7 +96,7 @@ ai-digital-life/
 ├── frontend/               # React 前端
 │   └── src/
 │       ├── app/            # 应用主体
-│       │       ├── features/  # 26 功能域（含 center 中间区宿主、dsh、storage-settings、environment、network）
+│       │       ├── features/  # 26 功能域（含 center 中心宿主、dsh、storage-settings、environment、network）
 │       │   ├── components/ # 通用组件
 │       │   ├── stores/    # Zustand 状态（32 切片，slicedStore.ts）
 │       │   ├── hooks/     # 自定义 Hook

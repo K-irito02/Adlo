@@ -105,7 +105,7 @@ WebView 池、iframe 嵌入、覆盖层级与 WebView2 特性。
 |------|------|
 | [browser-embed-check-fix-2026-06-17.md](./webview-embed/browser-embed-check-fix-2026-06-17.md) | iframe 嵌入崩溃 + 双模式隔离 + 路由竞态 + PTY 错误 + 指数退避 |
 | [safe-iframe-shadow-dom-fix-2026-06-17.md](./webview-embed/safe-iframe-shadow-dom-fix-2026-06-17.md) | Shadow DOM 修复跨域 iframe SecurityError（attachShadow mode:closed 终极方案） |
-| [panel-resize-handle-webview-2026-06-18.md](./webview-embed/panel-resize-handle-webview-2026-06-18.md) | 面板拖拽线被 WebView 覆盖：区域逃逸方案（handle 左扩至中心区） |
+| [panel-resize-handle-webview-2026-06-18.md](./webview-embed/panel-resize-handle-webview-2026-06-18.md) | 面板拖拽线被 WebView 覆盖：区域逃逸方案（handle 左扩至中心） |
 | [tauri-webview-overlay-hide-2026-06-18.md](./webview-embed/tauri-webview-overlay-hide-2026-06-18.md) | Tauri 原生子 WebView 层级覆盖问题（含 updateWebViewBounds 覆盖层守卫） |
 | [browser-text-overflow-webview2-clip-2026-06-22.md](./webview-embed/browser-text-overflow-webview2-clip-2026-06-22.md) | 快捷卡片省略号 WebView2 点击闪烁（Chromium clip-on-interaction，`-webkit-line-clamp` 替代） |
 | [browser-webview-pool-lru-2026-06-26.md](./webview-embed/browser-webview-pool-lru-2026-06-26.md) | WebView 池 LRU 缓存策略实现 |

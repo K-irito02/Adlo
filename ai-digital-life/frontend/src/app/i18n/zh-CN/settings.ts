@@ -288,7 +288,7 @@ export const settingsZh = {
   settingsLinkOpenMethod: '网址链接',
   settingsLinkOpenMethodDesc:
     '点击网址链接时的打开位置（Markdown 预览与智能体站点拦截链接统一生效）',
-  settingsLinkOpenMiddle: '中间区',
+  settingsLinkOpenMiddle: '中心',
   settingsLinkOpenPanel: '右侧浏览器面板',
   settingsLinkOpenExternal: '外部浏览器',
   settingsFileOpenMethod: '文件',

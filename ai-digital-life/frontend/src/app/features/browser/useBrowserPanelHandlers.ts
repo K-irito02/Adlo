@@ -92,7 +92,7 @@ export function useBrowserPanelHandlers(
         return;
       }
       // 需认证本地端口分流（事项 2）：裸 3080 必 401，先经后端取真实入口，
-      // 再走面板归属导航（就地/新建跟随开关，不劫持到中间区）。
+      // 再走面板归属导航（就地/新建跟随开关，不劫持到中心）。
       // 同步快路径：未命中分发表的 URL 保持原同步行为（回归测试依赖同步断言）。
       if (routeLocalUrl(url)?.opener !== 'dsh') {
         openResolvedTabFromTree(url);

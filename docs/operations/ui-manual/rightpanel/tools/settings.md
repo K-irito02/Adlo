@@ -289,7 +289,7 @@ await page.click('.adl-dsh-settings__version-menu-item-revert:has-text("1.0.0")'
 
 | 设置项 | 说明 |
 |--------|------|
-| 网址链接 | 三选一：中间区 / 右侧浏览器面板 / 外部浏览器；两处下拉触发器等宽（`.adl-settings-dropdown--open-method`） |
+| 网址链接 | 三选一：中心 / 右侧浏览器面板 / 外部浏览器；两处下拉触发器等宽（`.adl-settings-dropdown--open-method`） |
 | 文件 | 二选一：右侧文件面板 / 系统默认应用 |
 | 智能体站点链接拦截 | 默认关闭（opt-in）；关闭时白名单行隐藏且两行间无分隔线（同一视觉组） |
 | 智能体网址白名单 | 仅拦截开启时显示；卡片式新增（别称选填、站点必填归一为整站 origin）；浏览器模式整行置灰（跨域 iframe 不可注入） |

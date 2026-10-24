@@ -13,7 +13,7 @@ export function isDshBusySnap(): boolean {
 
 /**
  * dsh 打开前置守卫（用户实测 2026-10-21：宿主无任何可用版本时，任何 dsh 专属
- * opener——中间区“打开 deepseek harness”按钮、欢迎页快捷站点/本地端口分流——
+ * opener——中心“打开 deepseek harness”按钮、欢迎页快捷站点/本地端口分流——
  * 都不得建 dsh 标签，必须 toast 提示且界面保持正常）。
  *
  * 新鲜静默拉取源状态后仍 `effective === 'none'` 才拦截。

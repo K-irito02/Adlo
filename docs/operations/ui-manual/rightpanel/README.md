@@ -98,8 +98,8 @@ await page.mouse.up();
 | 状态 | CSS 类名 | 说明 |
 |------|----------|------|
 | 停靠 | - | 默认状态，占据布局空间 |
-| 覆盖激活 | `.adl-rightpanel--overlay-active` | 开始覆盖中心区域 |
-| 覆盖展开 | `.adl-rightpanel--overlay-expanded` | 完全覆盖中心区域 |
+| 覆盖激活 | `.adl-rightpanel--overlay-active` | 开始覆盖中心 |
+| 覆盖展开 | `.adl-rightpanel--overlay-expanded` | 完全覆盖中心 |
 
 ## 宽度限制
 

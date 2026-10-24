@@ -107,7 +107,7 @@ function parentDirectory(currentRelPath: string): string {
   return lastSeparator >= 0 ? currentRelPath.slice(0, lastSeparator) : '';
 }
 
-/** 按「网址链接」设置打开一个 URL。中间区/右面板均为新建标签，绕过就地/新建双态开关。 */
+/** 按「网址链接」设置打开一个 URL。中心/右面板均为新建标签，绕过就地/新建双态开关。 */
 export function openUrlByMethod(url: string): void {
   const state = useAppStore.getState();
   const method = state.appInfo?.config?.linkOpenMethod ?? 'panel';

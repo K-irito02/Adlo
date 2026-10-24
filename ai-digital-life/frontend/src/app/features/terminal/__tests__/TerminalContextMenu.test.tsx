@@ -44,11 +44,11 @@ describe('TerminalContextMenu', () => {
   it('菜单打开时渲染四个动作项', () => {
     renderMenu();
     expect(screen.getByRole('menu')).toBeInTheDocument();
-    // 四个动作按钮（Pin / 重命名 / 在中间部分显示 / 删除）
+    // 四个动作按钮（Pin / 重命名 / 在中心显示 / 删除）
     expect(screen.getAllByRole('button')).toHaveLength(4);
   });
 
-  it('点击「在中间部分显示」触发对应动作', async () => {
+  it('点击「在中心显示」触发对应动作', async () => {
     const { onOpenInCenter } = renderMenu();
     await userEvent.click(screen.getAllByRole('button')[2]);
     expect(onOpenInCenter).toHaveBeenCalledTimes(1);

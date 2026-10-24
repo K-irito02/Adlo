@@ -63,7 +63,7 @@
 ```
 App.tsx (根组件，TCopyProvider 注入)
 ├── Regions (布局)
-│   ├── TitleBar            # 标题栏（含汉堡菜单/中间区标签条/窗口控制）
+│   ├── TitleBar            # 标题栏（含汉堡菜单/中心标签条/窗口控制）
 │   ├── CenterPane          # 中央多标签宿主（CenterEntryPage：dsh/浏览器/终端）
 │   ├── LeftSidebar         # 左侧边栏（剪切看板 + 系统监控）
   │   └── RightPanel          # 右侧面板（5 工具切换：files/changes/browser/terminal/settings；communicate 已删除）
@@ -72,7 +72,7 @@ App.tsx (根组件，TCopyProvider 注入)
 │   ├── browser/            # 内置浏览器
 │   ├── terminal/           # 终端（多窗格）
 │   ├── editor/             # CodeMirror 编辑器
-│   ├── center/             # 中间区宿主
+│   ├── center/             # 中心宿主
 │   ├── dsh/                # dsh 宿主集成
 │   └── ...                 # 更多功能域
 │
@@ -91,7 +91,7 @@ slicedStore.ts (合并入口，32 切片)
 ├── 面板切片 (UI 面板)
 │   ├── browserSlice 系列    # 浏览器（8 切片：browser/tabs/bookmark/history/folders/landing/searchEngines/downloads）
 │   ├── terminalSlice        # 终端
-│   ├── centerTabsSlice      # 中间区标签
+│   ├── centerTabsSlice      # 中心标签
 │   └── dshSlice             # dsh 宿主
 │
 ├── 功能切片

@@ -24,15 +24,15 @@ WebView2 是 OS 级渲染表面，位于 HTML 层之上。右侧面板的 resize
 |------|------|---------|
 | 隐藏 WebView | 鼠标靠近时移出画面 | ❌ 用户不接收网页消失 |
 | 微缩 WebView | 缩进 6px 暴露 handle | ❌ 用户不接收 WebView 尺寸变化 |
-| **✅ 区域逃逸** | handle 向左扩展 8px 进入中心区域 | ✅ 选定的最终方案 |
+| **✅ 区域逃逸** | handle 向左扩展 8px 进入中心 | ✅ 选定的最终方案 |
 
 ### 方案三详细说明：区域逃逸
 
-将 resize handle 从"紧贴右侧面板左边缘"改为"向左扩展 8px 进入中心区域"。
+将 resize handle 从"紧贴右侧面板左边缘"改为"向左扩展 8px 进入中心"。
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  中心区域 (无 WebView)      │  右侧面板           │
+│  中心 (无 WebView)       │  右侧面板           │
 │                              │                    │
 │                 │← 8px 扩展 →│← handle 6px →      │
 │                 │◄─── 14px 触摸区域 ──►│          │
@@ -43,7 +43,7 @@ WebView2 是 OS 级渲染表面，位于 HTML 层之上。右侧面板的 resize
 └──────────────────────────────────────────────────┘
 ```
 
-- **`.adl-rightpanel__resize-handle`**：`left: -8px`，`width: 14px`（中心区域 8px + 面板内 6px）
+- **`.adl-rightpanel__resize-handle`**：`left: -8px`，`width: 14px`（中心 8px + 面板内 6px）
 - **`::before` 视觉线**：`left: 8px`（相对于 handle，对齐右侧面板左边缘）
 - **颜色**：`var(--text-secondary)`（亮灰）
 - **z-index**：`var(--z-tooltip)`（90，足够高于任何网页内容）
@@ -51,7 +51,7 @@ WebView2 是 OS 级渲染表面，位于 HTML 层之上。右侧面板的 resize
 
 ### 核心原理
 
-中心区域（`.adl-tool-primary`）不存在子 WebView。handle 的 8px 扩展部分落入中心区域，鼠标在此区域可正常触发 CSS `:hover` 和 `pointerdown` 事件。一旦点击开始拖拽，`setPointerCapture` 保证 handle 持续接收后续指针事件，即使鼠标移入 WebView 覆盖区。
+中心（`.adl-tool-primary`）不存在子 WebView。handle 的 8px 扩展部分落入中心，鼠标在此区域可正常触发 CSS `:hover` 和 `pointerdown` 事件。一旦点击开始拖拽，`setPointerCapture` 保证 handle 持续接收后续指针事件，即使鼠标移入 WebView 覆盖区。
 
 ## 关键文件
 
@@ -99,7 +99,7 @@ WebView2 是 OS 级渲染表面，位于 HTML 层之上。右侧面板的 resize
 ## 经验教训
 
 ### 1. 不是所有 WebView 覆盖场景都需要隐藏 WebView
-WebView 是 OS 级渲染表面，但 HTML 元素可以通过改变自身位置来"逃出"WebView 覆盖区。利用中心区域无 WebView 的特点让 handle 部分扩展过去即可。
+WebView 是 OS 级渲染表面，但 HTML 元素可以通过改变自身位置来"逃出"WebView 覆盖区。利用中心无 WebView 的特点让 handle 部分扩展过去即可。
 
 ### 2. setPointerCapture 保证拖拽持续
 一旦 `pointerdown` 被 handle 捕获（通过 `setPointerCapture`），即使后续鼠标移入 WebView 覆盖区，handle 仍然持续接收 `pointermove`/`pointerup` 事件。这是整个方案可行的关键。
@@ -119,7 +119,7 @@ WebView 是 OS 级渲染表面，但 HTML 元素可以通过改变自身位置�
 ## 后续演进（2026-09-30）：dsh 打破"区域逃逸"前提 → 透明桥接条
 
 ### 前提失效
-区域逃逸成立的前提是"中心区无 WebView"。dsh 打开后，中心区 `DshHostRegion`（`.adl-app-host { inset: 0 }`）被 dsh WebView2 子窗口全覆盖；叠加浏览器侧边栏收起后浏览器 tab WebView2 贴到面板左缘（仅隔 1px border），14px 命中带两侧全灭，仅剩顶栏 ToolSwitcher 行约 40px×6px 可达——"很难触发拖拽"。拖拽一旦起手即正常（ResizeObserver→bounds 镜像自动跟随），难点只在第一次抓取。
+区域逃逸成立的前提是"中心无 WebView"。dsh 打开后，中心 `DshHostRegion`（`.adl-app-host { inset: 0 }`）被 dsh WebView2 子窗口全覆盖；叠加浏览器侧边栏收起后浏览器 tab WebView2 贴到面板左缘（仅隔 1px border），14px 命中带两侧全灭，仅剩顶栏 ToolSwitcher 行约 40px×6px 可达——"很难触发拖拽"。拖拽一旦起手即正常（ResizeObserver→bounds 镜像自动跟随），难点只在第一次抓取。
 
 ### 方案对比
 

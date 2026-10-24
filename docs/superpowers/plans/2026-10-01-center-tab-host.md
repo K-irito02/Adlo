@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 把「中间部分」改造为多标签宿主，让浏览器 WebView 与终端视图可在右侧面板与中间部分之间双向移动，dsh 统一为普通浏览器标签。
+**Goal:** 把「中心」改造为多标签宿主，让浏览器 WebView 与终端视图可在右侧面板与中心之间双向移动，dsh 统一为普通浏览器标签。
 
 **Architecture:** 新增 `centerTabsSlice` 承载中心标签顺序与活动项；既有浏览器/终端标签增加排他的 `location` 字段；浏览器 WebView 池提升为模块级单例，配合 `useBrowserViewHost` 为面板与中心两个宿主各自驱动活动标签的 bounds/lifecycle/visibility。
 
@@ -969,7 +969,7 @@ Expected: FAIL（模块不存在）
 
 - [ ] **Step 3: 实现**
 
-`useTerminalView` 从 `useTerminalPanel` 抽出与导航/全局关闭无关的部分（xterm ref、history、view prefs、region collapse、data/resize、单双列/区域交换/菜单动作）。`CenterTerminalView`：`terminalTabId === null` 时渲染选择器（profile 列表 + 工作区子菜单，默认工作区 `''` 即 `__independent__`），选定后 `terminalCreateTab(profile, workspaceId)` 并对新标签 `terminalSetLocation(newId, 'center')` 且回填中心标签 `refId`；否则渲染工具栏（单双列/区域交换/菜单）+ 主区。
+`useTerminalView` 从 `useTerminalPanel` 抽出与导航/全局关闭无关的部分（xterm ref、history、view prefs、region collapse、data/resize、单双列/区域交换/菜单动作）。`CenterTerminalView`：`terminalTabId === null` 时渲染选择器（profile 列表 + 工作区子菜单，默认工作区 `''` 即 `__independent__`），选定后 `terminalCreateTab(profile, workspaceId)` 并对新标签 `terminalSetLocation(newId, 'center')` 且回填中心标签 `refId`；否则渲染工具栏（单双列/区域交换/菜单）+ 内容区。
 
 - [ ] **Step 4: 运行验证通过**
 
@@ -1045,7 +1045,7 @@ git commit -m "feat(center): add title bar center tab strip"
 
 ---
 
-### Task 13: 浏览器面板「在中间部分显示」入口
+### Task 13: 浏览器面板「在中心显示」入口
 
 **Files:**
 - Modify: `frontend/src/app/features/browser-tree/BrowserTreeEntryMenu.tsx`（entry 菜单 + tab 右键菜单各加一项）
@@ -1087,7 +1087,7 @@ Expected: FAIL（模块不存在）
 - `openUrlInCenter(url, title?, workspaceId?)` = `browserOpenTab(url, title, workspaceId)` 后取新标签 id 并 `centerShowBrowserTab(id)`。
 - `moveTabToCenter(tabId)` = `centerShowBrowserTab(tabId)`。
 
-在 `BrowserTreeEntryMenu` 的 `entryMenuItems` 与 `tabContextMenu`（书签/历史）插入「在中间部分显示」（新 `t.centerTabShowInCenter`）；`BrowserOpenTabFlatListItem` 加 `onContextMenu` 打开含该动作的菜单；`BrowserLandingPage` 的 `shortcutContextMenuItems` / `portContextMenuItems` 各插一项。
+在 `BrowserTreeEntryMenu` 的 `entryMenuItems` 与 `tabContextMenu`（书签/历史）插入「在中心显示」（新 `t.centerTabShowInCenter`）；`BrowserOpenTabFlatListItem` 加 `onContextMenu` 打开含该动作的菜单；`BrowserLandingPage` 的 `shortcutContextMenuItems` / `portContextMenuItems` 各插一项。
 
 - [ ] **Step 4: 运行验证通过**
 
@@ -1103,7 +1103,7 @@ git commit -m "feat(browser): add open-in-center entry points"
 
 ---
 
-### Task 14: 终端面板「在中间部分显示」入口
+### Task 14: 终端面板「在中心显示」入口
 
 **Files:**
 - Modify: `frontend/src/app/features/workspace-terminal/WorkspaceTerminalEntry.tsx`（接上 `onContextMenu`）
@@ -1145,7 +1145,7 @@ Expected: FAIL（`handleOpenInCenterFromMenu` 未定义）
 
 - [ ] **Step 3: 实现**
 
-`useTerminalContextMenu` 增加 `handleOpenInCenterFromMenu`（读 `contextMenu.tabId` → `centerShowTerminalTab(tabId)` → 关菜单）。`TerminalContextMenu` 增加「在中间部分显示」项。`WorkspaceTerminalEntry` 把 `TerminalContextMenu` 与 `useTerminalContextMenu` 接入：`TerminalTabBar` 的 `onContextMenu` 不再是空实现。
+`useTerminalContextMenu` 增加 `handleOpenInCenterFromMenu`（读 `contextMenu.tabId` → `centerShowTerminalTab(tabId)` → 关菜单）。`TerminalContextMenu` 增加「在中心显示」项。`WorkspaceTerminalEntry` 把 `TerminalContextMenu` 与 `useTerminalContextMenu` 接入：`TerminalTabBar` 的 `onContextMenu` 不再是空实现。
 
 - [ ] **Step 4: 运行验证通过**
 
