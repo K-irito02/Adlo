@@ -41,11 +41,11 @@ description: Audit and sync governance docs (rules, AGENTS.md, READMEs, root doc
 | 规则文件 | 全部 `*.md` | `.agents/rules/`（真源，同步后仅审计此目录） | 七维全量 |
 | AGENTS.md | 根 / 实现工作区 | `AGENTS.md`、`ai-digital-life/AGENTS.md` | 七维全量 |
 | README.md | 根 / 实现工作区 | `README.md`、`ai-digital-life/README.md` | 七维全量 |
-| 根治理文档（Tier 1） | `CONTEXT.md`、`CONTRIBUTING.md`、`ai-digital-life/CONTRIBUTING.md`、`SECURITY.md`、`FUTURE-ROADMAP.md`、`docs/development/project-engineering-constraints.md` | 见路径 | 七维全量 |
+| 根治理文档（Tier 1） | `CONTEXT.md`、`CONTRIBUTING.md`、`ai-digital-life/CONTRIBUTING.md`、`SECURITY.md`、`FUTURE-ROADMAP.md`、`SKILLS.md`、`docs/development/project-engineering-constraints.md` | 见路径 | 七维全量 |
 | 内容目录（Tier 2） | 全部 `*.md` | `docs/analysis/`、`docs/architecture/`、`docs/design-system/`、`docs/development/`、`docs/operations/` | 治理一致性（见阶段 2）；不要求 frontmatter |
 | 工程基线（Tier 3） | CI `.github/workflows/quality-gates.yml`；Tauri `ai-digital-life/src-tauri/capabilities/*.json`、`ai-digital-life/src-tauri/tauri.conf.json`；构建 `ai-digital-life/.cargo/config.toml`、`ai-digital-life/clippy.toml`、`ai-digital-life/rustfmt.toml`、根 `.editorconfig` | 见路径 | 仅核对被规则引用的关键字段 |
 
-> 其他路径的同名 `AGENTS.md`/`README.md` 不在范围；用户指定路径以用户为准。**默认不纳入**：`docs/` 下未列出的子目录（含 `knowledge-base/`、`plans/`、`specs/`、`superpowers/`、`closing-workflow/` 等过程 / 工具产物）与 `references/`，用户点名才纳入。文件数、规则数、技能数等**以运行时统计为准，不写死**。
+> 其他路径的同名 `AGENTS.md`/`README.md` 不在范围；用户指定路径以用户为准。**默认不纳入**：`docs/` 下未列出的子目录（含 `knowledge-base/`、`plans/`、`specs/`、`superpowers/`、`root-cause-to-close/` 等过程 / 工具产物）与 `references/`，用户点名才纳入。文件数、规则数、技能数等**以运行时统计为准，不写死**。
 
 ---
 

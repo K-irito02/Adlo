@@ -54,7 +54,7 @@ description: "Organizes project documentation files into a clear, standardized h
 | 内容性质 | 归档维度 | 说明 |
 |----------|----------|------|
 | 知识经验/教训/总结类（知识库、经验沉淀、复盘） | **内容主题** | 按领域/子主题归类到对应目录；**禁止按 `YYYY-MM/` 月份拆分子目录**。同类文件可整理到同一文件（见下） |
-| 时序日志/进度快照/日报周报/变更记录 | 时间（`YYYY-MM/` 或 `YYYY-MM-DD-` 前缀） | 时间本身就是组织维度，如 `closing-workflow/`、`daily-insights/` |
+| 时序日志/进度快照/日报周报/变更记录 | 时间（`YYYY-MM/` 或 `YYYY-MM-DD-` 前缀） | 时间本身就是组织维度，如 `root-cause-to-close/`、`daily-insights/` |
 | 混合内容 | 主题优先，时间为辅 | 仅在主题目录内，明确属于日志性质的子集才按时间归档 |
 
 **知识经验/教训类的整理规则**：

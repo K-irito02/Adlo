@@ -1,6 +1,6 @@
 # Development
 
-> **定位**：工程约束与操作手册。其中 `project-engineering-constraints.md` 为治理级约束，与 `.agents/rules/` 重叠处以规则文件为准（治理审计见 `.agents/skills/governance-audit/SKILL.md`）。
+> **定位**：工程约束与操作手册。其中 `project-engineering-constraints.md` 为治理级约束，与 `.agents/rules/` 重叠处以规则文件为准（治理审计见 [SKILLS.md](../../SKILLS.md) 中的 `governance-audit` 技能）。
 
 工程约束与日志系统手册。
 

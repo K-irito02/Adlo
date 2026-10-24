@@ -20,7 +20,7 @@
 | [multi-workspace](./multi-workspace/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 15 |
 | [ci-monitoring](./ci-monitoring/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离） | 7 |
 | [tauri-backend](./tauri-backend/) | Tauri 命令性能、Rust 异步模式、主线程阻塞、serde JSON 等后端经验 | 9 |
-| [toolchain](./toolchain/) | 开发工具链与环境配置经验（Git、Node、Rust 等） | 4 |
+| [toolchain](./toolchain/) | 开发工具链与环境配置经验（Git、Node、Rust、技能体系演进等） | 5 |
 | [logging](./logging/) | 日志系统统一改造经验（OpenOptions 权限、ANSI 控制、双端一致性） | 2 |
 
 ## 索引
@@ -118,6 +118,7 @@
 | [git-schannel-revocation-check-fix-2026-07-21.md](./toolchain/git-schannel-revocation-check-fix-2026-07-21.md) | Git for Windows Schannel 证书吊销检查导致推送超时 |
 | [git-proxy-port-mismatch-fix-2026-07-30.md](./toolchain/git-proxy-port-mismatch-fix-2026-07-30.md) | git 代理端口 7890 与 VPN 实际 17890 不一致 |
 | [tauri-dev-stale-exe-lock-2026-08-16.md](./toolchain/tauri-dev-stale-exe-lock-2026-08-16.md) | Tauri dev 模式残留进程锁定 exe 导致修改不生效 |
+| [skill-system-retirement-2026-10-24.md](./toolchain/skill-system-retirement-2026-10-24.md) | 技能系统精简与文档真源化：三技能退役并入 `root-cause-to-close`、产物归档、说明集中到 `SKILLS.md` |
 
 ### Logging
 

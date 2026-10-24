@@ -18,7 +18,7 @@
 |------|------|
 | 源码地图 (ADL) | [docs/analysis/ai-digital-life/](./docs/analysis/ai-digital-life/)（本项目的渐进式索引） |
 
-> **代码知识图谱**：`ai-digital-life/` 配置了 [CodeGraph](https://github.com/colbymchenry/codegraph)（MIT 许可）本地知识图谱（实现工作区根 `ai-digital-life/.codegraph/`，SQLite）。查询、检索代码时优先使用 `codegraph_*` MCP 工具或 `codegraph` CLI，详见技能 [`codegraph-knowledge-graph`](./.opencode/skills/codegraph-knowledge-graph/SKILL.md)。
+> **代码知识图谱**：`ai-digital-life/` 配置了 [CodeGraph](https://github.com/colbymchenry/codegraph)（MIT 许可）本地知识图谱（实现工作区根 `ai-digital-life/.codegraph/`，SQLite）。查询、检索代码时优先使用 `codegraph_*` MCP 工具或 `codegraph` CLI，技能说明见 [SKILLS.md](./SKILLS.md) 中的 `codegraph-knowledge-graph`。
 >
 > 参考代码直接复用需遵守 MIT 许可要求，并在代码注释中标注来源。
 
@@ -104,6 +104,7 @@ TypeScript/Rust 风格指南、Commit 规范详见 [dev-rules.md](.agents/rules/
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 未来想法
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — 贡献指南
 - [CONTEXT.md](./CONTEXT.md) — 领域术语表
+- [SKILLS.md](./SKILLS.md) — 技能系统（来源分类、三技能目录、同步规则、技能摘要）
 - [SECURITY.md](./SECURITY.md) — 安全策略
 - [docs/development/project-engineering-constraints.md](./docs/development/project-engineering-constraints.md) — 工程约束
 - [docs/knowledge-base/README.md](./docs/knowledge-base/README.md) — 经验教训与总结索引

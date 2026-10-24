@@ -65,7 +65,8 @@ alwaysApply: true
 
 ## 相关文件
 
-- [AGENTS.md](../../AGENTS.md) — 治理规则、编码规范、技能系统
+- [AGENTS.md](../../AGENTS.md) — 治理规则、编码规范
+- [SKILLS.md](../../SKILLS.md) — 技能系统（来源分类、三技能目录、同步规则、技能摘要）
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) — 贡献指南
 - [CONTEXT.md](../../CONTEXT.md) — 领域术语表
 - [SECURITY.md](../../SECURITY.md) — 安全策略
