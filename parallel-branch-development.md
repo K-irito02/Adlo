@@ -173,7 +173,7 @@ git -C "$WT" diff --stat "$OLD".."<new-branch>" -- \
 |----|------|------|
 | `target/` | 每槽独立 | 禁止共享 `CARGO_TARGET_DIR`：共享后 exe 路径相同，dev 脚本（`killProcessesByName` 按绝对路径过滤）会跨槽互杀，且构建退化为串行 |
 | `node_modules/` | 每槽独立，pnpm store 全局共享 | lock 变了才重装 |
-| 运行数据 | dev 脚本按槽位派生 identifier（`com.ai-digital-life.app.<槽位目录名>`，可用 `ADL_INSTANCE_ID` 覆盖），Tauri 据此分开数据根、WebView2 profile 与 locator | 并行桌面实例只在 `pnpm dev*` 启动时隔离；直接跑 `target/debug/*.exe` 或主工作树仍共 `%APPDATA%\com.ai-digital-life.app`；凭证目录 `%APPDATA%\ai-digital-life\credentials` 始终共享 |
+| 运行数据 | dev 脚本按槽位派生 identifier（`com.ai-digital-life.app.<槽位目录名>`，可用 `ADL_INSTANCE_ID` 覆盖），数据根、WebView2 profile、locator、凭证回退目录、浏览器模式 ad-server 数据都随之隔离（`<worktree>/ai-digital-life/target/adl-instance/`） | 隔离只覆盖 `pnpm dev*` 入口；直接跑 `target/debug/*.exe` 或主工作树仍共 `%APPDATA%\com.ai-digital-life.app`；OS 密钥环条目按 service 名存系统凭据管理器，仍跨槽共享 |
 | 前端端口 | `ADL_PORT` / `PORT` 可指定，否则自动挑空闲 | 并行时固定端口便于区分 |
 | 内置 Rust server | 绑定 `127.0.0.1:0` | 无固定端口冲突 |
 

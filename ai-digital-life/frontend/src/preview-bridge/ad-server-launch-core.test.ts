@@ -17,8 +17,10 @@ import {
   AD_SERVER_PACKAGE,
   buildAdServerEnv,
   buildViteEnv,
+  resolveDevDataDir,
 } from '../../dev/ad-server-launch.mjs';
 import { existsSync, readFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -267,5 +269,26 @@ describe('ad-server-launch env builders (Closing L6)', () => {
     expect(env.ADL_LOG_LEVEL).toBe('debug');
     expect(env.PATH).toBe('/bin');
     expect(env.VITE_ADL_SERVER_URL).toBeUndefined();
+  });
+});
+
+describe('resolveDevDataDir (per-worktree isolation)', () => {
+  const slotRepoRoot = path.resolve('/wt/SourceWorkspace-worktrees/slot-1/ai-digital-life');
+  const mainRepoRoot = path.resolve('/wt/SourceWorkspace/ai-digital-life');
+
+  it('uses the worktree instance dir for a slot worktree', () => {
+    expect(resolveDevDataDir(slotRepoRoot, {})).toBe(
+      path.join(slotRepoRoot, 'target', 'adl-instance', 'ad-server-data'),
+    );
+  });
+
+  it('keeps the shared temp dir for the main worktree', () => {
+    expect(resolveDevDataDir(mainRepoRoot, {})).toBe(path.join(os.tmpdir(), 'adl-ad-server-dev'));
+  });
+
+  it('honours an explicit ADL_AD_SERVER_DATA_DIR override', () => {
+    expect(resolveDevDataDir(slotRepoRoot, { ADL_AD_SERVER_DATA_DIR: '/custom/dir' })).toBe(
+      '/custom/dir',
+    );
   });
 });

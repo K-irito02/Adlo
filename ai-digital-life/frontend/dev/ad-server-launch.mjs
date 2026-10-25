@@ -40,6 +40,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { debugLogModeForVite, parseLogFlags } from './logFlags.mjs';
+import { resolveInstance } from '../../scripts/instance-id.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,8 +57,23 @@ const AD_SERVER_BIN = path.join(repoRoot, 'target', 'debug', AD_SERVER_BIN_NAME)
 
 // Fixed port override for E2E / manual runs; default 0 = ephemeral (no conflicts).
 const requestedPort = Number.parseInt(process.env.ADL_AD_SERVER_PORT ?? '0', 10);
-const dataDir =
-  process.env.ADL_AD_SERVER_DATA_DIR ?? path.join(os.tmpdir(), 'adl-ad-server-dev');
+
+/**
+ * Pure: dev ad-server data dir. A worktree instance gets its own directory under
+ * `<repo>/target/adl-instance/…` so parallel slots never share one SQLite file; the
+ * main worktree keeps the historical tmp dir. `ADL_AD_SERVER_DATA_DIR` still wins.
+ */
+export function resolveDevDataDir(repoRoot, env = process.env) {
+  if (env.ADL_AD_SERVER_DATA_DIR) {
+    return env.ADL_AD_SERVER_DATA_DIR;
+  }
+  const instance = resolveInstance({ repoRoot, env });
+  return instance.stateDir
+    ? path.join(instance.stateDir, 'ad-server-data')
+    : path.join(os.tmpdir(), 'adl-ad-server-dev');
+}
+
+const dataDir = resolveDevDataDir(repoRoot);
 const healthTimeoutMs = Number.parseInt(process.env.ADL_AD_SERVER_HEALTH_TIMEOUT_MS ?? '60000', 10);
 const portLineTimeoutMs = 180_000; // `cargo run` may need to build the binary first
 
@@ -173,7 +189,9 @@ function spawnAdServer(logFlags) {
       env,
     });
   } else {
-    log(`prebuilt ${AD_SERVER_BIN_NAME} not found; falling back to \`cargo run -p ${AD_SERVER_PACKAGE}\` (first run builds)`);
+    log(
+      `prebuilt ${AD_SERVER_BIN_NAME} not found; falling back to \`cargo run -p ${AD_SERVER_PACKAGE}\` (first run builds)`,
+    );
     adServer = spawn(
       process.platform === 'win32' ? 'cargo.exe' : 'cargo',
       ['run', '-p', AD_SERVER_PACKAGE, '--', ...args],
@@ -302,8 +320,7 @@ async function main() {
 
 const isMainModule =
   process.argv[1] &&
-  pathToFileURL(path.resolve(process.argv[1])).href.toLowerCase() ===
-    import.meta.url.toLowerCase();
+  pathToFileURL(path.resolve(process.argv[1])).href.toLowerCase() === import.meta.url.toLowerCase();
 
 if (isMainModule) {
   for (const signal of ['SIGINT', 'SIGTERM']) {

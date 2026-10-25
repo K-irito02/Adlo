@@ -87,9 +87,10 @@ fn apply_pending_migrates_end_to_end_and_keeps_foreign_files() {
     let temp_locator = base.join(LOCATOR_FILE);
     let env = LocatorEnv::new(&temp_locator);
 
-    // 真实 locator 路径（仅用于断言"落点确实是临时文件"，不读写该文件）。
-    let real_locator = locator_dir().join(LOCATOR_FILE);
-    assert_ne!(temp_locator, real_locator, "sanity: override must differ from the real locator");
+    // 覆盖生效后 `locator_dir()` 也跟随覆盖文件所在目录（实例隔离语义），
+    // 但仍必须落在临时根、绝不触碰真实 `%APPDATA%` locator。
+    assert_eq!(locator_dir(), base, "locator_dir must follow the override");
+    assert!(locator_dir().starts_with(std::env::temp_dir()), "must stay inside the temp root");
     assert_eq!(locator_path(), temp_locator, "override must be active");
 
     let old_root = base.join("old");

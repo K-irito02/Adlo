@@ -36,11 +36,13 @@ export function resolveInstance({ repoRoot, env = process.env }) {
   const root = path.resolve(repoRoot);
   const suffix = sanitizeSuffix(env.ADL_INSTANCE_ID ?? "") || suffixFromWorktreeDir(root);
   if (!suffix) {
-    return { suffix: null, identifier: BASE_IDENTIFIER, locatorPath: null };
+    return { suffix: null, identifier: BASE_IDENTIFIER, stateDir: null, locatorPath: null };
   }
+  const stateDir = path.join(root, "target", "adl-instance");
   return {
     suffix,
     identifier: `${BASE_IDENTIFIER}.${suffix}`,
-    locatorPath: path.join(root, "target", "adl-instance", "storage-locator.json"),
+    stateDir,
+    locatorPath: path.join(stateDir, "storage-locator.json"),
   };
 }

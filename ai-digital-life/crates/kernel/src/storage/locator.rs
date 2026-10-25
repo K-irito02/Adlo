@@ -119,7 +119,17 @@ pub const LOCATOR_FILE: &str = "storage-locator.json";
 /// 系统配置目录下的应用配置目录。`dirs::config_dir()` 在
 /// Windows = `%APPDATA%`、macOS = `~/Library/Application Support`、Linux = `~/.config`。
 /// 壳层与 adl-server 共用此函数，保证两者解析到同一个 locator。
+/// 设了 `ADL_STORAGE_LOCATOR_PATH` 时改为该文件所在目录（实例隔离用）。
 pub fn locator_dir() -> PathBuf {
+    // 实例隔离：设了 `ADL_STORAGE_LOCATOR_PATH` 时跟随该文件所在目录，
+    // 使由本函数派生的路径（如 `credentials_dir`）随实例走，互不共享。
+    if let Some(p) = std::env::var_os("ADL_STORAGE_LOCATOR_PATH") {
+        if let Some(parent) = PathBuf::from(p).parent() {
+            if !parent.as_os_str().is_empty() {
+                return parent.to_path_buf();
+            }
+        }
+    }
     dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")).join(APP_CONFIG_SUBDIR)
 }
 
@@ -222,6 +232,22 @@ mod tests {
                 "unset override must fall back to the real locator path"
             );
         }
+    }
+
+    /// Dev instances redirect the locator file into their own worktree; everything
+    /// derived from `locator_dir()` (notably `credentials_dir`) must follow it, or
+    /// parallel worktrees would share the fallback credential store.
+    #[test]
+    fn locator_dir_follows_env_override() {
+        let _lock = ENV_OVERRIDE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let target = temp_locator("env-dir");
+        let _guard = EnvVarGuard::set("ADL_STORAGE_LOCATOR_PATH", target.as_os_str());
+
+        assert_eq!(
+            locator_dir(),
+            target.parent().expect("temp locator has a parent").to_path_buf(),
+            "locator_dir must follow the overridden locator file"
+        );
     }
 
     #[test]

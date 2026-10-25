@@ -7,6 +7,10 @@ import { BASE_IDENTIFIER, resolveInstance } from "./instance-id.mjs";
 const MAIN_ROOT = path.resolve("E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life");
 const SLOT_ROOT = path.resolve("E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/slot-1/ai-digital-life");
 
+function expectedStateDir(repoRoot) {
+  return path.join(repoRoot, "target", "adl-instance");
+}
+
 function expectedLocator(repoRoot) {
   return path.join(repoRoot, "target", "adl-instance", "storage-locator.json");
 }
@@ -15,6 +19,7 @@ test("main worktree keeps the plain identifier and no locator override", () => {
   assert.deepEqual(resolveInstance({ repoRoot: MAIN_ROOT, env: {} }), {
     suffix: null,
     identifier: BASE_IDENTIFIER,
+    stateDir: null,
     locatorPath: null,
   });
 });
@@ -23,6 +28,7 @@ test("slot worktree derives identifier and locator from the slot directory", () 
   assert.deepEqual(resolveInstance({ repoRoot: SLOT_ROOT, env: {} }), {
     suffix: "slot-1",
     identifier: `${BASE_IDENTIFIER}.slot-1`,
+    stateDir: expectedStateDir(SLOT_ROOT),
     locatorPath: expectedLocator(SLOT_ROOT),
   });
 });

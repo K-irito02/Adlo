@@ -31,7 +31,7 @@
 - **失败**：不切换指针、不删除源文件（旧路径数据完好），`pendingMigration.failed = true` 并记录 `error`，应用仍以旧路径正常启动；`lastReport` 记为失败，**不自动重试**，等待用户在设置中重试或取消。失败时会 best-effort 删除本次新建的目标文件。
 - **幂等**：目标已存在且大小一致的副本会被跳过，中断后重跑安全。
 - **locator 落点覆盖**：`locator_path()` 支持环境变量 `ADL_STORAGE_LOCATOR_PATH`（未设置时回退 `<dirs::config_dir()>/ai-digital-life/storage-locator.json`），供测试/开发把指针落点重定向到临时文件，避免读写真实 `%APPDATA%` locator。
-- **已知限制**：`ADL_STORAGE_LOCATOR_PATH` 只覆盖 locator 文件路径，**不覆盖 `locator_dir()`** —— 由真实配置目录派生的路径（如 `credentials_dir`）仍指向真实位置。它是 dev/test 逃生口，不是数据目录重定向开关。
+- **派生路径跟随覆盖**：`locator_dir()` 在设了 `ADL_STORAGE_LOCATOR_PATH` 时返回该文件所在目录，因此由它派生的路径（如 `credentials_dir`）随实例走；多工作树并行时并发实例互不共享凭证回退目录。仍共享的只有 OS 密钥环条目（`keyring` 按 service 名存于系统凭据管理器，与进程身份无关）。
 
 #### 存储设置组（Plan C）
 

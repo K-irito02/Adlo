@@ -42,3 +42,8 @@ export function buildAdServerEnv(
   logFlagsEnv: Record<string, string>,
 ): Record<string, string | undefined>;
 
+/** ad-server dev 数据目录：工作树实例落在各自 target 下，主工作树沿用 tmp。 */
+export function resolveDevDataDir(
+  repoRoot: string,
+  env?: Record<string, string | undefined>,
+): string;
