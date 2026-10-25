@@ -30,8 +30,17 @@ if (!repoRoot) {
   process.exit(0);
 }
 
+/**
+ * 清掉 git hook 注入的 GIT_* 环境变量：否则 cwd/index/worktree 会指向 hook 自己的上下文，
+ * `git diff` 会把主工作树的状态混进来（实测会误报 459 条历史死 CSS）。
+ */
+const gitEnv = { ...process.env };
+for (const key of Object.keys(gitEnv)) {
+  if (key.startsWith('GIT_')) delete gitEnv[key];
+}
+
 function capture(command, args) {
-  const result = spawnSync(command, args, { cwd: repoRoot, encoding: 'utf8' });
+  const result = spawnSync(command, args, { cwd: repoRoot, encoding: 'utf8', env: gitEnv });
   return result.status === 0 ? (result.stdout ?? '').trim() : '';
 }
 
@@ -111,6 +120,7 @@ function existedInBase(file) {
   const result = spawnSync('git', ['cat-file', '-e', `${base}:${path.relative(repoRoot, file)}`], {
     cwd: repoRoot,
     encoding: 'utf8',
+    env: gitEnv,
   });
   return result.status === 0;
 }
