@@ -12,6 +12,8 @@ If any of these files don't exist, **proceed silently**. Don't flag their absenc
 
 `GLOSSARY.md` shape is machine-checked by `pnpm --dir ai-digital-life/frontend check:glossary`: every term needs an `_Avoid_` line, and implementation tokens (paths, file names) or numeric counts are rejected.
 
+Backticked entries inside an `_Avoid_` line are **enforced**: `check:glossary` fails if they appear in `frontend/src/app/i18n/zh-CN/**` or `docs/operations/ui-manual/**`. Put a `glossary-allow` marker on a line for an intentional exception (for example, quoting a historical UI string). Plain `_Avoid_` entries are advisory only.
+
 ## File structure
 
 Single-context repo (most repos):

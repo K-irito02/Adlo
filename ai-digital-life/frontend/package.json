@@ -22,9 +22,10 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\" \"vite.config.ts\"",
     "check:i18n": "tsx scripts/check-i18n-coverage.ts",
     "check:glossary": "tsx scripts/check-glossary.ts",
+    "check:dead-code": "node scripts/check-dead-code.mjs",
     "gen:md-theme": "node scripts/generate-md-theme-vars.mjs",
     "gen:check": "node scripts/generate-md-theme-vars.mjs && git diff --exit-code -- src/styles/vendor",
-    "check:static": "pnpm lint && pnpm typecheck && pnpm typecheck:dev && pnpm check:vite-config && pnpm format:check && pnpm check:i18n && pnpm check:glossary && pnpm gen:check",
+    "check:static": "pnpm lint && pnpm typecheck && pnpm typecheck:dev && pnpm check:vite-config && pnpm format:check && pnpm check:i18n && pnpm check:glossary && pnpm check:dead-code && pnpm gen:check",
     "check:changed": "node scripts/check-changed.mjs",
     "check:full": "pnpm check:static && pnpm test"
   },
