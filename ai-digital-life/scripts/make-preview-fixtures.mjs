@@ -129,7 +129,9 @@ function buildPdf() {
       `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${3 + pageCount * 2} 0 R >> >> /Contents ${contentObject} 0 R >>`,
     );
     const stream = `BT /F1 24 Tf 72 760 Td (Preview fixture - page ${index + 1} of ${pageCount}) Tj ET`;
-    objects.push(`<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}\nendstream`);
+    objects.push(
+      `<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}\nendstream`,
+    );
   }
 
   objects.push(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>`);
