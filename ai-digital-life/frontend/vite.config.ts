@@ -4,6 +4,9 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import { handlePreviewWorkspaceApi, isPreviewWorkspaceApiRequest } from "./dev/previewWorkspaceService";
 import { setupPreviewTerminalWs } from "./dev/previewTerminalService";
+// dev 端口基准与启动器（scripts/dev-port.mjs）同源，避免两份区间各自漂移。
+import { DEV_PORT_BASE } from "../scripts/dev-port.mjs";
+
 
 let visualizerPlugin = null;
 if (process.env.BUILD_ANALYZE === "true") {
@@ -27,8 +30,16 @@ export default defineConfig({
         // 裸 HTTP 探活会被对方满足，Tauri 便静默渲染别人的前端（2026-10-25 实测）。
         server.middlewares.use((req, res, next) => {
           if (req.url === '/__adl_dev_instance__') {
+            const token = process.env.ADL_DEV_TOKEN ?? '';
+            res.setHeader('Cache-Control', 'no-store');
+            // 未注入令牌（如直接 `vite` / `frontend:dev`）：视作不存在，避免空串 200 被误判。
+            if (req.method !== 'GET' || token === '') {
+              res.statusCode = 404;
+              res.end();
+              return;
+            }
             res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-            res.end(process.env.ADL_DEV_TOKEN ?? '');
+            res.end(token);
             return;
           }
           next();
@@ -97,7 +108,11 @@ export default defineConfig({
           // handlePreviewWorkspaceApi 处理（pageMetaService.ts）。
           if (req.url?.includes('/__adl_preview_api__/browser/scan-ports')) {
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
-            const COMMON_PORTS = [3000, 5173, 8000, 8080, 9000, 4000, 5000, 4200, 3001, 5174];
+            // 5173 起 10 个端口覆盖 slot-1..slot-9 的稳定 dev 端口（主工作树 5173、slot-N → 5173+N）。
+            const COMMON_PORTS = [
+              3000, 8000, 8080, 9000, 4000, 5000, 4200, 3001,
+              ...Array.from({ length: 10 }, (_, i) => DEV_PORT_BASE + i),
+            ];
             const discovered: Array<{ host: string; port: number }> = [];
             try {
               const net = await import('node:net');
@@ -158,7 +173,8 @@ export default defineConfig({
     },
   },
   server: {
-    host: "127.0.0.1",
+    // host 与 port 同源：都从启动器注入的环境变量读取（裸 `vite` 时回退本地回环）。
+    host: process.env.ADL_HOST ?? "127.0.0.1",
     port: Number.parseInt(process.env.ADL_PORT ?? process.env.PORT ?? "5173", 10),
     // 端口被占用时必须失败，不能静默顺延：`pnpm dev:tauri` 会把 Tauri 的 devUrl 固定为
     // 启动脚本选定的端口，顺延后窗口会去加载**另一个工作树**同端口上正在跑的 dev server，

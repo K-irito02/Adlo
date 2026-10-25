@@ -46,3 +46,16 @@ export function resolveInstance({ repoRoot, env = process.env }) {
     locatorPath: path.join(stateDir, "storage-locator.json"),
   };
 }
+
+/**
+ * 是否为本项目 dev 实例自动管理的 locator 落点（`<worktree>/ai-digital-life/target/adl-instance/`）。
+ *
+ * 用于嵌套启动时清理"从父实例继承来的" locator：只有这种自动管理的继承值才该被丢弃；
+ * 用户/测试显式设置的自定义 locator 路径必须保留。
+ */
+export function isInstanceLocatorPath(candidate) {
+  if (typeof candidate !== "string" || candidate.length === 0) {
+    return false;
+  }
+  return /target[\\/]adl-instance[\\/]storage-locator\.json$/i.test(candidate);
+}

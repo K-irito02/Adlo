@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { BASE_IDENTIFIER, resolveInstance } from "./instance-id.mjs";
+import { BASE_IDENTIFIER, isInstanceLocatorPath, resolveInstance } from "./instance-id.mjs";
 
 const MAIN_ROOT = path.resolve("E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life");
 const SLOT_ROOT = path.resolve("E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/slot-1/ai-digital-life");
@@ -90,4 +90,18 @@ test("a multi-segment ADL_INSTANCE_ID is joined into one suffix", () => {
     resolveInstance({ repoRoot: MAIN_ROOT, env: { ADL_INSTANCE_ID: "team/alpha" } }).suffix,
     "team-alpha",
   );
+});
+
+test("isInstanceLocatorPath only matches dev-managed locator locations", () => {
+  assert.equal(
+    isInstanceLocatorPath("E:/x/ai-digital-life/target/adl-instance/storage-locator.json"),
+    true,
+  );
+  assert.equal(
+    isInstanceLocatorPath("E:\\x\\ai-digital-life\\target\\adl-instance\\storage-locator.json"),
+    true,
+  );
+  assert.equal(isInstanceLocatorPath("C:/Users/me/AppData/Roaming/ai-digital-life/storage-locator.json"), false);
+  assert.equal(isInstanceLocatorPath(""), false);
+  assert.equal(isInstanceLocatorPath(undefined), false);
 });
