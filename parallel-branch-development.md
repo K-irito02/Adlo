@@ -171,18 +171,19 @@ git -C "$WT" diff --stat "$OLD".."<new-branch>" -- \
 
 | 项 | 事实 | 规则 |
 |----|------|------|
-| `target/` | 每槽独立 | 禁止共享 `CARGO_TARGET_DIR`：exe 路径相同会被 dev 脚本（`killProcessesByName`）跨槽互杀，且构建退化为串行 |
+| `target/` | 每槽独立 | 禁止共享 `CARGO_TARGET_DIR`：共享后 exe 路径相同，dev 脚本（`killProcessesByName` 按绝对路径过滤）会跨槽互杀，且构建退化为串行 |
 | `node_modules/` | 每槽独立，pnpm store 全局共享 | lock 变了才重装 |
-| 运行数据 | `%APPDATA%\com.ai-digital-life.app`，**所有 debug 构建共用** | 全机只允许一个 Tauri 实例 |
+| 运行数据 | dev 脚本按槽位派生 identifier（`com.ai-digital-life.app.<槽位目录名>`，可用 `ADL_INSTANCE_ID` 覆盖），Tauri 据此分开数据根、WebView2 profile 与 locator | 并行桌面实例只在 `pnpm dev*` 启动时隔离；直接跑 `target/debug/*.exe` 或主工作树仍共 `%APPDATA%\com.ai-digital-life.app`；凭证目录 `%APPDATA%\ai-digital-life\credentials` 始终共享 |
 | 前端端口 | `ADL_PORT` / `PORT` 可指定，否则自动挑空闲 | 并行时固定端口便于区分 |
 | 内置 Rust server | 绑定 `127.0.0.1:0` | 无固定端口冲突 |
 
-并行验证首选 `pnpm run dev:browser`；需要桌面能力时先确认没有其他实例。
+并行验证首选 `pnpm run dev:browser`；需要桌面实例时各槽可直接跑 `pnpm run dev:tauri`，启动行 `[adl-run] instance=…` 就是该槽的数据根身份。
 
 ### 4.3 验证
 
 ```bash
 cd "<worktree>/ai-digital-life"
+node --test scripts/instance-id.test.mjs   # 实例隔离逻辑
 pnpm run frontend:typecheck && pnpm run frontend:test
 pnpm run cargo:test
 pnpm run check:all        # 提交前与合并后都跑

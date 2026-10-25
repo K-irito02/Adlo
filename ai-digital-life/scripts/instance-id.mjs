@@ -1,0 +1,46 @@
+import path from "node:path";
+
+export const BASE_IDENTIFIER = "com.ai-digital-life.app";
+
+const WORKTREES_POOL = /-worktrees$/i;
+
+function sanitizeSuffix(value) {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function suffixFromWorktreeDir(repoRoot) {
+  const worktreeRoot = path.dirname(repoRoot);
+  const poolRoot = path.dirname(worktreeRoot);
+  if (!WORKTREES_POOL.test(path.basename(poolRoot))) {
+    return null;
+  }
+  return sanitizeSuffix(path.basename(worktreeRoot)) || null;
+}
+
+/**
+ * Resolve the Tauri app identifier for this dev run.
+ *
+ * Tauri derives both `app_data_dir()` and the Windows WebView2 user-data folder from
+ * the identifier, so a distinct identifier per worktree isolates the SQLite DB,
+ * `config.json`, logs and the Chromium profile. The main worktree keeps the plain
+ * identifier (no behaviour change); a worktree under `*-worktrees/<dir>` gets
+ * `<base>.<dir>`, and `ADL_INSTANCE_ID` overrides the directory-derived suffix.
+ *
+ * The locator is redirected into `target/` (ignored, and wiped by `cargo clean`) so a
+ * per-instance storage-root choice cannot leak into other instances.
+ */
+export function resolveInstance({ repoRoot, env = process.env }) {
+  const root = path.resolve(repoRoot);
+  const suffix = sanitizeSuffix(env.ADL_INSTANCE_ID ?? "") || suffixFromWorktreeDir(root);
+  if (!suffix) {
+    return { suffix: null, identifier: BASE_IDENTIFIER, locatorPath: null };
+  }
+  return {
+    suffix,
+    identifier: `${BASE_IDENTIFIER}.${suffix}`,
+    locatorPath: path.join(root, "target", "adl-instance", "storage-locator.json"),
+  };
+}

@@ -5,6 +5,7 @@ import process from "node:process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { debugLogModeForVite, parseLogFlags } from "../frontend/dev/logFlags.mjs";
+import { resolveInstance } from "./instance-id.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,6 +47,9 @@ const appImageName = process.platform === "win32" ? "ai-digital-life.exe" : "ai-
 // repoRoot is realpath-normalized so the probe/kill path matches PowerShell's canonical
 // $_.Path even when the repo is reached through a junction/8.3 short-name segment.
 const appDevExePath = path.join(normalizePath(repoRoot), "target", "debug", appImageName);
+// Per-worktree app identity: isolated app_data_dir + WebView2 user-data folder in
+// worktrees, plain identifier (and real locator) in the main worktree.
+const instance = resolveInstance({ repoRoot });
 const children = [];
 
 if (isMain) {
@@ -61,6 +65,10 @@ async function main() {
   const devUrl = `http://${host}:${port}`;
 
   console.log(`[adl-run] mode=${mode} url=${devUrl}`);
+  console.log(
+    `[adl-run] instance=${instance.identifier}` +
+      (instance.locatorPath ? ` locator=${instance.locatorPath}` : " (shared data root)"),
+  );
 
   // 开发阶段日志 CLI 覆盖：透传参数 → env（子进程继承）——唯一的传递通道，
   // 刻意不拼 Tauri 应用 argv（`cargo tauri dev` 会把 `--` 之后的参数当作 cargo
@@ -71,6 +79,7 @@ async function main() {
     ADL_HOST: host,
     ADL_PORT: String(port),
     PORT: String(port),
+    ...(instance.locatorPath ? { ADL_STORAGE_LOCATOR_PATH: instance.locatorPath } : {}),
     ...logFlags.env,
   };
   const debugModeForVite = debugLogModeForVite(logFlags.env);
@@ -122,6 +131,7 @@ async function main() {
     build: {
       devUrl,
     },
+    ...(instance.suffix ? { identifier: instance.identifier } : {}),
   });
 
   const tauri = spawnChecked(
