@@ -1,9 +1,16 @@
 use adl_errors::AppError;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, params};
 use std::path::Path;
 use tracing::info;
+
+/// Per-connection PRAGMAs. `journal_mode` is deliberately absent: switching a fresh
+/// database to WAL needs the exclusive lock, while r2d2 tops up idle connections on
+/// every checkout — two parallel checkouts therefore raced on the switch and one of
+/// them failed with SQLITE_BUSY (`r2d2: database is locked`). WAL is enabled once in
+/// [`Database::open`] instead, so pooled connections only set connection-local state.
+const CONNECTION_INIT_SQL: &str = "PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;";
 
 #[derive(Clone)]
 pub struct Database {
@@ -14,11 +21,22 @@ impl Database {
     pub fn open(path: &Path) -> Result<Self, AppError> {
         std::fs::create_dir_all(path.parent().unwrap_or(Path::new(".")))?;
 
+        // Switch the file to WAL exactly once, before the pool exists: the switch takes
+        // an exclusive lock, so it must not be attempted by parallel pooled connections.
+        {
+            let conn = Connection::open(path).map_err(|e| {
+                AppError::Storage(format!("Failed to open database for WAL setup: {e}"))
+            })?;
+            conn.busy_timeout(std::time::Duration::from_secs(5))
+                .and_then(|()| conn.execute_batch("PRAGMA journal_mode=WAL;"))
+                .map_err(|e| AppError::Storage(format!("Failed to enable WAL: {e}")))?;
+        }
+
         // Use with_init to apply PRAGMAs on EVERY new pooled connection.
         // PRAGMA foreign_keys is per-connection (not per-database), so
         // without with_init, only the initial connection would have it.
-        let manager = SqliteConnectionManager::file(path)
-            .with_init(|c| c.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;"));
+        let manager =
+            SqliteConnectionManager::file(path).with_init(|c| c.execute_batch(CONNECTION_INIT_SQL));
 
         let pool = Pool::builder()
             .max_size(8)
@@ -28,7 +46,7 @@ impl Database {
 
         info!(
             ?path,
-            "database pool opened (max_size=8, timeout=5s, foreign_keys=ON per-connection)"
+            "database pool opened (max_size=8, timeout=5s, wal=on, foreign_keys=ON per-connection)"
         );
         Ok(Self { pool })
     }
@@ -185,5 +203,41 @@ mod pool_pragma_tests {
         // Verify basic operation works
         let _: i64 =
             conn.query_row("SELECT 1", [], |row| row.get(0)).expect("basic query should work");
+    }
+
+    /// A fresh database must already be in WAL mode and every pooled connection
+    /// must carry a busy timeout. Without the timeout, the pool's parallel warm-up
+    /// connections race on the delete→WAL switch and log `database is locked`.
+    #[test]
+    fn fresh_database_is_wal_with_busy_timeout_on_every_connection() {
+        let db = open_test_db();
+        let conn1 = db.conn().expect("conn1 should be acquired");
+        // Held conn1 forces r2d2 to create a NEW connection for conn2.
+        let conn2 = db.conn().expect("conn2 should be acquired");
+
+        for conn in [&conn1, &conn2] {
+            let mode: String =
+                conn.query_row("PRAGMA journal_mode", [], |row| row.get(0)).expect("journal_mode");
+            assert_eq!(mode, "wal", "fresh database must be switched to WAL");
+
+            let timeout: i64 =
+                conn.query_row("PRAGMA busy_timeout", [], |row| row.get(0)).expect("busy_timeout");
+            assert_eq!(timeout, 5000, "every pooled connection must wait on locks");
+        }
+    }
+
+    /// Pool connection init must NOT switch journal modes: r2d2 tops up its idle
+    /// connections on every checkout, so two parallel checkouts on a fresh database
+    /// each ran `PRAGMA journal_mode=WAL`, one of them losing the exclusive lock and
+    /// logging `database is locked`. The switch happens once in `Database::open`.
+    #[test]
+    fn pool_init_never_switches_journal_mode() {
+        let init = CONNECTION_INIT_SQL.to_ascii_lowercase();
+        assert!(
+            !init.contains("journal_mode"),
+            "journal_mode must be set once in Database::open, not per pooled connection"
+        );
+        assert!(init.contains("busy_timeout"), "pool connections must keep the busy timeout");
+        assert!(init.contains("foreign_keys=on"), "foreign_keys must stay per-connection");
     }
 }
