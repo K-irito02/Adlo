@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PdfPreview } from '../PdfPreview';
 
@@ -315,6 +315,42 @@ describe('PdfPreview navigation', () => {
       expect(screen.getByText('1 / 2')).toBeTruthy();
     });
     expect(screen.queryByRole('textbox', { name: 'Page number' })).toBeNull();
+  });
+
+  it('destroys a document that finishes parsing after unmount', async () => {
+    const pdfjs = await import('pdfjs-dist');
+    let resolveDoc!: (doc: unknown) => void;
+    const destroy = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(pdfjs.getDocument).mockReturnValueOnce({
+      promise: new Promise((resolve) => {
+        resolveDoc = resolve;
+      }),
+    } as never);
+    const { unmount } = render(<PdfPreview data={new ArrayBuffer(8)} />);
+    unmount();
+    resolveDoc({ numPages: 2, destroy, getPage: vi.fn() });
+    await waitFor(() => {
+      expect(destroy).toHaveBeenCalled();
+    });
+  });
+
+  it('enters page edit on a double tap (touch pointer)', async () => {
+    render(<PdfPreview data={new ArrayBuffer(8)} />);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    });
+    const counter = screen.getByRole('button', { name: '1 / 3' });
+    // jsdom 的 pointerUp 不携带 pointerType，手动补上再由 React 委托处理。
+    const tap = () => {
+      const event = new Event('pointerup', { bubbles: true });
+      Object.defineProperty(event, 'pointerType', { value: 'touch' });
+      counter.dispatchEvent(event);
+    };
+    act(() => {
+      tap();
+      tap();
+    });
+    expect(screen.getByRole('textbox', { name: 'Page number' })).toBeTruthy();
   });
 
   it('reuses the parsed document for the same cacheKey (no re-parse)', async () => {

@@ -547,8 +547,11 @@
 
 .adl-settings-allowlist__empty {
   margin: 0;
+  /* 空态统一规范：xs / muted / 1.5 / 居中 */
   font-size: var(--text-xs);
+  line-height: 1.5;
   color: var(--text-muted);
+  text-align: center;
 }
 
 .adl-settings-allowlist__list {

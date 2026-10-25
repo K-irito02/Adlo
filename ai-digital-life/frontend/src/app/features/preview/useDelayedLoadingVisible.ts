@@ -1,5 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 
+/**
+ * 打开预算的剩余延迟：读取/加载刚开始时给满额延迟，越接近预算终点越小，
+ * 跨阶段（读取 → chunk → 渲染）复用同一份预算，避免二次闪烁。
+ */
+export function remainingLoadingDelayMs(
+  startedAt: number | null,
+  now = Date.now(),
+  budgetMs = 150,
+): number {
+  if (startedAt === null) {
+    return budgetMs;
+  }
+  return Math.max(0, budgetMs - Math.max(0, now - startedAt));
+}
+
 export interface LoadingVisibilityOptions {
   /** 加载持续多久才显示占位：过滤“刚出现就消失”的闪烁（默认 150ms）。 */
   delayMs?: number;

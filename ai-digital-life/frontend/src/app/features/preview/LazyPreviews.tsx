@@ -39,7 +39,7 @@ export function LazyMarkdownPreviewWrapper(
 
 export function LazyDocxPreviewWrapper(props: React.ComponentProps<typeof LazyDocxPreview>) {
   return (
-    <Suspense fallback={<PreviewLoadingGate active />}>
+    <Suspense fallback={<PreviewLoadingGate active delayMs={props.gateDelayMs} />}>
       <LazyDocxPreview {...props} />
     </Suspense>
   );
@@ -47,7 +47,7 @@ export function LazyDocxPreviewWrapper(props: React.ComponentProps<typeof LazyDo
 
 export function LazyPdfPreviewWrapper(props: React.ComponentProps<typeof LazyPdfPreview>) {
   return (
-    <Suspense fallback={<PreviewLoadingGate active />}>
+    <Suspense fallback={<PreviewLoadingGate active delayMs={props.gateDelayMs} />}>
       <LazyPdfPreview {...props} />
     </Suspense>
   );
@@ -63,7 +63,7 @@ export function LazyMediaPreviewWrapper(props: React.ComponentProps<typeof LazyM
 
 export function LazyXlsxPreviewWrapper(props: React.ComponentProps<typeof LazyXlsxPreview>) {
   return (
-    <Suspense fallback={<PreviewLoadingGate active />}>
+    <Suspense fallback={<PreviewLoadingGate active delayMs={props.gateDelayMs} />}>
       <LazyXlsxPreview {...props} />
     </Suspense>
   );
@@ -71,7 +71,7 @@ export function LazyXlsxPreviewWrapper(props: React.ComponentProps<typeof LazyXl
 
 export function LazyPptxPreviewWrapper(props: React.ComponentProps<typeof LazyPptxPreview>) {
   return (
-    <Suspense fallback={<PreviewLoadingGate active />}>
+    <Suspense fallback={<PreviewLoadingGate active delayMs={props.gateDelayMs} />}>
       <LazyPptxPreview {...props} />
     </Suspense>
   );

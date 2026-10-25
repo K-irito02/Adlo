@@ -10,6 +10,7 @@ import {
   buildPreviewCacheKey,
 } from '@features/preview';
 import { base64ToArrayBuffer } from '@features/preview/mediaBlob';
+import { remainingLoadingDelayMs } from '@features/preview/useDelayedLoadingVisible';
 import { openMarkdownFileLink, openUrlByMethod } from '@features/preview/openByMethod';
 import { RevealHighlightLayers } from '@components/RevealHighlight';
 import { HeavyPreviewGate } from './HeavyPreviewGate';
@@ -208,10 +209,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
       openStartedAtRef.current = Date.now();
     }
   }, [fileMediaLoading, filePath, workspaceId]);
-  const gateDelayMs =
-    openStartedAtRef.current === null
-      ? 150
-      : Math.max(0, 150 - (Date.now() - openStartedAtRef.current));
+  const gateDelayMs = remainingLoadingDelayMs(openStartedAtRef.current);
 
   // 预览结果缓存键（工作区+路径+体积+mtime）：同键回看复用上次渲染/解析结果。
   const previewCacheKey = fileMedia

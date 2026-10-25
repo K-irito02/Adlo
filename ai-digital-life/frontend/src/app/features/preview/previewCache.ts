@@ -7,7 +7,7 @@
  * 失效策略：缓存键包含 `size + lastModifiedAt`，文件被外部修改（mtime 变化）
  * 会自动落到新键，旧条目由 LRU 自然淘汰——不引入"版本号/手动失效"这类兼容层。
  *
- * 容量：除条目数外还支持字节预算（`maxWeight` + `weigh`）。office 渲染结果是
+ * 容量：除条目数外还支持权重预算（`maxWeight` + `weigh`，由调用方定义；office 缓存按字符计）。office 渲染结果是
  * 整段 HTML（docx 的图片/字体内联为 base64），只按条数限制会让内存失控。
  */
 

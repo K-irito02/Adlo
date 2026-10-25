@@ -6,10 +6,13 @@
    ========================================================================== */
 
 /* -------- Empty state -------- */
-/* 空态文字规范：唯一基线是 `tree-shared.css` 的 `.adl-empty-hint`（字号 --text-xs、
-   颜色 --text-muted、行高 1.5、水平居中）。本文件的 `.empty-state` 是同一规范的
-   历史镜像（当前无调用方）；`.adl-sortable-empty` 是拖放区例外（字号需与 sortable
-   项一致，见 settings.css）。其它空态只允许覆盖容器布局，不得改这四项。 */
+/* 空态文字规范：唯一基线是 `tree-shared.css` 的 `.adl-empty-hint`
+   （字号 --text-xs、颜色 --text-muted、行高 1.5、水平居中）。
+   已迁移：.adl-empty-hint / .adl-empty-row / .adl-bookmark-dir-empty /
+   .adl-notif-dropdown__empty / .adl-settings-allowlist__empty / .adl-xlsx-preview__empty。
+   例外：.adl-sortable-empty（拖放区，字号随 sortable 项）与 .adl-welcome__empty
+   （center 区欢迎空态，尚未迁移）。本文件的 `.empty-state` 是同一规范的历史镜像
+   （当前无调用方）。新增空态请复用上述四项；各面板只允许覆盖布局。 */
 .empty-state {
   display: grid;
   place-items: center;
