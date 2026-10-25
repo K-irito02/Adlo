@@ -14,8 +14,8 @@ export interface XlsxPreviewProps {
   fileName?: string;
   /** 预览缓存键（工作区+路径+体积+mtime）：同键回看复用已转换表格 */
   cacheKey?: string;
-  /** 打开预算剩余延迟（由文件面板跨阶段计算） */
-  gateDelayMs?: number;
+  /** 本次打开文件的起始时间戳（由文件面板跨阶段共享，用于 150ms 延迟预算） */
+  gateStartedAt?: number | null;
 }
 
 interface XlsxCacheEntry {
@@ -41,7 +41,7 @@ export function XlsxPreview({
   theme = 'dark',
   fileName,
   cacheKey,
-  gateDelayMs,
+  gateStartedAt,
 }: XlsxPreviewProps) {
   const { t, formatT } = useTCopy();
   const [sheetNames, setSheetNames] = useState<string[]>([]);
@@ -250,7 +250,7 @@ export function XlsxPreview({
           <div className="adl-xlsx-preview__table" dangerouslySetInnerHTML={innerHtml} />
         )}
       </div>
-      <PreviewLoadingGate active={!loaded} delayMs={gateDelayMs} overlay />
+      <PreviewLoadingGate active={!loaded} startedAt={gateStartedAt} overlay />
     </div>
   );
 }

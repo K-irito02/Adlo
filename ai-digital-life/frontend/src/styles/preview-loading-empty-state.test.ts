@@ -244,6 +244,29 @@ describe('空态文字统一规范', () => {
     ).toBe(true);
   });
 
+  it('后迁移的两个实时空态也保持四项规范', () => {
+    const allowlist = findRuleGroups(stripComments(settingsCss), '.adl-settings-allowlist__empty');
+    expect(
+      allowlist.some(
+        (body) =>
+          /font-size:\s*var\(--text-xs\)/.test(body) &&
+          /line-height:\s*1\.5/.test(body) &&
+          /color:\s*var\(--text-muted\)/.test(body) &&
+          /text-align:\s*center/.test(body),
+      ),
+    ).toBe(true);
+    const xlsxEmpty = findRuleGroups(stripComments(previewCss), '.adl-xlsx-preview__empty');
+    expect(
+      xlsxEmpty.some(
+        (body) =>
+          /font-size:\s*var\(--text-xs\)/.test(body) &&
+          /line-height:\s*1\.5/.test(body) &&
+          /color:\s*var\(--text-muted\)/.test(body) &&
+          /text-align:\s*center/.test(body),
+      ),
+    ).toBe(true);
+  });
+
   it('EmptyRow 与基线同字号/行高/颜色', () => {
     const groups = findRuleGroups(stripComments(loadingRowCss), '.adl-empty-row');
     expect(groups.length).toBeGreaterThan(0);

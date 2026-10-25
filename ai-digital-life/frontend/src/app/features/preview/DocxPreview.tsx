@@ -13,8 +13,8 @@ export interface DocxPreviewProps {
   fileName?: string;
   /** 预览缓存键（工作区+路径+体积+mtime）：同键回看直接复用上次渲染结果 */
   cacheKey?: string;
-  /** 打开预算剩余延迟（由文件面板跨阶段计算） */
-  gateDelayMs?: number;
+  /** 本次打开文件的起始时间戳（由文件面板跨阶段共享，用于 150ms 延迟预算） */
+  gateStartedAt?: number | null;
 }
 
 /** 渲染结果 HTML 缓存（LRU 4，另有字符预算）：docx-preview 产出的 DOM 可直接复挂。 */
@@ -47,7 +47,7 @@ export function DocxPreview({
   theme = 'dark',
   fileName,
   cacheKey,
-  gateDelayMs,
+  gateStartedAt,
 }: DocxPreviewProps) {
   const { t, formatT } = useTCopy();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -182,7 +182,7 @@ export function DocxPreview({
       </div>
       {/* 扫光占位放在滚动容器之外（绝对定位铺满整个预览根），否则会被
           `.adl-docx-scroll` 的 padding 裁出一圈空白。 */}
-      <PreviewLoadingGate active={rendering} delayMs={gateDelayMs} variant="paper" overlay />
+      <PreviewLoadingGate active={rendering} startedAt={gateStartedAt} variant="paper" overlay />
     </div>
   );
 }

@@ -10,7 +10,6 @@ import {
   buildPreviewCacheKey,
 } from '@features/preview';
 import { base64ToArrayBuffer } from '@features/preview/mediaBlob';
-import { remainingLoadingDelayMs } from '@features/preview/useDelayedLoadingVisible';
 import { openMarkdownFileLink, openUrlByMethod } from '@features/preview/openByMethod';
 import { RevealHighlightLayers } from '@components/RevealHighlight';
 import { HeavyPreviewGate } from './HeavyPreviewGate';
@@ -127,13 +126,13 @@ function OfficeBranch({
   kind,
   theme,
   cacheKey,
-  gateDelayMs,
+  gateStartedAt,
 }: {
   fileMedia: WorkspaceMediaDocument;
   kind: OfficeBranchKind;
   theme: 'dark' | 'light';
   cacheKey?: string;
-  gateDelayMs?: number;
+  gateStartedAt?: number | null;
 }) {
   const { t } = useTCopy();
   const data = useOfficeBytes(fileMedia);
@@ -154,7 +153,7 @@ function OfficeBranch({
           theme={theme}
           fileName={fileMedia.path}
           cacheKey={cacheKey}
-          gateDelayMs={gateDelayMs}
+          gateStartedAt={gateStartedAt}
         />
       );
     case 'pdf':
@@ -163,7 +162,7 @@ function OfficeBranch({
           data={data}
           theme={theme}
           cacheKey={cacheKey}
-          gateDelayMs={gateDelayMs}
+          gateStartedAt={gateStartedAt}
         />
       );
     case 'spreadsheet':
@@ -173,7 +172,7 @@ function OfficeBranch({
           theme={theme}
           fileName={fileMedia.path}
           cacheKey={cacheKey}
-          gateDelayMs={gateDelayMs}
+          gateStartedAt={gateStartedAt}
         />
       );
     case 'presentation':
@@ -183,7 +182,7 @@ function OfficeBranch({
           data={data}
           theme={theme}
           fileName={fileMedia.path}
-          gateDelayMs={gateDelayMs}
+          gateStartedAt={gateStartedAt}
         />
       );
   }
@@ -209,7 +208,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
       openStartedAtRef.current = Date.now();
     }
   }, [fileMediaLoading, filePath, workspaceId]);
-  const gateDelayMs = remainingLoadingDelayMs(openStartedAtRef.current);
+  const gateStartedAt = openStartedAtRef.current;
 
   // 预览结果缓存键（工作区+路径+体积+mtime）：同键回看复用上次渲染/解析结果。
   const previewCacheKey = fileMedia
@@ -336,7 +335,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
           kind={fileCategory}
           theme={theme}
           cacheKey={previewCacheKey}
-          gateDelayMs={gateDelayMs}
+          gateStartedAt={gateStartedAt}
         />
       </PreviewSurface>
     );

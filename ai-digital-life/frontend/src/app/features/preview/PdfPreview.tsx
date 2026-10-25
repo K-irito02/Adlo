@@ -11,8 +11,8 @@ export interface PdfPreviewProps {
   theme?: 'light' | 'dark';
   /** 预览缓存键（工作区+路径+体积+mtime）：同键回看复用已解析文档 */
   cacheKey?: string;
-  /** 打开预算剩余延迟（由文件面板跨阶段计算） */
-  gateDelayMs?: number;
+  /** 本次打开文件的起始时间戳（由文件面板跨阶段共享，用于 150ms 延迟预算） */
+  gateStartedAt?: number | null;
 }
 
 /** 已解析文档缓存（LRU 3）：跳过 getDocument 解析（首屏绘制仍逐页进行）。 */
@@ -50,7 +50,7 @@ function loadPdfJs(): Promise<typeof PdfJsType> {
   return pdfjsPromise;
 }
 
-export function PdfPreview({ data, theme = 'dark', cacheKey, gateDelayMs }: PdfPreviewProps) {
+export function PdfPreview({ data, theme = 'dark', cacheKey, gateStartedAt }: PdfPreviewProps) {
   const { t, formatT } = useTCopy();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const docRef = useRef<{
@@ -359,7 +359,12 @@ export function PdfPreview({ data, theme = 'dark', cacheKey, gateDelayMs }: PdfP
       <div className="adl-pdf-scroll">{numPages === 0 ? null : <canvas ref={canvasRef} />}</div>
       {/* 扫光占位放在滚动容器之外（绝对定位铺满整个预览根），否则会被
           `.adl-pdf-scroll` 的 padding 裁出一圈空白。 */}
-      <PreviewLoadingGate active={numPages === 0} delayMs={gateDelayMs} variant="plain" overlay />
+      <PreviewLoadingGate
+        active={numPages === 0}
+        startedAt={gateStartedAt}
+        variant="plain"
+        overlay
+      />
     </div>
   );
 }
