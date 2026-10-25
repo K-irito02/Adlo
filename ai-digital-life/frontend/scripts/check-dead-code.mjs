@@ -36,13 +36,23 @@ function capture(command, args) {
 }
 
 /** 本分支的变更基线：优先上游的 merge-base，避免把别人已合入 main 的改动算进来。 */
+/**
+ * 变更基线：优先 origin/main 的 merge-base。
+ * 分支合入 main 之后，上游分支的 merge-base 会把 main 自己的改动也算成“本次变更”，
+ * 从而误报 main 的历史死 CSS；用 origin/main 的 merge-base 只留下本分支提交。
+ */
 function resolveBase() {
+  for (const ref of ['origin/main', 'origin/HEAD']) {
+    if (!capture('git', ['rev-parse', '--verify', ref])) continue;
+    const mergeBase = capture('git', ['merge-base', ref, 'HEAD']);
+    if (mergeBase) return mergeBase;
+  }
   const upstream = capture('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']);
-  const remote =
-    upstream || (capture('git', ['rev-parse', '--verify', 'origin/main']) ? 'origin/main' : '');
-  if (!remote) return 'HEAD';
-  const mergeBase = capture('git', ['merge-base', remote, 'HEAD']);
-  return mergeBase || remote;
+  if (upstream) {
+    const mergeBase = capture('git', ['merge-base', upstream, 'HEAD']);
+    if (mergeBase) return mergeBase;
+  }
+  return 'HEAD';
 }
 
 const base = resolveBase();
