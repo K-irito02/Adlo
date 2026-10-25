@@ -115,7 +115,7 @@ export const changesZh = {
   changesPdfNextPage: '下一页',
   changesPdfPageNumber: '页码',
   changesPdfPageStatus: '第 {current} / {total} 页',
-  changesPdfPageJumpHint: '双击输入页码，回车跳转',
+  changesPdfPageJumpHint: '双击页码或按 Enter 修改页码',
   changesPreviewBinary: '二进制文件',
   changesPreviewUnknown: '未知文件类型',
   changesPreviewFailedSpreadsheet: '表格预览失败: {error}',

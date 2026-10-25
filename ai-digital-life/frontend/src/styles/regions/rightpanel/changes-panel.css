@@ -372,13 +372,6 @@
   justify-content: flex-end;
 }
 
-.adl-changes-branch-empty {
-  padding: var(--space-3);
-  text-align: center;
-  color: var(--text-tertiary);
-  font-size: var(--text-sm);
-}
-
 .adl-changes-branch-loading-mask {
   position: absolute;
   inset: 0;
@@ -858,11 +851,3 @@
   background: var(--bg);
 }
 
-.adl-changes-empty__text {
-  margin: 0;
-  /* `--font-sm` 并不存在（旧写法），统一到空态基线 */
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  text-align: center;
-  line-height: 1.5;
-}

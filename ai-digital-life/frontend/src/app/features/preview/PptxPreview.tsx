@@ -10,6 +10,8 @@ export interface PptxPreviewProps {
   theme?: 'light' | 'dark';
   /** 工作区相对路径：用于识别旧版 .ppt 二进制格式并给出转存指引 */
   fileName?: string;
+  /** 打开预算剩余延迟（由文件面板跨阶段计算） */
+  gateDelayMs?: number;
 }
 
 /** 渲染基准宽度：库按宽度算缩放，基准只决定内部坐标精度，不决定显示尺寸。 */
@@ -24,7 +26,7 @@ const PPTX_BASE_WIDTH = 960;
  * 幻灯片有多大就显示多大、可读优先），纵向走原生滚动连续翻页；
  * ResizeObserver 只更新缩放系数——不清空、不重解析，故无闪烁。
  */
-export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps) {
+export function PptxPreview({ data, theme = 'dark', fileName, gateDelayMs }: PptxPreviewProps) {
   const { t, formatT } = useTCopy();
   const scalerRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
@@ -192,7 +194,7 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
         </div>
       </div>
       {/* 不对 pptx 做渲染结果缓存：库会为内嵌音视频创建 object URL，缓存 innerHTML 会在卸载后失效/串播。 */}
-      <PreviewLoadingGate active={rendering} overlay />
+      <PreviewLoadingGate active={rendering} delayMs={gateDelayMs} overlay />
     </div>
   );
 }

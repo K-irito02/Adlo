@@ -11,18 +11,17 @@ export interface PdfPreviewProps {
   theme?: 'light' | 'dark';
   /** 预览缓存键（工作区+路径+体积+mtime）：同键回看复用已解析文档 */
   cacheKey?: string;
+  /** 打开预算剩余延迟（由文件面板跨阶段计算） */
+  gateDelayMs?: number;
 }
 
-/** 已解析文档缓存（LRU 4）：跳过 getDocument 解析（首屏绘制仍逐页进行）。 */
+/** 已解析文档缓存（LRU 3）：跳过 getDocument 解析（首屏绘制仍逐页进行）。 */
 const pdfDocCache = createLruCache<PdfJsType.PDFDocumentProxy>({
   limit: 3,
   // 淘汰即释放 pdf.js 传输/worker 资源（docRef 持有的是当前 MRU 条目，不会被淘汰）。
   onEvict: (pdf) => {
-    try {
-      void pdf.destroy();
-    } catch {
-      /* 已销毁或正在销毁：忽略 */
-    }
+    // destroy() 返回 Promise：必须 catch，否则拒绝会变成 unhandled rejection。
+    void pdf.destroy().catch(() => undefined);
   },
 });
 
@@ -51,7 +50,7 @@ function loadPdfJs(): Promise<typeof PdfJsType> {
   return pdfjsPromise;
 }
 
-export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) {
+export function PdfPreview({ data, theme = 'dark', cacheKey, gateDelayMs }: PdfPreviewProps) {
   const { t, formatT } = useTCopy();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const docRef = useRef<{
@@ -74,6 +73,8 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
   const pageInputRef = useRef<HTMLInputElement | null>(null);
   const counterRef = useRef<HTMLButtonElement | null>(null);
   const wasEditingRef = useRef(false);
+  // 触屏没有双击语义：用 320ms 内的两次 pointerup 等价进入编辑。
+  const lastTouchTapRef = useRef(0);
   // 多实例并存时 aria 引用不能撞 id（收尾 G5-M2）。
   const pageCountId = useId();
   const pageHintId = useId();
@@ -95,7 +96,11 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
   // 退出输入态（提交/取消）后把焦点还给页码按钮：输入框卸载会把焦点丢到 body。
   useEffect(() => {
     if (wasEditingRef.current && !editingPage) {
-      counterRef.current?.focus();
+      // 只补回“焦点真的丢了”的情况；用户点了别处时不要抢焦点。
+      const active = document.activeElement;
+      if (!active || active === document.body) {
+        counterRef.current?.focus();
+      }
     }
     wasEditingRef.current = editingPage;
   }, [editingPage]);
@@ -173,6 +178,8 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
         // 否则复用同一 buffer 会报 "detached ArrayBuffer"。
         const pdf = await pdfjs.getDocument({ data: data.slice(0) }).promise;
         if (cancelled || generation !== generationRef.current) {
+          // 被放弃的解析结果必须销毁，否则 pdf.js worker/传输会一直挂着。
+          void pdf.destroy().catch(() => undefined);
           return;
         }
         if (cacheKey) {
@@ -321,6 +328,19 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
                   beginPageEdit();
                 }
               }}
+              // 触屏等价：快速连点两次（dblclick 在触屏不可靠）。
+              onPointerUp={(event) => {
+                if (event.pointerType !== 'touch') {
+                  return;
+                }
+                const now = Date.now();
+                if (now - lastTouchTapRef.current < 320) {
+                  lastTouchTapRef.current = 0;
+                  beginPageEdit();
+                  return;
+                }
+                lastTouchTapRef.current = now;
+              }}
             >
               {currentPage} / {numPages}
             </button>
@@ -339,7 +359,7 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
       <div className="adl-pdf-scroll">{numPages === 0 ? null : <canvas ref={canvasRef} />}</div>
       {/* 扫光占位放在滚动容器之外（绝对定位铺满整个预览根），否则会被
           `.adl-pdf-scroll` 的 padding 裁出一圈空白。 */}
-      <PreviewLoadingGate active={numPages === 0} variant="plain" overlay />
+      <PreviewLoadingGate active={numPages === 0} delayMs={gateDelayMs} variant="plain" overlay />
     </div>
   );
 }

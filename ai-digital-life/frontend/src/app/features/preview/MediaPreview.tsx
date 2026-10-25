@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { base64ToBlob } from './mediaBlob';
-import { PreviewLoadingGate } from './PreviewLoadingGate';
 import type { WorkspaceMediaDocument } from '@shared/ipc/workspace';
 
 export type MediaKind = 'image' | 'audio' | 'video';
@@ -63,9 +62,10 @@ export function MediaPreview({ media, kind }: MediaPreviewProps) {
   }, [media.base64, media.mime]);
 
   if (!settled) {
-    // 解码中骨架（扫光占位，不出现“加载中…”文字），避免纯空白。
-    // 解码结束即卸载本分支，最短展示时长同样无法兑现；只保留延迟阈值防闪烁。
-    return <PreviewLoadingGate active variant="centered" minVisibleMs={0} />;
+    // base64 → Blob 是同步完成，本分支在 effect 首轮就会离开；在此渲染扫光只会
+    // 在延迟窗口内空转（组件已卸载），因此保持空白，反馈由读取阶段的 surface
+    // 占位承担；真正耗时的 `<img>` 解码由浏览器在挂载后处理。
+    return null;
   }
 
   // 空文件是中性信息态（收尾 F-20），错误才是警报态：role 区分，避免打断读屏用户。

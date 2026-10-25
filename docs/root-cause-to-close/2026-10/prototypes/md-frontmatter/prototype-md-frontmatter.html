@@ -91,7 +91,7 @@
   /* ---------- 最终布局：每行一个键值对；键列共享宽度，值列垂直左对齐 ---------- */
   .meta {
     display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
     column-gap: var(--space-4);
     row-gap: var(--space-1-5);
     align-items: baseline;
@@ -109,6 +109,7 @@
   }
   .meta__val {
     min-width: 0;
+    white-space: pre-wrap;
     margin: 0;
     color: var(--text-secondary);
     font-size: 14px;

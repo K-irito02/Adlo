@@ -13,9 +13,11 @@ export interface DocxPreviewProps {
   fileName?: string;
   /** 预览缓存键（工作区+路径+体积+mtime）：同键回看直接复用上次渲染结果 */
   cacheKey?: string;
+  /** 打开预算剩余延迟（由文件面板跨阶段计算） */
+  gateDelayMs?: number;
 }
 
-/** 渲染结果 HTML 缓存（LRU 8）：docx-preview 产出的 DOM 可直接复挂。 */
+/** 渲染结果 HTML 缓存（LRU 4，另有字符预算）：docx-preview 产出的 DOM 可直接复挂。 */
 // 条目数 + 字符预算双重限制：docx 渲染结果内联图片/字体（base64），只按条数会失控。
 const docxHtmlCache = createLruCache<string>({
   limit: 4,
@@ -40,7 +42,13 @@ const docxHtmlCache = createLruCache<string>({
  *   窄面板下横向滚动看全页（流式宽度会使浮动元素错位重叠）；
  * - 样式隔离见 CSS（.adl-docx-preview 不再声明排版属性，避免泄漏进文档）。
  */
-export function DocxPreview({ data, theme = 'dark', fileName, cacheKey }: DocxPreviewProps) {
+export function DocxPreview({
+  data,
+  theme = 'dark',
+  fileName,
+  cacheKey,
+  gateDelayMs,
+}: DocxPreviewProps) {
   const { t, formatT } = useTCopy();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -174,7 +182,7 @@ export function DocxPreview({ data, theme = 'dark', fileName, cacheKey }: DocxPr
       </div>
       {/* 扫光占位放在滚动容器之外（绝对定位铺满整个预览根），否则会被
           `.adl-docx-scroll` 的 padding 裁出一圈空白。 */}
-      <PreviewLoadingGate active={rendering} variant="paper" overlay />
+      <PreviewLoadingGate active={rendering} delayMs={gateDelayMs} variant="paper" overlay />
     </div>
   );
 }

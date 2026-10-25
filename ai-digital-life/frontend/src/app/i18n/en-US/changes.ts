@@ -116,7 +116,7 @@ export const changesEn = {
   changesPdfNextPage: 'Next page',
   changesPdfPageNumber: 'Page number',
   changesPdfPageStatus: 'Page {current} / {total}',
-  changesPdfPageJumpHint: 'Double-click to type a page number, press Enter to jump',
+  changesPdfPageJumpHint: 'Double-click the page number or press Enter to edit it',
   changesPreviewBinary: 'Binary file',
   changesPreviewUnknown: 'Unknown file type',
   changesPreviewFailedSpreadsheet: 'Spreadsheet preview failed: {error}',

@@ -32,6 +32,11 @@ const emptyStateCss = readFileSync(
   new URL('./components/empty-state.css', import.meta.url),
   'utf-8',
 );
+const settingsCss = readFileSync(new URL('./components/settings.css', import.meta.url), 'utf-8');
+const browserTreeCss = readFileSync(
+  new URL('./regions/rightpanel/browser-tree-entry.css', import.meta.url),
+  'utf-8',
+);
 
 function stripComments(css: string): string {
   return css.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -182,13 +187,40 @@ describe('空态文字统一规范', () => {
   });
 
   it('面板规则只覆盖布局，字号/颜色/行高/居中只在基线', () => {
-    for (const css of [searchPanelCss, searchSettingsCss]) {
+    for (const css of [searchPanelCss, searchSettingsCss, settingsCss]) {
       const rules = findRuleGroups(stripComments(css), '.adl-empty-hint');
-      expect(rules.length).toBeGreaterThan(0);
       for (const body of rules) {
         expect(body).not.toMatch(/font-size|line-height|text-align|color:/);
       }
     }
+    // 三个面板都至少有一条覆盖（避免“没读到”导致空断言通过）
+    expect(findRuleGroups(stripComments(searchPanelCss), '.adl-empty-hint').length).toBeGreaterThan(
+      0,
+    );
+    expect(
+      findRuleGroups(stripComments(searchSettingsCss), '.adl-empty-hint').length,
+    ).toBeGreaterThan(0);
+    expect(findRuleGroups(stripComments(settingsCss), '.adl-empty-hint').length).toBeGreaterThan(0);
+  });
+
+  it('浏览器树空态内距左右对称（文本水平居中）', () => {
+    const groups = findRuleGroups(stripComments(browserTreeCss), '.adl-browser-entry__empty');
+    expect(groups.length).toBeGreaterThan(0);
+    const padding = groups.map((body) => /padding:\s*([^;]+);/.exec(body)?.[1]).find(Boolean);
+    expect(padding).toBeTruthy();
+    const tokens = (padding as string).trim().split(/\s+/);
+    // 两值 shorthand：上下 / 左右 → 左右天然相等；四值要求左右相等。
+    if (tokens.length === 4) {
+      expect(tokens[1]).toBe(tokens[3]);
+    } else {
+      expect(tokens.length).toBe(2);
+    }
+  });
+
+  it('EmptyRow 文本居中由自身规则保证', () => {
+    const groups = findRuleGroups(stripComments(loadingRowCss), '.adl-empty-row__text');
+    expect(groups.length).toBeGreaterThan(0);
+    expect(groups.some((body) => /text-align:\s*center/.test(body))).toBe(true);
   });
 
   it('书签空态与 .empty-state 镜像使用同一规范', () => {

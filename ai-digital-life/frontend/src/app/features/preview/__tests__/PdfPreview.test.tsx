@@ -284,6 +284,11 @@ describe('PdfPreview navigation', () => {
     await waitFor(() => {
       expect(screen.getByText('1 / 3')).toBeTruthy();
     });
+    // 低于范围照样钳制到第一页（不是报错/空白）
+    typePage('0');
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    });
   });
 
   it('leaves edit mode when the document changes mid-edit', async () => {

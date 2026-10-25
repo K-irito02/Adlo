@@ -51,8 +51,10 @@
 .adl-preview-loading--overlay {
   position: absolute;
   inset: 0;
-  /* 高于保真水印（z-index: 5），加载期不显示水印文字；导航胶囊另在 7 层。 */
+  /* 高于保真水印（z-index: 5），加载期不显示水印文字；导航胶囊另在 7 层。
+     纯视觉遮罩：不吃指针事件（加载尾巴期仍可操作画布/胶囊）。 */
   z-index: 6;
+  pointer-events: none;
 }
 
 .adl-preview-loading--paper {
@@ -331,7 +333,7 @@
   gap: var(--space-1);
   padding: var(--space-1) var(--space-1-5);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-full, 999px);
   background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
   backdrop-filter: blur(6px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
@@ -505,6 +507,8 @@
 
 .adl-markdown-preview .adl-md-frontmatter dt {
   margin: 0;
+  /* 覆盖 github-markdown-css 的斜体 dt（键必须是正体） */
+  font-style: normal;
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 400;
@@ -515,6 +519,8 @@
 .adl-markdown-preview .adl-md-frontmatter dd {
   min-width: 0;
   margin: 0;
+  /* 覆盖 vendor dl dd { padding: 0 1rem }：否则值列整体右移 16px */
+  padding: 0;
   /* 用户要求：值与键同色 */
   color: var(--text-secondary);
   font-size: 14px;

@@ -35,6 +35,27 @@ describe('previewCache', () => {
     expect(onEvict).toHaveBeenCalledWith('first');
   });
 
+  it('rejects a single overweight value instead of wiping the cache', () => {
+    const cache = createLruCache<string>({
+      limit: 10,
+      weigh: (value) => value.length,
+      maxWeight: 10,
+    });
+    cache.set('small', 'x'.repeat(4));
+    cache.set('huge', 'y'.repeat(50));
+    expect(cache.get('small')).toBe('x'.repeat(4));
+    expect(cache.get('huge')).toBeUndefined();
+  });
+
+  it('does not evict (destroy) a value when the same key is replaced', () => {
+    const onEvict = vi.fn();
+    const cache = createLruCache<string>({ limit: 2, onEvict });
+    cache.set('a', 'first');
+    cache.set('a', 'second');
+    expect(onEvict).not.toHaveBeenCalled();
+    expect(cache.get('a')).toBe('second');
+  });
+
   it('never grows when the limit is not a finite number', () => {
     const cache = createLruCache<number>({ limit: Number.NaN });
     cache.set('a', 1);

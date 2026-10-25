@@ -251,11 +251,3 @@
   background: var(--text-muted);
   opacity: 0.4;
 }
-
-.adl-model-picker__empty {
-  padding: 6px 10px;
-  /* 空态统一规范（不再用斜体/11px 特例） */
-  font-size: var(--text-xs);
-  line-height: 1.5;
-  color: var(--text-muted);
-}

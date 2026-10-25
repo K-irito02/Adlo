@@ -52,14 +52,6 @@
   color: var(--text-muted);
   font-size: var(--font-size-xs);
 }
-.adl-reference-popover__empty {
-  padding: var(--space-4);
-  text-align: center;
-  color: var(--text-muted);
-  /* `--font-size-sm` 并不存在（旧写法），统一到空态基线 */
-  font-size: var(--text-xs);
-  line-height: 1.5;
-}
 
 .adl-context-bar {
   display: flex;

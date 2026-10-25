@@ -14,6 +14,8 @@ export interface XlsxPreviewProps {
   fileName?: string;
   /** 预览缓存键（工作区+路径+体积+mtime）：同键回看复用已转换表格 */
   cacheKey?: string;
+  /** 打开预算剩余延迟（由文件面板跨阶段计算） */
+  gateDelayMs?: number;
 }
 
 interface XlsxCacheEntry {
@@ -21,7 +23,7 @@ interface XlsxCacheEntry {
   htmlBySheet: Record<string, string>;
 }
 
-/** 表格 HTML 缓存（LRU 8）：回看免解析、免扫光。 */
+/** 表格 HTML 缓存（LRU 6，另有字符预算）：回看免解析、免扫光。 */
 const xlsxCache = createLruCache<XlsxCacheEntry>({
   limit: 6,
   weigh: (entry) => Object.values(entry.htmlBySheet).join('').length,
@@ -34,7 +36,13 @@ const xlsxCache = createLruCache<XlsxCacheEntry>({
  * 取工作簿全部工作表并转 HTML 表格；HTML 字符串经 DOMPurify 消毒后渲染。
  * 注意：旧版 .xls 是 BIFF 格式但 SheetJS 可读，有意不做 legacy 拦截。
  */
-export function XlsxPreview({ data, theme = 'dark', fileName, cacheKey }: XlsxPreviewProps) {
+export function XlsxPreview({
+  data,
+  theme = 'dark',
+  fileName,
+  cacheKey,
+  gateDelayMs,
+}: XlsxPreviewProps) {
   const { t, formatT } = useTCopy();
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [activeSheet, setActiveSheet] = useState(0);
@@ -171,6 +179,10 @@ export function XlsxPreview({ data, theme = 'dark', fileName, cacheKey }: XlsxPr
       // 回退路径同样移动选中态（与缓存路径一致，避免选中与内容错位）。
       setActiveSheet(index);
     } catch (err) {
+      // 切文件后旧文档的失败不得污染新文档的视图。
+      if (generation !== generationRef.current) {
+        return;
+      }
       const message = err instanceof Error ? err.message : String(err);
       if (isZipUnpackError(message)) {
         setUnreadable(true);
@@ -238,7 +250,7 @@ export function XlsxPreview({ data, theme = 'dark', fileName, cacheKey }: XlsxPr
           <div className="adl-xlsx-preview__table" dangerouslySetInnerHTML={innerHtml} />
         )}
       </div>
-      <PreviewLoadingGate active={!loaded} overlay />
+      <PreviewLoadingGate active={!loaded} delayMs={gateDelayMs} overlay />
     </div>
   );
 }

@@ -150,6 +150,29 @@ describe('MarkdownPreview', () => {
     expect(html).toContain('data-source-line-start="1" data-source-line-end="4"');
   });
 
+  it('counts the closing delimiter when the file ends without a newline', () => {
+    const { lineOffset, body } = splitFrontmatter('---\na: b\n---');
+    expect(lineOffset).toBe(3);
+    expect(body).toBe('');
+  });
+
+  it('folds block scalars without a stray leading space after blank lines', () => {
+    const { entries } = splitFrontmatter('---\nd: >\n  a\n  b\n\n  c\n---\n');
+    expect(entries[0]?.values[0]).toBe('a b\nc');
+  });
+
+  it('accepts keep-chomping before the indentation indicator', () => {
+    const kept = splitFrontmatter('---\nd: |+2\n  a\n\n---\n');
+    expect(kept.entries[0]?.values[0]).toBe('a\n');
+    const stripped = splitFrontmatter('---\nd: |-2\n  a\n\n---\n');
+    expect(stripped.entries[0]?.values[0]).toBe('a');
+  });
+
+  it('still renders a heading when a BOM file has no frontmatter', () => {
+    const html = renderMarkdownPreviewHtml('\uFEFF# T');
+    expect(html).toContain('<h1');
+  });
+
   it('applies block scalar chomping indicators', () => {
     const kept = splitFrontmatter('---\nd: |-\n  l1\n  l2\n---\n');
     expect(kept.entries[0]?.values[0]).toBe('l1\nl2');

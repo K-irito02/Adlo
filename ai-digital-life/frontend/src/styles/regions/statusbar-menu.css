@@ -198,13 +198,6 @@
   overscroll-behavior: contain;
 }
 
-.adl-statusbar__menu-empty {
-  /* 空态统一规范：xs / muted / 1.5 */
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: 1.5;
-}
-
 .adl-statusbar__menu-option {
   display: flex;
   align-items: center;

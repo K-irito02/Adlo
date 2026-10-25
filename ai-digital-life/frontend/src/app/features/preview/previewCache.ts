@@ -74,11 +74,17 @@ export function createLruCache<T>(options: number | LruCacheOptions<T>): LruCach
       return entry.value;
     },
     set(key: string, value: T): void {
+      const weight = Math.max(1, weigh(value));
+      // 单条超过总预算：不入缓存（否则会把其它文档一起挤掉，等于清空缓存）。
+      if (weight > maxWeight) {
+        return;
+      }
       const existing = map.get(key);
       if (existing) {
-        evict(key, existing);
+        // 同键替换：只扣权重，不触发 onEvict（旧值可能仍被其它消费者引用）。
+        map.delete(key);
+        totalWeight -= existing.weight;
       }
-      const weight = Math.max(1, weigh(value));
       map.set(key, { value, weight });
       totalWeight += weight;
       trim();

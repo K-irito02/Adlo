@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   LazyMarkdownPreviewWrapper,
   LazyDocxPreviewWrapper,
@@ -126,11 +126,13 @@ function OfficeBranch({
   kind,
   theme,
   cacheKey,
+  gateDelayMs,
 }: {
   fileMedia: WorkspaceMediaDocument;
   kind: OfficeBranchKind;
   theme: 'dark' | 'light';
   cacheKey?: string;
+  gateDelayMs?: number;
 }) {
   const { t } = useTCopy();
   const data = useOfficeBytes(fileMedia);
@@ -151,10 +153,18 @@ function OfficeBranch({
           theme={theme}
           fileName={fileMedia.path}
           cacheKey={cacheKey}
+          gateDelayMs={gateDelayMs}
         />
       );
     case 'pdf':
-      return <LazyPdfPreviewWrapper data={data} theme={theme} cacheKey={cacheKey} />;
+      return (
+        <LazyPdfPreviewWrapper
+          data={data}
+          theme={theme}
+          cacheKey={cacheKey}
+          gateDelayMs={gateDelayMs}
+        />
+      );
     case 'spreadsheet':
       return (
         <LazyXlsxPreviewWrapper
@@ -162,11 +172,19 @@ function OfficeBranch({
           theme={theme}
           fileName={fileMedia.path}
           cacheKey={cacheKey}
+          gateDelayMs={gateDelayMs}
         />
       );
     case 'presentation':
       // pptx 无渲染结果缓存（库内嵌媒体用 object URL）；仍走延迟+最短扫光。
-      return <LazyPptxPreviewWrapper data={data} theme={theme} fileName={fileMedia.path} />;
+      return (
+        <LazyPptxPreviewWrapper
+          data={data}
+          theme={theme}
+          fileName={fileMedia.path}
+          gateDelayMs={gateDelayMs}
+        />
+      );
   }
 }
 
@@ -181,6 +199,19 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
   theme,
 }: FilePreviewRenderersProps) {
   const { t } = useTCopy();
+
+  // 打开预算：读取阶段与 chunk/渲染阶段共享同一个 150ms 延迟窗口，
+  // 避免“读取扫光 → 空白 → 渲染扫光”的二次闪烁。
+  const openStartedAtRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (fileMediaLoading) {
+      openStartedAtRef.current = Date.now();
+    }
+  }, [fileMediaLoading, filePath, workspaceId]);
+  const gateDelayMs =
+    openStartedAtRef.current === null
+      ? 150
+      : Math.max(0, 150 - (Date.now() - openStartedAtRef.current));
 
   // 预览结果缓存键（工作区+路径+体积+mtime）：同键回看复用上次渲染/解析结果。
   const previewCacheKey = fileMedia
@@ -307,6 +338,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
           kind={fileCategory}
           theme={theme}
           cacheKey={previewCacheKey}
+          gateDelayMs={gateDelayMs}
         />
       </PreviewSurface>
     );

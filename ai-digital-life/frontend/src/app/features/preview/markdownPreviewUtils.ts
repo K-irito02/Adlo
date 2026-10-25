@@ -113,7 +113,13 @@ const BLOCK_SCALAR_RE = /^[|>](?:[+-]?[1-9]?|[1-9][+-]?)$/;
 export function parseFrontmatter(block: string): FrontmatterEntry[] | null {
   const entries: FrontmatterEntry[] = [];
   let current: FrontmatterEntry | null = null;
-  let blockScalar: { entry: FrontmatterEntry; fold: boolean; keepTrailing: boolean } | null = null;
+  let blockScalar: {
+    entry: FrontmatterEntry;
+    fold: boolean;
+    keepTrailing: boolean;
+    /** 折叠标量里上一个有效行是否是空行（决定下一行用换行还是空格连接）。 */
+    pendingBlank: boolean;
+  } | null = null;
 
   const finalizeBlockScalar = () => {
     if (!blockScalar) {
@@ -135,14 +141,23 @@ export function parseFrontmatter(block: string): FrontmatterEntry[] | null {
     if (blockScalar) {
       if (raw.trim() === '') {
         blockScalar.entry.values[0] += '\n';
+        blockScalar.pendingBlank = true;
         continue;
       }
       if (/^[ \t]/.test(raw)) {
         const text = raw.replace(/^[ \t]+/, '');
         const existing = blockScalar.entry.values[0] ?? '';
-        blockScalar.entry.values[0] = existing
-          ? `${existing}${blockScalar.fold ? ' ' : '\n'}${text}`
-          : text;
+        // 折叠标量（`>`）段落之间用换行，且不留前导空格。
+        // 折叠模式下空行本身已写入 '\n'，这里不再重复分隔符，避免多出空行。
+        const separator = !existing
+          ? ''
+          : blockScalar.fold
+            ? blockScalar.pendingBlank
+              ? ''
+              : ' '
+            : '\n';
+        blockScalar.entry.values[0] = `${existing}${separator}${text}`;
+        blockScalar.pendingBlank = false;
         continue;
       }
       finalizeBlockScalar();
@@ -193,7 +208,9 @@ export function parseFrontmatter(block: string): FrontmatterEntry[] | null {
       blockScalar = {
         entry,
         fold: rawValue.startsWith('>'),
-        keepTrailing: rawValue.endsWith('+'),
+        // chomping 指示符可与缩进指示符互换顺序（`|+2` 与 `|2+` 等价）。
+        keepTrailing: rawValue.includes('+'),
+        pendingBlank: false,
       };
       continue;
     }
@@ -211,7 +228,7 @@ export function parseFrontmatter(block: string): FrontmatterEntry[] | null {
     return null;
   }
   for (const entry of entries) {
-    // 空列表保持空数组（渲染成“无值”），不要把列表补成空字符串 chip。
+    // 空列表保持空数组（渲染成空单元格，不出空 chip），不要把列表补成空字符串。
     if (!entry.list && entry.values.length === 0) {
       entry.values = [''];
     }
@@ -220,9 +237,10 @@ export function parseFrontmatter(block: string): FrontmatterEntry[] | null {
 }
 
 export function splitFrontmatter(content: string): SplitMarkdown {
-  const none: SplitMarkdown = { entries: [], body: content, lineOffset: 0 };
-  // BOM 容错：Windows 工具产出的 md 常带 U+FEFF，否则首部块永远识别不到。
+  // BOM 容错：Windows 工具产出的 md 常带 U+FEFF。必须在所有分支都去掉，
+  // 否则无 frontmatter 的文件首行标题会被 markdown-it 当成普通段落。
   const source = content.startsWith('\uFEFF') ? content.slice(1) : content;
+  const none: SplitMarkdown = { entries: [], body: source, lineOffset: 0 };
   const match = FRONTMATTER_RE.exec(source);
   if (!match) {
     return none;
@@ -231,7 +249,9 @@ export function splitFrontmatter(content: string): SplitMarkdown {
   if (!entries) {
     return none;
   }
-  const lineOffset = (match[0].match(/\n/g) ?? []).length;
+  const newlines = (match[0].match(/\n/g) ?? []).length;
+  // 闭合 `---` 在文件末尾且无换行时，行数比换行数多 1。
+  const lineOffset = newlines + (match[0].endsWith('\n') ? 0 : 1);
   return { entries, body: source.slice(match[0].length), lineOffset };
 }
 

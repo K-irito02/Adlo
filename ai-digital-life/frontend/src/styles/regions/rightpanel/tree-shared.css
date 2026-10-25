@@ -217,10 +217,6 @@
 
 /* ---------------- Tool list / navigator shared ---------------- */
 
-.adl-empty-hint--navigator {
-  padding: var(--space-3);
-}
-
 /* 空态基座（单一规范）：小字、水平居中、适度纵向留白。
    选择器不限定标签——浏览器书签/历史树用 `<span class="adl-empty-hint">`
    （MultiTreeEntryShell），旧规则只写 `p.adl-empty-hint` 导致该处完全未命中、
