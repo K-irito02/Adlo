@@ -27,7 +27,7 @@
 
 ### 关键设计决策
 
-1. **指针文件独立于数据**：`storage-locator.json` 常驻系统配置目录（`dirs::config_dir()/ai-digital-life/`），不随数据迁移，避免"根路径存进被移动的 config"的循环依赖。写入采用 tmp + rename 原子替换；测试/开发可用 `ADL_STORAGE_LOCATOR_PATH` 覆盖。
+1. **指针文件独立于数据**：`storage-locator.json` 常驻系统配置目录（`dirs::config_dir()/ai-digital-life/`），不随数据迁移，避免"根路径存进被移动的 config"的循环依赖。写入采用 tmp + rename 原子替换；测试/开发可用 `ADL_STORAGE_LOCATOR_PATH` 覆盖，`locator_dir()` 及其派生路径（如 `credentials_dir`）也随之走覆盖点，保证并行 dev 实例互不共享。
 2. **迁移只在启动早期执行**：`run_startup_migration` 在任何 DB/日志句柄打开前运行；`run()` 顺序严格为 复制→校验→切换指针→清理，切换后清理失败不得删除新数据、不得重跑复制（`MigrationReport.switched` 标记）。
 3. **每类覆盖语义统一为目录**：含三个 SQLite 库（覆盖值视为目录，库文件名为固定名拼接），与"选目录" UI 一致。
 4. **白名单是迁移与清理的唯一依据**：base-aware 判定（相对基目录结构），凭据回退仅 `<service>.<account>.enc` 形态；`preflight` 在设置时与启动迁移前各执行一次。

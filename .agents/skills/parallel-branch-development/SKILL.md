@@ -20,6 +20,6 @@ agent_created: true
 
 - 一分支 = 一工作树 = 一会话；两个会话禁止共用同一目录。
 - 禁止跨工作树直接编辑文件，协作只走提交与合并。
-- 禁止共享 `CARGO_TARGET_DIR`；同一时刻只允许一个 Tauri debug 实例。
+- 禁止共享 `CARGO_TARGET_DIR`；dev 实例按槽位隔离（identifier / 数据根 / WebView2 profile），并行桌面实例只走 `pnpm dev*` 入口。
 - 分支工作树内禁止写 `.workbuddy/memory/**`。
 - 清理工作树须用户明确要求。

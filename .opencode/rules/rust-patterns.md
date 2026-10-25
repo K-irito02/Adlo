@@ -14,7 +14,7 @@ alwaysApply: false
 ## 数据库
 - 必须使用 `r2d2` 连接池（`Pool<SqliteConnectionManager>`），禁止 `Arc<Mutex<Connection>>`
 - 连接池最大连接数建议 8（可配置）
-- `open()` 中必须执行 `PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;`
+- `open()` 中用一条独立连接执行一次 `PRAGMA journal_mode=WAL;`（切库需排他锁）；连接池 `with_init` 只设连接级 pragma（`busy_timeout`、`foreign_keys=ON`），禁止逐连接切 journal_mode（新建库并行 checkout 会 `database is locked`）
 - 新增持久化实体类型必须使用 `EntityTable` 宏（`define_entity_table!`），禁止手动维护 `TABLE_NAMES` 数组
 
 ## Crate 治理

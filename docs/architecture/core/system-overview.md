@@ -74,7 +74,7 @@ Quality gates see `.agents/rules/quality-gates.md` and `mandatory-testing.md`. T
 
 ## Persistence
 
-All application data paths resolve through `adl-kernel::storage` (`StoragePaths`); the pointer file is `<config_dir>/ai-digital-life/storage-locator.json` (overridable via `ADL_STORAGE_LOCATOR_PATH` for dev/test):
+All application data paths resolve through `adl-kernel::storage` (`StoragePaths`); the pointer file is `<config_dir>/ai-digital-life/storage-locator.json` (overridable via `ADL_STORAGE_LOCATOR_PATH` for dev/test — `locator_dir()` and everything derived from it, e.g. `credentials_dir`, then follows that file's directory so parallel dev instances stay isolated):
 
 - locator `pendingMigration` executes at next process startup, before any DB/log handle opens (no hot migration); success switches the pointer then cleans owned files only (external files never deleted); failure keeps the old path and records the error without auto-retry
 - settings panel storage group: unified-root vs per-category modes; 10 migratable paths + 1 settings-value path (`downloads_default`) + 6 non-movable items listed with reasons
