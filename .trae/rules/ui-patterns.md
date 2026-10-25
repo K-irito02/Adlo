@@ -440,7 +440,7 @@ alwaysApply: true
 
 - 语义化为 `<section>`（可 override）
 - 可选 title、subtitle、toolbar
-- 空状态使用 `renderEmptyState`
+- 空状态使用 `.adl-empty-hint`（基线）或 `EmptyRow` 组件
 
 ### 文档
 
