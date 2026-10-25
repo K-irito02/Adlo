@@ -1,0 +1,31 @@
+/* 「环境」设置组的行距与分隔线。
+   依赖以 `<section data-testid="env-dep-*">` 分组（保留测试与行内作用域），
+   而全局 `.adl-settings-row` 的 `:first-child / :last-child` 收边是按
+   「卡片的直接子元素」设计的：行不是卡的直接子元素时，每个 section 的首/末行
+   会被归零 padding 并去掉 border-bottom，导致依赖之间粘连、分组语义倒置。
+   因此这里把「行距 + 分隔线」上移到 section，并中和 section 内的前后收边。 */
+.adl-environment-settings .adl-settings-card > section {
+  padding: var(--space-3-5) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.adl-environment-settings .adl-settings-card > section:first-child {
+  padding-top: 0;
+}
+
+.adl-environment-settings .adl-settings-card > section:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.adl-environment-settings .adl-settings-card > section > .adl-settings-row {
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* 同一依赖的「主体行 → 自定义路径次级行」之间留出呼吸，但不画分隔线：
+   分隔线属于「依赖 ↔ 依赖」边界（挂在 section 上），不要让人把路径行看成新配置。 */
+.adl-environment-settings .adl-settings-card > section > .adl-settings-row + .adl-settings-row {
+  padding-top: var(--space-2);
+}

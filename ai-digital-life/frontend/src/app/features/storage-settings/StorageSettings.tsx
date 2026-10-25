@@ -1392,7 +1392,7 @@ export function StorageSettings() {
       <div className="adl-settings-section adl-storage-settings">
         <div className="adl-settings-card">
           <SettingsHeader title={t.storageCorePathsTitle} />
-          <div className="adl-settings-row">
+          <div className="adl-settings-row" role="status">
             <div className="adl-settings-row__label">
               <small className="adl-loading-row__text--shimmer">{t.storageStatusLoading}</small>
             </div>

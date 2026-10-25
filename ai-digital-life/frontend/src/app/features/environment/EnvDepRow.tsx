@@ -409,14 +409,14 @@ export function EnvDepRow({
     );
   };
 
+  // 可操作依赖的 section（node/git/bash）；同时用于控制列可见性与来源下拉，
+  // 避免同一守卫在 JSX 里重复出现（TS 窄化也随之只做一次）。
+  const operableSection = OPERABLE_DEP_SET.has(dep) ? section : null;
   // 右侧控件列：来源下拉 + 安装/卸载/重装（或离线复制）。
-  const showControlColumn =
-    (OPERABLE_DEP_SET.has(dep) && section !== null) || showInstall || showOfflineCopy;
+  // `showInstall` / `showOfflineCopy` 都蕴含「可操作依赖且 section 非空」。
+  const showControlColumn = operableSection !== null;
   // 手动路径独占一条次级行（用户 2026-10-25：不再塞进 label 列的 small 里）。
   const showPathRow = OPERABLE_DEP_SET.has(dep) && !compact;
-  // 次级操作（复制诊断 / 官网 / 前往设置）下沉为说明行末尾的行内链接，
-  // 不再各占一条 `--actions` 行（与「官方版本信息」行的 inline-link 同构）。
-  const showInlineLinks = !compact;
 
   return (
     <section data-testid={`env-dep-${dep}`}>
@@ -469,7 +469,7 @@ export function EnvDepRow({
               ) : null}
             </small>
           ) : null}
-          {showInlineLinks ? (
+          {!compact ? (
             <small>
               <button
                 type="button"
@@ -514,10 +514,10 @@ export function EnvDepRow({
         </div>
         {showControlColumn ? (
           <div className="adl-settings-row__control adl-settings-row__control--inline">
-            {OPERABLE_DEP_SET.has(dep) && section !== null ? (
+            {operableSection !== null ? (
               <span data-settings-row={dep === 'node' ? t.environmentSwitch : undefined}>
                 <SettingsSelect
-                  value={section.mode}
+                  value={operableSection.mode}
                   options={sourceOptions}
                   onChange={(v) => {
                     // 来源变更会重算可卸载性：先解除武装，避免跨来源残留危险态。
@@ -586,11 +586,12 @@ export function EnvDepRow({
       </div>
       {showPathRow ? (
         <div className="adl-settings-row">
-          <div className="adl-settings-row__label">
+          <label className="adl-settings-row__label" htmlFor={`env-custom-path-${dep}`}>
             <small>{t.environmentCustomPathLabel}</small>
-          </div>
+          </label>
           <div className="adl-settings-row__control">
             <input
+              id={`env-custom-path-${dep}`}
               type="text"
               className="adl-settings-input adl-settings-input--path"
               value={pathValue}
@@ -598,7 +599,6 @@ export function EnvDepRow({
               disabled={localControlsDisabled}
               onChange={(e) => setPathDraft(e.target.value)}
               onBlur={handlePathBlur}
-              aria-label={t.environmentCustomPathLabel}
             />
           </div>
         </div>

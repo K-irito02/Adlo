@@ -7,7 +7,7 @@ import { useAppActions } from '@hooks/useAppActions';
 import { openUrlByMethod } from '@features/preview/openByMethod';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
 import { StaticResetSpacer } from '@components/settings/StaticResetSpacer';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { ConfirmDialog } from '@components/ConfirmDialog';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
 import {
   EnvDepRow,
@@ -395,27 +395,6 @@ export function EnvironmentSettings() {
         ? t.environmentDepGit
         : t.environmentDepBash;
 
-  const renderDepBlock = (title: string, deps: EnvDepKey[], envStatus: EnvStatus) => (
-    <>
-      <div className="adl-dsh-settings__header">
-        <StaticResetSpacer />
-        <SettingsHeader title={title} />
-      </div>
-      <div className="adl-settings-card">
-        {deps.map((dep) => (
-          <EnvDepRow
-            key={dep}
-            dep={dep}
-            status={envStatus}
-            busy={envBusy}
-            isTauri={isTauri}
-            actions={rowActions}
-          />
-        ))}
-      </div>
-    </>
-  );
-
   return (
     <div className="adl-settings-section adl-dsh-settings adl-environment-settings">
       <div
@@ -518,7 +497,24 @@ export function EnvironmentSettings() {
             </div>
           </div>
           {DEP_BLOCKS.map(({ titleKey, deps }) => (
-            <Fragment key={titleKey}>{renderDepBlock(t[titleKey], deps, status)}</Fragment>
+            <Fragment key={titleKey}>
+              <div className="adl-dsh-settings__header adl-dsh-settings__header--section">
+                <StaticResetSpacer />
+                <SettingsHeader title={t[titleKey]} />
+              </div>
+              <div className="adl-settings-card">
+                {deps.map((dep) => (
+                  <EnvDepRow
+                    key={dep}
+                    dep={dep}
+                    status={status}
+                    busy={envBusy}
+                    isTauri={isTauri}
+                    actions={rowActions}
+                  />
+                ))}
+              </div>
+            </Fragment>
           ))}
         </>
       )}

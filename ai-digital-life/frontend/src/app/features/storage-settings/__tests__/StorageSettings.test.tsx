@@ -1682,7 +1682,11 @@ describe('StorageSettings', () => {
       },
     };
     renderSettings();
-    expect(screen.getByText('storageStatusLoading')).toBeTruthy();
+    const loadingText = screen.getByText('storageStatusLoading');
+    // 扫光类必须挂上（静默回归面：类丢了文案照旧、只有视觉退化）。
+    expect(loadingText.className).toContain('adl-loading-row__text--shimmer');
+    // 加载态是 live region，屏幕阅读器能感知"正在读取"。
+    expect(loadingText.closest('[role="status"]')).not.toBeNull();
     // fake-timers 下 `waitFor` 不推进时钟：用 `act` 包裹推进，避免轮询挂死。
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30_000);

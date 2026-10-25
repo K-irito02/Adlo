@@ -198,11 +198,28 @@ describe('EnvironmentSettings', () => {
     const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
     // 主体行 + 自定义路径次级行 = 2 行；不再额外挂 `--actions` 按钮条。
     expect(node.querySelectorAll('.adl-settings-row')).toHaveLength(2);
-    expect(node.querySelector('.adl-settings-row--actions')).toBeNull();
+
     // 次级操作下沉为行内链接。
     expect(node.querySelector('.adl-dsh-settings__inline-link')).not.toBeNull();
     const webview2 = container.querySelector('[data-testid="env-dep-webview2"]') as HTMLElement;
     expect(webview2.querySelectorAll('.adl-settings-row')).toHaveLength(1);
+    // 块归属与顺序：每张依赖卡内的 env-dep-* 序列必须与 DEP_BLOCKS 一致。
+    const depCards = Array.from(container.querySelectorAll('.adl-settings-card'))
+      .map((card) =>
+        Array.from(card.querySelectorAll('[data-testid^="env-dep-"]')).map((el) =>
+          el.getAttribute('data-testid'),
+        ),
+      )
+      .filter((ids) => ids.length > 0);
+    expect(depCards).toEqual([
+      ['env-dep-node', 'env-dep-git', 'env-dep-bash'],
+      ['env-dep-webview2', 'env-dep-adlserver'],
+      ['env-dep-net', 'env-dep-model'],
+    ]);
+    // 搜索落点仍挂在网络行的「前往设置」inline 链接上（不是被下沉掉的按钮条）。
+    const net = container.querySelector('[data-testid="env-dep-net"]') as HTMLElement;
+    const goNet = within(net).getByRole('button', { name: 'environmentGoToSettings' });
+    expect(goNet.getAttribute('data-settings-row')).toBe('environmentGoToSettings');
   });
 
   it('Bash 系统模式下展示只读归属文本（非可交互三选一）', async () => {

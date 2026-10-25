@@ -147,7 +147,7 @@ export function DshSettings() {
   });
 
   // 摘要行挂在版本管理卡的最下方（用户要求：从组顶部移到底部）。只读展示 + 跳转入口：
-  // 名称与源链接保持主文字色，尾部模式提示用中性灰（与其它设置项的说明文字同色）。
+  // 「名称 + 源地址文本」保持主文字色，尾部模式提示用中性灰（与其它设置项的说明文字同色）。
   const sourceSummaryRow = (
     <div className="adl-settings-row">
       <div className="adl-settings-row__label">

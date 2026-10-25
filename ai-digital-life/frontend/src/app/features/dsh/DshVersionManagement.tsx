@@ -144,10 +144,13 @@ function ChevronDownIcon() {
 }
 
 /**
- * dsh 版本管理块（当前版本行 + 检查更新行 + 正式版行 + 预发布行 + 官方版本信息行）。
+ * dsh 版本管理块（版本来源行 + 当前版本行 + 检查更新行 + 正式版行 + 预发布行
+ * + 官方版本信息行；检查更新/正式版/预发布版仅在 `manageVisible` 时渲染
+ * + 调用方传入的可选 footer 行）。
  *
- * 由设置面板「DSH」设置组的「版本管理」块承载：与下载源/代理/测试连接三块同构，
- * 块头（`SettingsHeader`）在卡外，块体为一张 `adl-settings-card`（五行）——
+ * 由设置面板「DSH」设置组的「版本管理」块承载，块头（`SettingsHeader`）在卡外，
+ * 块体为一张 `adl-settings-card`（常态 3~6 行：版本来源/当前版本/官方版本信息必现，
+ * 检查更新/正式版/预发布版仅 `manageVisible` 时渲染）+ 可选 footer 行——
  * 「当前版本」行右侧为版本读数（版本号 + 来源徽标 + 最新可用版本 + 预发布提示），
  * 「检查更新」行右侧为单个检查按钮，
  * 「正式版本」/「预发布版本」行右侧为单版本行（发布时间 + 按状态显示的
@@ -165,7 +168,7 @@ function ChevronDownIcon() {
  * 调用方契约：本组件只渲染行卡片，不自建页面地标，也不渲染块头。
  * `footer` 渲染在行卡片最下方（调用方用来挂只读摘要行，如当前下载源）。
  */
-export function DshVersionManagement({ footer }: { footer?: ReactNode } = {}) {
+export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
   const { t } = useTCopy();
   const actions = useAppActions();
   const versionStatus = useAppStore((s) => s.versionStatus);

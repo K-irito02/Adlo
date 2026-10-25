@@ -278,10 +278,14 @@ describe('DshSettings', () => {
     expect(screen.getByText(`当前下载源：${NPMJS_URL}`)).not.toBeNull();
     // 尾部模式提示用直角引号（不是全角圆括号）。
     expect(screen.getByText('「手动选择」')).not.toBeNull();
-    // 位置：与版本管理末行（官方版本信息）同属一张卡片 = 已移到块底部。
-    const card = screen.getByText(`当前下载源：${NPMJS_URL}`).closest('.adl-settings-card');
+    // 位置：摘要行是版本管理卡内**最后一行**（footer 插槽就在卡根末尾）。
+    const row = screen.getByText(`当前下载源：${NPMJS_URL}`).closest('.adl-settings-row');
+    const card = row?.closest('.adl-settings-card');
+    expect(row).not.toBeNull();
     expect(card).not.toBeNull();
+    // 两重约束：① 该卡确实是版本管理卡（含官方版本信息行）；② 摘要行是卡内最后一行。
     expect(card!.contains(screen.getByText('dshOfficialLinksLabel'))).toBe(true);
+    expect(card!.lastElementChild).toBe(row);
     expect(saveSourceConfig).not.toHaveBeenCalled();
     expect(fetchSourceStatus).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: '前往修改' }));
