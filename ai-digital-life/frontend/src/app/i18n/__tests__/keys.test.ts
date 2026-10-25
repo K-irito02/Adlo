@@ -478,6 +478,10 @@ describe('i18n en-US namespace keys', () => {
       'settingsEnvironment',
       'environmentTitle',
       'environmentDesc',
+      // 分组块头（环境组与其它组对齐：块头 + 卡）
+      'environmentBlockRuntime',
+      'environmentBlockSystem',
+      'environmentBlockNetwork',
       // 状态灯五态
       'environmentStatusReady',
       'environmentStatusNeedInstall',

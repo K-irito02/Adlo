@@ -5,19 +5,10 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { executeDshResetPlan } from '@shared/settings-reset/dshReset';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
+import { StaticResetSpacer } from '../../components/settings/StaticResetSpacer';
 import { DshVersionManagement } from './DshVersionManagement';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { IconResetDefaults } from '../../icons';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
-
-/** 无恢复按钮的块头占位图标：与带恢复按钮的块头左对齐（仅装饰、不可交互）。 */
-function StaticResetSpacer() {
-  return (
-    <span className="adl-settings-row__reset adl-settings-row__reset--static" aria-hidden="true">
-      <IconResetDefaults size={14} decorative />
-    </span>
-  );
-}
 
 /**
  * 「DSH」设置组：版本管理块（Task 5 起仅剩此块——源/代理/测试三块已搬入网络组，

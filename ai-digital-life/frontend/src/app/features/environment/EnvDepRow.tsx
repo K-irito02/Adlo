@@ -376,8 +376,8 @@ export function EnvDepRow({
           </small>
           <small>
             {t.environmentNetModelApi} · {t.environmentNetFollowDsh}
+            {netprobe.ciTokenConfigured ? <> · {t.environmentCredentialAvailable}</> : null}
           </small>
-          {netprobe.ciTokenConfigured ? <small>{t.environmentCredentialAvailable}</small> : null}
         </>
       );
     }
@@ -409,6 +409,15 @@ export function EnvDepRow({
     );
   };
 
+  // 右侧控件列：来源下拉 + 安装/卸载/重装（或离线复制）。
+  const showControlColumn =
+    (OPERABLE_DEP_SET.has(dep) && section !== null) || showInstall || showOfflineCopy;
+  // 手动路径独占一条次级行（用户 2026-10-25：不再塞进 label 列的 small 里）。
+  const showPathRow = OPERABLE_DEP_SET.has(dep) && !compact;
+  // 次级操作（复制诊断 / 官网 / 前往设置）下沉为说明行末尾的行内链接，
+  // 不再各占一条 `--actions` 行（与「官方版本信息」行的 inline-link 同构）。
+  const showInlineLinks = !compact;
+
   return (
     <section data-testid={`env-dep-${dep}`}>
       <div className="adl-settings-row">
@@ -438,26 +447,11 @@ export function EnvDepRow({
           {showBashVariant && !compact ? (
             <small>{formatT(t, 'environmentBashVariantNote', { variant: bashVariantLabel })}</small>
           ) : null}
-          {OPERABLE_DEP_SET.has(dep) && !compact ? (
-            <small>
-              <label>
-                {t.environmentCustomPathLabel}{' '}
-                <input
-                  type="text"
-                  value={pathValue}
-                  placeholder={t.environmentCustomPathPlaceholder}
-                  disabled={localControlsDisabled}
-                  onChange={(e) => setPathDraft(e.target.value)}
-                  onBlur={handlePathBlur}
-                  aria-label={t.environmentCustomPathLabel}
-                />
-              </label>
-            </small>
-          ) : null}
           {dep === 'webview2' && !compact ? (
             <small>
               <button
                 type="button"
+                className="adl-dsh-settings__inline-link"
                 aria-expanded={advancedOpen}
                 onClick={() => setAdvancedOpen((v) => !v)}
               >
@@ -475,9 +469,51 @@ export function EnvDepRow({
               ) : null}
             </small>
           ) : null}
+          {showInlineLinks ? (
+            <small>
+              <button
+                type="button"
+                className="adl-dsh-settings__inline-link"
+                data-settings-row={dep === 'node' ? t.environmentCopyForAgent : undefined}
+                disabled={busy}
+                onClick={() => {
+                  void actions.copyForAgent(dep);
+                }}
+              >
+                {t.environmentCopyForAgentNote}
+              </button>
+              {OFFICIAL_URLS[dep] !== undefined ? (
+                <>
+                  {' · '}
+                  <button
+                    type="button"
+                    className="adl-dsh-settings__inline-link"
+                    onClick={() => actions.openExternal(OFFICIAL_URLS[dep])}
+                  >
+                    {dep === 'webview2'
+                      ? t.environmentWebview2DownloadPage
+                      : t.environmentOfficialSite}
+                  </button>
+                </>
+              ) : null}
+              {dep === 'net' || dep === 'model' ? (
+                <>
+                  {' · '}
+                  <button
+                    type="button"
+                    className="adl-dsh-settings__inline-link"
+                    data-settings-row={dep === 'net' ? t.environmentGoToSettings : undefined}
+                    onClick={() => actions.goGroup(dep === 'net' ? 'network' : 'dsh')}
+                  >
+                    {t.environmentGoToSettings}
+                  </button>
+                </>
+              ) : null}
+            </small>
+          ) : null}
         </div>
-        {(OPERABLE_DEP_SET.has(dep) && section !== null) || showInstall || showOfflineCopy ? (
-          <div className="adl-settings-row__control">
+        {showControlColumn ? (
+          <div className="adl-settings-row__control adl-settings-row__control--inline">
             {OPERABLE_DEP_SET.has(dep) && section !== null ? (
               <span data-settings-row={dep === 'node' ? t.environmentSwitch : undefined}>
                 <SettingsSelect
@@ -548,47 +584,23 @@ export function EnvDepRow({
           </div>
         ) : null}
       </div>
-      {!compact ? (
-        <div className="adl-settings-row adl-settings-row--actions">
-          <button
-            type="button"
-            className="adl-dsh-settings__action-btn"
-            data-settings-row={dep === 'node' ? t.environmentCopyForAgent : undefined}
-            disabled={busy}
-            onClick={() => {
-              void actions.copyForAgent(dep);
-            }}
-          >
-            {t.environmentCopyForAgentNote}
-          </button>
-          {OFFICIAL_URLS[dep] !== undefined ? (
-            <button
-              type="button"
-              className="adl-dsh-settings__action-btn"
-              onClick={() => actions.openExternal(OFFICIAL_URLS[dep])}
-            >
-              {dep === 'webview2' ? t.environmentWebview2DownloadPage : t.environmentOfficialSite}
-            </button>
-          ) : null}
-          {dep === 'net' ? (
-            <button
-              type="button"
-              className="adl-dsh-settings__action-btn"
-              data-settings-row={t.environmentGoToSettings}
-              onClick={() => actions.goGroup('network')}
-            >
-              {t.environmentGoToSettings}
-            </button>
-          ) : null}
-          {dep === 'model' ? (
-            <button
-              type="button"
-              className="adl-dsh-settings__action-btn"
-              onClick={() => actions.goGroup('dsh')}
-            >
-              {t.environmentGoToSettings}
-            </button>
-          ) : null}
+      {showPathRow ? (
+        <div className="adl-settings-row">
+          <div className="adl-settings-row__label">
+            <small>{t.environmentCustomPathLabel}</small>
+          </div>
+          <div className="adl-settings-row__control">
+            <input
+              type="text"
+              className="adl-settings-input adl-settings-input--path"
+              value={pathValue}
+              placeholder={t.environmentCustomPathPlaceholder}
+              disabled={localControlsDisabled}
+              onChange={(e) => setPathDraft(e.target.value)}
+              onBlur={handlePathBlur}
+              aria-label={t.environmentCustomPathLabel}
+            />
+          </div>
         </div>
       ) : null}
     </section>

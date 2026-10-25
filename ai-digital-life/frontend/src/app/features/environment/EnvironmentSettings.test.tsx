@@ -186,6 +186,25 @@ describe('EnvironmentSettings', () => {
     expect(screen.getByRole('button', { name: 'environmentCopyAllForAgent' })).not.toBeNull();
   });
 
+  it('按块头分组（基础依赖/系统组件/网络与模型），每依赖单行 + 路径独占次级行', async () => {
+    const { container } = await renderWithRows();
+    for (const key of [
+      'environmentBlockRuntime',
+      'environmentBlockSystem',
+      'environmentBlockNetwork',
+    ]) {
+      expect(screen.getByText(key)).not.toBeNull();
+    }
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    // 主体行 + 自定义路径次级行 = 2 行；不再额外挂 `--actions` 按钮条。
+    expect(node.querySelectorAll('.adl-settings-row')).toHaveLength(2);
+    expect(node.querySelector('.adl-settings-row--actions')).toBeNull();
+    // 次级操作下沉为行内链接。
+    expect(node.querySelector('.adl-dsh-settings__inline-link')).not.toBeNull();
+    const webview2 = container.querySelector('[data-testid="env-dep-webview2"]') as HTMLElement;
+    expect(webview2.querySelectorAll('.adl-settings-row')).toHaveLength(1);
+  });
+
   it('Bash 系统模式下展示只读归属文本（非可交互三选一）', async () => {
     const { container } = await renderWithRows();
     const bash = container.querySelector('[data-testid="env-dep-bash"]')!;
