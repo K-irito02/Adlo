@@ -11,15 +11,11 @@ alwaysApply: true
 
 ## 结束验收流程
 
-代码变更完成后，**必须自动触发结束验收流程**。完整的验收流程定义见 [mandatory-testing.md](./mandatory-testing.md)，包括：
+代码变更完成后，**必须自动触发结束验收流程**。流程与命令清单以 [quality-gates.md](./quality-gates.md) 为唯一真源（默认只跑受影响范围；全量需用户批准），分层与修复约束见 [mandatory-testing.md](./mandatory-testing.md)。
 
-- 变更层级评估与测试范围确定
-- 测试材料检查与自动生成
-- ESLint/Prettier/Clippy/rustfmt 检测修复
-- 类型检查与测试执行
-- 结果处理与失败升级机制
-
-验证顺序：默认只跑**受变更影响**的测试（前端 `pnpm check:changed` / `vitest run <目录>`，Rust `cargo test -p <crate>`）；**全量测试与全量门禁（`check:full`、`cargo test --workspace`）在发布打包 Tauri 前必须执行，但执行前必须通知用户并获得批准**，不得自行全量。前端格式化配置以 `ai-digital-life/frontend/` 下的 `.prettierrc` / `.prettierignore` 为准（根目录同名文件不生效）。
+- 前端命令一律带目录：`pnpm --dir frontend run check:changed`（在仓库根或 `ai-digital-life/` 执行都有效）。
+- 全量/发布门禁（`check:full`、`check:all`、`cargo test --workspace`、`cargo tauri build`）执行前必须通知用户并获批准。
+- 前端格式化配置以 `ai-digital-life/frontend/` 下的 `.prettierrc` / `.prettierignore` 为准（根目录同名文件不生效）。
 
 Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，必须自动执行该流程，**不得跳过**。
 

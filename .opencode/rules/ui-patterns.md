@@ -925,3 +925,21 @@ const handleOutside = (e) => {
 ### 文档
 
 - 知识沉淀：[clipboard-history-panel-rework-2026-09-17.md](../../docs/knowledge-base/interaction/clipboard-history-panel-rework-2026-09-17.md)
+
+---
+
+## 28. Markdown 预览内的自定义块（Vendor Markdown Overrides）
+
+### 背景
+
+预览面排版由 vendored `github-markdown-css` 拥有（`frontend/src/styles/vendor/markdown-theme-vars.css`，由 `generate-md-theme-vars.mjs` 生成）。它会为未声明的属性兜底，例如 `.markdown-body dl dd { padding: 0 1rem }`、`dl dt { font-style: italic }`。自定义块只声明“想要”的属性时，其余会静默继承 vendor 值，看起来像“样式没生效”。
+
+### 规则
+
+- 自定义块必须显式重置不想要的 vendor 属性：`padding` / `margin` / `font-style` / `line-height` / 列表标记。
+- 不要靠“选择器特异性更高”推断安全：未声明的属性不受特异性保护。
+- 用 CSS 契约测试（`findRuleGroups`）锁定“重置”本身，而不只是锁定期望值。
+
+### 文档
+
+- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md) → Markdown preview surfaces

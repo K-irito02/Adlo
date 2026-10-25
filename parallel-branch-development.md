@@ -197,7 +197,7 @@ cd "<worktree>/ai-digital-life"
 node --test scripts/instance-id.test.mjs   # 实例隔离逻辑
 pnpm run frontend:typecheck && pnpm run frontend:test
 pnpm run cargo:test
-pnpm run check:all        # 提交前与合并后都跑
+pnpm run check:all        # 提交前与合并后都跑（含前端 check:full；门禁真源见 .agents/rules/quality-gates.md）
 ```
 
 ---

@@ -18,11 +18,12 @@
 | 3 | route mock 验证完必须 `unroute` | 否则后续 reload 仍被拦截，排障结论失真 |
 | 4 | 结束必须 `close`（多会话再 `close-all`） | 否则 chromium 残留吃内存 |
 | 5 | Windows URL 含 `&` 时用 `playwright-cli --% goto "…&…"` | PowerShell 会把 `&` 当命令分隔符截断 URL（技能自带说明，照做） |
+| 6 | **禁止裸跑 `requests`** | 一次实测输出 3719 条静态请求（JS/CSS/字体），既截断又烧上下文。先 `--raw requests` 落盘再过滤，或只看单条 `request <n>`；静态资源会淹没业务请求 |
 
 ## 3. 与本仓库联动的实测经验
 
 - 按 `docs/development/log-system-manual.md` §1 启动：`pnpm dev:preview -- --log-level trace --terminal-log-mode multi`。**端口可能漂移**（实测 5173 被占 → 实际 5174），不要硬编码，以启动日志 `[adl-run]` / vite 输出的实际地址为准。
-- 后台启动：`Start-Process` 直接调 `pnpm.ps1` 会报 Win32 错误，包一层 `powershell.exe -NoProfile -Command` 再起；启动命令返回后**进程可能被工具链回收**，把 PID 写文件，下一轮先确认进程存活再等就绪。
+- 后台启动：`Start-Process` 直接调 `pnpm.ps1` 会报 Win32 错误，包一层 `powershell.exe -NoProfile -Command` 再起；把输出重定向到日志文件。工具报 `ChildProcess.kill` 时**子进程通常仍存活**（实测三次），不要重复启动：下一次调用轮询日志 `[adl-run]` / 端口即可确认。
 - 停止 preview 用 `taskkill /PID <pid> /T /F`，之后确认端口已释放。但**先看清进程归属**：本机常驻的 codegraph node 进程（`@colbymchenry\codegraph`）绝不能杀，先查命令行再动手。
 - 健康基线：console 应出现 `[adl-bridge] using ad-server at http://127.0.0.1:<port>`（手册 §9 标记）；favicon 404 是常态噪音，忽略。
 - **"UI 动了" ≠ "日志写了"，两者都要断言**：实测点击"打开浏览器"后快照 diff 证明新标签页已建，但 `debug-logs-browser` 行数未增（该路径本就不写埋点）。只看其一会得出错误结论。

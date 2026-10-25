@@ -240,12 +240,12 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 | 类型 | 命令 | 说明 |
 |------|------|------|
 | 未提交（含暂存） | `git diff HEAD` | — |
-| 已提交未推送 | `git diff origin/HEAD..HEAD`（`origin/HEAD` 不存在则跳过） | 已推送的不审 |
+| 已提交未推送 | `BASE=$(git merge-base origin/HEAD HEAD)`；`git diff "$BASE..HEAD"`（无远端则跳过） | **用 merge-base，不用 `origin/HEAD`**：分支落后时后者会把别人已合入 main 的改动算进本次审查 |
 
 两类都无变更 → 跳过 4c–4e（进度文件记理由），仅保留 Exit criteria 中的分级测试。有变更时按下述建快照，再进 4c 两轮必跑：
 
 1. 建 `.review-diffs/`（已在 `.gitignore`，P6 删除）。
-2. 按文件拆快照：文件列表 = `git diff --name-only HEAD` ∪（存在时）`git diff --name-only origin/HEAD..HEAD`；每文件把两来源的 diff 拼接为 `<路径斜杠换下划线>-rev<N>.diff`（例：`src_app_foo.ts-rev1.diff`）；同步写 `changed-files-rev<N>.txt`。
+2. 按文件拆快照：文件列表 = `git diff --name-only HEAD` ∪（存在时）`git diff --name-only "$BASE..HEAD"`；每文件把两来源的 diff 拼接为 `<路径斜杠换下划线>-rev<N>.diff`（例：`src_app_foo.ts-rev1.diff`）；同步写 `changed-files-rev<N>.txt` 与 `git log --oneline "$BASE..HEAD" > commits-rev<N>.txt`（审查代理可自证范围）。文件数明显多于预期时，先核对 `BASE` 是否等于本分支分叉点，再继续。
    - **编码安全**：用 `git diff HEAD -- <file> --output=<safe>-rev<N>.diff` 直接写文件；**禁止**把 `git diff` 结果经 PowerShell 管道 / `Out-File` 转存（本仓实测会把 UTF-8 中文注释转成 GBK 乱码，审查代理只能退回读源码）。
    - **新增未跟踪文件**先 `git add -N <file>`，否则 `git diff` 看不到它们、快照会漏审。
 3. 子代理只读快照，禁止终端 `git diff`；每轮修复后 rev 递增**全量重生成**，复审看最新完整 diff（禁只看增量/复用旧快照）。

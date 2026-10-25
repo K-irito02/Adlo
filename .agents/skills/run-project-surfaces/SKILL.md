@@ -89,6 +89,17 @@ cargo build -p ad-server
 - 磁盘清理用 `cargo prune`（`cargo clean` 别名）后，若需继续桌面开发，先重建 `ad-server` 再启动。
 - 启动后确认日志中出现 `[adl-shell] spawning ad-server: ... --port 0` 与 `[adl-shell] ad-server bound at http://127.0.0.1:<port>`，说明引擎已就绪；仅出现 not-found 警告即为二进制缺失。
 
+## Agent 后台启动（无交互终端时）
+
+Agent 不能按 `Ctrl+C` 守护进程，用后台方式：
+
+1. `Start-Process <pnpm.cmd> -ArgumentList "run","dev:preview" -WorkingDirectory "<worktree>/ai-digital-life" -RedirectStandardOutput <log> -RedirectStandardError <err> -WindowStyle Hidden`
+2. 工具可能立即返回 `ChildProcess.kill` —— 这是 harness 断开包装进程，**不是启动失败**；不要重复启动。
+3. 下一次调用轮询 `<log>` 中的 `[adl-run] frontend ready at` / `adl-server bound`，再打开页面或跑 playwright。
+4. 结束用端口定位 PID 后 `Stop-Process`（或 `taskkill /T`），不要按进程名误杀其它槽位。
+
+详见 [playwright-cli 经验](../root-cause-to-close/references/playwright-cli-experience.md) §3「后台启动」。
+
 ## 相关
 
 - 包装脚本实现：`ai-digital-life/scripts/run-project-surface.mjs`

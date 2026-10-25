@@ -15,7 +15,7 @@
 | 前端质量 | ESLint v9（flat config）+ Prettier + TypeScript-ESLint + React Hooks plugin |
 | Rust Lint | `cargo clippy --workspace --all-targets` |
 | 前端 Lint | `cd frontend && npx eslint . && npx tsc --noEmit` |
-| 门禁 | 本地执行（无远程 CI）：日常 `pnpm check:changed`（受影响范围）；全量 `check:full` / `cargo test --workspace` / 打包前必须先获用户批准；pre-push 钩子见 `.githooks/`（启用：`pnpm --dir ai-digital-life run setup:worktree`） |
+| 门禁 | 唯一真源：[`.agents/rules/quality-gates.md`](../.agents/rules/quality-gates.md)。日常 `pnpm --dir frontend run check:changed`；合并/发布前 `pnpm run check:all`（含前端 `check:full`）。全量必须先获用户批准；hooks 启用：`pnpm --dir ai-digital-life run setup:worktree` |
 | 凭据存储 | `crates/credential/`（keyring + 加密文件降级） |
 
 ### 存储路径解析（`adl-kernel::storage`）
