@@ -34,6 +34,8 @@
 
 开工自检、新建与复用槽位、保留策略、异常处置见 [parallel-branch-development.md](./parallel-branch-development.md)（唯一操作手册）。硬约束摘要：契约文件单写者、禁止共享 `CARGO_TARGET_DIR`、分支工作树不写 `.workbuddy/memory`、工作树默认保留。
 
+新工作树先跑 `pnpm --dir ai-digital-life run setup:worktree`：启用仓库级 git hooks（`core.hooksPath=.githooks`）并为该工作树建 CodeGraph 索引（`ai-digital-life/.codegraph/`，不入库、不跨工作树共用）。
+
 ## 问题排查与调试
 
 排查问题时**先定位根本原因**，不要急于添加预防措施/防御性代码/解决方案。无法定位根因时，使用调试日志收起器（最高优先级）、复制调试日志按钮等调试手段，**禁止凭空猜测**。
@@ -69,7 +71,7 @@
 - 禁止「向后兼容」重导出或类似仅为旧导入路径保留的兼容层
 - 未经用户允许禁止擅自使用蓝色（含 `var(--accent)` 系）作为特殊提示警醒色、填充色等；此类场景一律使用白/灰/黑中性色（明度/纯度自行设计，须兼顾亮暗主题可见性），需其它颜色时先与用户确认（规范见 `.agents/rules/hint-color-usage.md`）
 - 从仓库根递归扫描或全仓无路径限定的检索（`references/`、`node_modules/`、`target/` 会让枚举超时；用 `grep` 工具或 `git grep`）
-- 在 shell 内联命令中携带中文字面量做批量替换（会破坏 CJK 并静默失效，见 [shell-encoding.md](.agents/rules/shell-encoding.md)）
+- 用 shell 内联命令对源码/文档做批量文本修改（`-replace`/`Add-Content`/here-string/`sed`，不限是否含中文；会破坏 CJK、写入字面量 `\n`、静默失效，见 [shell-encoding.md](.agents/rules/shell-encoding.md)）
 - 并行开发时两个会话共用同一工作树目录、共享 `CARGO_TARGET_DIR`、或在分支工作树写 `.workbuddy/memory`（见 [parallel-branch-development.md](./parallel-branch-development.md)）
 
 ## 双端一致性

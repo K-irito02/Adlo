@@ -107,3 +107,10 @@ const unsub = theme.subscribe((state) => console.log(state.resolvedTheme));
 5. The renderer never mutates persisted theme state directly — it goes through the store `updatePreferences` (+ localStorage cache `adl-theme-mode`/`adl-resolved-theme`).
 6. Reduced motion is honored automatically through `@media (prefers-reduced-motion: reduce)`.
 7. The desktop minimum supported window width is **640 px**.
+
+## 设置面板行律
+
+设置行（`.adl-settings-row`）的上下留白与分隔线依赖 `:first-child` / `:last-child`，
+即**行必须是卡片的直接子元素**。需要按依赖/主题分组时，包装元素（如环境组的 `<section>`）
+必须自己承担行距与分隔线，并中和组内行的首末收边；否则整组会粘连、分组语义倒置。
+参考实现：`frontend/src/styles/regions/environment-settings.css`（契约注释在 `settings.css` 的 Rows 段）。

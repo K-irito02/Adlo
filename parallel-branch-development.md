@@ -53,6 +53,8 @@ ls "$WT_ROOT/.sessions" 2>/dev/null                # 4 谁占着哪个槽位
 git status --porcelain                             # 5 是否干净
 git log --oneline -1                               # 6 我在哪个提交
 git rev-list --left-right --count main...HEAD      # 7 相对本地 main 的落后/领先
+git config --get core.hooksPath                    # 8 本地门禁是否启用（期望 .githooks）
+test -d ai-digital-life/.codegraph                 # 9 CodeGraph 索引是否就绪（每工作树一份）
 ```
 
 | # | 通过标准 | 不通过时 |
@@ -63,12 +65,15 @@ git rev-list --left-right --count main...HEAD      # 7 相对本地 main 的落�
 | 4 | 当前目录无他人 `status: active` | 有 → 换槽位或等待 |
 | 5 | 空，或改动全部属于本会话 | 来源不明的改动 → 停，禁止清理 |
 | 6/7 | 清楚自己的基线落后多少 | 落后较多 → 先 `merge --ff-only main` |
+| 8 | 输出 `.githooks` | 未启用 → `pnpm --dir ai-digital-life run setup:worktree`（仓库级，一处即可） |
+| 9 | 目录存在 | 缺失 → 同上（`codegraph init`，索引不入库） |
 
 输出一行环境快照（**没有快照视为未开工**）：
 
 ```
 [ENV] toplevel=<路径> branch=<分支> head=<短 SHA> dirty=<文件数> slot=<slot-n|—>
       mode=<new-worktree|reused-slot> others=<他人 active 会话> instance=<none|运行中的 exe 路径>
+      hooks=<ok|missing> graph=<ok|missing>
 ```
 
 结论与去向：已是自己的槽位 → 读 §4 后开工；有空闲干净槽位 → §3.3 复用；都没有 → §3.2 新建。
@@ -82,7 +87,7 @@ git rev-list --left-right --count main...HEAD      # 7 相对本地 main 的落�
 ```bash
 mkdir -p "$WT_ROOT/.sessions"
 git -C "$ROOT" worktree add "$WT_ROOT/slot-1" -b <branch> main
-cd "$WT_ROOT/slot-1/ai-digital-life" && pnpm install && cargo check --workspace
+cd "$WT_ROOT/slot-1/ai-digital-life" && pnpm install && pnpm run setup:worktree && cargo check --workspace
 ```
 
 **基线用本地 `main`，不要用 `origin/main`**：本仓约定永不自动 push，远端可能落后于本地 `main`，从 `origin/main` 起分支会丢掉本地提交。
@@ -92,8 +97,10 @@ cd "$WT_ROOT/slot-1/ai-digital-life" && pnpm install && cargo check --workspace
 ```bash
 git -C "$ROOT" worktree add "$WT_ROOT/<branch>" -b <branch> main
 git -C "$WT_ROOT/<branch>" status --porcelain     # 必须为空
-cd "$WT_ROOT/<branch>/ai-digital-life" && pnpm install && cargo check --workspace
+cd "$WT_ROOT/<branch>/ai-digital-life" && pnpm install && pnpm run setup:worktree && cargo check --workspace
 ```
+
+- `setup:worktree`：启用仓库级 git hooks（`core.hooksPath=.githooks`）并为**当前工作树**建 CodeGraph 索引（`ai-digital-life/.codegraph/`，已 gitignore，各工作树独立、不跟随分支切换自动更新；重建直接删目录后重跑）。
 
 - 目录名用分支名，kebab-case、≤ 3 个词、无斜杠。
 - 只放 sibling 目录；根 `.gitignore` 里的 `.worktrees/` 是历史遗留，不使用。
@@ -146,6 +153,7 @@ git -C "$WT" diff --stat "$OLD".."<new-branch>" -- \
 | **跑了 stale 可执行文件** | 是否直接运行 `target/debug/*.exe` | 禁止；先 `cargo build` 或 `pnpm run dev:tauri` |
 | 旧分支未跟踪残留 | `git -C "$WT" clean -nd`（干跑，不含 ignored） | 列给用户，由用户决定 |
 | 旧分支 stash 债 | `git -C "$WT" stash list` | 记入注册表 `notes` |
+| CodeGraph 索引仍是旧分支 | `ai-digital-life/.codegraph` 存在且刚切过分支 | 删掉该目录后重跑 `pnpm --dir ai-digital-life run setup:worktree`（索引不自动跟随） |
 
 ---
 
@@ -176,6 +184,7 @@ git -C "$WT" diff --stat "$OLD".."<new-branch>" -- \
 | 运行数据 | dev 脚本按槽位派生 identifier（`com.ai-digital-life.app.<槽位目录名>`，可用 `ADL_INSTANCE_ID` 覆盖），数据根、WebView2 profile、locator、凭证回退目录、浏览器模式 ad-server 数据都随之隔离（`<worktree>/ai-digital-life/target/adl-instance/`） | 隔离只覆盖 `pnpm dev*` 入口；直接跑 `target/debug/*.exe` 或主工作树仍共 `%APPDATA%\com.ai-digital-life.app`；OS 密钥环条目按 service 名存系统凭据管理器，仍跨槽共享 |
 | 前端端口 | 每个工作树自动取**稳定端口**：主工作树 5173、`slot-N` → 5173+N；被占则顺延到下一个空闲端口。`ADL_PORT` / `PORT` 可显式覆盖，但**必须空闲**（占用即硬失败）。窗口只加载本工作树的 vite（`strictPort` + 实例令牌 `GET /__adl_dev_instance__` 校验）。`dev:tauri` / `dev:browser` / `dev:preview` 同一规则；裸 `pnpm frontend:dev` 不经过启动器，`strictPort` 下占用即失败（并行请走 `dev:browser`） | 无需手工固定端口；一个窗口"改了没变化"时先核对 `[adl-run] url=` 与本工作树的端口 |
 | 内置 Rust server | 绑定 `127.0.0.1:0` | 无固定端口冲突 |
+| 实例定位 | `pnpm run dev:status` 扫描 5173..5182，打印端口 / 实例令牌前缀 / PID | 与启动行 `[adl-run] … token=xxxxxxxx` 对号；「窗口连的是谁」先跑它再怀疑代码 |
 
 并行验证首选 `pnpm run dev:browser`；需要桌面实例时各槽可直接跑 `pnpm run dev:tauri`，启动行 `[adl-run] instance=…` 是该槽的数据根身份，`[adl-run] url=…` 是该槽的前端地址。多工作树同时跑桌面实例互不干扰（标识/数据根/WebView2 profile/端口全隔离）。
 
