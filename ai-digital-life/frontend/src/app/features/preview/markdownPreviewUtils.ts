@@ -148,7 +148,7 @@ export function parseFrontmatter(block: string): FrontmatterEntry[] | null {
         const text = raw.replace(/^[ \t]+/, '');
         const existing = blockScalar.entry.values[0] ?? '';
         // 折叠标量（`>`）段落之间用换行，且不留前导空格。
-        // 折叠模式下空行本身已写入 '\n'，这里不再重复分隔符，避免多出空行。
+        // 折叠模式下空行本身已写入换行符，这里不再重复分隔符，避免多出空行。
         const separator = !existing
           ? ''
           : blockScalar.fold
