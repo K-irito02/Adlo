@@ -271,11 +271,21 @@ describe('DshSettings', () => {
     });
   });
 
-  it('顶部摘要行只读展示当前源，点击前往修改跳转网络组', () => {
+  it('摘要行挂在版本管理卡最下方，只读展示当前下载源，点击前往修改跳转网络组', () => {
     useAppStore.setState({ sourceStatus: makeStatus(), activeSettingsGroup: 'dsh' });
     renderSettingsWithSummary();
     // 只读：registry 来自 sourceStatus.config；mode 按 source_mode 取自动检测/手动选择标签。
-    expect(screen.getByText(`当前源：${NPMJS_URL}（手动选择）`)).not.toBeNull();
+    expect(screen.getByText(`当前下载源：${NPMJS_URL}`)).not.toBeNull();
+    // 尾部模式提示用直角引号（不是全角圆括号）。
+    expect(screen.getByText('「手动选择」')).not.toBeNull();
+    // 位置：摘要行是版本管理卡内**最后一行**（footer 插槽就在卡根末尾）。
+    const row = screen.getByText(`当前下载源：${NPMJS_URL}`).closest('.adl-settings-row');
+    const card = row?.closest('.adl-settings-card');
+    expect(row).not.toBeNull();
+    expect(card).not.toBeNull();
+    // 两重约束：① 该卡确实是版本管理卡（含官方版本信息行）；② 摘要行是卡内最后一行。
+    expect(card!.contains(screen.getByText('dshOfficialLinksLabel'))).toBe(true);
+    expect(card!.lastElementChild).toBe(row);
     expect(saveSourceConfig).not.toHaveBeenCalled();
     expect(fetchSourceStatus).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: '前往修改' }));
@@ -288,12 +298,14 @@ describe('DshSettings', () => {
       activeSettingsGroup: 'dsh',
     });
     renderSettingsWithSummary();
-    expect(screen.getByText(`当前源：${NPMJS_URL}（自动检测）`)).not.toBeNull();
+    expect(screen.getByText(`当前下载源：${NPMJS_URL}`)).not.toBeNull();
+    expect(screen.getByText('「自动检测」')).not.toBeNull();
   });
 
   it('摘要行 sourceStatus 未知时 fail-open 显示未知符', () => {
     useAppStore.setState({ sourceStatus: null });
     renderSettingsWithSummary();
-    expect(screen.getByText('当前源：—（—）')).not.toBeNull();
+    expect(screen.getByText('当前下载源：—')).not.toBeNull();
+    expect(screen.getByText('「—」')).not.toBeNull();
   });
 });

@@ -1,8 +1,10 @@
 // @vitest-environment node
-// 本文件 ruleBody 只支持单选择器精确匹配（无分组/嵌套处理）；被测 DSH 规则均为
-// 单选择器，如需断言共享分组选择器请用 workspace-settings.test.ts 的 groupRuleBody。
+// 本文件同时提供 ruleBody（单选择器规则体，不处理逗号分组/嵌套）与
+// selectorGroupsWith/groupHasSelector（按声明反查逗号分组选择器）；涉及本文件的 DSH
+// 规则可任选其一，跨文件「主文字色」类断言用分组 helper 更稳。
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { ruleBody } from './testing/cssRules';
 
 const dshCss = readFileSync(new URL('./regions/dsh-version.css', import.meta.url), 'utf-8');
 const settingsCss = readFileSync(new URL('./components/settings.css', import.meta.url), 'utf-8');
@@ -35,16 +37,6 @@ function groupHasSelector(group: string, selector: string): boolean {
     .split(',')
     .map((part) => part.trim())
     .includes(selector);
-}
-
-function ruleBody(css: string, selector: string): string | null {
-  const start = css.indexOf(`${selector} {`);
-  if (start === -1) {
-    return null;
-  }
-  const open = css.indexOf('{', start);
-  const close = css.indexOf('}', open);
-  return css.slice(open + 1, close);
 }
 
 describe('dsh settings styles (control widths + test button centering)', () => {
@@ -176,5 +168,28 @@ describe('dsh settings styles (control widths + test button centering)', () => {
     expect(shimmer).toContain('color: transparent');
     const count = ruleBody(dshCss, '.adl-dsh-settings__version-task-count');
     expect(count).not.toBeNull();
+  });
+});
+
+describe('dsh settings source summary styles', () => {
+  it('paints the summary mode hint muted without shrinking it', () => {
+    // 需求（2026-10-25）：摘要行尾部模式提示用中性灰，前面的名称 + 源地址文本保持主文字色。
+    // 失败模式是静默的：规则被删/被更特异的选择器压掉时，DOM 文案不变、组件测试全绿。
+    const mode = ruleBody(
+      dshCss,
+      '.adl-dsh-settings .adl-settings-row__label-text .adl-dsh-settings__source-mode',
+    );
+    expect(mode).not.toBeNull();
+    expect(mode).toContain('color: var(--text-muted)');
+    expect(mode).toContain('font-weight: var(--font-normal)');
+    expect(mode).toContain('flex: 0 0 auto');
+    // 对照组：主文字色规则仍在（解释为什么必须复合选择器）。
+    // 用选择器分组 helper 精确比对（不依赖 span/label 的书写顺序或格式）。
+    const primaryGroups = selectorGroupsWith(settingsCss, 'color: var(--text-primary)');
+    expect(
+      primaryGroups.some((group) =>
+        groupHasSelector(group, '.adl-settings-row__label > .adl-settings-row__label-text span'),
+      ),
+    ).toBe(true);
   });
 });

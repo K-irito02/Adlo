@@ -20,8 +20,6 @@ export default tseslint.config(
       'src/types/**',
       'src/shared/ipc-types.generated.ts',
       'src/shared/ipc/generated/**',
-      '*.config.ts',
-      '*.config.js',
       '*.d.ts',
     ],
   },
@@ -158,6 +156,21 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-expressions': 'off',
       '@typescript-eslint/no-import-type-side-effects': 'off',
       'no-restricted-syntax': 'off',
+    },
+  },
+  {
+    // 构建/工具配置（`vite.config.ts` 等）：Node 环境、不需要 React 规则。
+    // 纳入 lint 是为了让「配置里的相对路径/语法」在门禁里可见——2026-10-25 曾漏掉一处
+    // `../../scripts` 的错误相对路径，直到人工审查才发现（会让 dev/build 全部起不来）。
+    files: ['*.config.{ts,js,mjs}'],
+    languageOptions: {
+      globals: { ...globals.node },
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+    },
+    rules: {
+      'react-refresh/only-export-components': 'off',
+      'react-hooks/rules-of-hooks': 'off',
     },
   },
 );

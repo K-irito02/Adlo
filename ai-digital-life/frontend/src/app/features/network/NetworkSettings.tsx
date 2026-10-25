@@ -5,6 +5,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { executeNetworkResetPlan, NPMJS_URL } from '@shared/settings-reset/networkReset';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
+import { StaticResetSpacer } from '../../components/settings/StaticResetSpacer';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
 import { SettingsSelect } from '../../components/settings/SettingsSelect';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -20,15 +21,6 @@ const NPMMIRROR_URL = 'https://registry.npmmirror.com';
 const AUTOSAVE_DELAY_MS = 500;
 /** 测试结果在按钮内的展示时长，到时恢复按钮文案。 */
 const TEST_RESULT_MS = 2000;
-
-/** 无恢复按钮的块头占位图标：与带恢复按钮的块头左对齐（仅装饰、不可交互）。 */
-function StaticResetSpacer() {
-  return (
-    <span className="adl-settings-row__reset adl-settings-row__reset--static" aria-hidden="true">
-      <IconResetDefaults size={14} decorative />
-    </span>
-  );
-}
 
 /**
  * 「网络」设置组：下载源 / 代理设置 / 测试连接三块（Task 5 由 DshSettings 整块搬入，

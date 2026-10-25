@@ -5,23 +5,14 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { executeDshResetPlan } from '@shared/settings-reset/dshReset';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
+import { StaticResetSpacer } from '../../components/settings/StaticResetSpacer';
 import { DshVersionManagement } from './DshVersionManagement';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { IconResetDefaults } from '../../icons';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
 
-/** 无恢复按钮的块头占位图标：与带恢复按钮的块头左对齐（仅装饰、不可交互）。 */
-function StaticResetSpacer() {
-  return (
-    <span className="adl-settings-row__reset adl-settings-row__reset--static" aria-hidden="true">
-      <IconResetDefaults size={14} decorative />
-    </span>
-  );
-}
-
 /**
- * 「DSH」设置组：顶部只读源摘要 + 版本管理块（Task 5 起仅剩此块——源/代理/测试三块已搬入网络组，
- * 类名与锚点 `dsh:version` 不变）。
+ * 「DSH」设置组：版本管理块（Task 5 起仅剩此块——源/代理/测试三块已搬入网络组，
+ * 类名与锚点 `dsh:version` 不变）+ 挂在块卡最下方的只读源摘要行。
  *
  * 摘要行只读展示当前下载源（`sourceStatus.config.npm_registry`）与跳转入口：
  * `DshSourceStatus` 无延迟字段（延迟仅 `testSource` 探针返回、不常驻 store），
@@ -142,8 +133,11 @@ export function DshSettings() {
   }, [setActiveSettingsGroup]);
 
   const sourceMode = sourceStatus?.config.source_mode;
-  const summaryText = formatT(t, 'dshSourceSummary', {
+  const summaryLabel = formatT(t, 'dshSourceSummary', {
+    title: t.dshSourceSummaryTitle,
     registry: sourceStatus?.config.npm_registry ?? t.dshSourceSummaryUnknown,
+  });
+  const summaryMode = formatT(t, 'dshSourceSummaryMode', {
     mode:
       sourceMode === 'auto'
         ? t.dshSettingsSourceAuto
@@ -152,26 +146,26 @@ export function DshSettings() {
           : t.dshSourceSummaryUnknown,
   });
 
-  return (
-    <div className="adl-settings-section adl-dsh-settings">
-      <div className="adl-settings-card">
-        <div className="adl-settings-row">
-          <div className="adl-settings-row__label">
-            <div className="adl-settings-row__label-text">
-              <span>{summaryText}</span>
-            </div>
-          </div>
-          <div className="adl-settings-row__control">
-            <button
-              type="button"
-              className="adl-dsh-settings__action-btn"
-              onClick={handleGoNetwork}
-            >
-              {t.dshSourceSummaryGoModify}
-            </button>
-          </div>
+  // 摘要行挂在版本管理卡的最下方（用户要求：从组顶部移到底部）。只读展示 + 跳转入口：
+  // 「名称 + 源地址文本」保持主文字色，尾部模式提示用中性灰（与其它设置项的说明文字同色）。
+  const sourceSummaryRow = (
+    <div className="adl-settings-row">
+      <div className="adl-settings-row__label">
+        <div className="adl-settings-row__label-text">
+          <span>{summaryLabel}</span>
+          <span className="adl-dsh-settings__source-mode">{summaryMode}</span>
         </div>
       </div>
+      <div className="adl-settings-row__control">
+        <button type="button" className="adl-dsh-settings__action-btn" onClick={handleGoNetwork}>
+          {t.dshSourceSummaryGoModify}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="adl-settings-section adl-dsh-settings">
       <div
         className="adl-dsh-settings__header adl-dsh-settings__header--section"
         data-settings-anchor={anchorFor('dsh', 'version')}
@@ -179,7 +173,7 @@ export function DshSettings() {
         <StaticResetSpacer />
         <SettingsHeader title={t.dshVersionManagement} />
       </div>
-      <DshVersionManagement />
+      <DshVersionManagement footer={sourceSummaryRow} />
 
       <ConfirmDialog
         open={groupResetOpen}

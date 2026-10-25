@@ -1,6 +1,6 @@
 ---
 name: run-project-surfaces
-description: 启动 AI Digital Life 的三种运行模式（浏览器预览、Tauri 桌面、双端并行），自动选择空闲端口，统一管理子进程生命周期。当用户要求运行、启动或预览应用时使用。
+description: 启动 AI Digital Life 的三种运行模式（浏览器预览、Tauri 桌面、双端并行），按工作树分配稳定 dev 端口（5173+N）并校验实例令牌，统一管理子进程生命周期。当用户要求运行、启动或预览应用时使用。
 ---
 
 # 启动项目界面
@@ -21,14 +21,16 @@ description: 启动 AI Digital Life 的三种运行模式（浏览器预览、Ta
 
 ## 端口选择
 
-- 从 `5173` 开始向上探测（最多 20 个端口），无可再用时回退到操作系统分配的空闲端口。
-- 解析到的端口同时用于 Vite 和 Tauri 的 `devUrl`，确保两端一致。
-- 可通过环境变量显式指定：`ADL_PORT`（或 `PORT`）、`ADL_HOST`（默认 `127.0.0.1`）。
-- `frontend/vite.config.ts` 同样读取 `ADL_PORT` / `PORT`，因此直接运行 `pnpm run frontend:dev` 也能避开被占用的端口。
+- 每个工作树有**稳定首选端口**：主工作树 `5173`、`slot-N` → `5173+N`；被占用时顺延到下一个空闲端口（最多探测 20 个，仍无空位则交给系统分配）。
+- `--port` / `--host`（转发参数，形如 `--port 6000` 或 `--port=6000`）与 `ADL_PORT` / `PORT` / `ADL_HOST` 可显式指定；**显式端口被占用时直接报错**——绝不静默顺延，那会让窗口加载另一个工作树的前端。
+- 解析到的端口同时用于 Vite 与 Tauri 的 `devUrl`；Vite 侧 `strictPort: true`，端口被占即失败。
+- Vite 就绪以实例令牌为准：启动器请求 `GET /__adl_dev_instance__`，只有回显本次令牌（`ADL_DEV_TOKEN`）才继续；同端口上是别人的 dev server 会立即报错。
+- 桌面应用进程**不继承** `ADL_PORT` / `PORT` / `ADL_DEV_TOKEN`，因此可以在 App 内嵌终端里直接启动另一个工作树（父实例的端口不会串进来）。
+- 直接运行 `pnpm run frontend:dev`（裸 `vite`）不经过启动器：端口恒为 `5173` 或显式 `ADL_PORT`，且 `strictPort` 下被占用即失败；并行场景请用 `pnpm run dev:browser`。
 
 ## 启动与停止
 
-- **启动**：Vite 启动后脚本会等待 HTTP 就绪（最多 30 秒），就绪后输出 `[adl-run] frontend ready at <url>`。
+- **启动**：Vite 启动后脚本会等待实例令牌校验通过（最多 30 秒），就绪后输出 `[adl-run] frontend ready at <url>`。
 - **停止**：按 `Ctrl+C` 终止。脚本会通过 `taskkill /T`（Windows）或 `SIGTERM`（Unix）清理所有子进程（Vite、Tauri 及其进程树）。
 - **Tauri 模式前置条件**：Rust 工具链已安装（`cargo` 可用），执行前需设置 `$env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"`。
 

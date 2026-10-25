@@ -183,6 +183,12 @@ Rust 端 `crates/kernel/src/command_risk.rs`，采用 deny/ask/allow 三态模�
 ### Storage Layer
 位于 `crates/storage/`，提供 CRUD 抽象、实体表宏、数据清理。
 
+### 存储分类与占用
+`adl-kernel::storage::StorageCategory` 定义 10 条可迁移分类与 1 个设置值路径；设置页占用由 `category_usage(category, path)` 统计，经 `category_statuses`（`src-tauri/src/commands/storage.rs` 与 `crates/server/src/handlers/storage.rs` 各一份）输出。当前只统计 `paths.dir(category)` **单根**：Dsh 的 `dsh-bundle` 未计入，与迁移预检（`category_roots(Dsh)` 双根）口径不一致，属待办。
+
+### 整树自有分类
+`adl-kernel::storage::whitelist::owns_entire_tree(category)` 标记「基目录下所有文件都归应用所有」的分类（Config / Dsh）；`scan_foreign` 据此跳过整树扫描，避免对六万级 `dsh-versions` 做无意义遍历。
+
 ---
 
 ## 启动模式
@@ -192,3 +198,6 @@ Rust 端 `crates/kernel/src/command_risk.rs`，采用 deny/ask/allow 三态模�
 | Tauri 桌面 | `pnpm run dev:tauri` | Tauri WebView2 | xterm.js + Rust PTY（`pty_commands.rs`） |
 | 浏览器预览 | `pnpm run dev:browser` | Vite | xterm.js + 轮询（`preview-pty-bridge.ts`，1000ms） |
 | 双端启动 | `pnpm run dev:both` | 两者 | 两者 |
+
+### 开发实例 (Dev Instance)
+以 `pnpm dev*` 从某个工作树启动的应用实例：`scripts/instance-id.mjs` 为槽位目录派生 identifier 后缀并把 storage locator 落到 `<worktree>/ai-digital-life/target/adl-instance/`（主工作树沿用默认身份，与正式安装共用数据）；`scripts/dev-port.mjs` 分配 `5173+N` 稳定前端端口并生成实例令牌，`vite` 以 `strictPort` 绑定，启动器用 `GET /__adl_dev_instance__` 校验「应答的是不是自己 spawn 的 vite」。

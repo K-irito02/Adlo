@@ -226,6 +226,12 @@
 
 /* ---- Rows & controls ---- */
 
+/* 行律契约（2026-10-25 事故）：`.adl-settings-row` 的 padding / 分隔线收边
+   （`:first-child`/`:last-child`）假定**行是卡片（或同层容器）的直接子元素**。
+   若为分组新增包装元素（如环境组的 `<section>`），请把「行距 + 分隔线」挂到包装层
+   并显式中和行上的收边——参考 `styles/regions/environment-settings.css`。
+   详细说明见 `docs/design-system/README.md`「设置面板行律」。 */
+
 .adl-settings-controls {
   display: flex;
   flex-direction: column;

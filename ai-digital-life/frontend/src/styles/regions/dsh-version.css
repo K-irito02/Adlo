@@ -166,6 +166,16 @@
   white-space: nowrap;
 }
 
+/* 版本块最下方「当前下载源」摘要行尾部的模式提示（自动检测/手动选择）：
+   中性灰，与其它设置项说明文字同色；前面的名称与源地址文本保持主文字色。
+   需要复合选择器压过 `settings.css` 的 `.adl-settings-row__label-text span`（0-2-1）。
+   `flex: 0 0 auto`：窄宽度下优先截断长 URL，而不是先吃掉这句短提示。 */
+.adl-dsh-settings .adl-settings-row__label-text .adl-dsh-settings__source-mode {
+  color: var(--text-muted);
+  font-weight: var(--font-normal);
+  flex: 0 0 auto;
+}
+
 /* 阶段文案扫光（中性灰，亮暗主题均可见；计数部分保持静止，用户明确要求）。 */
 .adl-dsh-settings__version-task-shimmer {
   background: linear-gradient(100deg, #8a8a8a 30%, #d4d4d4 50%, #8a8a8a 70%);
@@ -512,7 +522,7 @@
   cursor: pointer;
 }
 
-.adl-dsh-settings__inline-link:hover {
+.adl-dsh-settings__inline-link:hover:not(:disabled) {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -520,6 +530,12 @@
 .adl-dsh-settings__inline-link:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
+}
+
+/* 行内链接禁用态：busy 时仍保持文字形态，但必须有可见反馈（否则会被当成可点）。 */
+.adl-dsh-settings__inline-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* 窄档：操作行改为纵向堆叠时，按钮组左对齐（换行后不再贴右），读数同档左对齐。

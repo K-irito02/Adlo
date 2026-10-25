@@ -23,6 +23,7 @@
 @import './regions/center.css';
 @import './regions/center-entry.css';
 @import './regions/dsh-version.css';
+@import './regions/environment-settings.css';
 @import './regions/rightpanel.css';
 @import './regions/titlebar.css';
 @import './regions/statusbar.css';

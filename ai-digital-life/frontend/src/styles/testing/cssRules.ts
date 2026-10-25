@@ -42,3 +42,18 @@ export function findRuleGroups(css: string, selector: string): string[] {
   }
   return blocks;
 }
+
+/**
+ * 只取第一处命中规则的**规则体**（不含选择器与花括号）；不存在返回 null。
+ *
+ * 与 [`findRuleGroups`] 同源（同一套注释/边界判定），供只关心声明的用例使用。
+ */
+export function ruleBody(css: string, selector: string): string | null {
+  const block = findRuleGroups(css, selector)[0];
+  if (!block) {
+    return null;
+  }
+  const open = block.indexOf('{');
+  const close = block.lastIndexOf('}');
+  return open === -1 || close === -1 ? null : block.slice(open + 1, close);
+}

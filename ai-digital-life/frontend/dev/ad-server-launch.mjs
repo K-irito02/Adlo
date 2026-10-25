@@ -40,7 +40,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { debugLogModeForVite, parseLogFlags } from './logFlags.mjs';
-import { resolveInstance } from '../../scripts/instance-id.mjs';
+import { isInstanceLocatorPath, resolveInstance } from '../../scripts/instance-id.mjs';
+import { resolveDevPort, stripServerArgs } from '../../scripts/dev-port.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -119,11 +120,6 @@ function cleanup() {
   }
 }
 
-/** 惰性解析日志 flag（保持模块导入无副作用：测试 import 本文件时不得触发解析）。 */
-function currentLogFlags() {
-  return parseLogFlags(process.argv.slice(2));
-}
-
 /**
  * 纯函数：组装 Vite 子进程 env（Closing L6，可单测）。
  * 日志 flag 已被 parseLogFlags 消费进 `logFlagsEnv`，其余参数原样转发给 vite；
@@ -147,11 +143,25 @@ export function buildAdServerEnv(baseEnv, logFlagsEnv) {
   return { ...baseEnv, ...logFlagsEnv };
 }
 
-function startVite(adServerBaseUrl, logFlags) {
-  // 日志 flag 已被 parseLogFlags 消费，其余参数原样转发给 vite
-  // （如 `node dev/ad-server-launch.mjs --port 5174`）。
-  const viteArgs = logFlags.restArgs;
-  const env = buildViteEnv(process.env, logFlags.env, adServerBaseUrl);
+function startVite(adServerBaseUrl, logFlags, frontendPort, runHost) {
+  // 日志 flag 已被 parseLogFlags 消费；`--port` / `--host` 由启动器统一接管
+  // （摘掉用户传入的同名 flag，避免 vite CLI 收到重复值而崩）。
+  const viteArgs = [
+    ...stripServerArgs(logFlags.restArgs),
+    '--host',
+    runHost,
+    '--port',
+    String(frontendPort),
+  ];
+  const env = {
+    ...buildViteEnv(process.env, logFlags.env, adServerBaseUrl),
+    // vite 配置也读 ADL_HOST/ADL_PORT（`vite.config.ts`），必须与本次选定值一致；
+    // 前端只能读 VITE_ 前缀，内置浏览器的本地预览链接靠 VITE_PORT 指回本工作树。
+    ADL_HOST: runHost,
+    ADL_PORT: String(frontendPort),
+    PORT: String(frontendPort),
+    VITE_PORT: String(frontendPort),
+  };
   log(
     `starting Vite dev server (VITE_ADL_SERVER_URL=${
       adServerBaseUrl ?? '(unset → preview/mock fallback)'
@@ -286,9 +296,26 @@ export function decideServerBaseUrl(port, healthy) {
 }
 
 async function main() {
-  // 单次解析 argv 后分发（此前 startVite/spawnAdServer 各调一次 currentLogFlags，
-  // 无值 flag 的 warn 会打印两次；Phase 4 F4）。
-  const logFlags = currentLogFlags();
+  // 单次解析 argv 后分发（历史上 startVite/spawnAdServer 各解析一次，无值 flag 的 warn 会重复；
+  // Phase 4 F4）。端口/宿主解析与 `dev:tauri` 共用 `resolveDevPort`（校验/占用/稳定端口顺延）。
+  const logFlags = parseLogFlags(process.argv.slice(2));
+  const instance = resolveInstance({ repoRoot });
+  const { bindHost, port: frontendPort } = await resolveDevPort({
+    args: logFlags.restArgs,
+    suffix: instance.suffix,
+  });
+
+  // 父会话（App 内嵌终端 / 另一个 dev 会话）会继承父实例的 ADL_*：端口、令牌、locator
+  // 都可能属于**别的实例**。清掉继承项，本次运行只用自己的解析结果，再由子进程环境显式注入。
+  for (const key of ['ADL_PORT', 'PORT', 'ADL_DEV_TOKEN', 'ADL_HOST']) {
+    delete process.env[key];
+  }
+  if (instance.locatorPath) {
+    process.env.ADL_STORAGE_LOCATOR_PATH = instance.locatorPath;
+  } else if (isInstanceLocatorPath(process.env.ADL_STORAGE_LOCATOR_PATH)) {
+    // 只丢「从别的 dev 实例继承来的」自动 locator；用户/测试显式设置的自定义路径保留。
+    delete process.env.ADL_STORAGE_LOCATOR_PATH;
+  }
   adServer = spawnAdServer(logFlags);
   const port = await readBoundPort(adServer);
   if (port === null) {
@@ -297,7 +324,7 @@ async function main() {
         `Falling back to the preview/mock implementations — run \`cargo build -p ${AD_SERVER_PACKAGE}\` for the real engine.`,
     );
     cleanup();
-    startVite(null, logFlags);
+    startVite(null, logFlags, frontendPort, bindHost);
     return;
   }
 
@@ -310,12 +337,12 @@ async function main() {
         'Falling back to the preview/mock implementations.',
     );
     cleanup();
-    startVite(null, logFlags);
+    startVite(null, logFlags, frontendPort, bindHost);
     return;
   }
 
   log(`ad-server healthy at ${baseUrl}`);
-  startVite(baseUrl, logFlags);
+  startVite(baseUrl, logFlags, frontendPort, bindHost);
 }
 
 const isMainModule =

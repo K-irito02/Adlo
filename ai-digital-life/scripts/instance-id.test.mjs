@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { BASE_IDENTIFIER, resolveInstance } from "./instance-id.mjs";
+import { BASE_IDENTIFIER, isInstanceLocatorPath, resolveInstance } from "./instance-id.mjs";
 
 const MAIN_ROOT = path.resolve("E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life");
-const SLOT_ROOT = path.resolve("E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/slot-1/ai-digital-life");
+const SLOT_ROOT = path.resolve(
+  "E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/slot-1/ai-digital-life",
+);
 
 function expectedStateDir(repoRoot) {
   return path.join(repoRoot, "target", "adl-instance");
@@ -68,14 +70,20 @@ test("ADL_INSTANCE_ID overrides the directory-derived suffix", () => {
 });
 
 test("ADL_INSTANCE_ID isolates the main worktree too", () => {
-  const instance = resolveInstance({ repoRoot: MAIN_ROOT, env: { ADL_INSTANCE_ID: "Alpha Beta!" } });
+  const instance = resolveInstance({
+    repoRoot: MAIN_ROOT,
+    env: { ADL_INSTANCE_ID: "Alpha Beta!" },
+  });
   assert.equal(instance.suffix, "alpha-beta");
   assert.equal(instance.identifier, `${BASE_IDENTIFIER}.alpha-beta`);
   assert.equal(instance.locatorPath, expectedLocator(MAIN_ROOT));
 });
 
 test("blank ADL_INSTANCE_ID is ignored", () => {
-  assert.equal(resolveInstance({ repoRoot: MAIN_ROOT, env: { ADL_INSTANCE_ID: "   " } }).suffix, null);
+  assert.equal(
+    resolveInstance({ repoRoot: MAIN_ROOT, env: { ADL_INSTANCE_ID: "   " } }).suffix,
+    null,
+  );
 });
 
 test("trailing separators in repoRoot do not change the result", () => {
@@ -90,4 +98,21 @@ test("a multi-segment ADL_INSTANCE_ID is joined into one suffix", () => {
     resolveInstance({ repoRoot: MAIN_ROOT, env: { ADL_INSTANCE_ID: "team/alpha" } }).suffix,
     "team-alpha",
   );
+});
+
+test("isInstanceLocatorPath only matches dev-managed locator locations", () => {
+  assert.equal(
+    isInstanceLocatorPath("E:/x/ai-digital-life/target/adl-instance/storage-locator.json"),
+    true,
+  );
+  assert.equal(
+    isInstanceLocatorPath("E:\\x\\ai-digital-life\\target\\adl-instance\\storage-locator.json"),
+    true,
+  );
+  assert.equal(
+    isInstanceLocatorPath("C:/Users/me/AppData/Roaming/ai-digital-life/storage-locator.json"),
+    false,
+  );
+  assert.equal(isInstanceLocatorPath(""), false);
+  assert.equal(isInstanceLocatorPath(undefined), false);
 });

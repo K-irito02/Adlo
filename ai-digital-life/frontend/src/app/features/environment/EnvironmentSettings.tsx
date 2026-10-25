@@ -1,11 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { openUrlByMethod } from '@features/preview/openByMethod';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
+import { StaticResetSpacer } from '@components/settings/StaticResetSpacer';
 import { ConfirmDialog } from '@components/ConfirmDialog';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
 import {
@@ -21,8 +22,18 @@ import { RUNBOOKS, type RunbookKey } from './runbooks';
 import { envDepLabel } from './depLabels';
 import type { EnvSourceMode, EnvStatus } from '../../../shared/ipc/env';
 
-/** 七依赖行渲染顺序（与 wire 的 node/git/bash/webview2/adlserver/netprobe + 模型引导行对应）。 */
-const DEP_ORDER: EnvDepKey[] = ['node', 'git', 'bash', 'webview2', 'adlserver', 'net', 'model'];
+/**
+ * 依赖行分块（与网络/DSH 组的「块头 + 卡片」同构，用户 2026-10-25 要求对齐）：
+ * 基础依赖（可切来源/装宿主版）→ 系统组件（只读检测）→ 网络与模型（引导类）。
+ */
+const DEP_BLOCKS: {
+  titleKey: 'environmentBlockRuntime' | 'environmentBlockSystem' | 'environmentBlockNetwork';
+  deps: EnvDepKey[];
+}[] = [
+  { titleKey: 'environmentBlockRuntime', deps: ['node', 'git', 'bash'] },
+  { titleKey: 'environmentBlockSystem', deps: ['webview2', 'adlserver'] },
+  { titleKey: 'environmentBlockNetwork', deps: ['net', 'model'] },
+];
 
 /**
  * 聚合条就绪计数分母：5 个 version 信号（node/git/bash/webview2/adlserver
@@ -385,116 +396,128 @@ export function EnvironmentSettings() {
         : t.environmentDepBash;
 
   return (
-    <div className="adl-settings-section adl-environment-settings">
-      <div data-settings-anchor={anchorFor('environment', 'deps')}>
+    <div className="adl-settings-section adl-dsh-settings adl-environment-settings">
+      <div
+        className="adl-dsh-settings__header"
+        data-settings-anchor={anchorFor('environment', 'deps')}
+      >
+        <StaticResetSpacer />
         <SettingsHeader title={t.settingsEnvironment} description={t.environmentDesc} />
-        {status === null ? (
-          <div className="adl-settings-card">
-            <div className="adl-settings-row">
-              <div className="adl-settings-row__label">
-                <div className="adl-settings-row__label-text">
-                  <span>{t.environmentLoading}</span>
-                </div>
-              </div>
-              <div className="adl-settings-row__control">
-                <button
-                  type="button"
-                  className="adl-dsh-settings__action-btn"
-                  disabled={envBusy}
-                  onClick={() => {
-                    void actions.fetchEnvStatus();
-                  }}
-                >
-                  {t.environmentRecheck}
-                </button>
+      </div>
+      {status === null ? (
+        <div className="adl-settings-card">
+          <div className="adl-settings-row">
+            <div className="adl-settings-row__label">
+              <div className="adl-settings-row__label-text">
+                <span>{t.environmentLoading}</span>
               </div>
             </div>
+            <div className="adl-settings-row__control">
+              <button
+                type="button"
+                className="adl-dsh-settings__action-btn"
+                disabled={envBusy}
+                onClick={() => {
+                  void actions.fetchEnvStatus();
+                }}
+              >
+                {t.environmentRecheck}
+              </button>
+            </div>
           </div>
-        ) : (
-          <>
-            {/*
-             * 首启向导 resume 横幅（Task 8）：跳过记账后仍有未就绪项时置顶，
-             * “继续向导”把 envWizardDone 置回 false，App 侧 effect 重新打开向导
-             *（向导关闭恒写 done=true，故此处不直接碰 skippedAt，横幅随修复消失）。
-             */}
-            {envWizardSkippedAt !== null && unmetCount > 0 ? (
-              <div className="adl-settings-card" data-testid="env-wizard-resume">
-                <div className="adl-settings-row">
-                  <div className="adl-settings-row__label">
-                    <div className="adl-settings-row__label-text">
-                      <span>
-                        {formatT(t, 'environmentWizardResumeBanner', { count: unmetCount })}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="adl-settings-row__control">
-                    <button
-                      type="button"
-                      className="adl-dsh-settings__action-btn"
-                      data-settings-row={t.environmentWizardResume}
-                      onClick={() => {
-                        requestEnvWizard();
-                      }}
-                    >
-                      {t.environmentWizardResume}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-            <div className="adl-settings-card" data-testid="env-aggregate">
+        </div>
+      ) : (
+        <>
+          {/*
+           * 首启向导 resume 横幅（Task 8）：跳过记账后仍有未就绪项时置顶，
+           * “继续向导”把 envWizardDone 置回 false，App 侧 effect 重新打开向导
+           *（向导关闭恒写 done=true，故此处不直接碰 skippedAt，横幅随修复消失）。
+           */}
+          {envWizardSkippedAt !== null && unmetCount > 0 ? (
+            <div className="adl-settings-card" data-testid="env-wizard-resume">
               <div className="adl-settings-row">
                 <div className="adl-settings-row__label">
                   <div className="adl-settings-row__label-text">
                     <span>
-                      {formatT(t, 'environmentAggregateReady', {
-                        ready: readyCount,
-                        total: ENV_READY_TOTAL,
-                      })}
+                      {formatT(t, 'environmentWizardResumeBanner', { count: unmetCount })}
                     </span>
                   </div>
                 </div>
-                <div className="adl-settings-row__control adl-settings-row__control--inline">
+                <div className="adl-settings-row__control">
                   <button
                     type="button"
                     className="adl-dsh-settings__action-btn"
-                    data-settings-row={t.environmentRecheck}
-                    disabled={envBusy}
+                    data-settings-row={t.environmentWizardResume}
                     onClick={() => {
-                      void actions.recheckEnv();
+                      requestEnvWizard();
                     }}
                   >
-                    {t.environmentRecheck}
-                  </button>
-                  <button
-                    type="button"
-                    className="adl-dsh-settings__action-btn"
-                    data-settings-row={t.environmentCopyAllForAgent}
-                    disabled={envBusy}
-                    onClick={() => {
-                      void copyForAgent('all');
-                    }}
-                  >
-                    {t.environmentCopyAllForAgent}
+                    {t.environmentWizardResume}
                   </button>
                 </div>
               </div>
             </div>
-            <div className="adl-settings-card">
-              {DEP_ORDER.map((dep) => (
-                <EnvDepRow
-                  key={dep}
-                  dep={dep}
-                  status={status}
-                  busy={envBusy}
-                  isTauri={isTauri}
-                  actions={rowActions}
-                />
-              ))}
+          ) : null}
+          <div className="adl-settings-card" data-testid="env-aggregate">
+            <div className="adl-settings-row">
+              <div className="adl-settings-row__label">
+                <div className="adl-settings-row__label-text">
+                  <span>
+                    {formatT(t, 'environmentAggregateReady', {
+                      ready: readyCount,
+                      total: ENV_READY_TOTAL,
+                    })}
+                  </span>
+                </div>
+              </div>
+              <div className="adl-settings-row__control adl-settings-row__control--inline">
+                <button
+                  type="button"
+                  className="adl-dsh-settings__action-btn"
+                  data-settings-row={t.environmentRecheck}
+                  disabled={envBusy}
+                  onClick={() => {
+                    void actions.recheckEnv();
+                  }}
+                >
+                  {t.environmentRecheck}
+                </button>
+                <button
+                  type="button"
+                  className="adl-dsh-settings__action-btn"
+                  data-settings-row={t.environmentCopyAllForAgent}
+                  disabled={envBusy}
+                  onClick={() => {
+                    void copyForAgent('all');
+                  }}
+                >
+                  {t.environmentCopyAllForAgent}
+                </button>
+              </div>
             </div>
-          </>
-        )}
-      </div>
+          </div>
+          {DEP_BLOCKS.map(({ titleKey, deps }) => (
+            <Fragment key={titleKey}>
+              <div className="adl-dsh-settings__header adl-dsh-settings__header--section">
+                <StaticResetSpacer />
+                <SettingsHeader title={t[titleKey]} />
+              </div>
+              <div className="adl-settings-card">
+                {deps.map((dep) => (
+                  <EnvDepRow
+                    key={dep}
+                    dep={dep}
+                    status={status}
+                    busy={envBusy}
+                    isTauri={isTauri}
+                    actions={rowActions}
+                  />
+                ))}
+              </div>
+            </Fragment>
+          ))}
+        </>
+      )}
 
       <ConfirmDialog
         open={installConfirmDep !== null}

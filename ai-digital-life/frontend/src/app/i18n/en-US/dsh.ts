@@ -112,7 +112,11 @@ export const dshEn = {
   dshCancelInstall: 'Cancel install',
   dshCancelUninstall: 'Cancel uninstall',
   dshCancelReinstall: 'Cancel reinstall',
-  dshSourceSummary: 'Current source: {registry} ({mode})',
+  dshSourceSummaryTitle: 'Current download source',
+  dshSourceSummary: '{title}: {registry}',
+  // 前置空格：摘要行由两个相邻 span 组成，视觉间距来自 CSS `gap`（不进 textContent）——
+  // 复制/屏读时不加空格会得到 `...npmjs.org(Auto Detect)`。中文用「」自带分隔，无需空格。
+  dshSourceSummaryMode: ' ({mode})',
   dshSourceSummaryManual: 'Manual',
   dshSourceSummaryUnknown: '—',
   dshSourceSummaryGoModify: 'Change',
