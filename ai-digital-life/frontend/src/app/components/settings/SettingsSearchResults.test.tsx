@@ -50,7 +50,7 @@ describe('SettingsSearchResults', () => {
     expect(marks.length).toBeGreaterThan(0);
   });
 
-  it('空结果渲染共享空状态（role=status）', () => {
+  it('空结果渲染共享空态（role=status）', () => {
     render(
       <TCopyProvider t={mockT} locale="en-US">
         <SettingsSearchResults entries={[]} query="zzz" onSelect={vi.fn()} />

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * 打开预算的剩余延迟：读取/加载刚开始时给满额延迟，越接近预算终点越小，
+ * 加载宽限的剩余时间：读取/加载刚开始时给满额宽限，越接近宽限终点越小，
  * 跨阶段（读取 → chunk → 渲染）复用同一份预算，避免二次闪烁。
  */
 export function remainingLoadingDelayMs(

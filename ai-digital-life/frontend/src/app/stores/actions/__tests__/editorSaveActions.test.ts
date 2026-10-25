@@ -185,7 +185,7 @@ describe('reconcileSelectedFile', () => {
     expect(openChangePreview).not.toHaveBeenCalled();
   });
 
-  it('文件消失且干净则清为空状态', async () => {
+  it('文件消失且干净则清为空白内容', async () => {
     const { store } = makeStore();
     bridge().readFile.mockResolvedValue({
       ok: false,

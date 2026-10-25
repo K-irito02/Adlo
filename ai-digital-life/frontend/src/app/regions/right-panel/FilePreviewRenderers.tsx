@@ -200,7 +200,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
 }: FilePreviewRenderersProps) {
   const { t } = useTCopy();
 
-  // 打开预算：读取阶段与 chunk/渲染阶段共享同一个 150ms 延迟窗口，
+  // 加载宽限：读取阶段与 chunk/渲染阶段共享同一个 150ms 宽限窗口，
   // 避免“读取扫光 → 空白 → 渲染扫光”的二次闪烁。
   const openStartedAtRef = useRef<number | null>(null);
   useEffect(() => {

@@ -751,7 +751,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
 
     /**
      * [reconcileSelectedFile - 对账选中文件与磁盘]
-     * 绕过缓存重读：有未存草稿则跳过（保草稿优先）；文件消失则清为空状态
+     * 绕过缓存重读：有未存草稿则跳过（保草稿优先）；文件消失则清为空白内容
      * （复用 fileOpenError 友好视图）；内容变化则更新基线。供刷新按钮/
      * 分支切换后调用，解决“内容区不跟手”问题。
      */

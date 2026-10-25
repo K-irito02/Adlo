@@ -256,11 +256,11 @@ export function splitFrontmatter(content: string): SplitMarkdown {
 }
 
 /**
- * 属性卡片（通用键值，值全部转义；列表渲染为 chip）。
+ * 属性表（通用键值，值全部转义；列表渲染为 chip）。
  * `lineOffset` 是 frontmatter 占用的源行数：整块挂 `data-source-line-start/end`
  * 覆盖 1..lineOffset，检索跳转到 frontmatter 内任意行时仍能定位到卡片。
  */
-export function renderFrontmatterCard(entries: FrontmatterEntry[], lineOffset = 0): string {
+export function renderFrontmatterTable(entries: FrontmatterEntry[], lineOffset = 0): string {
   if (entries.length === 0) {
     return '';
   }
@@ -398,7 +398,7 @@ function createMdInstance(starryEnabled: boolean): MarkdownIt {
 /** frontmatter 卡片 + 正文渲染：两个入口共用，避免契约分叉。 */
 function renderWithFrontmatter(md: MarkdownIt, content: string): string {
   const { entries, body, lineOffset } = splitFrontmatter(content);
-  return `${renderFrontmatterCard(entries, lineOffset)}${md.render(body, { lineOffset })}`;
+  return `${renderFrontmatterTable(entries, lineOffset)}${md.render(body, { lineOffset })}`;
 }
 
 /** 同步渲染（回退纯文本代码块）：测试与首屏用，不等待 starry-night WASM。 */

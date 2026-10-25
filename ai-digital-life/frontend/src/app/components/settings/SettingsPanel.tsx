@@ -178,7 +178,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   // config：窗口期内两侧可能短暂不一致，持久化后收敛，无数据丢失。
   const disabledResetGroups = useMemo(() => {
     const disabled = new Set<SettingsGroupId>();
-    // 环境状态未知（挂载中/拉取失败）时组级恢复无依据：禁用重置，避免用空状态执行流程。
+    // 环境状态未知（挂载中/拉取失败）时组级恢复无依据：禁用重置，避免在状态未知时执行流程。
     if (envStatus === null) {
       disabled.add('environment');
     }

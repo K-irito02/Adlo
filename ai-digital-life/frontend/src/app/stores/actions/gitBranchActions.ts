@@ -57,7 +57,7 @@ function isExpectedNonGitError(error: unknown): boolean {
 async function refreshAfterBranchChange(get: () => StoreState) {
   // 双面板联动：git 快照（变更面板）+ 文件树（文件面板）+ 分支列表（子卡片）
   // 同刷，任一入口切换后两处都变化。文件文档缓存按工作区整清（旧分支内容
-  // 不得复活），再对账选中文件（绕过缓存重读；文件在新分支不存在则清为空状态）。
+  // 不得复活），再对账选中文件（绕过缓存重读；文件在新分支不存在则清为空白内容）。
   await postMutationRefresh(get);
   await get().fetchGitBranches({ silent: true });
   const currentWorkspace = get().appInfo?.currentWorkspace;

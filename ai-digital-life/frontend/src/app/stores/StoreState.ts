@@ -213,7 +213,7 @@ interface EditorActions {
   saveDirtyEditors: () => Promise<{ saved: number; failed: number }>;
   /**
    * 对账当前选中文件与磁盘（绕过缓存重读）：内容变了就更新基线；
-   * 文件没了且无未存草稿则清为空状态（复用 fileOpenError 友好视图），
+   * 文件没了且无未存草稿则清为空白内容（复用 fileOpenError 友好视图），
    * 有草稿则保留并警告。供刷新按钮/分支切换后调用。
    */
   reconcileSelectedFile: () => Promise<void>;
