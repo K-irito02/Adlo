@@ -10,6 +10,7 @@ export const workspaceZh = {
   newSessionDefaultName: '临时会话',
   sessionFallback: '单 Agent 会话',
   workspaceEmpty: '点击上方 + 号创建工作空间',
+  workspaceTreeEmpty: '该工作区暂无文件',
   sessionEmpty: '在此工作空间下新建一个会话',
   showMoreSessions: '展开更多',
   collapseSessions: '收起',

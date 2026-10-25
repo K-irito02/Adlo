@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { IconChevronLeft, IconChevronRight } from '@icons';
+import { PreviewLoadingGate } from './PreviewLoadingGate';
+import { createLruCache } from './previewCache';
 // eslint-disable-next-line no-restricted-syntax
 import type * as PdfJsType from 'pdfjs-dist';
 
 export interface PdfPreviewProps {
   data: ArrayBuffer;
   theme?: 'light' | 'dark';
+  /** 预览缓存键（工作区+路径+体积+mtime）：同键回看复用已解析文档 */
+  cacheKey?: string;
 }
+
+/** 已解析文档缓存（LRU 4）：跳过 getDocument 解析（首屏绘制仍逐页进行）。 */
+const pdfDocCache = createLruCache<PdfJsType.PDFDocumentProxy>(4);
 
 /**
  * pdf.js 单例加载器：动态 import 只执行一次（懒加载保留），后续复用同一模块。
@@ -34,7 +41,7 @@ function loadPdfJs(): Promise<typeof PdfJsType> {
   return pdfjsPromise;
 }
 
-export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
+export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) {
   const { t, formatT } = useTCopy();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const docRef = useRef<{ source: ArrayBuffer; pdf: PdfJsType.PDFDocumentProxy } | null>(null);
@@ -44,6 +51,9 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageInput, setPageInput] = useState('1');
+  // 双击页码进入直接输入态（用户要求：双击 → 输入页码 → 回车跳转）。
+  const [editingPage, setEditingPage] = useState(false);
+  const pageInputRef = useRef<HTMLInputElement | null>(null);
   // 多实例并存时 aria 引用不能撞 id（收尾 G5-M2）。
   const pageCountId = useId();
 
@@ -51,6 +61,15 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
   useEffect(() => {
     setPageInput(String(currentPage));
   }, [currentPage]);
+
+  // 进入输入态即聚焦并全选，回车/失焦提交、Esc 取消。
+  useEffect(() => {
+    if (!editingPage) {
+      return;
+    }
+    pageInputRef.current?.focus();
+    pageInputRef.current?.select();
+  }, [editingPage]);
 
   const paintPage = useCallback(
     async (
@@ -100,8 +119,20 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
     docRef.current = null;
     setCurrentPage(1);
     setPageInput('1');
+    setEditingPage(false);
     setError(null);
     setNumPages(0);
+
+    // 回看命中：复用已解析文档（跳过 getDocument 的解析开销与扫光）。
+    const cached = cacheKey ? pdfDocCache.get(cacheKey) : undefined;
+    if (cached) {
+      docRef.current = { source: data, pdf: cached };
+      setNumPages(cached.numPages);
+      return () => {
+        activeRenderRef.current?.cancel();
+      };
+    }
+
     let cancelled = false;
     void (async () => {
       try {
@@ -111,6 +142,9 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
         const pdf = await pdfjs.getDocument({ data: data.slice(0) }).promise;
         if (cancelled) {
           return;
+        }
+        if (cacheKey) {
+          pdfDocCache.set(cacheKey, pdf);
         }
         docRef.current = { source: data, pdf };
         setNumPages(pdf.numPages);
@@ -124,7 +158,7 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
       cancelled = true;
       activeRenderRef.current?.cancel();
     };
-  }, [data]);
+  }, [data, cacheKey]);
 
   // 绘制（含首屏补画）：文档就绪且 canvas 已挂载才画。
   // numPages 在依赖中——解析完成 setNumPages 后重跑，正好补上首屏第一帧。
@@ -145,12 +179,22 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
     };
   }, [data, currentPage, numPages, paintPage]);
 
+  const beginPageEdit = () => {
+    if (numPages <= 0) {
+      return;
+    }
+    setPageInput(String(currentPage));
+    setEditingPage(true);
+  };
+
+  /** 退出输入态：非法输入回滚当前页，合法输入钳制后跳转（Enter / 失焦共用）。 */
   const commitPageInput = () => {
+    setEditingPage(false);
     if (numPages <= 0) {
       return;
     }
     // 严格整数语义（复审 #3）：拒绝 "2abc"/"2.9" 等 parseInt 宽容解析；
-    // 目标等于当前页即 no-op，避免多余渲染（blur+submit 双提交因此零成本）。
+    // 目标等于当前页即 no-op，避免多余渲染。
     const text = pageInput.trim();
     if (!/^\d+$/.test(text)) {
       setPageInput(String(currentPage));
@@ -163,6 +207,11 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
     }
   };
 
+  const cancelPageEdit = () => {
+    setPageInput(String(currentPage));
+    setEditingPage(false);
+  };
+
   if (error) {
     return (
       <div className={`adl-pdf-preview adl-pdf-preview--${theme} adl-pdf-preview--error`}>
@@ -173,60 +222,68 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
 
   return (
     <div className={`adl-pdf-preview adl-pdf-preview--${theme}`}>
+      {/* 极简悬浮胶囊（用户选定原型 A）：常驻 DOM、悬浮文档区时显现；
+          页码双击进入直接输入，回车跳转。 */}
       {numPages > 1 && (
-        <div className="adl-pdf-preview-nav">
+        <div className="adl-pdf-preview-nav" data-editing={editingPage} id={pageCountId}>
           <button
             type="button"
+            className="adl-pdf-preview-nav__step"
             disabled={currentPage <= 1}
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             aria-label={t.changesPdfPrevPage}
           >
             <IconChevronLeft size={14} decorative />
           </button>
-          <span id={pageCountId}>
-            {currentPage} / {numPages}
-          </span>
+          {editingPage ? (
+            <input
+              ref={pageInputRef}
+              type="text"
+              className="adl-pdf-preview-nav__input"
+              value={pageInput}
+              inputMode="numeric"
+              autoComplete="off"
+              aria-describedby={pageCountId}
+              aria-label={t.changesPdfPageNumber}
+              onChange={(event) => setPageInput(event.target.value)}
+              onBlur={commitPageInput}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  commitPageInput();
+                } else if (event.key === 'Escape') {
+                  event.preventDefault();
+                  cancelPageEdit();
+                }
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              className="adl-pdf-preview-nav__count"
+              // 原生 title 与 aria-label 同义：双击可输入是隐藏交互，需要可发现的提示。
+              title={t.changesPdfPageJumpHint as string}
+              aria-label={t.changesPdfPageJumpHint as string}
+              onDoubleClick={beginPageEdit}
+            >
+              {currentPage} / {numPages}
+            </button>
+          )}
           <button
             type="button"
+            className="adl-pdf-preview-nav__step"
             disabled={currentPage >= numPages}
             onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}
             aria-label={t.changesPdfNextPage}
           >
             <IconChevronRight size={14} decorative />
           </button>
-          <form
-            className="adl-pdf-preview-jump"
-            // 原生 min/max 会在提交前拦截超范围输入并弹浏览器气泡，
-            // 使 JS 钳制走不通——禁用原生校验，完全由 commitPageInput 钳制/回滚。
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              commitPageInput();
-            }}
-          >
-            <input
-              type="number"
-              value={pageInput}
-              inputMode="numeric"
-              min={1}
-              max={numPages}
-              autoComplete="off"
-              aria-describedby={pageCountId}
-              onChange={(event) => setPageInput(event.target.value)}
-              onBlur={commitPageInput}
-              aria-label={t.changesPdfPageNumber}
-            />
-            <button type="submit">{t.changesPdfGo}</button>
-          </form>
         </div>
       )}
-      <div className="adl-pdf-scroll">
-        {numPages === 0 ? (
-          <p className="adl-pdf-preview-loading">{t.loading}</p>
-        ) : (
-          <canvas ref={canvasRef} />
-        )}
-      </div>
+      <div className="adl-pdf-scroll">{numPages === 0 ? null : <canvas ref={canvasRef} />}</div>
+      {/* 扫光占位放在滚动容器之外（绝对定位铺满整个预览根），否则会被
+          `.adl-pdf-scroll` 的 padding 裁出一圈空白。 */}
+      <PreviewLoadingGate active={numPages === 0} variant="plain" overlay />
     </div>
   );
 }

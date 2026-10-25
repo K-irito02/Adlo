@@ -196,8 +196,10 @@
   padding-left: 0;
 }
 
+/* 空态左右内距对称（此前只缩进左侧 28px、右侧 8px，居中文本整体偏右 10px），
+   缩进量仍与树行展开按钮对齐。 */
 .adl-browser-entry__empty {
-  padding: 8px 8px 8px 28px;
+  padding: 8px 28px;
 }
 
 .adl-github-entry__icon {

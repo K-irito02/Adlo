@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>PROTOTYPE — Markdown 预览顶部信息（最终方案）</title>
+<style>
+  :root {
+    --bg: #141414;
+    --bg-elevated: #1c1c1c;
+    --surface-subtle: rgba(255, 255, 255, 0.04);
+    --text-primary: #d8d8d8;
+    --text-secondary: #9a9a9a;
+    --text-muted: #707070;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-default: rgba(255, 255, 255, 0.14);
+    --radius-full: 999px;
+    --space-1-5: 6px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+  }
+  html[data-theme='light'] {
+    --bg: #f8f8f8;
+    --bg-elevated: #ffffff;
+    --surface-subtle: rgba(34, 34, 34, 0.04);
+    --text-primary: #222222;
+    --text-secondary: #767676;
+    --text-muted: #a0a0a0;
+    --border-subtle: rgba(34, 34, 34, 0.08);
+    --border-default: rgba(34, 34, 34, 0.14);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    gap: 14px;
+    padding: 24px 24px 96px;
+    background: #0b0b0b;
+    color: var(--text-primary);
+    font: 13px/1.5 'Segoe UI', system-ui, sans-serif;
+  }
+  .proto-note { max-width: 820px; color: #9a9a9a; font-size: 12px; text-align: center; }
+  .proto-note b { color: #d8d8d8; }
+  .spec {
+    max-width: 820px;
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #b9b9b9;
+    font: 11px/1.6 'Cascadia Code', Consolas, monospace;
+  }
+
+  .panel {
+    width: var(--panel-w, 380px);
+    height: 560px;
+    background: var(--bg);
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  }
+  .panel__head {
+    flex: none;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+  .preview {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-6) var(--space-6) 24vh;
+    font-size: 16px;
+    line-height: 1.75;
+  }
+  .preview h1 { font-size: 24px; margin: 0 0 10px; }
+  .preview h2 { font-size: 18px; margin: 20px 0 8px; }
+  .preview p { margin: 0 0 10px; }
+  .preview ul { margin: 0 0 12px; padding-left: 20px; }
+
+  /* ---------- 最终布局：每行一个键值对；键列共享宽度，值列垂直左对齐 ---------- */
+  .meta {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: var(--space-4);
+    row-gap: var(--space-1-5);
+    align-items: baseline;
+    /* 与正文之间不用分隔线，仅间距 */
+    margin: 0 0 22px;
+  }
+  .meta__row { display: contents; }
+  .meta__key {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.6;
+    word-break: break-word;
+  }
+  .meta__val {
+    min-width: 0;
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+  }
+  .meta__chips { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+  .chip {
+    display: inline-block;
+    padding: 0 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-full);
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  /* ---------- 原型控制条（不属于被评估设计） ---------- */
+  .switcher {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: var(--radius-full);
+    background: #ffffff;
+    color: #111;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
+    z-index: 100;
+  }
+  .switcher button {
+    height: 26px;
+    min-width: 26px;
+    padding: 0 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .switcher__label { min-width: 200px; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="proto-note">
+    <b>PROTOTYPE（一次性，不属于产品代码）</b><br />
+    最终方案：每个键值对独占一行；键列共享宽度，所有值在第二列垂直左对齐。
+  </div>
+  <p class="spec">key: 12px var(--text-secondary) 400 · value: 14px var(--text-secondary) 400 · 无底色/无边框/无分隔线，仅靠间距与正文分开</p>
+
+  <div class="panel" id="panel">
+    <div class="panel__head">SKILL.md · 预览</div>
+    <div class="preview" id="preview"></div>
+  </div>
+
+  <div class="switcher">
+    <span class="switcher__label">最终方案 · 键12次/值14主</span>
+    <button type="button" id="width">宽度: 窄</button>
+    <button type="button" id="theme">明暗</button>
+  </div>
+
+<script>
+  const FIELDS = [
+    { key: 'name', value: 'demo-skill' },
+    { key: 'description', value: '演示通用 frontmatter 属性展示的示例技能，包含较长描述与列表字段。' },
+    { key: 'tags', list: ['demo', 'frontmatter', 'generic'] },
+    { key: 'globs', list: ['**/*.ts', '**/*.tsx'] },
+    { key: 'allowed-tools', value: 'Read, Edit' },
+    { key: 'alwaysApply', value: 'true' },
+    { key: 'version', value: '1.2.3' },
+    { key: 'custom-field', value: '任意字段名都能显示' },
+  ];
+
+  const BODY = `
+    <h1>技能正文</h1>
+    <p>下面是正文段落，用于确认属性区与正文的节奏关系。</p>
+    <h2>小节</h2>
+    <ul><li>列表项一</li><li>列表项二</li></ul>
+    <p>继续一段稍长的说明，观察行距与可读性。</p>
+  `;
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const chips = (values) =>
+    `<span class="meta__chips">${values.map((v) => `<span class="chip">${esc(v)}</span>`).join('')}</span>`;
+
+  function meta() {
+    const rows = FIELDS.map((field) => {
+      const value = field.list ? chips(field.list) : esc(field.value);
+      return `<div class="meta__row"><span class="meta__key">${esc(field.key)}</span><span class="meta__val">${value}</span></div>`;
+    }).join('');
+    return `<div class="meta">${rows}</div>`;
+  }
+
+  document.getElementById('preview').innerHTML = meta() + BODY;
+
+  document.getElementById('theme').addEventListener('click', () => {
+    const html = document.documentElement;
+    html.dataset.theme = html.dataset.theme === 'light' ? 'dark' : 'light';
+  });
+  const widthBtn = document.getElementById('width');
+  let wide = false;
+  widthBtn.addEventListener('click', () => {
+    wide = !wide;
+    document.getElementById('panel').style.setProperty('--panel-w', wide ? '520px' : '380px');
+    widthBtn.textContent = wide ? '宽度: 宽' : '宽度: 窄';
+  });
+</script>
+</body>
+</html>

@@ -65,18 +65,21 @@
     background-clip: unset;
   }
 }
+/* 空态正文：与 `.adl-empty-hint` 同一规范（字号 xs / muted / 行高 1.5 / 居中），
+   只有容器布局（内距）按场景微调，避免各处空态字号漂移。 */
 .adl-empty-row {
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: var(--text-xs);
+  line-height: 1.5;
   color: var(--text-muted);
 }
 .adl-empty-row--row {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-2);
 }
 .adl-empty-row--center {
-  padding: var(--space-3);
+  padding: var(--space-4) var(--space-2);
 }
 .adl-empty-row__text {
   text-align: center;

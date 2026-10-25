@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { FidelityWatermark } from './FidelityWatermark';
+import { PreviewLoadingGate } from './PreviewLoadingGate';
+import { createLruCache } from './previewCache';
 import { isZipUnpackError } from './officeErrors';
 import { isLegacyOfficeFile } from '@regions/right-panel/fileTypeRouter';
 
@@ -9,7 +11,12 @@ export interface DocxPreviewProps {
   theme?: 'light' | 'dark';
   /** 工作区相对路径：用于识别旧版 .doc 二进制格式并给出转存指引 */
   fileName?: string;
+  /** 预览缓存键（工作区+路径+体积+mtime）：同键回看直接复用上次渲染结果 */
+  cacheKey?: string;
 }
+
+/** 渲染结果 HTML 缓存（LRU 8）：docx-preview 产出的 DOM 可直接复挂。 */
+const docxHtmlCache = createLruCache<string>(8);
 
 /**
  * DOCX 高保真预览（第三方：docx-preview，Apache-2.0，
@@ -28,7 +35,7 @@ export interface DocxPreviewProps {
  *   窄面板下横向滚动看全页（流式宽度会使浮动元素错位重叠）；
  * - 样式隔离见 CSS（.adl-docx-preview 不再声明排版属性，避免泄漏进文档）。
  */
-export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps) {
+export function DocxPreview({ data, theme = 'dark', fileName, cacheKey }: DocxPreviewProps) {
   const { t, formatT } = useTCopy();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +53,19 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
     }
     let cancelled = false;
     const el: HTMLElement = container;
+
+    // 回看命中：直接复挂上次渲染结果（零解析、零扫光）。
+    const cached = cacheKey ? docxHtmlCache.get(cacheKey) : undefined;
+    if (cached) {
+      el.innerHTML = cached;
+      setError(null);
+      setUnreadable(false);
+      setRendering(false);
+      return () => {
+        el.innerHTML = '';
+      };
+    }
+
     el.innerHTML = '';
     setError(null);
     setUnreadable(false);
@@ -58,7 +78,8 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
           return;
         }
         // 不调库的情况（旧版 .doc/.dot）已在 effect 入口经 legacy 拦截，
-        // 此处只处理 OOXML zip。
+        // 此处只处理 OOXML zip。useBase64URL：图片转 data URI，渲染结果的
+        // innerHTML 才能安全缓存复用（blob URL 会在卸载时失效）。
         await docx.renderAsync(data.slice(0), el, undefined, {
           className: 'adl-docx',
           inWrapper: false,
@@ -67,8 +88,12 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
           renderFooters: true,
           renderFootnotes: true,
           renderEndnotes: true,
+          useBase64URL: true,
         });
         if (!cancelled) {
+          if (cacheKey) {
+            docxHtmlCache.set(cacheKey, el.innerHTML);
+          }
           setRendering(false);
         }
       } catch (err) {
@@ -91,7 +116,7 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
       cancelled = true;
       el.innerHTML = '';
     };
-  }, [data, legacy]);
+  }, [data, legacy, cacheKey]);
 
   if (legacy) {
     return (
@@ -130,13 +155,17 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
     <div className={`adl-docx-preview adl-docx-preview--${theme}`}>
       <FidelityWatermark key={fileName} text={t.docxFidelityHint as string} fileKey={fileName} />
       <div className="adl-docx-scroll">
-        {rendering ? (
-          <p className="adl-docx-preview-loading" role="status">
-            {t.fileMediaLoading as string}
-          </p>
-        ) : null}
-        <div ref={containerRef} className="adl-docx-preview__body adl-docx-paper" />
+        {/* 容器必须保持挂载（effect 持 ref，且 docx-preview 会直接写入其 DOM），
+            渲染期只临时隐藏，避免空白纸面占位跳动。 */}
+        <div
+          ref={containerRef}
+          className="adl-docx-preview__body adl-docx-paper"
+          style={rendering ? { visibility: 'hidden' } : undefined}
+        />
       </div>
+      {/* 扫光占位放在滚动容器之外（绝对定位铺满整个预览根），否则会被
+          `.adl-docx-scroll` 的 padding 裁出一圈空白。 */}
+      <PreviewLoadingGate active={rendering} variant="paper" overlay />
     </div>
   );
 }

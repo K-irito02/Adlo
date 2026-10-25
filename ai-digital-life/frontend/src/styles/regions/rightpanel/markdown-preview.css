@@ -30,6 +30,47 @@
   opacity: 0.7;
 }
 
+/* ---------------- 内容区加载占位（整面扫光） ---------------- */
+/* 与变更面板点击变更文件时同一效果：单层 `.skeleton` 整面扫光
+   （`@keyframes skeleton-shimmer`），不画多行骨架条、不显示“加载中…”文字。
+   组件侧只加形态修饰：plain / centered 撑满内容区，paper 走白纸面扫光。 */
+.adl-preview-loading {
+  box-sizing: border-box;
+  border-radius: 0;
+  min-height: 0;
+}
+
+.adl-preview-loading--plain,
+.adl-preview-loading--centered {
+  width: 100%;
+  height: 100%;
+}
+
+/* office 预览：占位必须铺满「文件内容显示区域」，不能被内层滚动容器的内距裁掉。
+   docx/pdf/pptx/xlsx 的根均为 position:relative，故用绝对定位覆盖整个预览根。 */
+.adl-preview-loading--overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+}
+
+.adl-preview-loading--paper {
+  width: 100%;
+  min-height: 100%;
+  /* 纸面恒白（保真硬编码）：扫光换成浅灰→白→浅灰，避免深色主题的深色带
+     压在白纸上；动画沿用全局 skeleton-shimmer，观感与变更面板一致。 */
+  background: linear-gradient(90deg, #efefef 0%, #ffffff 50%, #efefef 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1500ms ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adl-preview-loading--paper {
+    animation: none;
+    background-position: 0 0;
+  }
+}
+
 /* ---------------- 媒体预览（图片/音频/视频） ---------------- */
 
 .adl-media-preview {
@@ -121,6 +162,29 @@
   box-sizing: border-box;
   overflow: auto;
   padding: var(--space-6);
+  /* 常驻经典滚动条：全局 `* { scrollbar-width: thin; scrollbar-color: … }`
+     （base.css）会覆盖 `::-webkit-scrollbar` 样式（MDN 伪元素注记），而 Windows/
+     WebView2 的 overlay 条只在滚动或悬停时绘制、`scrollbar-gutter` 对 overlay 无效。
+     在此恢复 `auto` 让 base.css 的 10px classic 条重新生效——垂直滚动条常驻占位。
+     注：markdown/pdf 预览区同一根因，暂按需求只收口 docx。 */
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+  scrollbar-gutter: stable;
+}
+
+/* docx 纸面恒白（保真硬编码），全局 thumb 的 `--border-default`（14% 黑）在白底上
+   对比不足；此处固定用黑/白中性色加深滑块，明暗主题下在纸面上观感一致。 */
+.adl-docx-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.24);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: var(--radius-full);
+}
+
+.adl-docx-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4);
+  background-clip: padding-box;
+  border: 2px solid transparent;
 }
 
 .adl-xlsx-scroll {
@@ -222,14 +286,6 @@
   margin: 0;
 }
 
-.adl-docx-preview-loading {
-  margin: 0;
-  padding: var(--space-6);
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  text-align: center;
-}
-
 .adl-docx-preview .adl-docx-paper {
   /* 保真硬编码（有意不跟随主题）：纸面恒白，仿 Word；auto 色正文继承为纸面黑 */
   background: #ffffff;
@@ -260,77 +316,86 @@
   margin: 0 auto;
 }
 
+/* PDF 翻页导航：底部居中悬浮胶囊（原型 A）。
+   常驻 DOM、悬浮文档区显现；键盘焦点/输入态保持可见（可访问性）。
+   页码按钮双击进入直接输入，回车跳转（单页文档整条不渲染）。 */
 .adl-pdf-preview-nav {
-  flex: none;
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-3);
+  z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  row-gap: var(--space-1-5);
-  padding: var(--space-2);
-  font-size: var(--text-sm);
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-1-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
   color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity var(--duration-150) var(--ease-default);
 }
 
-.adl-pdf-preview-nav button {
+.adl-pdf-preview:hover .adl-pdf-preview-nav,
+.adl-pdf-preview-nav:focus-within,
+.adl-pdf-preview-nav[data-editing='true'] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.adl-pdf-preview-nav__step {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   color: var(--text-primary);
-  background: var(--surface-subtle, rgba(128, 128, 128, 0.08));
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md, 6px);
+  background: transparent;
+  border: 1px solid transparent;
+  /* 圆形（用户要求）：悬停底色为圆，不用椭圆/圆角方形 */
+  border-radius: var(--radius-full, 999px);
   cursor: pointer;
 }
 
-.adl-pdf-preview-nav button:disabled {
-  opacity: 0.4;
+.adl-pdf-preview-nav__step:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-subtle);
+}
+
+.adl-pdf-preview-nav__step:disabled {
+  opacity: 0.35;
   cursor: default;
 }
 
-.adl-pdf-preview-jump {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  margin-left: var(--space-1);
+.adl-pdf-preview-nav__count {
+  min-width: 56px;
+  padding: 0 var(--space-1);
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: text;
+  user-select: none;
 }
 
-.adl-pdf-preview-jump input {
+.adl-pdf-preview-nav__input {
   width: 3.5em;
   min-width: 52px;
-  font-size: var(--text-xs);
+  padding: 0 var(--space-1);
+  font: inherit;
   color: var(--text-primary);
   background: var(--bg-input, var(--surface-subtle));
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-sm, 4px);
-  padding: var(--space-0-5) var(--space-1-5);
-  text-align: center;
-  /* 原生数字微调与翻页按钮重复，隐藏以省宽度（Chromium + Firefox 双前缀） */
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
-
-.adl-pdf-preview-jump button {
-  width: auto;
-  /* 高度继承工具栏 28px 控件行（与箭头按钮同高，见上条规则） */
-  height: 28px;
-  padding-left: var(--space-2);
-  padding-right: var(--space-2);
-  font-size: var(--text-xs);
-}
-
-.adl-pdf-preview-jump input::-webkit-inner-spin-button,
-.adl-pdf-preview-jump input::-webkit-outer-spin-button {
-  display: none;
-}
-
-.adl-pdf-preview-loading {
-  margin: 0;
-  padding: var(--space-6);
-  font-size: var(--text-sm);
-  color: var(--text-muted);
   text-align: center;
 }
 
@@ -403,6 +468,65 @@
   position: absolute;
   top: 0;
   transform-origin: top left;
+}
+
+/* ---------------- Markdown frontmatter 属性表 ---------------- */
+/* 用户裁定（原型 A + 约束）：每个键值对独占一行，键列共享宽度，所有值在第二列
+   垂直左对齐；窄面板下值只在自身列内换行，不跳到键下方。无卡片底色/边框，
+   只用一条细线与正文分隔。列表值转 chip，全程中性色。 */
+.adl-markdown-preview .adl-md-frontmatter {
+  display: grid;
+  /* 键列取所有键的最大内容宽（等宽对齐）；值列可收缩，min 0 防止撑破面板 */
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: var(--space-4);
+  row-gap: var(--space-1-5);
+  align-items: baseline;
+  /* 用户要求：与正文之间不用分隔线，只靠间距区分 */
+  margin: 0 0 1.75em;
+  padding: 0;
+}
+
+/* 行包裹只用于 HTML 语义分组：display:contents 让 dt/dd 直接参与外层 grid，
+   从而共享同一条键列、值列起点一致。 */
+.adl-markdown-preview .adl-md-frontmatter__row {
+  display: contents;
+}
+
+.adl-markdown-preview .adl-md-frontmatter dt {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.adl-markdown-preview .adl-md-frontmatter dd {
+  min-width: 0;
+  margin: 0;
+  /* 用户要求：值与键同色 */
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+/* 多行标量（`|` / `>` / 续行）保留换行，不塌成一行 */
+.adl-markdown-preview .adl-md-frontmatter__value {
+  white-space: pre-wrap;
+}
+
+.adl-markdown-preview .adl-md-frontmatter__chip {
+  display: inline-block;
+  margin: 0 var(--space-1) var(--space-0-5) 0;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full, 999px);
+  background: var(--bg-elevated, transparent);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1.6;
 }
 
 /* Markdown 正文排版完全由 github-markdown-css 官方主题拥有

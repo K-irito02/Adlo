@@ -10,6 +10,7 @@ export const workspaceEn = {
   newSessionDefaultName: 'New Chat',
   sessionFallback: 'Single Agent Session',
   workspaceEmpty: 'Click + above to create a workspace',
+  workspaceTreeEmpty: 'No files in this workspace',
   sessionEmpty: 'Create a new session in this workspace',
   showMoreSessions: 'Show more',
   collapseSessions: 'Collapse',

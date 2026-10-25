@@ -17,6 +17,7 @@ vi.mock('@i18n/useTCopy', () => ({
       officeLegacyFormat: 'Legacy format, re-save as {suggest}',
       docxFidelityHint: 'docx fidelity hint',
       docxUnreadable: 'not a valid DOCX',
+      fileMediaLoading: 'Loading file...',
     },
     formatT: (dict: Record<string, string>, key: string, params?: Record<string, unknown>) => {
       let out = dict[key] ?? key;
@@ -81,6 +82,56 @@ describe('DocxPreview (docx-preview)', () => {
     await waitFor(() => {
       expect(screen.getByText(/DOCX preview failed/u)).toBeTruthy();
     });
+  });
+
+  it('shows the sweep skeleton (no loading copy) while rendering', async () => {
+    const docx = await import('docx-preview');
+    let resolveRender!: () => void;
+    vi.mocked(docx.renderAsync).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveRender = resolve;
+      }) as never,
+    );
+    const { container } = render(<DocxPreview data={new ArrayBuffer(8)} />);
+
+    // 延迟 150ms 才显现（避免秒开时的闪烁），故用 waitFor 等待。
+    await waitFor(() => {
+      expect(container.querySelector('.adl-preview-loading')).toBeTruthy();
+    });
+    const placeholder = container.querySelector('.adl-preview-loading');
+    // 与变更面板一致：单层 .skeleton 整面扫光（不画多行骨架条）
+    expect(placeholder?.classList.contains('skeleton')).toBe(true);
+    expect(placeholder?.querySelectorAll('.skeleton').length).toBe(0);
+    // 铺满整个预览根（不被 .adl-docx-scroll 的 padding 裁掉）
+    expect(placeholder?.classList.contains('adl-preview-loading--overlay')).toBe(true);
+    expect(container.querySelector('.adl-docx-scroll .adl-preview-loading')).toBeNull();
+    // 用户要求：内容区不再出现“加载中…”文字，只保留 aria 语义
+    expect(placeholder?.textContent).toBe('');
+    expect(placeholder?.getAttribute('aria-label')).toBe('Loading file...');
+
+    resolveRender();
+    await waitFor(() => {
+      expect(container.querySelector('.adl-preview-loading')).toBeNull();
+    });
+  });
+
+  it('reuses cached render output for the same cacheKey (no re-render, no sweep)', async () => {
+    const docx = await import('docx-preview');
+    const first = render(<DocxPreview data={new ArrayBuffer(8)} cacheKey="docx-cache-test" />);
+    await waitFor(() => {
+      expect(screen.getByText('hello docx')).toBeTruthy();
+    });
+    first.unmount();
+    vi.clearAllMocks();
+
+    const second = render(<DocxPreview data={new ArrayBuffer(16)} cacheKey="docx-cache-test" />);
+    await waitFor(() => {
+      expect(second.container.querySelector('.adl-docx-preview__body')?.textContent).toContain(
+        'hello docx',
+      );
+    });
+    expect(docx.renderAsync).not.toHaveBeenCalled();
+    expect(second.container.querySelector('.adl-preview-loading')).toBeNull();
   });
 
   it('shows a re-save hint for legacy .doc without calling the renderer', async () => {

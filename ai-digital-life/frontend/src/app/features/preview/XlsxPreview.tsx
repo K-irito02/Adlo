@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { useTCopy } from '@i18n/useTCopy';
 import { FidelityWatermark } from './FidelityWatermark';
+import { PreviewLoadingGate } from './PreviewLoadingGate';
+import { createLruCache } from './previewCache';
 import { isZipUnpackError } from './officeErrors';
 import type { WorkBook, WorkSheet } from 'xlsx';
 
@@ -10,7 +12,17 @@ export interface XlsxPreviewProps {
   theme?: 'light' | 'dark';
   /** 工作区相对路径：切换文件时重播水印淡出动画 */
   fileName?: string;
+  /** 预览缓存键（工作区+路径+体积+mtime）：同键回看复用已转换表格 */
+  cacheKey?: string;
 }
+
+interface XlsxCacheEntry {
+  sheetNames: string[];
+  htmlBySheet: Record<string, string>;
+}
+
+/** 表格 HTML 缓存（LRU 8）：回看免解析、免扫光。 */
+const xlsxCache = createLruCache<XlsxCacheEntry>(8);
 
 /**
  * 表格预览（第三方：SheetJS Community Edition `xlsx`，Apache-2.0，
@@ -18,7 +30,7 @@ export interface XlsxPreviewProps {
  * 取工作簿全部工作表并转 HTML 表格；HTML 字符串经 DOMPurify 消毒后渲染。
  * 注意：旧版 .xls 是 BIFF 格式但 SheetJS 可读，有意不做 legacy 拦截。
  */
-export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps) {
+export function XlsxPreview({ data, theme = 'dark', fileName, cacheKey }: XlsxPreviewProps) {
   const { t, formatT } = useTCopy();
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [activeSheet, setActiveSheet] = useState(0);
@@ -31,6 +43,19 @@ export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps
   const workbookRef = useRef<WorkBook | null>(null);
 
   useEffect(() => {
+    // 回看命中：直接复用上次转换结果（跳过解析、无扫光）。
+    const cached = cacheKey ? xlsxCache.get(cacheKey) : undefined;
+    if (cached) {
+      setError(null);
+      setUnreadable(false);
+      workbookRef.current = null;
+      setSheetNames(cached.sheetNames);
+      setActiveSheet(0);
+      setHtml(cached.htmlBySheet[cached.sheetNames[0] ?? ''] ?? '');
+      setLoaded(true);
+      return undefined;
+    }
+
     let cancelled = false;
     setError(null);
     setUnreadable(false);
@@ -53,7 +78,14 @@ export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps
         workbookRef.current = workbook;
         setSheetNames(workbook.SheetNames);
         const first = workbook.Sheets[workbook.SheetNames[0]];
-        setHtml(first ? XLSX.utils.sheet_to_html(first) : '');
+        const firstHtml = first ? XLSX.utils.sheet_to_html(first) : '';
+        setHtml(firstHtml);
+        if (cacheKey) {
+          xlsxCache.set(cacheKey, {
+            sheetNames: workbook.SheetNames,
+            htmlBySheet: { [workbook.SheetNames[0] ?? '']: firstHtml },
+          });
+        }
         setLoaded(true);
       } catch (err) {
         if (!cancelled) {
@@ -71,24 +103,51 @@ export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps
     return () => {
       cancelled = true;
     };
-  }, [data]);
+  }, [data, cacheKey]);
+
+  /** 记住已生成的单表 HTML，供切表与回看复用。 */
+  const rememberSheetHtml = (name: string | undefined, nextHtml: string) => {
+    if (!cacheKey || name === undefined) {
+      return;
+    }
+    const entry = xlsxCache.get(cacheKey);
+    if (!entry) {
+      return;
+    }
+    entry.htmlBySheet[name] = nextHtml;
+    xlsxCache.set(cacheKey, entry);
+  };
 
   const switchSheet = async (index: number) => {
     try {
-      const cached = workbookRef.current;
-      const sheet = cached?.Sheets[cached.SheetNames[index] ?? ''] as WorkSheet | undefined;
+      const sheetName = sheetNames[index];
+      const cachedHtml =
+        cacheKey && sheetName !== undefined
+          ? xlsxCache.get(cacheKey)?.htmlBySheet[sheetName]
+          : undefined;
+      if (cachedHtml !== undefined) {
+        setHtml(cachedHtml);
+        setActiveSheet(index);
+        return;
+      }
+      const workbook = workbookRef.current;
+      const sheet = workbook?.Sheets[sheetName ?? ''] as WorkSheet | undefined;
       if (sheet !== undefined) {
         const XLSX = await import('xlsx');
-        setHtml(XLSX.utils.sheet_to_html(sheet));
+        const nextHtml = XLSX.utils.sheet_to_html(sheet);
+        setHtml(nextHtml);
+        rememberSheetHtml(sheetName, nextHtml);
         // 解析成功才移动选中态（rev2 复审 N-03）：失败时 select 保持旧值，
         // 与已渲染表格一致，不出现"选中 B 表、显示报错"的错位。
         setActiveSheet(index);
         return;
       }
       const XLSX = await import('xlsx');
-      const workbook = XLSX.read(data.slice(0), { type: 'array' });
-      const fallback = workbook.Sheets[workbook.SheetNames[index]];
-      setHtml(fallback ? XLSX.utils.sheet_to_html(fallback) : '');
+      const workbookFallback = XLSX.read(data.slice(0), { type: 'array' });
+      const fallback = workbookFallback.Sheets[workbookFallback.SheetNames[index]];
+      const nextHtml = fallback ? XLSX.utils.sheet_to_html(fallback) : '';
+      setHtml(nextHtml);
+      rememberSheetHtml(sheetName, nextHtml);
       // 回退路径同样移动选中态（与缓存路径一致，避免选中与内容错位）。
       setActiveSheet(index);
     } catch (err) {
@@ -159,6 +218,7 @@ export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps
           <div className="adl-xlsx-preview__table" dangerouslySetInnerHTML={innerHtml} />
         )}
       </div>
+      <PreviewLoadingGate active={!loaded} overlay />
     </div>
   );
 }

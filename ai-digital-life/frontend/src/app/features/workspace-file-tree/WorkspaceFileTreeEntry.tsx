@@ -494,7 +494,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
               <span>{error}</span>
             </div>
           ) : (
-            <EmptyRow message={t.workspaceEmpty as string} />
+            <EmptyRow message={t.workspaceTreeEmpty as string} />
           )}
         </div>
       ) : null}

@@ -10,8 +10,8 @@ vi.mock('@i18n/useTCopy', () => ({
       changesPdfPrevPage: 'Previous page',
       changesPdfNextPage: 'Next page',
       changesPdfPageNumber: 'Page number',
-      changesPdfGo: 'Go',
-      loading: 'Loading…',
+      changesPdfPageJumpHint: 'Double-click to edit page',
+      fileMediaLoading: 'Loading file...',
     },
     locale: 'en-US',
     formatT: (dict: Record<string, string>, key: string, params?: Record<string, unknown>) => {
@@ -41,6 +41,14 @@ vi.mock('pdfjs-dist', () => {
   };
 });
 
+/** 双击页码 → 输入框 → 回车 的公共流程。 */
+function typePage(page: string) {
+  fireEvent.doubleClick(screen.getByRole('button', { name: 'Double-click to edit page' }));
+  const input = screen.getByRole('textbox', { name: 'Page number' });
+  fireEvent.change(input, { target: { value: page } });
+  fireEvent.keyDown(input, { key: 'Enter' });
+}
+
 describe('PdfPreview navigation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -60,7 +68,7 @@ describe('PdfPreview navigation', () => {
     expect(nextBtn.querySelector('path')?.getAttribute('d')).toBe('M10 17L15 12L10 7');
   });
 
-  it('keeps the page toolbar above the scrollable canvas', async () => {
+  it('floats the dock above the scrollable canvas (content full-height)', async () => {
     const { container } = render(<PdfPreview data={new ArrayBuffer(8)} />);
     await waitFor(() => {
       expect(screen.getByText('1 / 3')).toBeTruthy();
@@ -73,37 +81,44 @@ describe('PdfPreview navigation', () => {
     expect(nav).toBeTruthy();
     expect(scroll).toBeTruthy();
     expect(canvas).toBeTruthy();
-    // 工具栏在滚动区之前（常驻顶部，无需滚动即可翻页），画布在滚动区内。
+    // 悬浮胶囊是滚动区的兄弟（绝对定位覆盖在内容上），画布在滚动区内。
     expect(nav?.compareDocumentPosition(scroll as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(scroll?.contains(canvas)).toBe(true);
   });
 
-  it('jumps to the typed page and clamps out-of-range input', async () => {
-    const { container } = render(<PdfPreview data={new ArrayBuffer(8)} />);
+  it('jumps to the typed page after double-click + Enter, clamping out-of-range input', async () => {
+    render(<PdfPreview data={new ArrayBuffer(8)} />);
     await waitFor(() => {
       expect(screen.getByText('1 / 3')).toBeTruthy();
     });
-    // 注意：type=number 下 JSDOM 把非数字输入强制为空串，此处 'abc' 实际覆盖
-    // "空输入回滚当前页"；严格整数正则由 commitPageInput 单元语义保证。
-    const input = screen.getByRole('spinbutton', { name: 'Page number' });
-    const form = container.querySelector('.adl-pdf-preview-jump') as HTMLFormElement;
-    fireEvent.change(input, { target: { value: '2' } });
-    fireEvent.submit(form);
+
+    typePage('2');
     await waitFor(() => {
       expect(screen.getByText('2 / 3')).toBeTruthy();
     });
-    // 超范围钳制到末页，非法输入回滚当前页。
-    fireEvent.change(input, { target: { value: '99' } });
-    fireEvent.submit(form);
+
+    typePage('99');
     await waitFor(() => {
       expect(screen.getByText('3 / 3')).toBeTruthy();
     });
-    // 注意：type=number 下 JSDOM 把非数字输入强制为空串，此断言实际覆盖
-    // "空输入回滚当前页"；严格整数语义由 commitPageInput 的 /^\d+$/ 保证。
-    fireEvent.change(input, { target: { value: '' } });
-    fireEvent.submit(form);
+
+    typePage('');
     await waitFor(() => {
       expect(screen.getByText('3 / 3')).toBeTruthy();
+    });
+  });
+
+  it('cancels page editing on Escape without jumping', async () => {
+    render(<PdfPreview data={new ArrayBuffer(8)} />);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    });
+    fireEvent.doubleClick(screen.getByRole('button', { name: 'Double-click to edit page' }));
+    const input = screen.getByRole('textbox', { name: 'Page number' });
+    fireEvent.change(input, { target: { value: '3' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
     });
   });
 
@@ -112,7 +127,8 @@ describe('PdfPreview navigation', () => {
     await waitFor(() => {
       expect(screen.getByText('1 / 3')).toBeTruthy();
     });
-    const input = screen.getByRole('spinbutton', { name: 'Page number' });
+    fireEvent.doubleClick(screen.getByRole('button', { name: 'Double-click to edit page' }));
+    const input = screen.getByRole('textbox', { name: 'Page number' });
     fireEvent.change(input, { target: { value: '2' } });
     fireEvent.blur(input);
     await waitFor(() => {
@@ -137,16 +153,14 @@ describe('PdfPreview navigation', () => {
     });
     expect(container.querySelector('.adl-pdf-preview-nav')).toBeNull();
   });
+
   it('resets page state when switching documents', async () => {
     const pdfjs = await import('pdfjs-dist');
-    const { rerender, container } = render(<PdfPreview data={new ArrayBuffer(8)} />);
+    const { rerender } = render(<PdfPreview data={new ArrayBuffer(8)} />);
     await waitFor(() => {
       expect(screen.getByText('1 / 3')).toBeTruthy();
     });
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Page number' }), {
-      target: { value: '3' },
-    });
-    fireEvent.submit(container.querySelector('.adl-pdf-preview-jump') as HTMLFormElement);
+    typePage('3');
     await waitFor(() => {
       expect(screen.getByText('3 / 3')).toBeTruthy();
     });
@@ -174,7 +188,7 @@ describe('PdfPreview navigation', () => {
     });
   });
 
-  it('shows a loading placeholder before the document resolves', async () => {
+  it('shows the sweep skeleton (no loading copy) before the document resolves', async () => {
     const pdfjs = await import('pdfjs-dist');
     let resolveDoc!: (doc: unknown) => void;
     vi.mocked(pdfjs.getDocument).mockReturnValueOnce({
@@ -182,10 +196,18 @@ describe('PdfPreview navigation', () => {
         resolveDoc = resolve;
       }),
     } as never);
-    render(<PdfPreview data={new ArrayBuffer(8)} />);
+    const { container } = render(<PdfPreview data={new ArrayBuffer(8)} />);
     await waitFor(() => {
-      expect(screen.getByText('Loading…')).toBeTruthy();
+      expect(container.querySelector('.adl-preview-loading')).toBeTruthy();
     });
+    const placeholder = container.querySelector('.adl-preview-loading');
+    // 与变更面板一致：单层 .skeleton 整面扫光（不画多行骨架条）
+    expect(placeholder?.classList.contains('skeleton')).toBe(true);
+    expect(placeholder?.textContent).toBe('');
+    // 铺满整个预览根（不被 .adl-pdf-scroll 的 padding 裁掉）
+    expect(placeholder?.classList.contains('adl-preview-loading--overlay')).toBe(true);
+    expect(container.querySelector('.adl-pdf-scroll .adl-preview-loading')).toBeNull();
+    expect(screen.queryByText('Loading file...')).toBeNull();
     resolveDoc({
       numPages: 1,
       getPage: vi.fn().mockResolvedValue({
@@ -194,7 +216,7 @@ describe('PdfPreview navigation', () => {
       }),
     });
     await waitFor(() => {
-      expect(screen.queryByText('Loading…')).toBeNull();
+      expect(container.querySelector('.adl-preview-loading')).toBeNull();
     });
   });
 
@@ -210,5 +232,21 @@ describe('PdfPreview navigation', () => {
       expect(canvas?.width).toBe(100);
       expect(canvas?.height).toBe(200);
     });
+  });
+
+  it('reuses the parsed document for the same cacheKey (no re-parse)', async () => {
+    const pdfjs = await import('pdfjs-dist');
+    const first = render(<PdfPreview data={new ArrayBuffer(8)} cacheKey="pdf-cache-test" />);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    });
+    first.unmount();
+    vi.mocked(pdfjs.getDocument).mockClear();
+
+    const second = render(<PdfPreview data={new ArrayBuffer(16)} cacheKey="pdf-cache-test" />);
+    await waitFor(() => {
+      expect(second.container.querySelector('canvas')).toBeTruthy();
+    });
+    expect(pdfjs.getDocument).not.toHaveBeenCalled();
   });
 });

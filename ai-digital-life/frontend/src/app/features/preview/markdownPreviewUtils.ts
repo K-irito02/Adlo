@@ -22,6 +22,181 @@ export interface MarkdownPreviewProps {
   linkHandlers?: MarkdownLinkHandlers;
 }
 
+export interface FrontmatterEntry {
+  key: string;
+  values: string[];
+  /** 值为列表（块列表或行内 `[a, b]`）时为 true：渲染成 chip。 */
+  list?: boolean;
+}
+
+export interface SplitMarkdown {
+  entries: FrontmatterEntry[];
+  body: string;
+  /** frontmatter 占用的源行数：正文块级行号需整体后移，保证跳转锚点仍指向真实行。 */
+  lineOffset: number;
+}
+
+/** 仅识别文档首部块；中途出现的 `---` 仍按 markdown 分隔线处理。CRLF 容错。 */
+const FRONTMATTER_RE = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
+
+function unquote(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length >= 2) {
+    const first = trimmed[0];
+    const last = trimmed[trimmed.length - 1];
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      return trimmed.slice(1, -1);
+    }
+  }
+  return trimmed;
+}
+
+function splitInlineList(value: string): string[] | null {
+  if (!/^\[.*\]$/s.test(value)) {
+    return null;
+  }
+  const inner = value.slice(1, -1).trim();
+  return inner === '' ? [] : inner.split(',').map((item) => unquote(item));
+}
+
+/**
+ * 通用 frontmatter 解析（不按字段名特判——规则/技能/文章生态的字段集合并不固定）。
+ * 支持常见 YAML 子集：`key: value`、引号值、行内列表 `[a, b]`、块列表 `- item`、
+ * 块标量 `|` / `>`、缩进续行（按原样保留换行）。嵌套映射不做结构化展开，按文本保留。
+ *
+ * 返回 null 表示“看起来不是 frontmatter”（没有任何键 / 出现无法归属的内容行），
+ * 调用方必须整体回退到原样渲染，绝不能吞掉正文。
+ */
+export function parseFrontmatter(block: string): FrontmatterEntry[] | null {
+  const entries: FrontmatterEntry[] = [];
+  let current: FrontmatterEntry | null = null;
+  let blockScalar: { entry: FrontmatterEntry; fold: boolean } | null = null;
+
+  const appendContinuation = (entry: FrontmatterEntry, text: string) => {
+    const existing = entry.values[0] ?? '';
+    entry.values[0] = existing ? `${existing}\n${text}` : text;
+  };
+
+  for (const raw of block.split(/\r?\n/)) {
+    if (blockScalar) {
+      if (raw.trim() === '') {
+        blockScalar.entry.values[0] += '\n';
+        continue;
+      }
+      if (/^[ \t]/.test(raw)) {
+        const text = raw.replace(/^[ \t]+/, '');
+        const existing = blockScalar.entry.values[0] ?? '';
+        blockScalar.entry.values[0] = existing
+          ? `${existing}${blockScalar.fold ? ' ' : '\n'}${text}`
+          : text;
+        continue;
+      }
+      blockScalar = null;
+    }
+
+    if (raw.trim() === '' || /^[ \t]*#/.test(raw)) {
+      continue;
+    }
+
+    const listItem = /^[ \t]*-[ \t]+(.*)$/.exec(raw);
+    if (listItem) {
+      if (!current) {
+        return null;
+      }
+      current.list = true;
+      current.values.push(unquote(listItem[1]));
+      continue;
+    }
+
+    // 缩进且非列表：嵌套映射/续行，按文本并入当前值（不做结构化解析）。
+    if (/^[ \t]/.test(raw)) {
+      if (!current) {
+        return null;
+      }
+      appendContinuation(current, raw.trim());
+      continue;
+    }
+
+    const keyMatch = /^([^\s:#][^:]*?)[ \t]*:[ \t]*(.*)$/u.exec(raw);
+    if (!keyMatch) {
+      return null;
+    }
+    const key = keyMatch[1].trim();
+    const rawValue = keyMatch[2].trim();
+    if (!key) {
+      return null;
+    }
+
+    const entry: FrontmatterEntry = { key, values: [] };
+    entries.push(entry);
+    current = entry;
+
+    if (rawValue === '') {
+      continue;
+    }
+    if (/^[|>][+-]?$/.test(rawValue)) {
+      entry.values = [''];
+      blockScalar = { entry, fold: rawValue.startsWith('>') };
+      continue;
+    }
+    const inline = splitInlineList(rawValue);
+    if (inline) {
+      entry.values = inline;
+      entry.list = true;
+      continue;
+    }
+    entry.values = [unquote(rawValue)];
+  }
+
+  if (entries.length === 0) {
+    return null;
+  }
+  for (const entry of entries) {
+    if (entry.values.length === 0) {
+      entry.values = [''];
+    }
+  }
+  return entries;
+}
+
+export function splitFrontmatter(content: string): SplitMarkdown {
+  const none: SplitMarkdown = { entries: [], body: content, lineOffset: 0 };
+  const match = FRONTMATTER_RE.exec(content);
+  if (!match) {
+    return none;
+  }
+  const entries = parseFrontmatter(match[1]);
+  if (!entries) {
+    return none;
+  }
+  const lineOffset = (match[0].match(/\n/g) ?? []).length;
+  return { entries, body: content.slice(match[0].length), lineOffset };
+}
+
+/** 属性卡片（通用键值，值全部转义；列表渲染为 chip）。 */
+export function renderFrontmatterCard(entries: FrontmatterEntry[]): string {
+  if (entries.length === 0) {
+    return '';
+  }
+  const rows = entries
+    .map(({ key, values, list }) => {
+      const body = list
+        ? values
+            .map((value) => `<span class="adl-md-frontmatter__chip">${escapeHtml(value)}</span>`)
+            .join('')
+        : `<span class="adl-md-frontmatter__value">${escapeHtml(values[0] ?? '')}</span>`;
+      return `<div class="adl-md-frontmatter__row"><dt>${escapeHtml(key)}</dt><dd>${body}</dd></div>`;
+    })
+    .join('');
+  return `<dl class="adl-md-frontmatter">${rows}</dl>`;
+}
+
+/** 源行偏移：frontmatter 被剥离后，块级锚点必须补回其占用的行数。 */
+function readLineOffset(env: unknown): number {
+  const value = (env as { lineOffset?: unknown } | undefined)?.lineOffset;
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
 /**
  * 代码高亮（官方推荐 starry-night，见 `starryNight.ts`）。
  * - starry 就绪后：同步输出 `pl-*` span（`highlight` 本身是同步的，仅实例创建是异步）。
@@ -95,7 +270,8 @@ function createMdInstance(starryEnabled: boolean): MarkdownIt {
 
   md.renderer.rules.heading_open = (tokens, idx, options, env, self) => {
     const token = tokens[idx]!;
-    const sourceLine = typeof token.map?.[0] === 'number' ? token.map[0] + 1 : undefined;
+    const sourceLine =
+      typeof token.map?.[0] === 'number' ? token.map[0] + 1 + readLineOffset(env) : undefined;
     if (sourceLine) {
       token.attrSet('data-source-line', String(sourceLine));
       const headingText = tokens[idx + 1]?.content ?? '';
@@ -117,10 +293,12 @@ function createMdInstance(starryEnabled: boolean): MarkdownIt {
   md.core.ruler.push('adl-source-map', (state) => {
     // 每次渲染重置 slug 计数：md 实例跨内容变化复用，计数不得跨渲染累积。
     slugCounts.clear();
+    // frontmatter 已从正文剥离，行号必须补回其占用的行数（否则检索跳转会错位）。
+    const offset = readLineOffset(state.env);
     for (const token of state.tokens) {
       if (token.map && token.type !== 'inline') {
-        token.attrSet('data-source-line-start', String(token.map[0] + 1));
-        token.attrSet('data-source-line-end', String(token.map[1]));
+        token.attrSet('data-source-line-start', String(token.map[0] + 1 + offset));
+        token.attrSet('data-source-line-end', String(token.map[1] + offset));
       }
     }
   });
@@ -130,7 +308,8 @@ function createMdInstance(starryEnabled: boolean): MarkdownIt {
 
 /** 同步渲染（回退纯文本代码块）：测试与首屏用，不等待 starry-night WASM。 */
 export function renderMarkdownPreviewHtml(content: string): string {
-  return createMdInstance(false).render(content);
+  const { entries, body, lineOffset } = splitFrontmatter(content);
+  return `${renderFrontmatterCard(entries)}${createMdInstance(false).render(body, { lineOffset })}`;
 }
 
 /**
@@ -148,5 +327,8 @@ export function useMarkdownPreviewHtml(content: string): string {
     return unsubscribe;
   }, []);
   const md = useMemo(() => createMdInstance(starryTick > 0), [starryTick]);
-  return useMemo(() => md.render(content), [content, md]);
+  return useMemo(() => {
+    const { entries, body, lineOffset } = splitFrontmatter(content);
+    return `${renderFrontmatterCard(entries)}${md.render(body, { lineOffset })}`;
+  }, [content, md]);
 }

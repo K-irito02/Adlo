@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { base64ToBlob } from './mediaBlob';
+import { PreviewLoadingGate } from './PreviewLoadingGate';
 import type { WorkspaceMediaDocument } from '@shared/ipc/workspace';
 
 export type MediaKind = 'image' | 'audio' | 'video';
@@ -62,12 +63,8 @@ export function MediaPreview({ media, kind }: MediaPreviewProps) {
   }, [media.base64, media.mime]);
 
   if (!settled) {
-    // 解码中骨架（与办公端 fileMediaLoading 同文案），避免纯空白。
-    return (
-      <div className="adl-media-preview adl-media-preview--error" role="status">
-        <p>{t.fileMediaLoading as string}</p>
-      </div>
-    );
+    // 解码中骨架（扫光占位，不出现“加载中…”文字），避免纯空白。
+    return <PreviewLoadingGate active variant="centered" />;
   }
 
   // 空文件是中性信息态（收尾 F-20），错误才是警报态：role 区分，避免打断读屏用户。

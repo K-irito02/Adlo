@@ -41,6 +41,29 @@ describe('PptxPreview', () => {
     expect(hint.className).toContain('adl-fidelity-watermark');
   });
 
+  it('shows a full-surface sweep skeleton while rendering', async () => {
+    let resolvePreview!: () => void;
+    previewFn.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolvePreview = resolve;
+      }) as never,
+    );
+    const { container } = render(<PptxPreview data={new ArrayBuffer(8)} />);
+    await waitFor(() => {
+      expect(previewFn).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(container.querySelector('.adl-preview-loading')).toBeTruthy();
+    });
+    const placeholder = container.querySelector('.adl-preview-loading');
+    expect(placeholder?.classList.contains('adl-preview-loading--overlay')).toBe(true);
+    expect(placeholder?.textContent).toBe('');
+    resolvePreview();
+    await waitFor(() => {
+      expect(container.querySelector('.adl-preview-loading')).toBeNull();
+    });
+  });
+
   it('shows a re-save hint for legacy .ppt without initializing the viewer', async () => {
     render(<PptxPreview data={new ArrayBuffer(8)} fileName="docs/old.ppt" />);
     await waitFor(() => {

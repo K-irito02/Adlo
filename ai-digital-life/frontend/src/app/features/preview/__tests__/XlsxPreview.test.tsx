@@ -88,4 +88,20 @@ describe('XlsxPreview', () => {
     // 同内容下包装对象恒等 → React 跳过 innerHTML 写入，子节点引用不变
     expect(container.querySelector('.adl-xlsx-preview__table')?.firstChild).toBe(firstChildBefore);
   });
+
+  it('reuses cached sheet HTML for the same cacheKey (no re-read)', async () => {
+    const XLSX = await import('xlsx');
+    const first = render(<XlsxPreview data={new ArrayBuffer(8)} cacheKey="xlsx-cache-test" />);
+    await waitFor(() => {
+      expect(screen.getByText('A1')).toBeTruthy();
+    });
+    first.unmount();
+    vi.mocked(XLSX.read).mockClear();
+
+    const second = render(<XlsxPreview data={new ArrayBuffer(16)} cacheKey="xlsx-cache-test" />);
+    await waitFor(() => {
+      expect(second.container.textContent).toContain('A1');
+    });
+    expect(XLSX.read).not.toHaveBeenCalled();
+  });
 });

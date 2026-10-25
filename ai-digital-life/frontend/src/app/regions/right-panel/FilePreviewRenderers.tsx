@@ -6,6 +6,8 @@ import {
   LazyMediaPreviewWrapper,
   LazyXlsxPreviewWrapper,
   LazyPptxPreviewWrapper,
+  PreviewLoadingGate,
+  buildPreviewCacheKey,
 } from '@features/preview';
 import { base64ToArrayBuffer } from '@features/preview/mediaBlob';
 import { openMarkdownFileLink, openUrlByMethod } from '@features/preview/openByMethod';
@@ -123,10 +125,12 @@ function OfficeBranch({
   fileMedia,
   kind,
   theme,
+  cacheKey,
 }: {
   fileMedia: WorkspaceMediaDocument;
   kind: OfficeBranchKind;
   theme: 'dark' | 'light';
+  cacheKey?: string;
 }) {
   const { t } = useTCopy();
   const data = useOfficeBytes(fileMedia);
@@ -141,12 +145,27 @@ function OfficeBranch({
   }
   switch (kind) {
     case 'docx':
-      return <LazyDocxPreviewWrapper data={data} theme={theme} fileName={fileMedia.path} />;
+      return (
+        <LazyDocxPreviewWrapper
+          data={data}
+          theme={theme}
+          fileName={fileMedia.path}
+          cacheKey={cacheKey}
+        />
+      );
     case 'pdf':
-      return <LazyPdfPreviewWrapper data={data} theme={theme} />;
+      return <LazyPdfPreviewWrapper data={data} theme={theme} cacheKey={cacheKey} />;
     case 'spreadsheet':
-      return <LazyXlsxPreviewWrapper data={data} theme={theme} fileName={fileMedia.path} />;
+      return (
+        <LazyXlsxPreviewWrapper
+          data={data}
+          theme={theme}
+          fileName={fileMedia.path}
+          cacheKey={cacheKey}
+        />
+      );
     case 'presentation':
+      // pptx 无渲染结果缓存（库内嵌媒体用 object URL）；仍走延迟+最短扫光。
       return <LazyPptxPreviewWrapper data={data} theme={theme} fileName={fileMedia.path} />;
   }
 }
@@ -162,6 +181,15 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
   theme,
 }: FilePreviewRenderersProps) {
   const { t } = useTCopy();
+
+  // 预览结果缓存键（工作区+路径+体积+mtime）：同键回看复用上次渲染/解析结果。
+  const previewCacheKey = fileMedia
+    ? buildPreviewCacheKey(workspaceId, {
+        path: fileMedia.path,
+        size: fileMedia.size,
+        lastModifiedAt: fileMedia.lastModifiedAt,
+      })
+    : undefined;
 
   // Markdown 正文链接点击：http(s) 走「网址打开方式」，文件链接统一走
   // openMarkdownFileLink（按文件所属工作区解析；目录形链接在文件树定位）。
@@ -220,13 +248,11 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
   }
 
   // 媒体加载骨架（Phase 4 审查 F4）：fileMedia 为空时区分"读取中"与"真空"，
-  // 前者给骨架占位，后者（失败/未发起）保持 null 由错误视图接管。
+  // 前者给扫光占位（不再显示“加载中…”文字），后者（失败/未发起）保持 null 由错误视图接管。
   if (!fileMedia && fileMediaLoading && isMediaFileCategory(fileCategory)) {
     return (
       <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
-        <div className="adl-unsupported-preview" role="status">
-          <span className="adl-unsupported-preview__text">{t.fileMediaLoading as string}</span>
-        </div>
+        <PreviewLoadingGate active variant="centered" />
       </PreviewSurface>
     );
   }
@@ -278,6 +304,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
           fileMedia={fileMedia}
           kind={fileCategory}
           theme={theme}
+          cacheKey={previewCacheKey}
         />
       </PreviewSurface>
     );

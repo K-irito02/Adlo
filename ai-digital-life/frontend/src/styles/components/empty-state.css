@@ -6,12 +6,17 @@
    ========================================================================== */
 
 /* -------- Empty state -------- */
+/* 空态文字统一规范（唯一基线）：字号 --text-xs、颜色 --text-muted、行高 1.5、
+   水平居中。其它空态类（.adl-empty-hint / .adl-empty-row / .adl-bookmark-dir-empty /
+   .adl-sortable-empty）只允许覆盖容器布局，不得改这四项。 */
 .empty-state {
   display: grid;
   place-items: center;
   gap: var(--space-3);
   padding: var(--space-8) var(--space-6);
   color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
   text-align: center;
 }
 

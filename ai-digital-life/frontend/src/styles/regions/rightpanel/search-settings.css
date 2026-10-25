@@ -95,16 +95,10 @@
   color: var(--text-tertiary);
 }
 
-/* 设置卡片内空态提示（如空工作区的"暂无文件树"）：小字、水平居中、适度留白，
-   与检索结果区空态同观感（事项 3-C）。作用域限设置卡片，不影响其它面板。 */
+/* 设置卡片内空态只覆盖布局留白；字号/颜色/居中由 `.adl-empty-hint` 唯一基线决定
+   （tree-shared.css），此处不得再重复声明，避免两处口径漂移。 */
 .adl-search-settings__body .adl-empty-hint {
-  display: block;
-  margin: 0;
   padding: var(--space-3) var(--space-2);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: 1.5;
-  text-align: center;
 }
 
 /* --- 内嵌忽略树：自定义行（不用 adl-filetree__row——它是 full-bleed 设计，

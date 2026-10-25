@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { FidelityWatermark } from './FidelityWatermark';
+import { PreviewLoadingGate } from './PreviewLoadingGate';
 import { isZipUnpackError } from './officeErrors';
 import { isLegacyOfficeFile } from '@regions/right-panel/fileTypeRouter';
 
@@ -31,6 +32,8 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
   const [unreadable, setUnreadable] = useState(false);
   const [viewport, setViewport] = useState({ scale: 1, sizerHeight: 0 });
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
+  // 渲染期扫光占位：naturalSize 跨文档保留，不能拿它当"是否已渲染"的判据。
+  const [rendering, setRendering] = useState(true);
 
   // 旧版 .ppt 与 DocxPreview 同式：在渲染 effect 内同步派生，不单独 effect
   //（Phase 4 审查 R-06：独立 effect 会让首轮渲染 effect 读到 stale legacy=false，
@@ -48,6 +51,7 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
     el.innerHTML = '';
     setError(null);
     setUnreadable(false);
+    setRendering(true);
 
     async function renderDeck() {
       try {
@@ -68,9 +72,11 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
         const naturalHeight = el.scrollHeight || Math.round(PPTX_BASE_WIDTH * 0.5625);
         if (!cancelled) {
           setNaturalSize({ width: naturalWidth, height: naturalHeight });
+          setRendering(false);
         }
       } catch (err) {
         if (!cancelled) {
+          setRendering(false);
           const message = err instanceof Error ? err.message : String(err);
           if (isZipUnpackError(message)) {
             setUnreadable(true);
@@ -185,6 +191,8 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
           />
         </div>
       </div>
+      {/* 不对 pptx 做渲染结果缓存：库会为内嵌音视频创建 object URL，缓存 innerHTML 会在卸载后失效/串播。 */}
+      <PreviewLoadingGate active={rendering} overlay />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderMarkdownPreviewHtml } from './markdownPreviewUtils';
+import { renderMarkdownPreviewHtml, splitFrontmatter } from './markdownPreviewUtils';
 
 function collectRanges(html: string): [number, number][] {
   const ranges: [number, number][] = [];
@@ -54,6 +54,70 @@ describe('MarkdownPreview', () => {
   it('still autolinks explicit http(s) URLs', () => {
     const html = renderMarkdownPreviewHtml('详见 http://example.com/a 页');
     expect(html).toContain('<a href="http://example.com/a">');
+  });
+
+  it('renders leading frontmatter as a generic property card', () => {
+    const content = [
+      '---',
+      'name: demo-skill',
+      'description: 通用描述',
+      'tags: [alpha, beta]',
+      'globs:',
+      '  - "**/*.ts"',
+      'alwaysApply: true',
+      '---',
+      '',
+      '# 标题',
+    ].join('\n');
+    const html = renderMarkdownPreviewHtml(content);
+
+    expect(html).toContain('<dl class="adl-md-frontmatter">');
+    expect(html).toContain('<dt>name</dt>');
+    expect(html).toContain('demo-skill');
+    expect(html).toContain('<dt>description</dt>');
+    expect(html).toContain('通用描述');
+    // 行内列表与块列表统一渲染为 chip
+    expect(html).toContain('adl-md-frontmatter__chip">alpha<');
+    expect(html).toContain('adl-md-frontmatter__chip">**/*.ts<');
+    // 正文照常渲染，且不再把 frontmatter 的 --- 当分隔线
+    expect(html).toContain('<h1');
+    expect(html).not.toContain('<hr');
+  });
+
+  it('does not special-case known frontmatter keys', () => {
+    const html = renderMarkdownPreviewHtml('---\nfoo: bar\n自定义字段: 值\n---\n正文');
+    expect(html).toContain('<dt>foo</dt>');
+    expect(html).toContain('<dt>自定义字段</dt>');
+  });
+
+  it('offsets source lines after stripping frontmatter', () => {
+    const html = renderMarkdownPreviewHtml('---\na: b\nc: d\n---\n# 标题');
+    // frontmatter 3 行 + 空行，标题落在源文件第 5 行
+    expect(html).toContain('data-source-line="5"');
+    expect(html).toContain('data-source-line-start="5" data-source-line-end="5"');
+  });
+
+  it('leaves documents without frontmatter untouched', () => {
+    const html = renderMarkdownPreviewHtml('# 标题\n\n---\n\n正文');
+    expect(html).not.toContain('adl-md-frontmatter');
+    expect(html).toContain('<hr');
+  });
+
+  it('falls back to raw markdown when the block is not key/value', () => {
+    const html = renderMarkdownPreviewHtml('---\n这不是键值\n---\n正文');
+    expect(html).not.toContain('adl-md-frontmatter');
+    expect(html).toContain('这不是键值');
+  });
+
+  it('escapes HTML in frontmatter values', () => {
+    const html = renderMarkdownPreviewHtml('---\nname: <img src=x onerror=alert(1)>\n---\n正文');
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;img');
+  });
+
+  it('keeps block scalar line breaks', () => {
+    const { entries } = splitFrontmatter('---\ndescription: |\n  第一行\n  第二行\n---\n正文');
+    expect(entries[0]?.values[0]).toBe('第一行\n第二行');
   });
 
   it('maps source line ranges on every block element (jump to arbitrary line)', () => {

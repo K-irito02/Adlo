@@ -114,7 +114,7 @@ export const changesZh = {
   changesPdfPrevPage: '上一页',
   changesPdfNextPage: '下一页',
   changesPdfPageNumber: '页码',
-  changesPdfGo: '前往',
+  changesPdfPageJumpHint: '双击输入页码，回车跳转',
   changesPreviewBinary: '二进制文件',
   changesPreviewUnknown: '未知文件类型',
   changesPreviewFailedSpreadsheet: '表格预览失败: {error}',

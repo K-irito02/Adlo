@@ -221,11 +221,12 @@
   padding: var(--space-3);
 }
 
-/* 空态基座：段落空态默认小字、水平居中、适度纵向留白。此前仅 search-panel
-   等局部覆盖，浏览器“已打开标签页”等空态回落为默认 <p> 大字左对齐。
-   限定 p 标签：行内 <span> 空态（GitHubTreeEntry / MultiTreeEntryShell）保持
-   原行内观感，不被块级居中污染（R1）。各面板仍可用更具体的选择器覆盖。 */
-p.adl-empty-hint {
+/* 空态基座（单一规范）：小字、水平居中、适度纵向留白。
+   选择器不限定标签——浏览器书签/历史树用 `<span class="adl-empty-hint">`
+   （MultiTreeEntryShell），旧规则只写 `p.adl-empty-hint` 导致该处完全未命中、
+   回落成默认字号大字（用户反馈）。空态文字一律走本规则，各面板只允许覆盖
+   布局（内距/对齐容器），不得再改字号与颜色。 */
+.adl-empty-hint {
   display: block;
   margin: 0;
   padding: var(--space-4) var(--space-2);
