@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
@@ -162,8 +163,9 @@ function ChevronDownIcon() {
  * 区分。该版本被卸载或重装覆盖后记录即失效，徽章随之消失。
  *
  * 调用方契约：本组件只渲染行卡片，不自建页面地标，也不渲染块头。
+ * `footer` 渲染在行卡片最下方（调用方用来挂只读摘要行，如当前下载源）。
  */
-export function DshVersionManagement() {
+export function DshVersionManagement({ footer }: { footer?: ReactNode } = {}) {
   const { t } = useTCopy();
   const actions = useAppActions();
   const versionStatus = useAppStore((s) => s.versionStatus);
@@ -1919,6 +1921,8 @@ export function DshVersionManagement() {
           </small>
         </div>
       </div>
+
+      {footer}
 
       {sourceDialogOpen
         ? createPortal(

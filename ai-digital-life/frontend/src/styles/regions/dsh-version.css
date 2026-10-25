@@ -166,6 +166,14 @@
   white-space: nowrap;
 }
 
+/* 版本块最下方「当前下载源」摘要行尾部的模式提示（自动检测/手动选择）：
+   中性灰，与其它设置项说明文字同色；前面的名称与源链接保持主文字色。
+   需要复合选择器压过 `settings.css` 的 `.adl-settings-row__label-text span`（0-2-1）。 */
+.adl-dsh-settings .adl-settings-row__label-text .adl-dsh-settings__source-mode {
+  color: var(--text-muted);
+  font-weight: var(--font-normal);
+}
+
 /* 阶段文案扫光（中性灰，亮暗主题均可见；计数部分保持静止，用户明确要求）。 */
 .adl-dsh-settings__version-task-shimmer {
   background: linear-gradient(100deg, #8a8a8a 30%, #d4d4d4 50%, #8a8a8a 70%);

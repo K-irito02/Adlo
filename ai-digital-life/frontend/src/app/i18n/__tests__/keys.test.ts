@@ -363,8 +363,10 @@ describe('i18n en-US namespace keys', () => {
       'dshCancelInstall',
       'dshCancelUninstall',
       'dshCancelReinstall',
-      // DSH 组顶部摘要行：当前源 + 自动/手动模式标签 + 跳转按钮。
+      // DSH 组版本管理块底部摘要行：当前下载源 + 模式提示（直角引号）+ 跳转按钮。
+      'dshSourceSummaryTitle',
       'dshSourceSummary',
+      'dshSourceSummaryMode',
       'dshSourceSummaryManual',
       'dshSourceSummaryUnknown',
       'dshSourceSummaryGoModify',
@@ -393,13 +395,16 @@ describe('i18n en-US namespace keys', () => {
       expect((enUS as Record<string, unknown>)[key], `en:${key}`).toBeTruthy();
       expect((zhCN as Record<string, unknown>)[key], `zh:${key}`).toBeTruthy();
     }
-    // 摘要行延迟字段退役（DshSourceStatus 无 latency，常驻“—”是劣质 UX）；mode 占位符中英一致。
+    // 摘要行延迟字段退役（DshSourceStatus 无 latency，常驻“—”是劣质 UX）；
+    // 标题 / 源链接 / 模式提示三段的占位符中英一致。
     expect(enUS, 'en:dshSourceSummaryLatencyMs').not.toHaveProperty('dshSourceSummaryLatencyMs');
     expect(zhCN, 'zh:dshSourceSummaryLatencyMs').not.toHaveProperty('dshSourceSummaryLatencyMs');
     expect(String(enUS.dshSourceSummary)).toContain('{registry}');
-    expect(String(enUS.dshSourceSummary)).toContain('{mode}');
+    expect(String(enUS.dshSourceSummary)).toContain('{title}');
     expect(String(zhCN.dshSourceSummary)).toContain('{registry}');
-    expect(String(zhCN.dshSourceSummary)).toContain('{mode}');
+    expect(String(zhCN.dshSourceSummary)).toContain('{title}');
+    expect(String(enUS.dshSourceSummaryMode)).toContain('{mode}');
+    expect(String(zhCN.dshSourceSummaryMode)).toContain('{mode}');
   });
 
   it('keeps dsh placeholder counts identical across locales (no {taget}-style drift)', () => {
@@ -416,7 +421,8 @@ describe('i18n en-US namespace keys', () => {
       ['dshRunningExternalNote', '{url}', 1],
       ['dshEffectiveSystem', '{path}', 1],
       ['dshSourceSummary', '{registry}', 1],
-      ['dshSourceSummary', '{mode}', 1],
+      ['dshSourceSummary', '{title}', 1],
+      ['dshSourceSummaryMode', '{mode}', 1],
     ];
     for (const [key, placeholder, expected] of cases) {
       const en = (enUS as Record<string, unknown>)[key];
