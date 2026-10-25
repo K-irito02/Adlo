@@ -190,24 +190,11 @@
   background: var(--text-secondary);
 }
 
-.adl-tool-navigator__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: var(--text-xs);
-}
-
 .adl-tool-navigator__meta {
   color: var(--text-muted);
 }
 
-.adl-tool-list,
-.adl-navigator-groups,
-.adl-summary-list,
-.adl-startpage-list {
+.adl-tool-list {
   margin: 0;
   padding: var(--space-2);
   list-style: none;
@@ -380,8 +367,4 @@
   cursor: pointer;
   padding: 2px 4px;
   border-radius: var(--radius-sm);
-}
-
-.adl-tool-list--search-results {
-  padding: 0;
 }

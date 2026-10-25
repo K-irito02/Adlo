@@ -156,8 +156,7 @@
   pointer-events: auto;
 }
 
-.adl-search-ignore__tree,
-.adl-search-ignore__group {
+.adl-search-ignore__tree {
   margin: 0;
   padding: 0;
   list-style: none;

@@ -54,9 +54,7 @@
 
 /* Side-by-side A side (deleted) - hover state */
 .adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter:hover,
-.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-deletedLineGutter:hover,
-.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter.adl-temp-gutter-hover,
-.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-deletedLineGutter.adl-temp-gutter-hover {
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-deletedLineGutter:hover {
   background-color: var(--editor-diff-remove-hover) !important;
   margin-left: -3px !important;
   padding-left: 3px !important;
@@ -70,8 +68,7 @@
 }
 
 /* Side-by-side B side (inserted) - hover state */
-.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter:hover,
-.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter.adl-temp-gutter-hover {
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter:hover {
   background-color: var(--editor-diff-insert-hover) !important;
   margin-left: -3px !important;
   padding-left: 3px !important;
@@ -281,19 +278,4 @@
 
 .adl-cm-diff-viewer--side-by-side {
   flex-direction: row;
-}
-
-.adl-cm-diff-viewer--side-by-side > .adl-cm-diff-pane {
-  flex: 1;
-  min-width: 0;
-  position: relative;
-}
-
-.adl-cm-diff-viewer--side-by-side > .adl-cm-diff-pane + .adl-cm-diff-pane {
-  border-left: 1px solid var(--border-subtle);
-}
-
-.adl-cm-diff-pane {
-  height: 100%;
-  overflow: hidden;
 }

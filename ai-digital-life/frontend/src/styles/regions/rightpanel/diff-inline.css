@@ -50,8 +50,7 @@
 }
 
 /* Inline mode: deleted lines - hover state */
-.adl-cm-diff-viewer--inline .cm-deletedLineGutter:hover,
-.adl-cm-diff-viewer--inline .cm-deletedLineGutter.adl-temp-gutter-hover {
+.adl-cm-diff-viewer--inline .cm-deletedLineGutter:hover {
   background-color: var(--editor-diff-remove-hover) !important;
   margin-left: -3px !important;
   padding-left: 3px !important;
@@ -65,8 +64,7 @@
 }
 
 /* Inline mode: inserted lines - hover state */
-.adl-cm-diff-viewer--inline .cm-changedLineGutter:hover,
-.adl-cm-diff-viewer--inline .cm-changedLineGutter.adl-temp-gutter-hover {
+.adl-cm-diff-viewer--inline .cm-changedLineGutter:hover {
   background-color: var(--editor-diff-insert-hover) !important;
   margin-left: -3px !important;
   padding-left: 3px !important;

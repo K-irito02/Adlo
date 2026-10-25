@@ -56,25 +56,6 @@
   letter-spacing: 0.5px;
 }
 
-.adl-multitree-section-label__text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.adl-multitree-section-label__count {
-  flex-shrink: 0;
-  text-align: right;
-}
-
-.adl-multitree__separator {
-  height: 1px;
-  margin: var(--space-1) var(--space-3);
-  background: var(--border-subtle);
-}
-
 .adl-multitree-entry {
 }
 
@@ -236,15 +217,6 @@
 }
 .adl-multitree-entry__tree .adl-filetree__children {
   padding-left: 10px;
-}
-
-.adl-multitree-entry__loading {
-  padding: var(--space-2) var(--space-3);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-xs);
-  color: var(--text-muted);
 }
 .adl-multitree-entry__error {
   padding: var(--space-2) var(--space-3);

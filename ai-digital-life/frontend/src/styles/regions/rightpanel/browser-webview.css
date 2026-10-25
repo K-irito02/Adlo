@@ -125,7 +125,6 @@
   box-shadow: none;
 }
 
-.adl-tool-primary--browser-empty,
 .adl-tool-primary--browser {
   background: var(--bg);
 }
@@ -420,44 +419,6 @@
   justify-content: center;
   width: 16px;
   height: 16px;
-}
-
-.adl-tool-list__item-action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: color var(--duration-150) var(--ease-default);
-}
-
-.adl-tool-list__item-action-btn:hover {
-  color: var(--primary);
-}
-
-/* 历史记录分组样式 */
-.adl-history-year-entry,
-.adl-history-month-entry,
-.adl-history-day-entry {
-  position: relative;
-}
-
-.adl-history-year-entry .adl-multitree-entry__header,
-.adl-history-month-entry .adl-multitree-entry__header,
-.adl-history-day-entry .adl-multitree-entry__header {
-  border-radius: 0;
-}
-
-/* 删除历史记录分组节点的渐变背景效果 */
-.adl-history-year-entry .adl-multitree-entry__namezone::after,
-.adl-history-month-entry .adl-multitree-entry__namezone::after,
-.adl-history-day-entry .adl-multitree-entry__namezone::after {
-  display: none !important;
 }
 
 .adl-multitree-entry__children {

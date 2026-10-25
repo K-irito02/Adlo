@@ -1,96 +1,9 @@
-/* Browser History & Search Results Styles - extracted from browser-webview.css */
-
-/* 历史记录项样式 */
-.adl-browser-history-entry {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 4px 8px;
-  padding-left: 24px;
-  cursor: pointer;
-  transition: background-color var(--duration-150) var(--ease-default);
-  border-radius: 0;
-  min-height: 28px;
-  box-sizing: border-box;
-}
-
-.adl-browser-history-entry::before {
-  content: '';
-  position: absolute;
-  left: 13px;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: color-mix(in srgb, var(--border) 78%, transparent);
-  pointer-events: none;
-}
-
-.adl-browser-history-entry:hover {
-  background-color: var(--bg-hover);
-}
-
-.adl-browser-history-entry__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-}
-
-.adl-browser-history-entry__content {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  flex: 1;
-  min-width: 0;
-}
-
-.adl-browser-history-entry__title {
-  font-size: var(--text-xs);
-  color: var(--text-primary);
-  font-weight: var(--font-medium);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* 搜索结果样式 */
 .adl-browser-search-results {
   position: relative;
   flex: 1;
   min-height: 0;
   overflow: hidden;
-}
-
-.adl-browser-search-results-scroll {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow-y: auto;
-  padding: var(--space-2);
-}
-
-.adl-browser-search-results-scrollbar {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 7px;
-  padding: 4px 0;
-}
-
-.adl-browser-search-results-scrollbar__thumb {
-  background: color-mix(in srgb, var(--border) 60%, transparent);
-  border-radius: 7px;
-  transition: background var(--duration-150) var(--ease-default);
-}
-
-.adl-browser-search-results-scrollbar__thumb:hover {
-  background: color-mix(in srgb, var(--border) 85%, transparent);
 }
 
 .adl-browser-search-result-item {

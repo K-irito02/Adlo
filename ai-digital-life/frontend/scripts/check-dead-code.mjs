@@ -129,7 +129,18 @@ function existedInBase(file) {
 const changedCss = changed.filter((file) => file.endsWith('.css') && fs.existsSync(file));
 for (const file of changedCss) {
   const added = addedText(file);
-  const inFile = new Set([...added.matchAll(/\.(adl-[a-z0-9_-]+)/g)].map((match) => match[1]));
+  // 只查"本次新增"的 class：base 版本里已有的类不算新死代码，
+  // 否则整文件重排（prettier 重写选择器列表）会把老类误报成新增。
+  const relativeToRepo = path.relative(repoRoot, file).split(path.sep).join('/');
+  const baseText = capture('git', ['show', `${base}:${relativeToRepo}`]);
+  const baseClasses = new Set(
+    [...baseText.matchAll(/\.(adl-[a-z0-9_-]+)/g)].map((match) => match[1]),
+  );
+  const inFile = new Set(
+    [...added.matchAll(/\.(adl-[a-z0-9_-]+)/g)]
+      .map((match) => match[1])
+      .filter((cls) => !baseClasses.has(cls)),
+  );
   for (const cls of inFile) {
     const used = usage.has(cls) || [...prefixes].some((prefix) => cls.startsWith(prefix));
     if (!used) {

@@ -92,11 +92,6 @@
   display: block;
 }
 
-.adl-cm-hscroll__track {
-  position: absolute;
-  inset: 0;
-}
-
 .adl-cm-hscroll__thumb {
   position: absolute;
   top: 3px;

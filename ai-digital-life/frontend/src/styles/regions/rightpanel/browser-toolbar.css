@@ -71,13 +71,6 @@
 .adl-tool-panel--browser .adl-tool-search--address:hover input {
   display: block;
 }
-
-.adl-tool-search--compact {
-  min-width: 180px;
-  max-width: 280px;
-  height: 28px;
-  padding: 0 var(--space-2);
-}
 @keyframes adl-refresh-spin {
   from {
     transform: rotate(0deg);
@@ -104,29 +97,6 @@
 .adl-tool-context__iconbtn:disabled {
   opacity: 0.45;
   cursor: default;
-}
-
-.adl-browser-address {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  flex: 1;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-input, var(--surface-subtle));
-  border-radius: var(--radius-md);
-}
-
-.adl-browser-address input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: var(--text-xs);
-}
-
-.adl-browser-address input:focus {
-  outline: none;
 }
 
 /* ─── Browser Menu Dropdown ─── */
