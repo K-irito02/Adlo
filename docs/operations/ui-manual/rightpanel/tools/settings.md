@@ -33,7 +33,7 @@
 | `shortcuts` | 快捷键 | 键盘快捷键配置 |
 | `browser` | 浏览器 | 挂起时长、下载模式、下载路径 |
 | `openMethod` | 打开方式 | 网址/文件默认打开落点 + 智能体站点链接拦截与白名单 |
-| `dsh` | DSH | 下载源和代理设置 |
+| `dsh` | DSH | 版本管理（下载源 / 代理设置已迁入「网络」组） |
 
 > 组顺序与标签的单一真源为 `frontend/src/app/components/settings/settingsGroups.ts` 的 `SETTINGS_GROUPS`。
 
@@ -214,9 +214,10 @@ await page.fill('.adl-settings-row__control input', 'value');
 
 ## DSH 设置
 
-> DeepSeek Harness 下载源、代理设置与版本管理。四块结构（下载源 / 代理设置 / 测试连接 / 版本管理）：
-> 块头在卡外（恢复默认图标 + 主标题），卡内副标题行左说明（行首「?」提示图标）、右控件；变更即自动保存。
-> 「版本管理」块两行：当前版本（版本号 + 更新徽标 + 最新可用版本）、版本操作（文字按钮组）。
+> DeepSeek Harness 版本管理（下载源 / 代理设置 / 测试连接已迁入「网络」组，本组仅剩版本管理块 + 块底只读摘要行）：
+> 块头在卡外（装饰图标 + 主标题，无恢复按钮），卡内副标题行左说明（行首「?」提示图标）、右控件；变更即自动保存。
+> 「版本管理」块含版本来源 / 当前版本 / 检查更新 / 正式版 / 预发布版 / 官方版本信息行，
+> 最下方为只读摘要行「当前下载源：<registry>「<自动检测/手动选择>」」+「前往修改」（跳网络组；模式提示为中性灰）。
 
 ### 定位选择器
 
@@ -228,44 +229,18 @@ await page.fill('.adl-settings-row__control input', 'value');
 
 | 选择器 | 说明 |
 |--------|------|
-| `.adl-dsh-settings__header` | 块头（下载源/代理设置带恢复按钮，测试连接块为装饰图标；带 `data-settings-anchor`） |
-| `[data-testid="dsh-source-reset"]` | 下载源块恢复默认按钮 |
-| `[data-testid="dsh-proxy-reset"]` | 代理设置块恢复默认按钮 |
-| `.adl-settings-row__control .adl-settings-dropdown__trigger` | 下载源/代理模式下拉框（自动检测/npmjs/npmmirror/自定义；自动检测/自定义/无） |
-| `.adl-settings-input` | 自定义地址与代理配置字段（HTTP/HTTPS/直连名单） |
-| `[data-testid="dsh-test-button"]` | 测试连接按钮（结果显示在按钮内，2 秒后恢复） |
-| `[data-settings-anchor="dsh:version"]` | 版本管理块头（装饰图标，无恢复按钮） |
+| `.adl-dsh-settings__header` | 块头（版本管理块为装饰图标 + 主标题；带 `data-settings-anchor="dsh:version"`） |
+| `[data-settings-anchor="dsh:version"]` | 版本管理块头（无恢复按钮） |
 | `.adl-dsh-settings__version-readout` | 当前版本读数（版本号 + 更新徽标 + 最新可用版本） |
 | `.adl-dsh-settings__action-btn` | 版本操作文字按钮（检查更新/升级到最新版/重新安装/卸载版本/回退版本） |
 | `.adl-dsh-settings__version-menu` | 版本回退菜单（多版本时；Portal 挂 body，Esc/外部点击关闭） |
+| `.adl-dsh-settings__source-mode` | 块底摘要行的模式提示（中性灰，「自动检测」/「手动选择」） |
+
+> 下载源 / 代理设置 / 测试连接三块已迁入「网络」设置组；本组只保留版本管理块与块底只读摘要行。
 
 ### 操作流程
 
 ```javascript
-// 选择下载源（自定义下拉：点触发器展开，再点选项；不再是 radio 卡片）
-// 选项：自动检测 / npmjs（官方） / npmmirror（中国） / 自定义
-await page.click('[aria-label="下载源"]');
-await page.click('.adl-settings-dropdown__item:has-text("自定义")');
-
-// 输入自定义地址（选中自定义后出现，变更即自动保存，无保存按钮）
-await page.fill('[aria-label="自定义地址"]', 'https://custom-registry.example');
-
-// 选择代理模式（选项：自动检测/自定义/无）
-await page.click('[aria-label="代理模式"]');
-await page.click('.adl-settings-dropdown__item:has-text("自定义")');
-
-// 输入代理配置
-await page.fill('[aria-label="HTTP 代理"]', 'http://proxy:8080');
-await page.fill('[aria-label="HTTPS 代理"]', 'http://proxy:8080');
-await page.fill('[aria-label="直连名单"]', 'localhost,127.0.0.1');
-
-// 测试连接（结果显示在按钮内）
-await page.click('[data-testid="dsh-test-button"]');
-
-// 块级恢复默认（经确认对话框，乐观执行）
-await page.click('[data-testid="dsh-source-reset"]');
-await page.click('button:has-text("确认")');
-
 // 版本管理块：检查更新 / 重新安装
 await page.click('button:has-text("检查更新")');
 await page.click('button:has-text("重新安装")');
@@ -277,6 +252,9 @@ await page.click('button:has-text("卸载版本")');
 // 多版本时回退：打开 Portal 菜单选择目标版本
 await page.click('button:has-text("回退版本")');
 await page.click('.adl-dsh-settings__version-menu-item-revert:has-text("1.0.0")');
+
+// 块底摘要行只读；点「前往修改」跳到「网络」组改下载源
+await page.click('button:has-text("前往修改")');
 ```
 
 > 组级恢复默认经侧栏触发；该流程会**取消在途的自动保存防抖并立即落盘**，避免旧快照补写。

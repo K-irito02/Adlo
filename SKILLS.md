@@ -110,7 +110,7 @@
 | `learn` | `learn` | 分析代码库以发现模式、约定与架构决策，并生成项目规则文件；用户要求“从这个项目学习”“提取项目规则”“发现模式”或“自动生成规则”时调用。 |
 | `parallel-branch-development` | `parallel-branch-development` | 多会话 / 多 agent 并行开发本仓库时使用：开工环境自检、新建或复用分支工作树（槽位）、隔离与保留约定；细则以仓库根 `parallel-branch-development.md` 为准。 |
 | `root-cause-to-close` | `root-cause-to-close` | 当 Bug、测试失败、回归、偶发或意外行为需要根因调查与修复时使用（未找到根因前禁止修复）；也用于已完成会话的收尾——结项、审查、文档同步、清理。不适用于新功能或琐碎改动。 |
-| `run-project-surfaces` | `run-project-surfaces` | 启动 AI Digital Life 的三种运行模式（浏览器预览、Tauri 桌面、双端并行），自动选择空闲端口并统一管理子进程生命周期；用户要求运行、启动或预览应用时使用。 |
+| `run-project-surfaces` | `run-project-surfaces` | 启动 AI Digital Life 的三种运行模式（浏览器预览、Tauri 桌面、双端并行），按工作树分配稳定 dev 端口（主工作树 5173、slot-N → 5173+N）并校验实例令牌并统一管理子进程生命周期；用户要求运行、启动或预览应用时使用。 |
 
 ### 4.4 Matt Pocock 工程技能（20）
 

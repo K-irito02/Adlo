@@ -174,12 +174,12 @@ git -C "$WT" diff --stat "$OLD".."<new-branch>" -- \
 | `target/` | 每槽独立 | 禁止共享 `CARGO_TARGET_DIR`：共享后 exe 路径相同，dev 脚本（`killProcessesByName` 按绝对路径过滤）会跨槽互杀，且构建退化为串行 |
 | `node_modules/` | 每槽独立，pnpm store 全局共享 | lock 变了才重装 |
 | 运行数据 | dev 脚本按槽位派生 identifier（`com.ai-digital-life.app.<槽位目录名>`，可用 `ADL_INSTANCE_ID` 覆盖），数据根、WebView2 profile、locator、凭证回退目录、浏览器模式 ad-server 数据都随之隔离（`<worktree>/ai-digital-life/target/adl-instance/`） | 隔离只覆盖 `pnpm dev*` 入口；直接跑 `target/debug/*.exe` 或主工作树仍共 `%APPDATA%\com.ai-digital-life.app`；OS 密钥环条目按 service 名存系统凭据管理器，仍跨槽共享 |
-| 前端端口 | 每个工作树自动取**稳定端口**：主工作树 5173、`slot-N` → 5173+N；被占则顺延到下一个空闲端口。`ADL_PORT` / `PORT` 可显式覆盖，但**必须空闲**（占用即硬失败）。窗口只加载本工作树的 vite（`strictPort` + 实例令牌 `GET /__adl_dev_instance__` 校验）。`dev:tauri` / `dev:browser` / `dev:preview` 同一规则 | 无需手工固定端口；一个窗口"改了没变化"时先核对 `[adl-run] url=` 与本工作树的端口 |
+| 前端端口 | 每个工作树自动取**稳定端口**：主工作树 5173、`slot-N` → 5173+N；被占则顺延到下一个空闲端口。`ADL_PORT` / `PORT` 可显式覆盖，但**必须空闲**（占用即硬失败）。窗口只加载本工作树的 vite（`strictPort` + 实例令牌 `GET /__adl_dev_instance__` 校验）。`dev:tauri` / `dev:browser` / `dev:preview` 同一规则；裸 `pnpm frontend:dev` 不经过启动器，`strictPort` 下占用即失败（并行请走 `dev:browser`） | 无需手工固定端口；一个窗口"改了没变化"时先核对 `[adl-run] url=` 与本工作树的端口 |
 | 内置 Rust server | 绑定 `127.0.0.1:0` | 无固定端口冲突 |
 
 并行验证首选 `pnpm run dev:browser`；需要桌面实例时各槽可直接跑 `pnpm run dev:tauri`，启动行 `[adl-run] instance=…` 是该槽的数据根身份，`[adl-run] url=…` 是该槽的前端地址。多工作树同时跑桌面实例互不干扰（标识/数据根/WebView2 profile/端口全隔离）。
 
-**在 App 内嵌终端里启动另一个工作树**也是可以的：桌面应用进程刻意不带 `ADL_PORT`/`PORT`（那是 vite 的配置），启动器只注入 `ADL_DEV_SESSION=1` 标记；嵌套启动检测到该标记时会忽略从父会话继承来的端口/locator，重新为本工作树挑端口。因此不需要手工 `Remove-Item Env:ADL_PORT`。
+**在 App 内嵌终端里启动另一个工作树**也是可以的：桌面应用进程刻意不带 `ADL_PORT`/`PORT`/`ADL_DEV_TOKEN`（前两者是 vite 的配置，令牌只有 vite 需要），启动器启动前还会清理继承来的 `ADL_*` 并按本工作树重新注入端口与 locator。因此父实例的端口不会串进内嵌终端，无需手工 `Remove-Item Env:ADL_PORT`。
 
 ### 4.3 验证
 
@@ -271,7 +271,8 @@ git -C "$ROOT" worktree prune
 | `database is locked` / 配置被覆盖 | 第二个 Tauri 实例 | 关掉多余实例 | 删 AppData 里的 DB |
 | 端口被占用 | 他人 dev server | 未显式指定时启动器自动顺延；显式 `ADL_PORT` 被占则报错并按提示换端口 | 杀陌生进程 |
 | 改了代码但窗口毫无变化 | 端口串台：窗口的 devUrl 指向**另一个工作树**的 dev server（历史隐患：vite 静默顺延 + 裸 HTTP 探活被对方满足） | 核对 `[adl-run] url=` 与端口归属；现行 `strictPort` + 实例令牌已使其硬失败而非静默 | 重装依赖 / 怀疑 HMR |
-| 在 App 内嵌终端启动另一工作树报 `Port 5173 ... already in use` | 内嵌终端继承父实例注入的 `ADL_PORT`/`PORT`，被误当成本次显式指定端口 | 现行启动器识别 `ADL_DEV_SESSION=1` 后忽略继承端口并自动挑空闲；无需手工清 env | 手工 `Remove-Item Env:ADL_PORT` 当常规解法 |
+| 在 App 内嵌终端启动另一工作树报 `Port 5173 ... already in use` | 旧版启动器把 `ADL_PORT`/`PORT` 注入桌面应用进程，内嵌终端继承后被误当成本次显式指定端口 | 现行启动器不再给应用进程注入端口（并在启动前清理继承的 `ADL_*`）；用打了补丁的启动器重启父实例即可 | 手工 `Remove-Item Env:ADL_PORT` 当常规解法 |
+| 在同一工作树的内嵌终端里再跑 `dev:tauri`，宿主窗口消失 | 启动器按 exe 绝对路径清理锁文件的旧实例，同一槽位的新会话会 `taskkill` 掉正在托管该终端的父实例 | 确认在**目标工作树**目录下执行（跨槽不会互杀）；需要重启同槽实例时从外部终端操作 | 把"启动即闪退"当应用 bug |
 | 启动即被杀 | 同槽重复启动或共享 target | 确认唯一实例，检查 `CARGO_TARGET_DIR` | 反复重启 |
 | 构建产物消失 | 有人跑了全量 `cargo clean` | 重建，告知用户 | 改清理脚本 |
 | `could not create work tree dir` | 目标目录已存在 | `git worktree prune` 后确认归属 | `rm -rf` 未知目录 |
