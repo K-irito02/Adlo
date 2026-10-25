@@ -54,9 +54,6 @@ export function DocxPreview({
   const [error, setError] = useState<string | null>(null);
   const [unreadable, setUnreadable] = useState(false);
   const [rendering, setRendering] = useState(true);
-  // 渲染代次：同一路径文件被外部修改时组件不卸载，靠代次丢弃上一轮迟到的结果。
-  const generationRef = useRef(0);
-
   // 旧版格式判定与打开链路共用同一 helper（fileTypeRouter.isLegacyOfficeFile），
   // `.xls` 不在此列（SheetJS 可读 BIFF）。
   const legacy = useMemo(() => isLegacyOfficeFile(fileName), [fileName]);
@@ -67,8 +64,6 @@ export function DocxPreview({
       return undefined;
     }
     let cancelled = false;
-    const generation = generationRef.current + 1;
-    generationRef.current = generation;
     const el: HTMLElement = container;
 
     // 回看命中：直接复挂上次渲染结果（零解析、零扫光）。
@@ -107,14 +102,14 @@ export function DocxPreview({
           renderEndnotes: true,
           useBase64URL: true,
         });
-        if (!cancelled && generation === generationRef.current) {
+        if (!cancelled) {
           if (cacheKey) {
             docxHtmlCache.set(cacheKey, el.innerHTML);
           }
           setRendering(false);
         }
       } catch (err) {
-        if (!cancelled && generation === generationRef.current) {
+        if (!cancelled) {
           setRendering(false);
           const message = err instanceof Error ? err.message : String(err);
           // zip 解包失败（损坏/非文档/临时文件残留）：库原文是英文技术细节，

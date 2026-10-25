@@ -33,15 +33,14 @@
 /* ---------------- 内容区加载占位（整面扫光） ---------------- */
 /* 与变更面板点击变更文件时同一效果：单层 `.skeleton` 整面扫光
    （`@keyframes skeleton-shimmer`），不画多行骨架条、不显示“加载中…”文字。
-   组件侧只加形态修饰：plain / centered 撑满内容区，paper 走白纸面扫光。 */
+   组件侧只加形态修饰：plain 撑满内容区，paper 走白纸面扫光。 */
 .adl-preview-loading {
   box-sizing: border-box;
   border-radius: 0;
   min-height: 0;
 }
 
-.adl-preview-loading--plain,
-.adl-preview-loading--centered {
+.adl-preview-loading--plain {
   width: 100%;
   height: 100%;
 }

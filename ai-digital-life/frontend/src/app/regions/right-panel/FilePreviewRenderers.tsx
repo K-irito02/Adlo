@@ -282,7 +282,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
       <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
         {/* 读取阶段的分支会随 fileMedia 到达被整体替换，组件内的最短展示时长无法兑现；
             这里只做 150ms 延迟（秒开不闪），最短时长由常驻的 office 预览占位负责。 */}
-        <PreviewLoadingGate active variant="centered" minVisibleMs={0} />
+        <PreviewLoadingGate active variant="plain" minVisibleMs={0} />
       </PreviewSurface>
     );
   }

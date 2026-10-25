@@ -1,30 +1,16 @@
 /* ==========================================================================
    Empty State
    --------------------------------------------------------------------------
-   - Centered placeholder for empty content areas
-   - Muted text with optional title
-   ========================================================================== */
+   空态文字规范的唯一真源在 `regions/rightpanel/tree-shared.css` 的
+   `.adl-empty-hint`（--text-xs / --text-muted / 1.5 / 居中）。
 
-/* -------- Empty state -------- */
-/* 空态文字规范：唯一基线是 `tree-shared.css` 的 `.adl-empty-hint`
-   （字号 --text-xs、颜色 --text-muted、行高 1.5、水平居中）。
    已迁移：.adl-empty-hint / .adl-empty-row / .adl-bookmark-dir-empty /
-   .adl-notif-dropdown__empty / .adl-settings-allowlist__empty / .adl-xlsx-preview__empty。
-   例外：.adl-sortable-empty（拖放区，字号随 sortable 项）与 .adl-welcome__empty
-   （center 区欢迎空态，尚未迁移）。本文件的 `.empty-state` 是同一规范的历史镜像
-   （当前无调用方）。新增空态请复用上述四项；各面板只允许覆盖布局。 */
-.empty-state {
-  display: grid;
-  place-items: center;
-  gap: var(--space-3);
-  padding: var(--space-8) var(--space-6);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: 1.5;
-  text-align: center;
-}
+   .adl-notif-dropdown__empty / .adl-settings-allowlist__empty /
+   .adl-xlsx-preview__empty。
+   例外：.adl-sortable-empty（拖放区，字号随 sortable 项）、
+   .adl-welcome__empty（center 区欢迎空态，尚未迁移）。
+   新增空态请复用上述基线；各面板只允许覆盖布局，不得改字号/颜色/行高/居中。
 
-.empty-state__title {
-  color: var(--text-secondary);
-  font-weight: var(--font-semibold);
-}
+   历史上这里还有 `.empty-state` / `.empty-state__title` 两个类，
+   仅有 renderEmptyState（无调用方）会产出，已删除。
+   ========================================================================== */

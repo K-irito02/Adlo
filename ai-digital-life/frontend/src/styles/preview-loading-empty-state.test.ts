@@ -28,10 +28,6 @@ const composerCss = readFileSync(
   new URL('./regions/composer-popover.css', import.meta.url),
   'utf-8',
 );
-const emptyStateCss = readFileSync(
-  new URL('./components/empty-state.css', import.meta.url),
-  'utf-8',
-);
 const settingsCss = readFileSync(new URL('./components/settings.css', import.meta.url), 'utf-8');
 const browserTreeCss = readFileSync(
   new URL('./regions/rightpanel/browser-tree-entry.css', import.meta.url),
@@ -223,19 +219,10 @@ describe('空态文字统一规范', () => {
     expect(groups.some((body) => /text-align:\s*center/.test(body))).toBe(true);
   });
 
-  it('书签空态与 .empty-state 镜像使用同一规范', () => {
+  it('书签空态使用同一规范', () => {
     const bookmark = findRuleGroups(stripComments(composerCss), '.adl-bookmark-dir-empty');
     expect(
       bookmark.some(
-        (body) =>
-          /font-size:\s*var\(--text-xs\)/.test(body) &&
-          /line-height:\s*1\.5/.test(body) &&
-          /text-align:\s*center/.test(body),
-      ),
-    ).toBe(true);
-    const mirror = findRuleGroups(stripComments(emptyStateCss), '.empty-state');
-    expect(
-      mirror.some(
         (body) =>
           /font-size:\s*var\(--text-xs\)/.test(body) &&
           /line-height:\s*1\.5/.test(body) &&

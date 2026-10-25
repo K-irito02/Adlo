@@ -3,7 +3,7 @@ import { buildPreviewCacheKey, createLruCache } from './previewCache';
 
 describe('previewCache', () => {
   it('evicts the least recently used entry', () => {
-    const cache = createLruCache<number>(2);
+    const cache = createLruCache<number>({ limit: 2 });
     cache.set('a', 1);
     cache.set('b', 2);
     // 触碰 a → b 变成最久未使用

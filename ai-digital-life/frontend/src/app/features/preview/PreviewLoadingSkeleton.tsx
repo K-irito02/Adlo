@@ -4,11 +4,10 @@ import { useTCopy } from '@i18n/useTCopy';
 export interface PreviewLoadingSkeletonProps {
   /**
    * 形态修饰符：
-   * - `plain`：普通文档区（默认）
+   * - `plain`：普通文档区（默认，撑满内容区）
    * - `paper`：docx 纸面（白底纸面扫光，与 `.adl-docx-paper` 对齐）
-   * - `centered`：媒体/图片类居中等候
    */
-  variant?: 'plain' | 'paper' | 'centered';
+  variant?: 'plain' | 'paper';
   /** 绝对定位覆盖整个预览根（office 预览用：铺满内容区，不受内层滚动容器内距影响） */
   overlay?: boolean;
   className?: string;

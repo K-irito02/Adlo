@@ -395,10 +395,15 @@ function createMdInstance(starryEnabled: boolean): MarkdownIt {
   return md;
 }
 
+/** frontmatter 卡片 + 正文渲染：两个入口共用，避免契约分叉。 */
+function renderWithFrontmatter(md: MarkdownIt, content: string): string {
+  const { entries, body, lineOffset } = splitFrontmatter(content);
+  return `${renderFrontmatterCard(entries, lineOffset)}${md.render(body, { lineOffset })}`;
+}
+
 /** 同步渲染（回退纯文本代码块）：测试与首屏用，不等待 starry-night WASM。 */
 export function renderMarkdownPreviewHtml(content: string): string {
-  const { entries, body, lineOffset } = splitFrontmatter(content);
-  return `${renderFrontmatterCard(entries, lineOffset)}${createMdInstance(false).render(body, { lineOffset })}`;
+  return renderWithFrontmatter(createMdInstance(false), content);
 }
 
 /**
@@ -416,8 +421,5 @@ export function useMarkdownPreviewHtml(content: string): string {
     return unsubscribe;
   }, []);
   const md = useMemo(() => createMdInstance(starryTick > 0), [starryTick]);
-  return useMemo(() => {
-    const { entries, body, lineOffset } = splitFrontmatter(content);
-    return `${renderFrontmatterCard(entries, lineOffset)}${md.render(body, { lineOffset })}`;
-  }, [content, md]);
+  return useMemo(() => renderWithFrontmatter(md, content), [content, md]);
 }

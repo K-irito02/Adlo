@@ -204,13 +204,7 @@ export function PdfPreview({ data, theme = 'dark', cacheKey, gateStartedAt }: Pd
   // numPages 在依赖中——解析完成 setNumPages 后重跑，正好补上首屏第一帧。
   useEffect(() => {
     const entry = docRef.current;
-    if (
-      !entry ||
-      entry.generation !== docGeneration ||
-      entry.source !== data ||
-      numPages === 0 ||
-      currentPage > numPages
-    ) {
+    if (!entry || entry.generation !== docGeneration || entry.source !== data || numPages === 0) {
       return undefined;
     }
     let cancelled = false;

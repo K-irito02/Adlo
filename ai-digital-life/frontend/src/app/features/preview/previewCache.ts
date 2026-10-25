@@ -14,7 +14,6 @@
 export interface LruCache<T> {
   get(key: string): T | undefined;
   set(key: string, value: T): void;
-  clear(): void;
   readonly size: number;
 }
 
@@ -34,8 +33,8 @@ interface Entry<T> {
   weight: number;
 }
 
-export function createLruCache<T>(options: number | LruCacheOptions<T>): LruCache<T> {
-  const config: LruCacheOptions<T> = typeof options === 'number' ? { limit: options } : options;
+export function createLruCache<T>(options: LruCacheOptions<T>): LruCache<T> {
+  const config: LruCacheOptions<T> = options;
   const limit = Number.isFinite(config.limit) ? Math.max(0, Math.trunc(config.limit)) : 0;
   const maxWeight =
     config.maxWeight !== undefined && Number.isFinite(config.maxWeight)
@@ -88,13 +87,6 @@ export function createLruCache<T>(options: number | LruCacheOptions<T>): LruCach
       map.set(key, { value, weight });
       totalWeight += weight;
       trim();
-    },
-    clear(): void {
-      for (const [key, entry] of [...map.entries()]) {
-        evict(key, entry);
-      }
-      map.clear();
-      totalWeight = 0;
     },
     get size(): number {
       return map.size;
