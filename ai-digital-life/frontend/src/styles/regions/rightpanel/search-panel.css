@@ -83,12 +83,6 @@
   gap: var(--space-1);
 }
 
-/* 结果区空态只覆盖布局留白；字号/颜色/居中由 `.adl-empty-hint` 唯一基线决定
-   （tree-shared.css），此处不得再重复声明，避免两处口径漂移。 */
-.adl-search-panel .adl-empty-hint {
-  padding: var(--space-4) var(--space-2);
-}
-
 /* 加载态：纵向布局（动画上、文字下），在结果区居中 */
 .adl-search-loading {
   display: flex;

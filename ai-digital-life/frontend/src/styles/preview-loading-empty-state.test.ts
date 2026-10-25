@@ -189,10 +189,7 @@ describe('空态文字统一规范', () => {
         expect(body).not.toMatch(/font-size|line-height|text-align|color:/);
       }
     }
-    // 三个面板都至少有一条覆盖（避免“没读到”导致空断言通过）
-    expect(findRuleGroups(stripComments(searchPanelCss), '.adl-empty-hint').length).toBeGreaterThan(
-      0,
-    );
+    // 确认读到了真实规则（避免空断言通过）；search-panel 已无覆盖，允许为 0。
     expect(
       findRuleGroups(stripComments(searchSettingsCss), '.adl-empty-hint').length,
     ).toBeGreaterThan(0);

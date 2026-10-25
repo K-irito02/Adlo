@@ -256,23 +256,6 @@ export function renderBanner(options: BannerOptions): RawHtml {
   );
 }
 
-export interface EmptyStateOptions {
-  icon?: IconName;
-  title: Renderable;
-  description?: Renderable;
-  action?: Renderable;
-}
-
-export function renderEmptyState(options: EmptyStateOptions): RawHtml {
-  const { icon = 'info', title, description, action } = options;
-  return html`<div class="empty-state">
-    ${renderIcon(icon, { size: 'xl', decorative: true })}
-    <p class="empty-state__title">${title}</p>
-    ${description ? html`<p class="text-muted text-sm">${description}</p>` : raw('')}
-    ${action ?? raw('')}
-  </div>`;
-}
-
 export interface NavItemOptions {
   href?: string;
   icon: IconName;

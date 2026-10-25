@@ -24,7 +24,7 @@ export interface LruCacheOptions<T> {
   weigh?: (value: T) => number;
   /** 总权重上限；超出时按 LRU 淘汰 */
   maxWeight?: number;
-  /** 条目被淘汰/清空时的回调（如释放 pdf.js 文档） */
+  /** 条目被淘汰时的回调（如释放 pdf.js 文档） */
   onEvict?: (value: T) => void;
 }
 
@@ -33,8 +33,7 @@ interface Entry<T> {
   weight: number;
 }
 
-export function createLruCache<T>(options: LruCacheOptions<T>): LruCache<T> {
-  const config: LruCacheOptions<T> = options;
+export function createLruCache<T>(config: LruCacheOptions<T>): LruCache<T> {
   const limit = Number.isFinite(config.limit) ? Math.max(0, Math.trunc(config.limit)) : 0;
   const maxWeight =
     config.maxWeight !== undefined && Number.isFinite(config.maxWeight)

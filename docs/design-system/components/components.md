@@ -112,14 +112,12 @@ Banners render with `role="status"` and `aria-live`, and reserve their vertical 
 
 ## Empty state
 
-```ts
-renderEmptyState({
-  icon: "search",
-  title: "No retrieval yet",
-  description: "Start indexing to generate the repo map (available in logs / retrieval snapshot).",
-  action: renderButton({ label: "Start", icon: "play" })
-});
-```
+Empty states are rendered with the shared classes in
+`frontend/src/styles/regions/rightpanel/tree-shared.css` (`.adl-empty-hint`) or the
+`EmptyRow` component for list/tree rows. Both use one typography baseline
+(`--text-xs` / `--text-muted` / line-height 1.5 / centered); panels may override layout
+only. `.adl-sortable-empty` (drop zone) and `.adl-welcome__empty` (center welcome) are the
+documented exceptions.
 
 ## Navigation item
 
@@ -358,7 +356,7 @@ Right-click menus (`.adl-sidebar-menu`, `.adl-multitree-entry__menu`) share four
 | ---------------- | ------- | ----- | ----- | ------ | -------- | ------- | ------------------------- |
 | Button           | ✅       | ✅     | ✅     | ✅      | ✅        | ✅       | n/a                       |
 | Input / Textarea | ✅       | ✅     | ✅     | n/a    | n/a      | n/a     | n/a                       |
-| Card             | ✅       | n/a   | n/a   | n/a    | n/a      | n/a     | use `renderEmptyState`    |
+| Card             | ✅       | n/a   | n/a   | n/a    | n/a      | n/a     | use `.adl-empty-hint` / `EmptyRow`    |
 | Pill             | ✅       | n/a   | n/a   | n/a    | n/a      | n/a     | n/a                       |
 | Nav item         | ✅       | ✅     | ✅     | n/a    | n/a      | n/a     | n/a                       |
 | Segmented        | ✅       | ✅     | ✅     | n/a    | n/a      | n/a     | n/a                       |

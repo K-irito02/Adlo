@@ -36,7 +36,6 @@ export {
   renderSegmentedControl,
   renderCard,
   renderBanner,
-  renderEmptyState,
   renderNavItem,
   renderStatTile,
   type ButtonOptions,
@@ -48,7 +47,6 @@ export {
   type SegmentedControlOption,
   type CardOptions,
   type BannerOptions,
-  type EmptyStateOptions,
   type NavItemOptions,
   type StatTileOptions,
 } from './components';
