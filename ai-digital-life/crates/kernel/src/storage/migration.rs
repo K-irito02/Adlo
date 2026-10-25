@@ -78,10 +78,14 @@ pub fn scan_foreign(paths: &StoragePaths) -> Vec<ForeignScan> {
         ) {
             continue;
         }
-        // 自有判定覆盖基目录下**全部**文件（`owns_file` 对这两类只要求 rel 非空），
-        // 全树遍历不可能产出外部文件 → 直接跳过。`dsh-versions` 是六万级文件的目录，
-        // 这次无意义遍历曾占 getStatus 单次耗时的大头（见 `walk_files_status` 文档）。
-        if matches!(category, StorageCategory::Config | StorageCategory::Dsh) {
+        // 该分类除"非 UTF-8 文件名"这类 `owns_file` 无法判定的边角外，覆盖基目录下**全部**文件
+        // → 全树遍历不会产出外部文件，直接跳过。
+        // 判定单一来源在 `whitelist::owns_entire_tree`（与 `owns_file` 同文件维护，防止漂移）。
+        // 边角例外：基目录下文件名非合法 UTF-8 时 `parts()` 为空会使 `owns_file` 判否——
+        // 这类文件旧实现本就会被误报为"外部文件"，跳过更接近事实（display-only，可接受）。
+        // `dsh-versions` 是六万级文件的目录，这次无意义遍历曾占 getStatus 单次耗时的大头
+        // （见 `collect_status_files` 文档）。
+        if super::whitelist::owns_entire_tree(category) {
             continue;
         }
         for root in super::whitelist::category_roots(category, paths) {
@@ -89,8 +93,8 @@ pub fn scan_foreign(paths: &StoragePaths) -> Vec<ForeignScan> {
                 continue;
             }
             // 状态查询用有界且廉价的遍历：超大目录即停，且不承担 canonicalize/symlink_metadata
-            // 的开销（见 `walk_files_status`），避免 getStatus 卡死。
-            let foreign: Vec<String> = walk_files_status(&root, WalkLimits::status())
+            // 的开销（见 `collect_status_files`），避免 getStatus 卡死。
+            let foreign: Vec<String> = collect_status_files(&root, WalkLimits::status())
                 .0
                 .into_iter()
                 .filter(|f| !owns_file(category, &root, f))
@@ -212,12 +216,13 @@ impl WalkLimits {
 
 /// 有界收集目录下所有普通文件。
 ///
-/// 跳过符号链接与挂载点（Windows directory junction 的 `file_type()` 是 dir，
-/// 必须用 `is_symlink()`（`symlink_metadata`）判定）。循环保证来自 canonical
-/// 化目录路径的 visited 去重集合 + `max_depth` 深度上限（`is_symlink` 跳过只是
-/// 尽早剪枝，不单独构成循环保证）。
+/// 跳过符号链接与挂载点（Windows junction / 符号链接统一用 `path.is_symlink()`
+/// 判定，底层是 `symlink_metadata`）。循环保证来自 canonical 化目录路径的 visited
+/// 去重集合 + `max_depth` 深度上限（`is_symlink` 跳过只是尽早剪枝，不单独构成循环保证）。
 /// 返回 (文件列表, 是否因超预算/深度被截断)。
 /// 截断时经 `tracing::warn!` 记录根路径，调用方无需重复处理。
+///
+/// 展示型统计请用 `collect_status_files`（同一口径、但不需要每目录 canonicalize；私有函数不做 intra-doc 链接）。
 pub fn walk_files(root: &Path, limits: WalkLimits) -> (Vec<PathBuf>, bool) {
     use std::collections::HashSet;
     let mut out = Vec::new();
@@ -277,47 +282,57 @@ pub fn walk_files(root: &Path, limits: WalkLimits) -> (Vec<PathBuf>, bool) {
         }
     }
     if truncated {
-        // H1：超预算截断必须可见。集中在此处告警，覆盖全部调用方（scan_foreign /
-        // dir_usage_limited / 迁移路径），调用方无需重复处理 flag，DTO 不变。
+        // H1：超预算截断必须可见。集中在此处告警，调用方无需重复处理 flag，DTO 不变。
+        // 覆盖迁移链（`collect_files` 等）；状态查询走 `visit_status_files`，有独立告警。
         tracing::warn!(root = %root.display(), "walk_files truncated: tree exceeds limits, results are partial");
     }
     (out, truncated)
 }
 
-/// 状态查询专用遍历：口径与 [`walk_files`] 相同（跳过重解析点、收集普通文件），但**不做**
-/// per-entry `symlink_metadata` 与 per-directory `canonicalize`。
+/// 状态查询专用遍历：口径与 [`walk_files`] 相同（跳过符号链接/junction、收集普通文件），
+/// 但 Windows 上**不做** per-entry `symlink_metadata`；Unix 上仍是一次 `lstat`
+/// （`DirEntry::metadata`），且两端都不做 per-directory `canonicalize`。
 ///
-/// 为什么必须单独一份（实测 2026-10-25，63,647 文件的 `dsh-versions` 数据根）：
-/// `walk_files` 的循环保护依赖逐条 `is_symlink()`（≈21.8 s）与逐目录 `canonicalize()`
-/// （≈3.55 s），整树单遍 ≈41.5 s；本模块改用目录枚举自带的元数据判定重解析点并累加尺寸，
-/// 同一棵树 ≈1.9 s。
+/// 为什么必须单独一份（本机 2026-10-25 实测，63,647 文件的 `dsh-versions` 数据根；绝对值随机器变化，
+/// 这里只用来看量级）：`walk_files` 的循环保护依赖逐条 `path.is_symlink()`（每次一次
+/// `symlink_metadata` 系统调用，≈21.8 s）与逐目录 `canonicalize()`（≈3.55 s），
+/// 再加上目录枚举与 `PathBuf` 分配的开销，整树单遍合计 ≈41.5 s；
+/// 本模块改用目录枚举自带的 `DirEntry::file_type()` 判定链接、用 `DirEntry::metadata()` 取尺寸，
+/// 同一棵树 ≈1.9 s。Windows 上 `file_type()`/`metadata()` 均由目录枚举结果带回（无额外系统调用）；
+/// Unix 上 `DirEntry::metadata()` 仍是一次 `lstat`（轻于 `symlink_metadata` + 逐目录 `canonicalize`）。
 ///
-/// 循环保护 = 跳过重解析点 + `max_depth` 上限。注意：这些函数只服务**展示型**统计
-/// （占用展示、外部文件提示），输出不参与复制/删除决策（那些走 [`collect_files`]），
-/// 因此不需要 canonical 路径去重即可保证终止。
-fn walk_files_status(root: &Path, limits: WalkLimits) -> (Vec<PathBuf>, bool) {
+/// 链接判定与 [`walk_files`] 的 `path.is_symlink()` **等价**（实测当前工具链：junction 与
+/// 文件符号链接的 `DirEntry::file_type().is_symlink()` 均为 true，普通条目为 false）。
+/// 刻意不使用 `FILE_ATTRIBUTE_REPARSE_POINT` 位：那是超集，会把 OneDrive 占位/去重文件也排除，
+/// 与迁移/预检口径分裂（那些文件在迁移链路里按普通文件计数）。
+///
+/// 循环保护 = 跳过符号链接/junction + `max_depth` 上限。其它 reparse 条目（云占位/去重等）
+/// 不是目录重定向，按普通条目继续统计不会成环；万一遇到非 name-surrogate 的目录重定向，
+/// `max_depth=64` 兜底终止。注意：这些函数只服务**展示型**统计（占用展示、外部文件提示），
+/// 输出不参与复制/删除决策（那些走 [`collect_files`]），因此不需要 canonical 路径去重。
+fn collect_status_files(root: &Path, limits: WalkLimits) -> (Vec<PathBuf>, bool) {
     let mut out = Vec::new();
-    let truncated = walk_status_files(root, limits, |path, _| out.push(path.to_path_buf()));
+    let truncated = visit_status_files(root, limits, |path, _| out.push(path.to_path_buf()));
     (out, truncated)
 }
 
 /// 状态查询用目录占用：一次遍历内用目录枚举自带的元数据累加尺寸/数量。
 ///
 /// 不再对每个路径二次 `std::fs::metadata`：实测每条路径 ≈0.33 ms（六万文件 ≈21 s），
-/// 而 `DirEntry` 的元数据在 Windows 上由目录枚举带回，无额外系统调用。
+/// 而 `DirEntry::metadata()` 在 Windows 上由目录枚举带回，无额外系统调用。
 fn dir_usage_status(root: &Path) -> (u64, u64) {
     let mut bytes = 0u64;
     let mut files = 0u64;
-    walk_status_files(root, WalkLimits::status(), |_, meta| {
+    visit_status_files(root, WalkLimits::status(), |_, meta| {
         bytes += meta.len();
         files += 1;
     });
     (bytes, files)
 }
 
-/// 状态查询递归核心：跳过重解析点，按预算遍历，对每个普通文件回调 `on_file(路径, 元数据)`。
-/// 返回是否因预算/深度被截断。
-fn walk_status_files<F>(root: &Path, limits: WalkLimits, mut on_file: F) -> bool
+/// 状态查询递归核心：跳过符号链接/junction，按预算遍历，对每个普通文件回调
+/// `on_file(路径, 元数据)`。返回是否因预算/深度被截断。
+fn visit_status_files<F>(root: &Path, limits: WalkLimits, mut on_file: F) -> bool
 where
     F: FnMut(&Path, &std::fs::Metadata),
 {
@@ -336,20 +351,20 @@ where
             Err(_) => continue,
         };
         for entry in entries.flatten() {
-            let meta = match entry_is_reparse_point(&entry) {
-                true => continue,
-                false => match entry.metadata() {
-                    Ok(m) => m,
-                    Err(_) => continue,
-                },
-            };
-            if meta.is_dir() {
+            // `file_type` 取不到（删除竞态/权限）时保守跳过该条目。
+            let Ok(file_type) = entry.file_type() else { continue };
+            if file_type.is_symlink() {
+                // 符号链接 / junction / 卷挂载点：状态统计不跟随（与迁移口径一致）。
+                continue;
+            }
+            if file_type.is_dir() {
                 if depth + 1 > limits.max_depth {
                     truncated = true;
                     continue;
                 }
                 stack.push((entry.path(), depth + 1));
-            } else if meta.is_file() {
+            } else if file_type.is_file() {
+                let Ok(meta) = entry.metadata() else { continue };
                 if let Some(max) = limits.max_files {
                     if collected >= max {
                         truncated = true;
@@ -362,29 +377,9 @@ where
         }
     }
     if truncated {
-        tracing::warn!(root = %root.display(), "walk_files_status truncated: tree exceeds limits, results are partial");
+        tracing::warn!(root = %root.display(), "status walk truncated: tree exceeds limits, results are partial");
     }
     truncated
-}
-
-/// 条目是否为重解析点（符号链接 / junction / 卷挂载点）。
-///
-/// Windows 用 `DirEntry::metadata()` 的原始文件属性（目录枚举即已带回，无额外系统调用）；
-/// 其它平台退回 `file_type().is_symlink()`。取不到元数据时保守视为重解析点（不深入）。
-fn entry_is_reparse_point(entry: &std::fs::DirEntry) -> bool {
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
-        entry
-            .metadata()
-            .map(|m| m.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0)
-            .unwrap_or(true)
-    }
-    #[cfg(not(windows))]
-    {
-        entry.file_type().map(|t| t.is_symlink()).unwrap_or(true)
-    }
 }
 
 /// 有界目录占用统计（状态查询用）。超预算即停，返回部分统计。
@@ -1660,11 +1655,11 @@ mod tests {
 
     /// 状态查询走专用廉价遍历，文件集合必须与迁移遍历口径一致。
     #[test]
-    fn walk_files_status_matches_walk_files_file_set() {
+    fn collect_status_files_matches_walk_files_file_set() {
         let base = temp_base("status-walk-match");
         write(&base.join("a/b/c.txt"), b"12345");
         write(&base.join("d.txt"), b"12");
-        let mut fast = walk_files_status(&base, WalkLimits::status()).0;
+        let mut fast = collect_status_files(&base, WalkLimits::status()).0;
         let mut slow = walk_files(&base, WalkLimits::status()).0;
         fast.sort();
         slow.sort();
@@ -1672,9 +1667,9 @@ mod tests {
         let _ = std::fs::remove_dir_all(&base);
     }
 
-    /// 状态查询遍历同样不跟随重解析点（链接目标不得计入占用/外部文件）。
+    /// 状态查询遍历不跟随符号链接与 junction（链接目标不得计入占用/外部文件）。
     #[test]
-    fn walk_files_status_skips_links() {
+    fn collect_status_files_skips_links() {
         let base = temp_base("status-walk-link");
         write(&base.join("real.txt"), b"x");
         write(&base.join("outside/target.txt"), b"x");
@@ -1684,14 +1679,40 @@ mod tests {
         #[cfg(not(windows))]
         let link_ok =
             std::os::unix::fs::symlink(base.join("outside"), base.join("link-dir")).is_ok();
-        let (files, _) = walk_files_status(&base, WalkLimits::status());
+        // Windows junction：`file_type().is_symlink()` 对它与符号链接同判（2026-10-25 探针实证），
+        // 这里显式构造一个，防止将来退回"只看符号链接"的实现。
+        #[cfg(windows)]
+        let junction_ok = std::process::Command::new("cmd")
+            .args([
+                "/C",
+                "mklink",
+                "/J",
+                &base.join("junction-dir").to_string_lossy(),
+                &base.join("outside").to_string_lossy(),
+            ])
+            .output()
+            .map(|out| out.status.success())
+            .unwrap_or(false);
+        let (files, _) = collect_status_files(&base, WalkLimits::status());
         assert!(files.iter().any(|f| f.ends_with("target.txt")));
         if link_ok {
             assert!(
                 !files.iter().any(|f| f.to_string_lossy().contains("link-dir")),
-                "reparse points must not be traversed by the status walk"
+                "symlinks must not be traversed by the status walk"
             );
         }
+        #[cfg(windows)]
+        if junction_ok {
+            assert!(
+                !files.iter().any(|f| f.to_string_lossy().contains("junction-dir")),
+                "junctions must not be traversed by the status walk"
+            );
+        }
+        #[cfg(windows)]
+        assert!(
+            junction_ok,
+            "junction creation failed (mklink /J); junction coverage would silently vanish"
+        );
         let _ = std::fs::remove_dir_all(&base);
     }
 
@@ -1706,6 +1727,38 @@ mod tests {
         let paths = paths_for(&StorageSelection::default(), &root.to_string_lossy());
         let scans = scan_foreign(&paths);
         assert!(scans.is_empty(), "fully owned bases can never report foreign files: {scans:?}");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// 反向锁定：未整树自有的分类（clipboard）仍必须报出外部文件——
+    /// 防止「跳过列表写宽了」把唯一的迁移提示静默吃掉（审查 M2）。
+    #[test]
+    fn scan_foreign_still_reports_non_owned_files_for_partial_categories() {
+        let base = temp_base("scan-partial");
+        let root = base.join("data");
+        write(&root.join("clipboard/images/a.png"), b"x");
+        write(&root.join("clipboard/user-note.txt"), b"x");
+        // 同一棵树下放一个整树自有分类的文件，确认它不混进结果。
+        write(&root.join("config/config.json"), b"x");
+        let paths = paths_for(&StorageSelection::default(), &root.to_string_lossy());
+        let scans = scan_foreign(&paths);
+        let clipboard = scans
+            .iter()
+            .find(|s| s.category == StorageCategory::Clipboard)
+            .expect("clipboard must report its non-owned file");
+        assert!(
+            clipboard.foreign_files.iter().any(|f| f.ends_with("user-note.txt")),
+            "non-owned clipboard file must be reported: {:?}",
+            clipboard.foreign_files
+        );
+        assert!(
+            !clipboard.foreign_files.iter().any(|f| f.ends_with("a.png")),
+            "owned clipboard image must not be reported"
+        );
+        assert!(
+            scans.iter().all(|s| s.category != StorageCategory::Config),
+            "fully-owned config must stay skipped"
+        );
         let _ = std::fs::remove_dir_all(&base);
     }
 }

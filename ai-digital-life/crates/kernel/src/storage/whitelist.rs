@@ -65,6 +65,16 @@ pub fn owns_file(category: StorageCategory, base: &Path, path: &Path) -> bool {
     }
 }
 
+/// 该分类的自有判定是否覆盖「基目录下任意深度的全部文件」（除 `owns_file` 无法判定的边角，
+/// 例如非 UTF-8 文件名；这些边角在旧实现里本就被误报为外部文件，跳过更接近事实）。
+///
+/// 与 [`owns_file`] 必须**同文件维护**：`scan_foreign` 依赖本函数跳过整树自有的分类
+/// （`dsh-versions` 六万级文件，遍历纯属浪费）。若将来收紧对应 `owns_file` 分支，
+/// 必须同步撤销这里的 true，否则外部文件提示会静默漏报。
+pub fn owns_entire_tree(category: StorageCategory) -> bool {
+    matches!(category, StorageCategory::Config | StorageCategory::Dsh)
+}
+
 /// 判断 `dir` 是否是该分类允许的**自有目录**（用于清理时能否 `remove_dir`）。
 pub fn is_own_dir(category: StorageCategory, base: &Path, dir: &Path) -> bool {
     let rel: Vec<String> = match dir.strip_prefix(base) {
@@ -281,6 +291,43 @@ mod tests {
             &p.downloads_default_dir,
             Path::new("/dl")
         ));
+    }
+
+    #[test]
+    fn owns_entire_tree_covers_exactly_the_always_owned_categories() {
+        // 与 `owns_file` 的 `!rel.is_empty()` 分支同步：这两类基目录下任意深度的文件都归自有。
+        for category in [StorageCategory::Config, StorageCategory::Dsh] {
+            assert!(owns_entire_tree(category), "{category:?} must own its whole tree");
+        }
+        for category in StorageCategory::ALL {
+            if matches!(category, StorageCategory::Config | StorageCategory::Dsh) {
+                continue;
+            }
+            assert!(
+                !owns_entire_tree(category),
+                "{category:?} must not be treated as owning its whole tree"
+            );
+        }
+    }
+
+    /// 漂移防护：`owns_entire_tree` 必须与 `owns_file(该分类根下的直接文件)` 的结论一致。
+    /// 若将来收紧 `owns_file(Config)`（例如只认 `*.json`），本用例会先失败，
+    /// 而不是让 `scan_foreign` 静默漏报外部文件。
+    #[test]
+    fn owns_entire_tree_agrees_with_owns_file_for_direct_children() {
+        let p = default_paths();
+        for category in StorageCategory::ALL {
+            let Some(base) = category_roots(category, &p).into_iter().next() else {
+                // DownloadsDefault 没有任何扫描根（不拥有任何文件），与整树自有无关。
+                continue;
+            };
+            let probe = base.join("probe.txt");
+            assert_eq!(
+                owns_entire_tree(category),
+                owns_file(category, &base, &probe),
+                "{category:?}: owns_entire_tree must match owns_file for a direct child"
+            );
+        }
     }
 
     #[test]
