@@ -2,7 +2,7 @@ export const menuZh = {
   menuFile: '文件',
   menuView: '视图',
   menuHelp: '帮助',
-  menuNewWorkspace: '新建工作空间',
+  menuNewWorkspace: '新建工作区',
   menuOpenFolder: '打开文件夹',
   menuNewTerminal: '新建终端',
   menuOpenFilePanel: '打开 · 文件面板',

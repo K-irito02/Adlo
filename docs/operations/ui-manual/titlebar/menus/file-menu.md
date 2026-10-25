@@ -6,8 +6,8 @@
 
 | 菜单项 | 快捷键 | 说明 | 文档链接 |
 |--------|--------|------|----------|
-| 新建工作空间 | `Ctrl+N` | 创建新的工作空间 | [新建工作空间](#新建工作空间) |
-| 打开文件夹 | `Ctrl+O` | 打开现有文件夹作为工作空间 | [打开文件夹](#打开文件夹) |
+| 新建工作区 | `Ctrl+N` | 创建新的工作区 | [新建工作区](#新建工作区) |
+| 打开文件夹 | `Ctrl+O` | 打开现有文件夹作为工作区 | [打开文件夹](#打开文件夹) |
 | ────────── | - | 分隔线 | - |
 | 退出 | `Alt+F4`（macOS `⌘Q`） | 关闭应用 | [退出](#退出) |
 
@@ -20,11 +20,11 @@
 
 ## 操作详情
 
-### 新建工作空间
+### 新建工作区
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-hamburger__item` (包含 "新建工作空间" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "新建工作区" 文本) |
 | 快捷键 | `Ctrl+N` |
 
 #### 前置条件
@@ -37,7 +37,7 @@
 // 方式1：通过菜单
 await page.click('.adl-hamburger__trigger');
 await page.waitForSelector('.adl-hamburger__dropdown');
-await page.click('.adl-hamburger__item:has-text("新建工作空间")');
+await page.click('.adl-hamburger__item:has-text("新建工作区")');
 
 // 方式2：通过快捷键
 await page.keyboard.down('Control');
@@ -52,13 +52,13 @@ await page.keyboard.up('Control');
 
 #### 预期结果
 
-- 如果选择了有效路径，创建新工作空间并打开
-- 右面板 multi-tree（`.adl-multitree`）显示新工作空间
+- 如果选择了有效路径，创建新工作区并打开
+- 右面板 multi-tree（`.adl-multitree`）显示新工作区
 
 #### 等待条件
 
 ```javascript
-// 等待工作空间创建
+// 等待工作区创建
 await page.waitForSelector('.adl-multitree');
 ```
 
@@ -95,14 +95,14 @@ await page.keyboard.up('Control');
 
 #### 预期结果
 
-- 选择文件夹后，打开该文件夹作为工作空间
-- 右面板 multi-tree（`.adl-multitree`）显示工作空间
+- 选择文件夹后，打开该文件夹作为工作区
+- 右面板 multi-tree（`.adl-multitree`）显示工作区
 - 右侧面板加载文件树
 
 #### 等待条件
 
 ```javascript
-// 等待工作空间加载
+// 等待工作区加载
 await page.waitForSelector('.adl-multitree');
 // 等待文件树加载
 await page.waitForSelector('.adl-multitree .adl-filetree__row');

@@ -61,7 +61,7 @@ a[aria-label="帮助"]
 
 ```css
 /* 菜单项 */
-[role="menuitem"][aria-label="新建工作空间"]
+[role="menuitem"][aria-label="新建工作区"]
 
 /* 标签页 */
 [role="tab"][aria-selected="true"]
