@@ -23,9 +23,11 @@ function normalizePath(p) {
   }
 }
 
-const isMain = Boolean(process.argv[1]) && (process.platform === "win32"
-  ? normalizePath(process.argv[1]).toLowerCase() === normalizePath(__filename).toLowerCase()
-  : normalizePath(process.argv[1]) === normalizePath(__filename));
+const isMain =
+  Boolean(process.argv[1]) &&
+  (process.platform === "win32"
+    ? normalizePath(process.argv[1]).toLowerCase() === normalizePath(__filename).toLowerCase()
+    : normalizePath(process.argv[1]) === normalizePath(__filename));
 
 const modeArg = (process.argv[2] ?? "tauri").toLowerCase();
 const modeAliases = {
@@ -91,7 +93,7 @@ async function main() {
     delete process.env.ADL_STORAGE_LOCATOR_PATH;
   }
 
-  console.log(`[adl-run] mode=${mode} url=${devUrl}`);
+  console.log(`[adl-run] mode=${mode} url=${devUrl} token=${devToken.slice(0, 8)}`);
   console.log(
     `[adl-run] instance=${instance.identifier}` +
       (instance.locatorPath ? ` locator=${instance.locatorPath}` : " (shared data root)"),
@@ -119,7 +121,9 @@ async function main() {
   if (Object.keys(logFlags.env).length > 0) {
     // "已转发"而非"已生效"（Closing L1）：取值合法性由 Rust 侧统一校验，
     // 非法值随后会被 `[ADL-CLI] ignoring invalid …` 忽略，此处不断言生效。
-    console.log(`[adl-run] log overrides forwarded: ${JSON.stringify(logFlags.env)} (session-only)`);
+    console.log(
+      `[adl-run] log overrides forwarded: ${JSON.stringify(logFlags.env)} (session-only)`,
+    );
   }
 
   const vite = spawnChecked(
@@ -146,7 +150,9 @@ async function main() {
   // only processes running that exact exe path (a separate release/installed build is
   // left untouched). Unix linkers replace the binary via rename, so no lock exists there.
   if (process.platform === "win32" && isExeLocked(appDevExePath)) {
-    console.warn(`[adl-run] existing dev instance detected -- force-terminating it to release the build lock`);
+    console.warn(
+      `[adl-run] existing dev instance detected -- force-terminating it to release the build lock`,
+    );
     await killProcessesByName(appImageName, appDevExePath);
     if (!(await waitForUnlock(appDevExePath))) {
       console.warn(
@@ -172,11 +178,7 @@ async function main() {
   delete appEnv.PORT;
   delete appEnv.ADL_DEV_TOKEN;
 
-  const tauri = spawnChecked(
-    cargoCommand,
-    ["tauri", "dev", "--config", tauriConfig],
-    appEnv,
-  );
+  const tauri = spawnChecked(cargoCommand, ["tauri", "dev", "--config", tauriConfig], appEnv);
   children.push(tauri);
 
   if (mode === "both") {

@@ -55,7 +55,8 @@ function nextValue(args, index) {
 export function portFromArgs(args) {
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
-    const raw = arg === "--port" ? nextValue(args, i) : arg.startsWith("--port=") ? arg.slice(7) : null;
+    const raw =
+      arg === "--port" ? nextValue(args, i) : arg.startsWith("--port=") ? arg.slice(7) : null;
     if (raw === null || raw === undefined) {
       continue;
     }
@@ -185,7 +186,12 @@ export async function findOpenPort(hostname, startPort) {
  * - `bindHost` 用于 vite `--host` 与子进程 env；`host` 是可达地址（通配/空回落到回环），
  *   用于探测、`devUrl`、令牌抓取。
  */
-export async function resolveDevPort({ args, suffix, env = process.env, fallbackHost = "127.0.0.1" }) {
+export async function resolveDevPort({
+  args,
+  suffix,
+  env = process.env,
+  fallbackHost = "127.0.0.1",
+}) {
   if (hasPortFlag(args) && portFromArgs(args) === undefined) {
     throw new Error("Invalid --port: expected a number in 1..65535.");
   }

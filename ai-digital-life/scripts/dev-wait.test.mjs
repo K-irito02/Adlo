@@ -23,7 +23,6 @@ test("resolves once the served token matches ours", async () => {
     },
     sleep: noSleep,
   });
-
 });
 
 test("rejects a different dev server on the same port", async () => {
