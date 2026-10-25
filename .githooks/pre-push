@@ -7,6 +7,9 @@ set -e
 # Runs from the implementation workspace root; fast + no external services.
 ROOT="$(git rev-parse --show-toplevel)"
 ( cd "$ROOT/ai-digital-life" && node --test "scripts/*.test.mjs" )
+# Dev tooling syntax + formatting (these files sit outside eslint/tsc scope).
+( cd "$ROOT/ai-digital-life" && for f in scripts/*.mjs; do node --check "$f"; done )
+( cd "$ROOT/ai-digital-life" && pnpm run scripts:format:check )
 cd "$ROOT/ai-digital-life/frontend"
 if [ "$ADL_PREPUSH_FULL" = "1" ]; then
   echo "[pre-push] FULL gate (user-approved): check:full"

@@ -88,6 +88,17 @@ runFileList(
   'npx prettier --check "src/**/*.{ts,tsx,js,jsx,json,css,md}"',
 );
 
+for (const file of changed.filter((f) => f.endsWith('.mjs'))) {
+  run(`node --check ${file}`, `node --check ${quote(file)}`);
+}
+
+// 配置加载冒烟：`vite.config.ts` 不在 tsc include 内，只有真正加载一次才能发现
+// 相对路径/模块解析类错误（2026-10-25 曾漏掉一处 `../../scripts` 写错）。
+run('vite config load', 'node scripts/check-vite-config.mjs');
+
+// 源码卫生：注释里出现字面反斜杠加 n 通常意味着一次失败的批量替换（静默失效，无其它门禁可查）。
+run('source hygiene', 'node ../scripts/check-source-hygiene.mjs');
+
 run('typecheck', 'npx tsc --noEmit');
 run('typecheck (dev tooling)', 'npx tsc --noEmit -p dev/tsconfig.json');
 run('i18n coverage', 'npx tsx scripts/check-i18n-coverage.ts');
