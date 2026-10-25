@@ -30,3 +30,13 @@ test("reports the offending line text for quick location", () => {
   assert.equal(hit.line, 1);
   assert.match(hit.text, /broken/);
 });
+
+test("ignores backtick inline-code examples inside comments", () => {
+  // 注释里引用 CSS 分组语法（`.a,\n.b`）是合法示例，不应误报。
+  assert.deepEqual(findLiteralEscapedNewlines("// 分组规则（`.a,\\n.b`）会整组返回"), []);
+});
+
+test("still flags a literal outside inline code on the same line", () => {
+  const hits = findLiteralEscapedNewlines("// 真事故 \\n 后面还有 `.a` 示例");
+  assert.equal(hits.length, 1);
+});

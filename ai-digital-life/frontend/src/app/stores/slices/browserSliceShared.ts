@@ -24,7 +24,8 @@ export const DEFAULT_CONFIGURED_PORTS = [
   9000,
   9229,
   2718,
-  // 5173 起 10 个端口：覆盖 slot-1..slot-9 的稳定 dev 端口（主工作树 5173、slot-N → 5173+N；\n  // 单一规则源在 scripts/dev-port.mjs，此处字面量是因前端 bundle 不能 import Node 脚本）。
+  // 5173 起 10 个端口：覆盖 slot-1..slot-9 的稳定 dev 端口（主工作树 5173、slot-N → 5173+N）。
+  // 单一规则源在 scripts/dev-port.mjs，此处字面量是因前端 bundle 不能 import Node 脚本。
   ...Array.from({ length: 10 }, (_, i) => 5173 + i),
 ];
 

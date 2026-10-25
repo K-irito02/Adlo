@@ -11,8 +11,15 @@ import { spawnSync } from 'node:child_process';
 const cwd = process.cwd();
 const MAX_COMMAND_LENGTH = 6000;
 
-function capture(cmd, args) {
-  const result = spawnSync(cmd, args, { cwd, encoding: 'utf8' });
+// pre-push 钩子会注入 GIT_DIR 等变量；在子目录（frontend）里它们可能是相对路径而解析失败，
+// 导致 base 退化为 HEAD、changed=0（门禁静默失效）。统一清掉并用 `git -C repoRoot` 调用。
+const cleanGitEnv = { ...process.env };
+for (const key of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_PREFIX']) {
+  delete cleanGitEnv[key];
+}
+
+function capture(cmd, args, options = {}) {
+  const result = spawnSync(cmd, args, { cwd, encoding: 'utf8', ...options });
   if (result.status !== 0) {
     throw new Error(`${cmd} ${args.join(' ')} failed: ${result.stderr || ''}`);
   }
@@ -45,12 +52,18 @@ function runFileList(label, prefix, files, fallback) {
   run(`${label} (${files.length} files)`, command);
 }
 
+const repoRoot = capture('git', ['rev-parse', '--show-toplevel'], { env: cleanGitEnv }).replace(
+  /\\/g,
+  '/',
+);
+const git = (args) => capture('git', ['-C', repoRoot, ...args], { env: cleanGitEnv });
+
 function resolveBase() {
   try {
-    return capture('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']).trim();
+    return git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']).trim();
   } catch {
     try {
-      capture('git', ['rev-parse', '--verify', 'origin/main']);
+      git(['rev-parse', '--verify', 'origin/main']);
       return 'origin/main';
     } catch {
       return 'HEAD';
@@ -58,22 +71,19 @@ function resolveBase() {
   }
 }
 
-const repoRoot = capture('git', ['rev-parse', '--show-toplevel']).replace(/\\/g, '/');
 const frontendDir = cwd.replace(/\\/g, '/');
 const prefix = frontendDir.startsWith(repoRoot) ? `${frontendDir.slice(repoRoot.length + 1)}/` : '';
 
 const base = resolveBase();
-const changedSinceBase = capture('git', ['diff', '--name-only', '--diff-filter=ACMR', base]).split(
-  /\r?\n/,
-);
-const untracked = capture('git', ['ls-files', '--others', '--exclude-standard']).split(/\r?\n/);
+const changedSinceBase = git(['diff', '--name-only', '--diff-filter=ACMR', base]).split(/\r?\n/);
+const untracked = git(['ls-files', '--others', '--exclude-standard', '--full-name']).split(/\r?\n/);
 const changed = [...new Set([...changedSinceBase, ...untracked])]
   .filter(Boolean)
   .filter((file) => file.startsWith(prefix))
   .map((file) => file.slice(prefix.length));
 
 const lintable = changed.filter((f) => /\.(ts|tsx|js|jsx)$/.test(f));
-const prettierable = changed.filter((f) => /\.(ts|tsx|js|jsx|css|json|md)$/.test(f));
+const prettierable = changed.filter((f) => /\.(ts|tsx|js|jsx|mjs|css|json|md)$/.test(f));
 const srcChanges = changed.filter((f) => f.startsWith('src/') && /\.(ts|tsx|js|jsx)$/.test(f));
 
 console.log(
@@ -104,7 +114,10 @@ run('typecheck (dev tooling)', 'npx tsc --noEmit -p dev/tsconfig.json');
 run('i18n coverage', 'npx tsx scripts/check-i18n-coverage.ts');
 run('glossary', 'npx tsx scripts/check-glossary.ts');
 run('generated artifacts', 'node scripts/generate-md-theme-vars.mjs');
-run('generated artifact drift', 'git diff --exit-code -- src/styles/vendor');
+run(
+  'generated artifact drift',
+  `git -C "${repoRoot}" diff --exit-code -- ${prefix}src/styles/vendor`,
+);
 
 if (srcChanges.length > 0) {
   run(
