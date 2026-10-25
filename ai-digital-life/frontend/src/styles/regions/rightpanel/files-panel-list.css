@@ -54,18 +54,6 @@
   background: color-mix(in srgb, var(--text-muted) 54%, transparent);
 }
 
-.adl-multitree-section-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
-  color: var(--text-muted);
-  padding: var(--space-2) var(--space-3) var(--space-1);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 .adl-multitree-entry {
 }
 
@@ -84,17 +72,6 @@
   justify-content: center;
   width: 28px;
   flex-shrink: 0;
-}
-
-.adl-multitree-entry__children {
-  position: relative;
-  min-height: 0;
-  flex: 1;
-  overflow: visible;
-}
-
-.adl-multitree-entry__children > .adl-history-children-scroll {
-  overflow: visible;
 }
 
 .adl-multitree-entry__expand-btn {
@@ -220,46 +197,4 @@
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-xs);
   color: var(--text-muted);
-}
-
-/* 历史记录子项滚动样式 */
-.adl-history-children-scroll {
-  position: relative;
-  min-height: 0;
-  height: auto;
-  max-height: 300px;
-  overflow: visible !important;
-}
-
-.adl-history-children-scrollbar {
-  position: absolute;
-  top: 0;
-  left: 6px;
-  bottom: 0;
-  z-index: 3;
-  width: var(--adl-filetree-scrollbar-width);
-  opacity: 0 !important;
-  pointer-events: none !important;
-  transition: opacity var(--duration-150) var(--ease-default) !important;
-}
-
-.adl-history-children-scroll.is-scrollable .adl-history-children-scrollbar {
-  opacity: 1 !important;
-  pointer-events: auto !important;
-}
-
-.adl-history-children-scrollbar__thumb {
-  position: absolute;
-  top: 0;
-  left: 1px;
-  width: 3px;
-  min-height: 24px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text-muted) 34%, transparent) !important;
-}
-
-.adl-history-children-scrollbar:hover .adl-history-children-scrollbar__thumb,
-.adl-history-children-scrollbar:active .adl-history-children-scrollbar__thumb {
-  width: 5px !important;
-  background: color-mix(in srgb, var(--text-muted) 54%, transparent) !important;
 }

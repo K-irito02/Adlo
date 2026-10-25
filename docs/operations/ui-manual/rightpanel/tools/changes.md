@@ -472,8 +472,7 @@ await page.click('button[aria-label="回滚全部"]');
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
-| 1 | CSS | `.adl-changes-empty` |
-| 2 | CSS | `.adl-changes-empty__text` |
+| 1 | CSS | `.adl-empty-hint` |
 
 ### 视觉设计
 
@@ -491,5 +490,4 @@ await page.click('button[aria-label="回滚全部"]');
 | 变更列表 | `.adl-patch-file-card` | 变更文件卡片 |
 | Diff 工具条 | `.adl-diff-toolbar` | 变更预览工具栏 |
 | 预览编辑器 | `div[data-testid="changes-preview-shell"]` | 差异/只读预览容器 |
-| 空状态容器 | `.adl-changes-empty` | 变更面板空状态容器 |
-| 空状态文本 | `.adl-changes-empty__text` | 变更面板空状态提示文本 |
+| 空状态提示 | `.adl-empty-hint` | 变更面板空状态提示文本 |

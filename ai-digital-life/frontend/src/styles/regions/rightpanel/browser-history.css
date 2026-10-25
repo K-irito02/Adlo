@@ -1,11 +1,3 @@
-/* 搜索结果样式 */
-.adl-browser-search-results {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
 .adl-browser-search-result-item {
   display: flex;
   align-items: center;

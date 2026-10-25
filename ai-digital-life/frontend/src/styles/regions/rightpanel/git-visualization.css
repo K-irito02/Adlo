@@ -122,14 +122,6 @@
   margin-top: var(--space-1);
 }
 
-.adl-git-vis__note {
-  margin-top: var(--space-4);
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  text-align: center;
-  padding-bottom: var(--space-4);
-}
-
 /* ── Branch Graph ── */
 .adl-branch-graph__row {
   content-visibility: auto;
@@ -491,85 +483,6 @@
 .adl-branch-graph__tooltip-date {
   font-size: 11px;
   color: var(--text-muted);
-}
-
-.adl-branch-graph__tooltip-branches {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.adl-branch-graph__tooltip-branches-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.adl-branch-graph__tooltip-branches-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-}
-
-.adl-branch-graph__tooltip-branch-badge {
-  display: inline-block;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: var(--bg-hover);
-  color: var(--text-secondary);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1.4;
-  white-space: nowrap;
-}
-
-.adl-branch-graph__tooltip-branch-badge--primary {
-  background: var(--bg-active);
-  color: var(--text-primary);
-}
-
-.adl-branch-graph__tooltip-branch-progress {
-  display: inline-flex;
-  gap: 3px;
-  margin-left: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  vertical-align: middle;
-}
-
-.adl-branch-graph__tooltip-remote-badge {
-  display: inline-block;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 400;
-  line-height: 1.4;
-  white-space: nowrap;
-  opacity: 0.7;
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.adl-branch-graph__tooltip-tag-row {
-  margin-top: 6px;
-}
-
-.adl-branch-graph__tooltip-tag-badge {
-  display: inline-block;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: var(--tag-bg, var(--bg-hover));
-  color: var(--tag-fg, var(--text-secondary));
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1.4;
-  white-space: nowrap;
 }
 
 /* ── Heatmap Tab Navigation ── */

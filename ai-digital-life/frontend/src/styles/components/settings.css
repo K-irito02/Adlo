@@ -315,11 +315,6 @@
   gap: var(--space-2);
 }
 
-.adl-settings-row__control-text {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
 .adl-settings-radio {
   display: inline-flex;
   align-items: center;
@@ -526,11 +521,6 @@
 /* 相邻两行属同一语义分组（如「路径模式」与「数据根目录」）时去掉其间隔线 */
 .adl-settings-row--no-divider {
   border-bottom: none;
-}
-
-/* 同一语义分组的次行（如预算块的「已用…」）：收紧与上一行的间距 */
-.adl-settings-row--compact {
-  padding-top: var(--space-1);
 }
 
 /* 白名单列表行控件：纵向排布已保存条目与「添加」按钮，长 origin 省略显示。 */
@@ -1305,7 +1295,6 @@
 }
 
 .adl-settings-section.adl-settings-workspace,
-.adl-settings-section.adl-settings-storage,
 .adl-settings-section.adl-settings-browser,
 .adl-settings-section.adl-dsh-settings {
   gap: var(--space-3);

@@ -90,7 +90,7 @@ a[aria-label="帮助"]
 
 /* 状态修饰符 */
 .adl-icon-btn:disabled
-.adl-action-btn--primary
+.adl-btn--primary
 .is-active
 .is-collapsed
 ```

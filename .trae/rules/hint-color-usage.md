@@ -31,7 +31,7 @@ alwaysApply: false
 
 - `.adl-tool-navigator__resize-handle`
 - `.adl-rightpanel__resize-handle`
-- `.adl-leftbar__resize-handle` / `.adl-leftbar__conversation-resize`
+- `.adl-leftbar__resize-handle`
 - `.adl-settings-nav__resize-handle`
 - `.adl-cm-diff-viewer .adl-cm-diff-resizer`
 - `.adl-terminal-col-divider` / `.adl-terminal-row-divider`（终端均分模式分割边界线）

@@ -38,7 +38,6 @@
 | `.adl-multitree-entry__menu` | ⋮ 按钮弹出的菜单卡片 |
 | `.adl-multitree-entry__tree` | 展开后的文件树容器 |
 | `.adl-multitree-entry.is-current` | 当前活跃工作区 |
-| `.adl-multitree-section-label` | "已置顶"/"未置顶"分组标签 |
 | `.adl-multitree-scrollbar` | 自定义滚动条轨道 |
 | `.adl-multitree-scrollbar__thumb` | 自定义滚动条滑块 |
 

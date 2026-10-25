@@ -100,7 +100,7 @@ Strict layering tokens — nothing else may declare arbitrary z-index numbers:
   - `.adl-terminal-free-handle--move`（终端自由模式移动手柄，默认小圆点、悬停/拖拽展开）
   - `.adl-tool-navigator__resize-handle`
   - `.adl-rightpanel__resize-handle`
-  - `.adl-leftbar__resize-handle` / `.adl-leftbar__conversation-resize`
+  - `.adl-leftbar__resize-handle`
   - `.adl-cm-diff-viewer .adl-cm-diff-resizer`（拖拽中为 `--dragging` 类，同色）
 - 规则真源见 [.agents/rules/hint-color-usage.md](../../../.agents/rules/hint-color-usage.md)（同步到 `.opencode/rules/`、`.trae/rules/`；改 docs 侧数值前先读真源规则）。
 

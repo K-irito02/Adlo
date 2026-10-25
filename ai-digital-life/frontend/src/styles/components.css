@@ -9,8 +9,7 @@
    ========================================================================== */
 
 @import './components/plan-card.css';
-@import './components/reference-popover.css';
-@import './components/workspace-status.css';
+
 @import './components/settings.css';
 @import './components/model-selector.css';
 @import './components/toast.css';
@@ -28,7 +27,6 @@
 @import './components/stat.css';
 @import './components/color-scheme.css';
 @import './components/form-layout.css';
-@import './components/composer-extras.css';
 @import './components/copy-button.css';
 @import './components/notification-card.css';
 @import './components/underline-tabs.css';

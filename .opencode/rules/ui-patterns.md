@@ -846,7 +846,6 @@ const handleOutside = (e) => {
 | 1 | 变更面板分支子卡片 | `.adl-changes-branch-submenu` | 6 |
 | 2 | 终端面板右键子菜单 | `.adl-menu__dropdown--right` | 6 |
 | 3 | 拆分按钮菜单 | `.adl-split-btn__menu` | 11 |
-| 4 | 状态栏分支子菜单 | `.adl-statusbar__submenu` | 10 |
 
 ### 文档
 - CSS 变量 `--space-px: 1px`（`tokens.css:15`）

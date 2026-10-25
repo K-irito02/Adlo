@@ -267,8 +267,8 @@ await page.fill('.adl-tool-search--navigator input', '关键词');
 |--------|------|
 | `.adl-tool-list__item` | 书签/历史/搜索结果条目 |
 | `.adl-multitree-entry__header` | 工作区/文件夹头部行 |
-| `.adl-multitree-entry__children` | 展开的子内容区域 |
-| `.adl-history-children-scroll` | 历史记录滚动容器 |
+| `.adl-multitree-entry__tree` | 展开的子内容区域 |
+| `.adl-multitree-scroll` | 历史记录滚动容器 |
 
 ### 历史记录
 
@@ -711,5 +711,5 @@ await page.click('button:has-text("应用")');
 | 地址栏 | `.adl-tool-search--address` | 可折叠展开的地址搜索栏 |
 | 内容区 | `.adl-tool-primary--browser` | 浏览器内容容器 |
 | 外部浏览器按钮 | `.adl-browser-external-btn` | 浏览器模式浮动降级按钮 |
-| 历史记录滚动条 | `.adl-history-children-scrollbar` | 自定义滚动条，位于左侧 |
-| 滚动条滑块 | `.adl-history-children-scrollbar__thumb` | 滚动条滑块元素 |
+| 历史记录滚动条 | `.adl-multitree-scrollbar` | 自定义滚动条，位于左侧 |
+| 滚动条滑块 | `.adl-multitree-scrollbar__thumb` | 滚动条滑块元素 |

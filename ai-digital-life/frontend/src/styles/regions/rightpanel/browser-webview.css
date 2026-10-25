@@ -406,28 +406,6 @@
   flex-shrink: 0;
 }
 
-.adl-tool-list__favicon {
-  width: 16px;
-  height: 16px;
-  object-fit: contain;
-  border-radius: 2px;
-}
-
-.adl-tool-list__default-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-}
-
-.adl-multitree-entry__children {
-  position: relative;
-  min-height: 0;
-  flex: 1;
-  overflow: visible;
-}
-
 /* ===== Browser Tab Tree Categories ===== */
 
 .adl-browser-category {

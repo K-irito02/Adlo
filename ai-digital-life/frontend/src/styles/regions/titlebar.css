@@ -263,11 +263,6 @@
   font-size: 11px;
 }
 
-.adl-btn--xs {
-  padding: 2px var(--space-1-5);
-  font-size: 11px;
-}
-
 /* ---------------- Chips ---------------- */
 
 .adl-chip {

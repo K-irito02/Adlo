@@ -230,13 +230,6 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
     expect(body).toContain('color: var(--text-primary)');
   });
 
-  it('provides a compact row modifier that tightens the grouped second row', () => {
-    const body = ruleBody(settingsCss, '.adl-settings-row--compact');
-    expect(body).not.toBeNull();
-    expect(body).toContain('padding-top');
-    expect(body).not.toContain('padding-top: var(--space-3-5)');
-  });
-
   it('paints storage radio/checkbox with monochrome text-primary, not accent blue', () => {
     for (const selector of [
       ".adl-storage-settings input[type='radio']",

@@ -1,12 +1,3 @@
-.adl-action-btn--primary {
-  background: var(--text-primary);
-  color: var(--text-inverse);
-}
-
-.adl-action-btn--primary:hover:not(:disabled) {
-  filter: brightness(0.92);
-}
-
 /* ---------------- Prompt Modal ---------------- */
 
 .adl-prompt-modal {
