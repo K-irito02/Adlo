@@ -22,6 +22,17 @@ export default defineConfig({
         if (server.httpServer) {
           setupPreviewTerminalWs(server.httpServer);
         }
+        // 开发期实例身份探针：启动脚本（scripts/run-project-surface.mjs）用它确认
+        // "这个端口上跑的确实是本工作树的 vite"。端口被另一个工作树的 dev server 占用时，
+        // 裸 HTTP 探活会被对方满足，Tauri 便静默渲染别人的前端（2026-10-25 实测）。
+        server.middlewares.use((req, res, next) => {
+          if (req.url === '/__adl_dev_instance__') {
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.end(process.env.ADL_DEV_TOKEN ?? '');
+            return;
+          }
+          next();
+        });
         server.middlewares.use(async (req, res, next) => {
           if (req.url?.includes('/__adl_preview_api__/browser/check-embed')) {
             const searchParams = new URL(req.url, 'http://localhost').searchParams;
@@ -149,7 +160,10 @@ export default defineConfig({
   server: {
     host: "127.0.0.1",
     port: Number.parseInt(process.env.ADL_PORT ?? process.env.PORT ?? "5173", 10),
-    strictPort: false,
+    // 端口被占用时必须失败，不能静默顺延：`pnpm dev:tauri` 会把 Tauri 的 devUrl 固定为
+    // 启动脚本选定的端口，顺延后窗口会去加载**另一个工作树**同端口上正在跑的 dev server，
+    // 表现为"改了代码却完全没变化"（2026-10-25 实测：slot-1 vite 落到 5174，窗口加载主工作树的 5173）。
+    strictPort: true,
     headers: {
       // 允许 iframe 嵌入（使用现代 Content-Security-Policy 替代非标准 X-Frame-Options: ALLOWALL）
       'Content-Security-Policy': 'frame-ancestors *'

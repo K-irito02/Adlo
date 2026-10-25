@@ -1,15 +1,19 @@
-import net from "node:net";
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import process from "node:process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { debugLogModeForVite, parseLogFlags } from "../frontend/dev/logFlags.mjs";
+import { DEV_PORT_BASE, findOpenPort, isPortOpen, preferredDevPort } from "./dev-port.mjs";
 import { resolveInstance } from "./instance-id.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
+
+/** vite 在开发期回显实例令牌的路径（见 `frontend/vite.config.ts` 的中间件）。 */
+const DEV_TOKEN_PATH = "/__adl_dev_instance__";
 
 function normalizePath(p) {
   try {
@@ -60,9 +64,47 @@ if (isMain) {
 }
 
 async function main() {
-  const requestedPort = parsePort(process.env.ADL_PORT ?? process.env.PORT);
-  const port = requestedPort ?? (await findOpenPort(host));
+  // 从 App 内嵌终端（或任何上层 dev 会话派生的 shell）启动时，环境里带着父会话注入的
+  // ADL_PORT/PORT——那是**父实例**的端口，不能当成本次显式指定：否则必然撞上父 dev server
+  // 并被当成"端口占用"硬失败（2026-10-25 实测：在 main 实例的终端里启动 slot-1）。
+  // `ADL_DEV_SESSION` 由启动器只注入给桌面应用进程，随 PTY 传给内嵌终端。
+  const inheritedSession = process.env.ADL_DEV_SESSION === "1";
+  const envRequestedPort = parsePort(process.env.ADL_PORT ?? process.env.PORT);
+  const requestedPort = inheritedSession ? undefined : envRequestedPort;
+  if (inheritedSession && envRequestedPort !== undefined) {
+    console.log(
+      `[adl-run] ignoring inherited ADL_PORT/PORT=${envRequestedPort} from the parent dev session; ` +
+        "picking a free port for this worktree.",
+    );
+  }
+  // 显式固定端口必须是空闲的：端口上若是另一个工作树的 dev server，Tauri 的 devUrl
+  // 会指向别人的前端，表现为"改了代码却毫无变化"（2026-10-25 实测），故硬失败。
+  if (requestedPort !== undefined && (await isPortOpen(host, requestedPort))) {
+    throw new Error(
+      `Port ${requestedPort} on ${host} is already in use (another worktree's dev server?). ` +
+        `Stop that instance or omit ADL_PORT to let the launcher pick a free one.`,
+    );
+  }
+  // 未显式指定：优先本工作树的稳定端口，被占则顺延到下一个空闲端口。
+  const port =
+    requestedPort ??
+    (await findOpenPort(host, preferredDevPort(instance.suffix) ?? DEV_PORT_BASE));
   const devUrl = `http://${host}:${port}`;
+  // 实例令牌：启动脚本据此确认"devUrl 上跑的确实是自己 spawn 的 vite"，
+  // 而不是同端口上另一个工作树的 dev server。
+  const devToken = randomUUID();
+
+  // 父会话（App 内嵌终端 / 另一个 dev 会话派生的 shell）会继承父实例的 ADL_* 变量：
+  // 端口、令牌、locator 都可能是**别人**的。本次运行只信自己解析出来的值，
+  // 先清掉继承项再由 childEnv 显式注入（否则嵌套启动会读写错误实例的数据根）。
+  for (const key of ["ADL_DEV_TOKEN", "ADL_DEV_SESSION", "ADL_PORT", "PORT", "ADL_HOST"]) {
+    delete process.env[key];
+  }
+  if (instance.locatorPath) {
+    process.env.ADL_STORAGE_LOCATOR_PATH = instance.locatorPath;
+  } else {
+    delete process.env.ADL_STORAGE_LOCATOR_PATH;
+  }
 
   console.log(`[adl-run] mode=${mode} url=${devUrl}`);
   console.log(
@@ -79,6 +121,7 @@ async function main() {
     ADL_HOST: host,
     ADL_PORT: String(port),
     PORT: String(port),
+    ADL_DEV_TOKEN: devToken,
     ...(instance.locatorPath ? { ADL_STORAGE_LOCATOR_PATH: instance.locatorPath } : {}),
     ...logFlags.env,
   };
@@ -101,7 +144,7 @@ async function main() {
   );
   children.push(vite);
 
-  await waitForHttp(devUrl, 30_000);
+  await waitForOwnDevServer(devUrl, devToken, vite, 30_000);
   console.log(`[adl-run] frontend ready at ${devUrl}`);
 
   if (mode === "browser") {
@@ -134,10 +177,17 @@ async function main() {
     ...(instance.suffix ? { identifier: instance.identifier } : {}),
   });
 
+  // 桌面应用进程刻意**不带** ADL_PORT/PORT：那是 vite 的配置，不是应用的运行参数。
+  // 带上会被 App 内嵌终端继承，在其中启动另一个工作树时会被误判成"显式指定端口"
+  // （会撞上父 dev server 并硬失败，2026-10-25 实测）。只保留会话标记供嵌套启动器识别。
+  const appEnv = { ...childEnv, ADL_DEV_SESSION: "1" };
+  delete appEnv.ADL_PORT;
+  delete appEnv.PORT;
+
   const tauri = spawnChecked(
     cargoCommand,
     ["tauri", "dev", "--config", tauriConfig],
-    childEnv,
+    appEnv,
   );
   children.push(tauri);
 
@@ -199,64 +249,44 @@ function parsePort(value) {
   return parsed;
 }
 
-async function findOpenPort(hostname) {
-  const preferredBase = 5173;
-  for (let offset = 0; offset < 20; offset += 1) {
-    const candidate = preferredBase + offset;
-    if (await isPortOpen(hostname, candidate)) {
-      continue;
-    }
-    return candidate;
-  }
-
-  return await new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.unref();
-    server.on("error", reject);
-    server.listen(0, hostname, () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        reject(new Error("Failed to resolve an ephemeral port."));
-        return;
-      }
-      const { port } = address;
-      server.close((closeError) => {
-        if (closeError) {
-          reject(closeError);
-          return;
-        }
-        resolve(port);
-      });
-    });
-  });
-}
-
-// Check if a port is already in use (returns true if someone is listening).
-async function isPortOpen(hostname, port) {
-  return await new Promise((resolve) => {
-    const socket = net.createConnection({ host: hostname, port });
-    socket.once("connect", () => {
-      socket.destroy();
-      resolve(true);
-    });
-    socket.once("error", () => resolve(false));
-  });
-}
-
-async function waitForHttp(url, timeoutMs) {
+/**
+ * 等 `devUrl` 上出现**我们自己**的 dev server（回显本次实例令牌）。
+ *
+ * 为什么需要令牌（2026-10-25 实测事故）：端口若被另一个工作树的 dev server 占用，
+ * 裸 `waitForHttp(devUrl)` 会被它立刻满足，Tauri 便去渲染别人的前端；vite 那边虽然
+ * 因 `strictPort` 失败退出，但此时窗口已经打开。令牌把"端口有人应答"升级为
+ * "应答者是本工作树的 vite"。
+ */
+async function waitForOwnDevServer(devUrl, token, vite, timeoutMs) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
+    if (vite.exitCode !== null) {
+      throw new Error(
+        `Frontend dev server exited (code ${vite.exitCode}) before becoming ready at ${devUrl}. ` +
+          `Another process may own this port; stop it or let the launcher pick a free one.`,
+      );
+    }
+    let servedToken = null;
     try {
-      const response = await fetch(url);
-      if (response.ok || response.status === 404) {
-        return;
+      const response = await fetch(`${devUrl}${DEV_TOKEN_PATH}`);
+      if (response.ok) {
+        servedToken = (await response.text()).trim();
       }
     } catch {
-      // Ignore transient boot failures and keep polling.
+      // 尚未就绪（连接被拒）：继续轮询。
+    }
+    if (servedToken !== null) {
+      if (servedToken === token) {
+        return;
+      }
+      throw new Error(
+        `Port ${new URL(devUrl).port} answered but belongs to a different dev server ` +
+          `(instance token mismatch). Stop that instance or let the launcher pick a free one.`,
+      );
     }
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
-  throw new Error(`Timed out waiting for ${url}`);
+  throw new Error(`Timed out waiting for ${devUrl}`);
 }
 
 let isShuttingDown = false;
