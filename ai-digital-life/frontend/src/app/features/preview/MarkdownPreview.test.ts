@@ -71,7 +71,7 @@ describe('MarkdownPreview', () => {
     ].join('\n');
     const html = renderMarkdownPreviewHtml(content);
 
-    expect(html).toContain('<dl class="adl-md-frontmatter">');
+    expect(html).toContain('<dl class="adl-md-frontmatter" ');
     expect(html).toContain('<dt>name</dt>');
     expect(html).toContain('demo-skill');
     expect(html).toContain('<dt>description</dt>');
@@ -118,6 +118,43 @@ describe('MarkdownPreview', () => {
   it('keeps block scalar line breaks', () => {
     const { entries } = splitFrontmatter('---\ndescription: |\n  第一行\n  第二行\n---\n正文');
     expect(entries[0]?.values[0]).toBe('第一行\n第二行');
+  });
+
+  it('tolerates CRLF line endings', () => {
+    const { entries, body, lineOffset } = splitFrontmatter('---\r\na: b\r\n---\r\n# T');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.values[0]).toBe('b');
+    expect(lineOffset).toBe(3);
+    expect(body).toBe('# T');
+  });
+
+  it('strips a UTF-8 BOM before detecting frontmatter', () => {
+    const html = renderMarkdownPreviewHtml('\uFEFF---\na: b\n---\n# T');
+    expect(html).toContain('adl-md-frontmatter');
+    expect(html).toContain('<dt>a</dt>');
+  });
+
+  it('renders empty / partially empty lists without empty chips', () => {
+    const html = renderMarkdownPreviewHtml('---\ntags: []\nglobs: [a,]\n---\n正文');
+    expect(html).not.toContain('adl-md-frontmatter__chip"></span>');
+    expect(html).toContain('adl-md-frontmatter__chip">a<');
+  });
+
+  it('splits quoted commas in inline lists', () => {
+    const { entries } = splitFrontmatter('---\ntags: [a, "b, c"]\n---\n');
+    expect(entries[0]?.values).toEqual(['a', 'b, c']);
+  });
+
+  it('anchors the card to the frontmatter line range (search jump)', () => {
+    const html = renderMarkdownPreviewHtml('---\na: b\nc: d\n---\n# T');
+    expect(html).toContain('data-source-line-start="1" data-source-line-end="4"');
+  });
+
+  it('applies block scalar chomping indicators', () => {
+    const kept = splitFrontmatter('---\nd: |-\n  l1\n  l2\n---\n');
+    expect(kept.entries[0]?.values[0]).toBe('l1\nl2');
+    const clipped = splitFrontmatter('---\nd: |\n  l1\n\nn: x\n---\n');
+    expect(clipped.entries[0]?.values[0]).toBe('l1');
   });
 
   it('maps source line ranges on every block element (jump to arbitrary line)', () => {

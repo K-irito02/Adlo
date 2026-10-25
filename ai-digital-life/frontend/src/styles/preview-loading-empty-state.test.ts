@@ -16,6 +16,22 @@ const loadingRowCss = readFileSync(
   'utf-8',
 );
 const skeletonCss = readFileSync(new URL('./components/skeleton.css', import.meta.url), 'utf-8');
+const searchPanelCss = readFileSync(
+  new URL('./regions/rightpanel/search-panel.css', import.meta.url),
+  'utf-8',
+);
+const searchSettingsCss = readFileSync(
+  new URL('./regions/rightpanel/search-settings.css', import.meta.url),
+  'utf-8',
+);
+const composerCss = readFileSync(
+  new URL('./regions/composer-popover.css', import.meta.url),
+  'utf-8',
+);
+const emptyStateCss = readFileSync(
+  new URL('./components/empty-state.css', import.meta.url),
+  'utf-8',
+);
 
 function stripComments(css: string): string {
   return css.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -39,7 +55,9 @@ describe('Markdown frontmatter 属性表', () => {
     const container = findRuleGroups(css, '.adl-md-frontmatter');
     expect(
       container.some(
-        (body) => /display:\s*grid/.test(body) && /grid-template-columns:\s*max-content/.test(body),
+        (body) =>
+          /display:\s*grid/.test(body) &&
+          /grid-template-columns:\s*minmax\(0,\s*max-content\)/.test(body),
       ),
     ).toBe(true);
     const row = findRuleGroups(css, '.adl-md-frontmatter__row');
@@ -79,6 +97,43 @@ describe('PDF 导航按钮', () => {
     expect(groups.length).toBeGreaterThan(0);
     expect(groups.some((body) => /border-radius:\s*var\(--radius-full/.test(body))).toBe(true);
   });
+
+  it('胶囊常驻 DOM、悬浮/焦点/编辑态显现，隐藏时不拦截指针', () => {
+    const css = stripComments(previewCss);
+    const nav = findRuleGroups(css, '.adl-pdf-preview-nav').filter((body) =>
+      /position:\s*absolute/.test(body),
+    );
+    expect(nav.length).toBeGreaterThan(0);
+    expect(
+      nav.some((body) => /left:\s*50%/.test(body) && /transform:\s*translateX\(-50%\)/.test(body)),
+    ).toBe(true);
+    expect(
+      nav.some((body) => /opacity:\s*0/.test(body) && /pointer-events:\s*none/.test(body)),
+    ).toBe(true);
+
+    // 显现契约：hover / focus-within / data-editing 三路都要有
+    expect(css).toMatch(/\.adl-pdf-preview:hover \.adl-pdf-preview-nav[\s\S]*?opacity:\s*1/);
+    expect(css).toMatch(/\.adl-pdf-preview-nav:focus-within[\s\S]*?opacity:\s*1/);
+    expect(css).toMatch(/\.adl-pdf-preview-nav\[data-editing='true'\][\s\S]*?opacity:\s*1/);
+    // 无悬停设备（触屏）常驻
+    expect(css).toMatch(
+      /@media \(hover: none\), \(pointer: coarse\)[\s\S]*?\.adl-pdf-preview-nav[\s\S]*?opacity:\s*1/,
+    );
+  });
+
+  it('导航层级高于加载遮罩（加载尾巴期仍可翻页）', () => {
+    const css = stripComments(previewCss);
+    const overlay = findRuleGroups(css, '.adl-preview-loading--overlay');
+    const nav = findRuleGroups(css, '.adl-pdf-preview-nav').filter((body) =>
+      /position:\s*absolute/.test(body),
+    );
+    const z = (groups: string[]) => {
+      const match = groups.map((body) => /z-index:\s*(\d+)/.exec(body)).find(Boolean);
+      return match ? Number(match[1]) : Number.NaN;
+    };
+    expect(z(overlay)).toBeGreaterThan(0);
+    expect(z(nav)).toBeGreaterThan(z(overlay));
+  });
 });
 
 describe('内容区加载占位', () => {
@@ -109,6 +164,50 @@ describe('空态文字统一规范', () => {
       groups.some(
         (body) =>
           /font-size:\s*var\(--text-xs\)/.test(body) && /color:\s*var\(--text-muted\)/.test(body),
+      ),
+    ).toBe(true);
+  });
+
+  it('基线的四项属性都被锁定（含行高与居中）', () => {
+    const groups = findRuleGroups(stripComments(treeCss), '.adl-empty-hint');
+    expect(
+      groups.some(
+        (body) =>
+          /font-size:\s*var\(--text-xs\)/.test(body) &&
+          /color:\s*var\(--text-muted\)/.test(body) &&
+          /line-height:\s*1\.5/.test(body) &&
+          /text-align:\s*center/.test(body),
+      ),
+    ).toBe(true);
+  });
+
+  it('面板规则只覆盖布局，字号/颜色/行高/居中只在基线', () => {
+    for (const css of [searchPanelCss, searchSettingsCss]) {
+      const rules = findRuleGroups(stripComments(css), '.adl-empty-hint');
+      expect(rules.length).toBeGreaterThan(0);
+      for (const body of rules) {
+        expect(body).not.toMatch(/font-size|line-height|text-align|color:/);
+      }
+    }
+  });
+
+  it('书签空态与 .empty-state 镜像使用同一规范', () => {
+    const bookmark = findRuleGroups(stripComments(composerCss), '.adl-bookmark-dir-empty');
+    expect(
+      bookmark.some(
+        (body) =>
+          /font-size:\s*var\(--text-xs\)/.test(body) &&
+          /line-height:\s*1\.5/.test(body) &&
+          /text-align:\s*center/.test(body),
+      ),
+    ).toBe(true);
+    const mirror = findRuleGroups(stripComments(emptyStateCss), '.empty-state');
+    expect(
+      mirror.some(
+        (body) =>
+          /font-size:\s*var\(--text-xs\)/.test(body) &&
+          /line-height:\s*1\.5/.test(body) &&
+          /text-align:\s*center/.test(body),
       ),
     ).toBe(true);
   });

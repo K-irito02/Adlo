@@ -14,7 +14,17 @@ export interface PdfPreviewProps {
 }
 
 /** 已解析文档缓存（LRU 4）：跳过 getDocument 解析（首屏绘制仍逐页进行）。 */
-const pdfDocCache = createLruCache<PdfJsType.PDFDocumentProxy>(4);
+const pdfDocCache = createLruCache<PdfJsType.PDFDocumentProxy>({
+  limit: 3,
+  // 淘汰即释放 pdf.js 传输/worker 资源（docRef 持有的是当前 MRU 条目，不会被淘汰）。
+  onEvict: (pdf) => {
+    try {
+      void pdf.destroy();
+    } catch {
+      /* 已销毁或正在销毁：忽略 */
+    }
+  },
+});
 
 /**
  * pdf.js 单例加载器：动态 import 只执行一次（懒加载保留），后续复用同一模块。
@@ -44,7 +54,15 @@ function loadPdfJs(): Promise<typeof PdfJsType> {
 export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) {
   const { t, formatT } = useTCopy();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const docRef = useRef<{ source: ArrayBuffer; pdf: PdfJsType.PDFDocumentProxy } | null>(null);
+  const docRef = useRef<{
+    source: ArrayBuffer;
+    pdf: PdfJsType.PDFDocumentProxy;
+    generation: number;
+  } | null>(null);
+  // 文档代次：缓存命中分支在同一次 effect flush 内同步 setNumPages，
+  // 绘制 effect 会闭包到上一轮的 currentPage/numPages；用代次把这次误绘制挡掉。
+  const generationRef = useRef(0);
+  const [docGeneration, setDocGeneration] = useState(0);
   // 在途绘制任务（收尾 G5-L6）：cleanup 中 cancel，保证快速翻页只保留末写者。
   const activeRenderRef = useRef<{ cancel: () => void } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +72,11 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
   // 双击页码进入直接输入态（用户要求：双击 → 输入页码 → 回车跳转）。
   const [editingPage, setEditingPage] = useState(false);
   const pageInputRef = useRef<HTMLInputElement | null>(null);
+  const counterRef = useRef<HTMLButtonElement | null>(null);
+  const wasEditingRef = useRef(false);
   // 多实例并存时 aria 引用不能撞 id（收尾 G5-M2）。
   const pageCountId = useId();
+  const pageHintId = useId();
 
   // 按钮翻页后输入框同步；输入非法时回滚显示当前页。
   useEffect(() => {
@@ -69,6 +90,14 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
     }
     pageInputRef.current?.focus();
     pageInputRef.current?.select();
+  }, [editingPage]);
+
+  // 退出输入态（提交/取消）后把焦点还给页码按钮：输入框卸载会把焦点丢到 body。
+  useEffect(() => {
+    if (wasEditingRef.current && !editingPage) {
+      counterRef.current?.focus();
+    }
+    wasEditingRef.current = editingPage;
   }, [editingPage]);
 
   const paintPage = useCallback(
@@ -116,6 +145,8 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
   // 若加载 effect 内 setNumPages 后同 tick 直接 paint，读到的仍是旧 DOM（null），
   // 首屏即被丢弃且无人补画（收尾 R34-H1 的真竞态）。
   useEffect(() => {
+    const generation = generationRef.current + 1;
+    generationRef.current = generation;
     docRef.current = null;
     setCurrentPage(1);
     setPageInput('1');
@@ -126,8 +157,9 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
     // 回看命中：复用已解析文档（跳过 getDocument 的解析开销与扫光）。
     const cached = cacheKey ? pdfDocCache.get(cacheKey) : undefined;
     if (cached) {
-      docRef.current = { source: data, pdf: cached };
+      docRef.current = { source: data, pdf: cached, generation };
       setNumPages(cached.numPages);
+      setDocGeneration(generation);
       return () => {
         activeRenderRef.current?.cancel();
       };
@@ -140,16 +172,17 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
         // pdf.js 会转移（detach）传入的 ArrayBuffer：解析前复制，
         // 否则复用同一 buffer 会报 "detached ArrayBuffer"。
         const pdf = await pdfjs.getDocument({ data: data.slice(0) }).promise;
-        if (cancelled) {
+        if (cancelled || generation !== generationRef.current) {
           return;
         }
         if (cacheKey) {
           pdfDocCache.set(cacheKey, pdf);
         }
-        docRef.current = { source: data, pdf };
+        docRef.current = { source: data, pdf, generation };
         setNumPages(pdf.numPages);
+        setDocGeneration(generation);
       } catch (err) {
-        if (!cancelled) {
+        if (!cancelled && generation === generationRef.current) {
           setError(err instanceof Error ? err.message : String(err));
         }
       }
@@ -164,7 +197,13 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
   // numPages 在依赖中——解析完成 setNumPages 后重跑，正好补上首屏第一帧。
   useEffect(() => {
     const entry = docRef.current;
-    if (!entry || entry.source !== data || numPages === 0) {
+    if (
+      !entry ||
+      entry.generation !== docGeneration ||
+      entry.source !== data ||
+      numPages === 0 ||
+      currentPage > numPages
+    ) {
       return undefined;
     }
     let cancelled = false;
@@ -177,7 +216,7 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
       cancelled = true;
       activeRenderRef.current?.cancel();
     };
-  }, [data, currentPage, numPages, paintPage]);
+  }, [data, currentPage, numPages, docGeneration, paintPage]);
 
   const beginPageEdit = () => {
     if (numPages <= 0) {
@@ -225,7 +264,15 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
       {/* 极简悬浮胶囊（用户选定原型 A）：常驻 DOM、悬浮文档区时显现；
           页码双击进入直接输入，回车跳转。 */}
       {numPages > 1 && (
-        <div className="adl-pdf-preview-nav" data-editing={editingPage} id={pageCountId}>
+        <div className="adl-pdf-preview-nav" data-editing={editingPage}>
+          {/* 输入框的 aria-describedby 只指向页码状态（独立节点），
+              不能再指向整个胶囊（否则会把兄弟按钮名读成描述）。 */}
+          <span id={pageCountId} className="sr-only">
+            {formatT(t, 'changesPdfPageStatus', { current: currentPage, total: numPages })}
+          </span>
+          <span id={pageHintId} className="sr-only">
+            {t.changesPdfPageJumpHint as string}
+          </span>
           <button
             type="button"
             className="adl-pdf-preview-nav__step"
@@ -260,11 +307,20 @@ export function PdfPreview({ data, theme = 'dark', cacheKey }: PdfPreviewProps) 
           ) : (
             <button
               type="button"
+              ref={counterRef}
               className="adl-pdf-preview-nav__count"
-              // 原生 title 与 aria-label 同义：双击可输入是隐藏交互，需要可发现的提示。
+              // 可访问名 = 可见页码文本（WCAG Label in Name）；双击提示放到描述里。
               title={t.changesPdfPageJumpHint as string}
-              aria-label={t.changesPdfPageJumpHint as string}
+              aria-label={`${currentPage} / ${numPages}`}
+              aria-describedby={pageHintId}
               onDoubleClick={beginPageEdit}
+              // 键盘等价：Enter / Space 进入输入态（双击是鼠标专属交互）。
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  beginPageEdit();
+                }
+              }}
             >
               {currentPage} / {numPages}
             </button>

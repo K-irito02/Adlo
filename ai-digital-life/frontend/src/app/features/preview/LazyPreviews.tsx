@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react';
+import { PreviewLoadingGate } from './PreviewLoadingGate';
 
 const LazyMarkdownPreview = React.lazy(() =>
   import('./MarkdownPreview').then((m) => ({ default: m.MarkdownPreview })),
@@ -30,7 +31,7 @@ export function LazyMarkdownPreviewWrapper(
   props: React.ComponentProps<typeof LazyMarkdownPreview>,
 ) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PreviewLoadingGate active />}>
       <LazyMarkdownPreview {...props} />
     </Suspense>
   );
@@ -38,7 +39,7 @@ export function LazyMarkdownPreviewWrapper(
 
 export function LazyDocxPreviewWrapper(props: React.ComponentProps<typeof LazyDocxPreview>) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PreviewLoadingGate active />}>
       <LazyDocxPreview {...props} />
     </Suspense>
   );
@@ -46,7 +47,7 @@ export function LazyDocxPreviewWrapper(props: React.ComponentProps<typeof LazyDo
 
 export function LazyPdfPreviewWrapper(props: React.ComponentProps<typeof LazyPdfPreview>) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PreviewLoadingGate active />}>
       <LazyPdfPreview {...props} />
     </Suspense>
   );
@@ -54,7 +55,7 @@ export function LazyPdfPreviewWrapper(props: React.ComponentProps<typeof LazyPdf
 
 export function LazyMediaPreviewWrapper(props: React.ComponentProps<typeof LazyMediaPreview>) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PreviewLoadingGate active />}>
       <LazyMediaPreview {...props} />
     </Suspense>
   );
@@ -62,7 +63,7 @@ export function LazyMediaPreviewWrapper(props: React.ComponentProps<typeof LazyM
 
 export function LazyXlsxPreviewWrapper(props: React.ComponentProps<typeof LazyXlsxPreview>) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PreviewLoadingGate active />}>
       <LazyXlsxPreview {...props} />
     </Suspense>
   );
@@ -70,7 +71,7 @@ export function LazyXlsxPreviewWrapper(props: React.ComponentProps<typeof LazyXl
 
 export function LazyPptxPreviewWrapper(props: React.ComponentProps<typeof LazyPptxPreview>) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PreviewLoadingGate active />}>
       <LazyPptxPreview {...props} />
     </Suspense>
   );

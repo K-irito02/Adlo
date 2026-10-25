@@ -132,6 +132,24 @@ describe('DocxPreview (docx-preview)', () => {
     });
     expect(docx.renderAsync).not.toHaveBeenCalled();
     expect(second.container.querySelector('.adl-preview-loading')).toBeNull();
+    // 越过 150ms 延迟窗口后再断言一次：命中缓存确实不会冒出扫光。
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(second.container.querySelector('.adl-preview-loading')).toBeNull();
+  });
+
+  it('re-renders when the cache key changes (file edited on disk)', async () => {
+    const docx = await import('docx-preview');
+    const first = render(<DocxPreview data={new ArrayBuffer(8)} cacheKey="docx-mtime-1" />);
+    await waitFor(() => {
+      expect(screen.getByText('hello docx')).toBeTruthy();
+    });
+    first.unmount();
+    vi.clearAllMocks();
+
+    render(<DocxPreview data={new ArrayBuffer(16)} cacheKey="docx-mtime-2" />);
+    await waitFor(() => {
+      expect(docx.renderAsync).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('shows a re-save hint for legacy .doc without calling the renderer', async () => {

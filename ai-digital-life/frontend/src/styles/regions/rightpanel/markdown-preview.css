@@ -51,7 +51,8 @@
 .adl-preview-loading--overlay {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  /* 高于保真水印（z-index: 5），加载期不显示水印文字；导航胶囊另在 7 层。 */
+  z-index: 6;
 }
 
 .adl-preview-loading--paper {
@@ -323,7 +324,8 @@
   position: absolute;
   left: 50%;
   bottom: var(--space-3);
-  z-index: 2;
+  /* 高于加载遮罩（6）：加载尾巴期间胶囊仍可见可点。 */
+  z-index: 7;
   display: flex;
   align-items: center;
   gap: var(--space-1);
@@ -340,6 +342,14 @@
   pointer-events: none;
   transform: translateX(-50%);
   transition: opacity var(--duration-150) var(--ease-default);
+}
+
+/* 触屏/无悬停设备：不能靠 hover 显现，胶囊常驻。 */
+@media (hover: none), (pointer: coarse) {
+  .adl-pdf-preview-nav {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .adl-pdf-preview:hover .adl-pdf-preview-nav,
@@ -473,11 +483,12 @@
 /* ---------------- Markdown frontmatter 属性表 ---------------- */
 /* 用户裁定（原型 A + 约束）：每个键值对独占一行，键列共享宽度，所有值在第二列
    垂直左对齐；窄面板下值只在自身列内换行，不跳到键下方。无卡片底色/边框，
-   只用一条细线与正文分隔。列表值转 chip，全程中性色。 */
+   与正文之间不用分隔线、只留间距。列表值转 chip，全程中性色。 */
 .adl-markdown-preview .adl-md-frontmatter {
   display: grid;
-  /* 键列取所有键的最大内容宽（等宽对齐）；值列可收缩，min 0 防止撑破面板 */
-  grid-template-columns: max-content minmax(0, 1fr);
+  /* 键列取所有键的最大内容宽（等宽对齐）；两侧都允许收缩（minmax 0），
+     超长键也不会把面板顶出横向滚动。 */
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
   column-gap: var(--space-4);
   row-gap: var(--space-1-5);
   align-items: baseline;

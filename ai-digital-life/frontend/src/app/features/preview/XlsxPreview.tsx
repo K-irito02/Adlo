@@ -22,7 +22,11 @@ interface XlsxCacheEntry {
 }
 
 /** 表格 HTML 缓存（LRU 8）：回看免解析、免扫光。 */
-const xlsxCache = createLruCache<XlsxCacheEntry>(8);
+const xlsxCache = createLruCache<XlsxCacheEntry>({
+  limit: 6,
+  weigh: (entry) => Object.values(entry.htmlBySheet).join('').length,
+  maxWeight: 3_000_000,
+});
 
 /**
  * 表格预览（第三方：SheetJS Community Edition `xlsx`，Apache-2.0，
@@ -41,8 +45,12 @@ export function XlsxPreview({ data, theme = 'dark', fileName, cacheKey }: XlsxPr
   // 工作簿缓存（收尾 D-03）：切表是高频操作，解析一次，
   // 切表只转单表 HTML，不再全量 XLSX.read。类型与 xlsx 包内 WorkBook 对齐。
   const workbookRef = useRef<WorkBook | null>(null);
+  // 文档代次：切文件后丢弃在途的切表结果（防止旧表 HTML 写进新文档）。
+  const generationRef = useRef(0);
 
   useEffect(() => {
+    const generation = generationRef.current + 1;
+    generationRef.current = generation;
     // 回看命中：直接复用上次转换结果（跳过解析、无扫光）。
     const cached = cacheKey ? xlsxCache.get(cacheKey) : undefined;
     if (cached) {
@@ -68,11 +76,11 @@ export function XlsxPreview({ data, theme = 'dark', fileName, cacheKey }: XlsxPr
     async function renderWorkbook() {
       try {
         const XLSX = await import('xlsx');
-        if (cancelled) {
+        if (cancelled || generation !== generationRef.current) {
           return;
         }
         const workbook = XLSX.read(data.slice(0), { type: 'array' });
-        if (cancelled) {
+        if (cancelled || generation !== generationRef.current) {
           return;
         }
         workbookRef.current = workbook;
@@ -105,7 +113,7 @@ export function XlsxPreview({ data, theme = 'dark', fileName, cacheKey }: XlsxPr
     };
   }, [data, cacheKey]);
 
-  /** 记住已生成的单表 HTML，供切表与回看复用。 */
+  /** 记住已生成的单表 HTML（不可变更新，避免就地改写缓存对象）。 */
   const rememberSheetHtml = (name: string | undefined, nextHtml: string) => {
     if (!cacheKey || name === undefined) {
       return;
@@ -114,11 +122,14 @@ export function XlsxPreview({ data, theme = 'dark', fileName, cacheKey }: XlsxPr
     if (!entry) {
       return;
     }
-    entry.htmlBySheet[name] = nextHtml;
-    xlsxCache.set(cacheKey, entry);
+    xlsxCache.set(cacheKey, {
+      sheetNames: entry.sheetNames,
+      htmlBySheet: { ...entry.htmlBySheet, [name]: nextHtml },
+    });
   };
 
   const switchSheet = async (index: number) => {
+    const generation = generationRef.current;
     try {
       const sheetName = sheetNames[index];
       const cachedHtml =
@@ -134,6 +145,9 @@ export function XlsxPreview({ data, theme = 'dark', fileName, cacheKey }: XlsxPr
       const sheet = workbook?.Sheets[sheetName ?? ''] as WorkSheet | undefined;
       if (sheet !== undefined) {
         const XLSX = await import('xlsx');
+        if (generation !== generationRef.current) {
+          return;
+        }
         const nextHtml = XLSX.utils.sheet_to_html(sheet);
         setHtml(nextHtml);
         rememberSheetHtml(sheetName, nextHtml);
@@ -143,7 +157,13 @@ export function XlsxPreview({ data, theme = 'dark', fileName, cacheKey }: XlsxPr
         return;
       }
       const XLSX = await import('xlsx');
-      const workbookFallback = XLSX.read(data.slice(0), { type: 'array' });
+      if (generation !== generationRef.current) {
+        return;
+      }
+      // 回看命中时没有 workbookRef：这里补一次解析并留下缓存，
+      // 后续再切表就不用重复吃整本解析的开销。
+      const workbookFallback = workbookRef.current ?? XLSX.read(data.slice(0), { type: 'array' });
+      workbookRef.current = workbookFallback;
       const fallback = workbookFallback.Sheets[workbookFallback.SheetNames[index]];
       const nextHtml = fallback ? XLSX.utils.sheet_to_html(fallback) : '';
       setHtml(nextHtml);

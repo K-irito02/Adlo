@@ -64,7 +64,8 @@ export function MediaPreview({ media, kind }: MediaPreviewProps) {
 
   if (!settled) {
     // 解码中骨架（扫光占位，不出现“加载中…”文字），避免纯空白。
-    return <PreviewLoadingGate active variant="centered" />;
+    // 解码结束即卸载本分支，最短展示时长同样无法兑现；只保留延迟阈值防闪烁。
+    return <PreviewLoadingGate active variant="centered" minVisibleMs={0} />;
   }
 
   // 空文件是中性信息态（收尾 F-20），错误才是警报态：role 区分，避免打断读屏用户。

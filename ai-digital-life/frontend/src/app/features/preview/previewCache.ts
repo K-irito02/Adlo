@@ -6,6 +6,9 @@
  *
  * 失效策略：缓存键包含 `size + lastModifiedAt`，文件被外部修改（mtime 变化）
  * 会自动落到新键，旧条目由 LRU 自然淘汰——不引入"版本号/手动失效"这类兼容层。
+ *
+ * 容量：除条目数外还支持字节预算（`maxWeight` + `weigh`）。office 渲染结果是
+ * 整段 HTML（docx 的图片/字体内联为 base64），只按条数限制会让内存失控。
  */
 
 export interface LruCache<T> {
@@ -15,34 +18,77 @@ export interface LruCache<T> {
   readonly size: number;
 }
 
-export function createLruCache<T>(limit: number): LruCache<T> {
-  const map = new Map<string, T>();
+export interface LruCacheOptions<T> {
+  /** 最多保留的条目数 */
+  limit: number;
+  /** 单条权重（默认 1）；配合 maxWeight 做字节/字符预算 */
+  weigh?: (value: T) => number;
+  /** 总权重上限；超出时按 LRU 淘汰 */
+  maxWeight?: number;
+  /** 条目被淘汰/清空时的回调（如释放 pdf.js 文档） */
+  onEvict?: (value: T) => void;
+}
+
+interface Entry<T> {
+  value: T;
+  weight: number;
+}
+
+export function createLruCache<T>(options: number | LruCacheOptions<T>): LruCache<T> {
+  const config: LruCacheOptions<T> = typeof options === 'number' ? { limit: options } : options;
+  const limit = Number.isFinite(config.limit) ? Math.max(0, Math.trunc(config.limit)) : 0;
+  const maxWeight =
+    config.maxWeight !== undefined && Number.isFinite(config.maxWeight)
+      ? Math.max(0, config.maxWeight)
+      : Number.POSITIVE_INFINITY;
+  const weigh = config.weigh ?? (() => 1);
+
+  const map = new Map<string, Entry<T>>();
+  let totalWeight = 0;
+
+  const evict = (key: string, entry: Entry<T>) => {
+    map.delete(key);
+    totalWeight -= entry.weight;
+    config.onEvict?.(entry.value);
+  };
+
+  const trim = () => {
+    while (map.size > limit || (totalWeight > maxWeight && map.size > 0)) {
+      const oldest = map.entries().next().value as [string, Entry<T>] | undefined;
+      if (!oldest) {
+        break;
+      }
+      evict(oldest[0], oldest[1]);
+    }
+  };
+
   return {
     get(key: string): T | undefined {
-      if (!map.has(key)) {
+      const entry = map.get(key);
+      if (!entry) {
         return undefined;
       }
-      const value = map.get(key) as T;
       // 触碰即刷新 LRU 顺序
       map.delete(key);
-      map.set(key, value);
-      return value;
+      map.set(key, entry);
+      return entry.value;
     },
     set(key: string, value: T): void {
-      if (map.has(key)) {
-        map.delete(key);
+      const existing = map.get(key);
+      if (existing) {
+        evict(key, existing);
       }
-      map.set(key, value);
-      while (map.size > limit) {
-        const oldest = map.keys().next().value;
-        if (oldest === undefined) {
-          break;
-        }
-        map.delete(oldest);
-      }
+      const weight = Math.max(1, weigh(value));
+      map.set(key, { value, weight });
+      totalWeight += weight;
+      trim();
     },
     clear(): void {
+      for (const [key, entry] of [...map.entries()]) {
+        evict(key, entry);
+      }
       map.clear();
+      totalWeight = 0;
     },
     get size(): number {
       return map.size;
@@ -56,10 +102,13 @@ export interface PreviewCacheKeyInput {
   lastModifiedAt: number;
 }
 
-/** 工作区 + 路径 + 体积 + mtime：任一变化都视为不同文档。 */
+/**
+ * 工作区 + 路径 + 体积 + mtime：任一变化都视为不同文档。
+ * 用 JSON 编码而不是 `::` 拼接：路径/id 中可能带分隔符，拼接会产生跨工作区碰撞。
+ */
 export function buildPreviewCacheKey(
   workspaceId: string | undefined,
   doc: PreviewCacheKeyInput,
 ): string {
-  return `${workspaceId ?? ''}::${doc.path}::${doc.size}::${doc.lastModifiedAt}`;
+  return JSON.stringify([workspaceId ?? '', doc.path, doc.size, doc.lastModifiedAt]);
 }

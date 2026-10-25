@@ -51,13 +51,56 @@ function unquote(value: string): string {
   return trimmed;
 }
 
+/** 行内列表按「引号感知」切分：`["a, b", c]` 不能被逗号切坏。 */
+function splitListItems(inner: string): string[] {
+  const items: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | null = null;
+  let escaped = false;
+  for (const char of inner) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      current += char;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+      }
+      current += char;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (char === ',') {
+      items.push(current);
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+  items.push(current);
+  // 空项（`[]`、`[a,]`、`[a, , b]`）不渲染成空 chip。
+  return items.map((item) => unquote(item)).filter((item) => item !== '');
+}
+
 function splitInlineList(value: string): string[] | null {
   if (!/^\[.*\]$/s.test(value)) {
     return null;
   }
-  const inner = value.slice(1, -1).trim();
-  return inner === '' ? [] : inner.split(',').map((item) => unquote(item));
+  return splitListItems(value.slice(1, -1).trim());
 }
+
+/** 块标量头：`|` / `>`，可带 chomping（`+`/`-`）与缩进指示（1-9）。 */
+const BLOCK_SCALAR_RE = /^[|>](?:[+-]?[1-9]?|[1-9][+-]?)$/;
 
 /**
  * 通用 frontmatter 解析（不按字段名特判——规则/技能/文章生态的字段集合并不固定）。
@@ -70,7 +113,18 @@ function splitInlineList(value: string): string[] | null {
 export function parseFrontmatter(block: string): FrontmatterEntry[] | null {
   const entries: FrontmatterEntry[] = [];
   let current: FrontmatterEntry | null = null;
-  let blockScalar: { entry: FrontmatterEntry; fold: boolean } | null = null;
+  let blockScalar: { entry: FrontmatterEntry; fold: boolean; keepTrailing: boolean } | null = null;
+
+  const finalizeBlockScalar = () => {
+    if (!blockScalar) {
+      return;
+    }
+    if (!blockScalar.keepTrailing) {
+      // 默认 clip / `-` strip：去掉尾部空行（`+` 保留）。
+      blockScalar.entry.values[0] = (blockScalar.entry.values[0] ?? '').replace(/\n+$/, '');
+    }
+    blockScalar = null;
+  };
 
   const appendContinuation = (entry: FrontmatterEntry, text: string) => {
     const existing = entry.values[0] ?? '';
@@ -91,20 +145,20 @@ export function parseFrontmatter(block: string): FrontmatterEntry[] | null {
           : text;
         continue;
       }
-      blockScalar = null;
+      finalizeBlockScalar();
     }
 
     if (raw.trim() === '' || /^[ \t]*#/.test(raw)) {
       continue;
     }
 
-    const listItem = /^[ \t]*-[ \t]+(.*)$/.exec(raw);
+    const listItem = /^[ \t]*-(?:[ \t]+(.*))?$/.exec(raw);
     if (listItem) {
       if (!current) {
         return null;
       }
       current.list = true;
-      current.values.push(unquote(listItem[1]));
+      current.values.push(unquote(listItem[1] ?? ''));
       continue;
     }
 
@@ -134,9 +188,13 @@ export function parseFrontmatter(block: string): FrontmatterEntry[] | null {
     if (rawValue === '') {
       continue;
     }
-    if (/^[|>][+-]?$/.test(rawValue)) {
+    if (BLOCK_SCALAR_RE.test(rawValue)) {
       entry.values = [''];
-      blockScalar = { entry, fold: rawValue.startsWith('>') };
+      blockScalar = {
+        entry,
+        fold: rawValue.startsWith('>'),
+        keepTrailing: rawValue.endsWith('+'),
+      };
       continue;
     }
     const inline = splitInlineList(rawValue);
@@ -148,11 +206,13 @@ export function parseFrontmatter(block: string): FrontmatterEntry[] | null {
     entry.values = [unquote(rawValue)];
   }
 
+  finalizeBlockScalar();
   if (entries.length === 0) {
     return null;
   }
   for (const entry of entries) {
-    if (entry.values.length === 0) {
+    // 空列表保持空数组（渲染成“无值”），不要把列表补成空字符串 chip。
+    if (!entry.list && entry.values.length === 0) {
       entry.values = [''];
     }
   }
@@ -161,7 +221,9 @@ export function parseFrontmatter(block: string): FrontmatterEntry[] | null {
 
 export function splitFrontmatter(content: string): SplitMarkdown {
   const none: SplitMarkdown = { entries: [], body: content, lineOffset: 0 };
-  const match = FRONTMATTER_RE.exec(content);
+  // BOM 容错：Windows 工具产出的 md 常带 U+FEFF，否则首部块永远识别不到。
+  const source = content.startsWith('\uFEFF') ? content.slice(1) : content;
+  const match = FRONTMATTER_RE.exec(source);
   if (!match) {
     return none;
   }
@@ -170,25 +232,32 @@ export function splitFrontmatter(content: string): SplitMarkdown {
     return none;
   }
   const lineOffset = (match[0].match(/\n/g) ?? []).length;
-  return { entries, body: content.slice(match[0].length), lineOffset };
+  return { entries, body: source.slice(match[0].length), lineOffset };
 }
 
-/** 属性卡片（通用键值，值全部转义；列表渲染为 chip）。 */
-export function renderFrontmatterCard(entries: FrontmatterEntry[]): string {
+/**
+ * 属性卡片（通用键值，值全部转义；列表渲染为 chip）。
+ * `lineOffset` 是 frontmatter 占用的源行数：整块挂 `data-source-line-start/end`
+ * 覆盖 1..lineOffset，检索跳转到 frontmatter 内任意行时仍能定位到卡片。
+ */
+export function renderFrontmatterCard(entries: FrontmatterEntry[], lineOffset = 0): string {
   if (entries.length === 0) {
     return '';
   }
   const rows = entries
     .map(({ key, values, list }) => {
+      const items = list ? values.filter((value) => value !== '') : values;
       const body = list
-        ? values
+        ? items
             .map((value) => `<span class="adl-md-frontmatter__chip">${escapeHtml(value)}</span>`)
             .join('')
         : `<span class="adl-md-frontmatter__value">${escapeHtml(values[0] ?? '')}</span>`;
       return `<div class="adl-md-frontmatter__row"><dt>${escapeHtml(key)}</dt><dd>${body}</dd></div>`;
     })
     .join('');
-  return `<dl class="adl-md-frontmatter">${rows}</dl>`;
+  const lineAttrs =
+    lineOffset > 0 ? ` data-source-line-start="1" data-source-line-end="${lineOffset}"` : '';
+  return `<dl class="adl-md-frontmatter"${lineAttrs}>${rows}</dl>`;
 }
 
 /** 源行偏移：frontmatter 被剥离后，块级锚点必须补回其占用的行数。 */
@@ -309,7 +378,7 @@ function createMdInstance(starryEnabled: boolean): MarkdownIt {
 /** 同步渲染（回退纯文本代码块）：测试与首屏用，不等待 starry-night WASM。 */
 export function renderMarkdownPreviewHtml(content: string): string {
   const { entries, body, lineOffset } = splitFrontmatter(content);
-  return `${renderFrontmatterCard(entries)}${createMdInstance(false).render(body, { lineOffset })}`;
+  return `${renderFrontmatterCard(entries, lineOffset)}${createMdInstance(false).render(body, { lineOffset })}`;
 }
 
 /**
@@ -329,6 +398,6 @@ export function useMarkdownPreviewHtml(content: string): string {
   const md = useMemo(() => createMdInstance(starryTick > 0), [starryTick]);
   return useMemo(() => {
     const { entries, body, lineOffset } = splitFrontmatter(content);
-    return `${renderFrontmatterCard(entries)}${md.render(body, { lineOffset })}`;
+    return `${renderFrontmatterCard(entries, lineOffset)}${md.render(body, { lineOffset })}`;
   }, [content, md]);
 }

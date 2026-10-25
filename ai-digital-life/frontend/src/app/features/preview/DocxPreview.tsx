@@ -16,7 +16,12 @@ export interface DocxPreviewProps {
 }
 
 /** 渲染结果 HTML 缓存（LRU 8）：docx-preview 产出的 DOM 可直接复挂。 */
-const docxHtmlCache = createLruCache<string>(8);
+// 条目数 + 字符预算双重限制：docx 渲染结果内联图片/字体（base64），只按条数会失控。
+const docxHtmlCache = createLruCache<string>({
+  limit: 4,
+  weigh: (html) => html.length,
+  maxWeight: 6_000_000,
+});
 
 /**
  * DOCX 高保真预览（第三方：docx-preview，Apache-2.0，
@@ -41,6 +46,8 @@ export function DocxPreview({ data, theme = 'dark', fileName, cacheKey }: DocxPr
   const [error, setError] = useState<string | null>(null);
   const [unreadable, setUnreadable] = useState(false);
   const [rendering, setRendering] = useState(true);
+  // 渲染代次：同一路径文件被外部修改时组件不卸载，靠代次丢弃上一轮迟到的结果。
+  const generationRef = useRef(0);
 
   // 旧版格式判定与打开链路共用同一 helper（fileTypeRouter.isLegacyOfficeFile），
   // `.xls` 不在此列（SheetJS 可读 BIFF）。
@@ -52,11 +59,13 @@ export function DocxPreview({ data, theme = 'dark', fileName, cacheKey }: DocxPr
       return undefined;
     }
     let cancelled = false;
+    const generation = generationRef.current + 1;
+    generationRef.current = generation;
     const el: HTMLElement = container;
 
     // 回看命中：直接复挂上次渲染结果（零解析、零扫光）。
     const cached = cacheKey ? docxHtmlCache.get(cacheKey) : undefined;
-    if (cached) {
+    if (cached !== undefined) {
       el.innerHTML = cached;
       setError(null);
       setUnreadable(false);
@@ -90,14 +99,14 @@ export function DocxPreview({ data, theme = 'dark', fileName, cacheKey }: DocxPr
           renderEndnotes: true,
           useBase64URL: true,
         });
-        if (!cancelled) {
+        if (!cancelled && generation === generationRef.current) {
           if (cacheKey) {
             docxHtmlCache.set(cacheKey, el.innerHTML);
           }
           setRendering(false);
         }
       } catch (err) {
-        if (!cancelled) {
+        if (!cancelled && generation === generationRef.current) {
           setRendering(false);
           const message = err instanceof Error ? err.message : String(err);
           // zip 解包失败（损坏/非文档/临时文件残留）：库原文是英文技术细节，

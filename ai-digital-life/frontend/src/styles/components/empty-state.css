@@ -6,9 +6,10 @@
    ========================================================================== */
 
 /* -------- Empty state -------- */
-/* 空态文字统一规范（唯一基线）：字号 --text-xs、颜色 --text-muted、行高 1.5、
-   水平居中。其它空态类（.adl-empty-hint / .adl-empty-row / .adl-bookmark-dir-empty /
-   .adl-sortable-empty）只允许覆盖容器布局，不得改这四项。 */
+/* 空态文字规范：唯一基线是 `tree-shared.css` 的 `.adl-empty-hint`（字号 --text-xs、
+   颜色 --text-muted、行高 1.5、水平居中）。本文件的 `.empty-state` 是同一规范的
+   历史镜像（当前无调用方）；`.adl-sortable-empty` 是拖放区例外（字号需与 sortable
+   项一致，见 settings.css）。其它空态只允许覆盖容器布局，不得改这四项。 */
 .empty-state {
   display: grid;
   place-items: center;

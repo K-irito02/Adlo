@@ -10,6 +10,7 @@ vi.mock('@i18n/useTCopy', () => ({
       changesPdfPrevPage: 'Previous page',
       changesPdfNextPage: 'Next page',
       changesPdfPageNumber: 'Page number',
+      changesPdfPageStatus: 'Page {current} / {total}',
       changesPdfPageJumpHint: 'Double-click to edit page',
       fileMediaLoading: 'Loading file...',
     },
@@ -43,7 +44,7 @@ vi.mock('pdfjs-dist', () => {
 
 /** 双击页码 → 输入框 → 回车 的公共流程。 */
 function typePage(page: string) {
-  fireEvent.doubleClick(screen.getByRole('button', { name: 'Double-click to edit page' }));
+  fireEvent.doubleClick(screen.getByRole('button', { name: /^\d+ \/ \d+$/ }));
   const input = screen.getByRole('textbox', { name: 'Page number' });
   fireEvent.change(input, { target: { value: page } });
   fireEvent.keyDown(input, { key: 'Enter' });
@@ -113,7 +114,7 @@ describe('PdfPreview navigation', () => {
     await waitFor(() => {
       expect(screen.getByText('1 / 3')).toBeTruthy();
     });
-    fireEvent.doubleClick(screen.getByRole('button', { name: 'Double-click to edit page' }));
+    fireEvent.doubleClick(screen.getByRole('button', { name: /^\d+ \/ \d+$/ }));
     const input = screen.getByRole('textbox', { name: 'Page number' });
     fireEvent.change(input, { target: { value: '3' } });
     fireEvent.keyDown(input, { key: 'Escape' });
@@ -127,7 +128,7 @@ describe('PdfPreview navigation', () => {
     await waitFor(() => {
       expect(screen.getByText('1 / 3')).toBeTruthy();
     });
-    fireEvent.doubleClick(screen.getByRole('button', { name: 'Double-click to edit page' }));
+    fireEvent.doubleClick(screen.getByRole('button', { name: /^\d+ \/ \d+$/ }));
     const input = screen.getByRole('textbox', { name: 'Page number' });
     fireEvent.change(input, { target: { value: '2' } });
     fireEvent.blur(input);
@@ -232,6 +233,83 @@ describe('PdfPreview navigation', () => {
       expect(canvas?.width).toBe(100);
       expect(canvas?.height).toBe(200);
     });
+  });
+
+  it('enters page edit with Enter/Space on the counter (keyboard path)', async () => {
+    render(<PdfPreview data={new ArrayBuffer(8)} />);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    });
+    const counter = screen.getByRole('button', { name: '1 / 3' });
+    fireEvent.keyDown(counter, { key: 'Enter' });
+    expect(screen.getByRole('textbox', { name: 'Page number' })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Page number' }), {
+      key: 'Escape',
+    });
+    expect(screen.getByRole('button', { name: '1 / 3' })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole('button', { name: '1 / 3' }), { key: ' ' });
+    expect(screen.getByRole('textbox', { name: 'Page number' })).toBeTruthy();
+  });
+
+  it('exposes the page count as name/description and restores focus after commit', async () => {
+    render(<PdfPreview data={new ArrayBuffer(8)} />);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    });
+    fireEvent.doubleClick(screen.getByRole('button', { name: '1 / 3' }));
+    const input = screen.getByRole('textbox', { name: 'Page number' });
+    const describedBy = input.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    const description = document.getElementById(describedBy as string)?.textContent ?? '';
+    expect(description).toContain('1');
+    expect(description).toContain('3');
+
+    fireEvent.change(input, { target: { value: '2' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: '2 / 3' }));
+    });
+  });
+
+  it('rejects non-integer input instead of parseInt-style leniency', async () => {
+    render(<PdfPreview data={new ArrayBuffer(8)} />);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    });
+    typePage('2abc');
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    });
+    typePage('2.9');
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    });
+  });
+
+  it('leaves edit mode when the document changes mid-edit', async () => {
+    const pdfjs = await import('pdfjs-dist');
+    const { rerender } = render(<PdfPreview data={new ArrayBuffer(8)} />);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    });
+    fireEvent.doubleClick(screen.getByRole('button', { name: '1 / 3' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Page number' }), {
+      target: { value: '3' },
+    });
+    vi.mocked(pdfjs.getDocument).mockReturnValueOnce({
+      promise: Promise.resolve({
+        numPages: 2,
+        getPage: vi.fn().mockResolvedValue({
+          getViewport: () => ({ width: 100, height: 200 }),
+          render: vi.fn().mockReturnValue({ promise: Promise.resolve(), cancel: vi.fn() }),
+        }),
+      }),
+    } as never);
+    rerender(<PdfPreview data={new ArrayBuffer(16)} />);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 2')).toBeTruthy();
+    });
+    expect(screen.queryByRole('textbox', { name: 'Page number' })).toBeNull();
   });
 
   it('reuses the parsed document for the same cacheKey (no re-parse)', async () => {

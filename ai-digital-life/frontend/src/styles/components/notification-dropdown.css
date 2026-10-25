@@ -88,6 +88,9 @@
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
-  font-size: 13px;
+  /* 空态统一规范：xs / muted / 1.5 / 居中（见 tree-shared.css .adl-empty-hint） */
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  text-align: center;
   color: var(--text-muted);
 }

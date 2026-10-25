@@ -199,8 +199,10 @@
 }
 
 .adl-statusbar__menu-empty {
+  /* 空态统一规范：xs / muted / 1.5 */
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--text-xs);
+  line-height: 1.5;
 }
 
 .adl-statusbar__menu-option {

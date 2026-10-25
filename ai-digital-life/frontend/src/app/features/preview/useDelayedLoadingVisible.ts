@@ -23,10 +23,12 @@ export function useDelayedLoadingVisible(
   useEffect(() => {
     if (active) {
       if (visible) {
+        // 新的加载周期从此刻重新计最短展示时长（否则会沿用上一轮的起点）。
+        shownAtRef.current = Date.now();
         return undefined;
       }
       const timer = window.setTimeout(() => {
-        shownAtRef.current = performance.now();
+        shownAtRef.current = Date.now();
         setVisible(true);
       }, delayMs);
       return () => window.clearTimeout(timer);
@@ -35,7 +37,7 @@ export function useDelayedLoadingVisible(
     if (!visible) {
       return undefined;
     }
-    const elapsed = performance.now() - shownAtRef.current;
+    const elapsed = Date.now() - shownAtRef.current;
     const remaining = Math.max(0, minVisibleMs - elapsed);
     const timer = window.setTimeout(() => setVisible(false), remaining);
     return () => window.clearTimeout(timer);

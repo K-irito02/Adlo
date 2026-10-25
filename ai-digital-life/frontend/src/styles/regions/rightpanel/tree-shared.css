@@ -243,9 +243,6 @@
   padding: var(--space-2) 0;
 }
 
-.adl-multitree__empty p.adl-empty-hint {
-  padding: var(--space-4) var(--space-2);
-}
 
 .adl-tool-list__item {
   flex-direction: column;
