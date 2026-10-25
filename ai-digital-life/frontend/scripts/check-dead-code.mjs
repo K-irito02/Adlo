@@ -91,19 +91,28 @@ for (const file of allSourceFiles) {
 
 const problems = [];
 
-/** 只看本次 diff 新增的行（未跟踪文件视为全新增），避免追讨历史死 CSS。 */
+/** 只看本次 diff 新增的行（未跟踪/新文件按全新增处理），避免追讨历史死 CSS。 */
 function addedText(file) {
   const relative = path.relative(repoRoot, file);
-  const tracked = capture('git', ['ls-files', '--error-unmatch', relative]);
-  if (!tracked) {
+  const diff = capture('git', ['diff', '-U0', base, '--', relative]);
+  if (!diff) {
+    // 未跟踪文件没有 diff；已跟踪但未变更的文件根本不在 changed 列表里。
     return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
   }
-  const diff = capture('git', ['diff', '-U0', base, '--', relative]);
   return diff
     .split(/\r?\n/)
     .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
     .map((line) => line.slice(1))
     .join('\n');
+}
+
+/** 文件在 base 提交里是否已存在（用 cat-file 而不是 ls-files，避免 hook 环境的 GIT_DIR 干扰）。 */
+function existedInBase(file) {
+  const result = spawnSync('git', ['cat-file', '-e', `${base}:${path.relative(repoRoot, file)}`], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  return result.status === 0;
 }
 
 // ---- 1) 本次新增的 CSS class 是否被任何源码发出 ----
@@ -126,7 +135,7 @@ const changedBarrels = changed.filter((file) => file.endsWith('index.ts'));
 for (const file of changedBarrels) {
   if (!fs.existsSync(file)) continue;
   // 仅对“新文件”做全量导出检查；修改已有 barrel 时，新增导出由审查覆盖（避免历史导出误报）。
-  if (capture('git', ['ls-files', '--error-unmatch', path.relative(repoRoot, file)])) continue;
+  if (existedInBase(file)) continue;
   const text = fs.readFileSync(file, 'utf8');
   const names = new Set();
   for (const block of text.matchAll(/export\s+(?:type\s+)?\{([\s\S]*?)\}\s+from/g)) {
@@ -151,7 +160,7 @@ for (const file of changedBarrels) {
 }
 
 if (problems.length > 0) {
-  console.log(`[check:dead-code] ${problems.length} problem(s):`);
+  console.log(`[check:dead-code] base=${base} ${problems.length} problem(s):`);
   for (const problem of problems) console.log(`  - ${problem}`);
   process.exit(1);
 }
