@@ -2,6 +2,14 @@ export const environmentEn = {
   settingsEnvironment: 'Environment',
   environmentTitle: 'Environment dependencies',
   environmentDesc: 'System dependencies the assistant needs — check and install in one place',
+  environmentTitleHint:
+    'All external tools the app needs, in one place.\n· Each item is auto-detected; install with one click when missing\n· Copy diagnostics to any assistant when something looks wrong\n· Auto detect is easiest; use a custom path only when you know exactly where it is',
+  environmentBlockRuntimeHint:
+    'The three common base tools.\n· Auto detect prefers what is already installed\n· Switch sources in the dropdown when needed; custom path means you tell the app where to look\n· Copy diagnostics to explain version, path and issues at once',
+  environmentBlockSystemHint:
+    'Built-in system capabilities, read-only.\n· Nothing to install by hand and no source switching\n· Versions are managed by the system, so there is no install button\n· Copy diagnostics when something looks wrong',
+  environmentBlockNetworkHint:
+    'Network and credential status.\n· One line shows whether downloads work, how fast, and whether the model service follows the assistant\n· Credential status only means the key store works, not that the model is configured',
   environmentBlockRuntime: 'Core dependencies',
   environmentBlockSystem: 'System components',
   environmentBlockNetwork: 'Network & model',
@@ -14,6 +22,7 @@ export const environmentEn = {
   environmentSourceAuto: 'Auto detect',
   environmentSourceSystem: 'System install',
   environmentSourceHost: 'Bundled with host',
+  environmentSourceCustom: 'Custom path',
   environmentBashGitBundled: 'Bundled with Git',
   environmentBashWsl: 'WSL',
   environmentBashMsys2: 'MSYS2',
@@ -47,6 +56,22 @@ export const environmentEn = {
   environmentDepAdlserver: 'adl-server',
   environmentDepNet: 'Network & credentials',
   environmentDepModel: 'Model credentials',
+  environmentDepNodeHint:
+    'Base runtime for the assistant and tools.\n· Auto detect prefers the bundled copy, then your system install\n· The install button on the right installs the bundled version when missing or too old; confirm once and it takes effect automatically\n· It only shows when an install is actually needed: hidden when ready, hidden when offline\n· Use a custom path when you have your own version',
+  environmentDepGitHint:
+    'Version control tool.\n· The bundled copy is minimal and has no shell\n· The install button on the right installs the bundled version when missing or too old; confirm once and it takes effect automatically\n· It only shows when an install is actually needed: hidden when ready, hidden when offline\n· Use your full system install or a custom path for the shell',
+  environmentDepBashHint:
+    'Shell for terminals and scripts.\n· Not bundled; use your system version or a custom path\n· Auto detect recognizes common system installs',
+  environmentDepWebview2Hint:
+    'System component for showing web content on desktop.\n· Managed by the system installer; read-only here\n· Copy diagnostics when embedded pages fail to open',
+  environmentDepAdlserverHint:
+    'Local backend service bundled with the app.\n· Nothing to install and no source switching\n· Recheck or copy diagnostics when unhealthy',
+  environmentDepNetHint:
+    'Download and credential status.\n· One line shows connectivity, speed, and whether the model service follows the assistant',
+  environmentDepModelHint:
+    'Where model credentials live.\n· Credentials are entered on the assistant side; this only shows whether the store works',
+  environmentSourceSummaryHint:
+    'The download address currently in use.\n· Read-only; change it in the Network group\n· Auto detect picks the faster reachable source',
   environmentDepNodeDesc: 'JavaScript runtime required by dsh and the toolchain',
   environmentDepGitDesc: 'Version control; the hosted build is MinGit (one-click install, no Bash)',
   environmentDepBashDesc:

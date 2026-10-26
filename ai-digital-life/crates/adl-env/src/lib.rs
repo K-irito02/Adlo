@@ -33,6 +33,10 @@ pub enum SourceMode {
     System,
     /// Only the hosted copy counts; missing means none.
     Host,
+    /// Only the user-specified path counts; missing/empty means none.
+    /// Callers must scope availability to the custom path before calling
+    /// [`resolve()`] (see `handlers::env::{node,git,bash}_state`).
+    Custom,
 }
 
 /// Actually effective source after availability is considered.
@@ -99,7 +103,7 @@ pub struct UninstallOutcome {
 pub fn resolve(mode: SourceMode, sys_available: bool, host_version: Option<String>) -> Resolved {
     let has_host = host_version.as_deref().is_some_and(|v| !v.is_empty());
     let effective = match mode {
-        SourceMode::System => {
+        SourceMode::System | SourceMode::Custom => {
             if sys_available {
                 EffectiveSource::System
             } else {
@@ -140,5 +144,13 @@ mod tests {
         // system/host 强制：缺失 → none（不静默降级，前端据此提示安装）
         assert_eq!(resolve(System, false, Some("22.14.0".into())).effective, EffectiveSource::None);
         assert_eq!(resolve(Host, true, None).effective, EffectiveSource::None);
+        // custom 与 system 同语义（调用方已把可用性收敛到指定路径）：有即 system，无即 none，
+        // 永不回退到 host（即使 host 可用也不用）。
+        assert_eq!(
+            resolve(Custom, true, Some("22.14.0".into())).effective,
+            EffectiveSource::System
+        );
+        assert_eq!(resolve(Custom, false, Some("22.14.0".into())).effective, EffectiveSource::None);
+        assert_eq!(resolve(Custom, true, None).effective, EffectiveSource::System);
     }
 }

@@ -245,9 +245,23 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     ],
   },
   {
-    // 环境组：单块八行 —— 安装/切换/卸载/重装/重测/复制/复制全部/前往配置。
+    // 「当前下载源」独立沉底卡：无块标题（行主文案即标题，照抄存储 locator 卡）。
+    group: 'dsh',
+    anchorId: 'source',
+    labelKey: 'dshSourceSummaryTitle',
+    rows: [
+      {
+        labelKey: 'dshSourceSummaryTitle',
+        hintKeys: ['dshSourceSummaryHint'],
+      },
+    ],
+  },
+  {
+    // 环境组：两块七行 —— 安装/切换/卸载/重装/重测/复制/复制全部。
     // 卸载/重装仅在宿主来源且已安装的行渲染（条件行），行级落点经
     // `data-settings-row` 同名标记（Phase 3 随按钮一起加回）。
+    // 「网络与模型」块已删除（下载连通归网络组，凭据/模型归 dsh 侧），
+    // 「前往配置」行随之移除（该标记只挂在已删除的网络行上）。
     group: 'environment',
     anchorId: 'deps',
     labelKey: 'environmentTitle',
@@ -260,7 +274,6 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
       { labelKey: 'environmentRecheck' },
       { labelKey: 'environmentCopyForAgent' },
       { labelKey: 'environmentCopyAllForAgent' },
-      { labelKey: 'environmentGoToSettings' },
     ],
   },
 ];

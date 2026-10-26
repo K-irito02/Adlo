@@ -2,6 +2,14 @@ export const environmentZh = {
   settingsEnvironment: '环境',
   environmentTitle: '环境依赖',
   environmentDesc: '运行助手所需的系统依赖，一处查看、一处安装',
+  environmentTitleHint:
+    '这里集中管理应用运行需要的外部工具。\n· 每一项都会自动检测，缺什么点一下就能装\n· 看不懂状态时，点复制发给智能体，就能帮你看问题\n· 来源可以切换：自动检测最省心，指定路径适合你明确知道装在哪里的情况',
+  environmentBlockRuntimeHint:
+    '最常用的三种基础工具。\n· 自动检测会优先用已经装好的，找不到才提示你装\n· 下拉可以切换来源：自动检测最省心，系统安装用你电脑里的，宿主内置用应用自带的，指定路径就是你自己告诉应用去哪里找\n· 复制诊断信息发给智能体，能一次讲清版本、路径和问题',
+  environmentBlockSystemHint:
+    '系统自带的能力，只看状态。\n· 不需要你手动安装，也不能切换来源\n· 版本由系统管理，所以这里没有安装按钮\n· 有问题时复制诊断信息发给智能体即可',
+  environmentBlockNetworkHint:
+    '网络和钥匙相关的状态。\n· 一行显示下载能不能连通、速度多快，以及模型服务是不是跟着助手走\n· 凭据只表示钥匙箱好不好用，不代表模型已经配好\n· 模型真正去向在助手那一侧配置，这里只看状态',
   environmentBlockRuntime: '基础依赖',
   environmentBlockSystem: '系统组件',
   environmentBlockNetwork: '网络与模型',
@@ -14,16 +22,17 @@ export const environmentZh = {
   environmentSourceAuto: '自动检测',
   environmentSourceSystem: '系统安装',
   environmentSourceHost: '宿主内置',
+  environmentSourceCustom: '指定路径',
   environmentBashGitBundled: 'Git 自带',
   environmentBashWsl: 'WSL',
   environmentBashMsys2: 'MSYS2',
-  environmentBashCustom: '手动路径',
+  environmentBashCustom: '指定路径',
   environmentInstall: '安装',
   environmentSwitch: '切换',
   environmentUninstall: '卸载',
   environmentReinstall: '重装',
   environmentRecheck: '重新检测',
-  environmentCopyForAgent: '复制给 agent',
+  environmentCopyForAgent: '复制给智能体',
   environmentGoToSettings: '前往配置',
   environmentWebview2DownloadPage: 'WebView2 下载页',
   environmentDshCredentialNote: 'dsh 凭据去向',
@@ -38,8 +47,8 @@ export const environmentZh = {
   environmentInstallFailed: '安装 {dep} 失败',
   environmentUninstallFailed: '卸载 {dep} 失败',
   environmentAggregateReady: '{ready}/{total} 就绪',
-  environmentCopyAllForAgent: '复制全部给 agent',
-  environmentCopyForAgentNote: '复制给 agent（含诊断 JSON）',
+  environmentCopyAllForAgent: '复制全部给智能体诊断',
+  environmentCopyForAgentNote: '复制给智能体诊断',
   environmentDepNode: 'Node.js',
   environmentDepGit: 'Git',
   environmentDepBash: 'Bash',
@@ -47,6 +56,22 @@ export const environmentZh = {
   environmentDepAdlserver: 'adl-server',
   environmentDepNet: '网络与凭据',
   environmentDepModel: '模型凭据',
+  environmentDepNodeHint:
+    '跑助手和工具要用的基础环境。\n· 自动检测会先看应用自带的，再看你电脑里装的\n· 右边的安装按钮是把缺失或版本太低的一键装成应用自带的版本，点一下确认就开始装，装完自动生效，不用你自己找安装包\n· 安装按钮只在需要安装时出现：已经就绪时不显示；断网时也不显示，先恢复网络，或用下面的复制链接发给智能体看\n· 有自己的版本时，下拉选指定路径，填上完整位置就行',
+  environmentDepGitHint:
+    '管代码版本用的工具。\n· 应用自带的是精简版，只能管代码，不管命令行窗口\n· 右边的安装按钮是把缺失或版本太低的一键装成应用自带的版本，点一下确认就开始装，装完自动生效，不用你自己找安装包\n· 安装按钮只在需要安装时出现：已经就绪时不显示；断网时也不显示，先恢复网络，或用下面的复制链接发给智能体看\n· 命令行窗口要用你电脑里的完整版，或选指定路径自己填',
+  environmentDepBashHint:
+    '命令行窗口要用的外壳。\n· 应用自带的不含这一项，请用电脑里的系统版本，或选指定路径自己填\n· 自动检测会认出系统里的常见版本，找不到时按提示装一个就行',
+  environmentDepWebview2Hint:
+    '电脑里显示网页内容用的系统部件。\n· 由系统安装程序管理，这里只能看状态，不能切换版本\n· 打不开内嵌网页时，复制诊断信息发给智能体即可',
+  environmentDepAdlserverHint:
+    '应用自带的本地后台服务。\n· 不需要你安装，也不能切换来源\n· 状态不对时，重新检测一次，或复制诊断信息发给智能体',
+  environmentDepNetHint:
+    '下载和钥匙的状态。\n· 一行显示下载能不能连通、速度多快，以及模型服务是不是跟着助手走\n· 钥匙箱可用不代表模型已配好，模型去助手那一侧配置',
+  environmentDepModelHint:
+    '模型钥匙的去向说明。\n· 钥匙在助手那一侧填写，这里只显示钥匙箱好不好用\n· 显示可用不代表能直接对话，配好钥匙后回到助手里试一次',
+  environmentSourceSummaryHint:
+    '当前实际在用的下载地址。\n· 只读显示，去网络那一组修改\n· 自动检测会在官方和镜像之间选更快能连通的一个',
   environmentDepNodeDesc: 'JavaScript 运行环境，dsh 与工具链的前置依赖',
   environmentDepGitDesc: '版本管理工具，宿主版本为 MinGit（可一键安装，不含 Bash）',
   environmentDepBashDesc:
@@ -62,7 +87,7 @@ export const environmentZh = {
   environmentBashSetupHint:
     '宿主 Git 仅提供 Git（MinGit 不含 Bash）；Bash 请使用系统 Git for Windows / WSL / MSYS2 或手动填路径',
   environmentInstallDesktopOnlyHint: '——安装/卸载需桌面模式',
-  environmentCustomPathLabel: '手动路径',
+  environmentCustomPathLabel: '指定路径',
   environmentCustomPathPlaceholder: '粘贴完整可执行文件路径，失焦保存（清空即清除）',
   environmentAdvanced: '高级',
   environmentFixedVersion: '固定版本',

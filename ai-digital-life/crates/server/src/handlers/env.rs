@@ -36,12 +36,13 @@ pub fn parse_dep(dep: &str) -> Result<&'static str, AppError> {
     }
 }
 
-/// Parse a source mode (`auto`/`system`/`host`); anything else is `InvalidInput`.
+/// Parse a source mode (`auto`/`system`/`host`/`custom`); anything else is `InvalidInput`.
 pub fn parse_mode(mode: &str) -> Result<adl_env::SourceMode, AppError> {
     match mode {
         "auto" => Ok(adl_env::SourceMode::Auto),
         "system" => Ok(adl_env::SourceMode::System),
         "host" => Ok(adl_env::SourceMode::Host),
+        "custom" => Ok(adl_env::SourceMode::Custom),
         _ => Err(AppError::InvalidInput(format!("invalid source mode: {mode}"))),
     }
 }
@@ -50,11 +51,17 @@ pub fn parse_mode(mode: &str) -> Result<adl_env::SourceMode, AppError> {
 /// ships no bash), `webview2`/`adlserver`/`netprobe` have no hosted install
 /// root, so selecting `host` is a machine-coded 4xx (`no-hosted-source`)
 /// rather than a silently ineffective preference.
+/// `custom` mode requires custom-path support (`node`/`git`/`bash` only).
 pub fn validate_hosted_source(dep: &str, mode: adl_env::SourceMode) -> Result<(), AppError> {
     if mode == adl_env::SourceMode::Host
         && matches!(dep, "bash" | "webview2" | "adlserver" | "netprobe")
     {
         return Err(AppError::InvalidInput("no-hosted-source".into()));
+    }
+    if mode == adl_env::SourceMode::Custom
+        && matches!(dep, "webview2" | "adlserver" | "netprobe")
+    {
+        return Err(AppError::InvalidInput("no-custom-path".into()));
     }
     Ok(())
 }
@@ -414,8 +421,15 @@ fn node_state(
         .read_selected()
         .ok()
         .flatten();
+    // `custom` 模式只认指定路径：未填写时直接不可用，不回退到 PATH 探测；
+    // 非 custom 模式保持向后兼容（已填路径仍优先覆盖探测）。
     let sys = match custom.as_deref() {
         Some(p) => detect_node_at(p),
+        None if mode == adl_env::SourceMode::Custom => node::Detection {
+            available: false,
+            version: None,
+            path: None,
+        },
         None => node::detect(),
     };
     let effective = resolve(mode, sys.available, host.clone()).effective;
@@ -459,6 +473,11 @@ fn git_state(
         .flatten();
     let sys = match custom.as_deref() {
         Some(p) => detect_git_at(p),
+        None if mode == adl_env::SourceMode::Custom => git::Detection {
+            available: false,
+            version: None,
+            path: None,
+        },
         None => git::detect(),
     };
     let effective = resolve(mode, sys.available, host.clone()).effective;
@@ -501,8 +520,20 @@ fn bash_state_from_candidates(
 ) -> DependencyState {
     let mode = sources.bash.mode;
     let custom = sources.bash.custom_path.clone().filter(|p| !p.is_empty());
-    // 显式自定义路径是 `Manual`，在 system 侧优先于探测到的候选（不得排到末尾）。
-    if let Some(p) = custom.as_deref() {
+    // `custom` 模式只认指定路径：清空探测候选，仅保留已填且存在的文件；
+    // 非 custom 模式保持向后兼容（已填路径置顶，仍保留探测候选）。
+    if mode == adl_env::SourceMode::Custom {
+        candidates.clear();
+        if let Some(p) = custom.as_deref() {
+            if Path::new(p).is_file() {
+                candidates.push(bash::BashCandidate {
+                    kind: bash::BashKind::Manual,
+                    path: p.to_string(),
+                });
+            }
+        }
+    } else if let Some(p) = custom.as_deref() {
+        // 显式自定义路径是 `Manual`，在 system 侧优先于探测到的候选（不得排到末尾）。
         if Path::new(p).is_file() {
             candidates.retain(|c| c.path != p);
             candidates.insert(

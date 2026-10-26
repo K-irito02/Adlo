@@ -68,6 +68,8 @@ pub fn load(data_dir: &Path) -> Result<EnvSourcesConfig, AppError> {
 
 /// Deps with no hosted install root: a persisted `host` mode can only resolve
 /// to `none`, so it is reset to `auto` on load (with a warning naming the dep).
+/// Likewise, `custom` on deps without custom-path support (`webview2`/
+/// `adlserver`/`netprobe`) is reset to `auto`.
 fn normalize_hostless(config: &mut EnvSourcesConfig, path: &Path) {
     let slots = [
         ("bash", &mut config.bash),
@@ -82,6 +84,20 @@ fn normalize_hostless(config: &mut EnvSourcesConfig, path: &Path) {
                 dep,
                 path = %path.display(),
                 "env sources: host mode has no hosted source; reset to auto"
+            );
+        }
+    }
+    for (dep, slot) in [
+        ("webview2", &mut config.webview2),
+        ("adlserver", &mut config.adlserver),
+        ("netprobe", &mut config.netprobe),
+    ] {
+        if slot.mode == SourceMode::Custom {
+            slot.mode = SourceMode::Auto;
+            tracing::warn!(
+                dep,
+                path = %path.display(),
+                "env sources: custom mode has no custom-path support; reset to auto"
             );
         }
     }

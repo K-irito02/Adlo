@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { SettingsSelect } from '@components/settings/SettingsSelect';
-import { IconResetDefaults } from '../../icons';
+import { SettingsHintButton } from '@components/settings/SettingsHintButton';
 import type {
   EnvDependencyState,
   EnvSourceMode,
@@ -108,26 +108,15 @@ function depPill(
     : { text: t.environmentStatusTooOld, tone: 'warning' };
 }
 
-/** Bash 系统发行版推导（wire 无 variant 信号，仅展示当前 effective 的归属）。 */
-function bashVariantOf(section: EnvDependencyState): 'git' | 'wsl' | 'msys2' | 'manual' {
-  if (section.customPath && section.customPath.trim() !== '') {
-    return 'manual';
-  }
-  const path = (section.path ?? '').toLowerCase();
-  if (path.includes('wsl')) {
-    return 'wsl';
-  }
-  if (path.includes('msys') || path.includes('mingw')) {
-    return 'msys2';
-  }
-  return 'git';
-}
-
 function EnvDepPill({ dep, section }: { dep: string; section: EnvDependencyState }) {
   const { t } = useTCopy();
   const pill = depPill(t, dep, section);
   return (
-    <span className={`adl-settings-status adl-settings-status--${pill.tone}`}>{pill.text}</span>
+    <span
+      className={`adl-settings-status adl-settings-status--${pill.tone} adl-settings-status--compact`}
+    >
+      {pill.text}
+    </span>
   );
 }
 
@@ -165,8 +154,8 @@ export function EnvDepRow({
   compact = false,
 }: EnvDepRowProps) {
   const { t } = useTCopy();
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [pathDraft, setPathDraft] = useState<string | null>(null);
+  const [pathFocused, setPathFocused] = useState(false);
   // 卸载两段确认（照抄 DshVersionManagement：首击武装，再击执行）。
   const [uninstallArmed, setUninstallArmed] = useState(false);
 
@@ -211,11 +200,27 @@ export function EnvDepRow({
   const installGated = browserGated && (dep === 'node' || dep === 'git');
   const descText = installGated ? `${depDesc} ${t.environmentInstallDesktopOnlyHint}` : depDesc;
 
-  const sourceOptions = [
-    { value: 'auto', label: t.environmentSourceAuto },
-    { value: 'system', label: t.environmentSourceSystem },
-    { value: 'host', label: t.environmentSourceHost },
-  ];
+  // 来源下拉：node/git 四项（含指定路径）；bash 无宿主来源，三项（自动/系统/指定路径）；
+  // 其余只读行不展示下拉（showControlColumn 为 false），此处仅为类型完备保留三项。
+  const sourceOptions =
+    dep === 'node' || dep === 'git'
+      ? [
+          { value: 'auto', label: t.environmentSourceAuto },
+          { value: 'system', label: t.environmentSourceSystem },
+          { value: 'host', label: t.environmentSourceHost },
+          { value: 'custom', label: t.environmentSourceCustom },
+        ]
+      : dep === 'bash'
+        ? [
+            { value: 'auto', label: t.environmentSourceAuto },
+            { value: 'system', label: t.environmentSourceSystem },
+            { value: 'custom', label: t.environmentSourceCustom },
+          ]
+        : [
+            { value: 'auto', label: t.environmentSourceAuto },
+            { value: 'system', label: t.environmentSourceSystem },
+            { value: 'host', label: t.environmentSourceHost },
+          ];
 
   // 手动路径输入：值 = 草稿 ?? 服务端 customPath；失焦且变化才调桥，
   // 失败回滚草稿（服务端已校验，前端只透传错误，action 侧 toast）。
@@ -243,9 +248,8 @@ export function EnvDepRow({
   // task.error 非空 = 后端终态失败：不再当作进行中任务渲染，行回到可操作态
   //（轮询侧已停；后端快照若仍带 error，remount/refetch 也不会复活扫光）。
   const taskForDep = taskFor(status, dep);
-  // 断网降级（spec §6.2）：下载源不可达时安装必失败，安装按钮由复制按钮
-  // 替代（复制诊断 JSON 给 agent，手动装后重测）；精简/全量模式共用同一行逻辑，
-  // 向导（compact）与设置组同时生效，无需向导侧重复实现。
+  // 断网时安装必失败，故隐藏安装按钮（不以复制按钮替代：行底部已有复制诊断链接，
+  // 控制列不再重复出现复制按钮，避免用户误解）。
   const offline = !status.netprobe.registryOk;
 
   // 搜索行标记唯一性：多个依赖行共享同一操作文案时，只让「首个可用行」携带
@@ -254,7 +258,7 @@ export function EnvDepRow({
     INSTALLABLE_ORDER.find(
       (candidate) => !isEnvDepReady(status[candidate]) && taskFor(status, candidate) === null,
     ) ?? null;
-  const installMarkerDep = offline ? null : firstInstallDep;
+  const installMarkerDep = firstInstallDep;
   const firstUninstallDep =
     INSTALLABLE_ORDER.find((candidate) => {
       const candidateSection = status[candidate];
@@ -269,13 +273,18 @@ export function EnvDepRow({
     !(firstUninstallDep === 'git' && status.git.installedVersion !== status.git.baselineVersion)
       ? firstUninstallDep
       : null;
+  // 安装按钮仅 node/git、未就绪、无进行中任务且在线时出现：
+  // 把缺失/过低的依赖一键装成宿主内置版本（装完自动生效）。
   const showInstall =
     section !== null &&
     INSTALLABLE_DEPS.has(dep) &&
     !isEnvDepReady(section) &&
     taskForDep === null &&
     !offline;
+  // 向导（compact）行底部无帮助链接，断网时控制列保留复制按钮作唯一诊断出口；
+  // 设置组非 compact 行底部已有复制诊断链接，控制列不再重复（用户要求）。
   const showOfflineCopy =
+    compact &&
     section !== null &&
     INSTALLABLE_DEPS.has(dep) &&
     !isEnvDepReady(section) &&
@@ -324,17 +333,6 @@ export function EnvDepRow({
     void actions.reinstall(dep, section.installedVersion);
   };
 
-  const bashVariant = dep === 'bash' && section !== null ? bashVariantOf(section) : null;
-  const showBashVariant = bashVariant !== null && section?.mode === 'system';
-  const bashVariantLabel =
-    bashVariant === 'wsl'
-      ? t.environmentBashWsl
-      : bashVariant === 'msys2'
-        ? t.environmentBashMsys2
-        : bashVariant === 'manual'
-          ? t.environmentBashCustom
-          : t.environmentBashGitBundled;
-
   const renderStatusLine = () => {
     if (section !== null) {
       // bash/adlserver 后端不报告版本（仅存在性）：显示「已检测」而非「缺失」，无检测时用破折号。
@@ -351,7 +349,9 @@ export function EnvDepRow({
           ? t.environmentSourceAuto
           : section.mode === 'system'
             ? t.environmentSourceSystem
-            : t.environmentSourceHost;
+            : section.mode === 'custom'
+              ? t.environmentSourceCustom
+              : t.environmentSourceHost;
       parts.push(`${t.environmentFieldSource} ${sourceLabel}`);
       // ' · ' 连接为标点拼接（照抄 DshVersionManagement 版本行标题拼接先例）。
       return <small>{parts.join(' · ')}</small>;
@@ -361,23 +361,22 @@ export function EnvDepRow({
       return (
         <>
           <small>
-            <span
-              className={`adl-settings-status ${
-                netprobe.registryOk
-                  ? 'adl-settings-status--success'
-                  : 'adl-settings-status--warning'
-              }`}
-            >
-              {netprobe.registryOk ? t.environmentNetRegistry : t.environmentNetRegistryDown}
-            </span>
             {netprobe.registryOk ? (
-              <> {formatT(t, 'environmentNetLatency', { ms: netprobe.registryLatencyMs })}</>
-            ) : null}
+              <>
+                {t.environmentNetRegistry}{' '}
+                {formatT(t, 'environmentNetLatency', { ms: netprobe.registryLatencyMs })}
+                {' / '}
+                {t.environmentNetModelApi} · {t.environmentNetFollowDsh}
+              </>
+            ) : (
+              <>
+                {t.environmentNetRegistryDown}
+                {' / '}
+                {t.environmentNetModelApi} · {t.environmentNetFollowDsh}
+              </>
+            )}
           </small>
-          <small>
-            {t.environmentNetModelApi} · {t.environmentNetFollowDsh}
-            {netprobe.ciTokenConfigured ? <> · {t.environmentCredentialAvailable}</> : null}
-          </small>
+          {netprobe.ciTokenConfigured ? <small>{t.environmentCredentialAvailable}</small> : null}
         </>
       );
     }
@@ -412,64 +411,60 @@ export function EnvDepRow({
   // 可操作依赖的 section（node/git/bash）；同时用于控制列可见性与来源下拉，
   // 避免同一守卫在 JSX 里重复出现（TS 窄化也随之只做一次）。
   const operableSection = OPERABLE_DEP_SET.has(dep) ? section : null;
-  // 右侧控件列：来源下拉 + 安装/卸载/重装（或离线复制）。
-  // `showInstall` / `showOfflineCopy` 都蕴含「可操作依赖且 section 非空」。
+  // 右侧控件列：来源下拉 + 安装/卸载/重装。
+  // `showInstall` 蕴含「可操作依赖且 section 非空」。
   const showControlColumn = operableSection !== null;
-  // 手动路径独占一条次级行（用户 2026-10-25：不再塞进 label 列的 small 里）。
-  const showPathRow = OPERABLE_DEP_SET.has(dep) && !compact;
+  // 指定路径输入框：仅当下拉选中「指定路径」时出现，与下拉同一行（在其左边），
+  // 切走保留路径仅隐藏（方案 A）；左侧不再出现灰色文案，仅保留无障碍名称。
+  const showPathInline =
+    OPERABLE_DEP_SET.has(dep) && !compact && operableSection?.mode === 'custom';
+  // 路径输入框未聚焦且空值时，하겠다고文本过长展示不完，用缓慢循环滚动的
+  // 自定义占位层代替原生 placeholder（原生 placeholder 无法做滚动动画）。
+  const showPathMarquee = showPathInline && pathValue === '' && !pathFocused;
+  // 底部帮助链接（复制诊断/官网/前往配置）仅异常时显示，正常隐藏防误解：
+  // node/git/bash/webview2/adlserver 以未就绪为准；net 以下载源不可达为准；
+  // model 以助手未就绪为准（钥匙箱可用不代表已配好，见 renderStatusLine）。
+  const showHelpLinks = (() => {
+    if (compact) {
+      return false;
+    }
+    if (dep === 'net') {
+      return !status.netprobe.registryOk;
+    }
+    if (dep === 'model') {
+      return !status.dshReady;
+    }
+    return section !== null && !isEnvDepReady(section);
+  })();
+  // 副标题问号提示文案：大众化详细版，短描述仅保留在副标题下方。
+  const depHint =
+    dep === 'net'
+      ? t.environmentDepNetHint
+      : dep === 'model'
+        ? t.environmentDepModelHint
+        : dep === 'node'
+          ? t.environmentDepNodeHint
+          : dep === 'git'
+            ? t.environmentDepGitHint
+            : dep === 'bash'
+              ? t.environmentDepBashHint
+              : dep === 'webview2'
+                ? t.environmentDepWebview2Hint
+                : t.environmentDepAdlserverHint;
 
   return (
     <section data-testid={`env-dep-${dep}`}>
       <div className="adl-settings-row">
         <div className="adl-settings-row__label">
           <div className="adl-settings-row__label-text">
+            {!compact ? <SettingsHintButton content={depHint} /> : null}
             <span>{depTitle}</span>
             {section !== null ? <EnvDepPill dep={dep} section={section} /> : null}
-            {OPERABLE_DEP_SET.has(dep) && !compact && actions.requestBlockReset ? (
-              <button
-                type="button"
-                className="adl-settings-row__reset"
-                title={t.environmentResetSource}
-                aria-label={t.environmentResetSource}
-                disabled={localControlsDisabled}
-                onClick={() => actions.requestBlockReset?.(dep as OperableDep)}
-              >
-                <IconResetDefaults size={14} decorative />
-              </button>
-            ) : null}
           </div>
           <small>{descText}</small>
           {renderStatusLine()}
-          {dep === 'bash' && section !== null && !isEnvDepReady(section) && !compact ? (
-            <small>{t.environmentBashSetupHint}</small>
-          ) : null}
           {renderTaskProgress()}
-          {showBashVariant && !compact ? (
-            <small>{formatT(t, 'environmentBashVariantNote', { variant: bashVariantLabel })}</small>
-          ) : null}
-          {dep === 'webview2' && !compact ? (
-            <small>
-              <button
-                type="button"
-                className="adl-dsh-settings__inline-link"
-                aria-expanded={advancedOpen}
-                onClick={() => setAdvancedOpen((v) => !v)}
-              >
-                {t.environmentAdvanced}
-              </button>
-              {advancedOpen ? (
-                <span>
-                  {' '}
-                  <label>
-                    <input type="checkbox" disabled checked={false} readOnly />{' '}
-                    {t.environmentFixedVersion}
-                  </label>{' '}
-                  {t.environmentFixedVersionManagedNote}
-                </span>
-              ) : null}
-            </small>
-          ) : null}
-          {!compact ? (
+          {showHelpLinks ? (
             <small>
               <button
                 type="button"
@@ -513,96 +508,118 @@ export function EnvDepRow({
           ) : null}
         </div>
         {showControlColumn ? (
-          <div className="adl-settings-row__control adl-settings-row__control--inline">
-            {operableSection !== null ? (
-              <span data-settings-row={dep === 'node' ? t.environmentSwitch : undefined}>
-                <SettingsSelect
-                  value={operableSection.mode}
-                  options={sourceOptions}
-                  onChange={(v) => {
-                    // 来源变更会重算可卸载性：先解除武装，避免跨来源残留危险态。
-                    setUninstallArmed(false);
-                    void actions.selectSource(dep, v as EnvSourceMode);
-                  }}
-                  label={t.environmentSwitch}
-                  disabled={localControlsDisabled}
-                />
-              </span>
-            ) : null}
-            {showInstall ? (
-              <button
-                type="button"
-                className="adl-dsh-settings__action-btn"
-                data-settings-row={dep === installMarkerDep ? t.environmentInstall : undefined}
-                disabled={controlsDisabled}
-                onClick={() => actions.requestInstall(dep)}
-              >
-                {t.environmentInstall}
-              </button>
-            ) : null}
-            {showUninstallReinstall ? (
-              <>
-                <button
-                  type="button"
-                  className={`adl-dsh-settings__action-btn${
-                    uninstallArmed ? ' adl-dsh-settings__action-btn--danger' : ''
-                  }`}
-                  data-settings-row={dep === firstUninstallDep ? t.environmentUninstall : undefined}
-                  disabled={controlsDisabled}
-                  onClick={handleUninstallClick}
+          <div className="adl-settings-row__control adl-env-control">
+            <div className="adl-env-control__main">
+              {showPathInline ? (
+                <span
+                  className="adl-env-path-inline"
+                  data-settings-row={dep === 'node' ? t.environmentCustomPathLabel : undefined}
                 >
-                  {t.environmentUninstall}
-                </button>
-                {showReinstall ? (
+                  <input
+                    id={`env-custom-path-${dep}`}
+                    type="text"
+                    className="adl-settings-input adl-env-path-input"
+                    value={pathValue}
+                    placeholder={showPathMarquee ? '' : t.environmentCustomPathPlaceholder}
+                    aria-label={t.environmentCustomPathLabel}
+                    disabled={localControlsDisabled}
+                    onChange={(e) => setPathDraft(e.target.value)}
+                    onFocus={() => setPathFocused(true)}
+                    onBlur={() => {
+                      setPathFocused(false);
+                      handlePathBlur();
+                    }}
+                  />
+                  {showPathMarquee ? (
+                    <span className="adl-env-path-marquee" aria-hidden="true">
+                      <span className="adl-env-path-marquee__track">
+                        <span className="adl-env-path-marquee__chunk">
+                          {t.environmentCustomPathPlaceholder}
+                        </span>
+                        <span className="adl-env-path-marquee__chunk" aria-hidden="true">
+                          {t.environmentCustomPathPlaceholder}
+                        </span>
+                      </span>
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+              {operableSection !== null ? (
+                <span data-settings-row={dep === 'node' ? t.environmentSwitch : undefined}>
+                  <SettingsSelect
+                    value={operableSection.mode}
+                    options={sourceOptions}
+                    onChange={(v) => {
+                      // 来源变更会重算可卸载性：先解除武装，避免跨来源残留危险态。
+                      setUninstallArmed(false);
+                      void actions.selectSource(dep, v as EnvSourceMode);
+                    }}
+                    label={t.environmentSwitch}
+                    disabled={localControlsDisabled}
+                  />
+                </span>
+              ) : null}
+            </div>
+            {showInstall || showOfflineCopy || showUninstallReinstall ? (
+              <div className="adl-env-control__actions">
+                {showInstall ? (
                   <button
                     type="button"
                     className="adl-dsh-settings__action-btn"
-                    data-settings-row={
-                      dep === firstReinstallDep ? t.environmentReinstall : undefined
-                    }
+                    data-settings-row={dep === installMarkerDep ? t.environmentInstall : undefined}
                     disabled={controlsDisabled}
-                    onClick={handleReinstallClick}
+                    onClick={() => actions.requestInstall(dep)}
                   >
-                    {t.environmentReinstall}
+                    {t.environmentInstall}
                   </button>
                 ) : null}
-              </>
-            ) : null}
-            {/* 离线复制刻意仅 busy 门控（不限 browserGated）：浏览器模式下复制诊断信息仍可用。 */}
-            {showOfflineCopy ? (
-              <button
-                type="button"
-                className="adl-dsh-settings__action-btn"
-                disabled={busy}
-                onClick={() => {
-                  void actions.copyForAgent(dep);
-                }}
-              >
-                {t.environmentCopyForAgent}
-              </button>
+                {showOfflineCopy ? (
+                  <button
+                    type="button"
+                    className="adl-dsh-settings__action-btn"
+                    disabled={busy}
+                    onClick={() => {
+                      void actions.copyForAgent(dep);
+                    }}
+                  >
+                    {t.environmentCopyForAgent}
+                  </button>
+                ) : null}
+                {showUninstallReinstall ? (
+                  <>
+                    <button
+                      type="button"
+                      className={`adl-dsh-settings__action-btn${
+                        uninstallArmed ? ' adl-dsh-settings__action-btn--danger' : ''
+                      }`}
+                      data-settings-row={
+                        dep === firstUninstallDep ? t.environmentUninstall : undefined
+                      }
+                      disabled={controlsDisabled}
+                      onClick={handleUninstallClick}
+                    >
+                      {t.environmentUninstall}
+                    </button>
+                    {showReinstall ? (
+                      <button
+                        type="button"
+                        className="adl-dsh-settings__action-btn"
+                        data-settings-row={
+                          dep === firstReinstallDep ? t.environmentReinstall : undefined
+                        }
+                        disabled={controlsDisabled}
+                        onClick={handleReinstallClick}
+                      >
+                        {t.environmentReinstall}
+                      </button>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
             ) : null}
           </div>
         ) : null}
       </div>
-      {showPathRow ? (
-        <div className="adl-settings-row">
-          <label className="adl-settings-row__label" htmlFor={`env-custom-path-${dep}`}>
-            <small>{t.environmentCustomPathLabel}</small>
-          </label>
-          <div className="adl-settings-row__control">
-            <input
-              id={`env-custom-path-${dep}`}
-              type="text"
-              className="adl-settings-input adl-settings-input--path"
-              value={pathValue}
-              placeholder={t.environmentCustomPathPlaceholder}
-              disabled={localControlsDisabled}
-              onChange={(e) => setPathDraft(e.target.value)}
-              onBlur={handlePathBlur}
-            />
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }

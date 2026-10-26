@@ -8,7 +8,7 @@ export const workspaceZh = {
   newSessionPlaceholder: '输入会话名称（留空则自动生成）',
   newSessionCreate: '创建会话',
   newSessionDefaultName: '临时会话',
-  sessionFallback: '单 Agent 会话',
+  sessionFallback: '单智能体会话',
   workspaceEmpty: '点击上方 + 号创建工作区',
   workspaceTreeEmpty: '该工作区暂无文件',
   sessionEmpty: '在此工作区下新建一个会话',
