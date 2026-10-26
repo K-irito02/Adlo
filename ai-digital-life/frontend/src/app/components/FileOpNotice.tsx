@@ -2,10 +2,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useTCopy, formatT } from '../i18n';
 import { renderIcon } from '../../design-system/icons';
 import { ToastCard } from './ToastCard';
-import type { FileOpNotice } from '../stores/slices/fileOpNoticeSlice';
+import type { FileOpNotice, FileConflictChoice } from '../stores/slices/fileOpNoticeSlice';
 import { FILE_OP_NOTICE_LIMIT } from '../stores/slices/fileOpNoticeSlice';
-
-export type FileConflictChoice = 'mine' | 'disk' | 'later';
 
 interface FileOpNoticeCardProps {
   notice: FileOpNotice;

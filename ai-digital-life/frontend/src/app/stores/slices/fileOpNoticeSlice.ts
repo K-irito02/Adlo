@@ -5,6 +5,10 @@
  */
 import type { StoreState } from '../StoreState';
 import { createUiId } from '../shared';
+import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
+
+/** 存盘冲突卡片的用户裁决：用我的覆盖 / 用磁盘覆盖 / 稍后再说。 */
+export type FileConflictChoice = 'mine' | 'disk' | 'later';
 
 export interface FileOpNotice {
   id: string;
@@ -53,11 +57,13 @@ export const createFileOpNoticeSlice = (
     return id;
   },
   pushFileConflictNotice: (path, workspaceId, workspacePath) => {
-    const norm = path.replace(/\\/g, '/');
+    // 同一归一化路径去重：与路径比较各处共用 normalizeWorkspaceRelativePath，
+    // 斜杠/首尾空白变体不并存多张卡。
+    const norm = normalizeWorkspaceRelativePath(path);
     const existing = get().fileOpNotices.find(
       (n) =>
         n.kind === 'conflict' &&
-        (n.path ?? '').replace(/\\/g, '/') === norm &&
+        normalizeWorkspaceRelativePath(n.path ?? '') === norm &&
         (n.workspaceId ?? '') === (workspaceId ?? ''),
     );
     if (existing) {

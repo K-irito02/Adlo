@@ -30,7 +30,7 @@ import type { ReferenceSlice } from './slices/referenceSlice';
 import type { ToastSlice } from './slices/toastSlice';
 import type { ErrorToastSlice } from './slices/errorToastSlice';
 import type { NotificationSlice } from './slices/notificationSlice';
-import type { FileOpNoticeSlice } from './slices/fileOpNoticeSlice';
+import type { FileOpNoticeSlice, FileConflictChoice } from './slices/fileOpNoticeSlice';
 import type { BrowserDownloadsSlice } from './slices/browserDownloadsSlice';
 import type { CenterTabsSlice } from './slices/centerTabsSlice';
 import type { AppPreferencePatch } from '@shared/ipc-types.generated';
@@ -215,7 +215,7 @@ interface EditorActions {
    * 裁决右下角存盘冲突卡片：mine=force 落盘覆盖磁盘，disk=丢草稿读磁盘，
    * later=仅关卡片（下次保存再推）。
    */
-  resolveFileConflict: (noticeId: string, choice: 'mine' | 'disk' | 'later') => Promise<void>;
+  resolveFileConflict: (noticeId: string, choice: FileConflictChoice) => Promise<void>;
   /**
    * 依次保存全部暂存草稿（切换文件/分支/工作区前的 flush 点）。
    * @returns {saved, failed}（saved 仅计真正写盘成功的）。

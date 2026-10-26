@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { ErrorToastContainer } from './ErrorToast';
-import { FileOpNoticeContainer, type FileConflictChoice } from './FileOpNotice';
+import { FileOpNoticeContainer } from './FileOpNotice';
+import type { FileConflictChoice } from '../stores/slices/fileOpNoticeSlice';
 import type { ErrorToastEntry } from '../stores/slices/errorToastSlice';
 import type { FileOpNotice } from '../stores/slices/fileOpNoticeSlice';
 

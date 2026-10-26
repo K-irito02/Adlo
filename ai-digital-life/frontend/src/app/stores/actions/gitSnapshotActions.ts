@@ -379,6 +379,11 @@ export function createGitSnapshotActions(
      * 后端 watcher 只监听当前工作区根，非当前工作区的外部变更永远收不到批次，
      * 靠窗口焦点回归/面板可见时的这次补刷进变更面板。不转刷新图标，
      * 单个失败只记 workspaceChangesTreeErrors（与 refreshGitSnapshot 同口径）。
+     * @reads workspaceSlice.recentWorkspaces, workspaceSlice.workspaceChangesExpanded
+     * @writes gitSlice.gitSnapshots, workspaceSlice.workspaceChangesTreeErrors (经 refreshGitSnapshot)
+     * @see shared/ipc.ts → workspace.listGitStatusForWorkspace (经 refreshGitSnapshot)
+     * @see mock-bridge.ts → workspace.listGitStatusForWorkspace (经 refreshGitSnapshot)
+     * @see preview-bridge/index.ts → workspace.listGitStatusForWorkspace (经 refreshGitSnapshot)
      */
     refreshAllGitSnapshotsSilent: async () => {
       const state = get();
@@ -388,9 +393,16 @@ export function createGitSnapshotActions(
       if (targets.length === 0) {
         return;
       }
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         targets.map((w) => get().refreshGitSnapshot(w.id, w.path, { silent: true })),
       );
+      // 桥接层 reject（如断网抛错）在此被 allSettled 捕获——记录原因，
+      // 避免静默吞掉（与 useChangesPanelStateUtils.refreshAllChanges 同口径）。
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          console.warn('[refreshAllGitSnapshotsSilent] refreshGitSnapshot rejected', result.reason);
+        }
+      }
     },
   };
 }

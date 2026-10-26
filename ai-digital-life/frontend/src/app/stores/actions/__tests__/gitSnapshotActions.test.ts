@@ -136,6 +136,19 @@ describe('refreshGitSnapshot', () => {
 });
 
 describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
+  // 类型化桥接替身（dev-rules 禁 any）：与本文件既有 `(window as any)` 写法不同，
+  // 新增测试一律走 unknown 收窄。
+  function gitStatusBridge() {
+    return (
+      window as unknown as {
+        digitalLife: {
+          workspace: {
+            listGitStatusForWorkspace: ReturnType<typeof vi.fn>;
+          };
+        };
+      }
+    ).digitalLife.workspace.listGitStatusForWorkspace;
+  }
   beforeEach(() => {
     vi.stubGlobal('digitalLife', {
       workspace: {
@@ -156,7 +169,7 @@ describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
   ];
 
   it('只刷可见且导航器已展开的工作区（与手动刷新全部同范围），一律 silent', async () => {
-    const bridge = (window as any).digitalLife.workspace.listGitStatusForWorkspace;
+    const bridge = gitStatusBridge();
     bridge.mockResolvedValue({
       ok: true,
       data: { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 0 },
@@ -176,7 +189,7 @@ describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
   });
 
   it('无目标时不调桥', async () => {
-    const bridge = (window as any).digitalLife.workspace.listGitStatusForWorkspace;
+    const bridge = gitStatusBridge();
     const { store } = makeStore({
       recentWorkspaces: entries,
       workspaceChangesExpanded: {},
@@ -187,7 +200,7 @@ describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
   });
 
   it('单个失败不阻断其余（allSettled）', async () => {
-    const bridge = (window as any).digitalLife.workspace.listGitStatusForWorkspace;
+    const bridge = gitStatusBridge();
     bridge.mockImplementation((path: string) =>
       path === '/a'
         ? Promise.resolve({ ok: false, error: { message: 'boom' } })
@@ -205,6 +218,34 @@ describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
     expect(bridge).toHaveBeenCalledTimes(2);
     expect(store.getState().workspaceChangesTreeErrors['ws-1']).toBe('boom');
     expect(store.getState().gitSnapshots['ws-2']).toBeDefined();
+  });
+
+  it('桥接抛错（reject）记 warn 且不阻断其余', async () => {
+    const bridge = gitStatusBridge();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      bridge.mockImplementation((path: string) =>
+        path === '/a'
+          ? Promise.reject(new Error('net down'))
+          : Promise.resolve({
+              ok: true,
+              data: { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 0 },
+            }),
+      );
+      const { store } = makeStore({
+        recentWorkspaces: entries,
+        workspaceChangesExpanded: { 'ws-1': true, 'ws-2': true },
+      });
+      await (store.getState() as unknown as { refreshAllGitSnapshotsSilent: () => Promise<void> })
+        .refreshAllGitSnapshotsSilent();
+      expect(warn).toHaveBeenCalledWith(
+        '[refreshAllGitSnapshotsSilent] refreshGitSnapshot rejected',
+        expect.anything(),
+      );
+      expect(store.getState().gitSnapshots['ws-2']).toBeDefined();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

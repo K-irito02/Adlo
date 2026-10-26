@@ -30,6 +30,7 @@ import {
   dropPendingEditorText,
 } from '../cacheHelpers';
 import { persistField } from '../persisted/apply';
+import type { FileConflictChoice } from '../slices/fileOpNoticeSlice';
 import {
   openFileGeneric,
   openMediaFileGeneric,
@@ -684,7 +685,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
      * 非 force 调用一律拦截——推右下角冲突卡片供用户拍板，返回 false
      * （自动保存静默跳过、切换前 flush 计入 failed 中止切换）。
      * force=true 仅由冲突卡片"用我的覆盖"使用。
-     * @writes editorSlice.fileContent, editorSlice.fileLastModifiedAt, editorSlice.dirtyEditorPaths
+     * @writes editorSlice.fileContent, editorSlice.fileLastModifiedAt, editorSlice.dirtyEditorPaths, fileOpNoticeSlice.fileOpNotices (冲突拦截时推卡)
      * @see shared/ipc.ts → workspace.updateFileContent
      * @see mock-bridge.ts → workspace.updateFileContent
      * @see preview-bridge/index.ts → workspace.updateFileContent
@@ -773,7 +774,8 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
                 fileLastModifiedAt: result.data.lastModifiedAt,
                 fileOpenError: null,
                 externalFileChange:
-                  state.externalFileChange?.path === targetPath
+                  state.externalFileChange !== undefined &&
+                  normalizeWorkspaceRelativePath(state.externalFileChange.path) === norm
                     ? undefined
                     : state.externalFileChange,
               }
@@ -787,9 +789,14 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
      * [resolveFileConflict - 裁决右下角存盘冲突卡片]
      * mine: 以 force 落盘覆盖磁盘（写前比对仅放行本次）；
      * disk: 丢本地草稿 + 清脏标 + 清外部旗 + 失效两端缓存 + 重读磁盘；
-     * later: 仅关卡片（外部旗保留，下次保存/自动保存再推卡）。
+     * later: 仅关卡片（外部旗保留，下次保存再推）。
+     * @reads editorSlice.fileOpNotices, editorSlice.externalFileChange, editorSlice.dirtyEditorPaths
+     * @writes editorSlice.fileOpNotices, editorSlice.dirtyEditorPaths, editorSlice.externalFileChange, editorSlice.fileContent, editorSlice.fileLastModifiedAt (经 saveFile/reconcileSelectedFile)
+     * @see shared/ipc.ts → workspace.updateFileContent (mine 分支经 saveFile)
+     * @see mock-bridge.ts → workspace.updateFileContent (mine 分支经 saveFile)
+     * @see preview-bridge/index.ts → workspace.updateFileContent (mine 分支经 saveFile)
      */
-    resolveFileConflict: async (noticeId: string, choice: 'mine' | 'disk' | 'later') => {
+    resolveFileConflict: async (noticeId: string, choice: FileConflictChoice) => {
       const notice = get().fileOpNotices.find((n) => n.id === noticeId);
       get().dismissFileOpNotice(noticeId);
       if (!notice || notice.kind !== 'conflict' || !notice.path) {
