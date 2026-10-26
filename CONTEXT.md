@@ -13,7 +13,7 @@
 所有功能必须在 **Tauri 桌面应用** 和 **浏览器模式** 中保持**功能行为一致**。由于两种模式的运行环境不同（Tauri 有 Rust 后端 + SQLite + 系统 API，浏览器仅有 WebView + Web API），实现策略可以因环境而异。通过统一接口抽象（如 `TerminalOutputStore`、`PreviewBridge`）隔离环境差异，消费端不感知底层实现。新增 IPC 方法需同步实现 `tauri-bridge.ts` / `preview-bridge/` / `mock-bridge.ts` 三层桥接。
 
 ### 主工作树与槽位（Worktree Slot）
-**主工作树**指仓库本体 `SourceWorkspace/`（常驻 `main`，只做集成与全量验证）；**槽位**指 `SourceWorkspace-worktrees/slot-N/` 这类长期持有的 git worktree 目录，分支在其中轮换复用。并发会话按 **一分支 = 一工作树 = 一会话** 分配，工作树共享对象库（不重复克隆），并通过仓库外的会话注册表 `.sessions/<session>.json` 声明占用。操作手册见 [parallel-branch-development.md](./parallel-branch-development.md)。
+**主工作树**指仓库本体 `SourceWorkspace/`（常驻 `main`，只做集成与全量验证）；**槽位**指 `SourceWorkspace-worktrees/slot-N/` 这类长期持有的 git worktree 目录，分支在其中轮换复用。并发会话按 **一分支 = 一工作树 = 一会话** 分配，工作树共享对象库（不重复克隆），并通过仓库外的会话注册表 `.sessions/<session>.json` 声明占用。操作手册见技能 [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md)（唯一真源）。
 
 ### 检索结果分页窗口（Search Window）
 文件面板内容检索的结果数量以窗口 `{ offset, limit }` 分页返回：后端"跳过 offset → 收满 limit → **多探一条**判定 `hasMore`"，`hasMore` 为精确值（"恰好取尽"≠"被截断"）；安全阀 5000 由服务端钳制，调用方无法绕过。常量 200/5000 为**跨语言契约**（TS `searchWindow.ts` ↔ Rust `search.rs`，两侧钉值测试，见 `.agents/rules/cross-language-constant-contract.md`）。前端四端桥共享同一归一化与切片语义（`shared/ipc/searchWindow.ts`）。UI 侧对应「加载更多」「显示全部」与「!」结果上限说明卡。

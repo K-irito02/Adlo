@@ -31,7 +31,7 @@ AI 数字生命桌面应用的规划与治理仓库。远期规划支持**移动
 ## 快速入口
 
 - [AGENTS.md](./AGENTS.md) — 项目治理规则、编码规范
-- [parallel-branch-development.md](./parallel-branch-development.md) — 并行分支开发手册（多会话 / 多 agent 工作树隔离）
+- [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md) — 并行分支开发技能（唯一真源；多会话 / 多 agent 工作树隔离）
 - [RULES.md](./RULES.md) — 规则系统（分层与优先级、三目录同步、文件规范、规则清单）
 - [SKILLS.md](./SKILLS.md) — 技能系统（来源分类、三技能目录、同步规则、技能摘要）
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — 贡献指南

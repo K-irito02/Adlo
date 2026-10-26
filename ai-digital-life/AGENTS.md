@@ -46,7 +46,7 @@
 当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入与编排由接入的外部 harness 提供，本仓只负责宿主集成（进程托管、版本管理、宿主渲染）。
 
 - 能力清单与实现落点：[system-overview.md](../docs/architecture/core/system-overview.md#已实现能力清单详细)（AGENTS 不再复制清单，只保留边界与约束）。
-- 架构概念与文件落点：[CONTEXT.md](../CONTEXT.md)；并行/运行/调试：[parallel-branch-development.md](../parallel-branch-development.md)。
+- 架构概念与文件落点：[CONTEXT.md](../CONTEXT.md)；并行/运行/调试：技能 [parallel-branch-development](../.agents/skills/parallel-branch-development/SKILL.md)（唯一真源）。
 - 测试计数不在此维护，运行 `cargo test --workspace` / `pnpm --dir frontend run test` 获取。
 
 ## 安全边界
@@ -130,7 +130,7 @@ app/stores/
 
 - [README.md](./README.md)
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
-- [parallel-branch-development.md](../parallel-branch-development.md) — 并行分支开发手册（工作树/槽位、开工自检）
+- [parallel-branch-development](../.agents/skills/parallel-branch-development/SKILL.md) — 并行分支开发技能（唯一真源；工作树/槽位、开工自检）
 - [docs/architecture/core/system-overview.md](../docs/architecture/core/system-overview.md)
 - [docs/design-system/README.md](../docs/design-system/README.md)
 

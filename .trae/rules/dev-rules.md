@@ -136,7 +136,7 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 - **记忆不落分支**：分支工作树内禁止写 `.workbuddy/memory/**`（该目录被 git 跟踪，多分支并行必然冲突）
 - **保留优先**：工作树默认保留（含合并后），清理须用户明确要求
 
-完整流程（开工自检、新建 / 复用槽位、异常处置）见 [parallel-branch-development.md](../../parallel-branch-development.md)。
+完整流程（开工自检、新建 / 复用槽位、异常处置）见技能 [parallel-branch-development](../skills/parallel-branch-development/SKILL.md)（唯一真源）。
 
 ## 磁盘清理与 target 治理
 

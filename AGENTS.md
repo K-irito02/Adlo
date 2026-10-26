@@ -32,7 +32,7 @@
 
 并发会话一律在 `SourceWorkspace-worktrees/` 下的独立工作树中开发，遵循 **一分支 = 一工作树 = 一会话**：禁止两个会话进入同一目录，禁止跨工作树直接编辑文件。
 
-开工自检、新建与复用槽位、保留策略、异常处置见 [parallel-branch-development.md](./parallel-branch-development.md)（唯一操作手册）。硬约束摘要：契约文件单写者、禁止共享 `CARGO_TARGET_DIR`、分支工作树不写 `.workbuddy/memory`、工作树默认保留。
+开工自检、新建与复用槽位、保留策略、异常处置见技能 [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md)（唯一真源）。硬约束摘要：契约文件单写者、禁止共享 `CARGO_TARGET_DIR`、分支工作树不写 `.workbuddy/memory`、工作树默认保留。
 
 新工作树先跑 `pnpm --dir ai-digital-life run setup:worktree`：启用仓库级 git hooks（`core.hooksPath=.githooks`）并为该工作树建 CodeGraph 索引（`ai-digital-life/.codegraph/`，不入库、不跨工作树共用）。
 
@@ -72,7 +72,7 @@
 - 未经用户允许禁止擅自使用蓝色（含 `var(--accent)` 系）作为特殊提示警醒色、填充色等；此类场景一律使用白/灰/黑中性色（明度/纯度自行设计，须兼顾亮暗主题可见性），需其它颜色时先与用户确认（规范见 `.agents/rules/hint-color-usage.md`）
 - 从仓库根递归扫描或全仓无路径限定的检索（`references/`、`node_modules/`、`target/` 会让枚举超时；内容检索用 `grep` 工具或 `git grep`，文件名/扩展名检索用 `glob` 工具或 `git ls-files`）
 - 用 shell 内联命令对源码/文档做批量文本修改（`-replace`/`Add-Content`/here-string/`sed`，不限是否含中文；会破坏 CJK、写入字面量 `\n`、静默失效，见 [shell-encoding.md](.agents/rules/shell-encoding.md)）
-- 并行开发时两个会话共用同一工作树目录、共享 `CARGO_TARGET_DIR`、或在分支工作树写 `.workbuddy/memory`（见 [parallel-branch-development.md](./parallel-branch-development.md)）
+- 并行开发时两个会话共用同一工作树目录、共享 `CARGO_TARGET_DIR`、或在分支工作树写 `.workbuddy/memory`（见技能 [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md)）
 
 ## 双端一致性
 
@@ -127,7 +127,7 @@ Issue 与 spec 存放在 GitHub Issues（`K-irito02/Kora`），使用 `gh` CLI�
 ## 相关文档
 
 - [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md) — 实现工作区治理（技术栈、功能清单、Stores 架构）
-- [parallel-branch-development.md](./parallel-branch-development.md) — 并行分支开发手册（工作树/槽位、开工自检、复用与保留策略）
+- [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md) — 并行分支开发技能（唯一真源；工作树/槽位、开工自检、复用与保留策略）
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 未来想法
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — 贡献指南
 - [GLOSSARY.md](./GLOSSARY.md) — 领域术语表（规范用词与 `_Avoid_` 同义项）

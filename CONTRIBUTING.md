@@ -71,7 +71,7 @@ git push
 git worktree add "E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/<branch>" -b <branch> main
 ```
 
-开工自检、复用旧槽位（免冷构建）、合并后保留等完整流程见 [parallel-branch-development.md](./parallel-branch-development.md)。
+开工自检、复用旧槽位（免冷构建）、合并后保留等完整流程见技能 [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md)（唯一真源）。
 
 ### 目录结构
 
@@ -144,7 +144,7 @@ git worktree add "E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/<branch>" -b <bra
 ## 相关文档
 
 - [AGENTS.md](./AGENTS.md) — 项目治理规则、编码规范
-- [parallel-branch-development.md](./parallel-branch-development.md) — 并行分支开发手册（工作树隔离与复用）
+- [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md) — 并行分支开发技能（唯一真源；工作树隔离与复用）
 - [GLOSSARY.md](./GLOSSARY.md) — 领域术语表
 - [CONTEXT.md](./CONTEXT.md) — 架构与实现说明
 - [SECURITY.md](./SECURITY.md) — 安全策略

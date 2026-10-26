@@ -32,7 +32,7 @@
 ## 快速导航
 
 - 系统架构总览 → [architecture/core/system-overview.md](./architecture/core/system-overview.md)
-- 并行分支开发手册 → [../parallel-branch-development.md](../parallel-branch-development.md)
+- 并行分支开发技能（唯一真源）→ [parallel-branch-development](../.agents/skills/parallel-branch-development/SKILL.md)
 - 设计系统入口 → [design-system/README.md](./design-system/README.md)
 - 工程约束 → [development/project-engineering-constraints.md](./development/project-engineering-constraints.md)
 - 日志系统手册 → [development/log-system-manual.md](./development/log-system-manual.md)

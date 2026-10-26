@@ -293,5 +293,5 @@ alwaysApply: false
 | 验收流程 / 测试分级变化 | `mandatory-testing.md` |
 | 桌面端验证流程变化 | `desktop-ui-verification.md` |
 | 代理交互 / 终端执行规则变化 | `dev-rules.md` |
-| 并行开发流程 / 工作树策略变化 | `dev-rules.md`、[parallel-branch-development.md](./parallel-branch-development.md) |
+| 并行开发流程 / 工作树策略变化 | `dev-rules.md`、技能 [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md) |
 | 外部参考源码（`references/`）变化 | `project-overview.md`、`AGENTS.md` |
