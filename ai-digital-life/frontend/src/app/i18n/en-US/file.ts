@@ -96,7 +96,8 @@ export const fileEn = {
   fileUnsavedKeptAfterGone: 'File no longer exists on disk; unsaved changes are kept in the editor',
   fileExternalChangedWhileDirty: 'File changed in another program; showing your unsaved version',
   fileConflictTitle: 'Save conflict: disk content changed',
-  fileConflictDetail: '“{name}” changed on disk since you opened it. Saving now would overwrite the external changes.',
+  fileConflictDetail:
+    '“{name}” changed on disk since you opened it. Saving now would overwrite the external changes.',
   fileConflictKeepMine: 'Overwrite with mine',
   fileConflictUseDisk: 'Load disk version',
   fileConflictLater: 'Later',

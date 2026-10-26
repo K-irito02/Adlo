@@ -637,7 +637,11 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
   it('溢出批次：树退化为刷全部已展开工作区，git 照常跟手当前工作区', async () => {
     const { store, refreshGitSnapshot, refreshAllWorkspaceTrees, refreshOneWorkspaceTree } =
       makeStore();
-    handleExternalBatch(() => store.getState() as never, { changed: [], removed: [], overflow: true });
+    handleExternalBatch(() => store.getState() as never, {
+      changed: [],
+      removed: [],
+      overflow: true,
+    });
     await vi.advanceTimersByTimeAsync(500);
     expect(refreshAllWorkspaceTrees).toHaveBeenCalledTimes(1);
     expect(refreshOneWorkspaceTree).not.toHaveBeenCalled();
@@ -664,7 +668,10 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
     });
     handleExternalBatch(() => store.getState() as never, { changed: ['note.txt'], removed: [] });
     await vi.advanceTimersByTimeAsync(500);
-    const after = store.getState() as unknown as { fileContent: string; externalFileChange: unknown };
+    const after = store.getState() as unknown as {
+      fileContent: string;
+      externalFileChange: unknown;
+    };
     expect(after.fileContent).toBe('v-batch\n');
     expect(after.externalFileChange).toBeUndefined();
   });

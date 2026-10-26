@@ -214,9 +214,7 @@ export function handleExternalBatch(
     // 批次是唯一外部信号。有未存草稿时同样立 externalFileChange 旗，
     // 供 saveFile 写前比对拦截（否则浏览器端冲突检测永不触发）；
     // 重载调度照常（reconcile 内对草稿跳过、文件消失则提示）。
-    const hasDraft = get().dirtyEditorPaths.some(
-      (p) => normalizeWorkspaceRelativePath(p) === norm,
-    );
+    const hasDraft = get().dirtyEditorPaths.some((p) => normalizeWorkspaceRelativePath(p) === norm);
     if (hasDraft) {
       const prevExternal = get().externalFileChange?.path;
       const hadExternal =
@@ -726,10 +724,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         // 拦截并推冲突卡片（同文件同工作区只一张，自动保存重试不刷屏），
         // 由用户在卡片上选"用我的覆盖 / 用磁盘覆盖 / 稍后再说"。
         const externalPath = get().externalFileChange?.path;
-        if (
-          externalPath !== undefined &&
-          normalizeWorkspaceRelativePath(externalPath) === norm
-        ) {
+        if (externalPath !== undefined && normalizeWorkspaceRelativePath(externalPath) === norm) {
           get().pushFileConflictNotice(targetPath, targetWs.id, rootPath);
           return false;
         }

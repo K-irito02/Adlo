@@ -31,7 +31,17 @@ function iconHtml(name: IconName, size: 'sm' | 'md' = 'md'): string {
  * 通过 tone 控制主题色，供文件操作警告等场景复用。
  */
 export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function ToastCard(
-  { tone, icon, title, detail, actions, onDismiss, className, role = 'alert', ariaLive = 'assertive' },
+  {
+    tone,
+    icon,
+    title,
+    detail,
+    actions,
+    onDismiss,
+    className,
+    role = 'alert',
+    ariaLive = 'assertive',
+  },
   ref,
 ) {
   const { t } = useTCopy();
