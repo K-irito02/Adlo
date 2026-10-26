@@ -43,4 +43,34 @@ describe('fileOpNoticeSlice', () => {
     expect(notices[notices.length - 1].name).toBe('f5');
     expect(notices[0].name).toBe('f2');
   });
+
+  it('pushes a conflict notice scoped by path + workspace', () => {
+    const s = useAppStore.getState();
+    const id = s.pushFileConflictNotice('docs/note.txt', 'ws-1', '/repo');
+    const notices = useAppStore.getState().fileOpNotices;
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toMatchObject({
+      id,
+      kind: 'conflict',
+      name: 'note.txt',
+      path: 'docs/note.txt',
+      workspaceId: 'ws-1',
+      workspacePath: '/repo',
+    });
+  });
+
+  it('dedupes repeat conflict pushes for the same file (autosave retries do not spam)', () => {
+    const s = useAppStore.getState();
+    const first = s.pushFileConflictNotice('note.txt', 'ws-1', '/repo');
+    const second = s.pushFileConflictNotice('note.txt', 'ws-1', '/repo');
+    expect(second).toBe(first);
+    expect(useAppStore.getState().fileOpNotices).toHaveLength(1);
+  });
+
+  it('keeps conflicts of different workspaces as separate cards', () => {
+    const s = useAppStore.getState();
+    s.pushFileConflictNotice('note.txt', 'ws-1', '/a');
+    s.pushFileConflictNotice('note.txt', 'ws-2', '/b');
+    expect(useAppStore.getState().fileOpNotices).toHaveLength(2);
+  });
 });

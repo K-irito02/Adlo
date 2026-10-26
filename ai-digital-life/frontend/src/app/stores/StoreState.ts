@@ -203,9 +203,19 @@ interface EditorActions {
   noteEditorText: (relativePath: string, text: string, workspaceId?: string) => void;
   /**
    * 保存文件（Ctrl+S / 自动保存入口）。无待存内容即 no-op。
-   * @returns true=已保存或无须保存，false=失败（错误已进 errorToasts）
+   * 写前比对：外部已改 + 本地有草稿时非 force 调用拦截并推冲突卡片。
+   * @returns true=已保存或无须保存，false=失败或被冲突拦截（错误已进 errorToasts / 卡片）
    */
-  saveFile: (relativePath?: string, workspacePath?: string) => Promise<boolean>;
+  saveFile: (
+    relativePath?: string,
+    workspacePath?: string,
+    options?: { force?: boolean },
+  ) => Promise<boolean>;
+  /**
+   * 裁决右下角存盘冲突卡片：mine=force 落盘覆盖磁盘，disk=丢草稿读磁盘，
+   * later=仅关卡片（下次保存再推）。
+   */
+  resolveFileConflict: (noticeId: string, choice: 'mine' | 'disk' | 'later') => Promise<void>;
   /**
    * 依次保存全部暂存草稿（切换文件/分支/工作区前的 flush 点）。
    * @returns {saved, failed}（saved 仅计真正写盘成功的）。
@@ -239,6 +249,11 @@ interface GitActions {
   expandWorkspaceChangesInFileNav: (workspaceId: string, workspacePath: string) => Promise<void>;
   collapseAllWorkspaceChanges: () => void;
   expandAllWorkspaceChanges: () => Promise<void>;
+  /**
+   * 静默刷新所有可见已展开工作区的 Git 快照（手动"刷新全部"的静默版）。
+   * 供窗口焦点回归补刷：覆盖 watcher 够不着的非当前工作区。
+   */
+  refreshAllGitSnapshotsSilent: () => Promise<void>;
   fetchGitStatus: () => Promise<void>;
   fetchGitBranches: (options?: { silent?: boolean }) => Promise<void>;
   switchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<void>;

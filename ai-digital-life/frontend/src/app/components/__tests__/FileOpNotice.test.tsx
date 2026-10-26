@@ -15,6 +15,11 @@ const mockT = new Proxy({} as Record<string, string>, {
       fileCreateDuplicateFolder: 'A file or folder with the same name already exists here «{name}»',
       fileCreateDuplicateFileSuffixHint: 'Please check the file type suffix',
       fileOpNoticeRegionLabel: 'File operation notice',
+      fileConflictTitle: 'Save conflict',
+      fileConflictDetail: '“{name}” changed on disk.',
+      fileConflictKeepMine: 'Overwrite with mine',
+      fileConflictUseDisk: 'Load disk version',
+      fileConflictLater: 'Later',
       errorsCollapse: 'Collapse',
       errorsExpand: 'Expand',
       errorsCopy: 'Copy',
@@ -111,5 +116,34 @@ describe('FileOpNoticeContainer', () => {
       </TestProvider>,
     );
     expect(screen.getByText('1 more')).toBeTruthy();
+  });
+
+  it('renders conflict card with three text actions', () => {
+    const onResolveConflict = vi.fn();
+    render(
+      <TestProvider>
+        <FileOpNoticeContainer
+          notices={[
+            notice({
+              id: 'c1',
+              kind: 'conflict',
+              name: 'note.txt',
+              path: 'note.txt',
+              workspaceId: 'ws-1',
+            }),
+          ]}
+          onDismiss={vi.fn()}
+          onResolveConflict={onResolveConflict}
+        />
+      </TestProvider>,
+    );
+    expect(screen.getByText('Save conflict')).toBeTruthy();
+    expect(screen.getByText('“note.txt” changed on disk.')).toBeTruthy();
+    screen.getByRole('button', { name: 'Overwrite with mine' }).click();
+    expect(onResolveConflict).toHaveBeenCalledWith('c1', 'mine');
+    screen.getByRole('button', { name: 'Load disk version' }).click();
+    expect(onResolveConflict).toHaveBeenCalledWith('c1', 'disk');
+    screen.getByRole('button', { name: 'Later' }).click();
+    expect(onResolveConflict).toHaveBeenCalledWith('c1', 'later');
   });
 });

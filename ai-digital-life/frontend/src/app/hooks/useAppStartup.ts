@@ -65,6 +65,43 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
   }, [actions]);
 
   useEffect(() => {
+    // 焦点回归补刷（VSCode 对齐 `refresh on window focus`）：
+    // 覆盖三类盲区——非当前工作区的外部变更（watcher 只监听当前根）、
+    // 浏览器轮询间隙、watcher 漏事件/断线。树与 git 快照都按"可见已展开"
+    // 范围静默补刷（与手动刷新按钮同范围），无图标闪烁、无写循环。
+    // 去抖 1s：切窗口抖动与 HMR 重挂载不连刷。
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refreshOnFocus = () => {
+      if (timer !== undefined) {
+        return;
+      }
+      timer = setTimeout(() => {
+        timer = undefined;
+        if (document.visibilityState !== 'visible') {
+          return;
+        }
+        void actions.refreshAllWorkspaceTrees();
+        void actions.refreshAllGitSnapshotsSilent();
+        void actions.reconcileSelectedFile();
+      }, 1000);
+    };
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', refreshOnFocus);
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocus);
+      if (timer !== undefined) {
+        clearTimeout(timer);
+      }
+    };
+  }, [
+    actions,
+    actions.refreshAllWorkspaceTrees,
+    actions.refreshAllGitSnapshotsSilent,
+    actions.reconcileSelectedFile,
+  ]);
+
+  useEffect(() => {
     // ad-server 可达性 → store（Phase 4 R2）：Tauri 壳恒连通；浏览器预览订阅
     // 探针变化，供设置面板显示"未连接后端"离线标识。
     // 只在尚未探测时置 true（Closing L-9）：HMR 重挂载不得把 bootstrap 已写

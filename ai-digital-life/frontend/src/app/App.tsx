@@ -45,6 +45,7 @@ export function App() {
   const dismissPopup = useAppStore((s) => s.dismissPopup);
   const fileOpNotices = useAppStore((s) => s.fileOpNotices);
   const dismissFileOpNotice = useAppStore((s) => s.dismissFileOpNotice);
+  const resolveFileConflict = useAppStore((s) => s.resolveFileConflict);
   const appReady = useAppStore((s) => s.appReady);
 
   const activeNotification = useMemo(
@@ -323,6 +324,7 @@ export function App() {
           onClearAllError={clearErrorToasts}
           notices={fileOpNotices}
           onDismissNotice={dismissFileOpNotice}
+          onResolveConflict={resolveFileConflict}
         />
         {activeNotification && (
           <ConflictModal notification={activeNotification} onDismiss={dismissPopup} />

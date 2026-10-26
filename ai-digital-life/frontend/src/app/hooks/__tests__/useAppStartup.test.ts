@@ -125,6 +125,55 @@ describe('useAppStartup warmup', () => {
   });
 });
 
+describe('useAppStartup focus refresh（变更面板补刷）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupWindowDigitalLife();
+    vi.useFakeTimers();
+    useAppStore.setState({ adServerReachable: null });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    (window as unknown as { digitalLife?: unknown }).digitalLife = undefined;
+  });
+
+  it('窗口焦点回归时静默补刷文件树与可见工作区 git 快照', async () => {
+    const listTree = vi.fn().mockResolvedValue({
+      ok: true,
+      data: { tree: [], fromCache: false, capturedAt: 0 },
+    });
+    const listGit = vi.fn().mockResolvedValue({
+      ok: true,
+      data: { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 0 },
+    });
+    const ws = (window as unknown as { digitalLife: { workspace: Record<string, unknown> } })
+      .digitalLife.workspace;
+    ws.listTreeForWorkspace = listTree;
+    ws.listGitStatusForWorkspace = listGit;
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    useAppStore.setState({
+      recentWorkspaces: [
+        { id: 'ws-1', path: '/repo', available: true, removedFromSidebar: false },
+      ] as never,
+      workspaceTreeExpandedInFileNav: { 'ws-1': true },
+      workspaceChangesExpanded: { 'ws-1': true },
+      selectedFilePath: undefined,
+    });
+
+    renderHook(() => useAppStartup(undefined));
+    await act(async () => {});
+    expect(listTree).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new Event('focus'));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1200);
+    });
+    expect(listTree).toHaveBeenCalledWith('/repo', { force: true });
+    expect(listGit).toHaveBeenCalledWith('/repo');
+  });
+});
+
 describe('useAppStartup ad-server reachability (Phase 4 R2)', () => {
   beforeEach(() => {
     vi.clearAllMocks();

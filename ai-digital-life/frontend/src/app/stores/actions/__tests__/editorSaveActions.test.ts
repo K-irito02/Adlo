@@ -8,10 +8,15 @@ function makeStore() {
   const reportError = vi.fn(() => 'toast-id');
   const showToast = vi.fn(() => 'toast-id');
   const refreshGitSnapshot = vi.fn(async () => {});
+  const refreshOneWorkspaceTree = vi.fn(async () => {});
+  const refreshAllWorkspaceTrees = vi.fn(async () => {});
+  const pushFileConflictNotice = vi.fn(() => 'notice-1');
+  const dismissFileOpNotice = vi.fn();
   const store = createStore<Record<string, unknown>>((set, get) => {
     const actions = createEditorActions(set as never, () => get() as never);
     return {
       appInfo: { currentWorkspace: { id: 'ws-1', path: '/repo' } },
+      recentWorkspaces: [{ id: 'ws-1', path: '/repo' }],
       selectedFilePath: 'note.txt',
       fileContent: 'v1\n',
       fileLastModifiedAt: 1,
@@ -20,17 +25,33 @@ function makeStore() {
       fileOpenError: null,
       outline: [],
       dirtyEditorPaths: [],
+      externalFileChange: undefined,
+      fileOpNotices: [],
       openTabs: [],
       errorToasts: [],
       reportError,
       showToast,
       refreshGitSnapshot,
       fetchGitStatus: vi.fn(async () => {}),
+      refreshOneWorkspaceTree,
+      refreshAllWorkspaceTrees,
+      pushFileConflictNotice,
+      dismissFileOpNotice,
+      setExternalFileChange: (v: unknown) => set({ externalFileChange: v }),
       clearErrorToasts: vi.fn(),
       ...actions,
     } as unknown as Record<string, unknown>;
   });
-  return { store, reportError, showToast, refreshGitSnapshot };
+  return {
+    store,
+    reportError,
+    showToast,
+    refreshGitSnapshot,
+    refreshOneWorkspaceTree,
+    refreshAllWorkspaceTrees,
+    pushFileConflictNotice,
+    dismissFileOpNotice,
+  };
 }
 
 function bridge() {
@@ -72,7 +93,7 @@ describe('saveFile', () => {
     expect(bridge().updateFileContent).not.toHaveBeenCalled();
   });
 
-  it('有草稿即落盘并清蓝点、更新基线', async () => {
+  it('有草稿即落盘并清灰点、更新基线', async () => {
     const { store } = makeStore();
     const state = store.getState() as unknown as {
       noteEditorText: (p: string, t: string) => void;
@@ -525,7 +546,7 @@ describe('markExternalFileChange 方案A 跟手', () => {
     expect((store.getState() as unknown as { fileContent: string }).fileContent).toBe('v1\n');
   });
 
-  it('外部变更不打蓝点（脏点只属于用户输入，防自动保存回写覆盖）', async () => {
+  it('外部变更不打灰点（脏点只属于用户输入，防自动保存回写覆盖）', async () => {
     const { store } = makeStore();
     bridge().readFile.mockResolvedValue({
       ok: true,
@@ -590,8 +611,8 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
     vi.unstubAllGlobals();
   });
 
-  it('命中选中文件：调度重载 + git 跟手', async () => {
-    const { store, refreshGitSnapshot } = makeStore();
+  it('命中选中文件：调度重载 + git 跟手 + 树静默跟手', async () => {
+    const { store, refreshGitSnapshot, refreshOneWorkspaceTree } = makeStore();
     bridge().readFile.mockResolvedValue({
       ok: true,
       data: { path: 'note.txt', content: 'v-batch\n', lastModifiedAt: 3 },
@@ -601,22 +622,223 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
     expect(bridge().readFile).toHaveBeenCalledWith('note.txt');
     expect((store.getState() as unknown as { fileContent: string }).fileContent).toBe('v-batch\n');
     expect(refreshGitSnapshot).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
+    expect(refreshOneWorkspaceTree).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
   });
 
-  it('未命中选中文件：只跟手 git，不重读', async () => {
-    const { store, refreshGitSnapshot } = makeStore();
+  it('未命中选中文件：只跟手 git + 树，不重读', async () => {
+    const { store, refreshGitSnapshot, refreshOneWorkspaceTree } = makeStore();
     handleExternalBatch(() => store.getState() as never, { changed: ['other.txt'], removed: [] });
     await vi.advanceTimersByTimeAsync(500);
     expect(bridge().readFile).not.toHaveBeenCalled();
     expect(refreshGitSnapshot).toHaveBeenCalledTimes(1);
+    expect(refreshOneWorkspaceTree).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
+  });
+
+  it('溢出批次：树退化为刷全部已展开工作区，git 照常跟手当前工作区', async () => {
+    const { store, refreshGitSnapshot, refreshAllWorkspaceTrees, refreshOneWorkspaceTree } =
+      makeStore();
+    handleExternalBatch(() => store.getState() as never, { changed: [], removed: [], overflow: true });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(refreshAllWorkspaceTrees).toHaveBeenCalledTimes(1);
+    expect(refreshOneWorkspaceTree).not.toHaveBeenCalled();
+    expect(refreshGitSnapshot).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
   });
 
   it('空批次：什么都不做', async () => {
-    const { store, refreshGitSnapshot } = makeStore();
+    const { store, refreshGitSnapshot, refreshOneWorkspaceTree, refreshAllWorkspaceTrees } =
+      makeStore();
     handleExternalBatch(() => store.getState() as never, { changed: [], removed: [] });
     await vi.advanceTimersByTimeAsync(500);
     expect(bridge().readFile).not.toHaveBeenCalled();
     expect(refreshGitSnapshot).not.toHaveBeenCalled();
+    expect(refreshOneWorkspaceTree).not.toHaveBeenCalled();
+    expect(refreshAllWorkspaceTrees).not.toHaveBeenCalled();
+  });
+
+  it('命中且无草稿：重载后清外部旗（防下次保存误弹冲突卡）', async () => {
+    const { store } = makeStore();
+    store.setState({ externalFileChange: { path: 'note.txt', lastModifiedAt: 2 } });
+    bridge().readFile.mockResolvedValue({
+      ok: true,
+      data: { path: 'note.txt', content: 'v-batch\n', lastModifiedAt: 3 },
+    });
+    handleExternalBatch(() => store.getState() as never, { changed: ['note.txt'], removed: [] });
+    await vi.advanceTimersByTimeAsync(500);
+    const after = store.getState() as unknown as { fileContent: string; externalFileChange: unknown };
+    expect(after.fileContent).toBe('v-batch\n');
+    expect(after.externalFileChange).toBeUndefined();
+  });
+
+  it('命中且有草稿：立外部旗 + 警告一次（浏览器端冲突检测前置）', async () => {
+    const { store, showToast } = makeStore();
+    store.setState({ dirtyEditorPaths: ['note.txt'] });
+    bridge().readFile.mockResolvedValue({
+      ok: true,
+      data: { path: 'note.txt', content: 'v-batch\n', lastModifiedAt: 3 },
+    });
+    handleExternalBatch(() => store.getState() as never, { changed: ['note.txt'], removed: [] });
+    expect(
+      (store.getState() as unknown as { externalFileChange: unknown }).externalFileChange,
+    ).toMatchObject({ path: 'note.txt' });
+    expect(showToast).toHaveBeenCalledTimes(1);
+    // 草稿优先：内容区不动
+    await vi.advanceTimersByTimeAsync(500);
+    expect((store.getState() as unknown as { fileContent: string }).fileContent).toBe('v1\n');
+  });
+});
+
+describe('saveFile 写前比对（外部已改 + 本地草稿 → 冲突拦截）', () => {
+  beforeEach(() => {
+    clearWorkspaceCaches('ws-1');
+    dropPendingEditorText('ws-1');
+    vi.useFakeTimers();
+    vi.stubGlobal('digitalLife', {
+      workspace: {
+        updateFileContent: vi.fn(),
+        readFile: vi.fn(),
+        setEditorDirtyPaths: vi.fn(async () => ({ ok: true, data: true })),
+      },
+    });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  function conflictedStore() {
+    const { store, pushFileConflictNotice } = makeStore();
+    const state = store.getState() as unknown as {
+      noteEditorText: (p: string, t: string) => void;
+    };
+    state.noteEditorText('note.txt', 'v2\n');
+    store.setState({
+      externalFileChange: { path: 'note.txt', lastModifiedAt: 99 },
+    });
+    return { store, pushFileConflictNotice };
+  }
+
+  it('命中外部旗：拦截落盘、推冲突卡片、返回 false', async () => {
+    const { store, pushFileConflictNotice } = conflictedStore();
+    const ok = await (
+      store.getState() as unknown as { saveFile: () => Promise<boolean> }
+    ).saveFile();
+    expect(ok).toBe(false);
+    expect(bridge().updateFileContent).not.toHaveBeenCalled();
+    expect(pushFileConflictNotice).toHaveBeenCalledWith('note.txt', 'ws-1', '/repo');
+  });
+
+  it('force=true：放行本次覆盖（冲突卡片"用我的覆盖"）', async () => {
+    const { store, pushFileConflictNotice } = conflictedStore();
+    bridge().updateFileContent.mockResolvedValue({
+      ok: true,
+      data: { path: 'note.txt', content: 'v2\n', lastModifiedAt: 100 },
+    });
+    const ok = await (
+      store.getState() as unknown as {
+        saveFile: (p?: string, w?: string, o?: { force?: boolean }) => Promise<boolean>;
+      }
+    ).saveFile(undefined, undefined, { force: true });
+    expect(ok).toBe(true);
+    expect(bridge().updateFileContent).toHaveBeenCalledWith('note.txt', 'v2\n', undefined);
+    expect(pushFileConflictNotice).not.toHaveBeenCalled();
+  });
+});
+
+describe('resolveFileConflict 冲突裁决', () => {
+  beforeEach(() => {
+    clearWorkspaceCaches('ws-1');
+    dropPendingEditorText('ws-1');
+    vi.useFakeTimers();
+    vi.stubGlobal('digitalLife', {
+      workspace: {
+        updateFileContent: vi.fn(),
+        readFile: vi.fn(),
+        setEditorDirtyPaths: vi.fn(async () => ({ ok: true, data: true })),
+      },
+    });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  function resolvedStore() {
+    const fixture = makeStore();
+    const { store } = fixture;
+    (
+      store.getState() as unknown as {
+        noteEditorText: (p: string, t: string) => void;
+      }
+    ).noteEditorText('note.txt', 'v2\n');
+    store.setState({
+      dirtyEditorPaths: ['note.txt'],
+      externalFileChange: { path: 'note.txt', lastModifiedAt: 99 },
+      fileOpNotices: [
+        {
+          id: 'n1',
+          kind: 'conflict',
+          name: 'note.txt',
+          path: 'note.txt',
+          workspaceId: 'ws-1',
+          workspacePath: '/repo',
+          timestamp: 1,
+        },
+      ],
+    });
+    return fixture;
+  }
+
+  it('later：仅关卡片，草稿与外部旗保留', async () => {
+    const { store, dismissFileOpNotice } = resolvedStore();
+    await (
+      store.getState() as unknown as {
+        resolveFileConflict: (id: string, c: 'later') => Promise<void>;
+      }
+    ).resolveFileConflict('n1', 'later');
+    expect(dismissFileOpNotice).toHaveBeenCalledWith('n1');
+    expect(bridge().updateFileContent).not.toHaveBeenCalled();
+    expect(bridge().readFile).not.toHaveBeenCalled();
+    expect(
+      (store.getState() as unknown as { dirtyEditorPaths: string[] }).dirtyEditorPaths,
+    ).toEqual(['note.txt']);
+  });
+
+  it('mine：force 落盘覆盖磁盘', async () => {
+    const { store } = resolvedStore();
+    bridge().updateFileContent.mockResolvedValue({
+      ok: true,
+      data: { path: 'note.txt', content: 'v2\n', lastModifiedAt: 100 },
+    });
+    await (
+      store.getState() as unknown as {
+        resolveFileConflict: (id: string, c: 'mine') => Promise<void>;
+      }
+    ).resolveFileConflict('n1', 'mine');
+    // 显式工作区路径透传给桥接，保证跨工作区同名文件定向正确
+    expect(bridge().updateFileContent).toHaveBeenCalledWith('note.txt', 'v2\n', '/repo');
+  });
+
+  it('disk：丢草稿、清旗、重读磁盘', async () => {
+    const { store } = resolvedStore();
+    bridge().readFile.mockResolvedValue({
+      ok: true,
+      data: { path: 'note.txt', content: 'disk\n', lastModifiedAt: 99 },
+    });
+    await (
+      store.getState() as unknown as {
+        resolveFileConflict: (id: string, c: 'disk') => Promise<void>;
+      }
+    ).resolveFileConflict('n1', 'disk');
+    expect(bridge().updateFileContent).not.toHaveBeenCalled();
+    expect(bridge().readFile).toHaveBeenCalled();
+    const after = store.getState() as unknown as {
+      dirtyEditorPaths: string[];
+      externalFileChange: unknown;
+      fileContent: string;
+    };
+    expect(after.dirtyEditorPaths).toEqual([]);
+    expect(after.externalFileChange).toBeUndefined();
+    expect(after.fileContent).toBe('disk\n');
   });
 });
 

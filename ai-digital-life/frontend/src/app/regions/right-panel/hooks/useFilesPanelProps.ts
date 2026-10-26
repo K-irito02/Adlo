@@ -117,7 +117,7 @@ export function useFilesPanelProps(
         const baseline = state.fileContent ?? '';
         actions.notifyEditorBufferDirty(pathAtEdit, current !== baseline);
       }, 300);
-      // 空闲自动保存（默认开启）：停顿 1s 落盘，蓝点即清；工作区显式传递（P4 N1）。
+      // 空闲自动保存（默认开启）：停顿 1s 落盘，灰点即清；工作区显式传递（P4 N1）。
       window.clearTimeout(editorAutosaveTimerRef.current);
       editorAutosaveTimerRef.current = window.setTimeout(() => {
         if (useAppStore.getState().selectedFilePath !== pathAtEdit) {

@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { ErrorToastContainer } from './ErrorToast';
-import { FileOpNoticeContainer } from './FileOpNotice';
+import { FileOpNoticeContainer, type FileConflictChoice } from './FileOpNotice';
 import type { ErrorToastEntry } from '../stores/slices/errorToastSlice';
 import type { FileOpNotice } from '../stores/slices/fileOpNoticeSlice';
 
@@ -10,6 +10,7 @@ interface ToastRegionProps {
   onClearAllError: () => void;
   notices: FileOpNotice[];
   onDismissNotice: (id: string) => void;
+  onResolveConflict?: (id: string, choice: FileConflictChoice) => void;
 }
 
 /**
@@ -23,6 +24,7 @@ export function ToastRegion({
   onClearAllError,
   notices,
   onDismissNotice,
+  onResolveConflict,
 }: ToastRegionProps) {
   return createPortal(
     <div className="toast-card-region">
@@ -31,7 +33,11 @@ export function ToastRegion({
         onDismiss={onDismissError}
         onClearAll={onClearAllError}
       />
-      <FileOpNoticeContainer notices={notices} onDismiss={onDismissNotice} />
+      <FileOpNoticeContainer
+        notices={notices}
+        onDismiss={onDismissNotice}
+        onResolveConflict={onResolveConflict}
+      />
     </div>,
     document.body,
   );

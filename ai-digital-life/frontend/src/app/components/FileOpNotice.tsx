@@ -5,9 +5,53 @@ import { ToastCard } from './ToastCard';
 import type { FileOpNotice } from '../stores/slices/fileOpNoticeSlice';
 import { FILE_OP_NOTICE_LIMIT } from '../stores/slices/fileOpNoticeSlice';
 
+export type FileConflictChoice = 'mine' | 'disk' | 'later';
+
 interface FileOpNoticeCardProps {
   notice: FileOpNotice;
   onDismiss: (id: string) => void;
+  onResolveConflict?: (id: string, choice: FileConflictChoice) => void;
+}
+
+function ConflictNoticeCard({ notice, onDismiss, onResolveConflict }: FileOpNoticeCardProps) {
+  const { t } = useTCopy();
+  const detail = formatT(t, 'fileConflictDetail', { name: notice.name });
+  return (
+    <ToastCard
+      tone="warning"
+      icon="alert-circle"
+      title={t.fileConflictTitle}
+      detail={detail}
+      role="alert"
+      ariaLive="assertive"
+      onDismiss={() => onDismiss(notice.id)}
+      actions={
+        <>
+          <button
+            type="button"
+            className="toast-card__text-btn toast-card__text-btn--primary"
+            onClick={() => onResolveConflict?.(notice.id, 'mine')}
+          >
+            {t.fileConflictKeepMine}
+          </button>
+          <button
+            type="button"
+            className="toast-card__text-btn"
+            onClick={() => onResolveConflict?.(notice.id, 'disk')}
+          >
+            {t.fileConflictUseDisk}
+          </button>
+          <button
+            type="button"
+            className="toast-card__text-btn"
+            onClick={() => onResolveConflict?.(notice.id, 'later')}
+          >
+            {t.fileConflictLater}
+          </button>
+        </>
+      }
+    />
+  );
 }
 
 function FileOpNoticeCard({ notice, onDismiss }: FileOpNoticeCardProps) {
@@ -40,9 +84,10 @@ function FileOpNoticeCard({ notice, onDismiss }: FileOpNoticeCardProps) {
 interface FileOpNoticeContainerProps {
   notices: FileOpNotice[];
   onDismiss: (id: string) => void;
+  onResolveConflict?: (id: string, choice: FileConflictChoice) => void;
 }
 
-export function FileOpNoticeContainer({ notices, onDismiss }: FileOpNoticeContainerProps) {
+export function FileOpNoticeContainer({ notices, onDismiss, onResolveConflict }: FileOpNoticeContainerProps) {
   const { t } = useTCopy();
   const visible = notices.slice(-FILE_OP_NOTICE_LIMIT);
   const hiddenCount = notices.length - visible.length;
@@ -55,9 +100,18 @@ export function FileOpNoticeContainer({ notices, onDismiss }: FileOpNoticeContai
       aria-label={hasContent ? t.fileOpNoticeRegionLabel : undefined}
     >
       <AnimatePresence mode="popLayout">
-        {visible.map((notice) => (
-          <FileOpNoticeCard key={notice.id} notice={notice} onDismiss={onDismiss} />
-        ))}
+        {visible.map((notice) =>
+          notice.kind === 'conflict' ? (
+            <ConflictNoticeCard
+              key={notice.id}
+              notice={notice}
+              onDismiss={onDismiss}
+              onResolveConflict={onResolveConflict}
+            />
+          ) : (
+            <FileOpNoticeCard key={notice.id} notice={notice} onDismiss={onDismiss} />
+          ),
+        )}
         {hiddenCount > 0 && (
           <motion.div
             key="file-op-notice-summary"

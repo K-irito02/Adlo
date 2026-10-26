@@ -372,5 +372,25 @@ export function createGitSnapshotActions(
       // 与 fetchGitStatus 的选中预览同步同语义（多工作区刷新路径此前缺失）。
       clearStaleChangePreview(get, set, workspaceId, result.data);
     },
+
+    /**
+     * [refreshAllGitSnapshotsSilent - 静默刷新所有可见已展开工作区的 Git 快照]
+     * 手动"刷新全部"的静默版（范围语义与其一致：可见 + 导航器已展开）：
+     * 后端 watcher 只监听当前工作区根，非当前工作区的外部变更永远收不到批次，
+     * 靠窗口焦点回归/面板可见时的这次补刷进变更面板。不转刷新图标，
+     * 单个失败只记 workspaceChangesTreeErrors（与 refreshGitSnapshot 同口径）。
+     */
+    refreshAllGitSnapshotsSilent: async () => {
+      const state = get();
+      const targets = (state.recentWorkspaces ?? []).filter(
+        (w) => !w.removedFromSidebar && w.available && state.workspaceChangesExpanded[w.id],
+      );
+      if (targets.length === 0) {
+        return;
+      }
+      await Promise.allSettled(
+        targets.map((w) => get().refreshGitSnapshot(w.id, w.path, { silent: true })),
+      );
+    },
   };
 }

@@ -152,6 +152,38 @@
   height: 14px;
 }
 
+/* 正文下方的文字选项按钮行（冲突卡片需用户拍板的场景）：
+   中性色文字按钮（规范：提示场景禁用蓝色系），常驻可见（区别于悬停才现的图标按钮）。 */
+.toast-card__text-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+  margin-top: var(--space-2);
+}
+
+.toast-card__text-btn {
+  padding: var(--space-1) var(--space-2-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  cursor: pointer;
+  transition:
+    background var(--duration-150) var(--ease-enter),
+    border-color var(--duration-150) var(--ease-enter);
+}
+
+.toast-card__text-btn:hover {
+  background: var(--surface-subtle);
+}
+
+.toast-card__text-btn--primary {
+  background: var(--surface-subtle);
+  font-weight: var(--font-semibold);
+}
+
 /* 摘要卡片（条目超限时） */
 .toast-card--summary {
   align-items: center;

@@ -9,12 +9,21 @@ import { pendingChangePreviewPath, setPendingChangePreviewPath } from '../../cac
 import { getNextChangePreviewRequestSeq, scopedFileKey } from '../../cacheHelpers';
 import { openChangePreviewGeneric } from '../editorActionsHelpers';
 
+interface TestWorkspaceEntry {
+  id: string;
+  path: string;
+  removedFromSidebar?: boolean;
+  available?: boolean;
+}
+
 interface TestStore {
   gitSnapshot?: unknown;
   gitSnapshots: Record<string, unknown>;
   appInfo?: {
     currentWorkspace?: { id: string; path?: string; rootPath?: string };
   };
+  recentWorkspaces: TestWorkspaceEntry[];
+  workspaceChangesExpanded: Record<string, boolean>;
   workspaceChangesTreeLoading: Record<string, boolean>;
   workspaceChangesTreeErrors: Record<string, string | undefined>;
   changesTreeRefreshing: Record<string, boolean>;
@@ -27,7 +36,11 @@ interface TestStore {
   reportSilentError: (...args: unknown[]) => string;
 }
 
-function makeStore(opts?: { appInfo?: TestStore['appInfo'] }) {
+function makeStore(opts?: {
+  appInfo?: TestStore['appInfo'];
+  recentWorkspaces?: TestWorkspaceEntry[];
+  workspaceChangesExpanded?: Record<string, boolean>;
+}) {
   const reportSilentError = vi.fn(() => 'silent-id');
   const store = createStore<TestStore>((set, get) => {
     const actions = createGitSnapshotActions(set as never, () => get() as never);
@@ -38,6 +51,8 @@ function makeStore(opts?: { appInfo?: TestStore['appInfo'] }) {
       workspaceChangesTreeErrors: {},
       changesTreeRefreshing: {},
       appInfo: opts?.appInfo,
+      recentWorkspaces: opts?.recentWorkspaces ?? [],
+      workspaceChangesExpanded: opts?.workspaceChangesExpanded ?? {},
       reportSilentError,
       ...actions,
     } as TestStore;
@@ -117,6 +132,79 @@ describe('refreshGitSnapshot', () => {
     });
     await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
     expect(store.getState().workspaceChangesTreeErrors['ws-1']).toBeUndefined();
+  });
+});
+
+describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
+  beforeEach(() => {
+    vi.stubGlobal('digitalLife', {
+      workspace: {
+        listGitStatusForWorkspace: vi.fn(),
+        getGitStatus: vi.fn(),
+      },
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const entries = [
+    { id: 'ws-1', path: '/a', available: true },
+    { id: 'ws-2', path: '/b', available: true },
+    { id: 'ws-hidden', path: '/c', available: true, removedFromSidebar: true },
+    { id: 'ws-offline', path: '/d', available: false },
+  ];
+
+  it('只刷可见且导航器已展开的工作区（与手动刷新全部同范围），一律 silent', async () => {
+    const bridge = (window as any).digitalLife.workspace.listGitStatusForWorkspace;
+    bridge.mockResolvedValue({
+      ok: true,
+      data: { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 0 },
+    });
+    const { store } = makeStore({
+      recentWorkspaces: entries,
+      workspaceChangesExpanded: { 'ws-1': true, 'ws-2': false },
+    });
+    await (store.getState() as unknown as { refreshAllGitSnapshotsSilent: () => Promise<void> })
+      .refreshAllGitSnapshotsSilent();
+    expect(bridge).toHaveBeenCalledTimes(1);
+    expect(bridge).toHaveBeenCalledWith('/a');
+    expect(store.getState().gitSnapshots['ws-1']).toBeDefined();
+    expect(store.getState().gitSnapshots['ws-2']).toBeUndefined();
+    // silent：不转刷新图标
+    expect(store.getState().changesTreeRefreshing['ws-1']).toBeUndefined();
+  });
+
+  it('无目标时不调桥', async () => {
+    const bridge = (window as any).digitalLife.workspace.listGitStatusForWorkspace;
+    const { store } = makeStore({
+      recentWorkspaces: entries,
+      workspaceChangesExpanded: {},
+    });
+    await (store.getState() as unknown as { refreshAllGitSnapshotsSilent: () => Promise<void> })
+      .refreshAllGitSnapshotsSilent();
+    expect(bridge).not.toHaveBeenCalled();
+  });
+
+  it('单个失败不阻断其余（allSettled）', async () => {
+    const bridge = (window as any).digitalLife.workspace.listGitStatusForWorkspace;
+    bridge.mockImplementation((path: string) =>
+      path === '/a'
+        ? Promise.resolve({ ok: false, error: { message: 'boom' } })
+        : Promise.resolve({
+            ok: true,
+            data: { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 0 },
+          }),
+    );
+    const { store } = makeStore({
+      recentWorkspaces: entries,
+      workspaceChangesExpanded: { 'ws-1': true, 'ws-2': true },
+    });
+    await (store.getState() as unknown as { refreshAllGitSnapshotsSilent: () => Promise<void> })
+      .refreshAllGitSnapshotsSilent();
+    expect(bridge).toHaveBeenCalledTimes(2);
+    expect(store.getState().workspaceChangesTreeErrors['ws-1']).toBe('boom');
+    expect(store.getState().gitSnapshots['ws-2']).toBeDefined();
   });
 });
 

@@ -11,6 +11,8 @@ interface ToastCardProps {
   title?: React.ReactNode;
   /** 标题下方的正文（错误详情/补充提示），可折叠、可复制 */
   detail?: string;
+  /** 正文下方的文字选项按钮行（冲突卡片等需用户拍板的场景），有则渲染 */
+  actions?: React.ReactNode;
   /** 提供后渲染关闭按钮，点击时回调 */
   onDismiss?: () => void;
   className?: string;
@@ -29,7 +31,7 @@ function iconHtml(name: IconName, size: 'sm' | 'md' = 'md'): string {
  * 通过 tone 控制主题色，供文件操作警告等场景复用。
  */
 export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function ToastCard(
-  { tone, icon, title, detail, onDismiss, className, role = 'alert', ariaLive = 'assertive' },
+  { tone, icon, title, detail, actions, onDismiss, className, role = 'alert', ariaLive = 'assertive' },
   ref,
 ) {
   const { t } = useTCopy();
@@ -177,6 +179,7 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
             {detail}
           </p>
         ) : null}
+        {actions ? <div className="toast-card__text-actions">{actions}</div> : null}
       </div>
       <div className="toast-card__actions">
         {hasDetail ? (

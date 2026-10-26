@@ -140,6 +140,12 @@ function scheduleSelectedAutoReload(get: () => StoreState, eventPath?: string): 
   });
 }
 
+/** 外部旗是否指向该归一化路径（reconcile/写前比对共用，避免各处重复归一化）。 */
+function externalMatchesFlag(get: () => StoreState, norm: string): boolean {
+  const flag = get().externalFileChange;
+  return flag !== undefined && normalizeWorkspaceRelativePath(flag.path) === norm;
+}
+
 function scheduleGitFollowQuietly(get: () => StoreState): void {
   const currentWorkspace = get().appInfo?.currentWorkspace;
   if (!currentWorkspace) {
@@ -152,6 +158,35 @@ function scheduleGitFollowQuietly(get: () => StoreState): void {
   });
 }
 
+function scheduleTreeFollowQuietly(
+  get: () => StoreState,
+  batch: { changed: string[]; removed: string[]; overflow?: boolean },
+): void {
+  // 文件树跟手（文件面板自动实时刷新）：当前工作区是后端 watcher 唯一监听根，
+  // 批次路径即相对该根。silent 刷新不转刷新图标；溢出（批量改名/切分支/重连补发）
+  // 退化为刷全部已展开工作区，与 kernel 溢出退化契约对齐。
+  const currentWorkspace = get().appInfo?.currentWorkspace;
+  if (!currentWorkspace) {
+    return;
+  }
+  if (batch.overflow === true) {
+    scheduleExternalFollow(get, `tree:${currentWorkspace.id}:all`, () => {
+      void get().refreshAllWorkspaceTrees();
+    });
+    return;
+  }
+  if (batch.changed.length === 0 && batch.removed.length === 0) {
+    return;
+  }
+  const workspaceId = currentWorkspace.id;
+  const workspacePath = currentWorkspace.path;
+  scheduleExternalFollow(get, `tree:${workspaceId}`, () => {
+    void get().refreshOneWorkspaceTree(asWorkspaceID(workspaceId), workspacePath, {
+      silent: true,
+    });
+  });
+}
+
 /**
  * 批次通道跟手（事项 13 补洞）：Tauri 下单事件 channel 无人 emit，
  * 唯一活路是 onFilesChanged 批次。命中选中文件即走同一调度器
@@ -159,8 +194,11 @@ function scheduleGitFollowQuietly(get: () => StoreState): void {
  */
 export function handleExternalBatch(
   get: () => StoreState,
-  batch: { changed: string[]; removed: string[] },
+  batch: { changed: string[]; removed: string[]; overflow?: boolean },
 ): void {
+  // 树跟手先行：无选中文件时同样刷新（只改了未打开的文件也要实时变），
+  // 与选中重载/脏保护互不干扰。
+  scheduleTreeFollowQuietly(get, batch);
   const selected = get().selectedFilePath;
   const workspaceId = get().appInfo?.currentWorkspace?.id;
   if (!selected || !workspaceId) {
@@ -171,9 +209,29 @@ export function handleExternalBatch(
     (p) => normalizeWorkspaceRelativePath(p) === norm,
   );
   if (hitPath !== undefined) {
+    // 草稿保护前置标记（双端一致）：浏览器/预览模式没有单事件通道，
+    // 批次是唯一外部信号。有未存草稿时同样立 externalFileChange 旗，
+    // 供 saveFile 写前比对拦截（否则浏览器端冲突检测永不触发）；
+    // 重载调度照常（reconcile 内对草稿跳过、文件消失则提示）。
+    const hasDraft = get().dirtyEditorPaths.some(
+      (p) => normalizeWorkspaceRelativePath(p) === norm,
+    );
+    if (hasDraft) {
+      const prevExternal = get().externalFileChange?.path;
+      const hadExternal =
+        prevExternal !== undefined && normalizeWorkspaceRelativePath(prevExternal) === norm;
+      if (!hadExternal) {
+        get().setExternalFileChange({ path: hitPath, lastModifiedAt: Date.now() });
+        const locale = resolveAppLanguage(get().appInfo?.config?.language);
+        const dict = locale === 'en-US' ? fileEn : fileZh;
+        get().showToast(dict.fileExternalChangedWhileDirty, 'warning');
+      }
+    }
     scheduleSelectedAutoReload(get, hitPath);
   }
-  if (batch.changed.length > 0 || batch.removed.length > 0) {
+  // 溢出批次（重连补发/大批量截断）载荷为空但语义是"有变化"：
+  // 同样跟手 git，否则断线窗口内的变更永不进变更面板，只能靠手动刷新。
+  if (batch.changed.length > 0 || batch.removed.length > 0 || batch.overflow === true) {
     scheduleGitFollowQuietly(get);
   }
 }
@@ -567,7 +625,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         return;
       }
       /* external file changed.
-       * 注意：此处不再顺手打蓝点（dirtyEditorPaths 只属于"用户未存输入"）。
+       * 注意：此处不再顺手打灰点（dirtyEditorPaths 只属于"用户未存输入"）。
        * 旧逻辑把外部变更也标脏，导致两害：①自动重载被"草稿优先"挡掉；
        * ② saveDirtyEditors 会用旧基线回写，覆盖外部新内容。外部态只走
        * externalFileChange（树上有独立标识），与脏点解耦。 */
@@ -622,12 +680,20 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
 
     /**
      * [saveFile - 保存文件]
+     * 写前比对：有未存草稿且 externalFileChange 指向同一文件（外部已改）时，
+     * 非 force 调用一律拦截——推右下角冲突卡片供用户拍板，返回 false
+     * （自动保存静默跳过、切换前 flush 计入 failed 中止切换）。
+     * force=true 仅由冲突卡片"用我的覆盖"使用。
      * @writes editorSlice.fileContent, editorSlice.fileLastModifiedAt, editorSlice.dirtyEditorPaths
      * @see shared/ipc.ts → workspace.updateFileContent
      * @see mock-bridge.ts → workspace.updateFileContent
      * @see preview-bridge/index.ts → workspace.updateFileContent
      */
-    saveFile: async (relativePath?: string, workspacePath?: string) => {
+    saveFile: async (
+      relativePath?: string,
+      workspacePath?: string,
+      options?: { force?: boolean },
+    ) => {
       const currentWorkspace = get().appInfo?.currentWorkspace;
       const targetPath = relativePath ?? get().selectedFilePath;
       if (!targetPath) {
@@ -653,6 +719,19 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         // 脏而无暂存 = 过期标记（旧定时器闭包/重启恢复）：只清标记，绝不拿基线回写。
         clearStaleDirtyMark(set, norm);
         return true;
+      }
+      if (options?.force !== true) {
+        // 写前比对：外部已改 + 本地有草稿 = 直接落盘会覆盖外部（1s 自动保存竞态）。
+        // 拦截并推冲突卡片（同文件同工作区只一张，自动保存重试不刷屏），
+        // 由用户在卡片上选"用我的覆盖 / 用磁盘覆盖 / 稍后再说"。
+        const externalPath = get().externalFileChange?.path;
+        if (
+          externalPath !== undefined &&
+          normalizeWorkspaceRelativePath(externalPath) === norm
+        ) {
+          get().pushFileConflictNotice(targetPath, targetWs.id, rootPath);
+          return false;
+        }
       }
       const content = pending;
       clearError(get, SCOPE);
@@ -705,6 +784,50 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
     },
 
     /**
+     * [resolveFileConflict - 裁决右下角存盘冲突卡片]
+     * mine: 以 force 落盘覆盖磁盘（写前比对仅放行本次）；
+     * disk: 丢本地草稿 + 清脏标 + 清外部旗 + 失效两端缓存 + 重读磁盘；
+     * later: 仅关卡片（外部旗保留，下次保存/自动保存再推卡）。
+     */
+    resolveFileConflict: async (noticeId: string, choice: 'mine' | 'disk' | 'later') => {
+      const notice = get().fileOpNotices.find((n) => n.id === noticeId);
+      get().dismissFileOpNotice(noticeId);
+      if (!notice || notice.kind !== 'conflict' || !notice.path) {
+        return;
+      }
+      if (choice === 'later') {
+        return;
+      }
+      const targetPath = notice.path;
+      const targetWsId = notice.workspaceId;
+      if (choice === 'mine') {
+        await get().saveFile(targetPath, notice.workspacePath, { force: true });
+        return;
+      }
+      // disk：用磁盘覆盖我的——草稿与脏标清掉，重读即干净基线。
+      if (targetWsId) {
+        dropPendingEditorText(targetWsId, targetPath);
+      }
+      const norm = normalizeWorkspaceRelativePath(targetPath);
+      invalidateCachedFileDocument(scopedFileKey(targetWsId, targetPath));
+      invalidateCachedChangePreview(scopedFileKey(targetWsId, targetPath));
+      set((state: StoreState) => {
+        const nextDirty = state.dirtyEditorPaths.filter(
+          (p) => normalizeWorkspaceRelativePath(p) !== norm,
+        );
+        void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
+        const externalMatches =
+          state.externalFileChange !== undefined &&
+          normalizeWorkspaceRelativePath(state.externalFileChange.path) === norm;
+        return {
+          dirtyEditorPaths: nextDirty,
+          ...(externalMatches ? { externalFileChange: undefined } : {}),
+        };
+      });
+      await get().reconcileSelectedFile();
+    },
+
+    /**
      * [saveDirtyEditors - 保存全部脏文件]
      * 切换文件/分支/工作区前的 flush 点；按暂存键（工作区归属明确）逐个落盘，
      * 单个失败不阻断其余（错误已上报），调用方按 failed 决定是否继续切换。
@@ -751,9 +874,11 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
 
     /**
      * [reconcileSelectedFile - 对账选中文件与磁盘]
-     * 绕过缓存重读：有未存草稿则跳过（保草稿优先）；文件消失则清为空白内容
-     * （复用 fileOpenError 友好视图）；内容变化则更新基线。供刷新按钮/
-     * 分支切换后调用，解决“内容区不跟手”问题。
+     * 绕过缓存重读：有未存草稿则跳过（保草稿优先，外部旗保留供写前比对）；
+     * 文件消失则清为空白内容（复用 fileOpenError 友好视图）；
+     * 内容变化则更新基线。无草稿对账成功即清外部旗——内容区已与磁盘一致，
+     * 残留旗会导致下次保存误弹冲突卡。供刷新按钮/分支切换后调用，
+     * 解决“内容区不跟手”问题。
      */
     reconcileSelectedFile: async () => {
       const selected = get().selectedFilePath;
@@ -803,6 +928,8 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
             workspaceId: targetWs.id,
             workspacePath: targetWs.path,
           },
+          // 无草稿：内容区已按磁盘置空，外部旗同步清（有草稿分支早已 return）。
+          ...(externalMatchesFlag(get, norm) ? { externalFileChange: undefined } : {}),
         });
         return;
       }
@@ -826,6 +953,8 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
           fileContent: result.data.content,
           fileLastModifiedAt: result.data.lastModifiedAt,
           fileOpenError: null,
+          // 内容区已与磁盘一致：外部旗同步清，防下次保存误弹冲突卡。
+          ...(externalMatchesFlag(get, norm) ? { externalFileChange: undefined } : {}),
           outline:
             result.data.content.length > TEXT_HEAVY_PREVIEW_CHARS
               ? []
@@ -834,6 +963,9 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         // 磁盘变了 diff 必变：清预览缓存并重拍打开中的 diff（用户预览请求在途则让路）。
         invalidateCachedChangePreview(key);
         await refreshOpenPreviewIfSelected(get, selected);
+      } else if (externalMatchesFlag(get, norm)) {
+        // 内容本来就一致（仅 mtime/回声类事件）：同样清旗，不碰内容区。
+        set({ externalFileChange: undefined });
       }
     },
 
