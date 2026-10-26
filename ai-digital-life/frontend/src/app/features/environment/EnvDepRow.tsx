@@ -15,7 +15,7 @@ export type EnvDepKey = 'node' | 'git' | 'bash' | 'webview2' | 'adlserver' | 'ne
 
 /** 可安装宿主版本的依赖（后端 `/env/install` 仅支持 node/git）。 */
 const INSTALLABLE_DEPS: ReadonlySet<string> = new Set(['node', 'git']);
-/** 可切换来源 + 填手动路径的依赖（与后端 `custom_path_supported` 同口径；向导/设置组共用同一真源）。 */
+/** 可切换来源 + 填指定路径的依赖（与后端 `custom_path_supported` 同口径；向导/设置组共用同一真源）。 */
 export const OPERABLE_DEPS = ['node', 'git', 'bash'] as const;
 export type OperableDep = (typeof OPERABLE_DEPS)[number];
 const OPERABLE_DEP_SET: ReadonlySet<string> = new Set<string>(OPERABLE_DEPS);
@@ -39,7 +39,7 @@ export interface EnvDepRowActions {
   reinstall: (dep: string, version: string) => Promise<unknown>;
   setCustomPath: (dep: string, path: string) => Promise<unknown>;
   copyForAgent: (dep: EnvDepKey | 'all') => Promise<void>;
-  /** 打开块级恢复默认确认框（来源回自动 + 清空手动路径，不卸载）；仅在非 compact 行使用。 */
+  /** 打开块级恢复默认确认框（来源回自动 + 清空指定路径，不卸载）；仅在非 compact 行使用。 */
   requestBlockReset?: (dep: OperableDep) => void;
   goGroup: (group: 'dsh' | 'network') => void;
   openExternal: (url: string) => void;
@@ -51,7 +51,7 @@ export interface EnvDepRowProps {
   busy: boolean;
   isTauri: boolean;
   actions: EnvDepRowActions;
-  /** 精简版（向导复用）：隐藏手动路径输入、高级折叠区与兜底行。 */
+  /** 精简版（向导复用）：隐藏指定路径输入、高级折叠区与兜底行。 */
   compact?: boolean;
 }
 
@@ -136,8 +136,8 @@ function taskPhaseText(t: ReturnType<typeof useTCopy>['t'], phase: EnvTask['phas
 /**
  * 环境依赖行（四段式：块头 → 状态行 → 操作行 → 兜底层）。
  *
- * - Node/Git 可操作（来源下拉 + 安装 + 手动路径）；Bash 可操作但宿主不提供
- *   （宿主 Git 是 MinGit、不含 Bash；缺失时行内引导系统 Git / WSL / MSYS2 / 手动路径）；
+ * - Node/Git 可操作（来源下拉 + 安装 + 指定路径）；Bash 可操作但宿主不提供
+ *   （宿主 Git 是 MinGit、不含 Bash；缺失时行内引导系统 Git / WSL / MSYS2 / 指定路径）；
  * - WebView2/adlserver 只读（版本+状态+引导；WebView2 另有高级折叠区，
  *   FixedVersion 开关暂无后端支撑故禁用并注明由系统安装程序管理）；
  * - net+凭据只读：registry 灯为真实信号；模型 API 通无后端信号，只给
@@ -161,7 +161,7 @@ export function EnvDepRow({
 
   const section = depSection(status, dep);
   // 浏览器模式：安装/卸载/重装等变更动作置灰 + 追加仅桌面说明；来源切换与
-  // 手动路径是本地配置（浏览器模式也可用），只受 busy 门控（R1-07/R1-14）。
+  // 指定路径是本地配置（浏览器模式也可用），只受 busy 门控（R1-07/R1-14）。
   const browserGated = !isTauri && OPERABLE_DEP_SET.has(dep);
   const controlsDisabled = busy || browserGated;
   const localControlsDisabled = busy;
@@ -194,7 +194,7 @@ export function EnvDepRow({
               : dep === 'webview2'
                 ? t.environmentDepWebview2Desc
                 : t.environmentDepAdlserverDesc;
-  // 浏览器模式：来源切换与手动路径是本地配置（可用），仅安装/卸载/重装
+  // 浏览器模式：来源切换与指定路径是本地配置（可用），仅安装/卸载/重装
   // 等变更动作置灰，因此桌面模式提示只挂在可安装行（node/git）且只描述
   // 这类动作，不能暗示整行不可用。
   const installGated = browserGated && (dep === 'node' || dep === 'git');
@@ -222,7 +222,7 @@ export function EnvDepRow({
             { value: 'host', label: t.environmentSourceHost },
           ];
 
-  // 手动路径输入：值 = 草稿 ?? 服务端 customPath；失焦且变化才调桥，
+  // 指定路径输入：值 = 草稿 ?? 服务端 customPath；失焦且变化才调桥，
   // 失败回滚草稿（服务端已校验，前端只透传错误，action 侧 toast）。
   const customPath = section?.customPath ?? '';
   useEffect(() => {

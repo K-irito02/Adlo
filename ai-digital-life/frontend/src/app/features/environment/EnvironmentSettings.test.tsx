@@ -590,7 +590,7 @@ describe('EnvironmentSettings', () => {
     expect(payload.baseline).toBeNull();
   });
 
-  it('组级重置 pending 打开确认框，确认后来源回自动并清空手动路径', async () => {
+  it('组级重置 pending 打开确认框，确认后来源回自动并清空指定路径', async () => {
     fetchEnvStatus.mockImplementation(async () => {
       const status = fixture();
       status.node = depState({
@@ -713,7 +713,7 @@ describe('EnvironmentSettings', () => {
     });
   });
 
-  it('浏览器模式：仅变更动作置灰；来源切换与手动路径保持可用', async () => {
+  it('浏览器模式：仅变更动作置灰；来源切换与指定路径保持可用', async () => {
     const customFixture = {
       ...fixture(),
       node: depState({
