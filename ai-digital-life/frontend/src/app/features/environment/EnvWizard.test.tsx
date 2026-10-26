@@ -250,14 +250,14 @@ describe('EnvWizard', () => {
     });
   });
 
-  it('浏览器模式下仍展示前往设置的手动路径入口（路径输入已可用）', async () => {
+  it('浏览器模式下仍展示前往设置的指定路径入口（路径输入已可用）', async () => {
     seedStore({ envStatus: fixture(), isTauri: false });
     renderWizard();
     fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
     await waitFor(() => {
       expect(screen.getByTestId('env-dep-node')).not.toBeNull();
     });
-    // 手动路径入口与行同级（不在 env-dep-node section 内）。
+    // 指定路径入口与行同级（不在 env-dep-node section 内）。
     expect(
       screen.getAllByRole('button', { name: 'environmentGoToSettings' }).length,
     ).toBeGreaterThan(0);

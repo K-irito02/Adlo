@@ -138,7 +138,7 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
 
   const readyCount = status === null ? 0 : countEnvReadyDeps(status);
   const nodeReady = status !== null && isEnvDepReady(status.node);
-  // 手动路径入口：仅对未就绪的可操作依赖保留跳设置组链接。
+  // 指定路径入口：仅对未就绪的可操作依赖保留跳设置组链接。
   const unmetOperable = OPERABLE_DEPS.filter(
     (dep) => status !== undefined && status !== null && !isEnvDepReady(status[dep]),
   );
@@ -157,7 +157,7 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
 
   const goManualPath = () => {
     // 关闭即视为本向导会话结束（落盘 done）；resume 复用 nonce 重新打开，
-    // 不依赖 done 的 false→false 变化。浏览器模式下手动路径输入可用，链接保留。
+    // 不依赖 done 的 false→false 变化。浏览器模式下指定路径输入可用，链接保留。
     setEnvWizardDone(true);
     setActiveSettingsGroup('environment');
     onClose();

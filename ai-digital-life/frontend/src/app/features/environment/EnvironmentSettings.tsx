@@ -169,7 +169,7 @@ export function copyTextToClipboard(text: string): Promise<boolean> {
  *   快照，后台再验证（照抄 storage-settings 方案 B，写回点唯一在此处）。
  * - 安装任务进行中才轮询（`pollEnvTaskWhileRunning`，挂载启动 + 卸载清理，
  *   install 成功后 action 侧另行启动）。
- * - 组级重置仅侧边栏自助（不进 ResetAll 自动序列）：来源全回自动 + 清空手动路径，
+ * - 组级重置仅侧边栏自助（不进 ResetAll 自动序列）：来源全回自动 + 清空指定路径，
  *   不卸载已装版本（spec §7.2）。
  */
 export function EnvironmentSettings() {
@@ -291,7 +291,7 @@ export function EnvironmentSettings() {
     void actions.installEnvDep(dep);
   }, [installConfirmDep, showToast, t, actions]);
 
-  /** 单行来源恢复默认：来源回自动（已是自动则跳过）+ 清空手动路径（无则跳过）。 */
+  /** 单行来源恢复默认：来源回自动（已是自动则跳过）+ 清空指定路径（无则跳过）。 */
   const resetOneDepSource = useCallback(
     async (dep: 'node' | 'git' | 'bash'): Promise<boolean> => {
       if (status === null) {
@@ -313,7 +313,7 @@ export function EnvironmentSettings() {
     [status, actions],
   );
 
-  /** 组级恢复默认：可操作三行（OPERABLE_DEPS 真源）来源全回自动 + 清空手动路径 + 全量重测，不卸载。 */
+  /** 组级恢复默认：可操作三行（OPERABLE_DEPS 真源）来源全回自动 + 清空指定路径 + 全量重测，不卸载。 */
   const handleGroupConfirm = useCallback(() => {
     if (groupResetBusy) {
       return;
