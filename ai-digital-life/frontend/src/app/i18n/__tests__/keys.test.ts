@@ -58,7 +58,7 @@ describe('i18n en-US namespace keys', () => {
   });
 
   it('includes customAgent domain keys', () => {
-    expect(enUS).toHaveProperty('customAgentManagerTitle');
+    expect(enUS).toHaveProperty('customAgentManagerName');
   });
 
   it('includes durable domain keys', () => {
@@ -493,11 +493,10 @@ describe('i18n en-US namespace keys', () => {
       'environmentSourceSystem',
       'environmentSourceHost',
       'environmentSourceCustom',
-      // Bash 来源（系统 Git / WSL / MSYS2）+ 指定路径
+      // Bash 来源（系统 Git / WSL / MSYS2）
       'environmentBashGitBundled',
       'environmentBashWsl',
       'environmentBashMsys2',
-      'environmentBashCustom',
       // 按钮行
       'environmentInstall',
       'environmentSwitch',

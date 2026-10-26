@@ -8,7 +8,6 @@ export const workspaceEn = {
   newSessionPlaceholder: 'Enter a name (leave empty for auto-generate)',
   newSessionCreate: 'Create Chat',
   newSessionDefaultName: 'New Chat',
-  sessionFallback: 'Single Agent Session',
   workspaceEmpty: 'Click + above to create a workspace',
   workspaceTreeEmpty: 'No files in this workspace',
   sessionEmpty: 'Create a new session in this workspace',

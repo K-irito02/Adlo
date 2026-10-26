@@ -1,7 +1,5 @@
 export const commonEn = {
   landingTitle: 'AI Digital Life',
-  landingBody:
-    'First runnable Phase 2 slice: single-agent chat, plan, file understanding, and patch preview.',
   phaseLabel: 'Phase 2',
   brandHoverName: 'Yan',
   loading: 'Loading…',

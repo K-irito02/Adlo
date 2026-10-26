@@ -23,7 +23,6 @@ export const environmentEn = {
   environmentBashGitBundled: 'Bundled with Git',
   environmentBashWsl: 'WSL',
   environmentBashMsys2: 'MSYS2',
-  environmentBashCustom: 'Custom path',
   environmentInstall: 'Install',
   environmentSwitch: 'Switch',
   environmentUninstall: 'Uninstall',
@@ -67,8 +66,6 @@ export const environmentEn = {
     'Download and credential status.\n· One line shows connectivity, speed, and whether the model service follows the assistant',
   environmentDepModelHint:
     'Where model credentials live.\n· Credentials are entered on the assistant side; this only shows whether the store works',
-  environmentSourceSummaryHint:
-    'The download address currently in use.\n· Read-only; change it in the Network group\n· Auto detect picks the faster reachable source',
   environmentDepNodeDesc: 'JavaScript runtime required by dsh and the toolchain',
   environmentDepGitDesc: 'Version control; the hosted build is MinGit (one-click install, no Bash)',
   environmentDepBashDesc:

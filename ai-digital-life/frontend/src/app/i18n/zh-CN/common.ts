@@ -1,6 +1,5 @@
 export const commonZh = {
   landingTitle: 'AI Digital Life',
-  landingBody: '阶段二首个可运行切片：单智能体对话、计划、文件理解与 Patch 预览。',
   phaseLabel: '阶段 2',
   brandHoverName: '砚',
   loading: '加载中…',
