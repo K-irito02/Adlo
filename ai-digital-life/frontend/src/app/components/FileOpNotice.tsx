@@ -85,7 +85,11 @@ interface FileOpNoticeContainerProps {
   onResolveConflict?: (id: string, choice: FileConflictChoice) => void;
 }
 
-export function FileOpNoticeContainer({ notices, onDismiss, onResolveConflict }: FileOpNoticeContainerProps) {
+export function FileOpNoticeContainer({
+  notices,
+  onDismiss,
+  onResolveConflict,
+}: FileOpNoticeContainerProps) {
   const { t } = useTCopy();
   const visible = notices.slice(-FILE_OP_NOTICE_LIMIT);
   const hiddenCount = notices.length - visible.length;

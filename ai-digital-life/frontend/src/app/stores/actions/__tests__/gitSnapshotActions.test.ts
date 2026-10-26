@@ -178,8 +178,9 @@ describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
       recentWorkspaces: entries,
       workspaceChangesExpanded: { 'ws-1': true, 'ws-2': false },
     });
-    await (store.getState() as unknown as { refreshAllGitSnapshotsSilent: () => Promise<void> })
-      .refreshAllGitSnapshotsSilent();
+    await (
+      store.getState() as unknown as { refreshAllGitSnapshotsSilent: () => Promise<void> }
+    ).refreshAllGitSnapshotsSilent();
     expect(bridge).toHaveBeenCalledTimes(1);
     expect(bridge).toHaveBeenCalledWith('/a');
     expect(store.getState().gitSnapshots['ws-1']).toBeDefined();
@@ -194,8 +195,9 @@ describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
       recentWorkspaces: entries,
       workspaceChangesExpanded: {},
     });
-    await (store.getState() as unknown as { refreshAllGitSnapshotsSilent: () => Promise<void> })
-      .refreshAllGitSnapshotsSilent();
+    await (
+      store.getState() as unknown as { refreshAllGitSnapshotsSilent: () => Promise<void> }
+    ).refreshAllGitSnapshotsSilent();
     expect(bridge).not.toHaveBeenCalled();
   });
 
@@ -213,8 +215,9 @@ describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
       recentWorkspaces: entries,
       workspaceChangesExpanded: { 'ws-1': true, 'ws-2': true },
     });
-    await (store.getState() as unknown as { refreshAllGitSnapshotsSilent: () => Promise<void> })
-      .refreshAllGitSnapshotsSilent();
+    await (
+      store.getState() as unknown as { refreshAllGitSnapshotsSilent: () => Promise<void> }
+    ).refreshAllGitSnapshotsSilent();
     expect(bridge).toHaveBeenCalledTimes(2);
     expect(store.getState().workspaceChangesTreeErrors['ws-1']).toBe('boom');
     expect(store.getState().gitSnapshots['ws-2']).toBeDefined();
@@ -236,8 +239,9 @@ describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
         recentWorkspaces: entries,
         workspaceChangesExpanded: { 'ws-1': true, 'ws-2': true },
       });
-      await (store.getState() as unknown as { refreshAllGitSnapshotsSilent: () => Promise<void> })
-        .refreshAllGitSnapshotsSilent();
+      await (
+        store.getState() as unknown as { refreshAllGitSnapshotsSilent: () => Promise<void> }
+      ).refreshAllGitSnapshotsSilent();
       expect(warn).toHaveBeenCalledWith(
         '[refreshAllGitSnapshotsSilent] refreshGitSnapshot rejected',
         expect.anything(),
