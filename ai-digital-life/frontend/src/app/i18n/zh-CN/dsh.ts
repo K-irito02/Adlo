@@ -62,6 +62,8 @@ export const dshZh = {
   dshSettingsAutoDetected: '已自动选择 {source}',
   dshSettingsAutoDetectFailed: '自动检测失败，已保留当前下载源',
   dshVersionManagement: '版本管理',
+  dshVersionManagementHint:
+    '管理助手要用的版本。\n· 自动检测会优先用正在跑的，再用应用自带的，最后看你电脑里装的\n· 在下面安装、切换或卸载，完成后助手会自动重启，不用你手动操作',
   dshCurrentVersionLabel: '当前版本',
   dshCurrentVersionNone: '未安装',
   dshCurrentVersionDesc: '现在正在用的助手版本',
@@ -114,6 +116,8 @@ export const dshZh = {
   dshSourceSummaryManual: '手动选择',
   dshSourceSummaryUnknown: '—',
   dshSourceSummaryGoModify: '前往修改',
+  dshSourceSummaryHint:
+    '当前实际在用的下载地址。\n· 只读显示，去网络那一组修改\n· 自动检测会在官方和镜像之间选更快能连通的一个',
   dshVersionCancelled: '已取消操作',
   dshVersionCancelFailed: '取消失败',
   dshInstalledRestarted: '已安装 {version}，助手已自动重启',

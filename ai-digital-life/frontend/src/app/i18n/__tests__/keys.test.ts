@@ -489,10 +489,11 @@ describe('i18n en-US namespace keys', () => {
       'environmentStatusMissing',
       'environmentStatusTooOld',
       'environmentStatusDetected',
-      // 来源三态
+      // 来源四态（含指定路径）
       'environmentSourceAuto',
       'environmentSourceSystem',
       'environmentSourceHost',
+      'environmentSourceCustom',
       // Bash 来源（系统 Git / WSL / MSYS2）+ 手动路径
       'environmentBashGitBundled',
       'environmentBashWsl',

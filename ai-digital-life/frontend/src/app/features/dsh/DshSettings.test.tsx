@@ -154,12 +154,12 @@ describe('DshSettings', () => {
     expect(root?.querySelector('[data-testid="dsh-source-reset"]')).toBeNull();
     expect(root?.querySelector('[data-testid="dsh-proxy-reset"]')).toBeNull();
     expect(root?.querySelector('[data-testid="dsh-test-button"]')).toBeNull();
-    // 版本块：装饰图标 + 版本管理标题 + 版本管理组件。
+    // 版本块：问号提示 + 版本管理标题 + 版本管理组件（恢复默认已删除，问号替代）。
     expect(headers[0]?.textContent).toContain('dshVersionManagement');
-    expect(headers[0]?.querySelector('button')).toBeNull();
+    expect(headers[0]?.querySelector('.adl-icon-button--info')).not.toBeNull();
     expect(
       headers[0]?.querySelector('span.adl-settings-row__reset--static[aria-hidden="true"]'),
-    ).not.toBeNull();
+    ).toBeNull();
     // 检查更新行渲染文字按钮（设置组操作按钮样式）且带行内提示说明图标。
     const versionRow = root?.querySelector('[data-settings-row="dshCheckUpdate"]');
     expect(versionRow).not.toBeNull();
@@ -278,14 +278,16 @@ describe('DshSettings', () => {
     expect(screen.getByText(`当前下载源：${NPMJS_URL}`)).not.toBeNull();
     // 尾部模式提示用直角引号（不是全角圆括号）。
     expect(screen.getByText('「手动选择」')).not.toBeNull();
-    // 位置：摘要行是版本管理卡内**最后一行**（footer 插槽就在卡根末尾）。
+    // 位置：当前下载源独立沉底卡（无块标题，照抄存储组数据位置索引卡），问号在项名前。
     const row = screen.getByText(`当前下载源：${NPMJS_URL}`).closest('.adl-settings-row');
     const card = row?.closest('.adl-settings-card');
     expect(row).not.toBeNull();
     expect(card).not.toBeNull();
-    // 两重约束：① 该卡确实是版本管理卡（含官方版本信息行）；② 摘要行是卡内最后一行。
-    expect(card!.contains(screen.getByText('dshOfficialLinksLabel'))).toBe(true);
-    expect(card!.lastElementChild).toBe(row);
+    expect(card?.getAttribute('data-testid')).toBe('dsh-source-summary-card');
+    // 独立卡不含版本管理内容（官方版本信息行在另一张卡），问号在前、链接为通用下划线样式。
+    expect(card!.contains(screen.getByText('dshOfficialLinksLabel'))).toBe(false);
+    expect(row?.querySelector('.adl-icon-button--info')).not.toBeNull();
+    expect(row?.querySelector('.adl-dsh-settings__action-btn')).not.toBeNull();
     expect(saveSourceConfig).not.toHaveBeenCalled();
     expect(fetchSourceStatus).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: '前往修改' }));

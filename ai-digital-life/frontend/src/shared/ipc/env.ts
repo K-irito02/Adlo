@@ -1,6 +1,6 @@
 import type { IpcResult } from '@ai-digital-life/kernel';
 
-export type EnvSourceMode = 'auto' | 'system' | 'host';
+export type EnvSourceMode = 'auto' | 'system' | 'host' | 'custom';
 export type EnvEffectiveSource = 'system' | 'host' | 'none';
 export interface EnvDependencyState {
   mode: EnvSourceMode;

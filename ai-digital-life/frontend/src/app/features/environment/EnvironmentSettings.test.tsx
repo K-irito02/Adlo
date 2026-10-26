@@ -167,8 +167,6 @@ async function renderWithRows() {
     'environmentDepBash',
     'environmentDepWebview2',
     'environmentDepAdlserver',
-    'environmentDepNet',
-    'environmentDepModel',
   ]) {
     await waitFor(() => {
       expect(screen.getByText(dep)).not.toBeNull();
@@ -178,7 +176,7 @@ async function renderWithRows() {
 }
 
 describe('EnvironmentSettings', () => {
-  it('挂载拉取状态并渲染七依赖行 + 聚合条', async () => {
+  it('挂载拉取状态并渲染五依赖行 + 聚合条', async () => {
     await renderWithRows();
     // 聚合条：就绪计数 + 重测 + 复制全部。
     expect(screen.getByText('environmentAggregateReady')).not.toBeNull();
@@ -186,18 +184,15 @@ describe('EnvironmentSettings', () => {
     expect(screen.getByRole('button', { name: 'environmentCopyAllForAgent' })).not.toBeNull();
   });
 
-  it('按块头分组（基础依赖/系统组件/网络与模型），每依赖单行 + 路径独占次级行', async () => {
+  it('按块头分组（基础依赖/系统组件），网络块已删除', async () => {
     const { container } = await renderWithRows();
-    for (const key of [
-      'environmentBlockRuntime',
-      'environmentBlockSystem',
-      'environmentBlockNetwork',
-    ]) {
+    for (const key of ['environmentBlockRuntime', 'environmentBlockSystem']) {
       expect(screen.getByText(key)).not.toBeNull();
     }
+    expect(screen.queryByText('environmentBlockNetwork')).toBeNull();
     const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
-    // 主体行 + 自定义路径次级行 = 2 行；不再额外挂 `--actions` 按钮条。
-    expect(node.querySelectorAll('.adl-settings-row')).toHaveLength(2);
+    // 指定路径未选中时仅主体行 1 行（切到指定路径才出现输入行，切走保留路径仅隐藏）。
+    expect(node.querySelectorAll('.adl-settings-row')).toHaveLength(1);
 
     // 次级操作下沉为行内链接。
     expect(node.querySelector('.adl-dsh-settings__inline-link')).not.toBeNull();
@@ -214,29 +209,56 @@ describe('EnvironmentSettings', () => {
     expect(depCards).toEqual([
       ['env-dep-node', 'env-dep-git', 'env-dep-bash'],
       ['env-dep-webview2', 'env-dep-adlserver'],
-      ['env-dep-net', 'env-dep-model'],
     ]);
-    // 搜索落点仍挂在网络行的「前往设置」inline 链接上（不是被下沉掉的按钮条）。
-    const net = container.querySelector('[data-testid="env-dep-net"]') as HTMLElement;
-    const goNet = within(net).getByRole('button', { name: 'environmentGoToSettings' });
-    expect(goNet.getAttribute('data-settings-row')).toBe('environmentGoToSettings');
+    // 网络行与模型行已删除：下载连通归网络组，凭据/模型归 dsh 侧。
+    expect(container.querySelector('[data-testid="env-dep-net"]')).toBeNull();
+    expect(container.querySelector('[data-testid="env-dep-model"]')).toBeNull();
   });
 
   it('Bash 系统模式下展示只读归属文本（非可交互三选一）', async () => {
     const { container } = await renderWithRows();
     const bash = container.querySelector('[data-testid="env-dep-bash"]')!;
-    // 诚实非交互：无 radiogroup/radio 控件，只读归属文本。
+    // 归属小字已删除（指定路径模式替代）：无 radiogroup/radio，问号提示替代归属说明。
     expect(bash.querySelector('[role="radiogroup"]')).toBeNull();
     expect(bash.querySelector('input[type="radio"]')).toBeNull();
-    expect(within(bash as HTMLElement).getByText('environmentBashVariantNote')).not.toBeNull();
+    expect(within(bash as HTMLElement).queryByText('environmentBashVariantNote')).toBeNull();
+    expect(bash.querySelector('.adl-icon-button--info')).not.toBeNull();
   });
 
-  it('模型行无状态灯，只有去 dsh 侧配置引导', async () => {
+  it('指定路径选中时输入框与下拉同一行（左侧无灰色文案），切走隐藏但保留路径', async () => {
+    const customStatus = {
+      ...fixture(),
+      node: depState({
+        mode: 'custom',
+        effective: 'system',
+        installedVersion: '22.0.0',
+        baselineVersion: '22.0.0',
+        meetsBaseline: true,
+        path: 'C:/custom/node.exe',
+        customPath: 'C:/custom/node.exe',
+      }),
+    };
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: customStatus });
+      return true;
+    });
     const { container } = await renderWithRows();
-    const model = container.querySelector('[data-testid="env-dep-model"]') as HTMLElement;
-    // 红绿灯（状态 pill）绝不出现在模型行。
-    expect(model.querySelector('.adl-settings-status')).toBeNull();
-    expect(within(model).getByRole('button', { name: 'environmentGoToSettings' })).not.toBeNull();
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    // 输入框并入控制列同一行，不再独占次级行：section 始终只有 1 个主行。
+    expect(node.querySelectorAll('.adl-settings-row')).toHaveLength(1);
+    const input = within(node).getByLabelText('environmentCustomPathLabel') as HTMLInputElement;
+    expect(input.value).toBe('C:/custom/node.exe');
+    // 输入框在下拉同一行（控制列首行内），且左侧无灰色文案 small。
+    expect(input.closest('.adl-settings-row__control')).not.toBeNull();
+    expect(input.closest('.adl-env-control__main')).not.toBeNull();
+  });
+
+  it('网络行与模型行已删除（下载连通归网络组，凭据/模型归 dsh 侧）', async () => {
+    const { container } = await renderWithRows();
+    expect(container.querySelector('[data-testid="env-dep-net"]')).toBeNull();
+    expect(container.querySelector('[data-testid="env-dep-model"]')).toBeNull();
+    expect(within(container as HTMLElement).queryByText('environmentDepNet')).toBeNull();
+    expect(within(container as HTMLElement).queryByText('environmentDepModel')).toBeNull();
   });
 
   it('复制按钮把诊断 JSON 写剪贴板（payload 含 dep 与 statusJson）', async () => {
@@ -544,8 +566,21 @@ describe('EnvironmentSettings', () => {
   });
 
   it('版本无关依赖的载荷 baseline 为 null（wire 空串）', async () => {
+    // bash 异常（未就绪）时才渲染复制按钮：覆盖默认 fixture 的就绪态。
+    fetchEnvStatus.mockImplementation(async () => {
+      const status = fixture();
+      status.bash = depState({
+        mode: 'auto',
+        effective: 'none',
+        installedVersion: null,
+        baselineVersion: '',
+        meetsBaseline: false,
+        path: null,
+      });
+      useAppStore.setState({ envStatus: status });
+      return true;
+    });
     const { container } = await renderWithRows();
-    // bash 行固定渲染复制按钮。
     const bash = container.querySelector('[data-testid="env-dep-bash"]') as HTMLElement;
     fireEvent.click(within(bash).getByRole('button', { name: 'environmentCopyForAgentNote' }));
     await waitFor(() => {
@@ -582,8 +617,8 @@ describe('EnvironmentSettings', () => {
     expect(openUrlByMethod).not.toHaveBeenCalled();
   });
 
-  it('聚合条就绪计数只计可检测项（模型引导行不计入）', async () => {
-    // fixture：node 缺失 + 其余四依赖就绪 + 注册表通 = 5/6。
+  it('聚合条就绪计数只计五个版本依赖（网络/模型不计入）', async () => {
+    // fixture：node 缺失 + 其余四依赖就绪 = 4/5。
     const hybridT = new Proxy({} as Record<string, string>, {
       get: (_, key) =>
         typeof key === 'string' ? ((environmentZh as Record<string, string>)[key] ?? key) : '',
@@ -594,10 +629,10 @@ describe('EnvironmentSettings', () => {
         <EnvironmentSettings />
       </TCopyProvider>,
     );
-    expect(await screen.findByText('5/6 就绪')).not.toBeNull();
+    expect(await screen.findByText('4/5 就绪')).not.toBeNull();
   });
 
-  it('bash/adlserver 无版本号（真实 wire）仍按 meetsBaseline 计为就绪：6/6', async () => {
+  it('bash/adlserver 无版本号（真实 wire）仍按 meetsBaseline 计为就绪：5/5', async () => {
     const ready = fixture();
     ready.node = depState({
       mode: 'auto',
@@ -621,7 +656,7 @@ describe('EnvironmentSettings', () => {
         <EnvironmentSettings />
       </TCopyProvider>,
     );
-    expect(await screen.findByText('6/6 就绪')).not.toBeNull();
+    expect(await screen.findByText('5/5 就绪')).not.toBeNull();
     const bash = container.querySelector('[data-testid="env-dep-bash"]') as HTMLElement;
     expect(bash.textContent).toContain('已检测');
     expect(bash.textContent).not.toContain('缺失');
@@ -679,7 +714,23 @@ describe('EnvironmentSettings', () => {
   });
 
   it('浏览器模式：仅变更动作置灰；来源切换与手动路径保持可用', async () => {
-    seedStore({ isTauri: false, envStatus: fixture() });
+    const customFixture = {
+      ...fixture(),
+      node: depState({
+        mode: 'custom',
+        effective: 'none',
+        installedVersion: null,
+        baselineVersion: '22.0.0',
+        meetsBaseline: false,
+        path: null,
+        customPath: '',
+      }),
+    };
+    seedStore({ isTauri: false });
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: customFixture });
+      return true;
+    });
     const { container } = renderSettings();
     const node = (await waitFor(() => {
       const el = container.querySelector('[data-testid="env-dep-node"]');
@@ -691,7 +742,7 @@ describe('EnvironmentSettings', () => {
         .disabled,
     ).toBe(true);
     expect(node.textContent).toContain('environmentInstallDesktopOnlyHint');
-    // 本地配置（来源选择 + 手动路径）在浏览器模式仍可用（R1-07/R1-14）。
+    // 本地配置（来源选择 + 指定路径输入）在浏览器模式仍可用（R1-07/R1-14）。
     expect((within(node).getByLabelText('environmentSwitch') as HTMLButtonElement).disabled).toBe(
       false,
     );

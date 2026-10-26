@@ -12,7 +12,7 @@ describe('store utility functions', () => {
     it('returns Chinese fallback for zh-CN', { timeout: 10000 }, async () => {
       const dict = await loadLocale('zh-CN');
       const result = dict.sessionFallback;
-      expect(result).toBe('单 Agent 会话');
+      expect(result).toBe('单智能体会话');
     });
   });
 

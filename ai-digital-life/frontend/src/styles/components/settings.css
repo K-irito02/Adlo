@@ -377,6 +377,26 @@
   line-height: var(--leading-snug);
 }
 
+/* 副标题右侧状态徽章紧凑版（环境组用户要求明显变小）：徽章盒与内部文字整体缩小。
+   注意特异性：`.adl-settings-row__label .adl-settings-status`（0-2-0）会覆盖
+   行高与上边距，紧凑版必须用同等以上特异性复写，否则视觉无变化。 */
+.adl-settings-status--compact {
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+.adl-settings-row__label > .adl-settings-row__label-text span.adl-settings-status--compact {
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: var(--font-normal);
+  line-height: 1.4;
+  letter-spacing: 0;
+  margin-top: 0;
+  vertical-align: 1px;
+}
+
 .adl-settings-row__label .adl-settings-status--success {
   color: var(--pastel-success-fg);
 }
@@ -391,6 +411,116 @@
 
 .adl-settings-row__label .adl-settings-status--danger {
   color: var(--pastel-danger-fg);
+}
+
+/* 聚合条/行内链接与前半部分同字号：label-text 规则只覆盖 span/label，
+   button 需显式对齐（否则回落到 base 字号，看起来比“就绪”大）。 */
+.adl-settings-row__label-text .adl-settings-link {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+}
+
+/* 通用下划线超链接文本（从 dsh 专属 inline-link 提取为全设置组复用）：
+   行内说明文字中的可点击文本：常态无下划线、悬停出现下划线，与标题同色。 */
+.adl-settings-link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.adl-settings-link:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.adl-settings-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-settings-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 环境组右侧控件：首行（路径输入 + 来源下拉）与次行（安装/卸载/重装）上下堆叠，
+   安装按钮不再与下拉同行，避免误解为下拉的确认键。次行无按钮时不占位。 */
+.adl-env-control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.adl-env-control__main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adl-env-control__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adl-env-control__actions:empty {
+  display: none;
+}
+
+/* 指定路径输入框（与来源下拉同一行、在其左边）：无左侧灰色文案，仅保留无障碍名称。
+   占位文字过长展示不完时，用缓慢循环滚动的自定义占位层代替原生 placeholder。 */
+.adl-env-path-inline {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.adl-env-path-input {
+  width: 170px;
+}
+
+.adl-env-path-marquee {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+/* 收尾相接的无缝循环：轨道含两份相同文案，首份首部起于输入框左侧，
+   滚完一份即回到起点，视觉上首尾相接不断流。 */
+.adl-env-path-marquee__track {
+  display: inline-flex;
+  width: max-content;
+  animation: adl-env-path-scroll 18s linear infinite;
+}
+
+.adl-env-path-marquee__chunk {
+  padding-right: 3em;
+  white-space: nowrap;
+}
+
+@keyframes adl-env-path-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adl-env-path-marquee__track {
+    animation: none;
+  }
 }
 
 /* ---- Toggle ---- */

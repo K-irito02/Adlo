@@ -65,6 +65,8 @@ export const dshEn = {
   dshSettingsAutoDetected: 'Auto-selected {source}',
   dshSettingsAutoDetectFailed: 'Auto-detection failed; current source kept',
   dshVersionManagement: 'Version management',
+  dshVersionManagementHint:
+    'Manage the assistant versions.\n· Auto detect prefers the running one, then the bundled copy, then your system install\n· Install, switch or uninstall below; the assistant restarts automatically',
   dshCurrentVersionLabel: 'Current version',
   dshCurrentVersionNone: 'Not installed',
   dshCurrentVersionDesc: 'The assistant version in use right now',
@@ -120,6 +122,8 @@ export const dshEn = {
   dshSourceSummaryManual: 'Manual',
   dshSourceSummaryUnknown: '—',
   dshSourceSummaryGoModify: 'Change',
+  dshSourceSummaryHint:
+    'The download address currently in use.\n· Read-only; change it in the Network group\n· Auto detect picks the faster reachable source',
   dshVersionCancelled: 'Operation cancelled',
   dshVersionCancelFailed: 'Cancel failed',
   dshInstalledRestarted: 'Installed {version}; the assistant restarted automatically',

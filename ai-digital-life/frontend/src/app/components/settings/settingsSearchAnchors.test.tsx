@@ -272,8 +272,7 @@ const CONDITIONAL_ROW_MARKERS: string[] = [
   'environmentCopyForAgent',
   // 聚合条仅在环境状态加载后渲染。
   'environmentCopyAllForAgent',
-  // net/model 两行的「前往配置」共用同一索引行（只登记一次），落点取首个等值行。
-  'environmentGoToSettings',
+  // 「前往配置」行已随「网络与模型」块删除（该标记只挂在已删除的网络行上）。
 ];
 
 // 九组各一个渲染用例：索引中属于该组的每个锚点都必须在该组渲染容器内命中。
@@ -526,6 +525,8 @@ describe('settings search anchors', () => {
   });
 
   it('环境块每个登记行标记在 DOM 中恰好出现一次（R1-11 唯一性）', async () => {
+    // 两块七行：安装/切换/卸载/重装/重测/复制/复制全部各一次；
+    // 「网络与模型」块已删除，「前往配置」标记不再存在。
     const status = envFixture();
     fetchEnvStatus.mockImplementation(async () => {
       useAppStore.setState({ envStatus: status });
@@ -548,7 +549,6 @@ describe('settings search anchors', () => {
       'environmentRecheck',
       'environmentCopyForAgent',
       'environmentCopyAllForAgent',
-      'environmentGoToSettings',
     ];
     for (const marker of markers) {
       const count = container.querySelectorAll(`[data-settings-row="${marker}"]`).length;

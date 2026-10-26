@@ -6,7 +6,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { openUrlByMethod } from '@features/preview/openByMethod';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
-import { StaticResetSpacer } from '@components/settings/StaticResetSpacer';
+import { SettingsHintButton } from '@components/settings/SettingsHintButton';
 import { ConfirmDialog } from '@components/ConfirmDialog';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
 import {
@@ -15,7 +15,6 @@ import {
   isEnvDepReady,
   type EnvDepKey,
   type EnvDepRowActions,
-  type OperableDep,
 } from './EnvDepRow';
 import { getCachedEnvStatus, isWellFormedEnvStatus, setCachedEnvStatus } from './envStatusCache';
 import { RUNBOOKS, type RunbookKey } from './runbooks';
@@ -24,30 +23,28 @@ import type { EnvSourceMode, EnvStatus } from '../../../shared/ipc/env';
 
 /**
  * 依赖行分块（与网络/DSH 组的「块头 + 卡片」同构，用户 2026-10-25 要求对齐）：
- * 基础依赖（可切来源/装宿主版）→ 系统组件（只读检测）→ 网络与模型（引导类）。
+ * 基础依赖（可切来源/装宿主版）→ 系统组件（只读检测）。
+ * 「网络与模型」块已删除：下载连通归网络组，凭据/模型归 dsh 侧（宿主只管版本管理）。
  */
 const DEP_BLOCKS: {
-  titleKey: 'environmentBlockRuntime' | 'environmentBlockSystem' | 'environmentBlockNetwork';
+  titleKey: 'environmentBlockRuntime' | 'environmentBlockSystem';
   deps: EnvDepKey[];
 }[] = [
   { titleKey: 'environmentBlockRuntime', deps: ['node', 'git', 'bash'] },
   { titleKey: 'environmentBlockSystem', deps: ['webview2', 'adlserver'] },
-  { titleKey: 'environmentBlockNetwork', deps: ['net', 'model'] },
 ];
 
 /**
  * 聚合条就绪计数分母：5 个 version 信号（node/git/bash/webview2/adlserver
- * meetsBaseline）+ netprobe registryOk = 6。模型行是纯引导（无就绪信号，
- * 把 ciTokenConfigured 计入会冒充模型就绪——Phase 1 parked 红线），不计入。
+ * meetsBaseline）= 5。下载连通与模型引导不计入（分属网络组 / dsh 侧）。
  */
-export const ENV_READY_TOTAL = 6;
+export const ENV_READY_TOTAL = 5;
 
 /** 就绪项计数（聚合条与向导完成步/跳过横幅共用同一口径）。 */
 export function countEnvReadyDeps(status: EnvStatus): number {
-  const versionReady = (['node', 'git', 'bash', 'webview2', 'adlserver'] as const).filter((dep) =>
+  return (['node', 'git', 'bash', 'webview2', 'adlserver'] as const).filter((dep) =>
     isEnvDepReady(status[dep]),
   ).length;
-  return versionReady + (status.netprobe.registryOk ? 1 : 0);
 }
 
 /** 依赖 → runbook 映射（git/bash 共用同一份）。 */
@@ -62,15 +59,12 @@ const DEP_RUNBOOK: Record<EnvDepKey, RunbookKey> = {
 };
 
 /**
- * 全量载荷参与聚合的依赖：模型行无可检测就绪信号（与 ENV_READY_TOTAL 同口径
- * 排除），否则全量载荷永远不可能为 null。
+ * 全量载荷参与聚合的依赖：与 ENV_READY_TOTAL 同口径（5 个版本依赖）。
+ * 下载连通归网络组、模型引导归 dsh 侧，均不参与本组全量载荷。
  */
-const ALL_RUNBOOK_DEPS = ['node', 'git', 'bash', 'webview2', 'adlserver', 'net'] as const;
+const ALL_RUNBOOK_DEPS = ['node', 'git', 'bash', 'webview2', 'adlserver'] as const;
 
 function isDepReady(status: EnvStatus, dep: (typeof ALL_RUNBOOK_DEPS)[number]): boolean {
-  if (dep === 'net') {
-    return status.netprobe.registryOk;
-  }
   return isEnvDepReady(status[dep]);
 }
 
@@ -195,7 +189,6 @@ export function EnvironmentSettings() {
   const status = storeStatus ?? cachedStatus;
 
   const [installConfirmDep, setInstallConfirmDep] = useState<string | null>(null);
-  const [blockResetDep, setBlockResetDep] = useState<OperableDep | null>(null);
   const [groupResetOpen, setGroupResetOpen] = useState(false);
   const [groupResetBusy, setGroupResetBusy] = useState(false);
 
@@ -227,23 +220,18 @@ export function EnvironmentSettings() {
   }, [storeStatus]);
 
   /**
-   * 组级恢复对话框打开（承接 pending 信号）：守卫先行——组框/任一块框已开/
+   * 组级恢复对话框打开（承接 pending 信号）：守卫先行——组框已开/
    * 执行中 → 不消费 pending（信号保留，框关闭后 effect 重试），避免重置意图被
    * 静默吞掉（照抄 NetworkSettings 事项 11 Phase 4 A1-L1）。
+   * 块级/行级恢复已删除（问号替代），此处仅剩组级。
    */
   const openGroupResetDialog = useCallback(() => {
-    if (groupResetOpen || groupResetBusy || installConfirmDep !== null || blockResetDep !== null) {
+    if (groupResetOpen || groupResetBusy || installConfirmDep !== null) {
       return;
     }
     consumeEnvironmentGroupReset();
     setGroupResetOpen(true);
-  }, [
-    consumeEnvironmentGroupReset,
-    groupResetOpen,
-    groupResetBusy,
-    installConfirmDep,
-    blockResetDep,
-  ]);
+  }, [consumeEnvironmentGroupReset, groupResetOpen, groupResetBusy, installConfirmDep]);
 
   useEffect(() => {
     if (!environmentGroupResetPending) {
@@ -289,7 +277,6 @@ export function EnvironmentSettings() {
     reinstall: (dep, version) => actions.installEnvDep(dep, version),
     setCustomPath: (dep, path) => actions.setEnvCustomPath(dep, path),
     copyForAgent,
-    requestBlockReset: (dep) => setBlockResetDep(dep),
     goGroup: (group) => setActiveSettingsGroup(group),
     openExternal: (url) => openUrlByMethod(url),
   };
@@ -326,33 +313,6 @@ export function EnvironmentSettings() {
     [status, actions],
   );
 
-  /** 单行恢复默认：来源恢复 + 单行重测。 */
-  const resetOneDep = useCallback(
-    async (dep: OperableDep): Promise<boolean> => {
-      if (status === null) {
-        return false;
-      }
-      if (!(await resetOneDepSource(dep))) {
-        return false;
-      }
-      return actions.recheckEnv(dep);
-    },
-    [status, actions, resetOneDepSource],
-  );
-
-  const handleBlockResetConfirm = useCallback(() => {
-    const dep = blockResetDep;
-    setBlockResetDep(null);
-    if (dep === null) {
-      return;
-    }
-    void (async () => {
-      if (await resetOneDep(dep)) {
-        showToast(t.settingsResetComplete, 'success');
-      }
-    })();
-  }, [blockResetDep, resetOneDep, showToast, t]);
-
   /** 组级恢复默认：可操作三行（OPERABLE_DEPS 真源）来源全回自动 + 清空手动路径 + 全量重测，不卸载。 */
   const handleGroupConfirm = useCallback(() => {
     if (groupResetBusy) {
@@ -388,12 +348,10 @@ export function EnvironmentSettings() {
   const readyCount = status === null ? 0 : countEnvReadyDeps(status);
   const unmetCount = status === null ? 0 : ENV_READY_TOTAL - readyCount;
 
-  const blockResetDepTitle =
-    blockResetDep === 'node'
-      ? t.environmentDepNode
-      : blockResetDep === 'git'
-        ? t.environmentDepGit
-        : t.environmentDepBash;
+  const blockHint = (key: 'environmentBlockRuntime' | 'environmentBlockSystem') =>
+    key === 'environmentBlockRuntime'
+      ? t.environmentBlockRuntimeHint
+      : t.environmentBlockSystemHint;
 
   return (
     <div className="adl-settings-section adl-dsh-settings adl-environment-settings">
@@ -401,8 +359,8 @@ export function EnvironmentSettings() {
         className="adl-dsh-settings__header"
         data-settings-anchor={anchorFor('environment', 'deps')}
       >
-        <StaticResetSpacer />
-        <SettingsHeader title={t.settingsEnvironment} description={t.environmentDesc} />
+        <SettingsHintButton content={t.environmentTitleHint} />
+        <SettingsHeader title={t.settingsEnvironment} />
       </div>
       {status === null ? (
         <div className="adl-settings-card">
@@ -468,6 +426,19 @@ export function EnvironmentSettings() {
                       total: ENV_READY_TOTAL,
                     })}
                   </span>
+                  {/* 方案 A：点与链接同条件渲染，status 为 null（聚合条不显示）时自然无点 */}
+                  <span aria-hidden="true">{' · '}</span>
+                  <button
+                    type="button"
+                    className="adl-settings-link"
+                    data-settings-row={t.environmentCopyAllForAgent}
+                    disabled={envBusy}
+                    onClick={() => {
+                      void copyForAgent('all');
+                    }}
+                  >
+                    {t.environmentCopyAllForAgent}
+                  </button>
                 </div>
               </div>
               <div className="adl-settings-row__control adl-settings-row__control--inline">
@@ -482,24 +453,13 @@ export function EnvironmentSettings() {
                 >
                   {t.environmentRecheck}
                 </button>
-                <button
-                  type="button"
-                  className="adl-dsh-settings__action-btn"
-                  data-settings-row={t.environmentCopyAllForAgent}
-                  disabled={envBusy}
-                  onClick={() => {
-                    void copyForAgent('all');
-                  }}
-                >
-                  {t.environmentCopyAllForAgent}
-                </button>
               </div>
             </div>
           </div>
           {DEP_BLOCKS.map(({ titleKey, deps }) => (
             <Fragment key={titleKey}>
               <div className="adl-dsh-settings__header adl-dsh-settings__header--section">
-                <StaticResetSpacer />
+                <SettingsHintButton content={blockHint(titleKey)} />
                 <SettingsHeader title={t[titleKey]} />
               </div>
               <div className="adl-settings-card">
@@ -531,15 +491,6 @@ export function EnvironmentSettings() {
         cancelLabel={t.cancel}
         onConfirm={handleInstallConfirm}
         onCancel={() => setInstallConfirmDep(null)}
-      />
-      <ConfirmDialog
-        open={blockResetDep !== null}
-        title={formatT(t, 'settingsResetGroupConfirmTitle', { group: blockResetDepTitle })}
-        message={formatT(t, 'settingsResetGroupConfirmMessage', { group: blockResetDepTitle })}
-        confirmLabel={t.confirm}
-        cancelLabel={t.cancel}
-        onConfirm={handleBlockResetConfirm}
-        onCancel={() => setBlockResetDep(null)}
       />
       <ConfirmDialog
         open={groupResetOpen}

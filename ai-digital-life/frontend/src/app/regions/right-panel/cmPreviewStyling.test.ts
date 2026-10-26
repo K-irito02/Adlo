@@ -39,7 +39,6 @@ const regionsCssSource = [
   'files-panel-list.css',
   'files-panel.css',
   'files-navigator.css',
-  'files-editor-tabs.css',
   'changes-panel.css',
   'editor-surface.css',
   'editor-content.css',

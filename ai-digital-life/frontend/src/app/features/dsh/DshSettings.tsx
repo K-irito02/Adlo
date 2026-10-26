@@ -5,7 +5,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { executeDshResetPlan } from '@shared/settings-reset/dshReset';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
-import { StaticResetSpacer } from '../../components/settings/StaticResetSpacer';
+import { SettingsHintButton } from '../../components/settings/SettingsHintButton';
 import { DshVersionManagement } from './DshVersionManagement';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
@@ -146,20 +146,28 @@ export function DshSettings() {
           : t.dshSourceSummaryUnknown,
   });
 
-  // 摘要行挂在版本管理卡的最下方（用户要求：从组顶部移到底部）。只读展示 + 跳转入口：
-  // 「名称 + 源地址文本」保持主文字色，尾部模式提示用中性灰（与其它设置项的说明文字同色）。
-  const sourceSummaryRow = (
-    <div className="adl-settings-row">
-      <div className="adl-settings-row__label">
-        <div className="adl-settings-row__label-text">
-          <span>{summaryLabel}</span>
-          <span className="adl-dsh-settings__source-mode">{summaryMode}</span>
+  // 当前下载源独立沉底卡（无块标题，照抄存储组数据位置索引卡）：
+  // 问号在设置项名称文字左边，卡片无主标题，锚点挂卡片，只读 + 前往修改跳转。
+  // 「名称 + 源地址文本」保持主文字色，尾部模式提示用中性灰。
+  const sourceSummaryCard = (
+    <div
+      className="adl-settings-card"
+      data-testid="dsh-source-summary-card"
+      data-settings-anchor={anchorFor('dsh', 'source')}
+    >
+      <div className="adl-settings-row" data-settings-row={t.dshSourceSummaryTitle}>
+        <div className="adl-settings-row__label">
+          <div className="adl-settings-row__label-text">
+            <SettingsHintButton content={t.dshSourceSummaryHint} />
+            <span>{summaryLabel}</span>
+            <span className="adl-dsh-settings__source-mode">{summaryMode}</span>
+          </div>
         </div>
-      </div>
-      <div className="adl-settings-row__control">
-        <button type="button" className="adl-dsh-settings__action-btn" onClick={handleGoNetwork}>
-          {t.dshSourceSummaryGoModify}
-        </button>
+        <div className="adl-settings-row__control">
+          <button type="button" className="adl-dsh-settings__action-btn" onClick={handleGoNetwork}>
+            {t.dshSourceSummaryGoModify}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -170,10 +178,11 @@ export function DshSettings() {
         className="adl-dsh-settings__header adl-dsh-settings__header--section"
         data-settings-anchor={anchorFor('dsh', 'version')}
       >
-        <StaticResetSpacer />
+        <SettingsHintButton content={t.dshVersionManagementHint} />
         <SettingsHeader title={t.dshVersionManagement} />
       </div>
-      <DshVersionManagement footer={sourceSummaryRow} />
+      <DshVersionManagement />
+      {sourceSummaryCard}
 
       <ConfirmDialog
         open={groupResetOpen}
