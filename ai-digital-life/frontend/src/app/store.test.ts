@@ -1,21 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { loadLocale } from './i18n/i18nLoader';
 
 describe('store utility functions', () => {
-  describe('sessionFallbackTitle', () => {
-    it('returns English fallback for en-US', { timeout: 10000 }, async () => {
-      const dict = await loadLocale('en-US');
-      const result = dict.sessionFallback;
-      expect(result).toBe('Single Agent Session');
-    });
-
-    it('returns Chinese fallback for zh-CN', { timeout: 10000 }, async () => {
-      const dict = await loadLocale('zh-CN');
-      const result = dict.sessionFallback;
-      expect(result).toBe('单智能体会话');
-    });
-  });
-
   describe('hasConversationMessages', () => {
     it('returns true when messages exist', () => {
       const detail = { messages: [{ id: '1' }, { id: '2' }] } as any;

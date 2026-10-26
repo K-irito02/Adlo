@@ -1,0 +1,41 @@
+#!/bin/sh
+# pre-commit: 快静态子集（staged 文件 + 仓库不变量）。
+# 慢门禁留在原处：tsc / vitest 走 `check:changed`（dev-rules 结束验收流程强制执行）
+# 与 pre-push；全量门禁需用户批准（ADL_PREPUSH_FULL=1）。
+# 设计原则：hook 内只跑秒级检查；任何失败都直接阻断提交并打印修复命令。
+set -e
+ROOT="$(git rev-parse --show-toplevel)"
+STAGED="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+# 1) staged 前端源码：eslint（plain, no --fix：hook 内不改写文件）
+LINTABLE="$(echo "$STAGED" | grep -E '^ai-digital-life/frontend/.*\.(ts|tsx|js|jsx|mjs|cjs)$' || true)"
+if [ -n "$LINTABLE" ]; then
+  echo "$LINTABLE" | sed 's|^ai-digital-life/frontend/||' | ( cd "$ROOT/ai-digital-life/frontend" && xargs -d '\n' npx eslint )
+else
+  echo "[pre-commit] eslint: no staged frontend sources, skipped"
+fi
+
+# 2) staged 可格式化文件：prettier --check（只报不改；修：pnpm --dir frontend lint:fix）
+PREFILES="$(echo "$STAGED" | grep -E '^ai-digital-life/frontend/.*\.(ts|tsx|js|jsx|mjs|cjs|css|json|md)$' || true)"
+if [ -n "$PREFILES" ]; then
+  echo "$PREFILES" | sed 's|^ai-digital-life/frontend/||' | ( cd "$ROOT/ai-digital-life/frontend" && xargs -d '\n' npx prettier --check )
+else
+  echo "[pre-commit] prettier: no staged formattable files, skipped"
+fi
+
+# 3) staged 脚本语法（dev tooling 在 eslint/tsc 范围外，pre-push 只在推送时查）
+MJSFILES="$(echo "$STAGED" | grep -E '^ai-digital-life/.*\.mjs$' || true)"
+if [ -n "$MJSFILES" ]; then
+  echo "$MJSFILES" | xargs -d '\n' -I{} sh -c 'node --check "$1"' _ {}
+else
+  echo "[pre-commit] node --check: no staged .mjs files, skipped"
+fi
+
+# 4) 仓库不变量（秒级）：i18n 对等、术语表、死代码、vite 配置冒烟、dev tooling 单测
+( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:i18n )
+( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:glossary )
+( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:dead-code )
+( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:vite-config )
+( cd "$ROOT/ai-digital-life" && node --test "scripts/*.test.mjs" )
+
+echo "[pre-commit] OK (tsc + vitest stay in check:changed / pre-push)"

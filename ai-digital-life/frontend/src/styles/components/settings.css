@@ -379,7 +379,7 @@
 
 /* 副标题右侧状态徽章紧凑版（环境组用户要求明显变小）：徽章盒与内部文字整体缩小。
    注意特异性：`.adl-settings-row__label .adl-settings-status`（0-2-0）会覆盖
-   行高与上边距，紧凑版必须用同等以上特异性复写，否则视觉无变化。 */
+   行高与上边距，紧凑版用三类选择器（0-3-0，恰为上限）复写，否则视觉无变化。 */
 .adl-settings-status--compact {
   padding: 0 6px;
   font-size: 10px;
@@ -387,7 +387,7 @@
   letter-spacing: 0;
 }
 
-.adl-settings-row__label > .adl-settings-row__label-text span.adl-settings-status--compact {
+.adl-settings-row__label .adl-settings-row__label-text .adl-settings-status--compact {
   padding: 1px 7px;
   font-size: 10px;
   font-weight: var(--font-normal);

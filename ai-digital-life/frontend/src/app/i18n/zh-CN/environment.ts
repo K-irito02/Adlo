@@ -23,7 +23,6 @@ export const environmentZh = {
   environmentBashGitBundled: 'Git 自带',
   environmentBashWsl: 'WSL',
   environmentBashMsys2: 'MSYS2',
-  environmentBashCustom: '指定路径',
   environmentInstall: '安装',
   environmentSwitch: '切换',
   environmentUninstall: '卸载',
@@ -67,8 +66,6 @@ export const environmentZh = {
     '下载和钥匙的状态。\n· 一行显示下载能不能连通、速度多快，以及模型服务是不是跟着助手走\n· 钥匙箱可用不代表模型已配好，模型去助手那一侧配置',
   environmentDepModelHint:
     '模型钥匙的去向说明。\n· 钥匙在助手那一侧填写，这里只显示钥匙箱好不好用\n· 显示可用不代表能直接对话，配好钥匙后回到助手里试一次',
-  environmentSourceSummaryHint:
-    '当前实际在用的下载地址。\n· 只读显示，去网络那一组修改\n· 自动检测会在官方和镜像之间选更快能连通的一个',
   environmentDepNodeDesc: 'JavaScript 运行环境，dsh 与工具链的前置依赖',
   environmentDepGitDesc: '版本管理工具，宿主版本为 MinGit（可一键安装，不含 Bash）',
   environmentDepBashDesc:

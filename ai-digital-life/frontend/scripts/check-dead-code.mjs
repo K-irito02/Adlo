@@ -1,9 +1,11 @@
 /**
  * 本次变更引入的死代码检查（只查新增/修改的声明，不追溯历史债）。
  *
- * 覆盖两类本仓真实踩过的坑：
+ * 覆盖四类本仓真实踩过的坑：
  * 1) 改了 CSS 却没有任何 TS/TSX 发出该 class（选择器永远不生效）；
- * 2) 改了 barrel（`index.ts`）新增的导出没有任何消费方。
+ * 2) 改了 barrel（`index.ts`）新增的导出没有任何消费方；
+ * 3) 改了 i18n 字典新增的 key 没有任何 TS/TSX 引用（词典与测试枚举同步膨胀）；
+ * 4) 新增 CSS 选择器的复合层级超过 3 层（`css-architecture.md` 上限，超限必然被覆盖或误伤）。
  *
  * 只看变更文件，避免要求维护一份 400+ 条历史死 CSS 基线。
  * 用法：`pnpm --dir frontend run check:dead-code`（check:changed 自动调用）。
@@ -180,6 +182,68 @@ for (const file of changedBarrels) {
   }
 }
 
+// ---- 3) 本次新增的 i18n key 是否被任何源码引用 ----
+// 消费方 = 全部源码减去 i18n 字典自身（中英双字典互含对方 key）与测试
+// （keys.test 枚举 key 名，会计入误报；测试引用不算产品消费）。
+const changedDicts = changed.filter((file) =>
+  /app\/i18n\/(zh-CN|en-US)\/[^/]+\.ts$/.test(
+    path.relative(srcRoot, file).split(path.sep).join('/'),
+  ),
+);
+for (const file of changedDicts) {
+  if (!fs.existsSync(file)) continue;
+  const added = addedText(file);
+  const keys = new Set([...added.matchAll(/^  ([A-Za-z_$][\w$]*)\s*:/gm)].map((match) => match[1]));
+  if (keys.size === 0) continue;
+  const consumers = allSourceFiles
+    .filter(
+      (source) => source !== file && !source.includes(`${path.sep}app${path.sep}i18n${path.sep}`),
+    )
+    .map((source) => fs.readFileSync(source, 'utf8'))
+    .join('\n');
+  for (const key of keys) {
+    if (!new RegExp(`\\b${key}\\b`).test(consumers)) {
+      problems.push(`${path.relative(srcRoot, file)}: i18n key "${key}" has no consumer`);
+    }
+  }
+}
+
+// ---- 4) 本次新增的 CSS 选择器复合层级是否超过 3 层 ----
+// 近似口径：去掉属性 [...] 与函数 (...) 内容后，按空白/组合子切分计数。
+// 只查 base 里不存在的新选择器（整文件重排不误报历史选择器）。
+function selectorDepth(selector) {
+  const stripped = selector.replace(/\[[^\]]*\]/g, '[]').replace(/\([^()]*\)/g, '()');
+  return stripped.split(/[\s>+~]+/).filter((part) => part && part !== '*').length;
+}
+function extractSelectors(cssText) {
+  const out = new Set();
+  const withoutComments = cssText.replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const match of withoutComments.matchAll(/([^{}]+)\{/g)) {
+    const group = match[1].trim();
+    if (!group || group.startsWith('@')) continue;
+    for (const selector of group.split(',')) {
+      const normalized = selector.trim();
+      if (normalized && !/^(from|to|\d+%)$/.test(normalized)) out.add(normalized);
+    }
+  }
+  return out;
+}
+for (const file of changedCss) {
+  const added = addedText(file);
+  const relativeToRepo = path.relative(repoRoot, file).split(path.sep).join('/');
+  const baseText = capture('git', ['show', `${base}:${relativeToRepo}`]);
+  const baseSelectors = extractSelectors(baseText);
+  for (const selector of extractSelectors(added)) {
+    if (baseSelectors.has(selector)) continue;
+    const depth = selectorDepth(selector);
+    if (depth > 3) {
+      problems.push(
+        `${path.relative(srcRoot, file)}: selector "${selector}" is ${depth} levels deep (max 3)`,
+      );
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.log(`[check:dead-code] base=${base} ${problems.length} problem(s):`);
   for (const problem of problems) console.log(`  - ${problem}`);
@@ -187,5 +251,5 @@ if (problems.length > 0) {
 }
 
 console.log(
-  `[check:dead-code] OK (base=${base}, changed css=${changedCss.length}, barrels=${changedBarrels.length})`,
+  `[check-dead-code] OK (base=${base}, changed css=${changedCss.length}, barrels=${changedBarrels.length}, dicts=${changedDicts.length})`,
 );
