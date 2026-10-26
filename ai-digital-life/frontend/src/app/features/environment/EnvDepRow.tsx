@@ -258,7 +258,7 @@ export function EnvDepRow({
     INSTALLABLE_ORDER.find(
       (candidate) => !isEnvDepReady(status[candidate]) && taskFor(status, candidate) === null,
     ) ?? null;
-  const installMarkerDep = firstInstallDep;
+
   const firstUninstallDep =
     INSTALLABLE_ORDER.find((candidate) => {
       const candidateSection = status[candidate];
@@ -566,7 +566,7 @@ export function EnvDepRow({
                   <button
                     type="button"
                     className="adl-dsh-settings__action-btn"
-                    data-settings-row={dep === installMarkerDep ? t.environmentInstall : undefined}
+                    data-settings-row={dep === firstInstallDep ? t.environmentInstall : undefined}
                     disabled={controlsDisabled}
                     onClick={() => actions.requestInstall(dep)}
                   >

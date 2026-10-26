@@ -478,10 +478,9 @@ describe('i18n en-US namespace keys', () => {
       'settingsEnvironment',
       'environmentTitle',
       'environmentDesc',
-      // 分组块头（环境组与其它组对齐：块头 + 卡）
+      // 分组块头（环境组与其它组对齐：块头 + 卡；网络块已删除）
       'environmentBlockRuntime',
       'environmentBlockSystem',
-      'environmentBlockNetwork',
       // 状态灯五态
       'environmentStatusReady',
       'environmentStatusNeedInstall',
@@ -494,7 +493,7 @@ describe('i18n en-US namespace keys', () => {
       'environmentSourceSystem',
       'environmentSourceHost',
       'environmentSourceCustom',
-      // Bash 来源（系统 Git / WSL / MSYS2）+ 手动路径
+      // Bash 来源（系统 Git / WSL / MSYS2）+ 指定路径
       'environmentBashGitBundled',
       'environmentBashWsl',
       'environmentBashMsys2',
@@ -524,7 +523,7 @@ describe('i18n en-US namespace keys', () => {
       'environmentInstallFailed',
       // 卸载失败（Task 3：轮询消费 task.error 后的专用文案）
       'environmentUninstallFailed',
-      // 环境行组 UI（Task 7：七依赖行 + 聚合条 + 复制 + 重置）
+      // 环境行组 UI（Task 7：五依赖行 + 聚合条 + 复制；重置已删，网络块已删）
       'environmentAggregateReady',
       'environmentCopyAllForAgent',
       'environmentCopyForAgentNote',
@@ -545,12 +544,8 @@ describe('i18n en-US namespace keys', () => {
       'environmentFieldVersion',
       'environmentFieldPath',
       'environmentFieldSource',
-      'environmentBashSetupHint',
       'environmentCustomPathLabel',
       'environmentCustomPathPlaceholder',
-      'environmentAdvanced',
-      'environmentFixedVersion',
-      'environmentFixedVersionManagedNote',
       'environmentNetRegistry',
       'environmentNetLatency',
       'environmentNetRegistryDown',
@@ -560,7 +555,6 @@ describe('i18n en-US namespace keys', () => {
       'environmentOfficialSite',
       'environmentInstallConfirmTitle',
       'environmentInstallConfirmMessage',
-      'environmentResetSource',
       'environmentLoading',
       'environmentTaskPhasePreparing',
       'environmentTaskPhaseInstalling',
@@ -594,8 +588,6 @@ describe('i18n en-US namespace keys', () => {
     expect(String(zhCN.environmentInstallSuccess)).toContain('{dep}');
     expect(String(enUS.environmentInstallSuccess)).toContain('{version}');
     expect(String(zhCN.environmentInstallSuccess)).toContain('{version}');
-    expect(String(enUS.environmentBashVariantNote)).toContain('{variant}');
-    expect(String(zhCN.environmentBashVariantNote)).toContain('{variant}');
     expect(String(enUS.environmentWizardResumeBanner)).toContain('{count}');
     expect(String(zhCN.environmentWizardResumeBanner)).toContain('{count}');
   });

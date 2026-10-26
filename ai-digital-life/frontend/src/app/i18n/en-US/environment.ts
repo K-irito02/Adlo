@@ -8,11 +8,8 @@ export const environmentEn = {
     'The three common base tools.\n· Auto detect prefers what is already installed\n· Switch sources in the dropdown when needed; custom path means you tell the app where to look\n· Copy diagnostics to explain version, path and issues at once',
   environmentBlockSystemHint:
     'Built-in system capabilities, read-only.\n· Nothing to install by hand and no source switching\n· Versions are managed by the system, so there is no install button\n· Copy diagnostics when something looks wrong',
-  environmentBlockNetworkHint:
-    'Network and credential status.\n· One line shows whether downloads work, how fast, and whether the model service follows the assistant\n· Credential status only means the key store works, not that the model is configured',
   environmentBlockRuntime: 'Core dependencies',
   environmentBlockSystem: 'System components',
-  environmentBlockNetwork: 'Network & model',
   environmentStatusReady: 'Ready',
   environmentStatusNeedInstall: 'Needs install',
   environmentStatusNeedManual: 'Needs manual setup',
@@ -86,18 +83,10 @@ export const environmentEn = {
   environmentFieldVersion: 'Version',
   environmentFieldPath: 'Path',
   environmentFieldSource: 'Source',
-  environmentBashVariantNote:
-    'Current source: {variant} (auto-detected, switching not supported yet)',
-  environmentBashSetupHint:
-    'Hosted Git only provides Git (MinGit has no Bash); use system Git for Windows / WSL / MSYS2, or enter a custom path',
-  environmentInstallDesktopOnlyHint: '\u2014 install/uninstall requires desktop mode',
+  environmentInstallDesktopOnlyHint: '— install/uninstall requires desktop mode',
   environmentCustomPathLabel: 'Custom path',
   environmentCustomPathPlaceholder:
     'Paste the full executable path; saves on blur (clear to remove)',
-  environmentAdvanced: 'Advanced',
-  environmentFixedVersion: 'Pinned version',
-  environmentFixedVersionManagedNote:
-    'Version is managed by the system installer and cannot be switched here',
   environmentNetRegistry: 'Registry reachable',
   environmentNetLatency: 'Latency {ms}ms',
   environmentNetRegistryDown: 'Unreachable',
@@ -107,7 +96,6 @@ export const environmentEn = {
   environmentOfficialSite: 'Official site',
   environmentInstallConfirmTitle: 'Confirm installing {dep}',
   environmentInstallConfirmMessage: 'Download and install {dep}?',
-  environmentResetSource: 'Restore default source',
   environmentLoading: 'Detecting environment dependencies…',
   environmentTaskPhasePreparing: 'Preparing',
   environmentTaskPhaseInstalling: 'Installing',
