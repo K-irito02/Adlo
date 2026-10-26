@@ -39,8 +39,6 @@ export interface EnvDepRowActions {
   reinstall: (dep: string, version: string) => Promise<unknown>;
   setCustomPath: (dep: string, path: string) => Promise<unknown>;
   copyForAgent: (dep: EnvDepKey | 'all') => Promise<void>;
-  /** 打开块级恢复默认确认框（来源回自动 + 清空指定路径，不卸载）；仅在非 compact 行使用。 */
-  requestBlockReset?: (dep: OperableDep) => void;
   goGroup: (group: 'dsh' | 'network') => void;
   openExternal: (url: string) => void;
 }
@@ -51,7 +49,7 @@ export interface EnvDepRowProps {
   busy: boolean;
   isTauri: boolean;
   actions: EnvDepRowActions;
-  /** 精简版（向导复用）：隐藏指定路径输入、高级折叠区与兜底行。 */
+  /** 精简版（向导复用）：隐藏指定路径输入与兜底行。 */
   compact?: boolean;
 }
 
@@ -136,14 +134,12 @@ function taskPhaseText(t: ReturnType<typeof useTCopy>['t'], phase: EnvTask['phas
 /**
  * 环境依赖行（四段式：块头 → 状态行 → 操作行 → 兜底层）。
  *
- * - Node/Git 可操作（来源下拉 + 安装 + 指定路径）；Bash 可操作但宿主不提供
- *   （宿主 Git 是 MinGit、不含 Bash；缺失时行内引导系统 Git / WSL / MSYS2 / 指定路径）；
- * - WebView2/adlserver 只读（版本+状态+引导；WebView2 另有高级折叠区，
- *   FixedVersion 开关暂无后端支撑故禁用并注明由系统安装程序管理）；
- * - net+凭据只读：registry 灯为真实信号；模型 API 通无后端信号，只给
- *   「随 dsh 状态」引导不挂灯；`ciTokenConfigured` 仅作「凭据存储可用」
- *   中性信息展示，绝不标成模型就绪；
- * - 模型凭据行只读无灯，只有去 dsh 侧配置引导。
+ * - Node/Git 可操作（来源下拉 + 安装 + 指定路径，安装按钮独占下一行）；
+ *   Bash 可操作但宿主不提供（宿主 Git 是 MinGit、不含 Bash；缺失时行内引导
+ *   系统 Git / WSL / MSYS2 / 指定路径）；
+ * - WebView2/adlserver 只读（版本+状态+引导，无来源切换）；
+ * - 底部帮助链接（复制诊断/官网/前往配置）仅异常时显示；
+ * - 设置组只渲染 5 个版本依赖；向导（compact）额外渲染 net/model 引导行。
  */
 export function EnvDepRow({
   dep,
