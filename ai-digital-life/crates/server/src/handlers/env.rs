@@ -58,9 +58,7 @@ pub fn validate_hosted_source(dep: &str, mode: adl_env::SourceMode) -> Result<()
     {
         return Err(AppError::InvalidInput("no-hosted-source".into()));
     }
-    if mode == adl_env::SourceMode::Custom
-        && matches!(dep, "webview2" | "adlserver" | "netprobe")
-    {
+    if mode == adl_env::SourceMode::Custom && matches!(dep, "webview2" | "adlserver" | "netprobe") {
         return Err(AppError::InvalidInput("no-custom-path".into()));
     }
     Ok(())
@@ -425,10 +423,8 @@ fn node_state(
     // 非 custom 模式保持向后兼容（已填路径仍优先覆盖探测）。
     let sys = match custom.as_deref() {
         Some(p) => detect_node_at(p),
-        None if mode == adl_env::SourceMode::Custom => node::Detection {
-            available: false,
-            version: None,
-            path: None,
+        None if mode == adl_env::SourceMode::Custom => {
+            node::Detection { available: false, version: None, path: None }
         },
         None => node::detect(),
     };
@@ -473,10 +469,8 @@ fn git_state(
         .flatten();
     let sys = match custom.as_deref() {
         Some(p) => detect_git_at(p),
-        None if mode == adl_env::SourceMode::Custom => git::Detection {
-            available: false,
-            version: None,
-            path: None,
+        None if mode == adl_env::SourceMode::Custom => {
+            git::Detection { available: false, version: None, path: None }
         },
         None => git::detect(),
     };
