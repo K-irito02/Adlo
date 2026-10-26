@@ -77,12 +77,32 @@ Test-Path -LiteralPath "ai-digital-life/.codegraph"  # 9 CodeGraph 索引是否�
 | 8 | 输出 `.githooks` | 未启用 → `pnpm --dir ai-digital-life run setup:worktree`（仓库级，一处即可） |
 | 9 | 目录存在 | 缺失 → 同上（`codegraph init`，索引不入库） |
 
-输出一行环境快照（**没有快照视为未开工**）：
+输出环境快照块（**没有快照视为未开工**）。固定 9 行：一项一行，键用英文冒号对齐（键宽 8、前后各一空格），未知值写 `—`，禁止把多项挤进一行。首行 `[ENV]` 独占一行，保留可 grep 标记：
 
+```text
+[ENV]
+  toplevel : <路径>                                # #1 我在哪个目录
+  branch   : <分支> @ <短 SHA>                     # #2 在哪条分支 / #6 在哪个提交
+  base     : main 落后 <N> / 领先 <M>              # #7 相对本地 main
+  dirty    : <文件数>                              # #5 是否干净
+  slot     : <目录名|—> / mode : <new-worktree|existing-worktree|main-worktree>
+  others   : <无|占用当前目录的 active 会话>        # #3 分支占用 / #4 会话占用
+  instance : <none|运行中的 exe 路径（注明归属工作树）>
+  hooks    : <ok|missing> / graph : <ok|missing>   # #8 本地门禁 / #9 索引是否就绪
 ```
-[ENV] toplevel=<路径> branch=<分支> head=<短 SHA> dirty=<文件数> slot=<目录名|—>
-      mode=<new-worktree|existing-worktree|main-worktree> others=<他人 active 会话> instance=<none|运行中的 exe 路径>
-      hooks=<ok|missing> graph=<ok|missing>
+
+示例：
+
+```text
+[ENV]
+  toplevel : E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/slot-1
+  branch   : slot-1 @ 95eefdaa
+  base     : main 落后 0 / 领先 0
+  dirty    : 0
+  slot     : slot-1 / mode : existing-worktree
+  others   : 无
+  instance : E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/target/debug/ai-digital-life.exe（归属主工作树，slot-1 无实例）
+  hooks    : ok / graph : ok
 ```
 
 读完 §2 后必须进入 §3 交互流程（先列表、再让用户选）；**禁止跳过用户选择直接定目录开工**。
