@@ -7,13 +7,11 @@ description: 查询本地 CodeGraph 代码知识图谱以追踪符号、调用�
 
 ## 概述
 
-工作区包含 1 份预索引的本地 CodeGraph 代码知识图谱（`.codegraph/codegraph.db`，SQLite，100% 本地，文件变更自动同步）。
+`ai-digital-life/` 下有 1 份预索引的本地 CodeGraph 图谱（`.codegraph/codegraph.db`，SQLite，100% 本地，原生文件监听自动增量同步），覆盖 Rust + Tauri + TypeScript/TSX，自动排除 `target/`、`node_modules/` 与 `.gitignore` 命中项。
 
 | 项目根 | 内容 |
 |--------|------|
 | `ai-digital-life/` | Rust + Tauri + TypeScript 主项目 |
-
-`ai-digital-life/` 自动排除 `target/`、`node_modules/` 及 `.gitignore` 中的文件。
 
 ## 何时使用
 
@@ -28,53 +26,88 @@ description: 查询本地 CodeGraph 代码知识图谱以追踪符号、调用�
 
 ### 方式一：MCP 工具（推荐）
 
-当会话工作目录在包含 `.codegraph/` 的项目根时，`codegraph` MCP server 自动激活。可用 `run_mcp` 调用以下工具：
+OpenCode 通过项目配置 `.opencode/opencode.json` 接入 `codegraph` MCP server（V2 形状，服务器名必须在 `mcp.servers` 下）：
 
-| 工具 | 用途 | 优先级 |
-|------|------|--------|
-| `codegraph_explore` | 自然语言问题 → 源码 + 调用路径 + 影响范围 | 首选 |
-| `codegraph_node` | 单个符号的源码 + 调用方/被调用方链路 | 次选 |
-| `codegraph_search` | 按名称查找符号位置 | 辅助 |
-| `codegraph_callers` | 谁调用了该符号 | 辅助 |
-| `codegraph_callees` | 该符号调用了谁 | 辅助 |
-| `codegraph_impact` | 修改该符号的变更影响范围 | 辅助 |
-| `codegraph_files` | 已索引的文件结构 | 辅助 |
-| `codegraph_status` | 图谱健康状态 / 待同步内容 | 诊断 |
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "codegraph": {
+        "type": "local",
+        "command": ["cmd", "/c", "codegraph", "serve", "--mcp"],
+        "cwd": "ai-digital-life"
+      }
+    }
+  }
+}
+```
 
-**判断 MCP 是否可用**：检查当前会话是否配置了 `codegraph` MCP server。若不可用或 cwd 不在项目根，改用 CLI。
+配置要点（踩过的坑，勿改错）：
+
+| 项 | 说明 |
+|----|------|
+| `mcp.servers.<name>` | V2 要求；`codegraph install` 打印的 V1 片段（服务器名直接位于 `mcp` 下）在 V2 不生效 |
+| `cmd /c` 前缀 | Windows 上 `codegraph` 只有 `.cmd`/`.ps1` 垫片，Node 的 `spawn` 不走 shell 会 `ENOENT` |
+| `cwd: "ai-digital-life"` | 指向含 `.codegraph/` 的项目根；相对路径按会话工作目录解析，主工作树与各分支工作树各自命中自己那份索引 |
+| 工作目录已在 `ai-digital-life/` | 删掉 `cwd`，否则会解析成 `ai-digital-life/ai-digital-life` 而无法启动 |
+
+默认只暴露 **1 个** MCP 工具（官方刻意收敛，其余能力是它的子集，列出来反而诱导误选）：
+
+| 工具 | 用途 |
+|------|------|
+| `codegraph_explore` | 自然语言问题/符号名 → 相关符号源码 + 调用路径 + 影响范围（Read 等价，首选） |
+
+调用签名：`codegraph_explore({ query, maxFiles?, projectPath? })`。`cwd` 已绑定默认项目，通常只传 `query`；查询其它项目时传绝对路径 `projectPath`。OpenCode 的 Code Mode 下通过 `execute` 调用 `tools.codegraph.codegraph_explore({ query })`。
+
+验证与重连：
+
+```powershell
+opencode mcp list        # 期望 codegraph  connected
+```
+
+改配置会热加载；升级 codegraph 版本后需让 MCP 重连（`/mcps` 断开再连接，或重开会话）才会用上新内核。
 
 ### 方式二：CLI 命令
 
-在项目根目录下运行：
+在项目根（`ai-digital-life/`）下运行：
 
 ```bash
-codegraph explore "<自然语言问题>"          # 首选
-codegraph query <symbol> --kind <kind> --limit 10
+codegraph explore "<自然语言问题>"       # 首选，与 codegraph_explore 同输出
+codegraph context "<任务描述>"           # 任务上下文：相关符号 + 关系 + 代码块
+codegraph query <关键词> --kind <kind> --limit 10
+codegraph node <symbol>                  # 单符号源码 + 调用方/被调用方
 codegraph callers <symbol>
 codegraph callees <symbol>
 codegraph impact <symbol> --depth 3
-codegraph files
-codegraph status
+codegraph affected <files...>            # 受影响测试文件
+codegraph files                          # 已索引文件结构
+codegraph status                         # 健康状态 / 引擎版本 / 待同步
 ```
 
-`query`/`callers`/`callees`/`impact`/`status` 支持 `--json` 输出机器可读结果。
+多数命令支持 `--json` 输出机器可读结果，`-p/--path` 指定项目路径。
 
 ## 典型工作流
 
-1. **理解架构**：`codegraph_explore "前端如何调用 Tauri command"` → 获得完整调用链
-2. **安全重构**：`codegraph_impact <要修改的符号> --depth 3` → 评估影响范围 → 再修改
-3. **追踪调用链**：`codegraph_callers <符号>` → 找到调用方 → `codegraph_node <调用方>` 查看上下文
-4. **定位符号**：`codegraph_search <符号名>` → 找到定义 → `codegraph_node` 读取源码
+1. **理解架构**：`codegraph_explore "前端如何调用 Tauri command"` → 一次拿到相关源码与调用链
+2. **安全重构**：`codegraph_explore` 看 blast radius，必要时 `codegraph impact <符号> --depth 3`
+3. **追踪调用链**：`codegraph_explore` 命名链路两端的符号（如 `submitAddress navigateTab`）
+4. **定位符号**：`codegraph query <符号名>` → `codegraph node <符号>` 读上下文
 
 ## 常见错误
 
-- 在仓库根运行 CLI → 报 `[ERR] CodeGraph not initialized`。需先 `cd` 到含 `.codegraph/` 的项目根。
+- 在仓库根运行 CLI → `[ERR] CodeGraph not initialized`。需先 `cd` 到含 `.codegraph/` 的项目根。
+- 抄 `codegraph install` 生成的 V1 配置（`mcp: { codegraph: … }`）→ `opencode mcp list` 里根本没有该 server。
+- Windows 上把命令写成 `["codegraph", "serve", "--mcp"]` → spawn `ENOENT`（缺 `cmd /c`）。
+- `cwd` 留在仓库根且未配置 → 服务器进入"无默认项目"模式，`codegraph_explore` 的 `projectPath` 变成必填。
 - 能用一次 `codegraph_explore` 解决却用多轮 grep/read 爬取。
-- 修改代码前未执行 `codegraph_impact` 检查影响范围。
-- 误以为 MCP 工具在所有会话都激活——它依赖 cwd 是否为项目根。
+- 修改代码前未查影响范围（`codegraph_explore` 的 blast radius 或 `codegraph impact`）。
 
 ## 维护
 
-- 图谱自动同步（原生文件监听器），无需手动操作。
-- 大规模重构后可用 `codegraph index` 全量重建。
-- `codegraph status` 查看健康状态与待同步内容。
+- 自动增量同步（原生文件监听），无需手动操作；索引滞后写入约 1 秒。
+- 大规模重构后 `codegraph index` 全量重建（1.6.x 实测约 1.6k 文件 / 7 秒）。
+- **升级版本**：`codegraph upgrade` → `codegraph index` 重建（否则 `status` 一直提示 "Index was built by vX; re-index"）→ 让 MCP 重连。
+- 升级后 `codegraph --version` 仍显示旧版 → `where codegraph` 查 PATH 上是否有旧 npm 前缀的残留安装，删掉旧的那份（两份并存会让旧版一直遮蔽新版）。
+- 索引不入库（`.codegraph/` 已 gitignore），每个工作树各建一份：`pnpm --dir ai-digital-life run setup:worktree`。
+- 需要恢复被收敛的 MCP 工具时，可在 MCP 配置里加 `"environment": { "CODEGRAPH_MCP_TOOLS": "explore,node,search,callers,callees,impact,files,status" }`；默认不建议。

@@ -18,7 +18,7 @@
 |------|------|
 | 源码地图 (ADL) | [docs/analysis/ai-digital-life/](./docs/analysis/ai-digital-life/)（本项目的渐进式索引） |
 
-> **代码知识图谱**：`ai-digital-life/` 配置了 [CodeGraph](https://github.com/colbymchenry/codegraph)（MIT 许可）本地知识图谱（实现工作区根 `ai-digital-life/.codegraph/`，SQLite）。查询、检索代码时优先使用 `codegraph_*` MCP 工具或 `codegraph` CLI，技能说明见 [SKILLS.md](./SKILLS.md) 中的 `codegraph-knowledge-graph`。
+> **代码知识图谱**：`ai-digital-life/` 配置了 [CodeGraph](https://github.com/colbymchenry/codegraph)（MIT 许可）本地知识图谱（实现工作区根 `ai-digital-life/.codegraph/`，SQLite）。MCP 接入见项目配置 [.opencode/opencode.json](./.opencode/opencode.json)（`mcp.servers.codegraph`），默认只暴露 `codegraph_explore` 一个工具；找符号/调用方/影响范围等细分查询走 `codegraph` CLI。查询、检索代码时优先使用图谱，技能说明见 [SKILLS.md](./SKILLS.md) 中的 `codegraph-knowledge-graph`。
 >
 > 参考代码直接复用需遵守 MIT 许可要求，并在代码注释中标注来源。
 

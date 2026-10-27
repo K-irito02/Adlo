@@ -10,4 +10,4 @@ Source code analysis and architecture maps for reference and comparison.
 
 ## Code Knowledge Graphs
 
-`ai-digital-life/` has a local [CodeGraph](https://github.com/colbymchenry/codegraph) knowledge graph (`.codegraph/`, SQLite, auto-synced). Query it via the `codegraph_*` MCP tools or the `codegraph` CLI — see skill [`codegraph-knowledge-graph`](../../.opencode/skills/codegraph-knowledge-graph/SKILL.md).
+`ai-digital-life/` has a local [CodeGraph](https://github.com/colbymchenry/codegraph) knowledge graph (`.codegraph/`, SQLite, auto-synced). The MCP server is configured in [`.opencode/opencode.json`](../../.opencode/opencode.json) (`mcp.servers.codegraph`) and exposes `codegraph_explore`; finer-grained lookups (symbols, callers, impact) use the `codegraph` CLI. See skill [`codegraph-knowledge-graph`](../../.agents/skills/codegraph-knowledge-graph/SKILL.md).

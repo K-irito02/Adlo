@@ -49,7 +49,7 @@ OpenCode supports parallel subagent dispatch. Issue multiple `task` calls in the
 |---------|---------|
 | `skill` tool | Load and activate skills by name |
 | `todowrite` | Rich task tracker with priority levels and status states |
-| MCP integration | External tool servers via `.mcp.json` configuration |
-| CodeGraph | Code knowledge graph queries via `codegraph_*` tools |
+| MCP integration | External tool servers via `opencode.json` `mcp.servers` configuration |
+| CodeGraph | Code knowledge graph queries via `codegraph_explore` (Code Mode: `tools.codegraph.*`) |
 | Plan mode | Read-only exploration mode (default in this session) |
 | Build mode | File editing and command execution allowed |
