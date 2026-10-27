@@ -115,6 +115,8 @@ function setStoreAppInfo() {
         fileOpenMethod: 'panel',
         agentLinkIntercept: false,
         agentSiteWhitelist: [],
+        browserSuspendWhitelistEnabled: false,
+        browserSuspendWhitelist: [],
       },
       currentWorkspace: undefined,
       recentLogs: [],
@@ -2670,8 +2672,8 @@ describe('StorageSettings tree cache section (T9)', () => {
   it('unchecking the master switch opens disable confirm then writes and clears', async () => {
     const { setTreeCacheOptions, clearTreeCache } = renderTreeSection();
     await screen.findByTestId('tree-cache-section');
-    const toggle = screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled });
-    expect(toggle).toHaveProperty('checked', true);
+    const toggle = screen.getByRole('switch', { name: settingsEn.treeCacheEnabled });
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
     fireEvent.click(toggle);
     // 先弹确认框，不直接写。
     await screen.findByText(settingsEn.treeCacheDisableConfirm);
@@ -2696,9 +2698,10 @@ describe('StorageSettings tree cache section (T9)', () => {
     });
     await waitFor(() => {
       expect(
-        (screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }) as HTMLInputElement)
-          .checked,
-      ).toBe(false);
+        (
+          screen.getByRole('switch', { name: settingsEn.treeCacheEnabled }) as HTMLButtonElement
+        ).getAttribute('aria-checked'),
+      ).toBe('false');
     });
     // 确认关闭后 TTL 下拉禁用。
     expect(screen.getByRole('button', { name: settingsEn.treeCacheTtl })).toBeDisabled();
@@ -2709,8 +2712,8 @@ describe('StorageSettings tree cache section (T9)', () => {
       statsData: { ...treeStatsData, enabled: false },
     });
     await screen.findByTestId('tree-cache-section');
-    const toggle = screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled });
-    expect(toggle).toHaveProperty('checked', false);
+    const toggle = screen.getByRole('switch', { name: settingsEn.treeCacheEnabled });
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
     fireEvent.click(toggle);
     await waitFor(() => {
       expect(setTreeCacheOptions).toHaveBeenCalledTimes(1);
@@ -2739,12 +2742,16 @@ describe('StorageSettings tree cache section (T9)', () => {
       name: settingsEn.treeCacheTtlCustom,
     }) as HTMLInputElement;
     expect(input).toBeTruthy();
-    // 自定义态控件顺序：数值 → 单位 → 默认选项下拉（默认选项恒在最右）。
+    // 自定义态控件顺序：数值 → 单位 → 默认选项下拉 → 开关（开关沉底最右，事项 3）。
     const control = input.closest('.adl-settings-row__control');
     expect(control).not.toBeNull();
-    // SettingsSelect 根节点是无 aria-label 的 div，label 在内部 trigger 上。
+    // SettingsSelect 根节点是无 aria-label 的 div，label 在内部 trigger 上；
+    // 开关 button 自身带 aria-label（querySelector 只查后代，需先看自身）。
     const order = Array.from(control!.children).map((el) => {
       if (el instanceof HTMLElement && el.tagName === 'INPUT') {
+        return el.getAttribute('aria-label') ?? el.tagName;
+      }
+      if (el instanceof HTMLElement && el.hasAttribute('aria-label')) {
         return el.getAttribute('aria-label') ?? el.tagName;
       }
       return el.querySelector('[aria-label]')?.getAttribute('aria-label') ?? el.tagName;
@@ -2753,6 +2760,7 @@ describe('StorageSettings tree cache section (T9)', () => {
       settingsEn.treeCacheTtlCustom,
       settingsEn.treeCacheTtlUnitLabel,
       settingsEn.treeCacheTtl,
+      settingsEn.treeCacheEnabled,
     ]);
     // 默认单位为分钟。
     fireEvent.change(input, { target: { value: '90' } });
@@ -2847,7 +2855,7 @@ describe('StorageSettings tree cache section (T9)', () => {
       .mockResolvedValue({ ok: false, error: { message: 'disk-gone' } });
     const { clearTreeCache } = renderTreeSection({ setTreeCacheOptions });
     await screen.findByTestId('tree-cache-section');
-    fireEvent.click(screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }));
+    fireEvent.click(screen.getByRole('switch', { name: settingsEn.treeCacheEnabled }));
     await screen.findByText(settingsEn.treeCacheDisableConfirm);
     const dialog = screen.getByRole('dialog');
     fireEvent.click(
@@ -2860,16 +2868,17 @@ describe('StorageSettings tree cache section (T9)', () => {
     expect(clearTreeCache).not.toHaveBeenCalled();
     expect(screen.queryByRole('dialog')).not.toBeNull();
     expect(
-      (screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }) as HTMLInputElement)
-        .checked,
-    ).toBe(true);
+      (
+        screen.getByRole('switch', { name: settingsEn.treeCacheEnabled }) as HTMLButtonElement
+      ).getAttribute('aria-checked'),
+    ).toBe('true');
   });
 
   it('still closes and reloads when clearing fails after disable', async () => {
     const clearTreeCache = vi.fn().mockResolvedValue({ ok: false, error: { message: 'locked' } });
     const { getTreeCacheStats } = renderTreeSection({ clearTreeCache });
     await screen.findByTestId('tree-cache-section');
-    fireEvent.click(screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }));
+    fireEvent.click(screen.getByRole('switch', { name: settingsEn.treeCacheEnabled }));
     await screen.findByText(settingsEn.treeCacheDisableConfirm);
     const dialog = screen.getByRole('dialog');
     fireEvent.click(
@@ -2975,7 +2984,7 @@ describe('StorageSettings tree cache section (T9)', () => {
     const setTreeCacheOptions = vi.fn().mockRejectedValueOnce(new Error('channel closed'));
     renderTreeSection({ setTreeCacheOptions });
     await screen.findByTestId('tree-cache-section');
-    fireEvent.click(screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }));
+    fireEvent.click(screen.getByRole('switch', { name: settingsEn.treeCacheEnabled }));
     await screen.findByText(settingsEn.treeCacheDisableConfirm);
     const dialog = screen.getByRole('dialog');
     fireEvent.click(
@@ -2990,9 +2999,10 @@ describe('StorageSettings tree cache section (T9)', () => {
     expect(toasts).toHaveLength(1);
     expect(toasts[0].message).toContain('channel closed');
     expect(
-      (screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }) as HTMLInputElement)
-        .checked,
-    ).toBe(true);
+      (
+        screen.getByRole('switch', { name: settingsEn.treeCacheEnabled }) as HTMLButtonElement
+      ).getAttribute('aria-checked'),
+    ).toBe('true');
   });
 
   it('drops a pending TTL draft when opening the disable confirm', async () => {
@@ -3004,7 +3014,7 @@ describe('StorageSettings tree cache section (T9)', () => {
     fireEvent.change(screen.getByRole('spinbutton', { name: settingsEn.treeCacheTtlCustom }), {
       target: { value: '90' },
     });
-    fireEvent.click(screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }));
+    fireEvent.click(screen.getByRole('switch', { name: settingsEn.treeCacheEnabled }));
     await screen.findByText(settingsEn.treeCacheDisableConfirm);
     const dialog = screen.getByRole('dialog');
     fireEvent.click(
@@ -3029,7 +3039,7 @@ describe('StorageSettings tree cache section (T9)', () => {
     );
     renderTreeSection({ setTreeCacheOptions });
     await screen.findByTestId('tree-cache-section');
-    fireEvent.click(screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }));
+    fireEvent.click(screen.getByRole('switch', { name: settingsEn.treeCacheEnabled }));
     await screen.findByText(settingsEn.treeCacheDisableConfirm);
     const dialog = screen.getByRole('dialog');
     fireEvent.click(
@@ -3074,11 +3084,11 @@ describe('StorageSettings tree cache section (T9)', () => {
     });
   });
 
-  it('toggles via the label text', async () => {
+  it('toggles via the switch control (最右侧）', async () => {
     renderTreeSection();
     await screen.findByTestId('tree-cache-section');
-    // 纯文本 label 与 checkbox 经 htmlFor/id 关联：点文字即切换（零视觉变更）。
-    fireEvent.click(screen.getByText(settingsEn.treeCacheEnabled));
+    // 开关位于行最右侧 control 列（事项 3），role=switch。
+    fireEvent.click(screen.getByRole('switch', { name: settingsEn.treeCacheEnabled }));
     await screen.findByText(settingsEn.treeCacheDisableConfirm);
   });
 

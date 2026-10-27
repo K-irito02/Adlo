@@ -96,6 +96,13 @@ export function applyPreferencePatch(
     // 的脏数据不在此落盘（见事项 5 审查 S-F3）。
     nextConfig.agentSiteWhitelist = normalizeAgentSiteEntries(patch.agentSiteWhitelist);
   }
+  if (patch.browserSuspendWhitelistEnabled !== undefined) {
+    nextConfig.browserSuspendWhitelistEnabled = patch.browserSuspendWhitelistEnabled;
+  }
+  if (patch.browserSuspendWhitelist !== undefined) {
+    // 与智能体白名单同源归一，脏数据不落盘。
+    nextConfig.browserSuspendWhitelist = normalizeAgentSiteEntries(patch.browserSuspendWhitelist);
+  }
 
   return nextConfig;
 }

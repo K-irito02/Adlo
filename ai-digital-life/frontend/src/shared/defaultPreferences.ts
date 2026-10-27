@@ -40,6 +40,8 @@ export const DEFAULT_LINK_OPEN_METHOD = 'panel' as const;
 export const DEFAULT_FILE_OPEN_METHOD = 'panel' as const;
 export const DEFAULT_AGENT_LINK_INTERCEPT = false;
 export const DEFAULT_AGENT_SITE_WHITELIST: AgentSiteAllowEntry[] = [];
+export const DEFAULT_BROWSER_SUSPEND_WHITELIST_ENABLED = false;
+export const DEFAULT_BROWSER_SUSPEND_WHITELIST: AgentSiteAllowEntry[] = [];
 
 // 下载模式产品默认（自动保存；Rust 侧 DownloadMode::Auto 同步）。
 // downloadSettings 走独立桥而非偏好 patch，此常量仅作恢复目标单一真源。
@@ -65,6 +67,8 @@ export function getDefaultPreferences(): AppPreferencePatch {
     fileOpenMethod: DEFAULT_FILE_OPEN_METHOD,
     agentLinkIntercept: DEFAULT_AGENT_LINK_INTERCEPT,
     agentSiteWhitelist: [...DEFAULT_AGENT_SITE_WHITELIST],
+    browserSuspendWhitelistEnabled: DEFAULT_BROWSER_SUSPEND_WHITELIST_ENABLED,
+    browserSuspendWhitelist: [...DEFAULT_BROWSER_SUSPEND_WHITELIST],
   };
 }
 
@@ -102,6 +106,10 @@ export function getDefaultForSetting(
       return DEFAULT_AGENT_LINK_INTERCEPT;
     case 'openMethod:agentSiteWhitelist':
       return [...DEFAULT_AGENT_SITE_WHITELIST];
+    case 'browserSuspendWhitelistEnabled':
+      return DEFAULT_BROWSER_SUSPEND_WHITELIST_ENABLED;
+    case 'browserSuspendWhitelist':
+      return [...DEFAULT_BROWSER_SUSPEND_WHITELIST];
     case 'font:ui':
     case 'font:code':
     case 'font:terminal':

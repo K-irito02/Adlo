@@ -66,6 +66,8 @@ function setupStore(configOverrides: ConfigPatch = {}) {
         fileOpenMethod: 'panel',
         agentLinkIntercept: false,
         agentSiteWhitelist: [],
+        browserSuspendWhitelistEnabled: false,
+        browserSuspendWhitelist: [],
         ...configOverrides,
       },
       currentWorkspace: undefined,

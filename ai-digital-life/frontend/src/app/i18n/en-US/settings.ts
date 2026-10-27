@@ -157,6 +157,11 @@ export const settingsEn = {
   storageImmutableIndexedDbName: 'Avatar cache',
   storageImmutableWebview2Name: 'WebView2 runtime data',
   storageImmutableWorkspaceCacheName: 'Workspace-level cache',
+  storageToolPathsTitle: 'External tool paths',
+  storageToolPathsHint:
+    'Read-only index of the real paths currently used by DSH and environment tools. Edit them in their own groups (Environment / DSH); nothing is migrated here.',
+  storageToolPathsGoTo: 'Manage',
+  storageToolPathsUnknown: 'Unknown (not detected yet)',
   storageRestartRequired: 'Saved. Restart the app to complete the migration.',
   storageRestartUnavailableInBrowser:
     'The browser mode cannot restart the app; this change will apply on next launch.',
@@ -344,5 +349,7 @@ export const settingsEn = {
   settingsAgentAllowOriginRequired: 'Enter a site URL',
   settingsAgentAllowOriginInvalid: 'Unrecognized site URL; enter an http/https site address',
   settingsAgentAllowRemove: 'Remove',
-  settingsAgentAllowEmpty: 'No allowlisted sites yet. Use Add to add one.',
+  settingsAgentAllowRemoveTitle: 'Remove',
+  settingsAgentAllowEmpty: 'No allowlisted sites yet, click Add to add',
+  settingsAgentAllowManage: 'Manage allowlist',
 } as const;

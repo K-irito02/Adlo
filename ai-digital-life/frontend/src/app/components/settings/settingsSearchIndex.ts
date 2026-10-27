@@ -146,6 +146,19 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     rows: STORAGE_IMMUTABLE_ROWS,
   },
   {
+    group: 'storage',
+    anchorId: 'toolPaths',
+    labelKey: 'storageToolPathsTitle',
+    rows: [
+      { labelKey: 'environmentDepNode', hintKeys: ['storageToolPathsHint'] },
+      { labelKey: 'environmentDepGit' },
+      { labelKey: 'environmentDepBash' },
+      { labelKey: 'environmentDepWebview2' },
+      { labelKey: 'environmentDepAdlserver' },
+      { labelKey: 'settingsDsh' },
+    ],
+  },
+  {
     // 「数据位置索引」卡片：恒常渲染但没有块主标题（行主文案即其标题），
     // 故与 workspace 的 maxConcurrentWorkspaces 同法：块主标题就是该行文案。
     group: 'storage',
@@ -157,7 +170,14 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     group: 'browser',
     anchorId: 'performance',
     labelKey: 'browserSettingsSuspendTitle',
-    rows: [{ labelKey: 'browserSettingsSuspendTitle', hintKeys: ['browserSettingsSuspendDesc'] }],
+    rows: [
+      { labelKey: 'browserSettingsSuspendTitle', hintKeys: ['browserSettingsSuspendDesc'] },
+      {
+        labelKey: 'browserSuspendWhitelistEnabled',
+        hintKeys: ['browserSuspendWhitelistEnabledDesc'],
+      },
+      { labelKey: 'browserSuspendWhitelist', hintKeys: ['browserSuspendWhitelistDesc'] },
+    ],
   },
   {
     group: 'browser',

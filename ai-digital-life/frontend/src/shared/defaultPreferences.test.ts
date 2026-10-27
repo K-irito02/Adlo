@@ -62,6 +62,13 @@ describe('defaultPreferences', () => {
     expect(getDefaultForSetting('browserInactiveTabSuspendMs')).toBe(DEFAULT_BROWSER_SUSPEND_MS);
   });
 
+  it('getDefaultForSetting returns suspend whitelist defaults (off + empty)', () => {
+    expect(getDefaultForSetting('browserSuspendWhitelistEnabled')).toBe(false);
+    expect(getDefaultForSetting('browserSuspendWhitelist')).toEqual([]);
+    expect(getDefaultPreferences().browserSuspendWhitelistEnabled).toBe(false);
+    expect(getDefaultPreferences().browserSuspendWhitelist).toEqual([]);
+  });
+
   it('pins the product default literals (cross-language contract)', () => {
     // 跨语言契约：两侧各自钉死字面值，单侧静默改动即失败（F3）。
     expect(DEFAULT_BROWSER_SUSPEND_MS).toBe(900_000);

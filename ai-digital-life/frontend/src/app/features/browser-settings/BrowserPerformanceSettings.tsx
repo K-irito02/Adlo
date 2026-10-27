@@ -3,8 +3,12 @@ import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { DEFAULT_BROWSER_SUSPEND_MS } from '@shared/defaultPreferences';
+import { normalizeAgentSiteEntries } from '@shared/originWhitelist';
+import type { AgentSiteAllowEntry } from '@shared/ipc-types.generated';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { SettingsSelect } from '../../components/settings/SettingsSelect';
+import { ToggleControl } from '../../components/settings/SettingsControls';
+import { AgentAllowlistControl } from '../../components/settings/AgentAllowlistControl';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { IconResetDefaults } from '../../icons';
 import {
@@ -45,6 +49,10 @@ export function BrowserPerformanceSettings({
   const showToast = useAppStore((s) => s.showToast);
   const isLoadingSettings = useAppStore((s) => s.isLoadingSettings);
   const raw = useAppStore((s) => s.appInfo?.config?.browserInactiveTabSuspendMs);
+  // 挂起白名单（事项 4）：总开关 + 名单，开关关时名单行隐藏（与智能体拦截组同构）。
+  const whitelistEnabled =
+    useAppStore((s) => s.appInfo?.config?.browserSuspendWhitelistEnabled) ?? false;
+  const whitelist = useAppStore((s) => s.appInfo?.config?.browserSuspendWhitelist) ?? [];
   // config 未加载回退产品默认（显示 15 分钟档；恢复按钮按 raw 判定 fail-open）。
   const currentMs = raw ?? DEFAULT_BROWSER_SUSPEND_MS;
   const isPreset = isSuspendPreset(currentMs);
@@ -84,6 +92,36 @@ export function BrowserPerformanceSettings({
         showToast(t.settingsUpdateFailed, 'error');
       }
       return ok;
+    },
+    [showToast, t],
+  );
+
+  /** 白名单开关写回（事项 4）：失败 toast，成功无提示（开关即所得）。 */
+  const handleWhitelistEnabledChange = useCallback(
+    (enabled: boolean) => {
+      void useAppStore
+        .getState()
+        .updatePreferences({ browserSuspendWhitelistEnabled: enabled })
+        .then((ok) => {
+          if (!ok) {
+            showToast(t.settingsUpdateFailed, 'error');
+          }
+        });
+    },
+    [showToast, t],
+  );
+
+  /** 白名单名单写回（事项 4）：归一由 merger/后端同源完成，此处只透传失败 toast。 */
+  const handleWhitelistChange = useCallback(
+    (next: AgentSiteAllowEntry[]) => {
+      void useAppStore
+        .getState()
+        .updatePreferences({ browserSuspendWhitelist: next })
+        .then((ok) => {
+          if (!ok) {
+            showToast(t.settingsUpdateFailed, 'error');
+          }
+        });
     },
     [showToast, t],
   );
@@ -248,17 +286,27 @@ export function BrowserPerformanceSettings({
   }, [raw, customMode, cancelPendingSuspend, syncDraftToExternal]);
 
   /** 恢复默认：确认后写 15 分钟产品默认并退出自定义态；失败保持对话框供重试。
-   * 草稿只在成功时清：失败保留用户输入，检查后可直接重试同一值（L-2）。 */
+   * 草稿只在成功时清：失败保留用户输入，检查后可直接重试同一值（L-2）。
+   * 事项 4：同块的白名单开关与名单一并恢复默认（开关关 + 清空）。 */
   const handleResetConfirm = useCallback(() => {
     cancelPendingSuspend();
-    void writeSuspend(DEFAULT_BROWSER_SUSPEND_MS).then((ok) => {
-      if (ok) {
+    void useAppStore
+      .getState()
+      .updatePreferences({
+        browserInactiveTabSuspendMs: DEFAULT_BROWSER_SUSPEND_MS,
+        browserSuspendWhitelistEnabled: false,
+        browserSuspendWhitelist: [],
+      })
+      .then((ok) => {
+        if (!ok) {
+          showToast(t.settingsUpdateFailed, 'error');
+          return;
+        }
         setCustomMode(false);
         setCustomValue('');
         setConfirm(false);
-      }
-    });
-  }, [cancelPendingSuspend, writeSuspend]);
+      });
+  }, [cancelPendingSuspend, showToast, t]);
 
   // options 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
   const selectOptions = useMemo(
@@ -355,6 +403,64 @@ export function BrowserPerformanceSettings({
             />
           </div>
         </div>
+        {/* 开关与名单属同一语义分组：名单可见时去掉开关行的底部分隔线（与智能体拦截组同法）。 */}
+        <div
+          className={`adl-settings-row${whitelistEnabled ? ' adl-settings-row--no-divider' : ''}`}
+          data-settings-row={t.browserSuspendWhitelistEnabled}
+        >
+          <div className="adl-settings-row__label">
+            <div className="adl-settings-row__label-text">
+              <span>{t.browserSuspendWhitelistEnabled}</span>
+            </div>
+            <small>{t.browserSuspendWhitelistEnabledDesc}</small>
+          </div>
+          <div className="adl-settings-row__control">
+            <ToggleControl
+              item={{
+                id: 'browserSuspendWhitelistEnabled',
+                groupId: 'browser',
+                label: t.browserSuspendWhitelistEnabled,
+                type: 'toggle',
+                value: whitelistEnabled,
+                disabled: isLoadingSettings,
+              }}
+              onChange={handleWhitelistEnabledChange}
+            />
+          </div>
+        </div>
+        {whitelistEnabled ? (
+          <div className="adl-settings-row" data-settings-row={t.browserSuspendWhitelist}>
+            <div className="adl-settings-row__label">
+              <div className="adl-settings-row__label-text">
+                <span>{t.browserSuspendWhitelist}</span>
+              </div>
+              <small>{t.browserSuspendWhitelistDesc}</small>
+              {normalizeAgentSiteEntries(whitelist).length === 0 ? (
+                <small className="adl-settings-allowlist__empty-hint">
+                  {t.browserSuspendWhitelistEmpty}
+                </small>
+              ) : null}
+            </div>
+            <div className="adl-settings-row__control">
+              <AgentAllowlistControl
+                item={{
+                  id: 'browserSuspendWhitelist',
+                  groupId: 'browser',
+                  label: t.browserSuspendWhitelist,
+                  type: 'allowlist',
+                  value: whitelist,
+                  disabled: isLoadingSettings,
+                }}
+                t={t}
+                onChange={handleWhitelistChange}
+                texts={{
+                  dialogTitle: t.browserSuspendAllowTitle,
+                  originPlaceholder: t.browserSuspendAllowOriginPlaceholder,
+                }}
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
       <ConfirmDialog
         open={confirm}

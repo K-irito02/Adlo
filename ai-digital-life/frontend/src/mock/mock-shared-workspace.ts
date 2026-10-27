@@ -125,6 +125,8 @@ export const appInfo: AppInfo = {
     fileOpenMethod: "panel",
     agentLinkIntercept: false,
     agentSiteWhitelist: [],
+    browserSuspendWhitelistEnabled: false,
+    browserSuspendWhitelist: [],
   },
   currentWorkspace: {
     id: "workspace-mock-1",

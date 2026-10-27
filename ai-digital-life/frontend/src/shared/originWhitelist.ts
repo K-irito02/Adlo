@@ -57,3 +57,21 @@ export function normalizeAgentSiteEntries(value: unknown): AgentSiteAllowEntry[]
 export function allowlistOrigins(entries: readonly AgentSiteAllowEntry[]): string[] {
   return entries.map((entry) => entry.origin);
 }
+
+/**
+ * 挂起白名单命中（事项 4）：tab 当前 URL 的 origin 落在白名单内即豁免。
+ * 空 URL / 非 http(s)（如 about:blank）归一失败 → 不豁免，fail-open 方向为"照常挂起"。
+ */
+export function isUrlSuspendWhitelisted(
+  url: string | null | undefined,
+  entries: readonly AgentSiteAllowEntry[],
+): boolean {
+  if (!url || entries.length === 0) {
+    return false;
+  }
+  const origin = normalizeOrigin(url);
+  if (!origin) {
+    return false;
+  }
+  return entries.some((entry) => entry.origin === origin);
+}

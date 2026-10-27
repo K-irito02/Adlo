@@ -115,6 +115,8 @@ mod tests {
             file_open_method: Default::default(),
             agent_link_intercept: false,
             agent_site_whitelist: vec![],
+            browser_suspend_whitelist_enabled: false,
+            browser_suspend_whitelist: vec![],
         }
     }
 

@@ -27,6 +27,8 @@ const baseConfig: ConfigSnapshot = {
   fileOpenMethod: 'panel',
   agentLinkIntercept: false,
   agentSiteWhitelist: [],
+  browserSuspendWhitelistEnabled: false,
+  browserSuspendWhitelist: [],
 };
 
 describe('applyPreferencePatch', () => {
@@ -219,6 +221,21 @@ describe('applyPreferencePatch', () => {
     expect(merged.agentSiteWhitelist).toEqual([
       { alias: '工作台', origin: 'http://127.0.0.1:3080' },
       { origin: 'https://a.com' },
+    ]);
+  });
+
+  it('merges suspend whitelist switch and list (list normalized like the agent one)', () => {
+    const base = { ...baseConfig };
+    const merged = applyPreferencePatch(base, {
+      browserSuspendWhitelistEnabled: true,
+      browserSuspendWhitelist: [
+        { alias: ' 文档 ', origin: 'https://docs.example.com/guide' },
+        { origin: 'not-a-url' },
+      ],
+    });
+    expect(merged.browserSuspendWhitelistEnabled).toBe(true);
+    expect(merged.browserSuspendWhitelist).toEqual([
+      { alias: '文档', origin: 'https://docs.example.com' },
     ]);
   });
 });

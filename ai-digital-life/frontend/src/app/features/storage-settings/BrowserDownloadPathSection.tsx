@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useAppStore } from '@stores/slicedStore';
 import { DOWNLOAD_REFRESH_FAILED } from '@stores/slices/browserDownloadsSlice';
 import { useTCopy } from '@i18n/useTCopy';
+import { ToggleControl } from '@components/settings/SettingsControls';
 import { ManualPathInput } from './StorageCategoryRow';
 
 /**
@@ -200,20 +201,28 @@ export function BrowserDownloadPathSection() {
       >
         <div className="adl-settings-row__label">
           <div className="adl-settings-row__label-text">
-            <label htmlFor="adl-download-migrate">{t.storageDownloadMigrateLabel}</label>
-            <input
-              id="adl-download-migrate"
-              type="checkbox"
-              data-testid="download-migrate-checkbox"
-              checked={autoMigrate}
-              disabled={disabled}
-              onChange={(e) => {
-                triggerRef.current = e.currentTarget;
-                handleMigrateToggle(e.target.checked);
-              }}
-            />
+            <span>{t.storageDownloadMigrateLabel}</span>
           </div>
           <small>{t.storageDownloadMigrateHint}</small>
+        </div>
+        <div className="adl-settings-row__control">
+          <ToggleControl
+            item={{
+              id: 'download-migrate',
+              groupId: 'storage',
+              label: t.storageDownloadMigrateLabel,
+              type: 'toggle',
+              value: autoMigrate,
+              disabled,
+            }}
+            testId="download-migrate-checkbox"
+            onChange={(checked) => {
+              triggerRef.current = document.querySelector(
+                '[data-testid="download-migrate-checkbox"]',
+              ) as HTMLElement | null;
+              handleMigrateToggle(checked);
+            }}
+          />
         </div>
       </div>
 

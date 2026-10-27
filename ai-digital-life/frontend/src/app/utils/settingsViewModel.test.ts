@@ -35,6 +35,8 @@ const mockAppInfo: AppInfo = {
     fileOpenMethod: 'panel',
     agentLinkIntercept: false,
     agentSiteWhitelist: [],
+    browserSuspendWhitelistEnabled: false,
+    browserSuspendWhitelist: [],
   },
   currentWorkspace: undefined,
   recentLogs: [],

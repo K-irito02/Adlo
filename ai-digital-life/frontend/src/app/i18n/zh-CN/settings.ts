@@ -144,6 +144,11 @@ export const settingsZh = {
   storageImmutableIndexedDbName: '头像缓存',
   storageImmutableWebview2Name: 'WebView2 运行时数据',
   storageImmutableWorkspaceCacheName: '工作区级缓存',
+  storageToolPathsTitle: '外部工具路径',
+  storageToolPathsHint:
+    'DSH 与环境组中各工具当前实际使用的路径，只读索引。修改请前往各自设置组（环境 / DSH），此处不直接迁移。',
+  storageToolPathsGoTo: '前往管理',
+  storageToolPathsUnknown: '未知（尚未检测）',
   storageRestartRequired: '已保存。请重启应用以完成迁移。',
   storageRestartUnavailableInBrowser: '浏览器模式无法重启应用，此变更将在下次启动时生效。',
   storageBrowserDownloadTitle: '浏览器下载路径',
@@ -311,5 +316,7 @@ export const settingsZh = {
   settingsAgentAllowOriginRequired: '请填写站点网址',
   settingsAgentAllowOriginInvalid: '站点网址无法识别，请输入 http/https 开头的站点地址',
   settingsAgentAllowRemove: '移除',
-  settingsAgentAllowEmpty: '暂无白名单站点，点击“添加”新增。',
+  settingsAgentAllowRemoveTitle: '移出',
+  settingsAgentAllowEmpty: '暂无白名单站点，点击“添加”新增',
+  settingsAgentAllowManage: '查看管理白名单',
 } as const;

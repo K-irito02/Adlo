@@ -98,9 +98,9 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
   }, [installConfirmDep, showToast, t, actions]);
 
   const copyForAgent = useCallback(
-    async (dep: EnvDepKey | 'all') => {
+    async (dep: EnvDepKey | 'all'): Promise<boolean> => {
       if (status === null) {
-        return;
+        return false;
       }
       const payload = {
         ...depPayload(dep, status),
@@ -113,6 +113,7 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
       };
       const ok = await copyTextToClipboard(JSON.stringify(payload));
       showToast(ok ? t.copySuccessClipboard : t.operationFailed, ok ? 'success' : 'error');
+      return ok;
     },
     [status, isTauri, locale, showToast, t],
   );

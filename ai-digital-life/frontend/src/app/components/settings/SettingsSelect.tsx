@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IconCheck, IconChevronDown } from '../../icons';
+import type { ActionPhase } from './actionFlash';
+import { FlashIcon } from './actionFlash';
 import { useRevealScrollbar } from '../../hooks/useRevealScrollbar';
 import { RevealScrollbar } from '../RevealScrollbar';
 
@@ -18,6 +20,11 @@ interface SettingsSelectProps {
   label: string;
   className?: string;
   disabled?: boolean;
+  /**
+   * 行级异步态（事项 1b/1c）：`true` 等价 `'loading'`；激活时文案隐藏、
+   * 图标（圆圈/打勾/打叉）在 trigger 内部居中，不占用外部空间。
+   */
+  loading?: boolean | ActionPhase;
   optionStyle?: (value: string) => React.CSSProperties | undefined;
 }
 
@@ -61,6 +68,7 @@ export function SettingsSelect({
   label,
   className,
   disabled,
+  loading,
   optionStyle,
 }: SettingsSelectProps) {
   const [open, setOpen] = useState(false);
@@ -279,11 +287,12 @@ export function SettingsSelect({
       <button
         ref={triggerRef}
         type="button"
-        className="adl-settings-dropdown__trigger"
+        className={`adl-settings-dropdown__trigger${loading ? ' adl-btn-loading' : ''}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
         aria-label={label}
+        aria-busy={loading === true || loading === 'loading'}
         disabled={disabled}
         onClick={() => {
           if (disabled) {
@@ -297,8 +306,23 @@ export function SettingsSelect({
         }}
         onKeyDown={handleTriggerKeyDown}
       >
-        <span className="adl-settings-dropdown__value">{selected?.label ?? value}</span>
-        <IconChevronDown size={14} decorative />
+        {/* 事项 1d：文案隐藏占位（尺寸不变）+ 图标覆盖层框内居中。 */}
+        <span className={`adl-settings-dropdown__value${loading ? ' adl-btn-loading__text' : ''}`}>
+          {selected?.label ?? value}
+        </span>
+        <IconChevronDown
+          size={14}
+          decorative
+          className={loading ? 'adl-btn-loading__text' : undefined}
+        />
+        {loading ? (
+          <span
+            className={`adl-btn-loading__spinner${loading === true || loading === 'loading' ? '' : ` adl-btn-loading__spinner--${loading}`}`}
+            aria-hidden="true"
+          >
+            <FlashIcon phase={loading === true ? 'loading' : loading} />
+          </span>
+        ) : null}
       </button>
       {open &&
         menuGeometry &&

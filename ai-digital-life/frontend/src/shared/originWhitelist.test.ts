@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { allowlistOrigins, normalizeAgentSiteEntries, normalizeOrigin } from './originWhitelist';
+import {
+  allowlistOrigins,
+  isUrlSuspendWhitelisted,
+  normalizeAgentSiteEntries,
+  normalizeOrigin,
+} from './originWhitelist';
 
 describe('normalizeOrigin', () => {
   it('accepts scheme://host:port and strips path', () => {
@@ -51,5 +56,23 @@ describe('allowlistOrigins', () => {
         { origin: 'https://a.com' },
       ]),
     ).toEqual(['http://127.0.0.1:3080', 'https://a.com']);
+  });
+});
+
+describe('isUrlSuspendWhitelisted', () => {
+  const entries = [{ origin: 'https://docs.example.com' }, { origin: 'http://127.0.0.1:3080' }];
+  it('matches by origin, ignoring path/query/hash', () => {
+    expect(isUrlSuspendWhitelisted('https://docs.example.com/guide?a=1#top', entries)).toBe(true);
+    expect(isUrlSuspendWhitelisted('https://docs.example.com', entries)).toBe(true);
+  });
+  it('does not match other origins, empty urls or non-http schemes', () => {
+    expect(isUrlSuspendWhitelisted('https://other.example.com', entries)).toBe(false);
+    expect(isUrlSuspendWhitelisted('http://docs.example.com', entries)).toBe(false);
+    expect(isUrlSuspendWhitelisted('', entries)).toBe(false);
+    expect(isUrlSuspendWhitelisted('about:blank', entries)).toBe(false);
+    expect(isUrlSuspendWhitelisted(null, entries)).toBe(false);
+  });
+  it('returns false for empty lists (fail-open towards suspending)', () => {
+    expect(isUrlSuspendWhitelisted('https://docs.example.com', [])).toBe(false);
   });
 });

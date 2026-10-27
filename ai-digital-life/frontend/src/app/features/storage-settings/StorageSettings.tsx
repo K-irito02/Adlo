@@ -27,11 +27,13 @@ import { IconCircleHelp, IconResetDefaults } from '../../icons';
 import { HintCardTrigger } from '../../components/HintCard';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { SettingsSelect } from '../../components/settings/SettingsSelect';
+import { ToggleControl } from '../../components/settings/SettingsControls';
 import { StorageCategoryRow } from './StorageCategoryRow';
 import { CATEGORY_KEYS_WITHOUT_OWN_ROW } from './storageCategoryCopy';
 import { IMMOVABLE_COPY } from './storageImmutableCopy';
 import { StorageMigrateDialog } from './StorageMigrateDialog';
 import { DownloadPathBlock } from './DownloadPathBlock';
+import { ToolPathsBlock } from './ToolPathsBlock';
 import { downloadResetBlockVariant, downloadResetFailureCopy } from './downloadPathReset';
 import { localizePreflightIssues } from './preflightCopy';
 import {
@@ -1761,19 +1763,7 @@ export function StorageSettings() {
             >
               <div className="adl-settings-row__label">
                 <div className="adl-settings-row__label-text">
-                  {/* 纯文本 label（无附加样式）：点文字即切换，零视觉变更。 */}
-                  <label htmlFor="adl-tree-cache-enabled">{t.treeCacheEnabled}</label>
-                  <input
-                    id="adl-tree-cache-enabled"
-                    type="checkbox"
-                    aria-label={t.treeCacheEnabled}
-                    checked={treeEnabled}
-                    disabled={treeBusy}
-                    onChange={(e) => {
-                      treeConfirmTriggerRef.current = e.currentTarget;
-                      handleTreeEnabledToggle(e.target.checked);
-                    }}
-                  />
+                  <span>{t.treeCacheEnabled}</span>
                 </div>
                 <small>{t.treeCacheEnabledHint}</small>
               </div>
@@ -1828,13 +1818,30 @@ export function StorageSettings() {
                     />
                   </>
                 ) : null}
-                {/* 默认选项下拉恒在最右（自定义态顺序：数值 → 单位 → 默认选项）。 */}
+                {/* 默认选项下拉恒在最右（自定义态顺序：数值 → 单位 → 默认选项），开关沉底最右（事项 3）。 */}
                 <SettingsSelect
                   value={ttlSelectValue}
                   options={ttlSelectOptions}
                   onChange={handleTtlSelectChange}
                   label={t.treeCacheTtl}
                   disabled={treeBusy || !treeEnabled}
+                />
+                <ToggleControl
+                  item={{
+                    id: 'tree-cache-enabled',
+                    groupId: 'storage',
+                    label: t.treeCacheEnabled,
+                    type: 'toggle',
+                    value: treeEnabled,
+                    disabled: treeBusy,
+                  }}
+                  testId="tree-cache-enabled-toggle"
+                  onChange={(checked) => {
+                    treeConfirmTriggerRef.current = document.querySelector(
+                      '[data-testid="tree-cache-enabled-toggle"]',
+                    ) as HTMLElement | null;
+                    handleTreeEnabledToggle(checked);
+                  }}
                 />
               </div>
             </div>
@@ -1847,6 +1854,7 @@ export function StorageSettings() {
         anchor={anchorFor('storage', 'browserDownload')}
       />
 
+      {/* 工具实际路径独立块（事项 3 方案 B）：DSH/环境工具真实路径只读索引。 */}
       {/* 不可移动项独立成块：主标题无恢复默认按钮（系统/运行时管理，无可恢复项）。 */}
       <div
         className="adl-settings-storage__header adl-settings-storage__header--section"
@@ -1873,7 +1881,7 @@ export function StorageSettings() {
         ))}
       </div>
 
-      {/* 数据位置索引沉底：放在不可移动块之后的最底部。
+      {/* 数据位置索引：放在不可移动块之下、外部工具路径块之上（事项 3b）。
           本卡片无块主标题（行主文案即其标题），故锚点直接挂卡片、行标记取该标题文案。 */}
       <div
         className="adl-settings-card"
@@ -1899,6 +1907,8 @@ export function StorageSettings() {
           </div>
         </div>
       </div>
+
+      <ToolPathsBlock categories={categories} />
 
       {isDirty && !bottomCtaVisible ? (
         <div className="adl-storage-settings__dirtybar" data-testid="storage-dirtybar">

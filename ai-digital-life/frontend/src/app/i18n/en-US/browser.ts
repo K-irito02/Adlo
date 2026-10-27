@@ -239,6 +239,14 @@ export const browserEn = {
   browserSettingsSuspendUnitMinute: 'min',
   browserSettingsSuspendUnitHour: 'hr',
   browserSettingsSuspendUnitDay: 'day',
+  browserSuspendWhitelistEnabled: 'Enable suspend whitelist',
+  browserSuspendWhitelistEnabledDesc:
+    'When on, tabs of listed sites are never suspended (exempt from both idle and memory-pressure suspend)',
+  browserSuspendWhitelist: 'Suspend whitelist',
+  browserSuspendWhitelistDesc: 'Tabs of listed sites are never suspended, matched by site origin',
+  browserSuspendWhitelistEmpty: 'No exempt sites yet, click Add to add',
+  browserSuspendAllowTitle: 'Add exempt site',
+  browserSuspendAllowOriginPlaceholder: 'e.g. https://docs.example.com',
 
   // Downloads
   browserDownloadTitle: 'Downloads',

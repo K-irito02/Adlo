@@ -237,6 +237,10 @@ pub struct AppPreferencePatch {
     pub agent_link_intercept: Option<bool>,
     #[ts(optional)]
     pub agent_site_whitelist: Option<Vec<AgentSiteAllowEntry>>,
+    #[ts(optional)]
+    pub browser_suspend_whitelist_enabled: Option<bool>,
+    #[ts(optional)]
+    pub browser_suspend_whitelist: Option<Vec<AgentSiteAllowEntry>>,
 }
 
 /// Agent-site allowlist entry: optional display alias plus a normalized origin.
@@ -291,6 +295,12 @@ pub struct ConfigSnapshot {
     pub agent_link_intercept: bool,
     #[serde(default)]
     pub agent_site_whitelist: Vec<AgentSiteAllowEntry>,
+    /// 标签挂起白名单总开关（默认关；开 + 名单非空才豁免）。
+    #[serde(default)]
+    pub browser_suspend_whitelist_enabled: bool,
+    /// 不受挂起时长影响的标签白名单（别称选填 + 整站匹配 origin，与智能体白名单同源归一）。
+    #[serde(default)]
+    pub browser_suspend_whitelist: Vec<AgentSiteAllowEntry>,
 }
 
 fn default_max_concurrent_workspaces_snapshot() -> usize {

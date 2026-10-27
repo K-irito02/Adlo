@@ -227,6 +227,14 @@ export const browserZh = {
   browserSettingsSuspendUnitMinute: '分钟',
   browserSettingsSuspendUnitHour: '小时',
   browserSettingsSuspendUnitDay: '天',
+  browserSuspendWhitelistEnabled: '启用挂起白名单',
+  browserSuspendWhitelistEnabledDesc:
+    '开启后，下方名单中的站点标签不受挂起时长影响（闲置与内存压力挂起均豁免）',
+  browserSuspendWhitelist: '挂起白名单',
+  browserSuspendWhitelistDesc: '名单中的站点标签永不被挂起，按整站匹配（不含路径与参数）',
+  browserSuspendWhitelistEmpty: '暂无豁免站点，点击“添加”新增',
+  browserSuspendAllowTitle: '添加豁免站点',
+  browserSuspendAllowOriginPlaceholder: '例如：https://docs.example.com',
 
   // 下载
   browserDownloadTitle: '下载',

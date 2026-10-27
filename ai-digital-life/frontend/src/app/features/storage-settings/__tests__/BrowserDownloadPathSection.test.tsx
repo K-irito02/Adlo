@@ -88,12 +88,17 @@ afterEach(() => {
 });
 
 describe('BrowserDownloadPathSection', () => {
-  it('renders path row and migrate checkbox (default off)', () => {
+  it('renders path row and migrate switch (default off, 最右侧）', () => {
     renderSection();
     expect(screen.getByTestId('download-path-row')).toBeTruthy();
     expect(screen.getByTestId('download-path-pick')).toBeTruthy();
-    const checkbox = screen.getByTestId('download-migrate-checkbox') as HTMLInputElement;
-    expect(checkbox.checked).toBe(false);
+    const toggle = screen.getByTestId('download-migrate-checkbox');
+    expect(toggle.getAttribute('role')).toBe('switch');
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    // 开关位于行最右侧 control 列（事项 3），而非副标题文字右边。
+    expect(
+      screen.getByTestId('download-migrate-row').querySelector('.adl-settings-row__control'),
+    ).toBeTruthy();
   });
 
   it('committing a new path calls changeDownloadPath with current migrate flag', async () => {

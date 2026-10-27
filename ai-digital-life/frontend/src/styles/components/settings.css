@@ -447,6 +447,34 @@
   cursor: not-allowed;
 }
 
+/* 加载态占位（事项 1b）：文案隐藏占位保证按钮尺寸不变，
+   圆圈以绝对定位覆盖层在按钮内部水平垂直居中。 */
+.adl-btn-loading {
+  position: relative;
+}
+
+.adl-btn-loading__text {
+  visibility: hidden;
+}
+
+.adl-btn-loading__spinner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* 结果回显色（事项 1c）：成功绿 / 失败红，走主题 token（亮暗自适应）。 */
+.adl-btn-loading__spinner--success {
+  color: var(--success);
+}
+
+.adl-btn-loading__spinner--error {
+  color: var(--danger);
+}
+
 /* 环境组右侧控件：首行（路径输入 + 来源下拉）与次行（安装/卸载/重装）上下堆叠，
    安装按钮不再与下拉同行，避免误解为下拉的确认键。次行无按钮时不占位。 */
 .adl-env-control {
@@ -673,27 +701,11 @@
 
 .adl-settings-allowlist__empty {
   margin: 0;
-  /* 空态统一规范：xs / muted / 1.5 / 居中 */
+  /* 空态统一规范：xs / muted / 1.5 / 居中（规范测试锁定，见 preview-loading-empty-state.test.ts） */
   font-size: var(--text-xs);
   line-height: 1.5;
   color: var(--text-muted);
   text-align: center;
-}
-
-.adl-settings-allowlist__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.adl-settings-allowlist__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
 }
 
 .adl-settings-allowlist__origin {
@@ -703,6 +715,40 @@
   text-overflow: ellipsis;
   font-size: var(--text-sm);
   color: var(--text-primary);
+}
+
+/* 白名单空态提示（事项 2c）：放左侧副标题下方，蓝色与 DSH 组提示小字同口径
+   （同 `color-mix` 公式，亮暗各一档；不用跨文件 token，避免隐性耦合）。 */
+.adl-settings-allowlist__empty-hint {
+  color: color-mix(in srgb, var(--accent) 72%, var(--text-secondary));
+}
+
+[data-theme='dark'] .adl-settings-allowlist__empty-hint {
+  color: color-mix(in srgb, var(--accent) 62%, var(--text-muted));
+}
+
+/* 白名单行操作区（事项 2b）：「查看管理」下拉与「添加」同行、右对齐。
+   添加按钮不拉伸（事项 2b：收窄到内容宽，与其它 action-btn 同字色）。 */
+.adl-settings-allowlist__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.adl-settings-allowlist__manage {
+  width: 200px;
+  min-width: min(200px, 100%);
+  max-width: 100%;
+}
+
+/* 下拉菜单内的白名单条目：origin 省略 + 右侧垃圾桶移出按钮。 */
+.adl-settings-allowlist__menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
 }
 
 .adl-settings-password {

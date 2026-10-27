@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '@shared/env';
 import { DEFAULT_BROWSER_SUSPEND_MS } from '@shared/defaultPreferences';
+import { isUrlSuspendWhitelisted } from '@shared/originWhitelist';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 const IDLE_INTERVAL_MS = 20_000;
@@ -93,8 +94,18 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
         useAppStore.getState().appInfo?.config?.browserInactiveTabSuspendMs ?? DEFAULT_IDLE_MS;
       const now = Date.now();
       const state = useAppStore.getState();
+      // 挂起白名单（事项 4）：开关开 + 名单命中 tab 当前 URL origin 即豁免，
+      // 闲置挂起与内存压力挂起双通道同口径（白名单 = 永不挂起，用户决策 A）。
+      // 内存压力循环是异步的：白名单按每次读取的最新状态取值，不用 tick 快照。
+      const suspendWhitelistOf = (s: typeof state) =>
+        s.appInfo?.config?.browserSuspendWhitelistEnabled === true
+          ? (s.appInfo?.config?.browserSuspendWhitelist ?? [])
+          : [];
       const isProtected = (t: BrowserTabState): boolean =>
-        t.isPinned || t.isPlayingAudio || t.isDownloading;
+        t.isPinned ||
+        t.isPlayingAudio ||
+        t.isDownloading ||
+        isUrlSuspendWhitelisted(t.url, suspendWhitelistOf(useAppStore.getState()));
       // 受保护的活动标签（面板活动 + 中心活动浏览器）每 tick 现算，
       // 在此刷新它们的激活时间戳：单宿主 prop 已删除，双宿主下仅靠传入 activeTabId
       // 会漏记另一宿主的活动标签，导致其 lastActivated 陈旧而被误挂起。

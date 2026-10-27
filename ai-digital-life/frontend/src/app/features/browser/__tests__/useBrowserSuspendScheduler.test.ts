@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { applyIdlePass } from '../useBrowserSuspendScheduler';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { renderHook } from '@testing-library/react';
+import { useAppStore } from '@stores/slicedStore';
+import { applyIdlePass, useBrowserSuspendScheduler } from '../useBrowserSuspendScheduler';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 const tab = (id: string, patch: Partial<BrowserTabState> = {}): BrowserTabState => ({
@@ -102,5 +104,86 @@ describe('applyIdlePass (idle)', () => {
         now,
       }),
     ).toEqual(['ok']);
+  });
+});
+
+describe('useBrowserSuspendScheduler whitelist (事项 4)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function seedHook(tabs: BrowserTabState[], activeTabId: string) {
+    useAppStore.setState({
+      appInfo: {
+        appName: 'test',
+        version: '0.0.0',
+        config: {
+          browserInactiveTabSuspendMs: 1,
+          browserSuspendWhitelistEnabled: true,
+          browserSuspendWhitelist: [{ origin: 'https://keep.example.com' }],
+        },
+      },
+      browserTabs: tabs,
+      browserActiveTabId: activeTabId,
+      centerTabs: [],
+      centerActiveTabId: '',
+    } as never);
+  }
+
+  const hookTabs = () => [
+    tab('w', { url: 'https://keep.example.com/a?x=1' }),
+    tab('y', { url: 'https://other.example.com/' }),
+  ];
+
+  it('never suspends whitelisted origins but suspends other idle tabs', () => {
+    vi.useFakeTimers();
+    const removeFromPool = vi.fn(async (_tabId: string) => {});
+    seedHook(hookTabs(), 'w');
+    const hook = renderHook(() =>
+      useBrowserSuspendScheduler({
+        isVisible: true,
+        removeFromPool,
+        isTabInPool: () => true,
+      }),
+    );
+    // tick1 记录 w；切到 y 再跑一轮记录 y；最后全不活跃，两者都满足闲置阈值。
+    useAppStore.setState({ browserActiveTabId: 'y' });
+    vi.advanceTimersByTime(20_000);
+    useAppStore.setState({ browserActiveTabId: '' });
+    vi.advanceTimersByTime(20_000);
+    const suspended = removeFromPool.mock.calls.map((call) => call[0]);
+    expect(suspended).toContain('y');
+    expect(suspended).not.toContain('w');
+    hook.unmount();
+  });
+
+  it('suspends whitelisted origins while the switch is off', () => {
+    vi.useFakeTimers();
+    const removeFromPool = vi.fn(async (_tabId: string) => {});
+    seedHook(hookTabs(), 'w');
+    useAppStore.setState({
+      appInfo: {
+        ...(useAppStore.getState().appInfo as object),
+        config: {
+          ...(useAppStore.getState().appInfo?.config as object),
+          browserSuspendWhitelistEnabled: false,
+        },
+      } as never,
+    });
+    const hook = renderHook(() =>
+      useBrowserSuspendScheduler({
+        isVisible: true,
+        removeFromPool,
+        isTabInPool: () => true,
+      }),
+    );
+    useAppStore.setState({ browserActiveTabId: 'y' });
+    vi.advanceTimersByTime(20_000);
+    useAppStore.setState({ browserActiveTabId: '' });
+    vi.advanceTimersByTime(20_000);
+    const suspended = removeFromPool.mock.calls.map((call) => call[0]);
+    expect(suspended).toContain('w');
+    expect(suspended).toContain('y');
+    hook.unmount();
   });
 });

@@ -17,12 +17,14 @@ export interface BrowserResetDeps {
 }
 
 /**
- * 浏览器组恢复默认：挂起时长 → 下载模式 → 下载路径（含迁移开关复位）。
+ * 浏览器组恢复默认：挂起时长 + 挂起白名单（开关关 + 清空）→ 下载模式 → 下载路径（含迁移开关复位）。
  * 任一步失败即返回 `failedStep` 并短路后续步；路径步的 `failedStep` 由其自身透传。
  */
 export async function executeBrowserResetPlan(deps: BrowserResetDeps): Promise<GroupResetResult> {
   const suspendOk = await deps.updatePreferences({
     browserInactiveTabSuspendMs: DEFAULT_BROWSER_SUSPEND_MS,
+    browserSuspendWhitelistEnabled: false,
+    browserSuspendWhitelist: [],
   });
   if (!suspendOk) {
     return { ok: false, failedStep: 'suspend' };

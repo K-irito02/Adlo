@@ -5,6 +5,12 @@ import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { openUrlByMethod } from '@features/preview/openByMethod';
+import {
+  FlashIcon,
+  flashPhaseFor,
+  useActionFlash,
+  type ActionPhase,
+} from '@components/settings/actionFlash';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
 import { ConfirmDialog } from '@components/ConfirmDialog';
@@ -176,7 +182,6 @@ export function EnvironmentSettings() {
   const { t, locale } = useTCopy();
   const actions = useAppActions();
   const isTauri = useAppStore((s) => s.isTauri);
-  const envBusy = useAppStore((s) => s.envBusy);
   const showToast = useAppStore((s) => s.showToast);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
   const envWizardSkippedAt = useAppStore((s) => s.envWizardSkippedAt);
@@ -191,6 +196,12 @@ export function EnvironmentSettings() {
   const [installConfirmDep, setInstallConfirmDep] = useState<string | null>(null);
   const [groupResetOpen, setGroupResetOpen] = useState(false);
   const [groupResetBusy, setGroupResetBusy] = useState(false);
+  // 细粒度操作态（事项 1/1c）：聚合条「重新检测 / 复制全部」与空态重试各锁自身，
+  // 不再消费全局 envBusy，避免无关联行变灰与禁用。store 的 envBusy 仍保留供
+  // 轮询与向导读取，此处仅不再用它做全组 disabled 门控。
+  // 三态：loading（圆圈）→ success（打勾）/ error（打叉）回显后自动复位。
+  // 各键独立槽位（R1-ENV-01）：聚合三按钮可并发，互不覆盖对方视觉态。
+  const { phases, run } = useActionFlash();
 
   useEffect(() => {
     let cancelled = false;
@@ -249,9 +260,9 @@ export function EnvironmentSettings() {
   );
 
   const copyForAgent = useCallback(
-    async (dep: EnvDepKey | 'all') => {
+    async (dep: EnvDepKey | 'all'): Promise<boolean> => {
       if (status === null) {
-        return;
+        return false;
       }
       // 载荷契约：{ dep, statusJson, baseline, runbook, copyContext }，
       // runbook 为对应依赖（`all` 时为未就绪项）的操作指引全文。
@@ -266,9 +277,31 @@ export function EnvironmentSettings() {
       };
       const ok = await copyTextToClipboard(JSON.stringify(payload));
       showToast(ok ? t.copySuccessClipboard : t.operationFailed, ok ? 'success' : 'error');
+      return ok;
     },
     [status, isTauri, locale, showToast, t],
   );
+
+  const handleRecheck = useCallback(() => {
+    if (flashPhaseFor(phases, 'recheck') === 'loading') {
+      return;
+    }
+    run('recheck', () => actions.recheckEnv());
+  }, [actions, phases, run]);
+
+  const handleFetch = useCallback(() => {
+    if (flashPhaseFor(phases, 'fetch') === 'loading') {
+      return;
+    }
+    run('fetch', () => actions.fetchEnvStatus());
+  }, [actions, phases, run]);
+
+  const handleCopyAll = useCallback(() => {
+    if (flashPhaseFor(phases, 'copyAll') === 'loading') {
+      return;
+    }
+    run('copyAll', () => copyForAgent('all'));
+  }, [copyForAgent, phases, run]);
 
   const rowActions: EnvDepRowActions = {
     selectSource: (dep, mode: EnvSourceMode) => actions.selectEnvSource(dep, mode),
@@ -347,6 +380,10 @@ export function EnvironmentSettings() {
 
   const readyCount = status === null ? 0 : countEnvReadyDeps(status);
   const unmetCount = status === null ? 0 : ENV_READY_TOTAL - readyCount;
+  // 三态取相（事项 1c）：loading 锁自身，success/error 回显期间同样锁自身防连击。
+  const fetchPhase: ActionPhase | null = flashPhaseFor(phases, 'fetch');
+  const copyAllPhase: ActionPhase | null = flashPhaseFor(phases, 'copyAll');
+  const recheckPhase: ActionPhase | null = flashPhaseFor(phases, 'recheck');
 
   const blockHint = (key: 'environmentBlockRuntime' | 'environmentBlockSystem') =>
     key === 'environmentBlockRuntime'
@@ -373,13 +410,22 @@ export function EnvironmentSettings() {
             <div className="adl-settings-row__control">
               <button
                 type="button"
-                className="adl-dsh-settings__action-btn"
-                disabled={envBusy}
-                onClick={() => {
-                  void actions.fetchEnvStatus();
-                }}
+                className={`adl-dsh-settings__action-btn${fetchPhase ? ' adl-btn-loading' : ''}`}
+                disabled={fetchPhase !== null}
+                aria-busy={fetchPhase === 'loading'}
+                onClick={handleFetch}
               >
-                {t.environmentRecheck}
+                <span className={fetchPhase ? 'adl-btn-loading__text' : undefined}>
+                  {t.environmentRecheck}
+                </span>
+                {fetchPhase ? (
+                  <span
+                    className={`adl-btn-loading__spinner${fetchPhase === 'loading' ? '' : ` adl-btn-loading__spinner--${fetchPhase}`}`}
+                    aria-hidden="true"
+                  >
+                    <FlashIcon phase={fetchPhase} />
+                  </span>
+                ) : null}
               </button>
             </div>
           </div>
@@ -430,28 +476,46 @@ export function EnvironmentSettings() {
                   <span aria-hidden="true">{' · '}</span>
                   <button
                     type="button"
-                    className="adl-settings-link"
+                    className={`adl-settings-link${copyAllPhase ? ' adl-btn-loading' : ''}`}
                     data-settings-row={t.environmentCopyAllForAgent}
-                    disabled={envBusy}
-                    onClick={() => {
-                      void copyForAgent('all');
-                    }}
+                    disabled={copyAllPhase !== null}
+                    aria-busy={copyAllPhase === 'loading'}
+                    onClick={handleCopyAll}
                   >
-                    {t.environmentCopyAllForAgent}
+                    <span className={copyAllPhase ? 'adl-btn-loading__text' : undefined}>
+                      {t.environmentCopyAllForAgent}
+                    </span>
+                    {copyAllPhase ? (
+                      <span
+                        className={`adl-btn-loading__spinner${copyAllPhase === 'loading' ? '' : ` adl-btn-loading__spinner--${copyAllPhase}`}`}
+                        aria-hidden="true"
+                      >
+                        <FlashIcon phase={copyAllPhase} />
+                      </span>
+                    ) : null}
                   </button>
                 </div>
               </div>
               <div className="adl-settings-row__control adl-settings-row__control--inline">
                 <button
                   type="button"
-                  className="adl-dsh-settings__action-btn"
+                  className={`adl-dsh-settings__action-btn${recheckPhase ? ' adl-btn-loading' : ''}`}
                   data-settings-row={t.environmentRecheck}
-                  disabled={envBusy}
-                  onClick={() => {
-                    void actions.recheckEnv();
-                  }}
+                  disabled={recheckPhase !== null}
+                  aria-busy={recheckPhase === 'loading'}
+                  onClick={handleRecheck}
                 >
-                  {t.environmentRecheck}
+                  <span className={recheckPhase ? 'adl-btn-loading__text' : undefined}>
+                    {t.environmentRecheck}
+                  </span>
+                  {recheckPhase ? (
+                    <span
+                      className={`adl-btn-loading__spinner${recheckPhase === 'loading' ? '' : ` adl-btn-loading__spinner--${recheckPhase}`}`}
+                      aria-hidden="true"
+                    >
+                      <FlashIcon phase={recheckPhase} />
+                    </span>
+                  ) : null}
                 </button>
               </div>
             </div>
@@ -468,7 +532,8 @@ export function EnvironmentSettings() {
                     key={dep}
                     dep={dep}
                     status={status}
-                    busy={envBusy}
+                    // 事项 1：不再下发全局 busy，行级各锁自身 pending（无关联行不置灰不断用）。
+                    busy={false}
                     isTauri={isTauri}
                     actions={rowActions}
                   />

@@ -6,6 +6,7 @@ import { IconEye, IconEyeOff, IconResetDefaults } from '../../icons';
 import { FontControl } from './FontControl';
 import { SettingsSelect } from './SettingsSelect';
 import { AgentAllowlistControl } from './AgentAllowlistControl';
+import { normalizeAgentSiteEntries } from '../../../shared/originWhitelist';
 import { getDefaultForSetting } from '../../../shared/defaultPreferences';
 import { isStringArrayEqual } from './settingsGroups';
 import { anchorFor } from './settingsSearchIndex';
@@ -28,14 +29,24 @@ function isDefaultValue(value: unknown, defaultValue: unknown): boolean {
   return value === defaultValue;
 }
 
-function ToggleControl({ item, onChange }: { item: SettingItem; onChange: (v: boolean) => void }) {
+export function ToggleControl({
+  item,
+  onChange,
+  testId,
+}: {
+  item: SettingItem;
+  onChange: (v: boolean) => void;
+  testId?: string;
+}) {
   const checked = !!item.value;
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={item.label}
       disabled={item.disabled}
+      data-testid={testId}
       className={`adl-settings-toggle${checked ? ' is-on' : ''}`}
       onClick={() => onChange(!checked)}
     >
@@ -194,6 +205,14 @@ export function SettingsControls({ items, onChange }: SettingsControlsProps) {
                   <span>{item.label}</span>
                 </span>
                 {item.description && <small>{item.description}</small>}
+                {/* 白名单空态提示放左侧副标题下方（事项 2b），control 列只留操作按钮。
+                    蓝色与 DSH 组提示小字同口径（事项 2c）。 */}
+                {item.type === 'allowlist' &&
+                  normalizeAgentSiteEntries(item.value).length === 0 && (
+                    <small className="adl-settings-allowlist__empty-hint">
+                      {t.settingsAgentAllowEmpty}
+                    </small>
+                  )}
               </div>
               <div className="adl-settings-row__control">
                 {item.type === 'toggle' && (

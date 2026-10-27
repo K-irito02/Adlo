@@ -1,11 +1,12 @@
 import React from 'react';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react';
 import type { AppInfo, SettingItem, SettingValue } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
 import { SettingsPanel } from './SettingsPanel';
+import { AgentAllowlistControl } from './AgentAllowlistControl';
 import { SETTINGS_ROW_ATTRIBUTE } from './settingsRowLocate';
 import {
   buildSettingsItems,
@@ -1955,10 +1956,81 @@ describe('SettingsPanel open-method group', () => {
       </TestProvider>,
     );
     // 可访问名称恒含 origin（同名别称可区分，复审 R2-03）。
+    // 条目收进「查看管理白名单」下拉菜单：先开菜单再移出（事项 2b）。
+    fireEvent.click(screen.getByRole('button', { name: 'settingsAgentAllowManage' }));
     fireEvent.click(
       screen.getByRole('button', { name: 'settingsAgentAllowRemove 工作台 http://127.0.0.1:3080' }),
     );
     expect(appliedPatch).toHaveBeenCalledWith({ agentSiteWhitelist: [] });
+    envState.tauri = false;
+  });
+
+  it('allowlist manage menu matches trigger width, red trash title, closes when emptied', () => {
+    setupStore();
+    envState.tauri = true;
+    const appInfo = openMethodAppInfo({
+      agentLinkIntercept: true,
+      agentSiteWhitelist: [{ alias: '工作台', origin: 'http://127.0.0.1:3080' }],
+    });
+    useAppStore.setState({ appInfo, activeSettingsGroup: 'openMethod' });
+    render(
+      <TestProvider>
+        <SettingsPanel settings={buildSettingsItems(mockT, appInfo)} onChangeSetting={() => {}} />
+      </TestProvider>,
+    );
+    const trigger = screen.getByRole('button', { name: 'settingsAgentAllowManage' });
+    fireEvent.click(trigger);
+    const menu = screen.getByRole('menu');
+    // 事项 2d：菜单卡片与触发按钮等宽（行内样式同源）。
+    expect((menu as HTMLElement).style.width).toBe(`${trigger.getBoundingClientRect().width}px`);
+    // 事项 2d：移出按钮用垃圾桶图标 + 原生 title + 红色悬停（与标签关闭按钮同语言）。
+    const trash = screen.getByRole('button', {
+      name: 'settingsAgentAllowRemove 工作台 http://127.0.0.1:3080',
+    });
+    expect(trash.getAttribute('title')).toBe('settingsAgentAllowRemoveTitle');
+    expect(trash.className).toContain('adl-icon-btn--danger-hover');
+    envState.tauri = false;
+  });
+
+  it('allowlist menu closes when entries are emptied (no residual sliver)', () => {
+    const allowItem = (value: SettingItem['value']): SettingItem => ({
+      id: 'openMethod:agentSiteWhitelist',
+      groupId: 'openMethod',
+      label: 'settingsAgentWhitelist',
+      type: 'allowlist',
+      value,
+    });
+    const entry = [{ alias: '工作台', origin: 'http://127.0.0.1:3080' }];
+    const { rerender } = render(
+      <AgentAllowlistControl item={allowItem(entry)} t={mockT} onChange={() => {}} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'settingsAgentAllowManage' }));
+    expect(screen.getByRole('menu')).not.toBeNull();
+    // 事项 2d：条目清零（父级回写空值重渲染）→ 菜单同步关闭，不留残留细条。
+    rerender(<AgentAllowlistControl item={allowItem([])} t={mockT} onChange={() => {}} />);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('allowlist dialog inputs disable native history popup', () => {
+    setupStore();
+    envState.tauri = true;
+    const appInfo = openMethodAppInfo({ agentLinkIntercept: true });
+    useAppStore.setState({ appInfo, activeSettingsGroup: 'openMethod' });
+    render(
+      <TestProvider>
+        <SettingsPanel settings={buildSettingsItems(mockT, appInfo)} onChangeSetting={() => {}} />
+      </TestProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'settingsAgentAllowAdd' }));
+    // 事项 2d：别称/网址输入框关闭原生历史填写记录弹窗。
+    expect(screen.getByPlaceholderText('settingsAgentAllowAliasPlaceholder')).toHaveAttribute(
+      'autocomplete',
+      'off',
+    );
+    expect(screen.getByPlaceholderText('settingsAgentAllowOriginPlaceholder')).toHaveAttribute(
+      'autocomplete',
+      'off',
+    );
     envState.tauri = false;
   });
 
@@ -1979,7 +2051,10 @@ describe('SettingsPanel open-method group', () => {
     const whitelistRow = () =>
       document.querySelector('[data-settings-anchor="openMethod:openMethod:agentSiteWhitelist"]');
     const addButton = () =>
-      whitelistRow()?.querySelector('.adl-settings-allowlist > button') as HTMLButtonElement | null;
+      whitelistRow() &&
+      (within(whitelistRow() as HTMLElement).queryByRole('button', {
+        name: 'settingsAgentAllowAdd',
+      }) as HTMLButtonElement | null);
 
     // 拦截关闭：白名单行不渲染（无论是否 Tauri）。
     envState.tauri = false;

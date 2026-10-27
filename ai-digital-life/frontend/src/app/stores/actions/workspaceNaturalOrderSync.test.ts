@@ -66,6 +66,8 @@ beforeEach(() => {
         fileOpenMethod: 'panel',
         agentLinkIntercept: false,
         agentSiteWhitelist: [],
+        browserSuspendWhitelistEnabled: false,
+        browserSuspendWhitelist: [],
       },
       recentLogs: [],
     },

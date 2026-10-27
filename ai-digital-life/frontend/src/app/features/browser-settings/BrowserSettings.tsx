@@ -34,12 +34,29 @@ export function BrowserSettings() {
   // 三块 at-default 判定与各块恢复按钮同口径（fail-open：未知视为非默认，
   // 共享 helper 见 browserAtDefault，与 SettingsPanel 未激活校正同源，事项 12c）。
   const suspendMs = useAppStore((s) => s.appInfo?.config?.browserInactiveTabSuspendMs);
+  const suspendWhitelistEnabled = useAppStore(
+    (s) => s.appInfo?.config?.browserSuspendWhitelistEnabled,
+  );
+  const suspendWhitelist = useAppStore((s) => s.appInfo?.config?.browserSuspendWhitelist);
   const setBrowserBlocksAtDefault = useAppStore((s) => s.setBrowserBlocksAtDefault);
   useEffect(() => {
     setBrowserBlocksAtDefault(
-      computeBrowserBlocksAtDefault(suspendMs, downloadSettings, downloadSettingsLoaded) ?? false,
+      computeBrowserBlocksAtDefault(
+        suspendMs,
+        suspendWhitelistEnabled,
+        suspendWhitelist,
+        downloadSettings,
+        downloadSettingsLoaded,
+      ) ?? false,
     );
-  }, [suspendMs, downloadSettings, downloadSettingsLoaded, setBrowserBlocksAtDefault]);
+  }, [
+    suspendMs,
+    suspendWhitelistEnabled,
+    suspendWhitelist,
+    downloadSettings,
+    downloadSettingsLoaded,
+    setBrowserBlocksAtDefault,
+  ]);
   // 卸载不再清 null（事项 12c）：保留最后已知聚合供侧边栏禁用判定，
   // 切出后由 SettingsPanel 未激活校正随 store 变化刷新。
 

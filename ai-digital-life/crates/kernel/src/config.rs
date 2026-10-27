@@ -82,6 +82,12 @@ pub struct AppConfig {
     /// 需拦截的智能体站点白名单（别称选填 + 整站匹配 origin）。
     #[serde(default)]
     pub agent_site_whitelist: Vec<AgentSiteAllowEntry>,
+    /// 标签挂起白名单总开关（默认关；开 + 名单非空才豁免）。
+    #[serde(default)]
+    pub browser_suspend_whitelist_enabled: bool,
+    /// 不受挂起时长影响的标签白名单（别称选填 + 整站匹配 origin，与智能体白名单同源归一）。
+    #[serde(default)]
+    pub browser_suspend_whitelist: Vec<AgentSiteAllowEntry>,
 }
 
 impl AppConfig {
@@ -177,6 +183,12 @@ impl AppConfig {
         if let Some(v) = patch.agent_site_whitelist.as_ref() {
             self.agent_site_whitelist = normalize_allowlist(v);
         }
+        if let Some(v) = patch.browser_suspend_whitelist_enabled {
+            self.browser_suspend_whitelist_enabled = v;
+        }
+        if let Some(v) = patch.browser_suspend_whitelist.as_ref() {
+            self.browser_suspend_whitelist = normalize_allowlist(v);
+        }
     }
 }
 
@@ -249,6 +261,8 @@ impl Default for AppConfig {
             file_open_method: FileOpenMethod::default(),
             agent_link_intercept: false,
             agent_site_whitelist: Vec::new(),
+            browser_suspend_whitelist_enabled: false,
+            browser_suspend_whitelist: Vec::new(),
         }
     }
 }
@@ -269,6 +283,7 @@ pub fn load_from(config_dir: &Path) -> Result<AppConfig, AppError> {
             // 落盘前的清洗只发生在补丁路径：手写/旧文件直接加载时同样归一，
             // 脏条目不进内存与注入层（事项 5 复审 N2）。
             cfg.agent_site_whitelist = normalize_allowlist(&cfg.agent_site_whitelist);
+            cfg.browser_suspend_whitelist = normalize_allowlist(&cfg.browser_suspend_whitelist);
             cfg
         })
         .map_err(|e| {
@@ -381,6 +396,8 @@ mod tests {
         assert_eq!(c.file_open_method, adl_types::types::config::FileOpenMethod::Panel);
         assert!(!c.agent_link_intercept);
         assert!(c.agent_site_whitelist.is_empty());
+        assert!(!c.browser_suspend_whitelist_enabled);
+        assert!(c.browser_suspend_whitelist.is_empty());
     }
 
     #[test]
@@ -419,6 +436,8 @@ mod tests {
         let loaded = load_from(&dir).unwrap();
         assert_eq!(loaded.link_open_method, adl_types::types::config::LinkOpenMethod::Panel);
         assert!(loaded.agent_site_whitelist.is_empty());
+        assert!(!loaded.browser_suspend_whitelist_enabled);
+        assert!(loaded.browser_suspend_whitelist.is_empty());
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -448,6 +467,34 @@ mod tests {
                 origin: "http://127.0.0.1:3080".to_string(),
             }]
         );
+    }
+
+    #[test]
+    fn apply_patch_sets_suspend_whitelist_fields() {
+        let mut config = AppConfig::default();
+        config.apply_patch(&AppPreferencePatch {
+            browser_suspend_whitelist_enabled: Some(true),
+            browser_suspend_whitelist: Some(vec![AgentSiteAllowEntry {
+                alias: Some(" 文档 ".to_string()),
+                origin: "https://docs.example.com".to_string(),
+            }]),
+            ..Default::default()
+        });
+        assert!(config.browser_suspend_whitelist_enabled);
+        assert_eq!(
+            config.browser_suspend_whitelist,
+            vec![AgentSiteAllowEntry {
+                alias: Some("文档".to_string()),
+                origin: "https://docs.example.com".to_string(),
+            }]
+        );
+        // 开关与名单相互独立：只关开关不清空名单。
+        config.apply_patch(&AppPreferencePatch {
+            browser_suspend_whitelist_enabled: Some(false),
+            ..Default::default()
+        });
+        assert!(!config.browser_suspend_whitelist_enabled);
+        assert_eq!(config.browser_suspend_whitelist.len(), 1);
     }
 }
 

@@ -41,6 +41,8 @@ pub fn build(config: &AppConfig, current_workspace: Option<WorkspaceMeta>) -> Ap
             file_open_method: config.file_open_method,
             agent_link_intercept: config.agent_link_intercept,
             agent_site_whitelist: config.agent_site_whitelist.clone(),
+            browser_suspend_whitelist_enabled: config.browser_suspend_whitelist_enabled,
+            browser_suspend_whitelist: config.browser_suspend_whitelist.clone(),
         },
         current_workspace,
         recent_logs: vec![LogEntrySummary {

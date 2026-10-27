@@ -48,8 +48,11 @@ function resetButton(testId: string): HTMLButtonElement {
   return btn as HTMLButtonElement;
 }
 
-/** 全量 config 播种（StorageSettings.test 同构字面量），挂起时长可覆盖。 */
-function setConfig(suspendMs: number) {
+/** 全量 config 播种（StorageSettings.test 同构字面量），挂起时长与白名单可覆盖。 */
+function setConfig(
+  suspendMs: number,
+  whitelist?: { enabled?: boolean; list?: { alias?: string; origin: string }[] },
+) {
   useAppStore.setState({
     appInfo: {
       appName: 'test',
@@ -74,6 +77,8 @@ function setConfig(suspendMs: number) {
         fileOpenMethod: 'panel',
         agentLinkIntercept: false,
         agentSiteWhitelist: [],
+        browserSuspendWhitelistEnabled: whitelist?.enabled ?? false,
+        browserSuspendWhitelist: whitelist?.list ?? [],
       },
       currentWorkspace: undefined,
       recentLogs: [],
@@ -158,7 +163,11 @@ describe('Browser settings group blocks', () => {
     expect(updatePreferences).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'confirm-btn' }));
     await waitFor(() =>
-      expect(updatePreferences).toHaveBeenCalledWith({ browserInactiveTabSuspendMs: 900_000 }),
+      expect(updatePreferences).toHaveBeenCalledWith({
+        browserInactiveTabSuspendMs: 900_000,
+        browserSuspendWhitelistEnabled: false,
+        browserSuspendWhitelist: [],
+      }),
     );
     await waitFor(() => expect(screen.queryByText('Reset Suspend delay?')).toBeNull());
   });
@@ -243,6 +252,53 @@ describe('Browser settings group blocks', () => {
     renderBrowser(t);
     const value = document.querySelector('.adl-settings-dropdown__value');
     expect(value?.textContent).toBe('15 min');
+  });
+
+  it('suspend whitelist toggle writes the switch patch', async () => {
+    setConfig(900_000);
+    renderBrowser();
+    const toggle = screen.getByRole('switch', { name: 'browserSuspendWhitelistEnabled' });
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(toggle);
+    await waitFor(() =>
+      expect(updatePreferences).toHaveBeenCalledWith({ browserSuspendWhitelistEnabled: true }),
+    );
+  });
+
+  it('suspend whitelist row is hidden while the switch is off', () => {
+    setConfig(900_000);
+    renderBrowser();
+    expect(document.querySelector('[data-settings-row="browserSuspendWhitelist"]')).toBeNull();
+  });
+
+  it('suspend whitelist row shows empty blue hint while the switch is on', () => {
+    setConfig(900_000, { enabled: true });
+    renderBrowser();
+    expect(document.querySelector('[data-settings-row="browserSuspendWhitelist"]')).not.toBeNull();
+    const hint = document.querySelector('.adl-settings-allowlist__empty-hint');
+    expect(hint?.textContent).toBe('browserSuspendWhitelistEmpty');
+    // 同语义分组：开关行与名单行之间无分隔线。
+    expect(
+      document
+        .querySelector('[data-settings-row="browserSuspendWhitelistEnabled"]')
+        ?.classList.contains('adl-settings-row--no-divider'),
+    ).toBe(true);
+  });
+
+  it('adding a suspend whitelist entry writes origins', async () => {
+    setConfig(900_000, { enabled: true });
+    renderBrowser();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsAgentAllowAdd' }));
+    fireEvent.change(screen.getByPlaceholderText('browserSuspendAllowOriginPlaceholder'), {
+      target: { value: 'https://docs.example.com/guide' },
+    });
+    const confirmButtons = screen.getAllByRole('button', { name: 'settingsAgentAllowAdd' });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]);
+    await waitFor(() =>
+      expect(updatePreferences).toHaveBeenCalledWith({
+        browserSuspendWhitelist: [{ origin: 'https://docs.example.com' }],
+      }),
+    );
   });
 
   it('download mode reset asks for confirmation and writes auto-save', async () => {
@@ -362,7 +418,11 @@ describe('Browser settings group reset (own confirm dialog)', () => {
     renderBrowser(confirmT);
     fireEvent.click(screen.getByRole('button', { name: 'confirm-btn' }));
     await waitFor(() => {
-      expect(updatePreferences).toHaveBeenCalledWith({ browserInactiveTabSuspendMs: 900_000 });
+      expect(updatePreferences).toHaveBeenCalledWith({
+        browserInactiveTabSuspendMs: 900_000,
+        browserSuspendWhitelistEnabled: false,
+        browserSuspendWhitelist: [],
+      });
       expect(updateDownloadSettings).toHaveBeenCalledWith('auto');
       expect(changeDownloadPath).toHaveBeenCalledWith('', false);
     });
@@ -429,7 +489,11 @@ describe('Browser settings group reset (own confirm dialog)', () => {
     });
     // 只写一次默认值，旧草稿（90 分钟 = 5_400_000）不得覆盖。
     expect(updatePreferences).toHaveBeenCalledTimes(1);
-    expect(updatePreferences).toHaveBeenCalledWith({ browserInactiveTabSuspendMs: 900_000 });
+    expect(updatePreferences).toHaveBeenCalledWith({
+      browserInactiveTabSuspendMs: 900_000,
+      browserSuspendWhitelistEnabled: false,
+      browserSuspendWhitelist: [],
+    });
     expect(screen.queryByText('browserGroupResetTitle')).toBeNull();
     // 组恢复成功后挂起块回到预设显示（H-1 回归锁定）：自定义输入消失。
     expect(screen.queryByRole('spinbutton')).toBeNull();

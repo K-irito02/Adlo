@@ -80,6 +80,8 @@ export interface AppPreferencePatch {
   fileOpenMethod?: FileOpenMethod;
   agentLinkIntercept?: boolean;
   agentSiteWhitelist?: AgentSiteAllowEntry[];
+  browserSuspendWhitelistEnabled?: boolean;
+  browserSuspendWhitelist?: AgentSiteAllowEntry[];
 }
 
 export interface ConfigSnapshot {
@@ -102,4 +104,6 @@ export interface ConfigSnapshot {
   fileOpenMethod: FileOpenMethod;
   agentLinkIntercept: boolean;
   agentSiteWhitelist: AgentSiteAllowEntry[];
+  browserSuspendWhitelistEnabled: boolean;
+  browserSuspendWhitelist: AgentSiteAllowEntry[];
 }

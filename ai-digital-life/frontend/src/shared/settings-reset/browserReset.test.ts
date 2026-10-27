@@ -22,6 +22,8 @@ describe('executeBrowserResetPlan', () => {
     expect((await executeBrowserResetPlan(d)).ok).toBe(true);
     expect(d.updatePreferences).toHaveBeenCalledWith({
       browserInactiveTabSuspendMs: DEFAULT_BROWSER_SUSPEND_MS,
+      browserSuspendWhitelistEnabled: false,
+      browserSuspendWhitelist: [],
     });
     expect(d.updateDownloadSettings).toHaveBeenCalledWith(DEFAULT_DOWNLOAD_MODE);
     expect(d.downloadPath.changeDownloadPath).toHaveBeenCalledWith('', false);

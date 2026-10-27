@@ -402,7 +402,7 @@ describe('EnvironmentSettings', () => {
     expect(node.textContent).not.toContain('environmentTaskPhaseInstalling');
   });
 
-  it('busy 时行内安装/卸载/重装按钮全部禁用', async () => {
+  it('全局 busy 不再禁用无关联行：安装/卸载/重装保持可用（事项 1 细粒度）', async () => {
     fetchEnvStatus.mockImplementation(async () => true);
     seedStore({ envBusy: true, envStatus: fixture() });
     const { container } = await renderWithRows();
@@ -410,16 +410,93 @@ describe('EnvironmentSettings', () => {
     expect(
       (within(node).getByRole('button', { name: 'environmentInstall' }) as HTMLButtonElement)
         .disabled,
-    ).toBe(true);
+    ).toBe(false);
     const git = container.querySelector('[data-testid="env-dep-git"]') as HTMLElement;
     expect(
       (within(git).getByRole('button', { name: 'environmentUninstall' }) as HTMLButtonElement)
         .disabled,
-    ).toBe(true);
+    ).toBe(false);
     expect(
       (within(git).getByRole('button', { name: 'environmentReinstall' }) as HTMLButtonElement)
         .disabled,
-    ).toBe(true);
+    ).toBe(false);
+  });
+
+  it('聚合按钮并发时各键视觉态互不覆盖（R1-ENV-01）', async () => {
+    let resolveRecheck!: (v: boolean) => void;
+    recheckEnv.mockImplementation(() => new Promise<boolean>((r) => (resolveRecheck = r)));
+    await renderWithRows();
+    const recheck = screen.getByRole('button', { name: 'environmentRecheck' });
+    fireEvent.click(recheck);
+    await waitFor(() => expect(recheck.getAttribute('aria-busy')).toBe('true'));
+    // 重测在途时再点复制全部：后完成的复制回显成功，先点的重测仍保持 loading。
+    fireEvent.click(screen.getByRole('button', { name: 'environmentCopyAllForAgent' }));
+    await waitFor(() => {
+      expect(
+        screen
+          .getByRole('button', { name: 'environmentCopyAllForAgent' })
+          .querySelector('.adl-btn-loading__spinner--success'),
+      ).not.toBeNull();
+    });
+    expect(recheck.getAttribute('aria-busy')).toBe('true');
+    resolveRecheck(true);
+    await waitFor(() => {
+      expect(recheck.querySelector('.adl-btn-loading__spinner--success')).not.toBeNull();
+    });
+  });
+
+  it('重测成功后打勾回显并自动复位（事项 1c）', async () => {
+    recheckEnv.mockResolvedValue(true);
+    await renderWithRows();
+    const recheck = screen.getByRole('button', { name: 'environmentRecheck' });
+    fireEvent.click(recheck);
+    // 成功：覆盖层打勾（成功色），按钮尺寸不变（文案占位）。
+    await waitFor(() => {
+      expect(recheck.querySelector('.adl-btn-loading__spinner--success')).not.toBeNull();
+    });
+    // 回显约 1.4s 后自动复位回文案。
+    await waitFor(
+      () => {
+        expect(recheck.querySelector('.adl-btn-loading')).toBeNull();
+      },
+      { timeout: 3000 },
+    );
+    expect(recheck.textContent).toContain('environmentRecheck');
+  });
+
+  it('重测失败后打叉回显（事项 1c）', async () => {
+    recheckEnv.mockResolvedValue(false);
+    await renderWithRows();
+    const recheck = screen.getByRole('button', { name: 'environmentRecheck' });
+    fireEvent.click(recheck);
+    await waitFor(() => {
+      expect(recheck.querySelector('.adl-btn-loading__spinner--error')).not.toBeNull();
+    });
+  });
+
+  it('来源下拉加载时隐藏文案、圆圈居中显示在框内（事项 1b/1c）', async () => {
+    let resolveSelect!: (v: boolean) => void;
+    selectEnvSource.mockImplementation(
+      () => new Promise<boolean>((resolve) => (resolveSelect = resolve)),
+    );
+    const { container } = await renderWithRows();
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    fireEvent.click(within(node).getByRole('button', { name: 'environmentSwitch' }));
+    fireEvent.click(screen.getByRole('option', { name: 'environmentSourceSystem' }));
+    const trigger = within(node).getByRole('button', { name: 'environmentSwitch' });
+    // 加载态：文案隐藏占位（尺寸不变）、图标覆盖层框内居中（事项 1d）。
+    await waitFor(() => {
+      expect(trigger.getAttribute('aria-busy')).toBe('true');
+    });
+    expect(trigger.querySelector('.adl-settings-dropdown__value')?.className).toContain(
+      'adl-btn-loading__text',
+    );
+    expect(trigger.querySelector('.adl-btn-loading__spinner')).not.toBeNull();
+    resolveSelect(true);
+    // 成功：框内打勾回显。
+    await waitFor(() => {
+      expect(trigger.querySelector('.adl-btn-loading__spinner--success')).not.toBeNull();
+    });
   });
 
   it('聚合条重测调 recheckEnv，复制全部写整包 JSON', async () => {

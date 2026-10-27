@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { SettingsSelect } from '@components/settings/SettingsSelect';
+import { FlashIcon, flashPhaseFor, useActionFlash } from '@components/settings/actionFlash';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
 import type {
   EnvDependencyState,
@@ -38,7 +39,8 @@ export interface EnvDepRowActions {
   /** 按当前已装版本重装（复用安装动作）。 */
   reinstall: (dep: string, version: string) => Promise<unknown>;
   setCustomPath: (dep: string, path: string) => Promise<unknown>;
-  copyForAgent: (dep: EnvDepKey | 'all') => Promise<void>;
+  /** 复制诊断载荷：fulfill 值为 false 判失败（供调用方三态回显），其它判成功。 */
+  copyForAgent: (dep: EnvDepKey | 'all') => Promise<unknown>;
   goGroup: (group: 'dsh' | 'network') => void;
   openExternal: (url: string) => void;
 }
@@ -144,7 +146,7 @@ function taskPhaseText(t: ReturnType<typeof useTCopy>['t'], phase: EnvTask['phas
 export function EnvDepRow({
   dep,
   status,
-  busy,
+  busy: _globalBusy,
   isTauri,
   actions,
   compact = false,
@@ -154,13 +156,30 @@ export function EnvDepRow({
   const [pathFocused, setPathFocused] = useState(false);
   // 卸载两段确认（照抄 DshVersionManagement：首击武装，再击执行）。
   const [uninstallArmed, setUninstallArmed] = useState(false);
+  // 行级细粒度操作态（事项 1/1c）：行内互斥、各行独立，不再消费全局 busy。
+  // 全局 busy（store envBusy）在轮询/任务期间仍为 true，但此处有意忽略，
+  // 避免无关联行变灰与禁用；进行中任务由行内 taskForDep 进度条表达。
+  // _globalBusy 仅保留 props 兼容（向导仍在传），此处不参与 disabled 判定。
+  void _globalBusy;
+  // 三态：loading（圆圈）→ success（打勾）/ error（打叉）回显后自动复位。
+  // 行级互斥（R1-ENV-03）：同 dep 同一时刻只跑一个操作（防同行并发改同一依赖），
+  // 故 ownActive 取整行任一键活跃；跨行隔离不受影响。
+  const { phases, run } = useActionFlash();
+  const phaseOf = (key: string) => flashPhaseFor(phases, key);
+  const ownActive = Object.keys(phases).length > 0;
+  // 各控件取相（事项 1c）：来源下拉合并 source/path 两键。
+  const copyPhase = phaseOf('copy');
+  const selectPhase = phaseOf('source') ?? phaseOf('path');
+  const uninstallPhase = phaseOf('uninstall');
+  const reinstallPhase = phaseOf('reinstall');
 
   const section = depSection(status, dep);
   // 浏览器模式：安装/卸载/重装等变更动作置灰 + 追加仅桌面说明；来源切换与
-  // 指定路径是本地配置（浏览器模式也可用），只受 busy 门控（R1-07/R1-14）。
+  // 指定路径是本地配置（浏览器模式也可用），只受行级操作态门控（R1-07/R1-14）。
+  // 事项 1：移除全局 busy 门控，各行只锁自身；无关联行保持可用。
   const browserGated = !isTauri && OPERABLE_DEP_SET.has(dep);
-  const controlsDisabled = busy || browserGated;
-  const localControlsDisabled = busy;
+  const controlsDisabled = browserGated || ownActive;
+  const localControlsDisabled = ownActive;
 
   const depTitle =
     dep === 'net'
@@ -226,7 +245,7 @@ export function EnvDepRow({
   }, [customPath, dep]);
   const pathValue = pathDraft ?? customPath;
   const handlePathBlur = () => {
-    if (section === null || pathDraft === null) {
+    if (section === null || pathDraft === null || phaseOf('path') === 'loading') {
       return;
     }
     const next = pathDraft.trim();
@@ -234,11 +253,14 @@ export function EnvDepRow({
     if (next === customPath) {
       return;
     }
-    void Promise.resolve(actions.setCustomPath(dep, next)).then((ok) => {
-      if (ok === false) {
-        setPathDraft(customPath);
-      }
-    });
+    run('path', () =>
+      Promise.resolve(actions.setCustomPath(dep, next)).then((ok) => {
+        if (ok === false) {
+          setPathDraft(customPath);
+        }
+        return ok;
+      }),
+    );
   };
 
   // task.error 非空 = 后端终态失败：不再当作进行中任务渲染，行回到可操作态
@@ -316,17 +338,41 @@ export function EnvDepRow({
       setUninstallArmed(true);
       return;
     }
+    if (phaseOf('uninstall') === 'loading') {
+      return;
+    }
     setUninstallArmed(false);
-    void actions.uninstall(dep, section.installedVersion);
+    const version = section.installedVersion;
+    run('uninstall', () => Promise.resolve(actions.uninstall(dep, version)));
+  };
+
+  const handleCopyClick = () => {
+    if (phaseOf('copy') === 'loading') {
+      return;
+    }
+    run('copy', () => Promise.resolve(actions.copyForAgent(dep)));
+  };
+
+  const handleSourceChange = (v: string) => {
+    if (phaseOf('source') === 'loading') {
+      return;
+    }
+    // 来源变更会重算可卸载性：先解除武装，避免跨来源残留危险态。
+    setUninstallArmed(false);
+    run('source', () => Promise.resolve(actions.selectSource(dep, v as EnvSourceMode)));
   };
 
   const handleReinstallClick = () => {
     if (!showReinstall || section === null || section.installedVersion === null) {
       return;
     }
+    if (phaseOf('reinstall') === 'loading') {
+      return;
+    }
     // 重装是另一条执行路径：取消已武装的卸载，避免残留危险态误触。
     setUninstallArmed(false);
-    void actions.reinstall(dep, section.installedVersion);
+    const version = section.installedVersion;
+    run('reinstall', () => Promise.resolve(actions.reinstall(dep, version)));
   };
 
   const renderStatusLine = () => {
@@ -464,14 +510,23 @@ export function EnvDepRow({
             <small>
               <button
                 type="button"
-                className="adl-dsh-settings__inline-link"
+                className={`adl-dsh-settings__inline-link${copyPhase ? ' adl-btn-loading' : ''}`}
                 data-settings-row={dep === 'node' ? t.environmentCopyForAgent : undefined}
-                disabled={busy}
-                onClick={() => {
-                  void actions.copyForAgent(dep);
-                }}
+                disabled={ownActive}
+                aria-busy={copyPhase === 'loading'}
+                onClick={handleCopyClick}
               >
-                {t.environmentCopyForAgentNote}
+                <span className={copyPhase ? 'adl-btn-loading__text' : undefined}>
+                  {t.environmentCopyForAgentNote}
+                </span>
+                {copyPhase ? (
+                  <span
+                    className={`adl-btn-loading__spinner${copyPhase === 'loading' ? '' : ` adl-btn-loading__spinner--${copyPhase}`}`}
+                    aria-hidden="true"
+                  >
+                    <FlashIcon phase={copyPhase} />
+                  </span>
+                ) : null}
               </button>
               {OFFICIAL_URLS[dep] !== undefined ? (
                 <>
@@ -545,13 +600,10 @@ export function EnvDepRow({
                   <SettingsSelect
                     value={operableSection.mode}
                     options={sourceOptions}
-                    onChange={(v) => {
-                      // 来源变更会重算可卸载性：先解除武装，避免跨来源残留危险态。
-                      setUninstallArmed(false);
-                      void actions.selectSource(dep, v as EnvSourceMode);
-                    }}
+                    onChange={handleSourceChange}
                     label={t.environmentSwitch}
                     disabled={localControlsDisabled}
+                    loading={selectPhase ?? false}
                   />
                 </span>
               ) : null}
@@ -572,13 +624,22 @@ export function EnvDepRow({
                 {showOfflineCopy ? (
                   <button
                     type="button"
-                    className="adl-dsh-settings__action-btn"
-                    disabled={busy}
-                    onClick={() => {
-                      void actions.copyForAgent(dep);
-                    }}
+                    className={`adl-dsh-settings__action-btn${copyPhase ? ' adl-btn-loading' : ''}`}
+                    disabled={ownActive}
+                    aria-busy={copyPhase === 'loading'}
+                    onClick={handleCopyClick}
                   >
-                    {t.environmentCopyForAgent}
+                    <span className={copyPhase ? 'adl-btn-loading__text' : undefined}>
+                      {t.environmentCopyForAgent}
+                    </span>
+                    {copyPhase ? (
+                      <span
+                        className={`adl-btn-loading__spinner${copyPhase === 'loading' ? '' : ` adl-btn-loading__spinner--${copyPhase}`}`}
+                        aria-hidden="true"
+                      >
+                        <FlashIcon phase={copyPhase} />
+                      </span>
+                    ) : null}
                   </button>
                 ) : null}
                 {showUninstallReinstall ? (
@@ -587,26 +648,48 @@ export function EnvDepRow({
                       type="button"
                       className={`adl-dsh-settings__action-btn${
                         uninstallArmed ? ' adl-dsh-settings__action-btn--danger' : ''
-                      }`}
+                      }${uninstallPhase ? ' adl-btn-loading' : ''}`}
                       data-settings-row={
                         dep === firstUninstallDep ? t.environmentUninstall : undefined
                       }
                       disabled={controlsDisabled}
+                      aria-busy={uninstallPhase === 'loading'}
                       onClick={handleUninstallClick}
                     >
-                      {t.environmentUninstall}
+                      <span className={uninstallPhase ? 'adl-btn-loading__text' : undefined}>
+                        {t.environmentUninstall}
+                      </span>
+                      {uninstallPhase ? (
+                        <span
+                          className={`adl-btn-loading__spinner${uninstallPhase === 'loading' ? '' : ` adl-btn-loading__spinner--${uninstallPhase}`}`}
+                          aria-hidden="true"
+                        >
+                          <FlashIcon phase={uninstallPhase} />
+                        </span>
+                      ) : null}
                     </button>
                     {showReinstall ? (
                       <button
                         type="button"
-                        className="adl-dsh-settings__action-btn"
+                        className={`adl-dsh-settings__action-btn${reinstallPhase ? ' adl-btn-loading' : ''}`}
                         data-settings-row={
                           dep === firstReinstallDep ? t.environmentReinstall : undefined
                         }
                         disabled={controlsDisabled}
+                        aria-busy={reinstallPhase === 'loading'}
                         onClick={handleReinstallClick}
                       >
-                        {t.environmentReinstall}
+                        <span className={reinstallPhase ? 'adl-btn-loading__text' : undefined}>
+                          {t.environmentReinstall}
+                        </span>
+                        {reinstallPhase ? (
+                          <span
+                            className={`adl-btn-loading__spinner${reinstallPhase === 'loading' ? '' : ` adl-btn-loading__spinner--${reinstallPhase}`}`}
+                            aria-hidden="true"
+                          >
+                            <FlashIcon phase={reinstallPhase} />
+                          </span>
+                        ) : null}
                       </button>
                     ) : null}
                   </>

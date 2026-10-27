@@ -529,6 +529,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     }
     const value = computeBrowserBlocksAtDefault(
       config?.browserInactiveTabSuspendMs,
+      config?.browserSuspendWhitelistEnabled,
+      config?.browserSuspendWhitelist,
       downloadSettings,
       downloadSettingsLoaded,
     );
