@@ -369,6 +369,7 @@ mod tests {
     /// 逐格式 NoClear）。需要 Windows 剪贴板，会临时占用系统剪贴板。
     ///
     /// 合并为单个测试：同一 crate 内的测试默认并行，多个剪贴板测试会互相争用全局剪贴板。
+    #[ignore = "requires interactive Windows clipboard session (OSError 1418 without one); OS env limitation — run manually with `cargo test -p adl-clipboard -- --ignored`"]
     #[test]
     fn apply_clears_old_formats_but_keeps_all_new_ones() {
         // (1) 多格式共存：Rtf 写入不得抹掉先前写入的 Unicode（默认变体会 EmptyClipboard）。
