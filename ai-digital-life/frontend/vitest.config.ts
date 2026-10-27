@@ -29,7 +29,9 @@ export default defineConfig({
     pool: "forks",
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
-    exclude: ["**/node_modules/**", "**/dist/**"],
+    // scripts/ 下是 node:test 风格的脚本单测（由根 test:scripts 经 node --test 运行），
+    // vitest 误收会报 "No test suite found" 致 check:full 常红（2026-10-28）。
+    exclude: ["**/node_modules/**", "**/dist/**", "scripts/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
