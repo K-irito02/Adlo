@@ -16,6 +16,8 @@ alwaysApply: true
 3. 阅读中文 diff / 日志：先 `git diff --output=<file>`（或 `git show > 文件`）落盘，再用 `read` 打开；**不要**依赖终端回显或 `Select-String` / `ForEach-Object` 管道（本机按 GBK 解码，必出乱码）。
 4. 递归检索用 `grep` 工具或 `git grep`；**禁止**从仓库根 `Get-ChildItem -Recurse`（`references/`、`node_modules/`、`target/` 会让枚举超时）。需要写文件时限定具体子目录。
 5. 批量修改后必须自检：`git diff --check`、`node ai-digital-life/scripts/check-source-hygiene.mjs`、`pnpm --dir ai-digital-life run scripts:format:check`。
+6. `git diff --output=<file>` 必须写在 `--` 之前（`git diff HEAD --output=<file> -- <path>`）；写在 `--` 之后会被当作 pathspec，快照落空还刷屏（2026-10-27，49 个快照重跑）。
+7. 中文命令输出在工具回显里按 GBK 解码必乱码：凡需断言中文内容，一律落盘后用 `read` / `grep` 验，不看回显。
 
 ## 自检
 

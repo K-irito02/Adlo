@@ -161,6 +161,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 
 - **定位受影响范围：** `git diff --name-only` → Rust 按 crate（`cargo test -p <crate>`）、前端按 `__tests__/` 相关文件（`vitest run <文件>`）；同时保持 clippy/tsc 通过（`cargo check` 不单跑，clippy 已覆盖编译）。
 - **默认只跑受影响部分**（修复后、每轮审查后、收尾均同）。全量命令（如 `cargo test --workspace` / 前端全量 `test`）仅在变更面广、或分级已通过但需最终兜底时，经用户同意才执行；前后端两组同一条消息并行跑，禁串行。
+- **先单后全：** 迭代期（P2 修复、4e 每轮修复后）先跑受影响的单文件用例；全量门禁（前端 `check:changed` / Rust 受影响 crate 全量）只在落盘与收尾前各跑一次，避免全量连跑空转（2026-10-27：单次全量约 2 分钟）。
 - 仅修工具报告的问题；自动修复引入新变更则重跑类型检查；3 次不通过 → 停并报告等指示。
 - flaky 判定：疑似用例连跑 5 次，≤2 败视为 flaky（验收排除并记录），>2 败视为真失败。
 
