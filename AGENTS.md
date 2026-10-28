@@ -70,7 +70,7 @@
 - 未发布产品的开发阶段禁止添加/保留数据格式兼容或旧版本迁移代码（产品发布后需添加时须先与用户确认）
 - 禁止「向后兼容」重导出或类似仅为旧导入路径保留的兼容层
 - 未经用户允许禁止擅自使用蓝色（含 `var(--accent)` 系）作为特殊提示警醒色、填充色等；此类场景一律使用白/灰/黑中性色（明度/纯度自行设计，须兼顾亮暗主题可见性），需其它颜色时先与用户确认（规范见 `.agents/rules/hint-color-usage.md`）
-- 从仓库根递归扫描或全仓无路径限定的检索（`references/`、`node_modules/`、`target/` 会让枚举超时；内容检索用 `grep` 工具或 `git grep`，文件名/扩展名检索用 `glob` 工具或 `git ls-files`）
+- 从仓库根递归扫描或全仓无路径限定的检索（`references/`、`node_modules/`、`target/` 会让枚举超时）。**内容检索一律用 `grep` 工具**；禁止 PowerShell `Select-String`（CJK 输出乱码）与带引号的 `git grep`（PowerShell 转义会报 `fatal: unable to resolve revision`）。文件名/扩展名检索用 `glob` 工具或 `git ls-files`
 - 用 shell 内联命令对源码/文档做批量文本修改（`-replace`/`Add-Content`/here-string/`sed`，不限是否含中文；会破坏 CJK、写入字面量 `\n`、静默失效，见 [shell-encoding.md](.agents/rules/shell-encoding.md)）
 - 并行开发时两个会话共用同一工作树目录、共享 `CARGO_TARGET_DIR`、或在分支工作树写 `.workbuddy/memory`（见技能 [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md)）
 
@@ -136,4 +136,5 @@ Issue 与 spec 存放在 GitHub Issues（`K-irito02/Kora`），使用 `gh` CLI�
 - [SKILLS.md](./SKILLS.md) — 技能系统（来源分类、三技能目录、同步规则、技能摘要）
 - [SECURITY.md](./SECURITY.md) — 安全策略
 - [docs/development/project-engineering-constraints.md](./docs/development/project-engineering-constraints.md) — 工程约束
+- [docs/development/adding-an-ipc-domain.md](./docs/development/adding-an-ipc-domain.md) — 新增 IPC 域的端到端接线清单（Rust / 四端桥接 / store / UI / 测试）
 - [docs/knowledge-base/README.md](./docs/knowledge-base/README.md) — 经验教训与总结索引

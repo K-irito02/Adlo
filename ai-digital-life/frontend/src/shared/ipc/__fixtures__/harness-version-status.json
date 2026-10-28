@@ -1,0 +1,9 @@
+{
+  "currentSelected": "1.19.5",
+  "installed": ["1.19.5"],
+  "latestAvailable": "1.19.5",
+  "hasUpdate": false,
+  "prereleaseAvailable": "0.0.0-beta-202608110357",
+  "hasPrereleaseUpdate": true,
+  "prereleaseUnknown": false
+}

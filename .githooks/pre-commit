@@ -15,10 +15,13 @@ else
   echo "[pre-commit] eslint: no staged frontend sources, skipped"
 fi
 
-# 2) staged 可格式化文件：prettier --check（只报不改；修：pnpm --dir frontend lint:fix）
+# 2) staged 可格式化文件：prettier --write 自动修复后重新暂存（只动暂存文件）
 PREFILES="$(echo "$STAGED" | grep -E '^ai-digital-life/frontend/.*\.(ts|tsx|js|jsx|mjs|cjs|css|json|md)$' || true)"
 if [ -n "$PREFILES" ]; then
-  echo "$PREFILES" | sed 's|^ai-digital-life/frontend/||' | ( cd "$ROOT/ai-digital-life/frontend" && xargs -d '\n' npx prettier --check )
+  echo "$PREFILES" | sed 's|^ai-digital-life/frontend/||' | ( cd "$ROOT/ai-digital-life/frontend" && xargs -d '\n' npx prettier --write )
+  echo "$PREFILES" | while IFS= read -r f; do
+    [ -n "$f" ] && git -C "$ROOT" add -- "$f"
+  done
 else
   echo "[pre-commit] prettier: no staged formattable files, skipped"
 fi

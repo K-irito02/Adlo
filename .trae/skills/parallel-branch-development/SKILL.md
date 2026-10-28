@@ -326,7 +326,7 @@ git -C "$ROOT" worktree prune
 |------|------|------|------|
 | `branch 'X' is already checked out at '<path>'` | 分支被别的工作树占用 | 聚焦既有工作树（§3.2），或换分支名新建 | `--force` 抢占 |
 | 被要求在现有工作树上直接开新分支 | 分支固定绑定，无批准不得变更 | 走 §3.1 新建，或走 §3.3 特批 | 自行 `switch -c` / `switch <other>` |
-| `index.lock exists` | 并发 git 操作 | 只操作自己的工作树，报告用户 | 删 `.git/index.lock` |
+| `index.lock exists` | 并发 git 操作 / 上次中断残留 | 先等待 3–5 秒重试；仍存在则报告用户 | 删 `.git/index.lock` |
 | `switch` 报本地改动会被覆盖 | 工作区脏 | 提交或 stash 后再切 | `--discard-changes` |
 | 构建很快通过但行为是旧的 | stale 产物 | 先 `cargo build` 再运行，核对 `git log -1` | 跑旧 exe 下结论 |
 | 切换后编译量巨大 | lock / profile / 工具链变化 | 正常，重跑 `cargo check` | 删 `Cargo.lock` |

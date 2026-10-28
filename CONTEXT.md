@@ -64,6 +64,22 @@ Tracing 日志系统的配置层，支持文件输出和结构化字段。
 ### Sidecar
 桌面端启动的独立后端子进程（当前 Tauri 模式）。未来移动端可通过 SSH/Sidecar 连接桌面端或服务器。
 
+### DSH 版本 UI 结构（导航）
+
+`features/dsh/DshVersionManagement.tsx` 体积大，按区块定位再读：
+
+| 区块 | 关键内容 |
+|---|---|
+| 状态读数 | `readout` / `runningReadout` / `systemReadout`：当前版本、来源副行、运行地址 |
+| 版本来源 | `sourceMode` / `saveVersionSource` / 延迟生效（`pendingMode`） |
+| 双通道 | `stable` / `prerelease` 分桶、`pickEffective`、下拉框与菜单量宽（`menuWidths`） |
+| 版本行 | `renderVersionRowAction`：安装/卸载/重装/切换按钮与状态徽章 |
+| 进度与取消 | `versionBusy`、`installingVersion`、`cancelling`、任务轮询 |
+| 卸载确认 | `uninstallConfirmVersion`（仅当前选中版本两次点击） |
+
+组外壳 `DshSettings.tsx` 负责组级重置与源摘要；状态在 `stores/slices/dshSlice.ts`、动作在 `stores/actions/dshActions.ts`。
+迁移到通用版本卡片见 issue #2–#4（本仓库 tracker）。
+
 ### DSH 宿主渲染
 
 dsh 基于 npm 发布，启动方式为 `npx @deepseek-ai/dsh@<version> --profile web --no-open`。在应用中作为**普通浏览器标签**承载于中心的多标签宿主（`location='center'` + `isDsh`），面板↔中心为同一原生 WebView 的位置移动；关闭 dsh 标签即彻底退出进程（`dsh.close(false)`），不跨重启持久化。
@@ -109,7 +125,7 @@ dsh 与 OpenCode CLI 共用的版本内核，位于 `crates/harness-version/`：
 - **Mock Bridge**：纯前端模拟，用于测试
 
 ### IPC 域拆分
-桥接层按功能域拆分为多个子接口文件（`shared/ipc/` 目录），每个域文件定义该域的接口类型。
+桥接层按功能域拆分为多个子接口文件（`shared/ipc/` 目录），每个域文件定义该域的接口类型。新增域时按 [新增 IPC 域清单](./docs/development/adding-an-ipc-domain.md) 逐项接线（Rust handler/路由、四端桥接、store、UI、i18n、契约测试）。
 
 ### 中心标签（Center Tab）
 中心多标签宿主中的标签，`kind` 为 `launcher`（统一入口页 `CenterEntryPage`，三入口：deepseek harness / 浏览器 / 终端；标签与 `+` 按钮显示「新建入口页」）/`browser`（浏览器视图）/`terminal`（终端视图）。浏览器/终端中心标签通过 `refId` 指向底层标签；底层标签以 `location: 'panel' | 'center'` 标记所属宿主，位置排他。面板的破坏性操作（关闭/清空/删除）跳过 `location === 'center'` 的标签；标题栏标签条支持切换、真关闭与移回对应面板。

@@ -74,7 +74,7 @@
 |------|------|
 | 颜色 | 必须使用 CSS 自定义属性 `var(--…)` |
 | 图标 | SVG 格式，继承 `currentColor`，禁止 emoji。动画反馈场景可例外使用 `lucide-animated`（MIT 许可）|
-| Tooltip | 自定义 Tooltip 组件与原生 `title` 均可使用，具体方案开发时由用户决策 |
+| Tooltip | 统一使用自定义 Tooltip 组件；原生 `title` 仅用于无交互的补充说明 |
 | 窗口 | 最小宽度 640px |
 
 详见 [docs/design-system/](../docs/design-system/)

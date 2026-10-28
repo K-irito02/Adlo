@@ -1347,4 +1347,24 @@ mod tests {
         );
         let _ = std::fs::remove_dir_all(&root);
     }
+
+    /// 跨语言契约：`VersionStatus` 的序列化必须与前端共享夹具逐字段一致。
+    /// 改字段/改 camelCase 命名时，两侧测试会同时失败（夹具是唯一真源）。
+    #[test]
+    fn version_status_matches_shared_frontend_fixture() {
+        let raw = include_str!(
+            "../../../frontend/src/shared/ipc/__fixtures__/harness-version-status.json"
+        );
+        let expected: serde_json::Value = serde_json::from_str(raw).expect("parse fixture");
+        let status = VersionStatus {
+            current_selected: Some("1.19.5".into()),
+            installed: vec!["1.19.5".into()],
+            latest_available: Some("1.19.5".into()),
+            has_update: false,
+            prerelease_available: Some("0.0.0-beta-202608110357".into()),
+            has_prerelease_update: true,
+            prerelease_unknown: false,
+        };
+        assert_eq!(serde_json::to_value(&status).expect("serialize"), expected);
+    }
 }
