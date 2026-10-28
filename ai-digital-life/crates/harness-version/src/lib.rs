@@ -491,11 +491,13 @@ pub async fn update_for(
     data_dir: &Path,
     task: &ProgressTask,
 ) -> Result<String, AppError> {
+    let dist_latest = latest_available_for(spec, data_dir).await.ok().flatten();
     let target = match fetch_catalog_for(spec, data_dir).await {
-        Ok(catalog) => resolve_stable_latest(&catalog, None),
+        Ok(catalog) => resolve_stable_latest(&catalog, dist_latest.as_deref())
+            .or_else(|| dist_latest.clone()),
         Err(e) => {
             tracing::debug!(error = %e, harness = spec.id.key(), "harness-version: update falls back to dist-tag latest");
-            latest_available_for(spec, data_dir).await.ok().flatten()
+            dist_latest.clone()
         },
     }
     .ok_or_else(|| AppError::NotFound("no release published upstream".into()))?;
