@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup, fireEvent, screen, waitFor, within, act } from '@testing-library/react';
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
-import { HarnessVersionCard } from './HarnessVersionCard';
+import { HarnessVersionCard, type HarnessVersionSlots } from './HarnessVersionCard';
 import type {
   HarnessVersionBridge,
   HarnessVersionResult,
@@ -14,10 +14,13 @@ const mockT = new Proxy({} as Record<string, string>, {
   get: (_, key) => (typeof key === 'string' ? key : ''),
 }) as unknown as CopyDict;
 
-function renderCard(bridge: HarnessVersionBridge<unknown>) {
+function renderCard(
+  bridge: HarnessVersionBridge<unknown>,
+  slots?: HarnessVersionSlots<unknown>,
+) {
   return render(
     <TCopyProvider t={mockT} locale="en-US">
-      <HarnessVersionCard bridge={bridge} />
+      <HarnessVersionCard bridge={bridge} slots={slots} />
     </TCopyProvider>,
   );
 }
@@ -217,5 +220,115 @@ describe('HarnessVersionCard', () => {
 
     await waitFor(() => expect(screen.getByText('harnessVersionLoadFailed')).toBeInTheDocument());
     expect(screen.queryByText('harnessVersionMissingBanner')).not.toBeInTheDocument();
+  });
+
+  it('hides host-managed rows when the source reports an unmanaged (system) install', async () => {
+    renderCard(
+      makeBridge({
+        initial: snapshot({
+          source: {
+            mode: 'system',
+            effective: 'system',
+            systemPath: 'C:/Program Files/dsh/dsh.exe',
+            managed: false,
+          },
+        }),
+      }),
+    );
+
+    await waitFor(() => expect(screen.getByText('harnessVersionCurrent')).toBeInTheDocument());
+    // 管理行整体隐藏：只剩来源下拉一个 combobox。
+    expect(screen.getAllByRole('combobox')).toHaveLength(1);
+    expect(screen.queryByText('harnessVersionStable')).not.toBeInTheDocument();
+    expect(screen.queryByText('harnessVersionManual')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'harnessVersionUpdateAction' })).toBeNull();
+    // 来源行与系统路径读数仍可见（用户要能判断当前连的是系统安装）。
+    expect(screen.getByText('harnessVersionSourceTitle')).toBeInTheDocument();
+    expect(screen.getByText('C:/Program Files/dsh/dsh.exe')).toBeInTheDocument();
+  });
+
+  it('lets the adapter own the host block header', async () => {
+    const bridge = makeBridge();
+    const { unmount } = renderCard(bridge, { hideHeader: true });
+    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    expect(screen.queryByText('harnessVersionTitle')).not.toBeInTheDocument();
+    unmount();
+
+    renderCard(makeBridge());
+    await waitFor(() => expect(screen.getByText('harnessVersionTitle')).toBeInTheDocument());
+  });
+
+  it('prefers the adapter-provided success message over the generic one', async () => {
+    const bridge = makeBridge();
+    bridge.install = vi.fn(async () => ({ ok: true, message: 'dshInstalledRestarted' }));
+
+    renderCard(bridge);
+    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+
+    const stableSelect = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
+    const stableRow = stableSelect.closest('.adl-settings-row') as HTMLElement;
+    fireEvent.click(within(stableRow).getByRole('button', { name: 'harnessVersionInstall' }));
+
+    await waitFor(() =>
+      expect(bridge.notify).toHaveBeenCalledWith('dshInstalledRestarted', 'success'),
+    );
+    expect(bridge.notify).not.toHaveBeenCalledWith('harnessVersionInstallStarted', 'success');
+  });
+
+  it('stays silent on a deferred source change (adapter owns the dialog feedback)', async () => {
+    const changeSourceMode = vi.fn(async () => ({ ok: true }) as HarnessVersionResult);
+    const bridge = makeBridge({
+      capabilities: { sourceModeChange: 'deferred' },
+      changeSourceMode,
+    });
+
+    renderCard(bridge);
+    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+
+    const sourceSelect = screen.getAllByRole('combobox');
+    fireEvent.change(sourceSelect[sourceSelect.length - 1] as HTMLSelectElement, {
+      target: { value: 'system' },
+    });
+
+    await waitFor(() => expect(changeSourceMode).toHaveBeenCalledWith('system'));
+    expect(bridge.notify).not.toHaveBeenCalledWith('harnessVersionSourceSaved', 'success');
+  });
+
+  it('reports downloading when the install task has no known total', async () => {
+    let resolveInstall!: (result: HarnessVersionResult) => void;
+    const installPromise = new Promise<HarnessVersionResult>((resolve) => {
+      resolveInstall = resolve;
+    });
+    const bridge = makeBridge();
+    bridge.install = vi.fn(() => installPromise);
+    bridge.getTask = vi.fn(async () => ({
+      kind: 'dsh-install' as const,
+      version: '1.1.0',
+      phase: 'installing' as const,
+      percent: null,
+      done: 0,
+      total: 0,
+      cancellable: true,
+    }));
+
+    renderCard(bridge);
+    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+
+    const stableSelect = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
+    const stableRow = stableSelect.closest('.adl-settings-row') as HTMLElement;
+
+    vi.useFakeTimers();
+    fireEvent.click(within(stableRow).getByRole('button', { name: 'harnessVersionInstall' }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+
+    expect(screen.getByText('harnessVersionPhaseDownloading')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveInstall(OK);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
   });
 });

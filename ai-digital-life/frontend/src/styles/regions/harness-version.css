@@ -27,6 +27,103 @@
   font-size: 0.75em;
 }
 
+/* 工具专属读数插槽（DSH 的运行态 / 来源读数）：纵向堆叠，右对齐与设置行一致。 */
+.adl-harness-version__readout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.adl-harness-version__readout-value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.adl-harness-version__readout-value.is-empty {
+  font-family: inherit;
+  color: var(--text-muted);
+}
+
+.adl-harness-version__readout-sub {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* 读数加载态：中性灰胶囊 + 水平波浪，不引入强调色（亮暗主题均可见）。 */
+.adl-harness-version__readout-loading {
+  display: inline-block;
+  width: 148px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-muted);
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(128, 128, 128, 0.4) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: adl-harness-skeleton-wave 2.6s ease-in-out infinite;
+}
+
+@keyframes adl-harness-skeleton-wave {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.adl-harness-version__badge--update {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+/* 工具专属说明行（DSH 来源解释 / 系统安装 / 延迟生效 / 无来源提示）：
+   逐条成块，原文换行保留；中性灰（不使用强调色作警醒色）。 */
+.adl-harness-version__note {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: pre-line;
+}
+
+.adl-harness-version__note + .adl-harness-version__note {
+  margin-top: var(--space-1);
+}
+
+/* 来源切换确认框正文：保留原文换行。 */
+.adl-harness-version__dialog-message {
+  white-space: pre-line;
+}
+
+/* 说明文字内嵌链接：与正文同色、无下划线，点击跟随「打开方式」落点跳转。 */
+.adl-harness-version__inline-link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.adl-harness-version__inline-link:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.adl-harness-version__inline-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
 .adl-harness-version__action-btn {
   display: inline-flex;
   align-items: center;

@@ -39,6 +39,7 @@ export const harnessVersionEn = {
   harnessVersionSystemPath: 'System install path',
   harnessVersionSystemNotDetected: 'No system install detected',
   harnessVersionPhasePreparing: 'Preparing',
+  harnessVersionPhaseDownloading: 'Downloading',
   harnessVersionPhaseInstalling: 'Installing',
   harnessVersionPhaseRemoving: 'Removing',
   harnessVersionPhaseFinalizing: 'Finalizing',

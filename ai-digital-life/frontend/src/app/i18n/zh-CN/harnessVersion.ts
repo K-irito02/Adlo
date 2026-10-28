@@ -38,6 +38,7 @@ export const harnessVersionZh = {
   harnessVersionSystemPath: '系统安装位置',
   harnessVersionSystemNotDetected: '未检测到系统安装',
   harnessVersionPhasePreparing: '准备中',
+  harnessVersionPhaseDownloading: '下载中',
   harnessVersionPhaseInstalling: '安装中',
   harnessVersionPhaseRemoving: '卸载中',
   harnessVersionPhaseFinalizing: '收尾中',

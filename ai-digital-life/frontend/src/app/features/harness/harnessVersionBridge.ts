@@ -31,6 +31,11 @@ export interface HarnessVersionSourceStatus {
   mode: HarnessVersionSourceMode;
   effective: HarnessVersionEffectiveSource;
   systemPath: string | null;
+  /**
+   * 宿主是否管理版本（安装/切换/卸载/更新等管理项是否可用）。
+   * 缺省按 true；DSH 在「系统安装」生效时置 false，卡片隐藏管理行。
+   */
+  managed?: boolean;
 }
 
 /** 一次版本变更操作的结果；`cancelled` 让卡片以警告而非错误提示收尾。 */
@@ -39,6 +44,13 @@ export interface HarnessVersionResult {
   cancelled?: boolean;
   /** 已本地化的错误文案；缺省时卡片回退到通用失败文案。 */
   error?: string;
+  /**
+   * 适配器已通过其它通道提示（如工具自己的 toast / 全局错误卡片），
+   * 卡片不再追加提示。
+   */
+  silent?: boolean;
+  /** 适配器提供的成功文案；缺省时卡片使用通用成功文案。 */
+  message?: string;
 }
 
 /**

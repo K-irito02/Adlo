@@ -11,7 +11,6 @@ import type {
   HarnessVersionSourceMode,
   HarnessVersionSourceStatus,
   HarnessVersionTask,
-  HarnessVersionTaskPhase,
   HarnessVersionTone,
 } from './harnessVersionBridge';
 
@@ -24,7 +23,10 @@ export interface HarnessVersionSlotContext<TSource> {
   /** 工具专属来源数据（适配器提供）。 */
   sourceExtra: TSource | null;
   /** 走卡片的忙碌/反馈/刷新流程执行一个工具专属操作。 */
-  run: (action: () => Promise<HarnessVersionResult>, successMessage: string) => Promise<void>;
+  run: (
+    action: () => Promise<HarnessVersionResult>,
+    successMessage: string | null,
+  ) => Promise<void>;
   notify: (message: string, tone: HarnessVersionTone) => void;
 }
 
@@ -33,6 +35,8 @@ export type HarnessVersionSlot<TSource> =
   | ((context: HarnessVersionSlotContext<TSource>) => ReactNode);
 
 export interface HarnessVersionSlots<TSource> {
+  /** 宿主已自行渲染块头（标题 + 提示）时置 true，卡片不再重复渲染一块头。 */
+  hideHeader?: boolean;
   /** 标题旁「?」提示内容；缺省使用通用说明。 */
   headerHint?: string;
   /** 版本来源行「?」提示内容；缺省使用通用说明。 */
@@ -64,14 +68,16 @@ function renderSlot<TSource>(
   return slot ?? null;
 }
 
-function phaseLabel(phase: HarnessVersionTaskPhase, t: CopyDict): string {
-  switch (phase) {
+function phaseLabel(task: HarnessVersionTask, t: CopyDict): string {
+  switch (task.phase) {
     case 'preparing':
       return t.harnessVersionPhasePreparing;
     case 'installing':
-      return t.harnessVersionPhaseInstalling;
+      // 总量未知 = npm 还在下载（tmp 尚空），如实显示「下载中」而不是假装在装。
+      return task.total > 0 ? t.harnessVersionPhaseInstalling : t.harnessVersionPhaseDownloading;
     case 'removing':
-      return t.harnessVersionPhaseRemoving;
+      // 空目录视为准备中（与迁移前 DSH 任务行同口径）。
+      return task.total > 0 ? t.harnessVersionPhaseRemoving : t.harnessVersionPhasePreparing;
     default:
       return t.harnessVersionPhaseFinalizing;
   }
@@ -176,7 +182,7 @@ export function HarnessVersionCard<TSource = unknown>({
   const run = useCallback(
     async (
       action: () => Promise<HarnessVersionResult>,
-      successMessage: string,
+      successMessage: string | null,
       mutation?: HarnessVersionMutation,
     ) => {
       if (!bridge.available) {
@@ -189,20 +195,30 @@ export function HarnessVersionCard<TSource = unknown>({
         if (!result.ok) {
           if (result.cancelled) {
             bridge.notify(t.harnessVersionCancelled, 'warning');
-          } else {
+          } else if (!result.silent) {
             bridge.notify(result.error || t.harnessVersionOpFailed, 'error');
           }
           return;
         }
         const afterMutation = bridge.afterMutation;
+        let follow: HarnessVersionResult | null = null;
         if (mutation && afterMutation) {
-          const follow = await afterMutation(mutation);
+          follow = await afterMutation(mutation);
           if (!follow.ok) {
-            bridge.notify(follow.error || t.harnessVersionOpFailed, 'error');
+            if (follow.cancelled) {
+              bridge.notify(t.harnessVersionCancelled, 'warning');
+            } else if (!follow.silent) {
+              bridge.notify(follow.error || t.harnessVersionOpFailed, 'error');
+            }
             return;
           }
         }
-        bridge.notify(successMessage, 'success');
+        // 适配器可提供工具专属完成文案；`null` 表示由适配器自行提示（DSH 的
+        // 来源切换对话框），卡片不追加通用成功提示。
+        const message = follow?.message ?? result.message ?? successMessage;
+        if (message) {
+          bridge.notify(message, 'success');
+        }
       } catch {
         bridge.notify(t.harnessVersionOpFailed, 'error');
       } finally {
@@ -224,6 +240,8 @@ export function HarnessVersionCard<TSource = unknown>({
   const latestPrerelease = catalog?.prerelease[0] ?? null;
   const sourceMode = source?.mode ?? 'auto';
   const disabled = busy || !bridge.available;
+  /** 宿主是否管理版本；`managed === false` 时隐藏全部管理行（系统安装生效）。 */
+  const managed = source?.managed !== false;
 
   useEffect(() => {
     setUninstallArmed(null);
@@ -278,22 +296,25 @@ export function HarnessVersionCard<TSource = unknown>({
 
   const handleSourceChange = (mode: HarnessVersionSourceMode) => {
     const deferredChange = bridge.changeSourceMode;
-    const action =
-      bridge.capabilities?.sourceModeChange === 'deferred' && deferredChange
-        ? () => deferredChange(mode)
-        : () => bridge.saveSourceMode(mode);
-    void run(action, t.harnessVersionSourceSaved);
+    if (bridge.capabilities?.sourceModeChange === 'deferred' && deferredChange) {
+      // 延迟确认模式：对话框、立即/下次启动语义与提示都由适配器拥有。
+      void run(() => deferredChange(mode), null);
+      return;
+    }
+    void run(() => bridge.saveSourceMode(mode), t.harnessVersionSourceSaved);
   };
 
   return (
     <div className="adl-harness-version">
-      <div className="adl-settings-storage__header adl-settings-storage__header--section">
-        <SettingsHintButton content={headerHint} />
-        <SettingsHeader title={formatT(t, 'harnessVersionTitle', { tool: bridge.toolName })} />
-      </div>
+      {slots.hideHeader ? null : (
+        <div className="adl-settings-storage__header adl-settings-storage__header--section">
+          <SettingsHintButton content={headerHint} />
+          <SettingsHeader title={formatT(t, 'harnessVersionTitle', { tool: bridge.toolName })} />
+        </div>
+      )}
 
       <div className="adl-settings-card">
-        <div className="adl-settings-row">
+        <div className="adl-settings-row" data-settings-row={t.harnessVersionCurrent}>
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
               <span>{t.harnessVersionCurrent}</span>
@@ -337,59 +358,63 @@ export function HarnessVersionCard<TSource = unknown>({
           </div>
         ) : null}
 
-        <div className="adl-settings-row">
-          <div className="adl-settings-row__label">
-            <div className="adl-settings-row__label-text">
-              <span>{t.harnessVersionUpdate}</span>
+        {managed ? (
+          <div className="adl-settings-row" data-settings-row={t.harnessVersionUpdate}>
+            <div className="adl-settings-row__label">
+              <div className="adl-settings-row__label-text">
+                <span>{t.harnessVersionUpdate}</span>
+              </div>
+            </div>
+            <div className="adl-settings-row__control">
+              <span className="adl-harness-version__hint">
+                {status?.hasUpdate ? t.harnessVersionHasUpdate : t.harnessVersionNoUpdate}
+              </span>
+              <button
+                type="button"
+                className="adl-harness-version__action-btn"
+                disabled={disabled}
+                onClick={() => void run(() => bridge.update(), t.harnessVersionUpdated, 'update')}
+              >
+                {t.harnessVersionUpdateAction}
+              </button>
             </div>
           </div>
-          <div className="adl-settings-row__control">
-            <span className="adl-harness-version__hint">
-              {status?.hasUpdate ? t.harnessVersionHasUpdate : t.harnessVersionNoUpdate}
-            </span>
-            <button
-              type="button"
-              className="adl-harness-version__action-btn"
-              disabled={disabled}
-              onClick={() => void run(() => bridge.update(), t.harnessVersionUpdated, 'update')}
-            >
-              {t.harnessVersionUpdateAction}
-            </button>
-          </div>
-        </div>
+        ) : null}
 
-        <div className="adl-settings-row">
-          <div className="adl-settings-row__label">
-            <div className="adl-settings-row__label-text">
-              <span>{t.harnessVersionStable}</span>
+        {managed ? (
+          <div className="adl-settings-row" data-settings-row={t.harnessVersionStable}>
+            <div className="adl-settings-row__label">
+              <div className="adl-settings-row__label-text">
+                <span>{t.harnessVersionStable}</span>
+              </div>
+            </div>
+            <div className="adl-settings-row__control">
+              <select
+                className="adl-settings-dropdown"
+                value={stablePick}
+                disabled={disabled || stable.length === 0}
+                onChange={(event) => setStablePick(event.target.value)}
+              >
+                {stable.map((info) => (
+                  <option key={info.version} value={info.version}>
+                    {info.version}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="adl-harness-version__action-btn"
+                disabled={disabled || !stablePick}
+                onClick={() => installVersion(stablePick)}
+              >
+                {t.harnessVersionInstall}
+              </button>
             </div>
           </div>
-          <div className="adl-settings-row__control">
-            <select
-              className="adl-settings-dropdown"
-              value={stablePick}
-              disabled={disabled || stable.length === 0}
-              onChange={(event) => setStablePick(event.target.value)}
-            >
-              {stable.map((info) => (
-                <option key={info.version} value={info.version}>
-                  {info.version}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="adl-harness-version__action-btn"
-              disabled={disabled || !stablePick}
-              onClick={() => installVersion(stablePick)}
-            >
-              {t.harnessVersionInstall}
-            </button>
-          </div>
-        </div>
+        ) : null}
 
-        {latestPrerelease ? (
-          <div className="adl-settings-row">
+        {managed && latestPrerelease ? (
+          <div className="adl-settings-row" data-settings-row={t.harnessVersionPrerelease}>
             <div className="adl-settings-row__label">
               <div className="adl-settings-row__label-text">
                 <span>{t.harnessVersionPrerelease}</span>
@@ -409,38 +434,40 @@ export function HarnessVersionCard<TSource = unknown>({
           </div>
         ) : null}
 
-        <div className="adl-settings-row">
-          <div className="adl-settings-row__label">
-            <div className="adl-settings-row__label-text">
-              <span>{t.harnessVersionManual}</span>
+        {managed ? (
+          <div className="adl-settings-row" data-settings-row={t.harnessVersionManual}>
+            <div className="adl-settings-row__label">
+              <div className="adl-settings-row__label-text">
+                <span>{t.harnessVersionManual}</span>
+              </div>
+            </div>
+            <div className="adl-settings-row__control">
+              <input
+                className="adl-settings-input"
+                value={manual}
+                placeholder={t.harnessVersionManualPlaceholder}
+                disabled={disabled}
+                onChange={(event) => setManual(event.target.value)}
+              />
+              <button
+                type="button"
+                className="adl-harness-version__action-btn"
+                disabled={disabled || !manual.trim()}
+                onClick={() => {
+                  installVersion(manual);
+                  setManual('');
+                }}
+              >
+                {t.harnessVersionInstall}
+              </button>
             </div>
           </div>
-          <div className="adl-settings-row__control">
-            <input
-              className="adl-settings-input"
-              value={manual}
-              placeholder={t.harnessVersionManualPlaceholder}
-              disabled={disabled}
-              onChange={(event) => setManual(event.target.value)}
-            />
-            <button
-              type="button"
-              className="adl-harness-version__action-btn"
-              disabled={disabled || !manual.trim()}
-              onClick={() => {
-                installVersion(manual);
-                setManual('');
-              }}
-            >
-              {t.harnessVersionInstall}
-            </button>
-          </div>
-        </div>
+        ) : null}
       </div>
 
-      {installed.length > 0 ? (
+      {managed && installed.length > 0 ? (
         <div className="adl-settings-card">
-          <div className="adl-settings-row">
+          <div className="adl-settings-row" data-settings-row={t.harnessVersionInstalled}>
             <div className="adl-settings-row__label">
               <div className="adl-settings-row__label-text">
                 <span>{t.harnessVersionInstalled}</span>
@@ -506,7 +533,7 @@ export function HarnessVersionCard<TSource = unknown>({
       ) : null}
 
       <div className="adl-settings-card">
-        <div className="adl-settings-row">
+        <div className="adl-settings-row" data-settings-row={t.harnessVersionSourceTitle}>
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
               <SettingsHintButton content={sourceHint} />
@@ -562,7 +589,7 @@ export function HarnessVersionCard<TSource = unknown>({
                 <span>
                   {bridge.capabilities?.taskStageText === false
                     ? t.harnessVersionTaskRunning
-                    : phaseLabel(task.phase, t)}
+                    : phaseLabel(task, t)}
                 </span>
               </div>
             </div>
