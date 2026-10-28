@@ -219,13 +219,11 @@ describe('DshSettings', () => {
     expect(
       root?.querySelectorAll('.adl-harness-version .adl-settings-storage__header'),
     ).toHaveLength(0);
-    // 通用卡片的行标记（数据源同 `harnessVersion*` 文案），旧 DSH 行标记已消失。
+    // 通用卡片的行标记（数据源同 `harnessVersion*` 文案），旧 DSH 行标记已随组件删除。
     const updateRow = root?.querySelector('[data-settings-row="harnessVersionUpdate"]');
     expect(updateRow).not.toBeNull();
     expect(updateRow?.querySelector('.adl-harness-version__action-btn')).not.toBeNull();
     expect(root?.querySelector('[data-settings-row="harnessVersionCurrent"]')).not.toBeNull();
-    expect(root?.querySelector('[data-settings-row="dshCheckUpdate"]')).toBeNull();
-    expect(root?.querySelector('[data-settings-row="dshCurrentVersionLabel"]')).toBeNull();
     // 来源行保留行内问号提示（沿用 DSH 的来源说明）。
     const sourceRow = root?.querySelector('[data-settings-row="harnessVersionSourceTitle"]');
     expect(sourceRow?.querySelector('.adl-icon-button--info')).not.toBeNull();
@@ -239,8 +237,8 @@ describe('DshSettings', () => {
     renderSettings();
     const banner = await screen.findByTestId('dsh-missing-banner');
     expect(banner.textContent).toBe('harnessMissingBannerDsh');
-    // 旧 DSH 组件不再渲染（其读数行与缺失横幅都是旧的专属类名）。
-    expect(document.querySelector('.adl-dsh-settings__version-readout')).toBeNull();
+    // 旧 DSH 版本组件不再渲染：页面上只有通用卡片这一套版本 UI。
+    expect(document.querySelectorAll('.adl-harness-version')).toHaveLength(1);
   });
 
   it('运行态读数插槽保留运行地址与版本（token 剥离后只在 title 上）', () => {

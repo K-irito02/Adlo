@@ -5,9 +5,9 @@ import type { DshSourceStatus, DshVersionSourceMode } from '../../../shared/ipc/
 /**
  * DSH 版本区运行态编排（重启 / 兜底拉起 / 标签清理）。
  *
- * 从旧 `DshVersionManagement` 抽出，供通用版本卡片适配器（`dshVersionBridge`）
- * 与设置组包装层（`DshSettings`）共用；旧组件自身仍保留一份实现直至 ticket #5
- * 删除，两处不再互相 import。
+ * 从旧 DSH 版本组件抽出，供通用版本卡片适配器（`dshVersionBridge`）
+ * 与设置组包装层（`DshSettings`）共用；旧组件已随 ticket #5 删除，本文件是
+ * 运行态编排的唯一实现。
  */
 
 /** 版本四操作成功 toast 展示时长（默认 3000ms 用户实测中曾错过，见事项 1 注记）。 */
@@ -102,19 +102,6 @@ export function displayUrl(url: string): string {
   } catch {
     return url.split('?')[0];
   }
-}
-
-/**
- * 版本来源偏好解析出的来源（忽略 running；管理项显隐 / 切源判定的唯一依据）。
- */
-export function resolvedSourceOf(sourceStatus: DshSourceStatus | null): string | null {
-  const versionSource = sourceStatus?.versionSource ?? null;
-  if (!versionSource?.resolvedByMode) {
-    return null;
-  }
-  const mode: DshVersionSourceMode =
-    versionSource.mode ?? sourceStatus?.config.version_source ?? 'auto';
-  return versionSource.resolvedByMode[mode] ?? null;
 }
 
 /**

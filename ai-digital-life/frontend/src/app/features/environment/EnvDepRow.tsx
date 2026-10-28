@@ -154,7 +154,7 @@ export function EnvDepRow({
   const { t } = useTCopy();
   const [pathDraft, setPathDraft] = useState<string | null>(null);
   const [pathFocused, setPathFocused] = useState(false);
-  // 卸载两段确认（照抄 DshVersionManagement：首击武装，再击执行）。
+  // 卸载两段确认（照抄已删除的 DSH 版本组件先例：首击武装，再击执行）。
   const [uninstallArmed, setUninstallArmed] = useState(false);
   // 行级细粒度操作态（事项 1/1c）：行内互斥、各行独立，不再消费全局 busy。
   // 全局 busy（store envBusy）在轮询/任务期间仍为 true，但此处有意忽略，
@@ -395,7 +395,7 @@ export function EnvDepRow({
               ? t.environmentSourceCustom
               : t.environmentSourceHost;
       parts.push(`${t.environmentFieldSource} ${sourceLabel}`);
-      // ' · ' 连接为标点拼接（照抄 DshVersionManagement 版本行标题拼接先例）。
+      // ' · ' 连接为标点拼接（照抄旧 DSH 版本组件的版本行标题拼接先例）。
       return <small>{parts.join(' · ')}</small>;
     }
     if (dep === 'net') {

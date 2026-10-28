@@ -1042,7 +1042,6 @@ describe('SettingsPanel group reset', () => {
             versionStatus: {
               currentSelected: null,
               installed: [],
-              bundledVersion: null,
               latestAvailable: null,
               hasUpdate: false,
               prereleaseAvailable: null,

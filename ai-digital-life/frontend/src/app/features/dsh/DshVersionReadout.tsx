@@ -17,7 +17,7 @@ interface VersionReadout {
 /**
  * DSH 组的运行态 / 来源读数（通用版本卡片的 `runtimeReadout` 插槽内容）。
  *
- * 迁移前这段读数长在 `DshVersionManagement` 的「当前版本」行里：任何 effective
+ * 迁移前这段读数长在旧 DSH 版本组件的「当前版本」行里（该组件已随 ticket #5 删除）：任何 effective
  * 都优先显示真实版本号，副行按来源标注运行地址（运行中 · 系统安装 / 外部运行）
  * 或系统安装路径；首屏快照未到、操作在途、拉起中时显示中性骨架。抽出后卡片
  * 自身不感知 DSH 的运行模型。
