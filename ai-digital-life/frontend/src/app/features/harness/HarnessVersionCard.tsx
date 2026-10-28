@@ -195,8 +195,9 @@ export function HarnessVersionCard<TSource = unknown>({
           }
           return;
         }
-        if (mutation && bridge.afterMutation) {
-          const follow = await bridge.afterMutation(mutation);
+        const afterMutation = bridge.afterMutation;
+        if (mutation && afterMutation) {
+          const follow = await afterMutation(mutation);
           if (!follow.ok) {
             bridge.notify(follow.error || t.harnessVersionOpFailed, 'error');
             return;
