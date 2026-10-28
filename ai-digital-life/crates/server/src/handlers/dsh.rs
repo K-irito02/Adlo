@@ -575,6 +575,18 @@ async fn run_open(
 /// Pre-start dsh in background. Called from `serve()` after server is ready.
 /// Errors are logged but non-fatal — user can still open dsh manually later.
 pub async fn pre_start_dsh(state: &ServerState) {
+    // 没有任何可用来源（无宿主已装版本、无系统安装）时不预拉起：
+    // 首次使用由 harness 向导/设置组按需安装，避免每次启动打一条失败日志。
+    let root = dsh_root(state);
+    let has_host = adl_harness_version::read_selected(&root)
+        .ok()
+        .flatten()
+        .is_some_and(|v| adl_harness_version::is_host_version_installed(&root, &v));
+    let has_system = adl_harness_version::detect_system_dsh().await.is_some();
+    if !has_host && !has_system {
+        tracing::info!("dsh::pre_start: no host or system version available, skipped");
+        return;
+    }
     tracing::info!("dsh::pre_start: spawning dsh in background");
     let start = std::time::Instant::now();
     match run_open(
