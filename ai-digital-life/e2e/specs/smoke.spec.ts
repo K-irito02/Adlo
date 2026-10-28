@@ -75,18 +75,21 @@ describe('AI Digital Life desktop shell', () => {
   });
 
   it('round-trips a real Tauri command through the app bridge', async () => {
-    const result = await browser.executeAsync((done) => {
-      // The app installs its typed bridge on window before rendering.
-      const bridge = (window as unknown as { digitalLife: { app: { getInfo: () => Promise<unknown> } } })
-        .digitalLife;
-      bridge.app.getInfo().then(
-        (value) => done({ ok: true, value }),
-        (error) => done({ ok: false, value: String(error) }),
-      );
-    });
+    type AppInfoPayload = { ok: boolean; data: { appName: string; version: string } };
+    const result = await browser.executeAsync<{ ok: boolean; value: AppInfoPayload | string }, []>(
+      (done) => {
+        // The app installs its typed bridge on window before rendering.
+        const bridge = (window as unknown as { digitalLife: { app: { getInfo: () => Promise<unknown> } } })
+          .digitalLife;
+        bridge.app.getInfo().then(
+          (value) => done({ ok: true, value: value as AppInfoPayload }),
+          (error) => done({ ok: false, value: String(error) }),
+        );
+      },
+    );
 
     expect(result.ok).toBe(true);
-    const info = (result.value as { ok: boolean; data: { appName: string; version: string } }).data;
+    const info = (result.value as AppInfoPayload).data;
     expect(info.appName).toBe(APP_TITLE);
     expect(info.version).toMatch(/^\d+\.\d+\.\d+/);
   });

@@ -50,7 +50,7 @@ rustup target add x86_64-pc-windows-msvc
 - `minimal` profile 足够支撑 `cargo check` / `cargo test --workspace`；`rustfmt` 与 `clippy` 可在工具链恢复后单独安装。
 - `vcvars64.bat` / `VsDevCmd.bat` 报错本身不构成失败结论；以 `cargo test --workspace`、`cargo check --workspace` 的实际结果为准。
 - 若需要额外确认 MSVC 编译器可见性，再检查 `where cl` 与 `where link`。
-- 首次检出（或 `src-tauri/binaries/` 为空）时先运行 `pnpm run stage:sidecar`，再执行任何触及 src-tauri 的 `cargo tauri dev` / `cargo test` / `cargo clippy`；`pnpm dev:tauri` 与 `pnpm run cargo:*` 已内置该步骤，可直接运行。原因是 `bundle.externalBin` 由 tauri-build 构建脚本在每次构建时校验，缺失即直接失败。该命令每次都执行对应 profile 的 `cargo build`（cargo 增量编译使重复执行成本很低），内部用 `-C target-feature=+crt-static` 构建 sidecar 再拷贝到 `src-tauri/binaries/`——sidecar 在 tauri-build 之外编译，不加此参数就会动态依赖 `VCRUNTIME140.dll`，无法在未装 VC++ 运行库的机器上启动。
+- 首次检出（或 `src-tauri/binaries/` 为空）时先运行 `pnpm run stage:sidecar`，再执行任何触及 src-tauri 的 `cargo tauri dev` / `cargo test` / `cargo clippy`；`pnpm dev:tauri`、`pnpm run cargo:*` 与 `pnpm run e2e:build` 已内置该步骤，可直接运行。原因是 `bundle.externalBin` 由 tauri-build 构建脚本在每次构建时校验，缺失即直接失败。该命令每次都执行对应 profile 的 `cargo build`（cargo 增量编译使重复执行成本很低），内部用 `-C target-feature=+crt-static` 构建 sidecar 再拷贝到 `src-tauri/binaries/`——sidecar 在 tauri-build 之外编译，不加此参数就会动态依赖 `VCRUNTIME140.dll`，无法在未装 VC++ 运行库的机器上启动。
 
 ## Must-Sync Docs
 

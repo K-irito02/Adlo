@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { TauriCapabilities } from '@wdio/tauri-service';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(here, '..');
@@ -9,6 +10,17 @@ const appBinary = path.resolve(
   'debug',
   process.platform === 'win32' ? 'ai-digital-life.exe' : 'ai-digital-life',
 );
+
+// `TauriCapabilities` adds the `tauri:*` keys on top of WebdriverIO.Capabilities,
+// which WDIO's `Config['capabilities']` union does not know about.
+const capabilities: TauriCapabilities[] = [
+  {
+    browserName: 'tauri',
+    'tauri:options': {
+      application: appBinary,
+    },
+  },
+];
 
 /**
  * Desktop E2E via @wdio/tauri-service (embedded WebDriver provider).
@@ -37,14 +49,7 @@ export const config: WebdriverIO.Config = {
     ],
   ],
 
-  capabilities: [
-    {
-      browserName: 'tauri',
-      'tauri:options': {
-        application: appBinary,
-      },
-    },
-  ],
+  capabilities: capabilities as unknown as WebdriverIO.Config['capabilities'],
 
   logLevel: 'warn',
   bail: 0,

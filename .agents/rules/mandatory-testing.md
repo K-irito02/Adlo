@@ -46,16 +46,9 @@ Agent 在触发验收时，先评估变更范围，确定测试层级：
 
 ### 桌面 E2E（按需，不属于默认验收）
 
-默认验收仍在 CLI + jsdom 内完成，**不启动真实应用**。当改动落在桌面-only 路径（原生窗口/面板、`window.digitalLife` 真实 IPC、Tauri 插件注册）或用户明确要求时，额外跑桌面 E2E：
+默认验收仍在 CLI + jsdom 内完成，**不启动真实应用**。桌面-only 改动（原生窗口/面板、真实 IPC、Tauri 插件）或用户明确要求时，额外跑桌面 E2E；命令与前置见 [commands.md](commands.md#测试命令)，流程/用例规则/排障见技能 `desktop-e2e-wdio`。
 
-```powershell
-pnpm run e2e:build   # 首次 / 改了 Rust 或前端后
-pnpm run e2e
-```
-
-- 运行方式、用例规则与排障见技能 `desktop-e2e-wdio`；实测结论见 `docs/knowledge-base/toolchain/wdio-tauri-desktop-e2e-eval-2026-10-28.md`。
-- 该套件 **不进** `check:all`，不替代前端 vitest / Rust 测试，也不覆盖视觉验收（仍由 `desktop-ui-verification.md` 定义）。
-- 每次运行会真实启动壳与 `adl-server`（数据目录隔离在 `com.ai-digital-life.app.e2e`），并占用端口 4445。
+该套件 **不进** `check:all`，不替代 vitest / Rust 测试与视觉验收（视觉见 [desktop-ui-verification.md](desktop-ui-verification.md)）。
 
 ---
 

@@ -29,8 +29,7 @@ agent_created: true
 
 ```powershell
 cd ai-digital-life
-pnpm run stage:sidecar       # 首次检出 / src-tauri/binaries 为空 / cargo clean 之后；e2e:build 不会替你跑
-pnpm install                 # 与上一条互不依赖；e2e 是独立 workspace 包，不装就没有 wdio bin
+pnpm install                 # e2e 是独立 workspace 包，不装就没有 wdio bin
 cargo tauri --version        # e2e:build 走 tauri CLI，不是纯 cargo
 Get-NetTCPConnection -LocalPort 4445 -ErrorAction SilentlyContinue   # 有输出 = WebDriver 端口被占，会连到别的实例
 Get-Process ai-digital-life -ErrorAction SilentlyContinue            # 有输出 = 桌面实例在跑，可能锁住 target/debug 的 exe
@@ -41,13 +40,13 @@ Get-Process ai-digital-life -ErrorAction SilentlyContinue            # 有输出
 然后：
 
 ```powershell
-pnpm run e2e:build   # 首次 / 改了 Rust 或前端后；debug + --features e2e，不要换 release
+pnpm run e2e:build   # 内部先 stage:sidecar；debug + --features e2e，不要换 release
 pnpm run e2e         # 全量（= pnpm --dir e2e run test = node e2e/run-e2e.mjs）
 ```
 
 只跑冒烟：`pnpm --dir e2e run test:smoke`
 
-`e2e:build` 会按 `e2e/tauri.e2e.conf.json` 用 `--mode e2e` 自行重建 `frontend/dist`，不要先手工 build 前端再跑测试。
+`e2e:build` 会先 `stage:sidecar`，再按 `e2e/tauri.e2e.conf.json` 用 `--mode e2e` 重建 `frontend/dist`；不要手工先 build 前端或 sidecar。
 
 **成功判定**（四项都满足才算通过）：
 
@@ -61,7 +60,7 @@ pnpm run e2e         # 全量（= pnpm --dir e2e run test = node e2e/run-e2e.mjs
      Measure-Object
    ```
 
-4. 截图已产出：`e2e/artifacts/shell.png`（真实桌面 UI）。
+4. 截图已产出：`e2e/artifacts/shell.png`（真实桌面 UI）；本轮摘要写入 `e2e/artifacts/last-run.json`（passing/failing、耗时、窗口警告数）。
 
 ## 3. 它是怎么跑起来的（改之前先懂这层）
 
@@ -146,7 +145,7 @@ describe('标题栏面板开关', () => {
 
 ## 7. 排障顺序
 
-1. **前置与占用**：`pnpm install`；`pnpm run stage:sidecar`（首次检出或清过 `target/` 后）；4445 空闲；没有运行中的 `pnpm dev` / `dev:tauri`（它们锁 `target/debug` 下的 exe）。
+1. **前置与占用**：`pnpm install`；4445 空闲；没有运行中的 `pnpm dev` / `dev:tauri`（它们锁 `target/debug` 下的 exe）。`e2e:build` 会自己 `stage:sidecar`。
 2. **清孤儿**（只杀命令行含 `app.e2e` 的，勿按名字全杀）：
 
    ```powershell
@@ -162,7 +161,7 @@ describe('标题栏面板开关', () => {
 
 ## 8. 升级与停用
 
-升级：把 `@wdio/tauri-service`、`@wdio/tauri-plugin`、`tauri-plugin-wdio`、`tauri-plugin-wdio-webdriver` 保持同一 `1.5.x`，`@wdio/cli` 保持 9.x；改完必须重跑 `e2e:build`（Rust 插件变了）。
+升级：把 `@wdio/tauri-service`、`@wdio/tauri-plugin`、`tauri-plugin-wdio`、`tauri-plugin-wdio-webdriver` 保持同一 `1.5.x`，`@wdio/cli` 保持 9.x；改完必须重跑 `e2e:build`（Rust 插件变了）与 `pnpm run e2e:typecheck`。
 
 停用/移除（不影响生产）：
 

@@ -10,6 +10,8 @@ ROOT="$(git rev-parse --show-toplevel)"
 # Dev tooling syntax + formatting (these files sit outside eslint/tsc scope).
 ( cd "$ROOT/ai-digital-life" && for f in scripts/*.mjs; do node --check "$f"; done )
 ( cd "$ROOT/ai-digital-life" && pnpm run scripts:format:check )
+# Desktop E2E TypeScript: its own package/tsconfig, so `check:changed` below does not see it.
+( cd "$ROOT/ai-digital-life" && pnpm run e2e:typecheck )
 cd "$ROOT/ai-digital-life/frontend"
 if [ "$ADL_PREPUSH_FULL" = "1" ]; then
   echo "[pre-push] FULL gate (user-approved): check:full"

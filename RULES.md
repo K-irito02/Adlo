@@ -32,14 +32,14 @@
 
 ### 1.3 规模
 
-当前 **43 条规则**（不含本目录的 `README.md` 索引）：
+当前 **44 条规则**（不含本目录的 `README.md` 索引）：
 
 | 应用方式 | 条数 | 含义 |
 |----------|------|------|
-| `alwaysApply: true` | 8 | 全局常驻，任何任务都生效 |
+| `alwaysApply: true` | 9 | 全局常驻，任何任务都生效 |
 | `alwaysApply: false` + `globs` | 35 | 命中指定路径时才注入，减少无关上下文 |
 
-> 条数以 `.agents/rules/` 实际文件为准，本文书写的数字仅作导航参考。
+> 条数以 `.agents/rules/` 实际文件为准；`scripts/check-agent-dirs.test.mjs` 会在 pre-commit 校验本表与目录一致。
 
 ---
 
@@ -59,10 +59,10 @@
 2. **改一同步二**：每次新增 / 修改 / 重命名 / 删除规则后，立即同步到另外两个目录，禁止只改单目录。
 3. **先改真源**：备份目录不直接编辑；副本出现真源没有的差异时，先核对——正确则补入真源，否则丢弃。
 4. **同步后登记**：新增或删除规则必须同步更新本文件 §6 清单与 §1.3 条数。
-5. **校验方式**：
+5. **校验方式**：pre-commit 自动执行 `scripts/check-agent-dirs.test.mjs`（三目录逐文件哈希 + 本文件条数/清单）。手动检查：
 
    ```bash
-   # 目录级一致性检查（无输出即一致）
+   node ai-digital-life/scripts/check-agent-dirs.test.mjs
    diff -r .agents/rules .opencode/rules
    diff -r .agents/rules .trae/rules
    ```
@@ -128,7 +128,7 @@ alwaysApply: false
 | `alwaysApply: true` | 每次会话常驻注入 | 全域约束（项目形态、执行规则、验收门禁、UI 模式） |
 | `globs` 命中 | 仅当任务涉及匹配路径的文件时注入 | 语言 / 框架 / 目录级约定 |
 
-**始终应用的 8 条**（`alwaysApply: true`）：
+**始终应用的 9 条**（`alwaysApply: true`）：
 
 | 规则文件 | 覆盖内容 |
 |----------|----------|
@@ -139,6 +139,7 @@ alwaysApply: false
 | `mandatory-testing.md` | 结束验收与强制红绿测试 |
 | `error-handling.md` | 错误处理与加载状态 |
 | `commands.md` | 常用命令速查 |
+| `shell-encoding.md` | 终端中文编码、只读场景与批量替换约束 |
 | `ui-patterns.md` | UI 模式速查 |
 
 > 其余 35 条按 `globs` 生效，清单见 §6「应用方式」列。

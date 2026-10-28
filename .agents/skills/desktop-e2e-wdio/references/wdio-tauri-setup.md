@@ -21,7 +21,7 @@
 | `pnpm-workspace.yaml` | 改 | 加入 `e2e` 包、禁用外部驱动下载 |
 | `ai-digital-life/package.json` / `.gitignore` | 改 | `e2e:build` / `e2e` 脚本与忽略项 |
 
-前置：`pnpm install`；首次检出、`src-tauri/binaries/` 为空或执行过 `cargo clean` 后，先 `pnpm run stage:sidecar`（否则 tauri-build 的 `externalBin` 校验会失败，见 `ai-digital-life/CONTRIBUTING.md`）。
+前置：`pnpm install`；`cargo tauri` 可用。`pnpm run e2e:build` 内部会先 `pnpm run stage:sidecar`（首次检出、`src-tauri/binaries/` 为空或执行过 `cargo clean` 后都无需手动补），再按 e2e 配置构建；直接跑裸 `cargo tauri ...` 时仍需先 stage（`externalBin` 校验，见 `ai-digital-life/CONTRIBUTING.md`）。
 
 ## 1. Rust：可选依赖 + feature
 
@@ -134,15 +134,16 @@ allowBuilds:
 `ai-digital-life/package.json`
 
 ```json
-"e2e:build": "cargo tauri build --debug --no-bundle --features e2e --config e2e/tauri.e2e.conf.json",
-"e2e": "pnpm --dir e2e run test"
+"e2e:build": "pnpm run stage:sidecar && cargo tauri build --debug --no-bundle --features e2e --config e2e/tauri.e2e.conf.json",
+"e2e": "pnpm --dir e2e run test",
+"e2e:typecheck": "pnpm --dir e2e run typecheck"
 ```
 
 `ai-digital-life/.gitignore`：`/e2e/node_modules/`、`/e2e/artifacts/`、`/e2e/logs/`
 
 ## 6. e2e 包
 
-`e2e/package.json`：`type: module`，脚本 `build:app: pnpm --dir .. run e2e:build`、`test: node ./run-e2e.mjs`、`test:smoke: node ./run-e2e.mjs --spec specs/smoke.spec.ts`（真源：`ai-digital-life/e2e/package.json`）。
+`e2e/package.json`：`type: module`，脚本 `build:app: pnpm --dir .. run e2e:build`、`typecheck: tsc --noEmit`、`test: node ./run-e2e.mjs`、`test:smoke: node ./run-e2e.mjs --spec specs/smoke.spec.ts`（真源：`ai-digital-life/e2e/package.json`）。
 
 ```json
 "devDependencies": {
@@ -162,8 +163,14 @@ allowBuilds:
 `wdio.conf.ts` 关键段（节选，真源：`ai-digital-life/e2e/wdio.conf.ts`）：
 
 ```ts
+import type { TauriCapabilities } from '@wdio/tauri-service';
+
 const appBinary = path.resolve(appRoot, 'target/debug',
   process.platform === 'win32' ? 'ai-digital-life.exe' : 'ai-digital-life');
+// WDIO 的 Config['capabilities'] 类型不含 tauri:*；先按服务类型建数组再断言。
+const capabilities: TauriCapabilities[] = [
+  { browserName: 'tauri', 'tauri:options': { application: appBinary } },
+];
 
 export const config: WebdriverIO.Config = {
   runner: 'local', specs: ['./specs/**/*.spec.ts'], maxInstances: 1,
@@ -172,7 +179,7 @@ export const config: WebdriverIO.Config = {
     startTimeout: 120_000, commandTimeout: 60_000,
     captureBackendLogs: true, backendLogLevel: 'info',
   }]],
-  capabilities: [{ browserName: 'tauri', 'tauri:options': { application: appBinary } }],
+  capabilities: capabilities as unknown as WebdriverIO.Config['capabilities'],
   logLevel: 'warn',
   bail: 0,
   waitforTimeout: 15_000,
@@ -249,11 +256,11 @@ child.on('exit', (code, signal) => {
 从零复现基线（`ai-digital-life/` 下执行）：
 
 ```powershell
-pnpm run stage:sidecar          # 首次检出 / binaries 为空 / cargo clean 之后
 pnpm install
+pnpm run e2e:typecheck
 Get-NetTCPConnection -LocalPort 4445 -ErrorAction SilentlyContinue   # 有输出 = 端口被占
 Get-Process ai-digital-life -ErrorAction SilentlyContinue            # 有输出 = 桌面实例在跑
-pnpm run e2e:build
+pnpm run e2e:build                                                   # 内部先 stage:sidecar
 pnpm run e2e
 # 结果看 stdout 的 spec reporter（日志文件不含测试结果）
 Get-CimInstance Win32_Process -Filter "Name='adl-server.exe'" |
@@ -261,13 +268,13 @@ Get-CimInstance Win32_Process -Filter "Name='adl-server.exe'" |
   Measure-Object
 ```
 
-期望 `5 passing`、`00:00:05`、0 条 `Could not find window`、0 个 `adl-server.exe` 残留。状态异常时先删 `%APPDATA%\com.ai-digital-life.app.e2e` 再跑。
+期望 `5 passing`、`00:00:05`、0 条 `Could not find window`、0 个 `adl-server.exe` 残留，且 `e2e/artifacts/last-run.json` 记录了本轮计数。状态异常时先删 `%APPDATA%\com.ai-digital-life.app.e2e` 再跑。
 
 | 偏差 | 症状 | 修正 |
 |------|------|------|
 | 用了 release | 构建多花几十分钟 | 保持 `--debug` |
 | 直接 `wdio run` | 跑完侧车残留、下次构建 `PermissionDenied` | 只经 `run-e2e.mjs` |
-| 漏 `stage:sidecar` | tauri-build 报 `externalBin`/sidecar 缺失 | 先 `pnpm run stage:sidecar` |
+| 裸 `cargo tauri` 构建未 stage | tauri-build 报 `externalBin`/sidecar 缺失 | 用 `pnpm run e2e:build`（内置 stage），或先 `pnpm run stage:sidecar` |
 | dev 实例还在跑 | 链接 `ai-digital-life.exe` 时 `PermissionDenied` | 先停掉 `pnpm dev` / `dev:tauri` |
 | 只加 Rust 插件、没装 guest 插件 | 每条命令 5s 超时 | 补 `.env.e2e` + `main.tsx` 动态 import |
 | 改了 e2e 配置但没重建 | 测试仍连旧 identifier/旧前端 | 重跑 `e2e:build`（它会重建 `dist`） |

@@ -21,7 +21,7 @@
 
   ```powershell
   pnpm --dir ai-digital-life/e2e run build:app
-  # = cargo tauri build --debug --no-bundle --features e2e --config e2e/tauri.e2e.conf.json
+  # = pnpm run stage:sidecar && cargo tauri build --debug --no-bundle --features e2e --config e2e/tauri.e2e.conf.json
   ```
 
 - 运行：
@@ -57,8 +57,8 @@
 | Rust 注册 | `src-tauri/src/main.rs`：`#[cfg(feature = "e2e")]` 且仅当 `TAURI_WEBDRIVER_PORT` 存在时注册 | 普通 `cargo run` / `tauri dev` 行为完全不变 |
 | E2E 配置 | `e2e/tauri.e2e.conf.json`：独立 identifier `com.ai-digital-life.app.e2e`、`withGlobalTauri: true`、`e2e-wdio` capability、`vite build --mode e2e` | 生产 `tauri.conf.json` 未改（仍是 `withGlobalTauri: false`）；数据目录隔离在 `%APPDATA%\com.ai-digital-life.app.e2e` |
 | 前端 guest 插件 | `frontend/src/main.tsx` 按 `VITE_ADL_E2E=1` 动态 `import('@wdio/tauri-plugin')`；`frontend/.env.e2e` | 不是“只为 mock/日志”，缺了它每条命令超时 5s（见踩坑 1）；生产构建被 tree-shake |
-| E2E workspace | `e2e/`：`wdio.conf.ts`、`specs/smoke.spec.ts`、`run-e2e.mjs`（清理包装器） | 独立 pnpm workspace 包 `ai-digital-life-e2e` |
-| 脚本 / 忽略 | 根 `package.json` 增 `e2e:build`、`e2e`；`.gitignore` 增 `/e2e/node_modules/`、`/e2e/artifacts/` | |
+| E2E workspace | `e2e/`：`wdio.conf.ts`、`tsconfig.json`、`specs/smoke.spec.ts`、`run-e2e.mjs`（清理 + 摘要包装器） | 独立 pnpm workspace 包 `ai-digital-life-e2e`；`typecheck` 进 pre-push |
+| 脚本 / 忽略 | `ai-digital-life/package.json` 增 `e2e:build`（内置 `stage:sidecar`）、`e2e`、`e2e:typecheck`；`.gitignore` 增 `/e2e/{node_modules,artifacts,logs}/` | |
 
 ## 踩坑与可复用经验
 

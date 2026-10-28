@@ -72,13 +72,13 @@
 ### 桌面 E2E（按需）
 
 ```powershell
-pnpm run e2e:build   # debug + --features e2e；不要为跑测试改用 release
+pnpm run e2e:build   # 内置 stage:sidecar；debug + --features e2e，不要改用 release
 pnpm run e2e         # 必须经 e2e/run-e2e.mjs 包装器
 ```
 
-- 包装器负责清理 Windows 硬杀留下的 `adl-server.exe` 孤儿（否则锁二进制、下次构建 `PermissionDenied`）。
+- 包装器负责清理 Windows 硬杀留下的 `adl-server.exe` 孤儿（否则锁二进制、下次构建 `PermissionDenied`）；结果摘要写入 `e2e/artifacts/last-run.json`。
 - 数据目录隔离在 `%APPDATA%\com.ai-digital-life.app.e2e`；生产 `tauri.conf.json` 的 `withGlobalTauri:false` 不变。
-- 套件不进 `check:all`；用例规则、已知坑与从零重建见技能 `desktop-e2e-wdio`。
+- 套件不进 `check:all`；`pnpm run e2e:typecheck` 由 pre-push 执行。用例规则、已知坑与从零重建见技能 `desktop-e2e-wdio`。
 
 ## 设计系统约束
 

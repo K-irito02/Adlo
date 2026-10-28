@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build:app": "pnpm --dir .. run e2e:build",
+    "typecheck": "tsc --noEmit",
     "test": "node ./run-e2e.mjs",
     "test:smoke": "node ./run-e2e.mjs --spec specs/smoke.spec.ts"
   },
