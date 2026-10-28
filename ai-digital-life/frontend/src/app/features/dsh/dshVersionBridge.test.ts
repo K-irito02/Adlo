@@ -114,6 +114,18 @@ describe('dshVersionBridge', () => {
     expect(actions.installDshVersion).toHaveBeenCalledWith('1.2.3', true);
   });
 
+  it('reinstalls a non-current version with select=false and reports the only-saved wording', async () => {
+    const actions = makeActions();
+    const bridge = makeBridge(actions);
+
+    await expect(bridge.reinstallVersion?.('1.1.0')).resolves.toMatchObject({
+      ok: true,
+      message: 'dshReinstalledOnly',
+    });
+    expect(actions.installDshVersion).toHaveBeenCalledWith('1.1.0', false);
+    expect(actions.restartDsh).not.toHaveBeenCalled();
+  });
+
   it('maps revert/uninstall/reinstall/update/cancel to the dsh actions', async () => {
     const actions = makeActions();
     const bridge = makeBridge(actions);
@@ -251,6 +263,7 @@ describe('dshVersionBridge', () => {
     const bridge = makeBridge(makeActions(), { changeSourceMode });
 
     expect(bridge.capabilities?.sourceModeChange).toBe('deferred');
+    expect(bridge.capabilities?.channelPicker).toBe(true);
     await bridge.changeSourceMode?.('system');
     expect(changeSourceMode).toHaveBeenCalledWith('system');
   });
