@@ -71,5 +71,5 @@ export function useHarnessVersionTaskPoll<TSource>(
 
   const clearTask = useCallback(() => setTask(null), []);
 
-  return { clearTask, shownTask, stageText, cancelLabel };
+  return { clearTask, hasLiveTask: task !== null, shownTask, stageText, cancelLabel };
 }

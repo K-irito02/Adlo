@@ -82,7 +82,7 @@ function dshBridge(
       uninstallConfirm: true,
       updateAction: 'check',
       taskPercent: false,
-      taskCounts: false,
+      taskCounts: true,
       sourceManaged: true,
     },
     labels: {
@@ -670,7 +670,7 @@ describe('HarnessVersionCard', () => {
       total: 100,
       cancellable: true,
     }));
-    bridge.taskStageText = () => 'dshTaskStageInstalling 42/100';
+    bridge.taskStageText = () => 'dshTaskStageInstalling';
     bridge.taskCancelLabel = () => 'dshCancelInstall';
 
     renderCard(bridge);
@@ -697,10 +697,10 @@ describe('HarnessVersionCard', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(800);
     });
-    expect(screen.getByText('dshTaskStageInstalling 42/100')).toBeInTheDocument();
-    // DSH 任务行没有百分比，也没有单独的计数提示（计数并入阶段文案）。
+    expect(screen.getByText('dshTaskStageInstalling')).toBeInTheDocument();
+    // DSH 任务行没有百分比；计数单独显示（`taskCounts`），阶段文案不含计数。
+    expect(screen.getByText('42/100')).toBeInTheDocument();
     expect(screen.queryByText('42%')).toBeNull();
-    expect(screen.queryByText('42/100')).toBeNull();
     const cancel = screen.getByRole('button', { name: 'dshCancelInstall' });
     expect(cancel).toBeEnabled();
 
@@ -839,7 +839,7 @@ describe('HarnessVersionCard', () => {
         : null,
     );
     bridge.taskStageText = (task) =>
-      task ? 'dshTaskStageInstalling 3/10' : 'dshTaskStageFinalizing';
+      task ? 'dshTaskStageInstalling' : 'dshTaskStageFinalizing';
 
     renderCard(bridge);
     await waitFor(() =>
@@ -855,13 +855,15 @@ describe('HarnessVersionCard', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(800);
     });
-    expect(screen.getByText('dshTaskStageInstalling 3/10')).toBeInTheDocument();
+    expect(screen.getByText('dshTaskStageInstalling')).toBeInTheDocument();
+    expect(screen.getByText('3/10')).toBeInTheDocument();
 
     // 后端任务先归零、操作仍未结束：行继续显示，文案切到「收尾中」而不是消失。
     await act(async () => {
       await vi.advanceTimersByTimeAsync(800);
     });
     expect(screen.getByText('dshTaskStageFinalizing')).toBeInTheDocument();
+    expect(screen.queryByText('3/10')).toBeNull();
 
     await act(async () => {
       resolveInstall(OK);

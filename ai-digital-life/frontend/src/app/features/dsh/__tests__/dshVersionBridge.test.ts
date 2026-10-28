@@ -368,6 +368,7 @@ describe('dshVersionBridge', () => {
     expect(bridge.capabilities).toMatchObject({
       updateAction: 'check',
       taskPercent: false,
+      taskCounts: true,
       sourceManaged: true,
       channelPicker: true,
     });
@@ -455,10 +456,13 @@ describe('dshVersionBridge', () => {
       cancellable: true,
     };
 
-    expect(bridge.taskStageText?.(task)).toBe('dshTaskStageInstalling 4/10');
+    expect(bridge.taskStageText?.(task)).toBe('dshTaskStageInstalling');
     expect(bridge.taskStageText?.(null)).toBe('dshTaskStageFinalizing');
     expect(bridge.taskStageText?.({ ...task, phase: 'installing', total: 0 })).toBe(
       'dshTaskStageDownloading',
+    );
+    expect(bridge.taskStageText?.({ ...task, phase: 'removing', total: 0 })).toBe(
+      'dshTaskStagePreparing',
     );
     expect(bridge.taskCancelLabel?.(task)).toBe('dshCancelInstall');
     expect(bridge.taskCancelLabel?.({ ...task, kind: 'dsh-uninstall' })).toBe('dshCancelUninstall');

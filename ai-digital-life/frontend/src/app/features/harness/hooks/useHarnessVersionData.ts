@@ -146,6 +146,7 @@ export function useHarnessVersionData<TSource>(bridge: HarnessVersionBridge<TSou
     disabled,
     manageVisible,
     shownTask: task.shownTask,
+    hasLiveTask: task.hasLiveTask,
     stageText: task.stageText,
     cancelLabel: task.cancelLabel,
   };

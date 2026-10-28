@@ -356,21 +356,18 @@ export function createDshVersionBridge(
     return { ok: true };
   };
 
-  /** 任务阶段文案（迁移前 DSH 口径：阶段 + 真实计数，总量未知如实显示下载中）。 */
+  /** 任务阶段文案（迁移前 DSH 口径：阶段文字单独显示，计数由卡片 `taskCounts` 渲染）。 */
   const taskStageText = (task: DshVersionTask | null): string => {
     if (!task) {
       return t.dshTaskStageFinalizing;
     }
-    const counts = `${task.done}/${task.total}`;
     switch (task.phase) {
       case 'preparing':
         return t.dshTaskStagePreparing;
       case 'installing':
-        return task.total > 0
-          ? `${t.dshTaskStageInstalling} ${counts}`
-          : t.dshTaskStageDownloading;
+        return task.total > 0 ? t.dshTaskStageInstalling : t.dshTaskStageDownloading;
       case 'removing':
-        return task.total > 0 ? `${t.dshTaskStageRemoving} ${counts}` : t.dshTaskStagePreparing;
+        return task.total > 0 ? t.dshTaskStageRemoving : t.dshTaskStagePreparing;
       default:
         return t.dshTaskStageFinalizing;
     }
@@ -391,7 +388,7 @@ export function createDshVersionBridge(
       sourceModeChange: 'deferred',
       updateAction: 'check',
       taskPercent: false,
-      taskCounts: false,
+      taskCounts: true,
       resetSourceAction: false,
       channelPicker: true,
       sourceManaged: true,

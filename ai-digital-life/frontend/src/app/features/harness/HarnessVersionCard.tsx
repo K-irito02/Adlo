@@ -265,7 +265,11 @@ export function HarnessVersionCard<TSource = unknown>({
           total={data.shownTask.total}
           cancellable={data.shownTask.cancellable}
           showPercent={bridge.capabilities?.taskPercent !== false}
-          showCounts={bridge.capabilities?.taskCounts === true}
+          showCounts={
+            bridge.capabilities?.taskCounts === true &&
+            data.hasLiveTask &&
+            (data.shownTask.phase === 'installing' || data.shownTask.phase === 'removing')
+          }
           onCancel={() => void bridge.cancel()}
         />
       ) : null}
