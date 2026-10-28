@@ -14,7 +14,7 @@ members = [
     "crates/browser",
     "crates/ci-status",
     "crates/credential",
-    "crates/dsh-version",
+    "crates/harness-version",
     "crates/adl-logging",
     "crates/clipboard",
     "crates/sysmon",

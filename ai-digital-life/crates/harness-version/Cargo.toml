@@ -1,5 +1,5 @@
 [package]
-name = "adl-dsh-version"
+name = "adl-harness-version"
 version.workspace = true
 edition.workspace = true
 

@@ -95,7 +95,7 @@ pub(crate) fn installed_dir(root: &Path) -> PathBuf {
 /// dsh 真安装的 bin.js 相对版本目录路径（`installed/<version>/` 下的 marker）。
 const DSH_MARKER_REL: &str = "node_modules/@deepseek-ai/dsh/lib/bin.js";
 
-/// dsh 版本目录的 hosted 视图：dsh-version 的 `root` 即版本目录本身
+/// dsh 版本目录的 hosted 视图：harness-version 的 `root` 即版本目录本身
 /// （`installed/` 与 `selected.txt` 同级），`HostedVersions` 按
 /// `<root>/<name>/installed` 寻址，故 `name` 取空串做直通映射。
 fn dsh_versions(root: &Path) -> HostedVersions {
@@ -213,7 +213,7 @@ pub async fn latest_available(data_dir: &Path) -> Result<Option<String>, AppErro
     let download_config = adl_download_source::load(data_dir)?;
     let client = adl_download_source::build_http_client(&download_config)?;
     let url = format!("{base}/{DSH_PACKAGE}/latest");
-    tracing::debug!(%url, "dsh-version: querying latest");
+    tracing::debug!(%url, "harness-version: querying latest");
     let resp = client
         .get(url)
         .timeout(std::time::Duration::from_secs(10))
@@ -300,7 +300,7 @@ pub async fn fetch_catalog(data_dir: &Path) -> Result<VersionCatalog, AppError> 
     let download_config = adl_download_source::load(data_dir)?;
     let client = adl_download_source::build_http_client(&download_config)?;
     let url = format!("{base}/{DSH_PACKAGE}");
-    tracing::debug!(%url, "dsh-version: fetching version catalog");
+    tracing::debug!(%url, "harness-version: fetching version catalog");
     let resp = client
         .get(url)
         .timeout(std::time::Duration::from_secs(15))
@@ -375,7 +375,7 @@ pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionS
                 ?pre,
                 has_prerelease_update = has_pre,
                 ?bundled_version,
-                "dsh-version: version status resolved"
+                "harness-version: version status resolved"
             );
             Ok(VersionStatus {
                 current_selected,
@@ -389,7 +389,7 @@ pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionS
             })
         },
         Err(e) => {
-            tracing::debug!(error = %e, "dsh-version: catalog unavailable");
+            tracing::debug!(error = %e, "harness-version: catalog unavailable");
             match dist_latest {
                 Some(latest) => {
                     // 降级口径（旧逻辑）：tokens 比较，忽略 pre 后缀。
@@ -429,12 +429,12 @@ pub async fn update_with_task(
     let target = match fetch_catalog(data_dir).await {
         Ok(catalog) => resolve_stable_latest(&catalog, None),
         Err(e) => {
-            tracing::debug!(error = %e, "dsh-version: update falls back to dist-tag latest");
+            tracing::debug!(error = %e, "harness-version: update falls back to dist-tag latest");
             latest_available(data_dir).await.ok().flatten()
         },
     }
     .ok_or_else(|| AppError::NotFound("no stable release published upstream".into()))?;
-    tracing::debug!(%target, "dsh-version: update to latest stable");
+    tracing::debug!(%target, "harness-version: update to latest stable");
     task.set_version(&target);
     install::install(root, data_dir, &target, task, true).await
 }
@@ -456,23 +456,23 @@ pub async fn install_version_with_task(
     task: &ProgressTask,
     select: bool,
 ) -> Result<String, AppError> {
-    tracing::debug!(%version, select, "dsh-version::install_version: delegating to kernel");
+    tracing::debug!(%version, select, "harness-version::install_version: delegating to kernel");
     install::install(root, data_dir, version, task, select).await
 }
 
 /// 回退/切换：校验版本号并确认已完整安装后，把该版本写入 selected。
 pub async fn revert(root: &Path, version: &str) -> Result<String, AppError> {
-    tracing::debug!(%version, "dsh-version::revert: request");
+    tracing::debug!(%version, "harness-version::revert: request");
     semver::Version::parse(version)
         .map_err(|_| AppError::InvalidInput(format!("invalid version {version}")))?;
     if !is_host_version_installed(root, version) {
-        tracing::debug!(%version, "dsh-version::revert: rejected (not installed)");
+        tracing::debug!(%version, "harness-version::revert: rejected (not installed)");
         return Err(AppError::NotFound(format!("version {version} not installed")));
     }
     tokio::fs::write(selected_file(root), format!("{version}\n"))
         .await
         .map_err(|e| AppError::Io(format!("write selected: {e}")))?;
-    tracing::debug!(%version, "dsh-version::revert: selected written");
+    tracing::debug!(%version, "harness-version::revert: selected written");
     Ok(version.to_string())
 }
 
@@ -484,11 +484,11 @@ pub async fn uninstall_with_task(
     version: &str,
     task: &ProgressTask,
 ) -> Result<(), AppError> {
-    tracing::debug!(%version, "dsh-version::uninstall: delegating to kernel");
+    tracing::debug!(%version, "harness-version::uninstall: delegating to kernel");
     install::uninstall(root, version, task).await?;
     // 版本已删成功：来源记录清不掉不该让卸载报错（否则 UI 显示失败但磁盘已改）。
     if let Err(e) = clear_bundled_version_if(root, version) {
-        tracing::warn!(%version, error = %e, "dsh-version::uninstall: clear bundled marker failed");
+        tracing::warn!(%version, error = %e, "harness-version::uninstall: clear bundled marker failed");
     }
     Ok(())
 }
@@ -506,7 +506,7 @@ pub async fn reinstall_with_task(
 ) -> Result<String, AppError> {
     let selected =
         read_selected(root)?.ok_or_else(|| AppError::NotFound("no selected version".into()))?;
-    tracing::debug!(version = %selected, "dsh-version::reinstall: reinstalling selected");
+    tracing::debug!(version = %selected, "harness-version::reinstall: reinstalling selected");
     install::install(root, data_dir, &selected, task, true).await
 }
 
@@ -640,17 +640,17 @@ async fn cached_system_dsh_version(path: &Path) -> Option<String> {
         let cached = slot.lock().await;
         if let Some((cached_path, version)) = cached.as_ref() {
             if cached_path == path {
-                tracing::debug!("dsh-version: system version cache HIT");
+                tracing::debug!("harness-version: system version cache HIT");
                 return version.clone();
             }
             tracing::debug!(
                 cached_path = %cached_path.display(),
                 probed_path = %path.display(),
-                "dsh-version: system path changed — re-probing dsh --version",
+                "harness-version: system path changed — re-probing dsh --version",
             );
         }
     }
-    tracing::debug!("dsh-version: system version cache MISS — probing dsh --version");
+    tracing::debug!("harness-version: system version cache MISS — probing dsh --version");
     let probed = probe_dsh_version(path).await;
     *slot.lock().await = Some((path.to_path_buf(), probed.clone()));
     probed
@@ -690,14 +690,14 @@ async fn probe_dsh_version(path: &Path) -> Option<String> {
             },
             _ => None,
         };
-        tracing::debug!(candidate = %candidate.display(), parsed = ?parsed, "dsh-version: system version probed");
+        tracing::debug!(candidate = %candidate.display(), parsed = ?parsed, "harness-version: system version probed");
         if parsed.is_some() {
             return parsed;
         }
     }
     // 全候选失败（未安装/超时/不可解析/193 全灭）：warn 汇总，调用方按未知展示。
     // 会话缓存限频（同 path 每进程只到这里一次），不会刷屏（R1-L3）。
-    tracing::warn!(path = %path.display(), "dsh-version: dsh --version probe failed for all candidates");
+    tracing::warn!(path = %path.display(), "harness-version: dsh --version probe failed for all candidates");
     None
 }
 

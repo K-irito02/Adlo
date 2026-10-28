@@ -39,7 +39,7 @@ debug = 2
 debug = 2
 [profile.dev.package.adl-dsh-bundle]
 debug = 2
-[profile.dev.package.adl-dsh-version]
+[profile.dev.package.adl-harness-version]
 debug = 2
 [profile.dev.package.adl-env]
 debug = 2

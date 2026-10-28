@@ -93,11 +93,11 @@ pub struct ServerState {
     /// 配置变更即重建（`build_http_client` 不按请求重复构造）。
     pub env_probe_client: Arc<AsyncMutex<Option<(String, reqwest::Client)>>>,
     /// dsh 来源缓存：避免每次打开 dsh 时都重新检测来源
-    pub dsh_source_cache: Arc<RwLock<Option<adl_dsh_version::DshSource>>>,
+    pub dsh_source_cache: Arc<RwLock<Option<adl_harness_version::DshSource>>>,
     /// 官方版本目录缓存（聚合快照 `/dsh/settings-snapshot` 用）：TTL 内直接复用，
     /// 避免每次进入设置面板都走一次 registry 网络请求；拉取失败时回退旧值。
     pub dsh_catalog_cache:
-        Arc<RwLock<Option<(std::time::Instant, adl_dsh_version::VersionCatalog)>>>,
+        Arc<RwLock<Option<(std::time::Instant, adl_harness_version::VersionCatalog)>>>,
     /// 活动工作区文件监听器（warn+降级：启动失败时保持 `None`，功能退化为无自动刷新）
     pub workspace_watcher: Arc<StdMutex<Option<adl_workspace::WorkspaceWatcher>>>,
 }

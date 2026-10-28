@@ -12,7 +12,7 @@ use crate::ipc;
 use crate::state::{DshSpawnSource, ManagedDsh};
 use adl_download_source;
 use adl_dsh_bundle;
-use adl_dsh_version;
+use adl_harness_version;
 use adl_errors::AppError;
 use adl_webapp_host::DSH_DEFAULT_PORT;
 use adl_webapp_host::spawn_and_wait_ready;
@@ -340,12 +340,12 @@ async fn free_stale_dsh_on_default_port() -> Result<bool, AppError> {
 async fn detect_source(
     paths: &adl_kernel::storage::StoragePaths,
     mode: adl_download_source::VersionSourceMode,
-) -> adl_dsh_version::DshSource {
-    let running = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT).await;
-    let system = adl_dsh_version::detect_system_dsh().await;
+) -> adl_harness_version::DshSource {
+    let running = adl_harness_version::detect_running_dsh(DSH_DEFAULT_PORT).await;
+    let system = adl_harness_version::detect_system_dsh().await;
     // 版本目录取 StoragePaths 的正式口径（`dsh-versions` 可被存储设置覆盖），
     // 不能再用 data_dir 硬拼，否则收编/安装的版本在覆盖场景下对启动不可见。
-    adl_dsh_version::select_dsh_source(&paths.dsh_versions_dir, mode, running, system)
+    adl_harness_version::select_dsh_source(&paths.dsh_versions_dir, mode, running, system)
 }
 
 const DSH_LOOPBACK_PATCH: &str =
@@ -400,7 +400,7 @@ async fn run_open(
     start_lock: Arc<AsyncMutex<()>>,
     version_lock: Arc<AsyncMutex<()>>,
     paths: &adl_kernel::storage::StoragePaths,
-    dsh_source_cache: Arc<RwLock<Option<adl_dsh_version::DshSource>>>,
+    dsh_source_cache: Arc<RwLock<Option<adl_harness_version::DshSource>>>,
 ) -> Result<serde_json::Value, AppError> {
     let start_time = std::time::Instant::now();
 
@@ -450,7 +450,7 @@ async fn run_open(
         if let Some(ref cached_source) = cached {
             // 缓存命中：如果是 ReuseRunning，验证进程是否仍在运行
             match cached_source {
-                adl_dsh_version::DshSource::ReuseRunning { url, port } => {
+                adl_harness_version::DshSource::ReuseRunning { url, port } => {
                     // 快速 TCP 检查验证端口是否仍在监听（锁已释放，可安全 await）
                     if adl_webapp_host::check_port_fast(*port).await {
                         tracing::info!(
@@ -519,8 +519,8 @@ async fn run_open(
     // 仅在需要启动新进程时才执行 free_stale（ReuseRunning 跳过）
     let freed_start = std::time::Instant::now();
     let freed = match &source {
-        adl_dsh_version::DshSource::ReuseRunning { .. } => false,
-        adl_dsh_version::DshSource::None => false,
+        adl_harness_version::DshSource::ReuseRunning { .. } => false,
+        adl_harness_version::DshSource::None => false,
         _ => free_stale_dsh_on_default_port().await?,
     };
     tracing::info!(
@@ -534,25 +534,25 @@ async fn run_open(
     // 2026-10-22：记录来源使读数能区分「宿主拉起 / 系统安装拉起 / 外部运行」）。
     // 复用/无来源走上游 early-return，此处不可达。
     let (hp, spawn_version, spawn_source) = match source {
-        adl_dsh_version::DshSource::ReuseRunning { url, port } => {
+        adl_harness_version::DshSource::ReuseRunning { url, port } => {
             tracing::info!(?url, ?port, "dsh::run_open: reusing running instance");
             // 已有进程运行中，直接返回 URL。不写入 dsh_guard（进程非我们启动，无法持有 Child）。
             // close 操作对复用的进程无意义（我们没有 Child handle），保持原样即可。
             return Ok(serde_json::json!({ "url": url, "freedPort": freed }));
         },
-        adl_dsh_version::DshSource::System { info } => {
+        adl_harness_version::DshSource::System { info } => {
             tracing::info!(path = %info.path.display(), version = ?info.version, "dsh::run_open: using system dsh");
             let args = loopback_web_args(paths).await?;
             let hp = spawn_and_wait_ready(&info.path.to_string_lossy(), &args, timeout).await?;
             (hp, info.version.clone(), DshSpawnSource::System)
         },
-        adl_dsh_version::DshSource::HostInstalled { version, bin } => {
+        adl_harness_version::DshSource::HostInstalled { version, bin } => {
             tracing::info!(%version, path = %bin.display(), "dsh::run_open: using host-installed dsh");
             let args = loopback_web_args(paths).await?;
             let hp = spawn_node_direct("node", &bin.to_string_lossy(), &args, timeout).await?;
             (hp, Some(version), DshSpawnSource::Host)
         },
-        adl_dsh_version::DshSource::None => {
+        adl_harness_version::DshSource::None => {
             tracing::warn!("dsh::run_open: no dsh source available");
             return Err(AppError::NotFound(
                 "no dsh source available; install a version in settings".into(),
@@ -598,13 +598,13 @@ pub async fn adopt_bundled_version(state: &ServerState) {
             return;
         },
     };
-    if let Err(e) = adl_dsh_version::set_bundled_version(&root, &version).await {
+    if let Err(e) = adl_harness_version::set_bundled_version(&root, &version).await {
         tracing::warn!(error = %e, version = %version, "dsh::adopt_bundle: marker write failed");
     }
     // 预置即「装上即用」：没有选中版本时直接选中它；已有选中则不打扰用户。
-    match adl_dsh_version::read_selected(&root) {
+    match adl_harness_version::read_selected(&root) {
         Ok(None) => {
-            if let Err(e) = adl_dsh_version::revert(&root, &version).await {
+            if let Err(e) = adl_harness_version::revert(&root, &version).await {
                 tracing::warn!(error = %e, version = %version, "dsh::adopt_bundle: auto-select failed");
             }
         },
@@ -655,13 +655,13 @@ pub async fn get_version_status(State(state): State<ServerState>) -> impl IntoRe
 
 /// POST `/dsh/update` — 升级 dsh 至最新可用版本，返回新版本串。
 pub async fn update(State(state): State<ServerState>) -> impl IntoResponse {
-    if let Err(e) = try_begin_version_task(&state, adl_dsh_version::task_kind::UPDATE, "latest") {
+    if let Err(e) = try_begin_version_task(&state, adl_harness_version::task_kind::UPDATE, "latest") {
         return ipc::to_response(Err(e));
     }
     let guard = state.dsh_version_lock.clone().lock_owned().await;
     let was_running = stop_running_dsh(&state).await;
     let root = dsh_root(&state);
-    let result = adl_dsh_version::update_with_task(
+    let result = adl_harness_version::update_with_task(
         &root,
         &state.storage.paths().root,
         &state.dsh_version_task,
@@ -684,7 +684,7 @@ pub async fn revert(
     tracing::debug!(version = %input.version, "dsh::revert: request");
     let _guard = state.dsh_version_lock.lock().await;
     let root = dsh_root(&state);
-    let result = adl_dsh_version::revert(&root, &input.version).await.map(|v| serde_json::json!(v));
+    let result = adl_harness_version::revert(&root, &input.version).await.map(|v| serde_json::json!(v));
     match &result {
         Ok(_) => tracing::debug!(version = %input.version, "dsh::revert: ok"),
         Err(e) => tracing::debug!(version = %input.version, error = %e, "dsh::revert: failed"),
@@ -707,7 +707,7 @@ pub async fn uninstall(
     };
     tracing::debug!(version = %input.version, "dsh::uninstall: request");
     if let Err(e) =
-        try_begin_version_task(&state, adl_dsh_version::task_kind::UNINSTALL, &input.version)
+        try_begin_version_task(&state, adl_harness_version::task_kind::UNINSTALL, &input.version)
     {
         return ipc::to_response(Err(e));
     }
@@ -715,12 +715,12 @@ pub async fn uninstall(
     let root = dsh_root(&state);
     // 卸载当前选中版本需要先停进程（Windows 下文件占用会导致删除失败）。
     let is_current =
-        adl_dsh_version::read_selected(&root).ok().flatten().as_deref() == Some(&input.version);
+        adl_harness_version::read_selected(&root).ok().flatten().as_deref() == Some(&input.version);
     tracing::debug!(version = %input.version, is_current, "dsh::uninstall: task begun");
     let was_running = if is_current { stop_running_dsh(&state).await } else { false };
     tracing::debug!(version = %input.version, was_running, "dsh::uninstall: invoking kernel");
     let result =
-        adl_dsh_version::uninstall_with_task(&root, &input.version, &state.dsh_version_task)
+        adl_harness_version::uninstall_with_task(&root, &input.version, &state.dsh_version_task)
             .await
             .map(|()| serde_json::json!(true));
     match &result {
@@ -734,7 +734,7 @@ pub async fn uninstall(
 /// POST `/dsh/reinstall` — 真重新安装当前选中版本并选中，返回该版本串。
 pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
     let root = dsh_root(&state);
-    let selected = match adl_dsh_version::read_selected(&root) {
+    let selected = match adl_harness_version::read_selected(&root) {
         Ok(Some(version)) => version,
         Ok(None) => {
             tracing::debug!("dsh::reinstall: rejected (no selected version)");
@@ -746,14 +746,14 @@ pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
         },
     };
     tracing::debug!(version = %selected, "dsh::reinstall: request");
-    if let Err(e) = try_begin_version_task(&state, adl_dsh_version::task_kind::REINSTALL, &selected)
+    if let Err(e) = try_begin_version_task(&state, adl_harness_version::task_kind::REINSTALL, &selected)
     {
         return ipc::to_response(Err(e));
     }
     let guard = state.dsh_version_lock.clone().lock_owned().await;
     let was_running = stop_running_dsh(&state).await;
     tracing::debug!(version = %selected, was_running, "dsh::reinstall: invoking kernel");
-    let result = adl_dsh_version::reinstall_with_task(
+    let result = adl_harness_version::reinstall_with_task(
         &root,
         &state.storage.paths().root,
         &state.dsh_version_task,
@@ -823,7 +823,7 @@ async fn run_restart(state: &ServerState) -> Result<serde_json::Value, AppError>
 
 /// POST `/dsh/version-catalog` — 查询官方版本目录（正式版/预发布分桶 + 各自最新）。
 pub async fn get_version_catalog(State(state): State<ServerState>) -> impl IntoResponse {
-    let result = match adl_dsh_version::fetch_catalog(&state.storage.paths().root).await {
+    let result = match adl_harness_version::fetch_catalog(&state.storage.paths().root).await {
         Ok(v) => serde_json::to_value(&v).map_err(|e| AppError::Internal(e.to_string())),
         Err(e) => Err(e),
     };
@@ -846,21 +846,21 @@ pub async fn install_version(
     let root = dsh_root(&state);
     // Install/Reinstall 分类只影响进度条 kind 标签：判定在锁外，结果可能与
     // 实际执行略有出入（并发变更），正确性不受影响，故接受此近似。
-    let kind = if adl_dsh_version::is_host_version_installed(&root, input.version.trim()) {
-        adl_dsh_version::task_kind::REINSTALL
+    let kind = if adl_harness_version::is_host_version_installed(&root, input.version.trim()) {
+        adl_harness_version::task_kind::REINSTALL
     } else {
-        adl_dsh_version::task_kind::INSTALL
+        adl_harness_version::task_kind::INSTALL
     };
     if let Err(e) = try_begin_version_task(&state, kind, input.version.trim()) {
         return ipc::to_response(Err(e));
     }
     let guard = state.dsh_version_lock.clone().lock_owned().await;
-    let current = adl_dsh_version::read_selected(&root).ok().flatten();
+    let current = adl_harness_version::read_selected(&root).ok().flatten();
     let is_current = current.as_deref() == Some(input.version.trim());
     tracing::debug!(version = %input.version, ?kind, ?current, is_current, "dsh::install_version: task begun");
     let was_running = if is_current { stop_running_dsh(&state).await } else { false };
     tracing::debug!(version = %input.version, was_running, select, "dsh::install_version: invoking kernel");
-    let result = adl_dsh_version::install_version_with_task(
+    let result = adl_harness_version::install_version_with_task(
         &root,
         &state.storage.paths().root,
         &input.version,
@@ -900,14 +900,14 @@ pub async fn get_source_status(State(state): State<ServerState>) -> impl IntoRes
 async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Value, AppError> {
     let data_dir = &state.storage.paths().root;
 
-    let system = adl_dsh_version::detect_system_dsh().await.map(|info| {
+    let system = adl_harness_version::detect_system_dsh().await.map(|info| {
         serde_json::json!({
             "path": info.path,
             "version": info.version,
         })
     });
 
-    let running_detected = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT).await;
+    let running_detected = adl_harness_version::detect_running_dsh(DSH_DEFAULT_PORT).await;
     // 宿主持有 Child 即本次会话拉起（版本与来源精确已知）；try_wait 过滤已退出的
     // 子进程，避免残留句柄把外部进程误标为本次会话拉起（P5）。
     let managed = managed_snapshot(state).await;
@@ -917,9 +917,9 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
     let root = dsh_root(state);
     // 宿主「当前可用」版本：选中且完整安装。内置预置版本就是普通已装版本，
     // 是否内置由 `get-version-status` 的 `bundledVersion` 记录回答，与此处无关。
-    let host_version = adl_dsh_version::read_selected(&root)?
-        .filter(|version| adl_dsh_version::is_host_version_installed(&root, version));
-    let effective = adl_dsh_version::resolve_effective_source(
+    let host_version = adl_harness_version::read_selected(&root)?
+        .filter(|version| adl_harness_version::is_host_version_installed(&root, version));
+    let effective = adl_harness_version::resolve_effective_source(
         config.version_source,
         running.is_some(),
         host_version.is_some(),
@@ -929,7 +929,7 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
     // 「运行时事实」，来源可能是应用自启也可能是用户外部手动拉起，不应遮蔽
     // 用户选择的来源偏好（否则 auto+系统安装 在进程运行时被误判为宿主能力）。
     let resolve_by_mode = |mode: adl_download_source::VersionSourceMode| {
-        adl_dsh_version::resolve_effective_source(
+        adl_harness_version::resolve_effective_source(
             mode,
             false,
             host_version.is_some(),
@@ -1003,7 +1003,7 @@ async fn managed_snapshot_inner(
 
 /// 运行中进程 payload：托管时带 spawn 地址/版本与来源，否则按外部进程（版本未知）。
 fn running_payload(
-    info: adl_dsh_version::RunningDshInfo,
+    info: adl_harness_version::RunningDshInfo,
     managed: Option<ManagedSnapshot>,
 ) -> serde_json::Value {
     let (is_managed, version, source) = match managed {
@@ -1023,7 +1023,7 @@ fn running_payload(
 /// 不跑 `where dsh` / `dsh --version`（设置面板 5s 轮询用）。
 pub async fn get_running(State(state): State<ServerState>) -> impl IntoResponse {
     let managed = managed_snapshot(&state).await;
-    let running = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT)
+    let running = adl_harness_version::detect_running_dsh(DSH_DEFAULT_PORT)
         .await
         .map(|info| running_payload(info, managed));
     let starting = state.dsh_starting.load(std::sync::atomic::Ordering::Relaxed);
@@ -1038,7 +1038,7 @@ const CATALOG_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(30
 /// 取官方版本目录（TTL 内复用内存缓存；刷新失败时回退旧缓存）。
 pub(crate) async fn load_catalog_cached(
     state: &ServerState,
-) -> Option<adl_dsh_version::VersionCatalog> {
+) -> Option<adl_harness_version::VersionCatalog> {
     let cached = state
         .dsh_catalog_cache
         .read()
@@ -1049,7 +1049,7 @@ pub(crate) async fn load_catalog_cached(
             return Some(catalog.clone());
         }
     }
-    match adl_dsh_version::fetch_catalog(&state.storage.paths().root).await {
+    match adl_harness_version::fetch_catalog(&state.storage.paths().root).await {
         Ok(catalog) => {
             if let Ok(mut slot) = state.dsh_catalog_cache.write() {
                 *slot = Some((std::time::Instant::now(), catalog.clone()));
@@ -1124,7 +1124,7 @@ async fn get_settings_snapshot_inner(state: &ServerState) -> Result<serde_json::
 /// `/dsh/get-version-status` 与聚合快照共用的版本状态取值。
 async fn get_version_status_value(state: &ServerState) -> Result<serde_json::Value, AppError> {
     let root = dsh_root(state);
-    let status = adl_dsh_version::get_version_status(&root, &state.storage.paths().root).await?;
+    let status = adl_harness_version::get_version_status(&root, &state.storage.paths().root).await?;
     serde_json::to_value(&status).map_err(|e| AppError::Internal(e.to_string()))
 }
 
@@ -1521,7 +1521,7 @@ mod tests {
     #[test]
     fn running_payload_distinguishes_managed_source_and_external() {
         let info =
-            adl_dsh_version::RunningDshInfo { url: "http://127.0.0.1:3080/".into(), port: 3080 };
+            adl_harness_version::RunningDshInfo { url: "http://127.0.0.1:3080/".into(), port: 3080 };
         let managed = running_payload(
             info.clone(),
             Some(ManagedSnapshot {

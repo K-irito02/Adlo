@@ -112,22 +112,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "adl-dsh-version"
-version = "0.1.0"
-dependencies = [
- "adl-download-source",
- "adl-errors",
- "adl-hosted",
- "adl-webapp-host",
- "reqwest",
- "semver",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "adl-env"
 version = "0.1.0"
 dependencies = [
@@ -159,6 +143,22 @@ dependencies = [
  "adl-errors",
  "sha2",
  "uuid",
+]
+
+[[package]]
+name = "adl-harness-version"
+version = "0.1.0"
+dependencies = [
+ "adl-download-source",
+ "adl-errors",
+ "adl-hosted",
+ "adl-webapp-host",
+ "reqwest",
+ "semver",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -256,10 +256,10 @@ dependencies = [
  "adl-credential",
  "adl-download-source",
  "adl-dsh-bundle",
- "adl-dsh-version",
  "adl-env",
  "adl-errors",
  "adl-fs-ops",
+ "adl-harness-version",
  "adl-hosted",
  "adl-kernel",
  "adl-logging",

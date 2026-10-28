@@ -39,7 +39,7 @@ async fn detect_running_dsh_is_async_safe_inside_runtime() {
         }
     });
 
-    let running = adl_dsh_version::detect_running_dsh(port).await;
+    let running = adl_harness_version::detect_running_dsh(port).await;
     let info = running.expect("listening port must be detected");
     assert_eq!(info.port, port);
     assert_eq!(info.url, format!("http://127.0.0.1:{port}/"));
@@ -72,7 +72,7 @@ async fn detect_running_dsh_rejects_unrelated_web_page() {
         }
     });
 
-    assert!(adl_dsh_version::detect_running_dsh(port).await.is_none());
+    assert!(adl_harness_version::detect_running_dsh(port).await.is_none());
 }
 
 /// 端口空闲时快速返回 `None`（不创建 HTTP 客户端）。
@@ -82,5 +82,5 @@ async fn detect_running_dsh_returns_none_when_port_closed() {
         let l = TcpListener::bind("127.0.0.1:0").expect("bind");
         l.local_addr().expect("addr").port()
     };
-    assert!(adl_dsh_version::detect_running_dsh(port).await.is_none());
+    assert!(adl_harness_version::detect_running_dsh(port).await.is_none());
 }

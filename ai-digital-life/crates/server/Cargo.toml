@@ -15,7 +15,7 @@ adl-clipboard = { path = "../clipboard" }
 adl-credential = { path = "../credential" }
 adl-download-source = { path = "../download-source" }
 adl-dsh-bundle = { path = "../dsh-bundle" }
-adl-dsh-version = { path = "../dsh-version" }
+adl-harness-version = { path = "../harness-version" }
 adl-errors = { path = "../errors" }
 adl-env = { path = "../adl-env" }
 adl-fs-ops = { path = "../fs-ops" }
