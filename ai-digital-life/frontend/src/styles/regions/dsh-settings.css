@@ -1,0 +1,156 @@
+/* ==========================================================================
+   Regions: DSH 设置组局部样式（设置面板「DSH」组）
+   --------------------------------------------------------------------------
+   - 下载源控件宽度（下拉框 / 测试连接按钮统一 160px）
+   - 组内通用控件：操作按钮、行内链接、摘要行模式提示
+   - 环境组复用的任务阶段文案（安装/卸载/重装进行中，见 `EnvDepRow`）
+   版本卡片自身的排版在 `harness-version.css`；块头（恢复默认 + 主标题）
+   样式由 settings.css 共享选择器组单点维护，此处只放组内局部样式——
+   行控件垂直居中见 settings.css `.adl-dsh-settings .adl-settings-row`。
+   ========================================================================== */
+
+/* 右侧控件与下拉框同宽：下拉框定宽 160px（含 min-width 锁定意图），测试按钮同宽；
+   输入框保持现状（200px）不动。过长结果文案省略显示（复用共享
+   `.adl-settings-dropdown__value` 的省略规则），title 透出全文。 */
+.adl-dsh-settings .adl-settings-dropdown {
+  width: 160px;
+  min-width: 160px;
+}
+
+/* 测试连接按钮：复用下拉触发器视觉（灰底 radius-sm、hover 描边、直角），
+   文案（含测试中/结果态）在按钮内水平居中。 */
+.adl-dsh-settings__test-button {
+  width: 160px;
+  min-width: 160px;
+  justify-content: center;
+}
+
+.adl-dsh-settings__test-button .adl-settings-dropdown__value {
+  min-width: 0;
+  text-align: center;
+}
+
+.adl-dsh-settings__test-button .adl-settings-dropdown__value.is-success {
+  color: var(--pastel-success-fg);
+}
+
+.adl-dsh-settings__test-button .adl-settings-dropdown__value.is-error {
+  color: var(--pastel-danger-fg);
+}
+
+/* -------- 任务阶段文案（环境组依赖安装/卸载/重装复用） -------- */
+
+.adl-dsh-settings__version-task {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* 任务阶段文案（外部调研结论：阶段＋真实计数，不伪造进度；弱化，不抢按钮）。 */
+.adl-dsh-settings__version-task-stage {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 阶段文案扫光（中性灰，亮暗主题均可见；计数部分保持静止，用户明确要求）。 */
+.adl-dsh-settings__version-task-shimmer {
+  background: linear-gradient(100deg, #8a8a8a 30%, #d4d4d4 50%, #8a8a8a 70%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: adl-dsh-task-shimmer 2.6s ease-in-out infinite;
+}
+
+@keyframes adl-dsh-task-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.adl-dsh-settings__version-task-count {
+  margin-left: 0.25em;
+}
+
+/* -------- 组内通用控件 -------- */
+
+/* 「当前下载源」摘要行尾部的模式提示（自动检测/手动选择）：
+   中性灰，与其它设置项说明文字同色；前面的名称与源地址文本保持主文字色。
+   需要复合选择器压过 `settings.css` 的 `.adl-settings-row__label-text span`（0-2-1）。
+   `flex: 0 0 auto`：窄宽度下优先截断长 URL，而不是先吃掉这句短提示。 */
+.adl-dsh-settings .adl-settings-row__label-text .adl-dsh-settings__source-mode {
+  color: var(--text-muted);
+  font-weight: var(--font-normal);
+  flex: 0 0 auto;
+}
+
+/* 版本操作按钮：与其它设置块控件同构——常驻灰底、无边框线、radius-sm 近直角；
+   悬停时加边框线。统宽 + 内容居中：spinner 替换文案时按钮不变形
+   （用户实测 2026-10-21：切换按钮加载态忽大忽小）。 */
+.adl-dsh-settings__action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-dsh-settings__action-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  /* 浅色下 bg-muted 与 surface-hover 同值，hover 全靠边框变化保证可见 */
+  border-color: var(--border-strong);
+}
+
+.adl-dsh-settings__action-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-dsh-settings__action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-dsh-settings__action-btn--danger {
+  color: var(--danger);
+}
+
+/* 说明文字内嵌链接：与标题同色（var(--text-primary，与行标题 span 一致，
+   用户 2026-10-19 明确要求取消蓝色/灰色特殊色），无下划线；
+   点击跟随「打开方式」网址落点跳转。保留 focus 描边保证键盘可达性。 */
+.adl-dsh-settings__inline-link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.adl-dsh-settings__inline-link:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.adl-dsh-settings__inline-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* 行内链接禁用态：busy 时仍保持文字形态，但必须有可见反馈（否则会被当成可点）。 */
+.adl-dsh-settings__inline-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

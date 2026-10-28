@@ -30,7 +30,7 @@ export interface DshSlice {
    * true 时读数区显示错误态，不再无限骨架；成功腿到达即清除。
    */
   settingsSnapshotFailed: boolean;
-  /** dsh 下载源状态（bundled / system / running / config） */
+  /** dsh 下载源状态（system / running / versionSource / config） */
   sourceStatus: DshSourceStatus | null;
   /** 当前版本任务真实进度（无任务为 null） */
   versionTask: DshVersionTask | null;

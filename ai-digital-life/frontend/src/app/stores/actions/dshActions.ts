@@ -290,7 +290,7 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
 
     /**
      * [uninstallDsh - 卸载 dsh 指定版本，并刷新版本状态]
-     * 内置预置版本同样是普通已装版本：删除版本目录即可，后端同时清掉「内置」来源记录。
+     * 安装包不预置任何版本：已装版本都是普通宿主版本，删除版本目录即可。
      * @returns true=成功；false=失败（已记录全局错误卡片）
      * @reads 无
      * @writes dshSlice.versionStatus
@@ -483,7 +483,7 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
     },
 
     /**
-     * [fetchSourceStatus - 拉取 dsh 下载源状态（bundled / system / running / config）]
+     * [fetchSourceStatus - 拉取 dsh 下载源状态（system / running / versionSource / config）]
      * @returns true=成功；false=失败（非 silent 时已记录全局错误卡片）
      * @param silent 后台同步（设置页挂载拉取）传 true：不碰错误卡片（既不记新的，
      * 也不清用户主动操作留下的旧卡。事项 11 Phase 4 A1-L2）。

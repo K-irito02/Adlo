@@ -295,23 +295,14 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS.storageBrowserDownloadTitle).toBe('Browser download folder');
   });
 
-  it('includes the dsh version-management block copy in both locales', () => {
+  it('includes the dsh version block + generic card copy in both locales', () => {
     const keys = [
+      // 组块头 + 通用卡片行（DSH 适配器注入的文案）。
       'dshVersionManagement',
-      'dshCurrentVersionLabel',
       'dshCurrentVersionNone',
-      'dshCurrentVersionDesc',
       'dshCurrentVersionHint',
-      // 事项调整：版本操作行改为纯检查更新行；行内操作移入正式版/预发布列表。
-      'dshCheckUpdateDesc',
-      'dshCheckUpdateHint',
-      // 事项 5：官方列表 + 预发布分区 + 官网跳转（死键已清理）。
-      'dshReinstallVersion',
-      'dshInstallAction',
-      'dshSwitchToVersion',
       'dshInstallSuccess',
       'dshInstallFailed',
-      'dshVersionListUnknown',
       'dshVersionUnknown',
       'dshVersionStateReading',
       'dshVersionStateFailed',
@@ -319,23 +310,12 @@ describe('i18n en-US namespace keys', () => {
       'dshEffectiveRunningSystem',
       'dshRunningExternalNote',
       'dshEffectiveSystem',
-      // 内置版本概念已移除：只保留「当前版本」状态徽章与已装版本文案。
-      'dshInstalledVersions',
-      'dshCurrentVersionBadge',
-      'dshOfficialStable',
-      'dshOfficialStableEmpty',
-      'dshOfficialStableDesc',
       'dshOfficialStableHint',
-      'dshPrereleaseTitle',
-      'dshPrereleaseDesc',
       'dshPrereleaseHint',
-      'dshPrereleaseUpdateAvailable',
       'dshOfficialLinksLabel',
       'dshOfficialLinksDesc',
       'dshNpmPage',
       'dshGithubReleases',
-      'dshOfficialPrereleaseEmpty',
-      'dshVersionSource',
       'dshVersionSourceDesc',
       'dshVersionSourceHint',
       'dshVersionSourceAuto',
@@ -356,9 +336,6 @@ describe('i18n en-US namespace keys', () => {
       'dshNoSourceAutoNote',
       'dshVersionSourceSwitchDialogEmpty',
       'dshVersionSourceSwitchDialogFromEmpty',
-      'dshCancelInstall',
-      'dshCancelUninstall',
-      'dshCancelReinstall',
       // DSH 组版本管理块底部摘要行：当前下载源 + 模式提示（直角引号）+ 跳转按钮。
       'dshSourceSummaryTitle',
       'dshSourceSummary',
@@ -366,26 +343,17 @@ describe('i18n en-US namespace keys', () => {
       'dshSourceSummaryManual',
       'dshSourceSummaryUnknown',
       'dshSourceSummaryGoModify',
-      'dshVersionCancelled',
       'dshVersionCancelFailed',
       'dshSwitchedOnly',
       'dshReinstalledOnly',
       'dshOpenNoVersion',
       'dshVersionBusyRetry',
-      'dshTaskStagePreparing',
-      'dshTaskStageDownloading',
-      'dshTaskStageInstalling',
-      'dshTaskStageRemoving',
-      'dshTaskStageFinalizing',
       'dshInstalledRestarted',
       'dshSwitchedRestarted',
       'dshReinstalledRestarted',
       'dshUninstalledSwitched',
       'dshUninstalledNoVersion',
       'dshRestartFailed',
-      'dshCheckUpdateNoStable',
-      'dshCheckUpdatePrerelease',
-      'dshCheckUpdateFound',
     ] as const;
     for (const key of keys) {
       expect((enUS as Record<string, unknown>)[key], `en:${key}`).toBeTruthy();
@@ -462,6 +430,55 @@ describe('i18n en-US namespace keys', () => {
       'dshUninstallBundledHint',
       // 2026-10-22：无可用来源提示按来源拆分为 host/auto 两条，旧通用文案退役（不得复活）。
       'dshNoSourceNote',
+    ] as const) {
+      expect(enUS, `en:${key}`).not.toHaveProperty(key);
+      expect(zhCN, `zh:${key}`).not.toHaveProperty(key);
+    }
+  });
+
+  it('retires the legacy dsh version-card keys (single generic card, ticket #5)', () => {
+    // 旧 DSH 版本组件删除后，仅它使用的键必须同时从双语字典消失（不得复活）；
+    // 通用卡片文案改由 `harnessVersion*` 域承载。
+    for (const key of [
+      'dshHasUpdate',
+      'dshNoUpdate',
+      'dshCheckUpdate',
+      'dshCheckUpdateDesc',
+      'dshCheckUpdateHint',
+      'dshCheckUpdateFound',
+      'dshCheckUpdateNoStable',
+      'dshCheckUpdatePrerelease',
+      'dshCheckUpdateFailed',
+      'dshUpdate',
+      'dshRevertedTo',
+      'dshUninstall',
+      'dshReinstall',
+      'dshInstalledVersions',
+      'dshCurrentVersionLabel',
+      'dshCurrentVersionDesc',
+      'dshCurrentVersionBadge',
+      'dshUninstallCurrentHint',
+      'dshVersionSource',
+      'dshCancelInstall',
+      'dshCancelUninstall',
+      'dshCancelReinstall',
+      'dshVersionCancelled',
+      'dshTaskStagePreparing',
+      'dshTaskStageDownloading',
+      'dshTaskStageInstalling',
+      'dshTaskStageRemoving',
+      'dshTaskStageFinalizing',
+      'dshVersionListUnknown',
+      'dshOfficialStable',
+      'dshOfficialStableEmpty',
+      'dshOfficialStableDesc',
+      'dshPrereleaseTitle',
+      'dshPrereleaseDesc',
+      'dshPrereleaseUpdateAvailable',
+      'dshOfficialPrereleaseEmpty',
+      'dshReinstallVersion',
+      'dshInstallAction',
+      'dshSwitchToVersion',
     ] as const) {
       expect(enUS, `en:${key}`).not.toHaveProperty(key);
       expect(zhCN, `zh:${key}`).not.toHaveProperty(key);

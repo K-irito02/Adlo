@@ -1755,7 +1755,7 @@
     padding: var(--space-3);
   }
 
-  /* dsh-version.css（独立样式表）锁死 160px：加内容层前缀提权，保证窄档覆盖生效。 */
+  /* dsh-settings.css（独立样式表）锁死 160px：加内容层前缀提权，保证窄档覆盖生效。 */
   .adl-settings-panel__content .adl-dsh-settings .adl-settings-dropdown,
   .adl-settings-panel__content .adl-dsh-settings__test-button {
     width: 100%;

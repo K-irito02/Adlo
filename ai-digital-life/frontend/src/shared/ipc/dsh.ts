@@ -62,7 +62,7 @@ export interface DshSourceStatus {
 }
 
 export type DshVersionSourceMode = 'auto' | 'system' | 'host';
-/** 实际生效来源。内置版本已收编为普通宿主版本，不存在独立来源。 */
+/** 实际生效来源。所有版本都由通用版本层按普通宿主版本管理，不存在独立来源。 */
 export type DshEffectiveSource = 'running' | 'host' | 'system' | 'none';
 /** 忽略 running 后的偏好解析来源（管理项显隐 / 切源判定的唯一依据）。 */
 export type DshResolvedSource = 'host' | 'system' | 'none';
@@ -191,7 +191,7 @@ export interface DshBridge {
    */
   revert: (version: string) => Promise<IpcResult<string>>;
   /**
-   * 卸载指定版本（内置预置版本同样是普通版本，删除目录后不再算内置）
+   * 卸载指定版本（安装包不预置版本，所有版本都是普通宿主版本，删除目录即可）
    * @see httpBridge.ts → dsh.uninstall (/dsh/uninstall)
    */
   uninstall: (version: string) => Promise<IpcResult<boolean>>;
@@ -240,7 +240,7 @@ export interface DshOpenResult {
  */
 export interface DshVersionStatus {
   currentSelected: string | null;
-  /** 已装到应用数据目录的版本（普通宿主版本，无内置预置概念）。 */
+  /** 已装到应用数据目录的版本（全部为普通宿主版本）。 */
   installed: string[];
   latestAvailable: string | null;
   hasUpdate: boolean;
