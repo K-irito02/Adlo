@@ -14,10 +14,10 @@
 | 分类 | 说明 | 数量 |
 |------|------|------|
 | Superpowers 体系技能 | 来自开源项目 [obra/superpowers](https://github.com/obra/superpowers) 的技能体系，覆盖需求澄清、计划、执行、审查、验证等研发全流程 | 14 |
-| Matt Pocock 工程技能 | 来自 [mattpocock/skills](https://github.com/mattpocock/skills)（[aihero.dev](https://www.aihero.dev/skills)）的 Engineering 分类，覆盖需求成型、规格与工单、实现、TDD、审查、诊断、域建模与代码库架构 | 20 |
+| Matt Pocock 工程技能 | 来自 [mattpocock/skills](https://github.com/mattpocock/skills)（[aihero.dev](https://www.aihero.dev/skills)）的 Engineering 分类（另含 productivity 分类的 `grilling`，为 `grill-with-docs` 的依赖），覆盖需求成型、规格与工单、实现、TDD、审查、诊断、域建模与代码库架构 | 21 |
 | 其他社区技能 | 从社区技能仓库安装的技能（来源见 `.agents/.skill-lock.json`），涵盖技能创建、浏览器自动化、UI/UX 设计等 | 8 |
 | 项目自建技能 | 为本仓库定制的技能，与本项目的治理规则、文档体系、运行方式强绑定 | 7 |
-| **合计** | 数量以 `.agents/skills/` 实际目录为准 | **49** |
+| **合计** | 数量以 `.agents/skills/` 实际目录为准 | **50** |
 
 ### 1.2 使用与维护约定
 
@@ -112,9 +112,9 @@
 | `root-cause-to-close` | `root-cause-to-close` | 当 Bug、测试失败、回归、偶发或意外行为需要根因调查与修复时使用（未找到根因前禁止修复）；也用于已完成会话的收尾——结项、审查、文档同步、清理。不适用于新功能或琐碎改动。 |
 | `run-project-surfaces` | `run-project-surfaces` | 启动 AI Digital Life 的三种运行模式（浏览器预览、Tauri 桌面、双端并行），按工作树分配稳定 dev 端口（主工作树 5173、slot-N → 5173+N）并校验实例令牌并统一管理子进程生命周期；用户要求运行、启动或预览应用时使用。 |
 
-### 4.4 Matt Pocock 工程技能（20）
+### 4.4 Matt Pocock 技能（21）
 
-> 安装命令：`npx skills@latest add mattpocock/skills --agent universal --skill <name>`。其中标「仅用户调用」者在其 `SKILL.md` 中声明 `disable-model-invocation: true`，只能由用户显式触发，模型不会自行调用。
+> 安装命令：`npx skills@latest add mattpocock/skills --agent universal --skill <name>`。其中标「仅用户调用」者在其 `SKILL.md` 中声明 `disable-model-invocation: true`，只能由用户显式触发，模型不会自行调用。`grilling` 来自上游 productivity 分类，是本表 `grill-with-docs` 的依赖技能。
 
 | 技能目录 | 调用名 | 说明 |
 |----------|--------|------|
@@ -124,6 +124,7 @@
 | `diagnosing-bugs` | `diagnosing-bugs` | 针对难缠 Bug 与性能回归的纪律化诊断循环：先建立能在该 Bug 上变红的反馈回路 → 最小化 → 假设 → 插桩 → 修复 → 回归测试。 |
 | `domain-modeling` | `domain-modeling` | 主动构建并打磨项目领域模型：质疑术语、用场景做压力测试、就地更新 `GLOSSARY.md` 与 ADR。 |
 | `grill-with-docs` | `grill-with-docs` | 高强度追问以打磨方案或设计，并同步产出文档（ADR 与术语表）（仅用户调用）。 |
+| `grilling` | `grilling` | 就某个方案、决策或想法对用户不留情面地追问：把决策展开为设计树，按轮次一次问完当前「前沿」上的全部问题，直到无遗留假设、达成共识；`grill-with-docs` 的前置依赖。 |
 | `implement` | `implement` | 依据 spec 或一组工单实施工作，在约定接缝处驱动 `/tdd`，提交前以 `/code-review` 收尾（仅用户调用）。 |
 | `implement-spec` | `implement-spec` | 在单一集成分支上实现完整 spec：把工单当成任务图，在就绪前沿并发运行实施子代理，最后以 `/code-review` 收尾（仅用户调用）。 |
 | `improve-codebase-architecture` | `improve-codebase-architecture` | 扫描代码库中的「加深」机会，以可视化 HTML 报告呈现，再对选定项进行追问（仅用户调用）。 |
