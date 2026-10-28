@@ -1,12 +1,9 @@
 import { useMemo } from 'react';
-import type { IpcResult } from '@ai-digital-life/kernel';
+import type { IpcResult } from '@shared/ipc/dsh';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
-import {
-  HarnessVersionCard,
-  type HarnessVersionSlotContext,
-} from '../harness/HarnessVersionCard';
+import { HarnessVersionCard, type HarnessVersionSlotContext } from '../harness/HarnessVersionCard';
 import type { HarnessVersionResult } from '../harness/harnessVersionBridge';
 import type { OpencodeBridge, OpencodeSourceStatus } from '../../../shared/ipc/opencode';
 import { createOpencodeVersionBridge } from './opencodeVersionBridge';
@@ -50,9 +47,7 @@ function TerminalInjectionRows({
               const enabled = event.target.checked;
               void run(
                 async () =>
-                  bridge
-                    ? toResult(await bridge.setTerminalInjection(enabled))
-                    : { ok: false },
+                  bridge ? toResult(await bridge.setTerminalInjection(enabled)) : { ok: false },
                 t.opencodeTerminalInjectionSaved,
               );
             }}

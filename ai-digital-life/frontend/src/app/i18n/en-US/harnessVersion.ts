@@ -1,7 +1,6 @@
 export const harnessVersionEn = {
   harnessVersionTitle: '{tool} version management',
-  harnessVersionHint:
-    'App-managed {tool} versions: switch, update or uninstall at any time.',
+  harnessVersionHint: 'App-managed {tool} versions: switch, update or uninstall at any time.',
   harnessVersionCurrent: 'Current version',
   harnessVersionNotInstalled: 'Not installed',
   harnessVersionEffectiveSource: 'Effective source',

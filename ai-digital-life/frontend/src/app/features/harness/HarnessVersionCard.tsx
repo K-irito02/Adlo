@@ -103,8 +103,7 @@ export function HarnessVersionCard<TSource = unknown>({
       catalog: next.catalog ?? previous?.catalog ?? null,
       source: next.source ?? previous?.source ?? null,
       sourceExtra: next.sourceExtra ?? previous?.sourceExtra ?? null,
-      failed:
-        next.failed === true && next.status === null && (previous?.status ?? null) === null,
+      failed: next.failed === true && next.status === null && (previous?.status ?? null) === null,
     }));
     if (next.status) {
       setStablePick(
@@ -230,9 +229,10 @@ export function HarnessVersionCard<TSource = unknown>({
     setUninstallArmed(null);
   }, [current]);
 
-  const headerHint = slots.headerHint ?? formatT(t.harnessVersionHint, { tool: bridge.toolName });
+  const headerHint =
+    slots.headerHint ?? formatT(t, 'harnessVersionHint', { tool: bridge.toolName });
   const sourceHint =
-    slots.sourceHint ?? formatT(t.harnessVersionSourceHint, { tool: bridge.toolName });
+    slots.sourceHint ?? formatT(t, 'harnessVersionSourceHint', { tool: bridge.toolName });
 
   const effectiveLabel = (() => {
     switch (source?.effective) {
@@ -289,7 +289,7 @@ export function HarnessVersionCard<TSource = unknown>({
     <div className="adl-harness-version">
       <div className="adl-settings-storage__header adl-settings-storage__header--section">
         <SettingsHintButton content={headerHint} />
-        <SettingsHeader title={formatT(t.harnessVersionTitle, { tool: bridge.toolName })} />
+        <SettingsHeader title={formatT(t, 'harnessVersionTitle', { tool: bridge.toolName })} />
       </div>
 
       <div className="adl-settings-card">
@@ -330,7 +330,7 @@ export function HarnessVersionCard<TSource = unknown>({
                 <span className="adl-harness-version__hint">
                   {slots.missingBanner
                     ? renderSlot(slots.missingBanner, slotContext)
-                    : formatT(t.harnessVersionMissingBanner, { tool: bridge.toolName })}
+                    : formatT(t, 'harnessVersionMissingBanner', { tool: bridge.toolName })}
                 </span>
               </div>
             </div>
@@ -569,7 +569,7 @@ export function HarnessVersionCard<TSource = unknown>({
             <div className="adl-settings-row__control adl-harness-version__progress">
               {bridge.capabilities?.taskCounts && task.total > 0 ? (
                 <span className="adl-harness-version__hint">
-                  {formatT(t.harnessVersionTaskCount, { done: task.done, total: task.total })}
+                  {formatT(t, 'harnessVersionTaskCount', { done: task.done, total: task.total })}
                 </span>
               ) : null}
               <span className="adl-harness-version__value">

@@ -1,4 +1,4 @@
-import type { IpcResult } from '@ai-digital-life/kernel';
+import type { IpcResult } from '@shared/ipc/dsh';
 import type { DshSourceConfig, DshTestResult } from '../../../shared/ipc/dsh';
 import type { OpencodeBridge, OpencodeSourceStatus } from '../../../shared/ipc/opencode';
 import { detectFastestSource } from '../network/sourceAutoDetect';

@@ -127,9 +127,7 @@ describe('HarnessVersionCard', () => {
 
     await waitFor(() => expect(bridge.load).toHaveBeenCalled());
 
-    fireEvent.click(
-      within(rowFor('1.1.0')).getByRole('button', { name: 'harnessVersionSwitch' }),
-    );
+    fireEvent.click(within(rowFor('1.1.0')).getByRole('button', { name: 'harnessVersionSwitch' }));
 
     await waitFor(() => expect(bridge.revert).toHaveBeenCalledWith('1.1.0'));
     await waitFor(() =>
@@ -142,9 +140,7 @@ describe('HarnessVersionCard', () => {
 
     await waitFor(() => expect(rowFor('1.0.0')).toBeTruthy());
 
-    expect(
-      within(rowFor('1.0.0')).getByText('harnessVersionCurrentBadge'),
-    ).toBeInTheDocument();
+    expect(within(rowFor('1.0.0')).getByText('harnessVersionCurrentBadge')).toBeInTheDocument();
     expect(
       within(rowFor('1.0.0')).getByRole('button', { name: 'harnessVersionSwitch' }),
     ).toBeDisabled();
