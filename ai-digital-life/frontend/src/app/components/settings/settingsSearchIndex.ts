@@ -233,30 +233,39 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     ],
   },
   {
-    // 「版本管理」块内六行：版本来源行、当前版本行、检查更新行、正式版本行、预发布行、官方版本信息行。
+    // 「版本管理」块由通用版本卡片渲染（DSH 适配器 + 插槽），行定位标记取卡片上的
+    // `data-settings-row`（通用 `harnessVersion*` 文案）；DSH 专属读数/外链仍用 DSH 键。
     group: 'dsh',
     anchorId: 'version',
     labelKey: 'dshVersionManagement',
     rows: [
       {
-        labelKey: 'dshVersionSource',
-        hintKeys: ['dshVersionSourceDesc', 'dshVersionSourceHint'],
+        labelKey: 'harnessVersionSourceTitle',
+        hintKeys: ['dshVersionSourceHint'],
       },
       {
-        labelKey: 'dshCurrentVersionLabel',
-        hintKeys: ['dshCurrentVersionDesc', 'dshCurrentVersionHint'],
+        labelKey: 'harnessVersionCurrent',
+        hintKeys: ['dshCurrentVersionHint'],
       },
       {
-        labelKey: 'dshCheckUpdate',
-        hintKeys: ['dshCheckUpdateDesc', 'dshCheckUpdateHint'],
+        labelKey: 'harnessVersionUpdate',
+        hintKeys: ['harnessVersionHasUpdate', 'harnessVersionNoUpdate'],
       },
       {
-        labelKey: 'dshOfficialStable',
-        hintKeys: ['dshOfficialStableDesc', 'dshOfficialStableHint'],
+        labelKey: 'harnessVersionStable',
+        hintKeys: ['dshOfficialStableHint'],
       },
       {
-        labelKey: 'dshPrereleaseTitle',
-        hintKeys: ['dshPrereleaseDesc', 'dshPrereleaseHint'],
+        labelKey: 'harnessVersionPrerelease',
+        hintKeys: ['dshPrereleaseHint'],
+      },
+      {
+        labelKey: 'harnessVersionInstalled',
+        hintKeys: ['harnessVersionCurrentBadge'],
+      },
+      {
+        labelKey: 'harnessVersionManual',
+        hintKeys: ['harnessVersionManualPlaceholder'],
       },
       {
         labelKey: 'dshOfficialLinksLabel',

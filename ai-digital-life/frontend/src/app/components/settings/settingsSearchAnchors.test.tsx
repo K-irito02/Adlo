@@ -19,10 +19,12 @@ import { KeybindSettings } from './KeybindSettings';
 import { settingsZh } from '@i18n/zh-CN/settings';
 import { browserZh } from '@i18n/zh-CN/browser';
 import { dshZh } from '@i18n/zh-CN/dsh';
+import { harnessVersionZh } from '@i18n/zh-CN/harnessVersion';
 import { environmentZh } from '@i18n/zh-CN/environment';
 import { settingsEn } from '@i18n/en-US/settings';
 import { browserEn } from '@i18n/en-US/browser';
 import { dshEn } from '@i18n/en-US/dsh';
+import { harnessVersionEn } from '@i18n/en-US/harnessVersion';
 import { environmentEn } from '@i18n/en-US/environment';
 import { SettingsControls } from './SettingsControls';
 import { buildSettingsSearchIndex, anchorFor } from './settingsSearchIndex';
@@ -275,6 +277,10 @@ const CONDITIONAL_ROW_MARKERS: string[] = [
   'environmentCopyForAgent',
   // 聚合条仅在环境状态加载后渲染。
   'environmentCopyAllForAgent',
+  // 通用版本卡片的预发布 / 已安装版本区仅在目录有预发布、或本机已装版本时渲染
+  // （DSH 组种子没有任何已装版本，故列为条件行）。
+  'harnessVersionPrerelease',
+  'harnessVersionInstalled',
   // 「前往配置」行已随「网络与模型」块删除（该标记只挂在已删除的网络行上）。
 ];
 
@@ -474,11 +480,23 @@ describe('settings search anchors', () => {
     const localeCopies: [string, Record<string, string>][] = [
       [
         'zh-CN',
-        { ...settingsZh, ...browserZh, ...dshZh, ...environmentZh } as Record<string, string>,
+        {
+          ...settingsZh,
+          ...browserZh,
+          ...dshZh,
+          ...harnessVersionZh,
+          ...environmentZh,
+        } as Record<string, string>,
       ],
       [
         'en-US',
-        { ...settingsEn, ...browserEn, ...dshEn, ...environmentEn } as Record<string, string>,
+        {
+          ...settingsEn,
+          ...browserEn,
+          ...dshEn,
+          ...harnessVersionEn,
+          ...environmentEn,
+        } as Record<string, string>,
       ],
     ];
     for (const [locale, dict] of localeCopies) {

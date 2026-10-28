@@ -6,13 +6,13 @@ import { TCopyProvider } from '../../i18n/TCopyContext';
 import { dshZh } from '../../i18n/zh-CN/dsh';
 import { useAppStore } from '../../stores/slicedStore';
 import { DshSettings } from './DshSettings';
-import type { DshSourceStatus } from '../../../shared/ipc/dsh';
+import type { DshSourceStatus, DshVersionStatus } from '../../../shared/ipc/dsh';
 
 const fetchSourceStatus = vi.fn();
 const testSource = vi.fn();
 const saveSourceConfig = vi.fn();
-// 版本管理块（DshVersionManagement）挂载即拉取版本状态 + 目录 + 下载源状态：静默桩。
-// update/revert/uninstall/reinstall/install 仅由点击处理器调用（本套件不触发），
+// 版本块（通用版本卡片）挂载即拉取首屏原子快照 + 运行态轮询：静默桩。
+// update/revert/uninstall/reinstall/install 仅由卡片点击处理器调用（本套件不触发），
 // 保留以维持 useAppActions mock 形状完整。
 const fetchDshVersionStatus = vi.fn();
 const fetchVersionCatalog = vi.fn();
@@ -25,6 +25,7 @@ const revertDsh = vi.fn();
 const uninstallDsh = vi.fn();
 const reinstallDsh = vi.fn();
 const installDshVersion = vi.fn();
+const restartDsh = vi.fn();
 
 vi.mock('../../hooks/useAppActions', () => {
   // 单例对象：保持 useAppActions 返回引用稳定（真实实现经 useShallow 也稳定），
@@ -44,6 +45,7 @@ vi.mock('../../hooks/useAppActions', () => {
     uninstallDsh: (...args: unknown[]) => uninstallDsh(...args),
     reinstallDsh: (...args: unknown[]) => reinstallDsh(...args),
     installDshVersion: (...args: unknown[]) => installDshVersion(...args),
+    restartDsh: (...args: unknown[]) => restartDsh(...args),
   };
   return { useAppActions: () => actions };
 });
@@ -61,14 +63,28 @@ function TestProvider({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * 摘要行用真实中文模板（mockT 按 key 原样返回，`formatT` 占位符渲不出 registry/mode）；
- * 其余键保持 key 形态以便按 key 选中元素（照抄 DshVersionManagement.test 的 emptyNoteT）。
+ * 摘要行与运行态读数用真实中文模板（mockT 按 key 原样返回，`formatT` 占位符
+ * 渲不出 registry/mode/地址）；其余键保持 key 形态以便按 key 选中元素。
  * 自动检测标签（dshSettingsSourceAuto）同样取真实中文，否则 mode 位只剩 key。
  */
+const READOUT_KEYS = new Set([
+  'dshSourceSummary',
+  'dshSourceSummaryMode',
+  'dshSourceSummaryManual',
+  'dshSourceSummaryUnknown',
+  'dshSettingsSourceAuto',
+  'dshEffectiveRunning',
+  'dshEffectiveRunningSystem',
+  'dshRunningExternalNote',
+  'dshEffectiveSystem',
+  'dshVersionUnknown',
+  'dshCurrentVersionNone',
+  'dshLatest',
+]);
+
 const summaryT = new Proxy({} as Record<string, string>, {
   get: (_, key) =>
-    typeof key === 'string' &&
-    (key.startsWith('dshSourceSummary') || key === 'dshSettingsSourceAuto')
+    typeof key === 'string' && READOUT_KEYS.has(key)
       ? ((dshZh as Record<string, string>)[key] ?? key)
       : typeof key === 'string'
         ? key
@@ -84,6 +100,11 @@ function renderSettingsWithSummary() {
 }
 
 const NPMJS_URL = 'https://registry.npmjs.org';
+
+/** 卡片按钮只在底层桥可用时响应：动作类用例给一个空 dsh 桥（load 走打桩 actions）。 */
+function seedDshBridge() {
+  (window as unknown as { digitalLife?: unknown }).digitalLife = { dsh: {} };
+}
 
 function makeStatus(patch: Partial<DshSourceStatus['config']> = {}): DshSourceStatus {
   return {
@@ -103,6 +124,19 @@ function makeStatus(patch: Partial<DshSourceStatus['config']> = {}): DshSourceSt
       proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
       ...patch,
     },
+  };
+}
+
+function makeVersionStatus(overrides: Partial<DshVersionStatus> = {}): DshVersionStatus {
+  return {
+    currentSelected: '1.2.3',
+    installed: ['1.2.3'],
+    latestAvailable: '1.3.0',
+    hasUpdate: true,
+    prereleaseAvailable: null,
+    hasPrereleaseUpdate: false,
+    prereleaseUnknown: false,
+    ...overrides,
   };
 }
 
@@ -128,14 +162,23 @@ describe('DshSettings', () => {
     revertDsh.mockReset();
     uninstallDsh.mockReset();
     reinstallDsh.mockReset();
+    restartDsh.mockReset();
     fetchSourceStatus.mockResolvedValue(true);
     fetchDshSettingsSnapshot.mockResolvedValue(true);
     fetchDshRunning.mockResolvedValue(true);
     testSource.mockResolvedValue({ reachable: true, latency_ms: 12, error: null });
     saveSourceConfig.mockResolvedValue(true);
     fetchDshVersionStatus.mockResolvedValue(true);
+    restartDsh.mockResolvedValue({ restarted: false, url: null, failed: false });
+    delete (window as unknown as { digitalLife?: unknown }).digitalLife;
     useAppStore.setState({
       sourceStatus: null,
+      versionStatus: null,
+      versionCatalog: null,
+      versionCatalogFailed: false,
+      settingsSnapshotFailed: false,
+      dshVersionSourceDeferred: false,
+      dshVersionSourcePending: null,
       dshGroupResetPending: false,
       dshBlocksAtDefault: null,
       activeSettingsGroup: 'general',
@@ -143,7 +186,7 @@ describe('DshSettings', () => {
     });
   });
 
-  it('版本块结构：单个块头 + 版本管理卡片（源/代理/测试三块已搬入网络组）', () => {
+  it('版本块结构：单个块头 + 通用版本卡片（旧版本组件不再渲染）', () => {
     useAppStore.setState({ sourceStatus: makeStatus() });
     renderSettings();
     const root = document.querySelector('.adl-dsh-settings');
@@ -154,19 +197,138 @@ describe('DshSettings', () => {
     expect(root?.querySelector('[data-testid="dsh-source-reset"]')).toBeNull();
     expect(root?.querySelector('[data-testid="dsh-proxy-reset"]')).toBeNull();
     expect(root?.querySelector('[data-testid="dsh-test-button"]')).toBeNull();
-    // 版本块：问号提示 + 版本管理标题 + 版本管理组件（恢复默认已删除，问号替代）。
+    // 块头：问号提示 + 版本管理标题（问号替代已删除的恢复默认按钮）。
     expect(headers[0]?.textContent).toContain('dshVersionManagement');
     expect(headers[0]?.querySelector('.adl-icon-button--info')).not.toBeNull();
     expect(
       headers[0]?.querySelector('span.adl-settings-row__reset--static[aria-hidden="true"]'),
     ).toBeNull();
-    // 检查更新行渲染文字按钮（设置组操作按钮样式）且带行内提示说明图标。
-    const versionRow = root?.querySelector('[data-settings-row="dshCheckUpdate"]');
-    expect(versionRow).not.toBeNull();
-    expect(versionRow?.querySelector('.adl-dsh-settings__action-btn')).not.toBeNull();
-    expect(versionRow?.querySelector('.adl-icon-button--info')).not.toBeNull();
-    const currentRow = root?.querySelector('[data-settings-row="dshCurrentVersionLabel"]');
-    expect(currentRow?.querySelector('.adl-icon-button--info')).not.toBeNull();
+    // 版本区换成通用卡片：卡片自带块头被隐藏（组内只有上面一个块头）。
+    expect(root?.querySelector('.adl-harness-version')).not.toBeNull();
+    expect(
+      root?.querySelectorAll('.adl-harness-version .adl-settings-storage__header'),
+    ).toHaveLength(0);
+    // 通用卡片的行标记（数据源同 `harnessVersion*` 文案），旧 DSH 行标记已消失。
+    const updateRow = root?.querySelector('[data-settings-row="harnessVersionUpdate"]');
+    expect(updateRow).not.toBeNull();
+    expect(updateRow?.querySelector('.adl-harness-version__action-btn')).not.toBeNull();
+    expect(root?.querySelector('[data-settings-row="harnessVersionCurrent"]')).not.toBeNull();
+    expect(root?.querySelector('[data-settings-row="dshCheckUpdate"]')).toBeNull();
+    expect(root?.querySelector('[data-settings-row="dshCurrentVersionLabel"]')).toBeNull();
+    // 来源行保留行内问号提示（沿用 DSH 的来源说明）。
+    const sourceRow = root?.querySelector('[data-settings-row="harnessVersionSourceTitle"]');
+    expect(sourceRow?.querySelector('.adl-icon-button--info')).not.toBeNull();
+  });
+
+  it('未安装任何版本时显示缺失横幅（通用卡片 missingBanner 插槽）', async () => {
+    useAppStore.setState({
+      sourceStatus: makeStatus(),
+      versionStatus: makeVersionStatus({ currentSelected: null, installed: [] }),
+    });
+    renderSettings();
+    const banner = await screen.findByTestId('dsh-missing-banner');
+    expect(banner.textContent).toBe('harnessMissingBannerDsh');
+    // 旧 DSH 组件不再渲染（其读数行与缺失横幅都是旧的专属类名）。
+    expect(document.querySelector('.adl-dsh-settings__version-readout')).toBeNull();
+  });
+
+  it('运行态读数插槽保留运行地址与版本（token 剥离后只在 title 上）', () => {
+    const status = makeStatus();
+    useAppStore.setState({
+      sourceStatus: {
+        ...status,
+        running: {
+          url: 'http://127.0.0.1:3080/?token=secret',
+          port: 3080,
+          managed: true,
+          version: '1.2.3',
+          source: 'host',
+        },
+        versionSource: { ...status.versionSource, effective: 'running' },
+      },
+      versionStatus: makeVersionStatus({ currentSelected: '1.2.3' }),
+    });
+    renderSettingsWithSummary();
+    // 运行态读数插槽：主行是运行中的真实版本号，副行带端点，完整地址（去 token）在 title。
+    const readout = document.querySelector('.adl-harness-version__readout');
+    expect(readout).not.toBeNull();
+    expect(readout?.textContent).toContain('1.2.3');
+    const sub = readout?.querySelector('.adl-harness-version__readout-sub');
+    expect(sub?.textContent).toBe('运行中（127.0.0.1:3080）');
+    expect(sub?.getAttribute('title')).toBe('http://127.0.0.1:3080/');
+  });
+
+  it('系统安装生效时隐藏管理项并提示由系统维护（显隐规则与迁移前一致）', async () => {
+    const status = makeStatus();
+    useAppStore.setState({
+      sourceStatus: {
+        ...status,
+        system: { path: 'C:/Program Files/dsh/dsh.exe', version: '0.9.0' },
+        versionSource: {
+          mode: 'system',
+          effective: 'system',
+          resolvedByMode: { auto: 'system', host: 'host', system: 'system' },
+          hostVersion: null,
+        },
+      },
+      versionStatus: makeVersionStatus({ currentSelected: null, installed: [] }),
+    });
+    renderSettings();
+    const root = document.querySelector('.adl-dsh-settings');
+    // 首屏快照到达后管理行隐藏（快照前不闪管理项由卡片自行处理）。
+    await waitFor(() => {
+      expect(root?.querySelector('[data-settings-row="harnessVersionUpdate"]')).toBeNull();
+    });
+    expect(root?.querySelector('[data-settings-row="harnessVersionStable"]')).toBeNull();
+    expect(root?.querySelector('[data-settings-row="harnessVersionManual"]')).toBeNull();
+    // 当前版本行与系统安装读数仍可见。
+    expect(root?.querySelector('[data-settings-row="harnessVersionCurrent"]')).not.toBeNull();
+    expect(screen.getByText('dshSystemManagedNote')).not.toBeNull();
+  });
+
+  it('切换版本来源会弹确认框；取消回退宿主且不写目标来源', async () => {
+    seedDshBridge();
+    const status = makeStatus();
+    useAppStore.setState({
+      sourceStatus: {
+        ...status,
+        system: { path: 'C:/Program Files/dsh/dsh.exe', version: '0.9.0' },
+      },
+      versionStatus: makeVersionStatus(),
+    });
+    renderSettings();
+    const selects = Array.from(document.querySelectorAll('select'));
+    // 第一处是稳定版选择，最后一个才是版本来源。
+    fireEvent.change(selects[selects.length - 1], { target: { value: 'system' } });
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('dshVersionSourceSystemDialogTitle');
+    fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    // 历史行为：切向系统安装取消时回退宿主。
+    expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'host' }, true);
+    expect(saveSourceConfig).not.toHaveBeenCalledWith({ version_source: 'system' }, true);
+  });
+
+  it('切向系统安装但未检测到系统安装时只提示，不弹框不写盘', async () => {
+    seedDshBridge();
+    useAppStore.setState({
+      sourceStatus: makeStatus({
+        version_source: 'host',
+      }),
+      versionStatus: makeVersionStatus(),
+    });
+    renderSettings();
+    const selects = Array.from(document.querySelectorAll('select'));
+    fireEvent.change(selects[selects.length - 1], { target: { value: 'system' } });
+
+    await waitFor(() => {
+      expect(useAppStore.getState().toasts.some((t) => t.message === 'dshSystemMissing')).toBe(
+        true,
+      );
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(saveSourceConfig).not.toHaveBeenCalled();
   });
 
   it('版本管理块挂载即拉取首屏原子快照；sourceStatus 为 null 时静默补拉一次', () => {
