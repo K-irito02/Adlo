@@ -1,0 +1,67 @@
+/* 通用版本卡片：仅补充版本卡自身的排版，不复制 settings.css 的通用行样式。 */
+
+/* 卡片根节点自成一层，保持设置组原有的块间距（header + 多张卡）。 */
+.adl-harness-version {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.adl-harness-version__value {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--text-secondary);
+}
+
+.adl-harness-version__hint {
+  font-size: 0.85em;
+  color: var(--text-tertiary);
+}
+
+.adl-harness-version__badge {
+  margin-left: var(--space-1);
+  padding: 0 var(--space-1);
+  border-radius: 999px;
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: 0.75em;
+}
+
+.adl-harness-version__action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-muted);
+  color: var(--text1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: inherit;
+}
+
+.adl-harness-version__action-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.adl-harness-version__action-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-harness-version__action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-harness-version__action-btn--danger {
+  color: var(--danger);
+}
+
+.adl-harness-version__progress {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}

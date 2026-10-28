@@ -14,6 +14,7 @@ import { referenceEn } from './reference';
 import { customAgentEn } from './customAgent';
 import { durableEn } from './durable';
 import { dshEn } from './dsh';
+import { harnessVersionEn } from './harnessVersion';
 import { opencodeEn } from './opencode';
 import { environmentEn } from './environment';
 import { networkEn } from './network';
@@ -38,6 +39,7 @@ export const enUS = {
   ...customAgentEn,
   ...durableEn,
   ...dshEn,
+  ...harnessVersionEn,
   ...opencodeEn,
   ...environmentEn,
   ...networkEn,
