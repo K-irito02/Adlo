@@ -30,7 +30,7 @@ export const opencodeEn = {
     'Automatic prefers the app-managed version; a system install is detected but never managed.',
   opencodeSourceAuto: 'Automatic',
   opencodeSourceSystem: 'System install',
-  opencodeSourceHost: 'App-managed',
+  opencodeSourceHost: 'Host-managed',
   opencodeSourceNone: 'Unavailable',
   opencodeSourceSaved: 'Version source saved',
   opencodeSystemPath: 'System install path',

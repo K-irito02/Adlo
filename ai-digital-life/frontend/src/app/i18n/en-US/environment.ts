@@ -18,7 +18,7 @@ export const environmentEn = {
   environmentStatusDetected: 'Detected',
   environmentSourceAuto: 'Auto detect',
   environmentSourceSystem: 'System install',
-  environmentSourceHost: 'Bundled with host',
+  environmentSourceHost: 'Host-managed',
   environmentSourceCustom: 'Custom path',
   environmentBashGitBundled: 'Bundled with Git',
   environmentBashWsl: 'WSL',
@@ -53,11 +53,11 @@ export const environmentEn = {
   environmentDepNet: 'Network & credentials',
   environmentDepModel: 'Model credentials',
   environmentDepNodeHint:
-    'Base runtime for the assistant and tools.\n· Auto detect prefers the bundled copy, then your system install\n· The install button on the right installs the bundled version when missing or too old; confirm once and it takes effect automatically\n· It only shows when an install is actually needed: hidden when ready, hidden when offline\n· Use a custom path when you have your own version',
+    'Base runtime for the assistant and tools.\n· Auto detect prefers the host-managed copy, then your system install\n· The install button on the right installs the host-managed version when missing or too old; confirm once and it takes effect automatically\n· It only shows when an install is actually needed: hidden when ready, hidden when offline\n· Use a custom path when you have your own version',
   environmentDepGitHint:
-    'Version control tool.\n· The bundled copy is minimal and has no shell\n· The install button on the right installs the bundled version when missing or too old; confirm once and it takes effect automatically\n· It only shows when an install is actually needed: hidden when ready, hidden when offline\n· Use your full system install or a custom path for the shell',
+    'Version control tool.\n· The host-managed copy is minimal and has no shell\n· The install button on the right installs the host-managed version when missing or too old; confirm once and it takes effect automatically\n· It only shows when an install is actually needed: hidden when ready, hidden when offline\n· Use your full system install or a custom path for the shell',
   environmentDepBashHint:
-    'Shell for terminals and scripts.\n· Not bundled; use your system version or a custom path\n· Auto detect recognizes common system installs',
+    'Shell for terminals and scripts.\n· Not host-managed; use your system version or a custom path\n· Auto detect recognizes common system installs',
   environmentDepWebview2Hint:
     'System component for showing web content on desktop.\n· Managed by the system installer; read-only here\n· Copy diagnostics when embedded pages fail to open',
   environmentDepAdlserverHint:

@@ -5,7 +5,7 @@ export const environmentZh = {
   environmentTitleHint:
     '这里集中管理应用运行需要的外部工具。\n· 每一项都会自动检测，缺什么点一下就能装\n· 看不懂状态时，点复制发给智能体，就能帮你看问题\n· 来源可以切换：自动检测最省心，指定路径适合你明确知道装在哪里的情况',
   environmentBlockRuntimeHint:
-    '最常用的三种基础工具。\n· 自动检测会优先用已经装好的，找不到才提示你装\n· 下拉可以切换来源：自动检测最省心，系统安装用你电脑里的，宿主内置用应用自带的，指定路径就是你自己告诉应用去哪里找\n· 复制诊断信息发给智能体，能一次讲清版本、路径和问题',
+    '最常用的三种基础工具。\n· 自动检测会优先用已经装好的，找不到才提示你装\n· 下拉可以切换来源：自动检测最省心，系统安装用你电脑里的，宿主托管用应用下载管理的，指定路径就是你自己告诉应用去哪里找\n· 复制诊断信息发给智能体，能一次讲清版本、路径和问题',
   environmentBlockSystemHint:
     '系统自带的能力，只看状态。\n· 不需要你手动安装，也不能切换来源\n· 版本由系统管理，所以这里没有安装按钮\n· 有问题时复制诊断信息发给智能体即可',
   environmentBlockRuntime: '基础依赖',
@@ -18,7 +18,7 @@ export const environmentZh = {
   environmentStatusDetected: '已检测',
   environmentSourceAuto: '自动检测',
   environmentSourceSystem: '系统安装',
-  environmentSourceHost: '宿主内置',
+  environmentSourceHost: '宿主托管',
   environmentSourceCustom: '指定路径',
   environmentBashGitBundled: 'Git 自带',
   environmentBashWsl: 'WSL',

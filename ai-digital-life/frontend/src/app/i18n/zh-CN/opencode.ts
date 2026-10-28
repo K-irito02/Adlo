@@ -29,7 +29,7 @@ export const opencodeZh = {
   opencodeSourceHint: '自动优先使用应用内托管版本；系统安装只检测不管理。',
   opencodeSourceAuto: '自动',
   opencodeSourceSystem: '系统安装',
-  opencodeSourceHost: '应用托管',
+  opencodeSourceHost: '宿主托管',
   opencodeSourceNone: '不可用',
   opencodeSourceSaved: '版本来源已保存',
   opencodeSystemPath: '系统安装位置',
