@@ -9,6 +9,7 @@ use adl_errors::AppError;
 use adl_hosted::{HostedVersions, ProgressTask};
 
 pub mod install;
+pub mod spec;
 
 /// `ProgressTask::begin(kind, ...)` 的 kind 命名空间（dsh 版本任务）。
 /// 纯字符串常量，不是旧的枚举/别名层；线装值必须与前端轮询过滤保持一致。
@@ -209,33 +210,42 @@ fn latest_is_newer(cur: &[u64], latest: &[u64]) -> bool {
 /// 按用户下载源配置走镜像（此前硬编码官方源，见 `registry_base` 注释）。
 /// 返回 dist-tag `latest` 的指向（注意：它本身可能是 rc；正式版口径见 catalog）。
 pub async fn latest_available(data_dir: &Path) -> Result<Option<String>, AppError> {
+    latest_available_for(&spec::DSH, data_dir).await
+}
+
+/// 同 [`latest_available`]，按任意 harness 描述符查询其 `latest` 标签。
+pub async fn latest_available_for(
+    spec: &spec::HarnessSpec,
+    data_dir: &Path,
+) -> Result<Option<String>, AppError> {
     let base = registry_base(data_dir)?;
     let download_config = adl_download_source::load(data_dir)?;
     let client = adl_download_source::build_http_client(&download_config)?;
-    let url = format!("{base}/{DSH_PACKAGE}/latest");
-    tracing::debug!(%url, "harness-version: querying latest");
+    let url = format!("{base}/{}/latest", spec.package);
+    tracing::debug!(%url, harness = spec.id.key(), "harness-version: querying latest");
     let resp = client
         .get(url)
         .timeout(std::time::Duration::from_secs(10))
         .send()
         .await
-        .map_err(|e| AppError::Network(format!("query dsh latest failed: {e}")))?;
+        .map_err(|e| AppError::Network(format!("query harness latest failed: {e}")))?;
     let status = resp.status();
     if !status.is_success() {
-        return Err(AppError::Network(format!("query dsh latest failed: HTTP {status}")));
+        return Err(AppError::Network(format!("query harness latest failed: HTTP {status}")));
     }
     let json: serde_json::Value = resp
         .json()
         .await
-        .map_err(|e| AppError::Network(format!("parse dsh latest failed: {e}")))?;
+        .map_err(|e| AppError::Network(format!("parse harness latest failed: {e}")))?;
     Ok(json.get("version").and_then(|v| v.as_str()).map(|v| v.to_string()))
 }
 
 /// 从 packument JSON 拆出官方版本目录（纯函数，便于离线单测）。
-/// `stable` = semver `pre` 为空；其余进 `prerelease`；各按 semver 降序。
+/// `stable` = semver `pre` 为空；其余按描述符的预发布前缀过滤后进 `prerelease`；
+/// 各按 semver 降序，并按描述符限量截断。
 /// `latest_stable` 优先取 `dist-tags.latest`（须落在正式版桶，否则回退桶首），
-/// `latest_prerelease` 优先取 `dist-tags.next`（同理），再回退 `alpha`、桶首。
-fn parse_catalog(json: &serde_json::Value) -> VersionCatalog {
+/// `latest_prerelease` 按描述符的标签回退顺序取值（同理），再回退桶首。
+fn parse_catalog(json: &serde_json::Value, policy: &spec::CatalogPolicy) -> VersionCatalog {
     let empty_map = serde_json::Map::new();
     let versions = json.get("versions").and_then(|v| v.as_object()).unwrap_or(&empty_map);
     let times = json.get("time").and_then(|v| v.as_object());
@@ -245,12 +255,18 @@ fn parse_catalog(json: &serde_json::Value) -> VersionCatalog {
         let Ok(parsed) = semver::Version::parse(name) else { continue };
         if parsed.pre.is_empty() {
             stable.push(parsed);
-        } else {
+        } else if policy.prerelease_prefix.is_none_or(|p| parsed.pre.as_str().starts_with(p)) {
             prerelease.push(parsed);
         }
     }
     stable.sort_by(|a, b| b.cmp(a));
     prerelease.sort_by(|a, b| b.cmp(a));
+    if let Some(limit) = policy.stable_limit {
+        stable.truncate(limit);
+    }
+    if let Some(limit) = policy.prerelease_limit {
+        prerelease.truncate(limit);
+    }
     let to_info = |v: &semver::Version| VersionInfo {
         version: v.to_string(),
         published_at: times
@@ -266,26 +282,18 @@ fn parse_catalog(json: &serde_json::Value) -> VersionCatalog {
     let in_stable = |v: &Option<String>| {
         v.as_ref().is_some_and(|s| stable_infos.iter().any(|i| &i.version == s))
     };
-    let in_prerelease = |v: &Option<String>| {
-        v.as_ref().is_some_and(|s| prerelease_infos.iter().any(|i| &i.version == s))
-    };
     let tag_latest = tag_of("latest");
     let latest_stable = if in_stable(&tag_latest) {
         tag_latest
     } else {
         stable_infos.first().map(|i| i.version.clone())
     };
-    let tag_next = tag_of("next");
-    let latest_prerelease = if in_prerelease(&tag_next) {
-        tag_next
-    } else {
-        let tag_alpha = tag_of("alpha");
-        if in_prerelease(&tag_alpha) {
-            tag_alpha
-        } else {
-            prerelease_infos.first().map(|i| i.version.clone())
-        }
-    };
+    let latest_prerelease = policy
+        .prerelease_tags
+        .iter()
+        .filter_map(|tag| tag_of(tag))
+        .find(|v| prerelease_infos.iter().any(|i| &i.version == v))
+        .or_else(|| prerelease_infos.first().map(|i| i.version.clone()));
     VersionCatalog {
         stable: stable_infos,
         prerelease: prerelease_infos,
@@ -296,26 +304,34 @@ fn parse_catalog(json: &serde_json::Value) -> VersionCatalog {
 
 /// 只读查询 registry 返回官方版本目录（含正式版与预发布分桶，不下载）。
 pub async fn fetch_catalog(data_dir: &Path) -> Result<VersionCatalog, AppError> {
+    fetch_catalog_for(&spec::DSH, data_dir).await
+}
+
+/// 同 [`fetch_catalog`]，按任意 harness 描述符查询并按该描述符的限量策略截断。
+pub async fn fetch_catalog_for(
+    spec: &spec::HarnessSpec,
+    data_dir: &Path,
+) -> Result<VersionCatalog, AppError> {
     let base = registry_base(data_dir)?;
     let download_config = adl_download_source::load(data_dir)?;
     let client = adl_download_source::build_http_client(&download_config)?;
-    let url = format!("{base}/{DSH_PACKAGE}");
-    tracing::debug!(%url, "harness-version: fetching version catalog");
+    let url = format!("{base}/{}", spec.package);
+    tracing::debug!(%url, harness = spec.id.key(), "harness-version: fetching version catalog");
     let resp = client
         .get(url)
         .timeout(std::time::Duration::from_secs(15))
         .send()
         .await
-        .map_err(|e| AppError::Network(format!("query dsh catalog failed: {e}")))?;
+        .map_err(|e| AppError::Network(format!("query harness catalog failed: {e}")))?;
     let status = resp.status();
     if !status.is_success() {
-        return Err(AppError::Network(format!("query dsh catalog failed: HTTP {status}")));
+        return Err(AppError::Network(format!("query harness catalog failed: HTTP {status}")));
     }
     let json: serde_json::Value = resp
         .json()
         .await
-        .map_err(|e| AppError::Network(format!("parse dsh catalog failed: {e}")))?;
-    Ok(parse_catalog(&json))
+        .map_err(|e| AppError::Network(format!("parse harness catalog failed: {e}")))?;
+    Ok(parse_catalog(&json, &spec.catalog))
 }
 
 /// semver 全量比较（含 pre 段）：`latest` 是否严格新于 `current`。
@@ -971,7 +987,7 @@ mod tests {
 
     #[test]
     fn parse_catalog_splits_stable_and_prerelease_desc() {
-        let catalog = parse_catalog(&catalog_fixture());
+        let catalog = parse_catalog(&catalog_fixture(), &spec::DSH.catalog);
         let stable: Vec<&str> = catalog.stable.iter().map(|i| i.version.as_str()).collect();
         let pre: Vec<&str> = catalog.prerelease.iter().map(|i| i.version.as_str()).collect();
         assert_eq!(stable, vec!["0.2.0", "0.1.0"]);
@@ -998,6 +1014,28 @@ mod tests {
     }
 
     #[test]
+    fn opencode_catalog_keeps_latest_50_stable_and_only_the_newest_beta() {
+        let mut versions = serde_json::Map::new();
+        for i in 1..=60 {
+            versions.insert(format!("1.0.{i}"), serde_json::json!({}));
+        }
+        versions.insert("0.0.0-beta-202608110357".to_string(), serde_json::json!({}));
+        versions.insert("0.0.0-beta-202608110326".to_string(), serde_json::json!({}));
+        versions.insert("0.0.0-dev-202610280534".to_string(), serde_json::json!({}));
+        versions.insert("0.0.0-next-202606270058".to_string(), serde_json::json!({}));
+        let json = serde_json::json!({
+            "dist-tags": { "latest": "1.0.60", "beta": "0.0.0-beta-202608110357" },
+            "versions": versions,
+        });
+        let catalog = parse_catalog(&json, &spec::OPENCODE.catalog);
+        assert_eq!(catalog.stable.len(), 50);
+        assert_eq!(catalog.stable[0].version, "1.0.60");
+        assert_eq!(catalog.prerelease.len(), 1);
+        assert_eq!(catalog.prerelease[0].version, "0.0.0-beta-202608110357");
+        assert_eq!(catalog.latest_prerelease.as_deref(), Some("0.0.0-beta-202608110357"));
+    }
+
+    #[test]
     fn parse_catalog_prefers_dist_tags_with_bucket_fallback() {
         // latest 标签指向 rc 时不落正式版桶，回退桶首
         let json = serde_json::json!({
@@ -1005,7 +1043,7 @@ mod tests {
             "versions": { "0.1.0": {}, "0.2.0-rc.2": {} },
             "time": {}
         });
-        let catalog = parse_catalog(&json);
+        let catalog = parse_catalog(&json, &spec::DSH.catalog);
         assert_eq!(catalog.latest_stable.as_deref(), Some("0.1.0"));
         // 无 next/alpha 标签时回退预发布桶首
         assert_eq!(catalog.latest_prerelease.as_deref(), Some("0.2.0-rc.2"));
@@ -1024,13 +1062,13 @@ mod tests {
 
     #[test]
     fn resolve_stable_latest_prefers_catalog_bucket() {
-        let catalog = parse_catalog(&catalog_fixture());
+        let catalog = parse_catalog(&catalog_fixture(), &spec::DSH.catalog);
         // 正式版桶首（0.2.0），即使 dist-tag latest 指向同一版本也一致。
         assert_eq!(resolve_stable_latest(&catalog, Some("0.2.0")).as_deref(), Some("0.2.0"));
         // dist-tag 指向 rc 时不被采用（须落在正式版桶）。
         assert_eq!(resolve_stable_latest(&catalog, Some("0.2.1-rc.2")).as_deref(), Some("0.2.0"));
         // 桶空 + dist-tag 为正式版 → 回退采用。
-        let mut empty = parse_catalog(&catalog_fixture());
+        let mut empty = parse_catalog(&catalog_fixture(), &spec::DSH.catalog);
         empty.stable.clear();
         empty.latest_stable = None;
         assert_eq!(resolve_stable_latest(&empty, Some("0.2.0")).as_deref(), Some("0.2.0"));
