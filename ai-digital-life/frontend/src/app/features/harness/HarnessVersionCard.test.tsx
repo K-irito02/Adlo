@@ -12,11 +12,7 @@ import type {
 
 const mockT = new Proxy({} as Record<string, string>, {
   get: (_, key) =>
-    key === 'harnessVersionTaskCount'
-      ? '{done}/{total}'
-      : typeof key === 'string'
-        ? key
-        : '',
+    key === 'harnessVersionTaskCount' ? '{done}/{total}' : typeof key === 'string' ? key : '',
 }) as unknown as CopyDict;
 
 function renderCard(bridge: HarnessVersionBridge<unknown>, slots?: HarnessVersionSlots<unknown>) {
@@ -115,9 +111,7 @@ function openChannelMenu(channel: 'stable' | 'prerelease', effective: string): H
 }
 
 function optionFor(version: string): HTMLElement {
-  const option = screen
-    .getAllByRole('option')
-    .find((el) => el.textContent?.includes(version));
+  const option = screen.getAllByRole('option').find((el) => el.textContent?.includes(version));
   if (!option) {
     throw new Error(`option not found: ${version}`);
   }
@@ -460,7 +454,9 @@ describe('HarnessVersionCard', () => {
 
   it('closes the channel menu on the same trigger, Escape and outside mousedown', async () => {
     renderCard(dshBridge());
-    await waitFor(() => expect(channelRow('stable')).toBeTruthy());
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.1.0' })).toBeTruthy(),
+    );
 
     openChannelMenu('stable', '1.1.0');
     const trigger = within(channelRow('stable')).getByRole('button', { name: '1.1.0' });
@@ -480,7 +476,9 @@ describe('HarnessVersionCard', () => {
 
   it('marks current over installed in the channel menu and keeps every check slot', async () => {
     renderCard(dshBridge());
-    await waitFor(() => expect(channelRow('stable')).toBeTruthy());
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.1.0' })).toBeTruthy(),
+    );
 
     const menu = openChannelMenu('stable', '1.1.0');
     const current = optionFor('1.1.0');
@@ -505,7 +503,9 @@ describe('HarnessVersionCard', () => {
     const reinstallVersion = vi.fn(async () => OK);
     bridge.reinstallVersion = reinstallVersion;
     renderCard(bridge);
-    await waitFor(() => expect(channelRow('stable')).toBeTruthy());
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.1.0' })).toBeTruthy(),
+    );
 
     // 已装非当前：卸载 / 重装 / 切换。
     openChannelMenu('stable', '1.1.0');
@@ -569,8 +569,11 @@ describe('HarnessVersionCard', () => {
   it('requires two clicks to uninstall the current version but one for any other version', async () => {
     const bridge = dshBridge();
     renderCard(bridge);
-    await waitFor(() => expect(channelRow('stable')).toBeTruthy());
-
+    await waitFor(() =>
+      expect(
+        within(channelRow('stable')).getByRole('button', { name: 'harnessVersionUninstall' }),
+      ).toBeTruthy(),
+    );
     const currentUninstall = within(channelRow('stable')).getByRole('button', {
       name: 'harnessVersionUninstall',
     });
@@ -630,9 +633,7 @@ describe('HarnessVersionCard', () => {
     fireEvent.change(input, { target: { value: '9.9.9' } });
     fireEvent.click(within(manualRow).getByRole('button', { name: 'harnessVersionInstall' }));
 
-    await waitFor(() =>
-      expect(bridge.notify).toHaveBeenCalledWith('dshInstallFailed', 'error'),
-    );
+    await waitFor(() => expect(bridge.notify).toHaveBeenCalledWith('dshInstallFailed', 'error'));
     expect(bridge.notify).not.toHaveBeenCalledWith('harnessVersionInstallStarted', 'success');
   });
 
@@ -654,7 +655,9 @@ describe('HarnessVersionCard', () => {
     }));
 
     renderCard(bridge);
-    await waitFor(() => expect(channelRow('stable')).toBeTruthy());
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.1.0' })).toBeTruthy(),
+    );
 
     openChannelMenu('stable', '1.1.0');
     pickChannelVersion('1.2.0');
@@ -713,13 +716,15 @@ describe('HarnessVersionCard', () => {
       }),
     });
     renderCard(bridge);
-    await waitFor(() => expect(channelRow('stable')).toBeTruthy());
-    expect(
-      within(channelRow('stable')).getAllByText('harnessVersionListUnknown').length,
-    ).toBe(1);
-    expect(
-      within(channelRow('prerelease')).getAllByText('harnessVersionListUnknown').length,
-    ).toBe(1);
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getAllByText('harnessVersionListUnknown')).toHaveLength(
+        1,
+      ),
+    );
+    expect(within(channelRow('stable')).getAllByText('harnessVersionListUnknown').length).toBe(1);
+    expect(within(channelRow('prerelease')).getAllByText('harnessVersionListUnknown').length).toBe(
+      1,
+    );
   });
 
   it('shows the generic channel empty texts when nothing is published', async () => {
@@ -735,8 +740,9 @@ describe('HarnessVersionCard', () => {
       }),
     });
     renderCard(bridge);
-    await waitFor(() => expect(channelRow('stable')).toBeTruthy());
-    expect(within(channelRow('stable')).getByText('harnessVersionStableEmpty')).toBeTruthy();
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByText('harnessVersionStableEmpty')).toBeTruthy(),
+    );
     expect(
       within(channelRow('prerelease')).getByText('harnessVersionPrereleaseEmpty'),
     ).toBeTruthy();
