@@ -119,6 +119,7 @@
 | [git-proxy-port-mismatch-fix-2026-07-30.md](./toolchain/git-proxy-port-mismatch-fix-2026-07-30.md) | git 代理端口 7890 与 VPN 实际 17890 不一致 |
 | [tauri-dev-stale-exe-lock-2026-08-16.md](./toolchain/tauri-dev-stale-exe-lock-2026-08-16.md) | Tauri dev 模式残留进程锁定 exe 导致修改不生效 |
 | [skill-system-retirement-2026-10-24.md](./toolchain/skill-system-retirement-2026-10-24.md) | 技能系统精简与文档真源化：三技能退役并入 `root-cause-to-close`、产物归档、说明集中到 `SKILLS.md` |
+| [wdio-tauri-desktop-e2e-eval-2026-10-28.md](./toolchain/wdio-tauri-desktop-e2e-eval-2026-10-28.md) | 桌面端 E2E 实测：`@wdio/tauri-service` 跑通 5 条真机冒烟（~0.2s/用例），集成成本与踩坑清单，结论可行但 opt-in |
 
 ### Logging
 

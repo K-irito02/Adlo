@@ -53,12 +53,16 @@
 
 ## 禁止项
 
+> 标注「自动校验」的条目由对应脚本在 pre-commit / pre-push 强制执行；其余条目仍需审查判断。
+
 - WebView 直接触达系统能力（必须通过 Tauri Command）
 - 低层 crate 依赖高层 crate
 - 凭据写入普通配置或日志（必须通过 `crates/credential/` 存储）
 - UI/UX 或功能变更后跳过红绿测试
 - 未获用户批准就执行全量测试 / 全量门禁（`check:full`、`cargo test --workspace`）或发布打包（`cargo tauri build`）；日常只跑受变更影响的测试
-- 在 capability 文件中使用 `"all"` / `"**"` 通配权限
+- 在 capability 文件中使用 `"all"` / `"**"` 通配权限（自动校验：`ai-digital-life/scripts/check-release-guards.test.mjs`）
+- e2e 专用 feature / Tauri 配置泄漏到生产构建（自动校验：`ai-digital-life/scripts/check-release-guards.test.mjs`）
+- 只改 `.agents/rules` 或 `.agents/skills` 而不同步 `.opencode` / `.trae` 镜像（自动校验：`ai-digital-life/scripts/check-agent-dirs.test.mjs`）
 - 功能或显示效果仅在 Tauri 或浏览器单一模式下可用（必须双端一致）
 - WebView URL 变化被动触发 Tauri navigateTab（必须由前端发起操作显式调用，见 `browserpanel.tsx:submitAddress`、`BrowserPanelActionsContext.ts:handleOpenTabFromTree`）
 - 任何 UI 展示文本硬编码（包括但不限于按钮/Tooltip/aria-label/占位符/过滤器标签/相对时间/日期格式/面包屑标签映射），必须使用 i18n key
@@ -84,6 +88,8 @@
 - **新增 IPC 方法必须同步实现** `tauri-bridge.ts` / `preview-bridge/` / `mock-bridge.ts`
 
 > **示例**：终端输出持久化 — Tauri 模式使用 SQLite，浏览器模式使用 IndexedDB，两者通过统一的 `TerminalOutputStore` 接口提供相同的功能行为。
+
+> **桌面 E2E（opt-in）**：`pnpm run e2e` 用 `@wdio/tauri-service` 驱动真实 Tauri 窗口，作为桌面-only 交互的补充冒烟；**不替代**双端人工验证，也不属于 `check:all`。入口与排障见技能 `desktop-e2e-wdio`。
 
 ## 编码规范
 

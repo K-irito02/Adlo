@@ -123,6 +123,10 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 - **禁止 `unwrap()`**：使用 `?` 运算符或模式匹配
 - 错误类型使用 `thiserror` + `AppError` 统一处理
 
+### 样式与组件边界
+- **禁止跨 feature 复用 BEM 类名**（如 OpenCode 组复用 `.adl-dsh-settings__*`）：各自建命名空间；确实通用的控件样式放共享样式表（`styles/components/`），不要在业务样式里互借。
+- **样式与组件同域**：区域样式放 `styles/regions/<feature>.css`，由 `styles/index.css` 统一 `@import`。
+
 ### Commit 与分支规范
 - **分支命名**：kebab-case，最多 3 个单词，禁止斜杠/类型前缀
 - **Commit 信息**：`type(scope): summary`（feat/fix/docs/chore/refactor/test）

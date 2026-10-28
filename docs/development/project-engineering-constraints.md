@@ -282,6 +282,7 @@
 
 - 单测（`cargo test` 内 `#[cfg(test)] mod tests`）覆盖纯业务规则、格式化逻辑、状态机和配置解析
 - 集成测试（`crates/server/tests/`，`common/mod.rs` helpers）覆盖 Tauri Command、持久化、迁移、恢复和工作区关键链路
+- 桌面-only 交互回归可用 `pnpm run e2e` 冒烟（opt-in，真实 Tauri 窗口；**不进** `check:all`，见技能 `desktop-e2e-wdio`）
 - 验收矩阵覆盖首批双语、三态主题、首次启动、升级迁移、异常恢复
 
 发布前必须验证：

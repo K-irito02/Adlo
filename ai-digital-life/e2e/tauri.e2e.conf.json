@@ -1,0 +1,38 @@
+{
+  "$schema": "../src-tauri/gen/schemas/desktop-schema.json",
+  "identifier": "com.ai-digital-life.app.e2e",
+  "productName": "AI Digital Life E2E",
+  "build": {
+    "beforeBuildCommand": "pnpm --dir frontend exec vite build --mode e2e"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "capabilities": [
+        "default",
+        "browser-remote",
+        {
+          "identifier": "e2e-wdio",
+          "description": "E2E-only WDIO bridge permissions (test builds only)",
+          "windows": ["main"],
+          "permissions": ["wdio:default"]
+        }
+      ]
+    },
+    "windows": [
+      {
+        "label": "main",
+        "title": "AI Digital Life",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 640,
+        "minHeight": 480,
+        "decorations": false,
+        "shadow": true,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": false
+      }
+    ]
+  }
+}

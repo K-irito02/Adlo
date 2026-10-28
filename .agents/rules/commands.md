@@ -68,6 +68,12 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `cargo test --workspace` | Rust 全量测试 |
 | `cargo test -p <crate>` | Rust 指定 crate 测试 |
 | `cargo test <test_name>` | Rust 模糊匹配测试名称 |
+| `pnpm run e2e:build` | 构建桌面 E2E 调试产物（内部先 `stage:sidecar`；`--features e2e`，**不要**换 release 构建） |
+| `pnpm run e2e` | 桌面 E2E 全量冒烟（真实 Tauri 窗口，整轮 ~15s） |
+| `pnpm run e2e:typecheck` | e2e 包 TypeScript 检查（pre-push 自动执行） |
+| `pnpm --dir e2e run test:smoke` | 只跑 `specs/smoke.spec.ts` |
+
+**桌面 E2E（opt-in）**：需 `pnpm install`（`e2e` 为独立 workspace 包）且端口 4445 空闲；**不进** `check:all`，仅在桌面-only 改动或用户要求时跑。排障与用例规则见技能 `desktop-e2e-wdio`。
 
 ### 受影响测试优先执行
 

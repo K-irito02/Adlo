@@ -199,7 +199,13 @@ frontend/src/**/*.test.ts(x)       # 前端 Vitest 测试（与被测模块同�
 crates/*/tests/                     # Rust 集成测试
 crates/*/src/**/*.rs（#[cfg(test)]） # Rust 内联单元测试
 crates/server/tests/common/mod.rs   # Rust 集成测试共享 helpers
+e2e/specs/*.spec.ts                 # 桌面 E2E（@wdio/tauri-service，opt-in）
+e2e/wdio.conf.ts                    # 服务配置：embedded provider / 窗口固定
+e2e/run-e2e.mjs                     # 运行包装器 + 孤儿 adl-server 清理
+e2e/tauri.e2e.conf.json             # e2e 专用 Tauri 配置（隔离 identifier / withGlobalTauri）
 ```
+
+桌面 E2E：`pnpm run e2e:build` → `pnpm run e2e`（不进 `check:all`；规则见技能 `desktop-e2e-wdio`）。
 
 ## 运行模式
 

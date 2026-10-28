@@ -26,7 +26,7 @@
 | 包管理（Rust） | Cargo workspace                            | —                                  |
 | 包管理（前端）   | npm / pnpm                                 | npm / pnpm（保留）                     |
 | 单测        | `cargo test` + `vitest`（前端）                | `vitest`                           |
-| E2E       | `tauri-driver` (WebDriver)                 | Playwright                         |
+| E2E       | `@wdio/tauri-service`（embedded WebDriver，opt-in） | Playwright                  |
 
 
 ### 已废弃的栈项
@@ -117,10 +117,12 @@
 
 ### tauri-driver / WebDriver
 
-已采用（E2E）。理由：
+已采用（桌面 E2E，opt-in）。理由：
 
-- Tauri 官方推荐 E2E 工具
-- Playwright 仍可用于纯前端 dev server 调试，但生产 E2E 走 WebDriver
+- Tauri 官方推荐的 WebDriver 路线；本仓通过 `@wdio/tauri-service` 接入，使用其 **embedded provider**，因此不安装也不依赖外部 `tauri-driver` / `msedgedriver`。
+- 只以 `--features e2e` 的 **debug** 产物运行（`pnpm run e2e:build`）；Rust 插件仅在 `TAURI_WEBDRIVER_PORT` 存在时注册，默认 feature 不编译、生产配置不开启 `withGlobalTauri`。
+- 定位是桌面交互冒烟，**不进** `check:all`；入口与排障见技能 `desktop-e2e-wdio`，实测数据见 [wdio-tauri-desktop-e2e-eval-2026-10-28.md](../../knowledge-base/toolchain/wdio-tauri-desktop-e2e-eval-2026-10-28.md)。
+- Playwright 仍用于纯前端 dev server 的浏览器调试（浏览器模式），两者分工不重叠。
 
 ## Migration Notes
 

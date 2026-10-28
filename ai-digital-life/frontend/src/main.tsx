@@ -31,7 +31,15 @@ async function syncTauriWindowIcon(): Promise<void> {
  * resolves it via the `app_get_server_info` Tauri command (falls back to the
  * default ad-server address when the engine is not running, e.g. dev).
  */
+/** E2E-only build (`vite build --mode e2e`): expose the WDIO Tauri plugin. */
+const isE2E = import.meta.env.VITE_ADL_E2E === '1';
+
 async function boot(): Promise<void> {
+  if (isE2E) {
+    // Must initialize before tests run; requires `withGlobalTauri` (e2e config only).
+    await import('@wdio/tauri-plugin');
+  }
+
   if (typeof window !== 'undefined' && !window.digitalLife) {
     if (isTauriShell()) {
       const baseUrl = await resolveTauriServerBaseUrl();

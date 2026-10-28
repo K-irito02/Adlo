@@ -16,8 +16,8 @@
 | Superpowers 体系技能 | 来自开源项目 [obra/superpowers](https://github.com/obra/superpowers) 的技能体系，覆盖需求澄清、计划、执行、审查、验证等研发全流程 | 14 |
 | Matt Pocock 工程技能 | 来自 [mattpocock/skills](https://github.com/mattpocock/skills)（[aihero.dev](https://www.aihero.dev/skills)）的 Engineering 分类（另含 productivity 分类的 `grilling`，为 `grill-with-docs` 的依赖），覆盖需求成型、规格与工单、实现、TDD、审查、诊断、域建模与代码库架构 | 21 |
 | 其他社区技能 | 从社区技能仓库安装的技能（来源见 `.agents/.skill-lock.json`），涵盖技能创建、浏览器自动化、UI/UX 设计等 | 8 |
-| 项目自建技能 | 为本仓库定制的技能，与本项目的治理规则、文档体系、运行方式强绑定 | 7 |
-| **合计** | 数量以 `.agents/skills/` 实际目录为准 | **50** |
+| 项目自建技能 | 为本仓库定制的技能，与本项目的治理规则、文档体系、运行方式强绑定 | 8 |
+| **合计** | 数量以 `.agents/skills/` 实际目录为准 | **51** |
 
 ### 1.2 使用与维护约定
 
@@ -46,7 +46,7 @@
 1. **保持一致**：三个目录必须始终保持一致（同技能名、同文件、同内容）。
 2. **改一同步二**：每次更新 / 修改 / 创建 / 删除技能后，立即将变更同步到另外两个目录，禁止只改单目录。
 3. **登记摘要**：新增或删除技能后，同步更新本文件 §1.1 的数量与 §4 的摘要表。
-4. **校验方式**：以真源为准逐文件比对，例如
+4. **校验方式**：pre-commit 自动执行 `scripts/check-agent-dirs.test.mjs`（三目录逐文件哈希 + 本文件数量/摘要表）。手动检查：
 
    ```bash
    # 目录级一致性检查（无输出即一致）
@@ -100,11 +100,12 @@
 | `taste-skill` | `design-taste-frontend` | 面向落地页、作品集与改版的反“AI 味”前端技能：读取需求简报、推断正确的设计方向，交付不像模板的界面；适用时使用真实设计系统，改版先审计，执行严格的前置检查。 |
 | `ui-ux-pro-max` | `ui-ux-pro-max` | 面向 Web、移动端与桌面的 UI/UX 设计智能：在设计、构建、评审或修复界面时使用，覆盖页面、组件、设计系统、可访问性、交互、响应式布局、字体、配色、图表及特定技术栈的 UI 实现。内置可检索本地数据：79 种风格（50 种启用）、192 套产品配色与推理画像、74 组字体搭配、119 条 UX 准则、105 个图标、17 个 GSAP 预设、25 种图表类型、22 个技术栈。 |
 
-### 4.3 项目自建技能（7）
+### 4.3 项目自建技能（8）
 
 | 技能目录 | 调用名 | 说明 |
 |----------|--------|------|
 | `codegraph-knowledge-graph` | `codegraph-knowledge-graph` | 查询本地 CodeGraph 代码知识图谱，追踪符号、调用链与变更影响范围；需要理解代码结构、追踪调用关系或评估变更影响时优先使用，替代逐文件 `grep` / 读取。 |
+| `desktop-e2e-wdio` | `desktop-e2e-wdio` | 当需要验证 Tauri 桌面端真实交互（原生点击、窗口/面板、窗口几何、真实 IPC）、运行桌面冒烟、排查 WDIO 的 5s 超时/窗口焦点警告/adl-server 残留，或维护 `ai-digital-life/e2e/` 时使用；用 embedded WebDriver 驱动真实窗口，无需 `tauri-driver`/`msedgedriver`，不进 `check:all`。 |
 | `documentation-organizer` | `documentation-organizer` | 将项目文档整理为清晰、规范的层级结构；用户要求整理文档、清理文档结构、修复散乱文档文件或建立文档约定时调用。 |
 | `governance-audit` | `governance-audit` | 审计并同步治理文档（规则文件、`AGENTS.md`、各级 README、根文档、docs 目录、工程基线）以及三个规则目录与三个技能目录，输出发现并在获批后修复；不用于源码审计。 |
 | `learn` | `learn` | 分析代码库以发现模式、约定与架构决策，并生成项目规则文件；用户要求“从这个项目学习”“提取项目规则”“发现模式”或“自动生成规则”时调用。 |
