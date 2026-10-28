@@ -1,14 +1,14 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup, fireEvent, screen, waitFor, within, act } from '@testing-library/react';
-import type { CopyDict } from '../../i18n';
-import { TCopyProvider } from '../../i18n/TCopyContext';
-import { HarnessVersionCard, type HarnessVersionSlots } from './HarnessVersionCard';
+import type { CopyDict } from '@i18n';
+import { TCopyProvider } from '@i18n/TCopyContext';
+import { HarnessVersionCard, type HarnessVersionSlots } from '../HarnessVersionCard';
 import type {
   HarnessVersionBridge,
   HarnessVersionResult,
   HarnessVersionSnapshot,
   HarnessVersionStatus,
-} from './harnessVersionBridge';
+} from '../harnessVersionBridge';
 
 const mockT = new Proxy({} as Record<string, string>, {
   get: (_, key) =>
@@ -50,7 +50,7 @@ function snapshot(overrides: Partial<HarnessVersionSnapshot> = {}): HarnessVersi
   return {
     status: status(),
     catalog: CATALOG,
-    source: { mode: 'auto', effective: 'host', systemPath: null },
+    source: { mode: 'auto', effective: 'host', systemPath: null, ready: true },
     failed: false,
     ...overrides,
   };
@@ -72,7 +72,7 @@ const DSH_CATALOG = {
   latestPrerelease: '2.0.0-rc.2',
 };
 
-/** DSH 形态：行内双通道选择器 + 卸载确认 + 任务阶段/计数。 */
+/** DSH 形态：行内双通道选择器 + 卸载确认 + 仅检查更新 + 无百分比任务行。 */
 function dshBridge(
   overrides: Partial<HarnessVersionBridge<unknown>> & { initial?: HarnessVersionSnapshot } = {},
 ): HarnessVersionBridge<unknown> {
@@ -80,8 +80,16 @@ function dshBridge(
     capabilities: {
       channelPicker: true,
       uninstallConfirm: true,
-      taskStageText: true,
-      taskCounts: true,
+      updateAction: 'check',
+      taskPercent: false,
+      taskCounts: false,
+      sourceManaged: true,
+    },
+    labels: {
+      stable: 'dshOfficialStable',
+      prerelease: 'dshPrereleaseTitle',
+      runningSource: 'dshRunningSource',
+      uninstallCurrentHint: 'dshUninstallCurrentHint',
     },
     initial: snapshot({
       status: status({
@@ -92,6 +100,7 @@ function dshBridge(
         hasPrereleaseUpdate: true,
       }),
       catalog: DSH_CATALOG,
+      source: { mode: 'auto', effective: 'host', systemPath: null, ready: true },
     }),
     ...overrides,
   });
@@ -412,9 +421,15 @@ describe('HarnessVersionCard', () => {
     expect(within(channelRow('stable')).queryByRole('button', { name: '1.2.0' })).toBeNull();
 
     const menu = openChannelMenu('stable', '1.1.0');
-    expect(menu.getAttribute('aria-label')).toBe('harnessVersionStable');
+    expect(menu.getAttribute('aria-label')).toBe('dshOfficialStable');
     expect(within(menu).getAllByRole('option')).toHaveLength(3);
-    expect(within(menu).getByText('2026-01-02 03:04')).toBeInTheDocument();
+    expect(
+      within(menu).getByText(
+        new Intl.DateTimeFormat('en-US', { dateStyle: 'short', timeStyle: 'short' }).format(
+          new Date('2026-01-02T03:04:00Z'),
+        ),
+      ),
+    ).toBeInTheDocument();
 
     pickChannelVersion('1.2.0');
     await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
@@ -579,6 +594,8 @@ describe('HarnessVersionCard', () => {
     });
     fireEvent.click(currentUninstall);
     expect(bridge.uninstall).not.toHaveBeenCalled();
+    // 二次确认态：当前版本行下方出现适配器提供的卸载后果提示。
+    expect(screen.getByText('dshUninstallCurrentHint')).toBeInTheDocument();
     expect(
       within(channelRow('stable')).getByRole('button', { name: 'harnessVersionConfirmUninstall' }),
     ).toBeTruthy();
@@ -653,6 +670,8 @@ describe('HarnessVersionCard', () => {
       total: 100,
       cancellable: true,
     }));
+    bridge.taskStageText = () => 'dshTaskStageInstalling 42/100';
+    bridge.taskCancelLabel = () => 'dshCancelInstall';
 
     renderCard(bridge);
     await waitFor(() =>
@@ -669,7 +688,7 @@ describe('HarnessVersionCard', () => {
 
     // 在途：所有操作控件禁用，只有取消可点。
     expect(within(channelRow('stable')).getByRole('button', { name: '1.2.0' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'harnessVersionUpdateAction' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'harnessVersionUpdate' })).toBeDisabled();
     expect(screen.getByPlaceholderText('harnessVersionManualPlaceholder')).toBeDisabled();
     expect(
       within(rowFor('1.0.0')).getByRole('button', { name: 'harnessVersionSwitch' }),
@@ -678,10 +697,11 @@ describe('HarnessVersionCard', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(800);
     });
-    expect(screen.getByText('harnessVersionPhaseInstalling')).toBeInTheDocument();
-    expect(screen.getByText('42/100')).toBeInTheDocument();
-    expect(screen.getByText('42%')).toBeInTheDocument();
-    const cancel = screen.getByRole('button', { name: 'harnessVersionCancel' });
+    expect(screen.getByText('dshTaskStageInstalling 42/100')).toBeInTheDocument();
+    // DSH 任务行没有百分比，也没有单独的计数提示（计数并入阶段文案）。
+    expect(screen.queryByText('42%')).toBeNull();
+    expect(screen.queryByText('42/100')).toBeNull();
+    const cancel = screen.getByRole('button', { name: 'dshCancelInstall' });
     expect(cancel).toBeEnabled();
 
     fireEvent.click(cancel);
@@ -746,5 +766,121 @@ describe('HarnessVersionCard', () => {
     expect(
       within(channelRow('prerelease')).getByText('harnessVersionPrereleaseEmpty'),
     ).toBeTruthy();
+  });
+
+  // —— 适配器语义回归（spec #1 items 1-6） ——
+
+  it('runs the check-only update action and never shows an update hint in check mode', async () => {
+    const checkUpdate = vi.fn(async () => ({ ok: true }) as HarnessVersionResult);
+    const bridge = dshBridge({ checkUpdate });
+    renderCard(bridge);
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.1.0' })).toBeTruthy(),
+    );
+
+    expect(screen.queryByText('harnessVersionHasUpdate')).toBeNull();
+    expect(screen.queryByText('harnessVersionNoUpdate')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'harnessVersionUpdate' }));
+
+    await waitFor(() => expect(checkUpdate).toHaveBeenCalledTimes(1));
+    expect(bridge.update).not.toHaveBeenCalled();
+  });
+
+  it('never reports up to date when the status could not be read', async () => {
+    const bridge = makeBridge({
+      initial: { status: null, catalog: null, source: null, failed: false },
+    });
+    renderCard(bridge);
+    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    const updateRow = screen.getByText('harnessVersionUpdate').closest('.adl-settings-row');
+    expect(updateRow).not.toBeNull();
+    expect(within(updateRow as HTMLElement).queryByText('harnessVersionNoUpdate')).toBeNull();
+    expect(within(updateRow as HTMLElement).queryByText('harnessVersionHasUpdate')).toBeNull();
+  });
+
+  it('hides manage rows until the adapter reports a ready source', async () => {
+    const bridge = dshBridge({
+      initial: snapshot({
+        source: {
+          mode: 'auto',
+          effective: 'host',
+          systemPath: null,
+          ready: false,
+          managed: true,
+        },
+      }),
+    });
+    renderCard(bridge);
+    await screen.findByText('harnessVersionCurrent');
+    expect(screen.queryByRole('button', { name: 'harnessVersionUpdate' })).toBeNull();
+    expect(screen.queryByText('dshOfficialStable')).toBeNull();
+    expect(screen.queryByText('harnessVersionManual')).toBeNull();
+  });
+
+  it('keeps the last task row through the restart tail and falls back to finalizing', async () => {
+    let resolveInstall!: (result: HarnessVersionResult) => void;
+    const installPromise = new Promise<HarnessVersionResult>((resolve) => {
+      resolveInstall = resolve;
+    });
+    let polls = 0;
+    const bridge = dshBridge();
+    bridge.install = vi.fn(() => installPromise);
+    bridge.getTask = vi.fn(async () =>
+      polls++ === 0
+        ? {
+            kind: 'dsh-install' as const,
+            version: '1.2.0',
+            phase: 'installing' as const,
+            percent: null,
+            done: 3,
+            total: 10,
+            cancellable: true,
+          }
+        : null,
+    );
+    bridge.taskStageText = (task) =>
+      task ? 'dshTaskStageInstalling 3/10' : 'dshTaskStageFinalizing';
+
+    renderCard(bridge);
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.1.0' })).toBeTruthy(),
+    );
+    openChannelMenu('stable', '1.1.0');
+    pickChannelVersion('1.2.0');
+
+    vi.useFakeTimers();
+    fireEvent.click(
+      within(channelRow('stable')).getByRole('button', { name: 'harnessVersionInstall' }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+    expect(screen.getByText('dshTaskStageInstalling 3/10')).toBeInTheDocument();
+
+    // 后端任务先归零、操作仍未结束：行继续显示，文案切到「收尾中」而不是消失。
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+    expect(screen.getByText('dshTaskStageFinalizing')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveInstall(OK);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  });
+
+  it('lets the adapter own the effective running source label', async () => {
+    const bridge = dshBridge({
+      initial: snapshot({
+        source: { mode: 'auto', effective: 'running', systemPath: null, ready: true },
+      }),
+    });
+    renderCard(bridge);
+    await waitFor(() =>
+      expect(
+        screen.getByText(/harnessVersionEffectiveSource: dshRunningSource/),
+      ).toBeInTheDocument(),
+    );
   });
 });

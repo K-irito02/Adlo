@@ -27,7 +27,7 @@ import { dshEn } from '@i18n/en-US/dsh';
 import { harnessVersionEn } from '@i18n/en-US/harnessVersion';
 import { environmentEn } from '@i18n/en-US/environment';
 import { SettingsControls } from './SettingsControls';
-import { buildSettingsSearchIndex, anchorFor } from './settingsSearchIndex';
+import { buildSettingsSearchIndex, anchorFor, filterSearchIndex } from './settingsSearchIndex';
 import { SETTINGS_ROW_ATTRIBUTE } from './settingsRowLocate';
 
 // DshSettings 经 useAppActions 触达 IPC：与 DshSettings.test.tsx 同法打桩，
@@ -277,9 +277,9 @@ const CONDITIONAL_ROW_MARKERS: string[] = [
   'environmentCopyForAgent',
   // 聚合条仅在环境状态加载后渲染。
   'environmentCopyAllForAgent',
-  // 通用版本卡片的预发布 / 已安装版本区仅在目录有预发布、或本机已装版本时渲染
-  // （DSH 组种子没有任何已装版本，故列为条件行）。
-  'harnessVersionPrerelease',
+  // 通用版本卡片的已安装版本区仅在本机已装版本时渲染（DSH 组种子没有任何
+  // 已装版本，故列为条件行）；双通道行在 `channelPicker` 下恒渲染（含空态），
+  // 因此 `dshOfficialStable` / `dshPrereleaseTitle` 属于默认可见行。
   'harnessVersionInstalled',
   // 「前往配置」行已随「网络与模型」块删除（该标记只挂在已删除的网络行上）。
 ];
@@ -399,6 +399,24 @@ describe('settings search anchors', () => {
       sourceStatus: null,
       toasts: [],
     });
+  });
+
+  it('DSH 版本块的正式版本/预发布版本/升级检索词仍命中', () => {
+    const zhT = {
+      ...settingsZh,
+      ...browserZh,
+      ...dshZh,
+      ...harnessVersionZh,
+      ...environmentZh,
+    } as unknown as CopyDict;
+    const index = buildSettingsSearchIndex({ t: zhT, settings: [], keybinds: {} });
+
+    for (const query of ['正式版本', '预发布版本', '升级']) {
+      const hits = filterSearchIndex(index, query).map((entry) =>
+        anchorFor(entry.group, entry.anchorId),
+      );
+      expect(hits, query).toContain(anchorFor('dsh', 'version'));
+    }
   });
 
   it('索引中每组的锚点都能在对应组 DOM 命中', async () => {

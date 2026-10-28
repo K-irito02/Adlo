@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { CopyDict } from '../../i18n';
-import { useAppStore } from '../../stores/slicedStore';
+import type { CopyDict } from '@i18n';
+import { useAppStore } from '@stores/slicedStore';
 import type {
   DshBridge,
   DshSourceStatus,
   DshVersionStatus,
   DshVersionTask,
-} from '../../../shared/ipc/dsh';
-import { createDshVersionBridge, type DshVersionBridgeActions } from './dshVersionBridge';
+} from '@shared/ipc/dsh';
+import { createDshVersionBridge, type DshVersionBridgeActions } from '../dshVersionBridge';
 
 const mockT = new Proxy({} as Record<string, string>, {
   get: (_, key) => (typeof key === 'string' ? key : ''),
@@ -54,6 +54,8 @@ function makeActions(overrides: Partial<DshVersionBridgeActions> = {}): DshVersi
     fetchDshSettingsSnapshot: vi.fn(async () => true),
     fetchSourceStatus: vi.fn(async () => true),
     fetchVersionTask: vi.fn(async () => undefined),
+    fetchDshVersionStatus: vi.fn(async () => true),
+    fetchVersionCatalog: vi.fn(async () => true),
     cancelVersionTask: vi.fn(async () => true),
     updateDsh: vi.fn(async () => true),
     revertDsh: vi.fn(async () => true),
@@ -75,12 +77,13 @@ function makeBridge(
   deps: {
     notify?: (message: string, tone: string) => void;
     changeSourceMode?: (mode: 'auto' | 'system' | 'host') => Promise<{ ok: boolean }>;
+    t?: CopyDict;
   } = {},
 ) {
   return createDshVersionBridge({
     bridge: BRIDGE,
     toolName: 'DSH',
-    t: mockT,
+    t: deps.t ?? mockT,
     actions,
     notify: deps.notify ?? (() => {}),
     changeSourceMode: deps.changeSourceMode ?? (async () => ({ ok: true })),
@@ -290,6 +293,7 @@ describe('dshVersionBridge', () => {
       mode: 'auto',
       effective: 'host',
       systemPath: 'C:/Program Files/dsh/dsh.exe',
+      ready: true,
       managed: true,
     });
   });
@@ -343,5 +347,131 @@ describe('dshVersionBridge', () => {
     });
 
     expect(bridge.available).toBe(false);
+  });
+
+  // —— 检查更新（只查询）/ 任务文案 / 术语（spec #1 items 1-6） ——
+
+  const checkT = new Proxy({} as Record<string, string>, {
+    get: (_, key) =>
+      key === 'dshCheckUpdateFound'
+        ? '发现新版本 {version}'
+        : key === 'dshCheckUpdatePrerelease'
+          ? '有新的预发布版本 {version} 可尝试'
+          : typeof key === 'string'
+            ? key
+            : '',
+  }) as unknown as CopyDict;
+
+  it('declares the DSH card capabilities and terminology', () => {
+    const bridge = makeBridge(makeActions());
+
+    expect(bridge.capabilities).toMatchObject({
+      updateAction: 'check',
+      taskPercent: false,
+      sourceManaged: true,
+      channelPicker: true,
+    });
+    expect(bridge.labels).toMatchObject({
+      stable: 'dshOfficialStable',
+      prerelease: 'dshPrereleaseTitle',
+      uninstallCurrentHint: 'dshUninstallCurrentHint',
+    });
+  });
+
+  it('checks for updates without installing and reports a found version', async () => {
+    useAppStore.setState({
+      versionStatus: status({ latestAvailable: '1.3.0', hasUpdate: true }),
+    });
+    const actions = makeActions();
+    const notify = vi.fn();
+    const bridge = makeBridge(actions, { notify, t: checkT });
+
+    await expect(bridge.checkUpdate?.()).resolves.toMatchObject({ ok: true });
+
+    expect(actions.fetchDshVersionStatus).toHaveBeenCalledTimes(1);
+    expect(actions.updateDsh).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith('发现新版本 1.3.0', 'success');
+    expect(actions.fetchVersionCatalog).toHaveBeenCalledWith(true);
+  });
+
+  it('warns when no stable release exists but a prerelease is available', async () => {
+    useAppStore.setState({
+      versionStatus: status({
+        latestAvailable: null,
+        hasUpdate: false,
+        prereleaseAvailable: '2.0.0-rc.2',
+        hasPrereleaseUpdate: true,
+      }),
+    });
+    const notify = vi.fn();
+    const bridge = makeBridge(makeActions(), { notify, t: checkT });
+
+    await bridge.checkUpdate?.();
+    expect(notify).toHaveBeenCalledWith('有新的预发布版本 2.0.0-rc.2 可尝试', 'success');
+    expect(notify).not.toHaveBeenCalledWith('harnessVersionNoUpdate', 'success');
+  });
+
+  it('warns instead of claiming up-to-date when no stable version can be resolved', async () => {
+    useAppStore.setState({
+      versionStatus: status({ latestAvailable: null, hasUpdate: false }),
+    });
+    const notify = vi.fn();
+    const bridge = makeBridge(makeActions(), { notify, t: checkT });
+
+    await bridge.checkUpdate?.();
+    expect(notify).toHaveBeenCalledWith('dshCheckUpdateNoStable', 'warning');
+  });
+
+  it('reports up to date only when a latest stable version is known', async () => {
+    useAppStore.setState({
+      versionStatus: status({ latestAvailable: '1.0.0', hasUpdate: false }),
+    });
+    const notify = vi.fn();
+    const bridge = makeBridge(makeActions(), { notify, t: checkT });
+
+    await bridge.checkUpdate?.();
+    expect(notify).toHaveBeenCalledWith('harnessVersionNoUpdate', 'success');
+  });
+
+  it('surfaces a check failure without installing', async () => {
+    const notify = vi.fn();
+    const actions = makeActions({ fetchDshVersionStatus: vi.fn(async () => false) });
+    const bridge = makeBridge(actions, { notify, t: checkT });
+
+    await expect(bridge.checkUpdate?.()).resolves.toMatchObject({ ok: false, silent: true });
+    expect(actions.updateDsh).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it('owns the DSH stage text (counts inline) and per-kind cancel labels', () => {
+    const bridge = makeBridge(makeActions());
+    const task: DshVersionTask = {
+      kind: 'dsh-install',
+      version: '1.2.3',
+      phase: 'installing',
+      percent: 40,
+      done: 4,
+      total: 10,
+      cancellable: true,
+    };
+
+    expect(bridge.taskStageText?.(task)).toBe('dshTaskStageInstalling 4/10');
+    expect(bridge.taskStageText?.(null)).toBe('dshTaskStageFinalizing');
+    expect(bridge.taskStageText?.({ ...task, phase: 'installing', total: 0 })).toBe(
+      'dshTaskStageDownloading',
+    );
+    expect(bridge.taskCancelLabel?.(task)).toBe('dshCancelInstall');
+    expect(bridge.taskCancelLabel?.({ ...task, kind: 'dsh-uninstall' })).toBe('dshCancelUninstall');
+    expect(bridge.taskCancelLabel?.({ ...task, kind: 'dsh-reinstall' })).toBe('dshCancelReinstall');
+  });
+
+  it('reports the source as not ready before resolvedByMode arrives', async () => {
+    useAppStore.setState({
+      sourceStatus: { ...sourceStatus(), versionSource: null } as unknown as DshSourceStatus,
+    });
+    const bridge = makeBridge(makeActions());
+
+    const snapshot = await bridge.load();
+    expect(snapshot.source).toMatchObject({ ready: false, managed: false });
   });
 });

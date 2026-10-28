@@ -197,7 +197,7 @@ describe('DshSettings', () => {
     });
   });
 
-  it('版本块结构：单个块头 + 通用版本卡片（旧版本组件不再渲染）', () => {
+  it('版本块结构：单个块头 + 通用版本卡片（旧版本组件不再渲染）', async () => {
     useAppStore.setState({ sourceStatus: makeStatus() });
     renderSettings();
     const root = document.querySelector('.adl-dsh-settings');
@@ -219,10 +219,12 @@ describe('DshSettings', () => {
     expect(
       root?.querySelectorAll('.adl-harness-version .adl-settings-storage__header'),
     ).toHaveLength(0);
-    // 通用卡片的行标记（数据源同 `harnessVersion*` 文案），旧 DSH 行标记已随组件删除。
-    const updateRow = root?.querySelector('[data-settings-row="harnessVersionUpdate"]');
-    expect(updateRow).not.toBeNull();
-    expect(updateRow?.querySelector('.adl-harness-version__action-btn')).not.toBeNull();
+    // 管理行在来源快照到达后才渲染（首帧不闪现）。
+    await waitFor(() => {
+      const updateRow = root?.querySelector('[data-settings-row="harnessVersionUpdate"]');
+      expect(updateRow).not.toBeNull();
+      expect(updateRow?.querySelector('.adl-harness-version__action-btn')).not.toBeNull();
+    });
     expect(root?.querySelector('[data-settings-row="harnessVersionCurrent"]')).not.toBeNull();
     // 来源行保留行内问号提示（沿用 DSH 的来源说明）。
     const sourceRow = root?.querySelector('[data-settings-row="harnessVersionSourceTitle"]');
@@ -288,7 +290,7 @@ describe('DshSettings', () => {
     await waitFor(() => {
       expect(root?.querySelector('[data-settings-row="harnessVersionUpdate"]')).toBeNull();
     });
-    expect(root?.querySelector('[data-settings-row="harnessVersionStable"]')).toBeNull();
+    expect(root?.querySelector('[data-settings-row="dshOfficialStable"]')).toBeNull();
     expect(root?.querySelector('[data-settings-row="harnessVersionManual"]')).toBeNull();
     // 当前版本行与系统安装读数仍可见。
     expect(root?.querySelector('[data-settings-row="harnessVersionCurrent"]')).not.toBeNull();
@@ -544,8 +546,8 @@ describe('DshSettings', () => {
       await waitFor(() => {
         const rows = [
           document.querySelector('[data-settings-row="harnessVersionUpdate"]'),
-          document.querySelector('[data-settings-row="harnessVersionStable"]'),
-          document.querySelector('[data-settings-row="harnessVersionPrerelease"]'),
+          document.querySelector('[data-settings-row="dshOfficialStable"]'),
+          document.querySelector('[data-settings-row="dshPrereleaseTitle"]'),
           document.querySelector('[data-settings-row="harnessVersionManual"]'),
         ];
         if (testCase.visible) {
@@ -581,7 +583,7 @@ describe('DshSettings', () => {
     });
     renderSettings();
     await waitFor(() =>
-      expect(document.querySelector('[data-settings-row="harnessVersionStable"]')).not.toBeNull(),
+      expect(document.querySelector('[data-settings-row="dshOfficialStable"]')).not.toBeNull(),
     );
     expect(screen.getByText('dshNoSourceHostNote')).not.toBeNull();
     expect(screen.queryByText('dshSystemManagedNote')).toBeNull();
