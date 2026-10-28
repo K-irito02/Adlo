@@ -240,14 +240,8 @@ export interface DshOpenResult {
  */
 export interface DshVersionStatus {
   currentSelected: string | null;
-  /** 已装到应用数据目录的版本（含被收编的安装包预置版本；它与其它版本同一条链路）。 */
+  /** 已装到应用数据目录的版本（普通宿主版本，无内置预置概念）。 */
   installed: string[];
-  /**
-   * 内置预置版本号：安装包投放的内置包在启动时被收编成普通已装版本，此字段只是
-   * 「该版本当初由安装包预置」的来源记录（`bundled.txt`），供 UI 标「已内置/内置」。
-   * 该版本被卸载或重装覆盖后即变回 null（不再算内置）。
-   */
-  bundledVersion: string | null;
   latestAvailable: string | null;
   hasUpdate: boolean;
   /** 最新预发布版本（registry `next` 标签；查询失败或官方暂无则为 null） */

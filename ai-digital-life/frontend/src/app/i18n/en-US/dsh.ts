@@ -8,10 +8,7 @@ export const dshEn = {
   dshUninstall: 'Uninstall version',
   dshReinstall: 'Reinstall',
   dshInstalledVersions: 'Installed versions',
-  dshBundledVersions: 'Bundled',
-  dshBundledBadge: 'Bundled',
   dshCurrentVersionBadge: 'Current version',
-  dshBundledSourceNote: 'Pre-provisioned by the app installer',
   dshUninstallCurrentHint:
     'This is the currently selected version. After uninstalling, reinstall it or switch to another version before use',
   dshUninstallSuccess: 'Uninstalled version {version}',

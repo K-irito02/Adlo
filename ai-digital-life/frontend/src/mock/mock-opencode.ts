@@ -14,7 +14,6 @@ const MOCK_BETA = '0.0.0-beta-202608110357';
 const status: DshVersionStatus = {
   currentSelected: MOCK_VERSION,
   installed: [MOCK_VERSION],
-  bundledVersion: null,
   latestAvailable: MOCK_VERSION,
   hasUpdate: false,
   prereleaseAvailable: MOCK_BETA,

@@ -221,9 +221,7 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
   const prereleasePickerSizerRef = useRef<HTMLDivElement>(null);
 
   const currentSelected = versionStatus?.currentSelected ?? null;
-  // 内置预置版本号：它已经是 installed 里的一条普通版本，这里只是「当初由安装包
-  // 预置」的来源记录（bundledVersion ≠ null ⟹ 必然在 installed 里），仅用于徽章标注。
-  const bundledVersion = versionStatus?.bundledVersion ?? null;
+  // 内置预置版本概念已移除（安装包不再内置），版本状态只含选中与已装列表。
   const latestAvailable = versionStatus?.latestAvailable ?? null;
   const hasUpdate = versionStatus?.hasUpdate ?? false;
   const prereleaseAvailable = versionStatus?.prereleaseAvailable ?? null;
@@ -294,7 +292,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
   const committedRef = useRef({
     currentSelected,
     installed,
-    bundledVersion,
     versionSource,
     sourceStatus: dshSourceStatus,
   });
@@ -303,18 +300,16 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
       committedRef.current = {
         currentSelected,
         installed,
-        bundledVersion,
         versionSource,
         sourceStatus: dshSourceStatus,
       };
     }
-  }, [displayFrozen, currentSelected, installed, bundledVersion, versionSource, dshSourceStatus]);
+  }, [displayFrozen, currentSelected, installed, versionSource, dshSourceStatus]);
   const snap = displayFrozen
     ? committedRef.current
-    : { currentSelected, installed, bundledVersion, versionSource, sourceStatus: dshSourceStatus };
+    : { currentSelected, installed, versionSource, sourceStatus: dshSourceStatus };
   const snapCurrent = snap.currentSelected;
   const snapInstalled = snap.installed;
-  const snapBundled = snap.bundledVersion;
   /**
    * 后端真实切换在途版本（用户实测 2026-10-21：读数行在 restart 完成前显示
    * 旧值造成“延迟感”；同版本重装同样覆盖——版本号不变但同样在途）。
@@ -415,11 +410,11 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
     menuGeometry !== null,
   ]);
 
-  // 选中版本或内置包变化（切换/回退/卸载完成）时清除卸载确认态，避免残留的
+  // 选中版本变化（切换/回退/卸载完成）时清除卸载确认态，避免残留的
   // danger 样式指向新的目标版本。
   useEffect(() => {
     setUninstallConfirmVersion(null);
-  }, [currentSelected, bundledVersion]);
+  }, [currentSelected]);
 
   useEffect(() => {
     if (sourceMode !== 'auto') {
@@ -1233,7 +1228,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
   const renderVersionRowAction = (v: string, section: 'stable' | 'prerelease', time: string) => {
     const isCurrent = isVersionInUse(v);
     const isInstalled = snapInstalled.includes(v);
-    const isBundled = v === snapBundled;
     const fixedWidth = section === 'prerelease' ? menuWidths.prerelease : menuWidths.stable;
     return (
       <>
@@ -1248,13 +1242,7 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
           aria-label={v}
           title={[
             v,
-            isCurrent
-              ? t.dshCurrentVersionBadge
-              : isBundled
-                ? t.dshBundledVersions
-                : isInstalled
-                  ? t.dshInstalledVersions
-                  : null,
+            isCurrent ? t.dshCurrentVersionBadge : isInstalled ? t.dshInstalledVersions : null,
           ]
             .filter(Boolean)
             .join(' · ')}
@@ -1265,10 +1253,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
             {isCurrent ? (
               <span className="adl-dsh-settings__version-menu-item-installed adl-dsh-settings__version-menu-item-current">
                 {t.dshCurrentVersionBadge}
-              </span>
-            ) : isBundled ? (
-              <span className="adl-dsh-settings__version-menu-item-installed">
-                {t.dshBundledVersions}
               </span>
             ) : isInstalled ? (
               <span className="adl-dsh-settings__version-menu-item-installed">
@@ -1412,10 +1396,9 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
   // 完整地址（去 token query）放 title；正文只放 host:port，避免长 URL 撑破读数行。
   // 徽章（发现新版本/已是最新）只在主行版本号确为宿主当前选中时才挂，避免
   // system 版与宿主选中不一致时误导。
-  // 内置版本（用户 2026-10-22）不再显示整句「内置版本 x」，而是与已装版本同构：
-  // 版本号 + 来源胶囊徽章（`bundled`），便于和同版本号的系统安装区分。
+  // 运行中读数：版本号 + 来源说明（不再有「内置」来源徽章）。
   const runningReadout = useCallback(
-    (running: DshRunningInfo | null | undefined, bundled: boolean) => {
+    (running: DshRunningInfo | null | undefined) => {
       const url = running?.url ?? '';
       const endpoint = displayEndpoint(url);
       const title = url ? displayUrl(url) : null;
@@ -1427,7 +1410,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
           text: known,
           sub: subTemplate.replace('{url}', endpoint),
           empty: false,
-          bundled,
           title,
         };
       }
@@ -1440,8 +1422,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
             ? t.dshRunningExternalNote.replace('{url}', endpoint)
             : subTemplate.replace('{url}', endpoint),
         empty: true,
-        // 版本未知时不挂来源徽章：徽章贴着版本号才有意义。
-        bundled: false,
         title,
       };
     },
@@ -1454,8 +1434,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
           text: version,
           sub: t.dshEffectiveSystem.replace('{path}', path),
           empty: false,
-          // 系统安装是用户自己装的那份，不是内置版本。
-          bundled: false,
           title: null,
         };
       }
@@ -1463,7 +1441,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
         text: t.dshEffectiveSystem.replace('{path}', path),
         sub: t.dshVersionUnknown,
         empty: true,
-        bundled: false,
         title: null,
       };
     },
@@ -1475,16 +1452,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
     const snapSource = snap.versionSource;
     const snapStatus = snap.sourceStatus;
     const snapSelected = snap.currentSelected;
-    // 内置判定：只认「当前版本号 == 安装包预置记录」，且这份版本确由宿主提供。
-    // 系统安装同版本号不标内置（那份不是我们预置的）；外部复用的进程来源未知，也不标。
-    const hostBundled = snapBundled !== null && snapSource?.hostVersion === snapBundled;
-    // 运行中：只有「宿主拉起的那一份」可能来自预置版本；版本来源偏好为系统安装时
-    // 跑的是用户自己的 dsh，即便版本号相同也不标内置。
-    const runningBundled =
-      snapBundled !== null &&
-      snapSource?.mode !== 'system' &&
-      snapStatus?.running?.managed === true &&
-      snapStatus.running.version === snapBundled;
     // 首次快照未到：如实显示中性「状态读取中」，不得拿 currentSelected 顶替实际来源
     //（P3：那会展示一个并未生效的宿主版本，快照持续失败时误导会一直存在）。
     // 快照 source 腿失败且无任何可用数据：显示错误态，不再无限骨架（S3）。
@@ -1494,7 +1461,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
           text: t.dshVersionStateFailed,
           sub: null as string | null,
           empty: true,
-          bundled: false,
           title: null as string | null,
         };
       }
@@ -1502,7 +1468,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
         text: t.dshVersionStateReading,
         sub: null as string | null,
         empty: true,
-        bundled: false,
         title: null as string | null,
       };
     }
@@ -1510,14 +1475,12 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
       case 'host':
         return {
           text: snapSource.hostVersion ?? snapSelected ?? '',
-          // 内置预置版本补一行来源说明（版本号自身已由徽章标注）。
-          sub: hostBundled ? t.dshBundledSourceNote : null,
+          sub: null as string | null,
           empty: false,
-          bundled: hostBundled,
           title: null,
         };
       case 'running':
-        return { ...runningReadout(snapStatus?.running, runningBundled) };
+        return { ...runningReadout(snapStatus?.running) };
       case 'system':
         return {
           ...systemReadout(snapStatus?.system?.path ?? '', snapStatus?.system?.version ?? null),
@@ -1527,7 +1490,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
           text: t.dshCurrentVersionNone,
           sub: null as string | null,
           empty: true,
-          bundled: false,
           title: null,
         };
     }
@@ -1535,7 +1497,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
     snap.versionSource,
     snap.sourceStatus,
     snap.currentSelected,
-    snapBundled,
     snapshotFailed,
     t,
     runningReadout,
@@ -1617,11 +1578,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
             ) : (
               <span className="adl-dsh-settings__version-value">
                 {readout.text}
-                {readout.bundled ? (
-                  <span className="adl-dsh-settings__version-menu-item-installed">
-                    {t.dshBundledBadge}
-                  </span>
-                ) : null}
                 {showVersionBadges ? (
                   hasUpdate ? (
                     <span className="adl-dsh-settings__badge adl-dsh-settings__badge--update">
@@ -1801,7 +1757,6 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
                 {menuVersions.map((info) => {
                   const v = info.version;
                   const isInstalled = snapInstalled.includes(v);
-                  const isBundled = v === snapBundled;
                   const isPicked = v === menuEffective;
                   const isCurrent = isVersionInUse(v);
                   const time = formatPublishedAt(info.publishedAt);
@@ -1824,16 +1779,12 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
                         ) : null}
                       </button>
                       <div className="adl-dsh-settings__version-menu-item-badges">
-                        {/* 每行最多一个状态徽章，优先级：当前版本 > 已内置 > 已装版本。
-                            已内置本身即已装，只标更具体的那个；当前版本用蓝色以便一眼识别。
+                        {/* 每行最多一个状态徽章，优先级：当前版本 > 已装版本。
+                            当前版本用蓝色以便一眼识别。
                             勾号槽位**常驻**（未选中时留空）：徽章不会因勾号出现而左移。 */}
                         {isCurrent ? (
                           <span className="adl-dsh-settings__version-menu-item-installed adl-dsh-settings__version-menu-item-current">
                             {t.dshCurrentVersionBadge}
-                          </span>
-                        ) : isBundled ? (
-                          <span className="adl-dsh-settings__version-menu-item-installed">
-                            {t.dshBundledVersions}
                           </span>
                         ) : isInstalled ? (
                           <span className="adl-dsh-settings__version-menu-item-installed">

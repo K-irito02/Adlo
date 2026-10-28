@@ -319,13 +319,9 @@ describe('i18n en-US namespace keys', () => {
       'dshEffectiveRunningSystem',
       'dshRunningExternalNote',
       'dshEffectiveSystem',
-      // 2026-10-22：内置版本改「版本号 + 来源徽章」（整句 dshEffectiveBundled 退役），
-      // 「当前版本」状态徽章、来源说明与「内置」读数徽章为新增文案（内置版本没有专属提示）。
+      // 内置版本概念已移除：只保留「当前版本」状态徽章与已装版本文案。
       'dshInstalledVersions',
-      'dshBundledVersions',
-      'dshBundledBadge',
       'dshCurrentVersionBadge',
-      'dshBundledSourceNote',
       'dshOfficialStable',
       'dshOfficialStableEmpty',
       'dshOfficialStableDesc',

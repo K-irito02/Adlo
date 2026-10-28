@@ -78,7 +78,6 @@ interface VersionStatus {
   latestAvailable: string | null;
   hasUpdate: boolean;
   installed: string[];
-  bundledVersion: string | null;
   prereleaseAvailable: string | null;
   hasPrereleaseUpdate: boolean;
   prereleaseUnknown: boolean;
@@ -90,7 +89,6 @@ function seed(status: Partial<VersionStatus>) {
     latestAvailable: null,
     hasUpdate: false,
     installed: [],
-    bundledVersion: null,
     prereleaseAvailable: null,
     hasPrereleaseUpdate: false,
     prereleaseUnknown: false,
@@ -408,7 +406,6 @@ describe('DshVersionManagement', () => {
           latestAvailable: '1.1.0',
           hasUpdate: true,
           installed: ['1.0.0'],
-          bundledVersion: null,
           prereleaseAvailable: null,
           hasPrereleaseUpdate: false,
           prereleaseUnknown: false,
@@ -443,44 +440,6 @@ describe('DshVersionManagement', () => {
     await waitFor(() => expect(uninstallDsh).toHaveBeenCalledWith('1.0.0'));
   });
 
-  it('内置版本只多一个「已内置」徽章，按钮与其它已装版本完全一致', async () => {
-    seed({ currentSelected: '1.0.0', installed: ['1.0.0', '1.1.0'], bundledVersion: '1.1.0' });
-    seedCatalog(['1.1.0', '1.0.0']);
-    seedHostSource('1.0.0');
-    const { container } = renderBlock();
-    fireEvent.click(screen.getByRole('button', { name: '1.0.0' }));
-    const menuPick = await waitFor(() => {
-      // 必须限定在 Portal 菜单内：sizer（隐藏测量尺）用的是同一批类名。
-      const item = Array.from(
-        document
-          .querySelector('.adl-dsh-settings__version-menu')
-          ?.querySelectorAll('.adl-dsh-settings__version-menu-item') ?? [],
-      ).find((el) => el.textContent?.includes('1.1.0'));
-      expect(item).toBeTruthy();
-      // 菜单卡片内：内置版本挂「已内置」徽章。
-      expect(item!.textContent).toContain('dshBundledVersions');
-      return item!.querySelector(
-        '.adl-dsh-settings__version-menu-item-revert',
-      ) as HTMLButtonElement;
-    });
-    fireEvent.click(menuPick);
-    await waitFor(() => expect(screen.getByRole('button', { name: '1.1.0' })).toBeTruthy());
-    const row = container.querySelectorAll(
-      '.adl-dsh-settings__version-list-item',
-    )[0] as HTMLElement;
-    // 来源徽章互斥：已内置优先，不再同时挂「已装版本」。
-    expect(row.textContent).toContain('dshBundledVersions');
-    expect(row.textContent).not.toContain('dshInstalledVersions');
-    // 与普通已装版本一致：卸载 + 重装 + 切换，只是多了「已内置」徽章。
-    expect(within(row).getByRole('button', { name: 'dshUninstall' })).toBeTruthy();
-    expect(within(row).getByRole('button', { name: 'dshReinstall' })).toBeTruthy();
-    expect(within(row).getByRole('button', { name: 'dshSwitchToVersion' })).toBeTruthy();
-    expect(within(row).queryByRole('button', { name: 'dshInstallAction' })).toBeNull();
-    // 行内下拉框按钮：非当前版本 → 「已内置」徽章 + 常驻（空）勾号槽。
-    expect(row.textContent).toContain('dshBundledVersions');
-    expect(row.querySelectorAll('.adl-dsh-settings__version-menu-item-check')).toHaveLength(1);
-  });
-
   it('行内下拉框按钮：当前版本标「当前版本」徽章且勾号槽显示勾号', () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     seedCatalog(['1.0.0']);
@@ -495,7 +454,7 @@ describe('DshVersionManagement', () => {
   it('菜单卡片：徽章互斥（当前版本 > 已内置 > 已装版本），勾号槽位常驻不挤徽章', async () => {
     // 关键 fixture：当前在用的版本**同时**是预置版本，用来验证「当前版本」优先级高于
     // 「已内置」（换掉三元顺序此断言必挂）；第三行是普通已装版本，覆盖最低优先级。
-    seed({ currentSelected: '1.1.0', installed: ['1.0.0', '1.1.0'], bundledVersion: '1.1.0' });
+    seed({ currentSelected: '1.1.0', installed: ['1.0.0', '1.1.0'] });
     seedCatalog(['1.1.0', '1.0.0']);
     seedHostSource('1.1.0');
     renderBlock();
@@ -549,7 +508,7 @@ describe('DshVersionManagement', () => {
   });
 
   it('内置版本非当前时卸载直接执行（二次确认只留给当前版本）', async () => {
-    seed({ currentSelected: '1.0.0', installed: ['1.0.0', '1.1.0'], bundledVersion: '1.1.0' });
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0', '1.1.0'] });
     seedCatalog(['1.1.0', '1.0.0']);
     seedHostSource('1.0.0');
     const { container } = renderBlock();
@@ -575,39 +534,8 @@ describe('DshVersionManagement', () => {
     await waitFor(() => expect(uninstallDsh).toHaveBeenCalledWith('1.1.0'));
   });
 
-  it('当前版本由内置包提供时，版本号旁显示「内置」徽章', () => {
-    // 不变式：bundledVersion ≠ null ⟹ 该版本必在 installed 里（收编后就是普通已装版本）。
-    seed({ currentSelected: '1.1.0', installed: ['1.1.0'], bundledVersion: '1.1.0' });
-    seedHostSource('1.1.0');
-    const { container } = renderBlock();
-    const readout = container.querySelector('.adl-dsh-settings__version-readout') as HTMLElement;
-    expect(readout.textContent).toContain('1.1.0');
-    expect(within(readout).getByText('dshBundledBadge')).toBeTruthy();
-    // 宿主命中内置包时补一行来源说明。
-    expect(screen.getByText('dshBundledSourceNote')).toBeTruthy();
-  });
-
-  it('宿主拉起的运行中若是预置版本则标「内置」；系统安装/外部复用同版本号不标', () => {
-    seed({ currentSelected: null, installed: ['1.1.0'], bundledVersion: '1.1.0' });
-    seedRunningSource('1.1.0');
-    const { container, unmount } = renderBlock();
-    const readout = container.querySelector('.adl-dsh-settings__version-readout') as HTMLElement;
-    expect(within(readout).getByText('dshBundledBadge')).toBeTruthy();
-    unmount();
-    cleanup();
-    // 同版本号但来源偏好是系统安装（跑的是用户自己的那份）：不得挂「内置」徽章。
-    seed({ currentSelected: null, installed: ['1.1.0'], bundledVersion: '1.1.0' });
-    seedRunningSource('1.1.0', 'system');
-    const second = renderBlock();
-    const readout2 = second.container.querySelector(
-      '.adl-dsh-settings__version-readout',
-    ) as HTMLElement;
-    expect(readout2.textContent).toContain('1.1.0');
-    expect(within(readout2).queryByText('dshBundledBadge')).toBeNull();
-  });
-
   it('外部复用（managed=false）的运行中进程即便版本号相同也不标「内置」', () => {
-    seed({ currentSelected: null, installed: ['1.1.0'], bundledVersion: '1.1.0' });
+    seed({ currentSelected: null, installed: ['1.1.0'] });
     // 外部复用：没有 Child 可持有，版本来源未知（managed=false + version 由探测给出）。
     useAppStore.setState({
       sourceStatus: {
@@ -832,7 +760,6 @@ describe('DshVersionManagement', () => {
           latestAvailable: null,
           hasUpdate: false,
           installed: ['1.0.0'],
-          bundledVersion: null,
           prereleaseAvailable: null,
           hasPrereleaseUpdate: false,
           prereleaseUnknown: false,
@@ -1172,7 +1099,6 @@ describe('DshVersionManagement', () => {
           latestAvailable: null,
           hasUpdate: false,
           installed: ['1.0.0'],
-          bundledVersion: null,
           prereleaseAvailable: '1.1.0-rc.1',
           hasPrereleaseUpdate: true,
           prereleaseUnknown: false,
