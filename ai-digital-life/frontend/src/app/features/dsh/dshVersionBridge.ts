@@ -22,6 +22,8 @@ export interface DshVersionBridgeActions {
   fetchDshSettingsSnapshot: (silent?: boolean) => Promise<boolean>;
   fetchSourceStatus: (silent?: boolean) => Promise<boolean>;
   fetchVersionTask: () => Promise<void>;
+  fetchDshVersionStatus: () => Promise<boolean>;
+  fetchVersionCatalog: (silent?: boolean) => Promise<boolean>;
   cancelVersionTask: () => Promise<boolean>;
   updateDsh: () => Promise<boolean>;
   revertDsh: (version: string) => Promise<boolean>;
@@ -100,6 +102,8 @@ export function createDshVersionBridge(
             mode,
             effective: versionSource?.effective ?? 'none',
             systemPath: source.system?.path ?? null,
+            // 首帧 `resolvedByMode` 未到时管理项保持隐藏（迁移前 sourceReady）。
+            ready: versionSource?.resolvedByMode != null,
             managed: dshManageVisible(source, st.dshVersionSourcePending),
           }
         : null,
@@ -214,6 +218,9 @@ export function createDshVersionBridge(
     }
   };
 
+  const withVersion = (template: string, version: string | null) =>
+    template.replace('{version}', version ?? '');
+
   const update = async (): Promise<HarnessVersionResult> => {
     if (!bridge) {
       return OFFLINE;
@@ -233,8 +240,40 @@ export function createDshVersionBridge(
     }
   };
 
-  const withVersion = (template: string, version: string | null) =>
-    template.replace('{version}', version ?? '');
+  /**
+   * 只检查更新（DSH 的「检查更新」行）：查询 + 提示，不安装。结果文案沿用
+   * 迁移前的三态（发现问题 / 暂无正式版本 / 检查失败），不误报「已是最新」。
+   */
+  const checkUpdate = async (): Promise<HarnessVersionResult> => {
+    if (!bridge) {
+      return OFFLINE;
+    }
+    try {
+      const ok = await actions.fetchDshVersionStatus();
+      if (!ok) {
+        // 失败已由 action 记录全局错误卡片，不再重复弹 toast。
+        return { ok: false, silent: true };
+      }
+      const st = state().versionStatus;
+      if (!st?.latestAvailable) {
+        if (st?.hasPrereleaseUpdate && st.prereleaseAvailable) {
+          notify(withVersion(t.dshCheckUpdatePrerelease, st.prereleaseAvailable), 'success');
+        } else {
+          notify(t.dshCheckUpdateNoStable, 'warning');
+        }
+      } else if (st.hasUpdate) {
+        notify(withVersion(t.dshCheckUpdateFound, st.latestAvailable), 'success');
+      } else {
+        notify(t.harnessVersionNoUpdate, 'success');
+      }
+      // 检查更新顺带静默刷新官方目录，供正式版/预发布列表展示。
+      void actions.fetchVersionCatalog(true);
+      return { ok: true };
+    } catch {
+      notify(t.dshCheckUpdateFailed, 'error');
+      return { ok: true };
+    }
+  };
 
   /**
    * 变更成功后的运行态编排（迁移前每个 handler 成功分支的等价体）：
@@ -317,19 +356,54 @@ export function createDshVersionBridge(
     return { ok: true };
   };
 
+  /** 任务阶段文案（迁移前 DSH 口径：阶段 + 真实计数，总量未知如实显示下载中）。 */
+  const taskStageText = (task: DshVersionTask | null): string => {
+    if (!task) {
+      return t.dshTaskStageFinalizing;
+    }
+    const counts = `${task.done}/${task.total}`;
+    switch (task.phase) {
+      case 'preparing':
+        return t.dshTaskStagePreparing;
+      case 'installing':
+        return task.total > 0
+          ? `${t.dshTaskStageInstalling} ${counts}`
+          : t.dshTaskStageDownloading;
+      case 'removing':
+        return task.total > 0 ? `${t.dshTaskStageRemoving} ${counts}` : t.dshTaskStagePreparing;
+      default:
+        return t.dshTaskStageFinalizing;
+    }
+  };
+
+  const taskCancelLabel = (task: DshVersionTask): string =>
+    task.kind === 'dsh-uninstall'
+      ? t.dshCancelUninstall
+      : task.kind === 'dsh-reinstall'
+        ? t.dshCancelReinstall
+        : t.dshCancelInstall;
+
   return {
     toolName,
     available,
     capabilities: {
       uninstallConfirm: true,
-      restartOnSwitch: true,
       sourceModeChange: 'deferred',
-      taskStageText: true,
-      taskCounts: true,
-      missingBanner: true,
+      updateAction: 'check',
+      taskPercent: false,
+      taskCounts: false,
       resetSourceAction: false,
       channelPicker: true,
+      sourceManaged: true,
     },
+    labels: {
+      stable: t.dshOfficialStable,
+      prerelease: t.dshPrereleaseTitle,
+      runningSource: t.harnessVersionSourceRunning,
+      uninstallCurrentHint: t.dshUninstallCurrentHint,
+    },
+    taskStageText,
+    taskCancelLabel,
     load: async () => {
       // 首屏/操作后一次原子快照：source + version + catalog 同一次提交。
       await actions.fetchDshSettingsSnapshot();
@@ -341,6 +415,7 @@ export function createDshVersionBridge(
     },
     install,
     update,
+    checkUpdate,
     revert,
     reinstallVersion,
     uninstall,

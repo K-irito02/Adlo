@@ -248,15 +248,24 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
         hintKeys: ['dshCurrentVersionHint'],
       },
       {
+        // 更新行：DSH 只「检查更新」（不安装），行主文案与卡片同源。
         labelKey: 'harnessVersionUpdate',
-        hintKeys: ['harnessVersionHasUpdate', 'harnessVersionNoUpdate'],
+        hintKeys: [
+          'dshCheckUpdateFound',
+          'dshCheckUpdateNoStable',
+          'dshCheckUpdatePrerelease',
+          'dshCheckUpdateFailed',
+          // 保留「升级」检索词：检查更新失败沿用迁移前的「升级失败」文案。
+          'dshUpdateFailed',
+        ],
       },
       {
-        labelKey: 'harnessVersionStable',
+        // 行标记取 DSH 适配器注入的术语（正式版本 / 预发布版本），不是通用「稳定版」。
+        labelKey: 'dshOfficialStable',
         hintKeys: ['dshOfficialStableHint'],
       },
       {
-        labelKey: 'harnessVersionPrerelease',
+        labelKey: 'dshPrereleaseTitle',
         hintKeys: ['dshPrereleaseHint'],
       },
       {

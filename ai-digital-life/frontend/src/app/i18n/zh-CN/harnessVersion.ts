@@ -47,7 +47,6 @@ export const harnessVersionZh = {
   harnessVersionPhaseInstalling: '安装中',
   harnessVersionPhaseRemoving: '卸载中',
   harnessVersionPhaseFinalizing: '收尾中',
-  harnessVersionTaskRunning: '处理中',
   harnessVersionTaskCount: '{done}/{total}',
   harnessVersionCancel: '取消',
   harnessVersionCancelled: '操作已取消',

@@ -3,8 +3,6 @@ export const opencodeEn = {
   // Shared version-card copy lives in the harnessVersion domain; keep only OpenCode slot copy here.
   opencodeVersionHint:
     'App-managed OpenCode CLI versions. After installing, new terminal sessions can run opencode directly.',
-  opencodeSourceHint:
-    'Automatic prefers the app-managed version; a system install is detected but never managed.',
   opencodeTerminalNote:
     'Available in new terminal sessions after install; already-open terminals must be reopened.',
   opencodeTerminalInjection: 'Available in terminals (new sessions)',

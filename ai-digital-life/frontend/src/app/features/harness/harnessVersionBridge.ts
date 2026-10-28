@@ -4,7 +4,7 @@ import type {
   DshVersionStatus,
   DshVersionTask,
   DshVersionTaskPhase,
-} from '../../../shared/ipc/dsh';
+} from '@shared/ipc/dsh';
 
 /**
  * 通用版本卡片的唯一依赖面。
@@ -31,6 +31,11 @@ export interface HarnessVersionSourceStatus {
   mode: HarnessVersionSourceMode;
   effective: HarnessVersionEffectiveSource;
   systemPath: string | null;
+  /**
+   * 来源状态是否已就绪（DSH 的 `resolvedByMode` 到达前为 false）。
+   * 缺省按 true；配合 `capabilities.sourceManaged` 可避免首帧闪现管理项。
+   */
+  ready?: boolean;
   /**
    * 宿主是否管理版本（安装/切换/卸载/更新等管理项是否可用）。
    * 缺省按 true；DSH 在「系统安装」生效时置 false，卡片隐藏管理行。
@@ -75,16 +80,17 @@ export interface HarnessVersionSnapshot<TSource = unknown> {
 export interface HarnessVersionCapabilities {
   /** 卸载当前版本需要二次点击确认（DSH 需要，OpenCode 不需要）。 */
   uninstallConfirm?: boolean;
-  /** 切换/重装/安装后需要重启运行态（DSH 需要，OpenCode 无运行态）。 */
-  restartOnSwitch?: boolean;
   /** 版本来源切换方式：直接保存，或交给适配器自行确认（DSH 的切换对话框）。 */
   sourceModeChange?: 'immediate' | 'deferred';
-  /** 任务行是否显示阶段文案（preparing/installing/removing/finalizing）。 */
-  taskStageText?: boolean;
-  /** 任务行是否显示已完成/总量（`done/total`）。 */
+  /**
+   * 「检查更新」行的动作语义：`install`（直接装最新，OpenCode 缺省）或
+   * `check`（只查询并提示，DSH）。`check` 需要适配器实现 `checkUpdate`。
+   */
+  updateAction?: 'install' | 'check';
+  /** 任务行是否显示完成百分比（OpenCode 显示，DSH 不显示）。 */
+  taskPercent?: boolean;
+  /** 任务行是否显示已完成/总量（`done/total`）。DSH 把计数并入阶段文案，故关闭。 */
   taskCounts?: boolean;
-  /** 没有任何已安装版本时显示引导横幅。 */
-  missingBanner?: boolean;
   /** 显示「恢复默认」来源操作。 */
   resetSourceAction?: boolean;
   /**
@@ -92,6 +98,21 @@ export interface HarnessVersionCapabilities {
    * 替代 OpenCode 风格的 `<select>` + 单个最新预发布行。DSH 需要。
    */
   channelPicker?: boolean;
+  /**
+   * 适配器拥有来源就绪/托管语义：只有 `source.ready === true` 且非系统托管时
+   * 才渲染管理行（DSH）。缺省按 `source.managed` 判定。
+   */
+  sourceManaged?: boolean;
+}
+
+/** 适配器可覆盖的文案（工具术语不同：DSH 用「正式版本/预发布版本」）。 */
+export interface HarnessVersionLabels {
+  stable?: string;
+  prerelease?: string;
+  /** 生效来源为 `running` 时的读数标签（DSH 的运行态模型）。 */
+  runningSource?: string;
+  /** 二次确认卸载当前版本时，当前版本行下方的提示。 */
+  uninstallCurrentHint?: string;
 }
 
 /**
@@ -106,12 +127,18 @@ export interface HarnessVersionBridge<TSource = unknown> {
   /** 底层桥是否可用；false 时卡片所有操作保持禁用。 */
   available: boolean;
   capabilities?: HarnessVersionCapabilities;
+  labels?: HarnessVersionLabels;
   /** 首屏/操作完成后重新读取版本状态。 */
   load: () => Promise<HarnessVersionSnapshot<TSource>>;
   /** 查询进行中的版本任务；无任务返回 null。 */
   getTask: () => Promise<HarnessVersionTask | null>;
   install: (version: string) => Promise<HarnessVersionResult>;
   update: () => Promise<HarnessVersionResult>;
+  /**
+   * 仅检查更新（`capabilities.updateAction === 'check'`）：适配器自行查询并
+   * 通过 `notify` 给出结果文案，卡片只负责忙碌态。
+   */
+  checkUpdate?: () => Promise<HarnessVersionResult>;
   /** 切换到某个已安装版本。 */
   revert: (version: string) => Promise<HarnessVersionResult>;
   /** 重装某个已安装的非当前版本（不改变选中）；缺省回退到 `install(version)`。 */
@@ -127,6 +154,13 @@ export interface HarnessVersionBridge<TSource = unknown> {
    * 未提供时卡片回退到 `saveSourceMode`。
    */
   changeSourceMode?: (mode: HarnessVersionSourceMode) => Promise<HarnessVersionResult>;
+  /**
+   * 任务阶段文案（适配器术语不同）。`task === null` 表示任务已结束但操作仍在
+   * 收尾（重启长尾），适配器应返回「收尾中」一类文案；缺省回退通用阶段文案。
+   */
+  taskStageText?: (task: HarnessVersionTask | null) => string;
+  /** 取消按钮文案（DSH 按任务种类区分安装/卸载/重装）；缺省为通用「取消」。 */
+  taskCancelLabel?: (task: HarnessVersionTask) => string;
   /** 变更成功后的运行态编排钩子（重启等）；失败按操作失败提示。 */
   afterMutation?: (kind: HarnessVersionMutation) => Promise<HarnessVersionResult>;
   /** 卡片反馈出口（toast）；由适配器注入，卡片不直接依赖 store。 */

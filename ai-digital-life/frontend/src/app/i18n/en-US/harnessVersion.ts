@@ -48,7 +48,6 @@ export const harnessVersionEn = {
   harnessVersionPhaseInstalling: 'Installing',
   harnessVersionPhaseRemoving: 'Removing',
   harnessVersionPhaseFinalizing: 'Finalizing',
-  harnessVersionTaskRunning: 'In progress',
   harnessVersionTaskCount: '{done}/{total}',
   harnessVersionCancel: 'Cancel',
   harnessVersionCancelled: 'Operation cancelled',

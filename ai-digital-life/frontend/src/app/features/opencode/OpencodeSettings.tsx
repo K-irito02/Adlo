@@ -3,9 +3,12 @@ import type { IpcResult } from '@shared/ipc/dsh';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
-import { HarnessVersionCard, type HarnessVersionSlotContext } from '../harness/HarnessVersionCard';
-import type { HarnessVersionResult } from '../harness/harnessVersionBridge';
-import type { OpencodeBridge, OpencodeSourceStatus } from '../../../shared/ipc/opencode';
+import {
+  HarnessVersionCard,
+  type HarnessVersionSlotContext,
+} from '@features/harness/HarnessVersionCard';
+import type { HarnessVersionResult } from '@features/harness/harnessVersionBridge';
+import type { OpencodeBridge, OpencodeSourceStatus } from '@shared/ipc/opencode';
 import { createOpencodeVersionBridge } from './opencodeVersionBridge';
 
 function toResult(result: IpcResult<unknown>): HarnessVersionResult {
@@ -83,13 +86,14 @@ export function OpencodeSettings() {
       createOpencodeVersionBridge({
         bridge: rawBridge,
         toolName: t.settingsOpencode,
+        t,
         testSource: actions.testSource,
         saveSourceConfig: actions.saveSourceConfig,
         notify: (message, tone) => {
           showToast(message, tone);
         },
       }),
-    [rawBridge, t.settingsOpencode, actions.testSource, actions.saveSourceConfig, showToast],
+    [rawBridge, t, actions.testSource, actions.saveSourceConfig, showToast],
   );
 
   return (
@@ -101,7 +105,6 @@ export function OpencodeSettings() {
         bridge={bridge}
         slots={{
           headerHint: t.opencodeVersionHint,
-          sourceHint: t.opencodeSourceHint,
           sourceFooter: ({ sourceExtra, disabled, run }) => (
             <TerminalInjectionRows
               bridge={rawBridge}

@@ -246,7 +246,7 @@
 
 /* 通道版本菜单（portal 到 body，fixed 定位由组件按触发器实测几何给出）。 */
 .adl-harness-version__menu {
-  z-index: 1000;
+  z-index: var(--z-overlay);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);

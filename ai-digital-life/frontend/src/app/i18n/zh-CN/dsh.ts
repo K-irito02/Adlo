@@ -58,7 +58,7 @@ export const dshZh = {
   dshVersionStateFailed: '状态读取失败',
   dshVersionSourceDesc: '选择助手版本的来源',
   dshVersionSourceHint:
-    '决定优先使用哪一个助手。自动检测会先看有没有正在运行的助手，再用本应用装好的版本（两者都算“宿主托管”），最后用你电脑上安装的版本。\n· 这里显示的始终是你选择的偏好（自动检测／系统安装／宿主托管），不会因为实际生效的来源不同而改变；实际生效的是哪一个、是不是宿主托管那份，看“当前版本”那一行。\n· 下面的“检查更新、正式版本、预发布版本”三行是否显示，即代表当前是否由本应用管理版本：显示表示可在这里安装、切换或卸载；隐藏表示当前实际用的是系统安装，由你自己维护（把“版本来源”选为“系统安装”时恒隐藏；“自动检测”下若“宿主托管”没有可用版本、解析结果为系统安装时也会隐藏；隐藏时会出现一行提示，告诉你改回“宿主托管”才能继续在这里安装、切换或卸载）。',
+    '决定优先使用哪一个助手。自动检测会先看有没有正在运行的助手，再用本应用装好的版本（两者都算“宿主托管”），最后用你电脑上安装的版本。\n· 这里显示的始终是你选择的偏好（自动检测／系统安装／宿主托管），不会因为实际生效的来源不同而改变；实际生效的是哪一个、是不是宿主托管那份，看“当前版本”那一行。\n· 下面的“检查更新、正式版本、预发布版本、指定版本、已安装版本”各行是否显示，即代表当前是否由本应用管理版本：显示表示可在这里安装、切换、卸载或重装；隐藏表示当前实际用的是系统安装，由你自己维护（把“版本来源”选为“系统安装”时恒隐藏；“自动检测”下若“宿主托管”没有可用版本、解析结果为系统安装时也会隐藏；隐藏时会出现一行提示，告诉你改回“宿主托管”才能继续在这里安装、切换或卸载）。',
   dshVersionSourceSwitchDialogTitle: '切换版本来源',
   dshVersionSourceSwitchDialogMessage:
     '切换到“{target}”会改变助手的版本来源：\n· 立即生效：马上切换；助手正在运行时会重启，未运行时将按新来源启动。\n· 下次启动生效：本次继续使用当前来源，下次打开本应用时再切换。\n· 取消：保持当前来源，不做任何改动。',
@@ -93,12 +93,27 @@ export const dshZh = {
   dshSourceSummaryHint:
     '当前实际在用的下载地址。\n· 只读显示，去网络那一组修改\n· 自动检测会在官方和镜像之间选更快能连通的一个',
   dshVersionCancelFailed: '取消失败',
+  dshCancelInstall: '取消安装',
+  dshCancelUninstall: '取消卸载',
+  dshCancelReinstall: '取消重装',
+  dshTaskStagePreparing: '正在准备…',
+  dshTaskStageDownloading: '正在下载…',
+  dshTaskStageInstalling: '正在安装…',
+  dshTaskStageRemoving: '正在删除…',
+  dshTaskStageFinalizing: '正在收尾…',
   dshInstalledRestarted: '已安装 {version}，助手已自动重启',
   dshSwitchedRestarted: '已切换到 {version}，助手已自动重启',
   dshReinstalledRestarted: '已重新安装 {version}，助手已自动重启',
   dshUninstalledSwitched: '已卸载 {version}，已切换到 {next}',
   dshUninstalledNoVersion: '已卸载 {version}，当前没有可用版本',
   dshRestartFailed: '版本已保存，但助手重启失败，请重新打开助手',
+  dshCheckUpdateFound: '发现新版本 {version}',
+  dshCheckUpdateNoStable: '官方暂无正式版本',
+  dshCheckUpdatePrerelease: '有新的预发布版本 {version} 可尝试',
+  dshCheckUpdateFailed: '检查更新失败',
+  dshUninstallCurrentHint: '该版本为当前选中版本，卸载后需重装或切换其他版本后再使用',
+  dshOfficialStable: '正式版本',
+  dshPrereleaseTitle: '预发布版本',
   dshOfficialStableHint:
     '稳定版本是推荐给大多数人用的版本，平时用它们就好。\n· 版本选择下拉框：点一下展开本分区全部正式版本（默认选中当前版本或本分区最新）；点某个版本只切换下拉框展示，不会立即安装或切换。\n· 右侧按钮随选中版本动态变化：没装过的显示“安装”；已装的显示“卸载版本/重新安装”；已装但非当前的再加“切换到该版本”；当前版本行没有安装和切换按钮。\n· 每行最多一个状态徽章，优先级：当前版本 > 已装版本；按钮与其它已装版本完全相同：同样是“卸载版本/重新安装/切换到该版本”。\n· 安装是真下载：从下载源把 @deepseek-ai/dsh@该版本装到应用数据目录并选中它，成功后助手自动重启生效；该版本官方不存在会直接失败并提示。\n· 切换只改选中并重启；重新安装是把当前选中版本完整重装一遍；卸载删除该版本目录（当前选中版本要点两次确认，卸载后自动改选剩余最高版本，没有剩余则显示未安装）。\n· 安装/重装/卸载进行中有进度文案（无进度条；“正在下载/正在安装 N/M/正在删除 N/M/正在收尾”）：N 是已就位包数、M 是安装前测算的总数；真实安装树可能比测算多（如随包附带的依赖不计入总数），此时 N 会超过 M，属于正常现象，不代表出错；“取消安装/取消卸载/取消重装”只在可取消阶段有效（进入不可取消阶段后按钮变为禁用）；取消后提示“已取消操作”，若助手已停会尝试恢复拉起。',
   dshPrereleaseHint:

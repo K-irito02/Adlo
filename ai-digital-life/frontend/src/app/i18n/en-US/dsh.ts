@@ -60,7 +60,7 @@ export const dshEn = {
   dshVersionStateFailed: 'Failed to read state',
   dshVersionSourceDesc: 'Choose where the assistant version comes from',
   dshVersionSourceHint:
-    'Decides which assistant to prefer. Auto detect first looks for a running assistant, then a version this app has installed (both count as a “host-managed version”), then a version installed on your computer.\n· This selector always shows your chosen preference (Auto detect / System install / Host-managed) and never changes it to match whatever is actually in effect; the “Current version” row tells you what is really in effect — and whether it is the host-managed one.\n· Whether the three rows below (“Check for updates”, “Stable releases”, “Prerelease versions”) are visible tells if this app manages versions: visible means you can install, switch or uninstall here; hidden means the system install is actually in use and you maintain it yourself (always hidden with “Version source” set to “System install”; also hidden under “Auto detect” when “Host-managed” has no usable version and the resolved source is the system install; a note row then tells you to switch back to “Host-managed” to manage versions here).',
+    'Decides which assistant to prefer. Auto detect first looks for a running assistant, then a version this app has installed (both count as a “host-managed version”), then a version installed on your computer.\n· This selector always shows your chosen preference (Auto detect / System install / Host-managed) and never changes it to match whatever is actually in effect; the “Current version” row tells you what is really in effect — and whether it is the host-managed one.\n· Whether the rows below (“Check for updates”, “Stable releases”, “Prerelease versions”, “Specific version”, “Installed versions”) are visible tells if this app manages versions: visible means you can install, switch, uninstall or reinstall here; hidden means the system install is actually in use and you maintain it yourself (always hidden with “Version source” set to “System install”; also hidden under “Auto detect” when “Host-managed” has no usable version and the resolved source is the system install; a note row then tells you to switch back to “Host-managed” to manage versions here).',
   dshVersionSourceSwitchDialogTitle: 'Switch version source',
   dshVersionSourceSwitchDialogMessage:
     'Switching to “{target}” changes where the assistant version comes from:\n· Apply now: switch immediately; the assistant restarts if it is running, or starts from the new source if it is not.\n· Apply next launch: keep the current source for this session and switch the next time this app starts.\n· Cancel: keep the current source and change nothing.',
@@ -98,12 +98,28 @@ export const dshEn = {
   dshSourceSummaryHint:
     'The download address currently in use.\n· Read-only; change it in the Network group\n· Auto detect picks the faster reachable source',
   dshVersionCancelFailed: 'Cancel failed',
+  dshCancelInstall: 'Cancel install',
+  dshCancelUninstall: 'Cancel uninstall',
+  dshCancelReinstall: 'Cancel reinstall',
+  dshTaskStagePreparing: 'Preparing…',
+  dshTaskStageDownloading: 'Downloading…',
+  dshTaskStageInstalling: 'Installing…',
+  dshTaskStageRemoving: 'Removing…',
+  dshTaskStageFinalizing: 'Finalizing…',
   dshInstalledRestarted: 'Installed {version}; the assistant restarted automatically',
   dshSwitchedRestarted: 'Switched to {version}; the assistant restarted automatically',
   dshReinstalledRestarted: 'Reinstalled {version}; the assistant restarted automatically',
   dshUninstalledSwitched: 'Uninstalled {version}; switched to {next}',
   dshUninstalledNoVersion: 'Uninstalled {version}; no version is available now',
   dshRestartFailed: 'Version saved, but the assistant failed to restart; please reopen it',
+  dshCheckUpdateFound: 'New version {version} available',
+  dshCheckUpdateNoStable: 'No stable release published yet',
+  dshCheckUpdatePrerelease: 'New prerelease {version} available to try',
+  dshCheckUpdateFailed: 'Failed to check for updates',
+  dshUninstallCurrentHint:
+    'This is the currently selected version. After uninstalling, reinstall it or switch to another version before use',
+  dshOfficialStable: 'Stable releases',
+  dshPrereleaseTitle: 'Prerelease versions',
   dshOfficialStableHint:
     'Stable releases are the ones recommended for most people — good for everyday use.\n· Version picker: click to expand all stable versions in this channel (defaults to the current version or the newest in the channel); picking one only changes what the picker shows, it installs or switches nothing yet.\n· The buttons on the right change with the picked version: not-installed shows “Install”; installed shows “Uninstall version / Reinstall”; installed-but-not-current additionally shows “Switch to this version”; the current-version row has no install or switch button.\n· Each row carries at most one status badge, in priority order: Current version > Installed versions; its buttons are identical to any other installed version: “Uninstall version / Reinstall / Switch to this version”.\n· Install really downloads: it installs @deepseek-ai/dsh@version from the download source into the app data directory and selects it, then the assistant restarts automatically; if the version was never published upstream it fails with a message.\n· Switch only changes the selection and restarts; reinstall fully reinstalls the currently selected version; uninstall deletes that version directory (the currently selected version needs two clicks to confirm, afterwards the highest remaining version is auto-selected, or “Not installed” when none is left; installed versions follow the same rules).\n· Install / reinstall / uninstall show a progress line (“Downloading / Installing N of M / Removing N of M / Finalizing”; N = packages in place, M = pre-install estimate): the real tree can be larger than the estimate (e.g. bundled dependencies not counted in the total), so N exceeding M is normal, not an error; “Cancel install / Cancel uninstall / Cancel reinstall” only works while cancellable (the button becomes disabled once past that point); cancelling reports “Operation cancelled”, and if the assistant was already stopped it tries to bring it back up.',
   dshPrereleaseHint:

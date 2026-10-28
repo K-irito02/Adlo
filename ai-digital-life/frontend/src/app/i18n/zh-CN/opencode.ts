@@ -3,7 +3,6 @@ export const opencodeZh = {
   // 版本卡片通用文案见 harnessVersion 域；这里只保留 OpenCode 组专属插槽文案。
   opencodeVersionHint:
     '应用内托管的 OpenCode CLI 版本：安装后新开的终端会话可直接输入 opencode 使用。',
-  opencodeSourceHint: '自动优先使用应用内托管版本；系统安装只检测不管理。',
   opencodeTerminalNote: '安装后新开终端会话即可直接使用；已打开的终端需要重开。',
   opencodeTerminalInjection: '在终端中可用（新会话）',
   opencodeTerminalInjectionSaved: '终端可用性已保存',
