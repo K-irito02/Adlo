@@ -40,6 +40,7 @@ const sourceStatus: OpencodeSourceStatus = {
     hostVersion: MOCK_VERSION,
   },
   config: { version_source: 'auto' },
+  terminalInjection: true,
 };
 
 function syncEffective(): void {
@@ -109,6 +110,10 @@ export const mockOpencode: OpencodeBridge = {
   saveVersionSource: (mode) => {
     sourceStatus.config.version_source = mode;
     syncEffective();
+    return ok(true);
+  },
+  setTerminalInjection: (enabled) => {
+    sourceStatus.terminalInjection = enabled;
     return ok(true);
   },
 };

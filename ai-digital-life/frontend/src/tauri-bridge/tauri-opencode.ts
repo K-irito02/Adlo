@@ -14,5 +14,6 @@ export function createTauriOpencodeBridge(httpOpencode: OpencodeBridge): Opencod
     reinstall: httpOpencode.reinstall,
     getSourceStatus: httpOpencode.getSourceStatus,
     saveVersionSource: httpOpencode.saveVersionSource,
+    setTerminalInjection: httpOpencode.setTerminalInjection,
   };
 }

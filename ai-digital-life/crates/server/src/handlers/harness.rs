@@ -29,7 +29,9 @@ fn root(state: &ServerState) -> PathBuf {
 pub fn refresh_managed_bins(state: &ServerState) {
     let harness_root = root(state);
     let data_dir = &state.storage.paths().root;
-    let mode = adl_download_source::load(data_dir)
+    let config = adl_download_source::load(data_dir);
+    let injection_enabled = config.as_ref().map(|c| c.opencode_terminal_injection).unwrap_or(true);
+    let mode = config
         .map(|c| c.opencode_version_source)
         .unwrap_or(adl_download_source::VersionSourceMode::Auto);
     let selected = hv::read_selected(&harness_root).ok().flatten();
@@ -39,10 +41,12 @@ pub fn refresh_managed_bins(state: &ServerState) {
     let has_system = hv::detect_system_bin(&spec::OPENCODE).is_some();
     let effective = hv::resolve_effective_source(mode, false, installed, has_system);
     let dirs = match (&effective, selected) {
-        (hv::EffectiveSource::Host, Some(version)) => vec![adl_pty::managed_bins::bin_dir_for(
-            &harness_root.join("installed").join(version),
-            spec::OPENCODE.marker_rel,
-        )],
+        (hv::EffectiveSource::Host, Some(version)) if injection_enabled => {
+            vec![adl_pty::managed_bins::bin_dir_for(
+                &harness_root.join("installed").join(version),
+                spec::OPENCODE.marker_rel,
+            )]
+        },
         _ => Vec::new(),
     };
     adl_pty::managed_bins::set_managed_bin_dirs(dirs);
@@ -259,12 +263,12 @@ fn source_status_inner(state: &ServerState) -> Result<serde_json::Value, AppErro
         "config": {
             "version_source": mode,
         },
+        "terminalInjection": config.opencode_terminal_injection,
     }))
 }
 
 /// `POST /opencode/version-source` body `{ mode }`
-pub async fn save_version_source(
-    State(state): State<ServerState>,
+pub async fn save_version_source(    State(state): State<ServerState>,
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
     #[derive(Deserialize)]
@@ -279,6 +283,29 @@ pub async fn save_version_source(
         let data_dir = &state.storage.paths().root;
         let mut config = adl_download_source::load(data_dir)?;
         config.opencode_version_source = input.mode;
+        adl_download_source::save(data_dir, &config)
+    })();
+    refresh_managed_bins(&state);
+    ipc::to_response(result.map(|()| serde_json::json!(true)))
+}
+
+/// `POST /opencode/terminal-injection` body `{ enabled }`
+pub async fn save_terminal_injection(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    #[derive(Deserialize)]
+    struct Input {
+        enabled: bool,
+    }
+    let input: Input = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let result = (|| {
+        let data_dir = &state.storage.paths().root;
+        let mut config = adl_download_source::load(data_dir)?;
+        config.opencode_terminal_injection = input.enabled;
         adl_download_source::save(data_dir, &config)
     })();
     refresh_managed_bins(&state);

@@ -1143,6 +1143,8 @@ export function createHttpBridge({
         call<OpencodeSourceStatus>(baseUrl, '/opencode/source-status', POST({})),
       saveVersionSource: (mode) =>
         call<boolean>(baseUrl, '/opencode/version-source', POST({ mode })),
+      setTerminalInjection: (enabled) =>
+        call<boolean>(baseUrl, '/opencode/terminal-injection', POST({ enabled })),
     },
 
     // ── env 环境依赖 domain (`GET /env/status` + `POST /env/*`,

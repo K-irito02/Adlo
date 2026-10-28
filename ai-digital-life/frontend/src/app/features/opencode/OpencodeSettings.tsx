@@ -164,6 +164,18 @@ export function OpencodeSettings() {
           </div>
         </div>
 
+        {status !== null && installed.length === 0 ? (
+          <div className="adl-settings-row">
+            <div className="adl-settings-row__label">
+              <div className="adl-settings-row__label-text">
+                <span className="adl-opencode-settings__hint">
+                  {t.harnessMissingBannerOpencode}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <div className="adl-settings-row">
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
@@ -358,6 +370,26 @@ export function OpencodeSettings() {
             <span className="adl-opencode-settings__value">
               {source?.system?.path ?? t.opencodeSystemNotDetected}
             </span>
+          </div>
+        </div>
+        <div className="adl-settings-row">
+          <div className="adl-settings-row__label">
+            <div className="adl-settings-row__label-text">
+              <span>{t.opencodeTerminalInjection}</span>
+            </div>
+          </div>
+          <div className="adl-settings-row__control">
+            <input
+              type="checkbox"
+              checked={source?.terminalInjection ?? true}
+              disabled={busy || !bridge}
+              onChange={(e) =>
+                void run(
+                  () => bridge!.setTerminalInjection(e.target.checked),
+                  t.opencodeTerminalInjectionSaved,
+                )
+              }
+            />
           </div>
         </div>
         <div className="adl-settings-row">

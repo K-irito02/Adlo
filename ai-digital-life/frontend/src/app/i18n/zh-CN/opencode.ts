@@ -35,6 +35,12 @@ export const opencodeZh = {
   opencodeSystemPath: '系统安装位置',
   opencodeSystemNotDetected: '未检测到系统安装',
   opencodeTerminalNote: '安装后新开终端会话即可直接使用；已打开的终端需要重开。',
+  opencodeTerminalInjection: '在终端中可用（新会话）',
+  opencodeTerminalInjectionSaved: '终端可用性已保存',
+  harnessMissingBannerOpencode:
+    '尚未安装 OpenCode CLI 版本：点击下方「安装」即可；安装失败不影响应用使用。',
+  harnessMissingBannerDsh:
+    '尚未安装 DSH 版本：请在下方安装；若安装失败，先在「环境」组确认 Node.js 已就绪。',
   opencodePhasePreparing: '准备中',
   opencodePhaseInstalling: '安装中',
   opencodePhaseRemoving: '卸载中',

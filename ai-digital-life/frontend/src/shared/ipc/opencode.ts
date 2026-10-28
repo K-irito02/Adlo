@@ -29,6 +29,8 @@ export interface OpencodeSourceStatus {
   system: OpencodeSystemInfo | null;
   versionSource: OpencodeVersionSource;
   config: { version_source: DshVersionSourceMode };
+  /** 是否把宿主托管版本注入新终端会话的 PATH。 */
+  terminalInjection: boolean;
 }
 
 export interface OpencodeBridge {
@@ -43,4 +45,5 @@ export interface OpencodeBridge {
   reinstall: () => Promise<IpcResult<string>>;
   getSourceStatus: () => Promise<IpcResult<OpencodeSourceStatus>>;
   saveVersionSource: (mode: DshVersionSourceMode) => Promise<IpcResult<boolean>>;
+  setTerminalInjection: (enabled: boolean) => Promise<IpcResult<boolean>>;
 }

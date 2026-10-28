@@ -24,6 +24,8 @@ pub struct DownloadSourceConfig {
     pub version_source: VersionSourceMode,
     /// OpenCode 的版本来源偏好（DSH 仍用 `version_source`；两者互不影响）。
     pub opencode_version_source: VersionSourceMode,
+    /// 是否把宿主托管的 OpenCode bin 目录注入新终端会话的 PATH（默认开）。
+    pub opencode_terminal_injection: bool,
 }
 
 impl Default for DownloadSourceConfig {
@@ -37,6 +39,7 @@ impl Default for DownloadSourceConfig {
             source_mode: SourceMode::Auto,
             version_source: VersionSourceMode::Auto,
             opencode_version_source: VersionSourceMode::Auto,
+            opencode_terminal_injection: true,
         }
     }
 }

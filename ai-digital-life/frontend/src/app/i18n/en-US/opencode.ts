@@ -37,6 +37,12 @@ export const opencodeEn = {
   opencodeSystemNotDetected: 'No system install detected',
   opencodeTerminalNote:
     'Available in new terminal sessions after install; already-open terminals must be reopened.',
+  opencodeTerminalInjection: 'Available in terminals (new sessions)',
+  opencodeTerminalInjectionSaved: 'Terminal availability saved',
+  harnessMissingBannerOpencode:
+    'No OpenCode CLI version installed yet — click Install below. A failed install never blocks the app.',
+  harnessMissingBannerDsh:
+    'No DSH version installed yet — install below. If it fails, make sure Node.js is ready in the Environment group.',
   opencodePhasePreparing: 'Preparing',
   opencodePhaseInstalling: 'Installing',
   opencodePhaseRemoving: 'Removing',

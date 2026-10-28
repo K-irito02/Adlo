@@ -34,6 +34,7 @@ export function DshSettings() {
   const { t } = useTCopy();
   const actions = useAppActions();
   const sourceStatus = useAppStore((s) => s.sourceStatus);
+  const versionStatus = useAppStore((s) => s.versionStatus);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
   const showToast = useAppStore((s) => s.showToast);
   const setDshBlocksAtDefault = useAppStore((s) => s.setDshBlocksAtDefault);
@@ -182,6 +183,17 @@ export function DshSettings() {
         <SettingsHeader title={t.dshVersionManagement} />
       </div>
       <DshVersionManagement />
+      {versionStatus !== null && versionStatus.installed.length === 0 ? (
+        <div className="adl-settings-card" data-testid="dsh-missing-banner">
+          <div className="adl-settings-row">
+            <div className="adl-settings-row__label">
+              <div className="adl-settings-row__label-text">
+                <small>{t.harnessMissingBannerDsh}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {sourceSummaryCard}
 
       <ConfirmDialog
