@@ -68,14 +68,17 @@ Tracing 日志系统的配置层，支持文件输出和结构化字段。
 
 dsh 基于 npm 发布，启动方式为 `npx @deepseek-ai/dsh@<version> --profile web --no-open`。在应用中作为**普通浏览器标签**承载于中心的多标签宿主（`location='center'` + `isDsh`），面板↔中心为同一原生 WebView 的位置移动；关闭 dsh 标签即彻底退出进程（`dsh.close(false)`），不跨重启持久化。
 
-### DSH Bundle
-内置的 DSH 预安装包，位于 `<data_dir>/dsh-bundle/`。包含 `manifest.json`（版本元数据）和 `package/` 目录（实际 dsh 代码）。离线环境下可直接使用，无需 npm 下载。
+### Harness 版本管理 (Harness Version)
+dsh 与 OpenCode CLI 共用的版本内核，位于 `crates/harness-version/`：版本目录、选中/回退/卸载、安装任务、来源解析与目录限量由通用层承担，工具差异集中在 `spec.rs` 的 `HarnessSpec` 描述符（DSH = npm 通道；OpenCode = 平台包 tarball 通道）。DSH 的运行态（端口/标签/auth）仍在 `crates/server/src/handlers/dsh.rs`。
 
-### DSH Version
-DSH 版本管理系统，位于 `crates/dsh-version/`。管理已安装版本列表、版本切换、npm 仓库查询，并提供智能源选择（优先级：已运行 > 系统安装 > 内置 > 下载）。
+### OpenCode CLI
+以命令行形式运行的 harness。版本安装到 `<data_dir>/harnesses/opencode/versions/<version>/bin/opencode.exe`（直接下载 npm 平台包，不经 node）；版本来源解析为宿主托管时，新建终端会把该 `bin` 目录前置到会话 PATH（见 ADR-0005），不写系统/用户环境变量。
+
+### Harness 预置 (Provisioning)
+安装包不预置任何 harness 版本。首启环境向导完成后弹一次独立的 harness 向导（DSH / OpenCode 两张卡，可跳过），用户点击安装后按下载源配置拉取；失败不阻塞应用，可随时在对应设置组重试。
 
 ### Download Source
-可配置的下载源系统，位于 `crates/download-source/`。支持 npm 仓库地址、镜像源（如 npmmirror）、代理设置。配置文件为 `<data_dir>/config/download-sources.json`。
+可配置的下载源系统，位于 `crates/download-source/`。支持 npm 仓库地址、镜像源（如 npmmirror）、代理设置与「自动检测选源」（仅 `source_mode=auto` 时生效，手动选择后不再自动覆盖）。配置文件为 `<data_dir>/config/download-sources.json`。
 
 ### 环境依赖 (Env Dependency)
 应用运行所需的六项外部依赖：`node`、`git`、`bash`、`webview2`、`adlserver`、`netprobe`。由 `crates/adl-env/` 的 provider 检测/安装，状态经 adl-server 的 `GET /env/status` 暴露（`EnvStatus`：六依赖状态 + 任务快照 + `dataDir` + `dshReady`）。
@@ -90,7 +93,7 @@ DSH 版本管理系统，位于 `crates/dsh-version/`。管理已安装版本列
 面向人/agent 的可执行修复手册，按依赖各一份（Node、Git/Bash、WebView2、adl-server、网络下载、模型凭据）。唯一真源为 `ai-digital-life/frontend/src/app/features/environment/runbooks/`（前端 `?raw` 内联），`docs/runbooks/README.md` 仅为索引。固定五段：症状 / 检查命令 / 安装步骤 / 验证步骤 / 回滚。
 
 ### 首启环境向导 (First-run Env Wizard)
-首次启动时引导用户检查并补齐环境依赖的四步向导；可跳过（记录跳过状态并显示续接横幅），设置面板「环境」组可随时重新进入。
+首次启动时引导用户检查并补齐环境依赖的四步向导；可跳过（记录跳过状态并显示续接横幅），设置面板「环境」组可随时重新进入。环境向导完成或跳过后，另有一次独立的 harness 向导（见「Harness 预置」）。
 
 ---
 
@@ -184,10 +187,10 @@ Rust 端 `crates/kernel/src/command_risk.rs`，采用 deny/ask/allow 三态模�
 位于 `crates/storage/`，提供 CRUD 抽象、实体表宏、数据清理。
 
 ### 存储分类与占用
-`adl-kernel::storage::StorageCategory` 定义 10 条可迁移分类与 1 个设置值路径；设置页占用由 `category_usage(category, path)` 统计，经 `category_statuses`（`src-tauri/src/commands/storage.rs` 与 `crates/server/src/handlers/storage.rs` 各一份）输出。当前只统计 `paths.dir(category)` **单根**：Dsh 的 `dsh-bundle` 未计入，与迁移预检（`category_roots(Dsh)` 双根）口径不一致，属待办。
+`adl-kernel::storage::StorageCategory` 定义 10 条可迁移分类与 1 个设置值路径；设置页占用由 `category_usage(category, path)` 统计，经 `category_statuses`（`src-tauri/src/commands/storage.rs` 与 `crates/server/src/handlers/storage.rs` 各一份）输出。`Harnesses` 分类是单一目录（`<root>/harnesses/`，其下按工具分 `dsh/versions`、`opencode/versions`），占用统计与迁移预检（`category_roots`）同根。
 
 ### 整树自有分类
-`adl-kernel::storage::whitelist::owns_entire_tree(category)` 标记「基目录下所有文件都归应用所有」的分类（Config / Dsh）；`scan_foreign` 据此跳过整树扫描，避免对六万级 `dsh-versions` 做无意义遍历。
+`adl-kernel::storage::whitelist::owns_entire_tree(category)` 标记「基目录下所有文件都归应用所有」的分类（Config / Harnesses）；`scan_foreign` 据此跳过整树扫描，避免对 harness 版本目录的大量文件做无意义遍历。
 
 ---
 

@@ -69,7 +69,7 @@
 - `Tauri Commands` 是 WebView 与后端的唯一桥接面：类型化、capability 白名单、结构化错误返回
 - `WebView Frontend (React)` 负责界面、交互编排和表现层状态，不直接触达系统能力
 - 后台任务通过 `tokio::spawn`（或专用线程）承载索引、检索、长耗时计算，不直接承担 UI 状态
-- dsh 宿主集成（`webapp-host`/`dsh-bundle`/`dsh-version`/`download-source`）负责第三方 harness 的进程托管、版本管理、下载源与宿主渲染
+- harness 宿主集成（`webapp-host`/`harness-version`/`download-source`）负责第三方 harness 的进程托管、版本管理、下载源与宿主渲染
 - 基础设施（`adl-kernel::storage` 路径解析 / `adl-logging` / `errors` 等）负责实现细节
 
 明确禁止：
