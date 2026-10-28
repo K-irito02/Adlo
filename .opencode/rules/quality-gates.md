@@ -43,6 +43,7 @@ alwaysApply: false
 |------|------|------|
 | 日常改动 / 提交前 | `pnpm --dir frontend run check:changed` | 变更文件 lint/format + 类型/契约不变量 + `vitest related` 受影响用例；无 `src/` 变更则跳过测试 |
 | Rust 单 crate | `cargo test -p <crate>` | 只跑受影响 crate |
+| 桌面-only 交互改动（可选） | `pnpm run e2e:build` → `pnpm run e2e` | opt-in 桌面冒烟（真实窗口/IPC）；**不属于** `check:all`，规则见技能 `desktop-e2e-wdio` |
 | 发布打包 Tauri 前 | `pnpm run check:all` + 双端验证 | **必须先通知用户并获批准**，不得自行执行 |
 
 **聚合门禁**：`pnpm run check:all`（在 `ai-digital-life/` 执行）= `test:scripts` + Rust fmt/clippy/check/test + 前端 `check:full`（`check:static` + 全量测试）。合并后必须跑它；它是语义冲突的唯一兜底，但不替代日常的受影响范围检查。

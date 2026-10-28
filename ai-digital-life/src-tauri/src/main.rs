@@ -41,7 +41,18 @@ fn main() {
         );
     }
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // Desktop E2E (feature `e2e`): the embedded WebDriver server is only linked in
+    // test builds, and only starts when the WDIO runner sets TAURI_WEBDRIVER_PORT.
+    // Normal `cargo run` / `tauri dev` runs stay identical to production.
+    #[cfg(feature = "e2e")]
+    let builder = if std::env::var_os("TAURI_WEBDRIVER_PORT").is_some() {
+        builder.plugin(tauri_plugin_wdio_webdriver::init()).plugin(tauri_plugin_wdio::init())
+    } else {
+        builder
+    };
+
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {

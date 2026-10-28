@@ -12,15 +12,13 @@ alwaysApply: false
 ai-digital-life/
 ├── Cargo.toml          # Rust workspace 根
 ├── src-tauri/          # Tauri 二进制与 #[tauri::command]
-├── crates/             # Rust 库 crate
+├── crates/             # Rust 库 crate（集成测试在各 crate 的 tests/）
 ├── frontend/           # WebView：React + Vite
-├── docs/               # 架构与设计文档
-│   ├── architecture/   # 系统架构
-│   ├── design-system/  # 设计系统
-│   ├── plans/          # 功能实施计划（按领域分类）
-│   └── specs/          # 功能规格设计（按领域分类）
-└── tests/              # 集成 / E2E
+├── e2e/                # 桌面 E2E：@wdio/tauri-service（opt-in，见技能 desktop-e2e-wdio）
+└── scripts/            # 构建 / 开发辅助脚本
 ```
+
+> 架构、设计系统、计划与规格文档在仓库根 `docs/`（不在实现工作区内）。
 
 ## 应用层
 

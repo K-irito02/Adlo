@@ -57,6 +57,7 @@ rustup target add x86_64-pc-windows-msvc
 以下变更必须同步 `docs/architecture/*` 和必要的规划文档：
 
 - 技术栈变化（Cargo 依赖、Tauri 插件、前端依赖）
+- 桌面 E2E 脚手架或版本变化（`e2e/`、`e2e` feature、`@wdio/*` 与 `tauri-plugin-wdio*`）
 - Tauri 安全基线变化（CSP / capability / plugin scope）
 - SQLite schema、迁移或恢复策略变化
 - Workspace / Retrieval 责任边界变化
@@ -87,7 +88,7 @@ rustup target add x86_64-pc-windows-msvc
 
 - 变更内容
 - 为什么改
-- 验证方式（cargo / vitest / tauri dev 烟测）
+- 验证方式（cargo / vitest / tauri dev 烟测 / 桌面 E2E `pnpm run e2e`）
 - 文档同步
 - 残余风险
 

@@ -1,5 +1,10 @@
 packages:
   - "frontend"
+  - "e2e"
 allowBuilds:
+  # WDIO optional driver packages: the embedded provider talks to the app directly,
+  # so no external Edge/Gecko driver download is needed.
+  edgedriver: false
   esbuild: true
+  geckodriver: false
   node-pty: true

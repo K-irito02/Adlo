@@ -24,6 +24,17 @@ alwaysApply: false
 3. 验证视觉效果与交互功能
 4. **双端验证**：在 Tauri 桌面和浏览器模式下分别确认功能一致
 
+### 可选自动化冒烟
+
+桌面-only 的交互回归（标题栏/面板开合、窗口几何、真实 IPC）可先跑自动化：
+
+```powershell
+pnpm run e2e:build   # 首次 / 改了 Rust 或前端后
+pnpm run e2e
+```
+
+用例在 `ai-digital-life/e2e/`，选择器只用 `data-testid`/class/`aria-*`。**自动化通过 ≠ 视觉验收通过**：仍须按上方清单在真实窗口内人工确认。规则与排障见技能 `desktop-e2e-wdio`。
+
 ## 验证清单
 
 修改 UI 后必须在 Tauri 桌面和浏览器模式下分别验证：
@@ -43,3 +54,4 @@ alwaysApply: false
 
 - [mandatory-testing.md](./mandatory-testing.md)
 - [design-system.md](./design-system.md)
+- 技能 `desktop-e2e-wdio`（`ai-digital-life/e2e/` 的自动化冒烟）

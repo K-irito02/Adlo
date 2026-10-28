@@ -45,7 +45,14 @@ cargo test --workspace           # Rust 全量测试
 cargo test -p adl-server         # 仅测试指定 crate
 ```
 
-详见 [AGENTS.md](./AGENTS.md) 和 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+桌面端 E2E（opt-in，不进 `check:all`）：
+
+```bash
+pnpm run e2e:build               # 构建 e2e 调试产物（--features e2e）
+pnpm run e2e                     # 真实 Tauri 窗口冒烟，整轮约 15s
+```
+
+详见 [AGENTS.md](./AGENTS.md)、[CONTRIBUTING.md](./CONTRIBUTING.md) 与技能 `desktop-e2e-wdio`。
 
 ## 端口扫描功能
 

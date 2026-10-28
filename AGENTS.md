@@ -85,6 +85,8 @@
 
 > **示例**：终端输出持久化 — Tauri 模式使用 SQLite，浏览器模式使用 IndexedDB，两者通过统一的 `TerminalOutputStore` 接口提供相同的功能行为。
 
+> **桌面 E2E（opt-in）**：`pnpm run e2e` 用 `@wdio/tauri-service` 驱动真实 Tauri 窗口，作为桌面-only 交互的补充冒烟；**不替代**双端人工验证，也不属于 `check:all`。入口与排障见技能 `desktop-e2e-wdio`。
+
 ## 编码规范
 
 ### 分支命名
