@@ -281,6 +281,8 @@ pub async fn install(
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
 
     fn nanos() -> u128 {
         std::time::SystemTime::now()
@@ -296,19 +298,82 @@ mod tests {
     }
 
     fn write_tgz(path: &Path, entries: &[(&str, &[u8])]) {
-        let file = std::fs::File::create(path).expect("tgz file");
-        let gz = flate2::write::GzEncoder::new(file, flate2::Compression::fast());
-        let mut builder = tar::Builder::new(gz);
-        for (name, data) in entries {
-            let mut header = tar::Header::new_gnu();
-            header.set_size(data.len() as u64);
-            header.set_mode(0o755);
-            header.set_mtime(0);
-            header.set_cksum();
-            builder.append_data(&mut header, name, *data).expect("append tar entry");
+        let bytes = tgz_bytes(entries);
+        std::fs::write(path, bytes).expect("write tgz");
+    }
+
+    fn tgz_bytes(entries: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        {
+            let mut builder = tar::Builder::new(&mut gz);
+            for (name, data) in entries {
+                let mut header = tar::Header::new_gnu();
+                header.set_size(data.len() as u64);
+                header.set_mode(0o755);
+                header.set_mtime(0);
+                header.set_cksum();
+                builder.append_data(&mut header, name, *data).expect("append tar entry");
+            }
+            builder.finish().expect("finish tar");
         }
-        let gz = builder.into_inner().expect("finish tar");
-        gz.finish().expect("finish gzip");
+        gz.finish().expect("finish gzip")
+    }
+
+    #[tokio::test]
+    async fn installs_from_a_local_registry_and_selects_the_version() {
+        let dir = temp_dir("e2e-install");
+        let data = dir.join("data");
+        let root = dir.join("versions");
+        std::fs::create_dir_all(data.join("config")).expect("config dir");
+        let body = tgz_bytes(&[("package/bin/opencode.exe", b"fake-opencode")]);
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let served = body.clone();
+        tokio::spawn(async move {
+            if let Ok((mut sock, _)) = listener.accept().await {
+                let mut buf = [0u8; 2048];
+                let _ = sock.read(&mut buf).await;
+                let header = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nContent-Type: application/octet-stream\r\nConnection: close\r\n\r\n",
+                    served.len()
+                );
+                let _ = sock.write_all(header.as_bytes()).await;
+                let _ = sock.write_all(&served).await;
+                let _ = sock.shutdown().await;
+            }
+        });
+        std::fs::write(
+            data.join("config").join("download-sources.json"),
+            format!(
+                "{{\"npm_registry\":\"http://{addr}\",\"source_mode\":\"manual\",\"proxy\":{{\"mode\":\"none\"}}}}"
+            ),
+        )
+        .expect("write config");
+
+        let task = ProgressTask::new();
+        task.begin("opencode-install", "1.0.0");
+        let input = PlatformInstallInput {
+            root: &root,
+            data_dir: &data,
+            version: "1.0.0",
+            select: true,
+            platform: "windows",
+            arch: "x64",
+            avx2: true,
+            verify: false,
+        };
+        install(input, &task).await.expect("install");
+        assert!(crate::is_version_installed_for(&spec::OPENCODE, &root, "1.0.0"));
+        assert_eq!(
+            std::fs::read_to_string(root.join("selected.txt")).expect("selected").trim(),
+            "1.0.0"
+        );
+        assert_eq!(
+            std::fs::read(root.join("installed/1.0.0/bin/opencode.exe")).expect("marker"),
+            b"fake-opencode"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

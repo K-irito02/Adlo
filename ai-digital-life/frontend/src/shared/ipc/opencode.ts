@@ -28,7 +28,11 @@ export interface OpencodeVersionSource {
 export interface OpencodeSourceStatus {
   system: OpencodeSystemInfo | null;
   versionSource: OpencodeVersionSource;
-  config: { version_source: DshVersionSourceMode };
+  config: {
+    version_source: DshVersionSourceMode;
+    source_mode: 'auto' | 'manual';
+    npm_registry: string;
+  };
   /** 是否把宿主托管版本注入新终端会话的 PATH。 */
   terminalInjection: boolean;
 }

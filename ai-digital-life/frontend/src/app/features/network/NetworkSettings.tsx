@@ -4,6 +4,7 @@ import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { executeNetworkResetPlan, NPMJS_URL } from '@shared/settings-reset/networkReset';
+import { NPMMIRROR_URL, pickFastestSource } from './sourceAutoDetect';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { StaticResetSpacer } from '../../components/settings/StaticResetSpacer';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
@@ -16,7 +17,6 @@ import type { DshSourceConfig } from '../../../shared/ipc/dsh';
 type SourceType = 'auto' | 'npmjs' | 'npmmirror' | 'custom';
 type ProxyMode = 'auto' | 'manual' | 'none';
 
-const NPMMIRROR_URL = 'https://registry.npmmirror.com';
 /** 变更即静默保存的防抖窗口（失败才 toast，成功不打扰）。 */
 const AUTOSAVE_DELAY_MS = 500;
 /** 测试结果在按钮内的展示时长，到时恢复按钮文案。 */
@@ -243,12 +243,11 @@ export function NetworkSettings() {
         }
         return;
       }
-      const winner = candidates.reduce((best, c) =>
-        (c.result?.latency_ms ?? Number.MAX_SAFE_INTEGER) <
-        (best.result?.latency_ms ?? Number.MAX_SAFE_INTEGER)
-          ? c
-          : best,
-      );
+      const winnerProbe = pickFastestSource(candidates.map((c) => c.result));
+      const winner = candidates.find((c) => c.result === winnerProbe);
+      if (!winner) {
+        return;
+      }
       if (!silent) {
         showToast(formatT(t, 'dshSettingsAutoDetected', { source: winner.label }), 'success');
       }

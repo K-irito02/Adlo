@@ -39,7 +39,7 @@ const sourceStatus: OpencodeSourceStatus = {
     resolvedByMode: { auto: 'host', host: 'host', system: 'none' },
     hostVersion: MOCK_VERSION,
   },
-  config: { version_source: 'auto' },
+  config: { version_source: 'auto', source_mode: 'auto', npm_registry: 'https://registry.npmjs.org' },
   terminalInjection: true,
 };
 

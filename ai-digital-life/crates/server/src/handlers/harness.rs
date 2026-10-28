@@ -262,6 +262,8 @@ fn source_status_inner(state: &ServerState) -> Result<serde_json::Value, AppErro
         },
         "config": {
             "version_source": mode,
+            "source_mode": config.source_mode,
+            "npm_registry": config.npm_registry,
         },
         "terminalInjection": config.opencode_terminal_injection,
     }))

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
+import { useAppActions } from '@hooks/useAppActions';
+import { detectFastestSource } from '../network/sourceAutoDetect';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { SettingsHintButton } from '../../components/settings/SettingsHintButton';
 import type {
@@ -24,6 +26,7 @@ const EMPTY_STABLE: DshVersionCatalog['stable'] = [];
 export function OpencodeSettings() {
   const { t } = useTCopy();
   const showToast = useAppStore((s) => s.showToast);
+  const actions = useAppActions();
   const bridge = typeof window !== 'undefined' ? window.digitalLife?.opencode : undefined;
 
   const [status, setStatus] = useState<DshVersionStatus | null>(null);
@@ -134,7 +137,16 @@ export function OpencodeSettings() {
     if (!version.trim()) {
       return;
     }
-    void run(() => bridge!.installVersion(version.trim(), true), t.opencodeInstallStarted);
+    void run(async () => {
+      // 仅在「自动检测」模式下，安装前重新选源；manual 一律不覆盖用户选择。
+      if (source?.config.source_mode === 'auto') {
+        const winner = await detectFastestSource(actions.testSource, true);
+        if (winner && winner !== source.config.npm_registry) {
+          await actions.saveSourceConfig({ source_mode: 'auto', npm_registry: winner }, true);
+        }
+      }
+      return bridge!.installVersion(version.trim(), true);
+    }, t.opencodeInstallStarted);
   };
 
   return (
