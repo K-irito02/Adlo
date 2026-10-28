@@ -69,9 +69,11 @@ function TestProvider({ children }: { children: React.ReactNode }) {
  */
 const READOUT_KEYS = new Set([
   'dshSourceSummary',
+  'dshSourceSummaryTitle',
   'dshSourceSummaryMode',
   'dshSourceSummaryManual',
   'dshSourceSummaryUnknown',
+  'dshSourceSummaryGoModify',
   'dshSettingsSourceAuto',
   'dshEffectiveRunning',
   'dshEffectiveRunningSystem',

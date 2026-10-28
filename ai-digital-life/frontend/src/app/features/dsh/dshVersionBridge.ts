@@ -232,8 +232,7 @@ export function createDshVersionBridge(
       await actions.fetchSourceStatus(true);
       let fin: DshMayRestartResult = restart;
       if (!fin.restarted) {
-        fin =
-          (await ensureDshRunning(actions, kind === 'uninstall' ? preRunningUrl : null)) ?? fin;
+        fin = (await ensureDshRunning(actions, kind === 'uninstall' ? preRunningUrl : null)) ?? fin;
       }
       if (fin.failed) {
         return { ok: false, error: t.dshRestartFailed };
@@ -278,9 +277,7 @@ export function createDshVersionBridge(
     }
   };
 
-  const saveSourceMode = async (
-    mode: HarnessVersionSourceMode,
-  ): Promise<HarnessVersionResult> => {
+  const saveSourceMode = async (mode: HarnessVersionSourceMode): Promise<HarnessVersionResult> => {
     if (!bridge) {
       return OFFLINE;
     }

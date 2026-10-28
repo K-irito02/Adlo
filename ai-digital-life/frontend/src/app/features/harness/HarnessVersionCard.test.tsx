@@ -14,10 +14,7 @@ const mockT = new Proxy({} as Record<string, string>, {
   get: (_, key) => (typeof key === 'string' ? key : ''),
 }) as unknown as CopyDict;
 
-function renderCard(
-  bridge: HarnessVersionBridge<unknown>,
-  slots?: HarnessVersionSlots<unknown>,
-) {
+function renderCard(bridge: HarnessVersionBridge<unknown>, slots?: HarnessVersionSlots<unknown>) {
   return render(
     <TCopyProvider t={mockT} locale="en-US">
       <HarnessVersionCard bridge={bridge} slots={slots} />

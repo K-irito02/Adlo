@@ -537,9 +537,7 @@ export function DshSettings() {
                   ? t.dshVersionSourceSystemDialogTitle
                   : t.dshVersionSourceSwitchDialogTitle
               }
-              onClick={
-                sourceSwitchBusy ? undefined : () => finishSourceSwitch({ ok: true })
-              }
+              onClick={sourceSwitchBusy ? undefined : () => finishSourceSwitch({ ok: true })}
             >
               <div className="adl-confirm-dialog" onClick={(event) => event.stopPropagation()}>
                 <div className="adl-confirm-dialog__header">

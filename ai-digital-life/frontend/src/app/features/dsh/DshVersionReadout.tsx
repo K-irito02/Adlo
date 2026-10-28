@@ -44,8 +44,7 @@ export function DshVersionReadout({ busy }: { busy: boolean }) {
       const title = url ? displayUrl(url) : null;
       const source = running?.source ?? 'external';
       const known = running?.version ?? null;
-      const subTemplate =
-        source === 'system' ? t.dshEffectiveRunningSystem : t.dshEffectiveRunning;
+      const subTemplate = source === 'system' ? t.dshEffectiveRunningSystem : t.dshEffectiveRunning;
       if (known) {
         return {
           text: known,
