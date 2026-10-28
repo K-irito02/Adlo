@@ -214,10 +214,12 @@ await page.fill('.adl-settings-row__control input', 'value');
 
 ## DSH 设置
 
-> DeepSeek Harness 版本管理（下载源 / 代理设置 / 测试连接已迁入「网络」组，本组仅剩版本管理块 + 块底只读摘要行）：
+> DeepSeek Harness 版本管理（下载源 / 代理设置 / 测试连接已迁入「网络」组，本组仅剩版本管理块 + 块底只读摘要卡）：
+> 版本管理块由**通用版本卡片**渲染（`features/harness/HarnessVersionCard.tsx`，DSH 与 OpenCode CLI 共用同一套 UI）；
+> DSH 通过适配器注入自己的 store/actions，并以插槽挂上运行态/来源读数、缺失横幅与官方版本外链。
 > 块头在卡外（装饰图标 + 主标题，无恢复按钮），卡内副标题行左说明（行首「?」提示图标）、右控件；变更即自动保存。
-> 「版本管理」块含版本来源 / 当前版本 / 检查更新 / 正式版 / 预发布版 / 官方版本信息行，
-> 最下方为只读摘要行「当前下载源：<registry>「<自动检测/手动选择>」」+「前往修改」（跳网络组；模式提示为中性灰）。
+> 「版本管理」块含版本来源 / 当前版本 / 检查更新 / 稳定版 / 预发布（beta）/ 指定版本 / 已安装版本 / 官方版本信息行，
+> 最下方为只读摘要卡「当前下载源：<registry>「<自动检测/手动选择>」」+「前往修改」（跳网络组；模式提示为中性灰）。
 
 ### 定位选择器
 
@@ -231,29 +233,33 @@ await page.fill('.adl-settings-row__control input', 'value');
 |--------|------|
 | `.adl-dsh-settings__header` | 块头（版本管理块为装饰图标 + 主标题；带 `data-settings-anchor="dsh:version"`） |
 | `[data-settings-anchor="dsh:version"]` | 版本管理块头（无恢复按钮） |
-| `.adl-dsh-settings__version-readout` | 当前版本读数（版本号 + 更新徽标 + 最新可用版本） |
-| `.adl-dsh-settings__action-btn` | 版本操作文字按钮（检查更新/升级到最新版/重新安装/卸载版本/回退版本） |
-| `.adl-dsh-settings__version-menu` | 版本回退菜单（多版本时；Portal 挂 body，Esc/外部点击关闭） |
-| `.adl-dsh-settings__source-mode` | 块底摘要行的模式提示（中性灰，「自动检测」/「手动选择」） |
+| `.adl-harness-version` | 通用版本卡片根（两工具共用；DSH 组内只有这一张版本卡） |
+| `.adl-harness-version__readout` | DSH 运行态/来源读数插槽（版本号 + 运行地址或系统安装路径 + 更新徽标） |
+| `.adl-harness-version__action-btn` | 版本操作文字按钮（更新到最新/安装/切换/卸载/重装/取消） |
+| `.adl-harness-version__picker` | 双通道版本选择器（稳定版 / 预发布各一） |
+| `.adl-harness-version__menu` | 选择器展开菜单（Portal 挂 body） |
+| `[data-settings-anchor="dsh:source"]` | 块底只读摘要卡（当前下载源 + 模式提示） |
+| `.adl-dsh-settings__source-mode` | 摘要行的模式提示（中性灰，「自动检测」/「手动选择」） |
+| `.adl-dsh-settings__action-btn` | 摘要卡的「前往修改」按钮 |
 
-> 下载源 / 代理设置 / 测试连接三块已迁入「网络」设置组；本组只保留版本管理块与块底只读摘要行。
+> 下载源 / 代理设置 / 测试连接三块已迁入「网络」设置组；本组只保留版本管理块与块底只读摘要卡。
 
 ### 操作流程
 
 ```javascript
-// 版本管理块：检查更新 / 重新安装
-await page.click('button:has-text("检查更新")');
-await page.click('button:has-text("重新安装")');
+// 版本管理块：检查更新 / 更新到最新
+await page.click('button:has-text("更新到最新")');
+
+// 稳定版 / 预发布：展开选择器选版本，再点行内操作
+await page.click('.adl-harness-version__picker');
+await page.click('.adl-harness-version__menu-item-action:has-text("1.0.0")');
+await page.click('button:has-text("安装")');
 
 // 卸载当前版本需二次确认（首次点击进入危险确认态，再次点击执行）
-await page.click('button:has-text("卸载版本")');
-await page.click('button:has-text("卸载版本")');
+await page.click('button:has-text("卸载")');
+await page.click('button:has-text("再次点击确认卸载")');
 
-// 多版本时回退：打开 Portal 菜单选择目标版本
-await page.click('button:has-text("回退版本")');
-await page.click('.adl-dsh-settings__version-menu-item-revert:has-text("1.0.0")');
-
-// 块底摘要行只读；点「前往修改」跳到「网络」组改下载源
+// 块底摘要卡只读；点「前往修改」跳到「网络」组改下载源
 await page.click('button:has-text("前往修改")');
 ```
 

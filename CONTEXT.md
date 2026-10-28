@@ -64,21 +64,23 @@ Tracing 日志系统的配置层，支持文件输出和结构化字段。
 ### Sidecar
 桌面端启动的独立后端子进程（当前 Tauri 模式）。未来移动端可通过 SSH/Sidecar 连接桌面端或服务器。
 
-### DSH 版本 UI 结构（导航）
+### Harness 版本 UI（单一通用卡片）
 
-`features/dsh/DshVersionManagement.tsx` 体积大，按区块定位再读：
+DSH 与 OpenCode CLI 共用一张版本卡片 `features/harness/HarnessVersionCard.tsx`，只消费
+`HarnessVersionBridge` 接口（版本状态、目录、任务、安装/更新/回退/卸载/重装/取消）；
+卡片不读任何 store，工具差异全部落在适配器：
 
-| 区块 | 关键内容 |
+| 层 | 关键内容 |
 |---|---|
-| 状态读数 | `readout` / `runningReadout` / `systemReadout`：当前版本、来源副行、运行地址 |
-| 版本来源 | `sourceMode` / `saveVersionSource` / 延迟生效（`pendingMode`） |
-| 双通道 | `stable` / `prerelease` 分桶、`pickEffective`、下拉框与菜单量宽（`menuWidths`） |
-| 版本行 | `renderVersionRowAction`：安装/卸载/重装/切换按钮与状态徽章 |
-| 进度与取消 | `versionBusy`、`installingVersion`、`cancelling`、任务轮询 |
-| 卸载确认 | `uninstallConfirmVersion`（仅当前选中版本两次点击） |
+| 通用卡片 | `features/harness/HarnessVersionCard.tsx`：来源三态、双通道选择、手动版本、进度与取消、卸载二次确认 |
+| 桥接接口 | `features/harness/harnessVersionBridge.ts`：卡片唯一依赖的接缝（测试注入假桥） |
+| DSH 适配器 | `features/dsh/dshVersionBridge.ts`：把 DSH store/actions 映射为桥；运行态与来源读数经 `DshVersionReadout` 插槽注入 |
+| DSH 组外壳 | `features/dsh/DshSettings.tsx`：块头锚点 `anchorFor('dsh','version')`、只读来源摘要卡 `anchorFor('dsh','source')`、组级重置 |
+| OpenCode 适配器 | `features/opencode/opencodeVersionBridge.ts` + `OpencodeSettings.tsx`（终端可用性插槽） |
 
-组外壳 `DshSettings.tsx` 负责组级重置与源摘要；状态在 `stores/slices/dshSlice.ts`、动作在 `stores/actions/dshActions.ts`。
-迁移到通用版本卡片见 issue #2–#4（本仓库 tracker）。
+状态在 `stores/slices/dshSlice.ts`、动作在 `stores/actions/dshActions.ts`；样式为
+`styles/regions/harness-version.css`（卡片）+ `styles/regions/dsh-settings.css`（组内控件）。
+设置搜索索引的 `dsh/version`、`dsh/source` 锚点与 `dsh` / `opencode` 分组标识保持不变。
 
 ### DSH 宿主渲染
 
