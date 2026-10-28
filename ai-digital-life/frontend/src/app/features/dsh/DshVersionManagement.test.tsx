@@ -470,14 +470,12 @@ describe('DshVersionManagement', () => {
     });
     const currentItem = items.find((el) => el.textContent?.includes('1.1.0'))!;
     const plainItem = items.find((el) => el.textContent?.includes('1.0.0'))!;
-    // 当前版本 + 预置：只标「当前版本」（蓝色类），不再显示「已装版本」/「已内置」。
+    // 当前版本 + 预置：只标「当前版本」（蓝色类），不再显示「已装版本」。
     expect(currentItem.textContent).toContain('dshCurrentVersionBadge');
     expect(currentItem.textContent).not.toContain('dshInstalledVersions');
-    expect(currentItem.textContent).not.toContain('dshBundledVersions');
     expect(currentItem.querySelector('.adl-dsh-settings__version-menu-item-current')).toBeTruthy();
     // 普通已装版本：标「已装版本」。
     expect(plainItem.textContent).toContain('dshInstalledVersions');
-    expect(plainItem.textContent).not.toContain('dshBundledVersions');
     // 勾号槽位两行都常驻（未选中行留空），保证徽章不因勾号出现而左移。
     expect(currentItem.querySelectorAll('.adl-dsh-settings__version-menu-item-check')).toHaveLength(
       1,
@@ -532,33 +530,6 @@ describe('DshVersionManagement', () => {
     const btn = within(row).getByRole('button', { name: 'dshUninstall' });
     fireEvent.click(btn);
     await waitFor(() => expect(uninstallDsh).toHaveBeenCalledWith('1.1.0'));
-  });
-
-  it('外部复用（managed=false）的运行中进程即便版本号相同也不标「内置」', () => {
-    seed({ currentSelected: null, installed: ['1.1.0'] });
-    // 外部复用：没有 Child 可持有，版本来源未知（managed=false + version 由探测给出）。
-    useAppStore.setState({
-      sourceStatus: {
-        system: null,
-        running: {
-          url: 'http://127.0.0.1:3080/',
-          port: 3080,
-          managed: false,
-          source: 'external',
-          version: '1.1.0',
-        },
-        versionSource: {
-          mode: 'auto',
-          effective: 'running',
-          resolvedByMode: resolvedByMode(null, false),
-          hostVersion: null,
-        },
-        config: { ...MOCK_CONFIG },
-      },
-    });
-    const { container } = renderBlock();
-    const readout = container.querySelector('.adl-dsh-settings__version-readout') as HTMLElement;
-    expect(within(readout).queryByText('dshBundledBadge')).toBeNull();
   });
 
   it('行内按钮按所选版本状态显示：当前行有卸载+重装+下拉框，无安装/切换', () => {

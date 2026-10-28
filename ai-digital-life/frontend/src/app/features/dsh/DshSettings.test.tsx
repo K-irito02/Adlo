@@ -164,6 +164,9 @@ describe('DshSettings', () => {
     revertDsh.mockReset();
     uninstallDsh.mockReset();
     reinstallDsh.mockReset();
+    installDshVersion.mockReset();
+    fetchVersionTask.mockReset();
+    cancelVersionTask.mockReset();
     restartDsh.mockReset();
     fetchSourceStatus.mockResolvedValue(true);
     fetchDshSettingsSnapshot.mockResolvedValue(true);
@@ -171,6 +174,9 @@ describe('DshSettings', () => {
     testSource.mockResolvedValue({ reachable: true, latency_ms: 12, error: null });
     saveSourceConfig.mockResolvedValue(true);
     fetchDshVersionStatus.mockResolvedValue(true);
+    installDshVersion.mockResolvedValue(true);
+    fetchVersionTask.mockResolvedValue(undefined);
+    cancelVersionTask.mockResolvedValue(true);
     restartDsh.mockResolvedValue({ restarted: false, url: null, failed: false });
     delete (window as unknown as { digitalLife?: unknown }).digitalLife;
     useAppStore.setState({
@@ -184,6 +190,9 @@ describe('DshSettings', () => {
       dshGroupResetPending: false,
       dshBlocksAtDefault: null,
       activeSettingsGroup: 'general',
+      dshRestarting: false,
+      versionTask: null,
+      versionTaskCancelRequested: false,
       toasts: [],
     });
   });
@@ -468,10 +477,168 @@ describe('DshSettings', () => {
     expect(screen.getByText('「自动检测」')).not.toBeNull();
   });
 
-  it('摘要行 sourceStatus 未知时 fail-open 显示未知符', () => {
-    useAppStore.setState({ sourceStatus: null });
+  it('来源三态显隐：自动/宿主托管显示管理项，系统安装隐藏（与迁移前一致）', async () => {
+    const hostResolved = { auto: 'host' as const, host: 'host' as const, system: 'none' as const };
+    const systemResolved = {
+      auto: 'system' as const,
+      host: 'host' as const,
+      system: 'system' as const,
+    };
+    const cases = [
+      {
+        name: '宿主托管',
+        source: makeStatus({
+          version_source: 'host',
+        }),
+        versionSource: {
+          mode: 'host' as const,
+          effective: 'host' as const,
+          resolvedByMode: hostResolved,
+          hostVersion: '1.2.3',
+        },
+        visible: true,
+      },
+      {
+        name: '自动解析到宿主',
+        source: makeStatus(),
+        versionSource: {
+          mode: 'auto' as const,
+          effective: 'host' as const,
+          resolvedByMode: hostResolved,
+          hostVersion: '1.2.3',
+        },
+        visible: true,
+      },
+      {
+        name: '自动解析到系统安装',
+        source: makeStatus({
+          version_source: 'auto',
+        }),
+        versionSource: {
+          mode: 'auto' as const,
+          effective: 'system' as const,
+          resolvedByMode: systemResolved,
+          hostVersion: null,
+        },
+        visible: false,
+      },
+      {
+        name: '系统安装',
+        source: makeStatus({
+          version_source: 'system',
+        }),
+        versionSource: {
+          mode: 'system' as const,
+          effective: 'system' as const,
+          resolvedByMode: systemResolved,
+          hostVersion: null,
+        },
+        visible: false,
+      },
+    ];
+
+    for (const testCase of cases) {
+      useAppStore.setState({
+        sourceStatus: { ...testCase.source, versionSource: testCase.versionSource },
+        versionStatus: makeVersionStatus(),
+      });
+      renderSettings();
+      await waitFor(() => {
+        const rows = [
+          document.querySelector('[data-settings-row="harnessVersionUpdate"]'),
+          document.querySelector('[data-settings-row="harnessVersionStable"]'),
+          document.querySelector('[data-settings-row="harnessVersionPrerelease"]'),
+          document.querySelector('[data-settings-row="harnessVersionManual"]'),
+        ];
+        if (testCase.visible) {
+          for (const row of rows) {
+            expect(row, testCase.name).not.toBeNull();
+          }
+        } else {
+          for (const row of rows) {
+            expect(row, testCase.name).toBeNull();
+          }
+        }
+      });
+      if (!testCase.visible) {
+        expect(screen.getByText('dshSystemManagedNote')).not.toBeNull();
+      }
+      cleanup();
+    }
+  });
+
+  it('无可用来源时管理项保持可见，并保留「宿主托管无版本」提示', async () => {
+    const status = makeStatus({ version_source: 'host' });
+    useAppStore.setState({
+      sourceStatus: {
+        ...status,
+        versionSource: {
+          mode: 'host',
+          effective: 'none',
+          resolvedByMode: { auto: 'none', host: 'none', system: 'none' },
+          hostVersion: null,
+        },
+      },
+      versionStatus: makeVersionStatus({ currentSelected: null, installed: [] }),
+    });
+    renderSettings();
+    await waitFor(() =>
+      expect(document.querySelector('[data-settings-row="harnessVersionStable"]')).not.toBeNull(),
+    );
+    expect(screen.getByText('dshNoSourceHostNote')).not.toBeNull();
+    expect(screen.queryByText('dshSystemManagedNote')).toBeNull();
+  });
+
+  it('运行态插槽：系统安装显示版本号与安装路径', async () => {
+    const status = makeStatus();
+    useAppStore.setState({
+      sourceStatus: {
+        ...status,
+        system: { path: 'C:/Program Files/dsh/dsh.exe', version: '0.9.0' },
+        versionSource: {
+          mode: 'system',
+          effective: 'system',
+          resolvedByMode: { auto: 'system', host: 'host', system: 'system' },
+          hostVersion: null,
+        },
+      },
+      versionStatus: makeVersionStatus({ currentSelected: null, installed: [] }),
+    });
     renderSettingsWithSummary();
-    expect(screen.getByText('当前下载源：—')).not.toBeNull();
-    expect(screen.getByText('「—」')).not.toBeNull();
+    const readout = document.querySelector('.adl-harness-version__readout');
+    expect(readout).not.toBeNull();
+    expect(readout?.textContent).toContain('0.9.0');
+    expect(readout?.textContent).toContain('系统安装（C:/Program Files/dsh/dsh.exe）');
+  });
+
+  it('运行态插槽：无可用版本时显示「未安装」', async () => {
+    const status = makeStatus();
+    useAppStore.setState({
+      sourceStatus: {
+        ...status,
+        versionSource: {
+          mode: 'host',
+          effective: 'none',
+          resolvedByMode: { auto: 'none', host: 'none', system: 'none' },
+          hostVersion: null,
+        },
+      },
+      versionStatus: makeVersionStatus({ currentSelected: null, installed: [] }),
+    });
+    renderSettingsWithSummary();
+    await waitFor(() => expect(screen.queryByText('未安装')).not.toBeNull());
+    expect(document.querySelector('.adl-harness-version__readout-loading')).toBeNull();
+  });
+
+  it('运行态插槽：快照读取失败时显示「状态读取失败」而不是无限骨架', () => {
+    useAppStore.setState({
+      sourceStatus: null,
+      versionStatus: null,
+      versionCatalog: null,
+      settingsSnapshotFailed: true,
+    });
+    renderSettings();
+    expect(screen.getByText('dshVersionStateFailed')).not.toBeNull();
+    expect(document.querySelector('.adl-harness-version__readout-loading')).toBeNull();
   });
 });
