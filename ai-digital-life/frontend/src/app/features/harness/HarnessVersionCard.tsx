@@ -276,9 +276,10 @@ export function HarnessVersionCard<TSource = unknown>({
   };
 
   const handleSourceChange = (mode: HarnessVersionSourceMode) => {
+    const deferredChange = bridge.changeSourceMode;
     const action =
-      bridge.capabilities?.sourceModeChange === 'deferred' && bridge.changeSourceMode
-        ? () => bridge.changeSourceMode!(mode)
+      bridge.capabilities?.sourceModeChange === 'deferred' && deferredChange
+        ? () => deferredChange(mode)
         : () => bridge.saveSourceMode(mode);
     void run(action, t.harnessVersionSourceSaved);
   };
