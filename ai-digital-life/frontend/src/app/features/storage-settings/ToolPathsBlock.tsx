@@ -50,7 +50,7 @@ export function ToolPathsBlock({ categories }: { categories: StorageCategoryStat
     return t.storageToolPathsUnknown;
   };
 
-  const dshStoragePath = categories.find((c) => c.key === 'dsh')?.path ?? null;
+  const dshStoragePath = categories.find((c) => c.key === 'harnesses')?.path ?? null;
 
   const rows: { name: string; display: string; goTo: 'environment' | 'dsh' }[] = [
     { name: t.environmentDepNode, display: displayFor(envStatus?.node), goTo: 'environment' },

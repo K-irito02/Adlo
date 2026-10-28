@@ -262,20 +262,14 @@ async fn install_inner(
 }
 
 /// 安装 OpenCode 指定版本：按平台包候选依次尝试，首个成功即落盘。
+///
+/// 任务生命周期归调用方（服务端 begin/finish）；本函数只推进进度并在失败时记录错误。
 pub async fn install(
     input: PlatformInstallInput<'_>,
     task: &ProgressTask,
 ) -> Result<String, AppError> {
-    task.begin_with(
-        crate::task_kind::OPENCODE_INSTALL,
-        &format!("opencode {}", input.version.trim()),
-        true,
-    );
     match install_inner(&input, task).await {
-        Ok(version) => {
-            task.finish();
-            Ok(version)
-        },
+        Ok(version) => Ok(version),
         Err(e) => {
             task.set_error(&e.to_string());
             Err(e)

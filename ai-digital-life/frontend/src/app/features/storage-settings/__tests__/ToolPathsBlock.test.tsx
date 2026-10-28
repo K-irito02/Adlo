@@ -69,7 +69,7 @@ function seedStatuses(envPatch: Record<string, unknown> = {}, source: unknown = 
   useAppStore.setState({ envStatus, sourceStatus } as never);
 }
 
-const categories = [{ key: 'dsh', path: 'C:/data/dsh' }] as never;
+const categories = [{ key: 'harnesses', path: 'C:/data/harnesses' }] as never;
 
 function renderBlock() {
   return render(
@@ -123,7 +123,7 @@ describe('ToolPathsBlock', () => {
   it('dsh row falls back to the storage category path, then unknown', () => {
     seedStatuses({}, null);
     const { unmount } = renderBlock();
-    expect(screen.getByText('C:/data/dsh')).not.toBeNull();
+    expect(screen.getByText('C:/data/harnesses')).not.toBeNull();
     unmount();
     cleanup();
     seedStatuses({}, null);

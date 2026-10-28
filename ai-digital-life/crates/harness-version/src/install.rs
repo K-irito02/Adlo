@@ -8,9 +8,21 @@ use adl_hosted::{ProgressPhase, ProgressTask};
 use tokio::io::AsyncReadExt;
 use tokio::process::{Child, Command as TokioCommand};
 
-use crate::{fetch_catalog, host_bin, installed_dir, is_host_version_installed, selected_file};
+use crate::spec::{self, HarnessSpec, InstallChannel};
+use crate::{host_bin_for, installed_dir, is_version_installed_for, selected_file};
 
+/// DSH 的 npm 安装参数（包名固定为 `@deepseek-ai/dsh`；保留给现有测试与调用方）。
 pub fn npm_install_args(tmp: &Path, version: &str, registry: &str) -> Vec<String> {
+    npm_install_args_for(spec::DSH.package, tmp, version, registry)
+}
+
+/// 任意 npm 通道 harness 的安装参数。
+pub fn npm_install_args_for(
+    package: &str,
+    tmp: &Path,
+    version: &str,
+    registry: &str,
+) -> Vec<String> {
     vec![
         "install".to_string(),
         "--prefix".to_string(),
@@ -19,11 +31,21 @@ pub fn npm_install_args(tmp: &Path, version: &str, registry: &str) -> Vec<String
         "--no-audit".to_string(),
         "--no-fund".to_string(),
         "--loglevel=error".to_string(),
-        format!("@deepseek-ai/dsh@{version}"),
+        format!("{package}@{version}"),
     ]
 }
 
+/// DSH 的 npm dry-run 参数（进度分母预测；包名固定）。
 pub fn npm_dry_run_args(tmp: &Path, version: &str, registry: &str) -> Vec<String> {
+    npm_dry_run_args_for(spec::DSH.package, tmp, version, registry)
+}
+
+pub fn npm_dry_run_args_for(
+    package: &str,
+    tmp: &Path,
+    version: &str,
+    registry: &str,
+) -> Vec<String> {
     vec![
         "install".to_string(),
         "--dry-run".to_string(),
@@ -34,7 +56,7 @@ pub fn npm_dry_run_args(tmp: &Path, version: &str, registry: &str) -> Vec<String
         format!("--registry={registry}"),
         "--no-audit".to_string(),
         "--no-fund".to_string(),
-        format!("@deepseek-ai/dsh@{version}"),
+        format!("{package}@{version}"),
     ]
 }
 
@@ -228,6 +250,7 @@ fn install_percent(done: u64, total: u64) -> Option<u8> {
 }
 
 async fn dry_run_total(
+    package: &str,
     tmp: &Path,
     version: &str,
     registry: &str,
@@ -235,7 +258,7 @@ async fn dry_run_total(
     task: &ProgressTask,
 ) -> Result<u64, AppError> {
     task.update(ProgressPhase::Preparing, None, 0, 0, true);
-    let args = npm_dry_run_args(tmp, version, registry);
+    let args = npm_dry_run_args_for(package, tmp, version, registry);
     let mut child = spawn_npm(&args, config).await?;
     // dry-run 同样可取消：180s 总超时内每 100ms 检查取消，取消即杀进程树。
     // 与 run_npm_with_progress 同构（wait 借用 + 管道任务收 stdout）。
@@ -392,25 +415,62 @@ pub async fn install(
     task: &ProgressTask,
     select: bool,
 ) -> Result<String, AppError> {
+    install_for(&spec::DSH, root, data_dir, version, task, select).await
+}
+
+/// 按描述符安装指定版本：npm 通道走 npm install，平台包通道走直下 tarball。
+///
+/// 任务生命周期归调用方（服务端 begin/finish）；本函数只推进进度与在失败时
+/// 记录错误，避免与调用方的 begin 冲突。
+pub async fn install_for(
+    spec: &HarnessSpec,
+    root: &Path,
+    data_dir: &Path,
+    version: &str,
+    task: &ProgressTask,
+    select: bool,
+) -> Result<String, AppError> {
     let version = version.trim();
-    tracing::debug!(%version, "dsh install: request (trimmed)");
-    task.update(ProgressPhase::Preparing, None, 0, 0, true);
     semver::Version::parse(version)
         .map_err(|_| AppError::InvalidInput(format!("invalid version {version}")))?;
     if task.is_cancelled() {
-        tracing::debug!(%version, "dsh install: cancelled before catalog");
         return Err(cancelled());
     }
-
-    let catalog = fetch_catalog(data_dir).await?;
-    let published = catalog.stable.iter().any(|i| i.version == version)
-        || catalog.prerelease.iter().any(|i| i.version == version);
-    if !published {
-        tracing::debug!(%version, "dsh install: rejected (not published upstream)");
+    // 精确存在性查询（catalog 限量后不能再用列表判定历史版本）。
+    if !crate::version_exists(spec, data_dir, version).await? {
         return Err(AppError::NotFound(format!("version {version} is not published upstream")));
     }
+    match spec.channel {
+        InstallChannel::Npm => install_npm(spec, root, data_dir, version, task, select).await,
+        InstallChannel::PlatformTarball => {
+            let (platform, arch) = spec::current_platform_arch();
+            let input = crate::install_opencode::PlatformInstallInput {
+                root,
+                data_dir,
+                version,
+                select,
+                platform,
+                arch,
+                avx2: spec::current_avx2(),
+                verify: true,
+            };
+            crate::install_opencode::install(input, task).await
+        },
+    }
+}
+
+async fn install_npm(
+    spec: &HarnessSpec,
+    root: &Path,
+    data_dir: &Path,
+    version: &str,
+    task: &ProgressTask,
+    select: bool,
+) -> Result<String, AppError> {
+    tracing::debug!(%version, harness = spec.id.key(), "harness install: request (trimmed)");
+    task.update(ProgressPhase::Preparing, None, 0, 0, true);
     if task.is_cancelled() {
-        tracing::debug!(%version, "dsh install: cancelled after catalog");
+        tracing::debug!(%version, "harness install: cancelled before install");
         return Err(cancelled());
     }
 
@@ -436,16 +496,16 @@ pub async fn install(
     // 分母恒用 dry-run 预测（npm `added` 理想树计数）；真实树可能更大
     //（如 bundleDependencies 随包附带，不计入预测——用户确认保留真实计数、
     // N 可大于 M，含义见界面文案）。
-    let total = dry_run_total(&tmp, version, registry, &config, task).await.unwrap_or(0);
-    tracing::debug!(%version, %registry, %total, "dsh install: dry-run done");
+    let total = dry_run_total(spec.package, &tmp, version, registry, &config, task).await.unwrap_or(0);
+    tracing::debug!(%version, %registry, %total, "harness install: dry-run done");
     if task.is_cancelled() {
         tracing::debug!(%version, "dsh install: cancelled after dry-run, tmp removed");
         let _ = tokio::fs::remove_dir_all(&tmp).await;
         return Err(cancelled());
     }
 
-    let args = npm_install_args(&tmp, version, registry);
-    tracing::info!(%version, %registry, %total, "dsh install: npm install start");
+    let args = npm_install_args_for(spec.package, &tmp, version, registry);
+    tracing::info!(%version, %registry, %total, "harness install: npm install start");
     task.update(ProgressPhase::Installing, install_percent(0, total), 0, total, true);
     if let Err(e) = run_npm_with_progress(&args, &config, &tmp, total, task, registry).await {
         tracing::debug!(%version, error = %e, "dsh install: npm failed, tmp removed");
@@ -458,12 +518,14 @@ pub async fn install(
         return Err(cancelled());
     }
 
-    let tmp_bin =
-        tmp.join("node_modules").join("@deepseek-ai").join("dsh").join("lib").join("bin.js");
+    let tmp_bin = tmp.join(spec.marker_rel);
     if !tmp_bin.is_file() {
-        tracing::debug!(%version, "dsh install: rejected (installed without bin.js)");
+        tracing::debug!(%version, marker = spec.marker_rel, "harness install: rejected (marker missing)");
         let _ = tokio::fs::remove_dir_all(&tmp).await;
-        return Err(AppError::Io(format!("installed {version} without bin.js")));
+        return Err(AppError::Io(format!(
+            "installed {version} without {}",
+            spec.marker_rel
+        )));
     }
 
     task.update(ProgressPhase::Finalizing, Some(98), total, total, false);
@@ -483,8 +545,8 @@ pub async fn install(
         return Err(e);
     }
 
-    if !is_host_version_installed(root, version) {
-        tracing::debug!(%version, "dsh install: rejected (incomplete after swap)");
+    if !is_version_installed_for(spec, root, version) {
+        tracing::debug!(%version, "harness install: rejected (incomplete after swap)");
         return Err(AppError::Io(format!("installed {version} is incomplete")));
     }
 
@@ -499,7 +561,11 @@ pub async fn install(
         tracing::debug!(%version, "dsh install: select=false, keeping previous selected");
     }
     task.update(ProgressPhase::Finalizing, Some(100), total, total, false);
-    tracing::info!(%version, bin = %host_bin(root, version).display(), "dsh install: completed");
+    tracing::info!(
+        %version,
+        bin = %host_bin_for(spec, root, version).display(),
+        "harness install: completed"
+    );
     Ok(version.to_string())
 }
 
@@ -638,6 +704,7 @@ pub async fn uninstall(root: &Path, version: &str, task: &ProgressTask) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::is_host_version_installed;
     use crate::read_selected;
 
     fn fresh_root(tag: &str) -> PathBuf {

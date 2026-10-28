@@ -245,7 +245,7 @@ export const settingsEn = {
   storageCategoryConfig: 'App configuration',
   storageCategoryClipboard: 'Clipboard assets',
   storageCategorySnapshot: 'Project snapshots',
-  storageCategoryDsh: 'DSH versions & bundles',
+  storageCategoryHarnesses: 'Harness version directories',
   storageCategoryLogs: 'Logs',
   storageCategoryCredentialsFallback: 'Backup credential files',
   storageCategoryDownloadsDefault: 'Default download folder',
@@ -275,9 +275,10 @@ export const settingsEn = {
   storageCategorySnapshotDesc:
     'File snapshots taken before patches are applied, used for rollback and diff comparison.',
   storageCategorySnapshotRelated: 'Relates to patch preview, apply, rollback, and the diff viewer.',
-  storageCategoryDshDesc: 'Downloaded versions and bundled artifacts of DeepSeek Harness.',
-  storageCategoryDshRelated:
-    'Relates to version management in the DSH settings group and running DSH.',
+  storageCategoryHarnessesDesc:
+    'Downloaded version directories for DSH and OpenCode (one subdirectory per harness).',
+  storageCategoryHarnessesRelated:
+    'Relates to version management in the DSH / OpenCode settings groups and terminal availability.',
   storageCategoryLogsDesc: 'Terminal and debug log files used for troubleshooting.',
   storageCategoryLogsRelated:
     'Relates to debugging tools (log collector, copy debug logs) and the troubleshooting workflow.',

@@ -27,6 +27,7 @@ export const SETTINGS_GROUPS: { id: SettingsGroupId; labelKey: keyof CopyDict }[
   { id: 'browser', labelKey: 'settingsBrowser' },
   { id: 'openMethod', labelKey: 'settingsOpenMethod' },
   { id: 'dsh', labelKey: 'settingsDsh' },
+  { id: 'opencode', labelKey: 'settingsOpencode' },
   { id: 'network', labelKey: 'settingsNetwork' },
   { id: 'environment', labelKey: 'settingsEnvironment' },
 ];

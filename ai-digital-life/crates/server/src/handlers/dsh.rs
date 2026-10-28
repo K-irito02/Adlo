@@ -29,7 +29,7 @@ pub fn dsh_root(state: &ServerState) -> PathBuf {
 
 /// 含数据根目录的 dsh 版本目录拼接（纯函数，便于单测）。
 fn dsh_root_dir(paths: &adl_kernel::storage::StoragePaths) -> PathBuf {
-    paths.dsh_versions_dir.clone()
+    paths.harness_versions_dir("dsh")
 }
 
 fn clear_source_cache(state: &ServerState) {
@@ -342,9 +342,10 @@ async fn detect_source(
 ) -> adl_harness_version::DshSource {
     let running = adl_harness_version::detect_running_dsh(DSH_DEFAULT_PORT).await;
     let system = adl_harness_version::detect_system_dsh().await;
-    // 版本目录取 StoragePaths 的正式口径（`dsh-versions` 可被存储设置覆盖），
-    // 不能再用 data_dir 硬拼，否则收编/安装的版本在覆盖场景下对启动不可见。
-    adl_harness_version::select_dsh_source(&paths.dsh_versions_dir, mode, running, system)
+    // 版本目录取 StoragePaths 的正式口径（`harnesses` 可被存储设置覆盖），
+    // 不能再用 data_dir 硬拼，否则安装的版本在覆盖场景下对启动不可见。
+    let root = paths.harness_versions_dir("dsh");
+    adl_harness_version::select_dsh_source(&root, mode, running, system)
 }
 
 const DSH_LOOPBACK_PATCH: &str =
@@ -353,7 +354,7 @@ const DSH_LOOPBACK_PATCH: &str =
 async fn ensure_loopback_patch(
     paths: &adl_kernel::storage::StoragePaths,
 ) -> Result<PathBuf, AppError> {
-    let dir = paths.dsh_versions_dir.clone();
+    let dir = paths.harness_versions_dir("dsh");
     tokio::fs::create_dir_all(&dir)
         .await
         .map_err(|e| AppError::Io(format!("create {}: {e}", dir.display())))?;
@@ -1247,13 +1248,16 @@ mod tests {
     }
 
     #[test]
-    fn dsh_root_returns_storage_dsh_versions_dir() {
+    fn dsh_root_returns_storage_harness_versions_dir() {
         let dir = PathBuf::from("/tmp/data");
         let storage = crate::engine::storage_from_locator(
             &adl_kernel::storage::StorageLocator::default(),
             &dir,
         );
-        assert_eq!(dsh_root_dir(storage.paths()), PathBuf::from("/tmp/data/dsh-versions"));
+        assert_eq!(
+            dsh_root_dir(storage.paths()),
+            PathBuf::from("/tmp/data/harnesses/dsh/versions")
+        );
     }
 
     /// `revert`/`uninstall` 对非法 body 返回 BAD_REQUEST（INVALID_INPUT），不触达版本逻辑。

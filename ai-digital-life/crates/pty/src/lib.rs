@@ -1,3 +1,4 @@
+pub mod managed_bins;
 pub mod rust_pty_impl;
 pub mod session_manager;
 pub mod shell_resolver;

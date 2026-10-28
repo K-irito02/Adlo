@@ -535,10 +535,9 @@ fn dir_pairs(
         StorageCategory::Config => vec![(from.config_dir.clone(), to.config_dir.clone())],
         StorageCategory::Clipboard => vec![(from.clipboard_dir.clone(), to.clipboard_dir.clone())],
         StorageCategory::Snapshot => vec![(from.snapshot_dir.clone(), to.snapshot_dir.clone())],
-        StorageCategory::Dsh => vec![
-            (from.dsh_versions_dir.clone(), to.dsh_versions_dir.clone()),
-            (from.dsh_bundle_dir.clone(), to.dsh_bundle_dir.clone()),
-        ],
+        StorageCategory::Harnesses => {
+            vec![(from.harnesses_dir.clone(), to.harnesses_dir.clone())]
+        },
         StorageCategory::Logs => vec![(from.logs_dir.clone(), to.logs_dir.clone())],
         StorageCategory::CredentialsFallback => {
             vec![(from.credentials_dir.clone(), to.credentials_dir.clone())]
@@ -1716,13 +1715,13 @@ mod tests {
         let _ = std::fs::remove_dir_all(&base);
     }
 
-    /// Dsh / Config 基目录下任何文件都归自有 → foreign 扫描不存在候选，跳过整树遍历。
+    /// Harnesses / Config 基目录下任何文件都归自有 → foreign 扫描不存在候选，跳过整树遍历。
     #[test]
     fn scan_foreign_has_no_candidates_for_fully_owned_bases() {
         let base = temp_base("scan-owned");
         let root = base.join("data");
-        write(&root.join("dsh-versions/installed/v1/node_modules/x.js"), b"x");
-        write(&root.join("dsh-bundle/version.txt"), b"x");
+        write(&root.join("harnesses/dsh/versions/installed/v1/node_modules/x.js"), b"x");
+        write(&root.join("harnesses/opencode/versions/1.0.0/bin/opencode.exe"), b"x");
         write(&root.join("config/config.json"), b"x");
         let paths = paths_for(&StorageSelection::default(), &root.to_string_lossy());
         let scans = scan_foreign(&paths);

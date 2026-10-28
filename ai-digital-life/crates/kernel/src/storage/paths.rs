@@ -27,8 +27,8 @@ pub struct StoragePaths {
     pub config_dir: PathBuf,
     pub clipboard_dir: PathBuf,
     pub snapshot_dir: PathBuf,
-    pub dsh_versions_dir: PathBuf,
-    pub dsh_bundle_dir: PathBuf,
+    /// harness 版本目录的公共父目录：`<harnesses_dir>/<harness>/versions/`。
+    pub harnesses_dir: PathBuf,
     pub logs_dir: PathBuf,
     pub credentials_dir: PathBuf,
     pub downloads_default_dir: PathBuf,
@@ -45,7 +45,7 @@ impl StoragePaths {
             StorageCategory::Config => self.config_dir.clone(),
             StorageCategory::Clipboard => self.clipboard_dir.clone(),
             StorageCategory::Snapshot => self.snapshot_dir.clone(),
-            StorageCategory::Dsh => self.dsh_versions_dir.clone(),
+            StorageCategory::Harnesses => self.harnesses_dir.clone(),
             StorageCategory::Logs => self.logs_dir.clone(),
             StorageCategory::CredentialsFallback => self.credentials_dir.clone(),
             StorageCategory::DownloadsDefault => self.downloads_default_dir.clone(),
@@ -63,8 +63,7 @@ impl StoragePaths {
 
     /// `dir()` 的逆运算：由该分类**实际路径**还原 per-category 覆盖值语义的目录，
     /// 与 `resolve` 的拼接规则互逆（DB 四类实际路径是固定文件名拼接结果 `X/data.db`
-    /// → 覆盖值 `X`；dsh 实际路径是子目录 `X/dsh-versions` → 覆盖值 `X`；其余分类
-    /// 覆盖值即其目录本身）。
+    /// → 覆盖值 `X`；其余分类覆盖值即其目录本身）。
     ///
     /// 状态回报（`category_statuses.path`）用此值，保证「状态 → 前端草稿 → patch
     /// 回传 → resolve」round-trip 恒等——未修改分类不再产生 `data.db/data.db`
@@ -75,8 +74,7 @@ impl StoragePaths {
             StorageCategory::Database
             | StorageCategory::DownloadsDb
             | StorageCategory::SiteMetaDb
-            | StorageCategory::TreeCache
-            | StorageCategory::Dsh => {
+            | StorageCategory::TreeCache => {
                 // `Path::parent()` 对无父目录的裸文件名返回 `Some("")` 而非 `None`——
                 // 空父目录同样回退实际路径，禁止返回空路径（Phase 4 R2-R9-L1）。
                 actual
@@ -89,13 +87,20 @@ impl StoragePaths {
         }
     }
 
+    /// 某个 harness 的版本目录：`<harnesses>/<key>/versions/`。
+    /// 只拼路径，不创建目录（与其它路径解析一致）。
+    pub fn harness_versions_dir(&self, harness: &str) -> PathBuf {
+        self.harnesses_dir.join(harness).join("versions")
+    }
+
     /// 由 locator 解析出全部路径。
     ///
     /// 规则：先取 unified 根（`selection.root` 或 `defaults.root`），逐字段按该根拼接；
     /// 仅当 `mode == PerCategory` 时，`categories` 中的覆盖才生效（凭据回退与默认下载
-    /// 目录的「未覆盖」值是平台默认，而非根下子路径）。`dsh` 覆盖值视为 DSH 根，
-    /// 两个子目录为 `X/dsh-versions`、`X/dsh-bundle`；四个 DB 分类的覆盖值视为**目录**，
-    /// 固定的数据库文件名（`data.db` / `downloads.db` / `site-meta-cache.db` / `tree-cache.db`）拼在其下。
+    /// 目录的「未覆盖」值是平台默认，而非根下子路径）。`harnesses` 覆盖值视为 harness
+    /// 版本目录的公共父目录（其下按工具分为 `X/<harness>/versions`）；四个 DB 分类的
+    /// 覆盖值视为**目录**，固定的数据库文件名（`data.db` / `downloads.db` /
+    /// `site-meta-cache.db` / `tree-cache.db`）拼在其下。
     pub fn from_locator(loc: &StorageLocator, defaults: &StorageDefaults) -> Self {
         Self::resolve(&loc.selection, defaults)
     }
@@ -126,12 +131,8 @@ impl StoragePaths {
                 .unwrap_or_else(|| root.join("clipboard")),
             snapshot_dir: overridden(StorageCategory::Snapshot)
                 .unwrap_or_else(|| root.join("snapshot")),
-            dsh_versions_dir: overridden(StorageCategory::Dsh)
-                .map(|x| x.join("dsh-versions"))
-                .unwrap_or_else(|| root.join("dsh-versions")),
-            dsh_bundle_dir: overridden(StorageCategory::Dsh)
-                .map(|x| x.join("dsh-bundle"))
-                .unwrap_or_else(|| root.join("dsh-bundle")),
+            harnesses_dir: overridden(StorageCategory::Harnesses)
+                .unwrap_or_else(|| root.join("harnesses")),
             logs_dir: overridden(StorageCategory::Logs).unwrap_or_else(|| root.join("logs")),
             credentials_dir: overridden(StorageCategory::CredentialsFallback)
                 .unwrap_or_else(|| defaults.credentials_dir.clone()),
@@ -222,8 +223,7 @@ mod tests {
         assert_eq!(p.config_dir, PathBuf::from("/default/root/config"));
         assert_eq!(p.clipboard_dir, PathBuf::from("/default/root/clipboard"));
         assert_eq!(p.snapshot_dir, PathBuf::from("/default/root/snapshot"));
-        assert_eq!(p.dsh_versions_dir, PathBuf::from("/default/root/dsh-versions"));
-        assert_eq!(p.dsh_bundle_dir, PathBuf::from("/default/root/dsh-bundle"));
+        assert_eq!(p.harnesses_dir, PathBuf::from("/default/root/harnesses"));
         assert_eq!(p.logs_dir, PathBuf::from("/default/root/logs"));
         assert_eq!(p.credentials_dir, PathBuf::from("/default/creds"));
         assert_eq!(p.downloads_default_dir, PathBuf::from("/default/downloads"));
@@ -252,13 +252,12 @@ mod tests {
             .categories
             .insert(StorageCategory::CredentialsFallback, PathBuf::from("E:/creds"));
         loc.selection.categories.insert(StorageCategory::DownloadsDefault, PathBuf::from("E:/dl"));
-        loc.selection.categories.insert(StorageCategory::Dsh, PathBuf::from("E:/dsh"));
+        loc.selection.categories.insert(StorageCategory::Harnesses, PathBuf::from("E:/harnesses"));
         let p = StoragePaths::from_locator(&loc, &defaults());
         assert_eq!(p.clipboard_dir, PathBuf::from("E:/clip"));
         assert_eq!(p.credentials_dir, PathBuf::from("E:/creds"));
         assert_eq!(p.downloads_default_dir, PathBuf::from("E:/dl"));
-        assert_eq!(p.dsh_versions_dir, PathBuf::from("E:/dsh/dsh-versions"));
-        assert_eq!(p.dsh_bundle_dir, PathBuf::from("E:/dsh/dsh-bundle"));
+        assert_eq!(p.harnesses_dir, PathBuf::from("E:/harnesses"));
         // 未覆盖的类仍用 unified 根。
         assert_eq!(p.data_db, PathBuf::from("D:/adl/data.db"));
     }
@@ -309,7 +308,7 @@ mod tests {
         loc.selection.categories.insert(StorageCategory::DownloadsDb, PathBuf::from("/xdl"));
         loc.selection.categories.insert(StorageCategory::SiteMetaDb, PathBuf::from("/xmeta"));
         loc.selection.categories.insert(StorageCategory::TreeCache, PathBuf::from("/xtree"));
-        loc.selection.categories.insert(StorageCategory::Dsh, PathBuf::from("E:/dsh"));
+        loc.selection.categories.insert(StorageCategory::Harnesses, PathBuf::from("E:/harnesses"));
         loc.selection.categories.insert(StorageCategory::Clipboard, PathBuf::from("E:/clip"));
         loc.selection.categories.insert(StorageCategory::DownloadsDefault, PathBuf::from("E:/dl"));
         let first = StoragePaths::from_locator(&loc, &defaults());
@@ -329,7 +328,7 @@ mod tests {
         }
         // 关键防回归：DB 类不得出现双重嵌套（data.db/data.db）。
         assert!(!second.data_db.to_string_lossy().contains("data.db/data.db"));
-        assert_eq!(second.dsh_versions_dir, PathBuf::from("E:/dsh/dsh-versions"));
+        assert_eq!(second.harnesses_dir, PathBuf::from("E:/harnesses"));
     }
 
     #[test]
@@ -410,8 +409,7 @@ mod tests {
             config_dir: PathBuf::from("rel/config"),
             clipboard_dir: PathBuf::from("rel/clipboard"),
             snapshot_dir: PathBuf::from("rel/snapshot"),
-            dsh_versions_dir: PathBuf::from("rel/dsh-versions"),
-            dsh_bundle_dir: PathBuf::from("rel/dsh-bundle"),
+            harnesses_dir: PathBuf::from("rel/harnesses"),
             logs_dir: PathBuf::from("rel/logs"),
             credentials_dir: PathBuf::from("rel/creds"),
             downloads_default_dir: PathBuf::from("rel/dl"),

@@ -195,8 +195,7 @@ pub async fn init_server_state(
     let dsh_catalog_cache = Arc::new(RwLock::new(None));
 
     let state = ServerState {
-        data_dir: data_dir.to_path_buf(),
-        storage: storage.clone(),
+        data_dir: data_dir.to_path_buf(),        storage: storage.clone(),
         db,
         config: Arc::new(RwLock::new(config)),
         event_bus,
@@ -215,6 +214,8 @@ pub async fn init_server_state(
         dsh_start_lock,
         dsh_version_lock,
         dsh_version_task,
+        opencode_version_task: adl_hosted::ProgressTask::new(),
+        opencode_version_lock: adl_hosted::InstallLock::new(),
         env_install_lock,
         env_config_lock,
         env_task,
@@ -224,13 +225,15 @@ pub async fn init_server_state(
         dsh_catalog_cache,
         workspace_watcher: Arc::new(StdMutex::new(None)),
     };
+    // 启动时按当前来源刷新终端 PATH 注入（只影响之后新建的会话）。
+    crate::handlers::harness::refresh_managed_bins(&state);
     // 启动时只报告崩溃可能留下的 `*.old-<nonce>` 完整旧副本（env 版本目录，
     // dsh 的 `installed/<v>/node_modules/@deepseek-ai` 下一层），不删除：
     // 备份重命名后、新版本落位前崩溃时，它可能是唯一存活副本。
     let root = state.storage.paths().root.clone();
     adl_hosted::warn_stale_backups(&root.join("env-hosted/node/installed"));
     adl_hosted::warn_stale_backups(&root.join("env-hosted/git/installed"));
-    let dsh_installed = state.storage.paths().dsh_versions_dir.join("installed");
+    let dsh_installed = state.storage.paths().harness_versions_dir("dsh").join("installed");
     adl_hosted::warn_stale_backups(&dsh_installed);
     if let Ok(entries) = std::fs::read_dir(&dsh_installed) {
         for entry in entries.flatten() {

@@ -23,6 +23,16 @@ use crate::traits::{PtySession, PtyStatus, PtySystem};
 fn terminal_env(program: &str) -> HashMap<OsString, OsString> {
     let mut env = HashMap::new();
     env.insert(OsString::from("LANG"), OsString::from("en_US.UTF-8"));
+    // 宿主托管 CLI 的 bin 目录前置到 PATH（只影响本会话，见 ADR-0005）。
+    // 沿用继承环境的键名大小写，避免 Windows 下 Path/PATH 重复。
+    let inherited = std::env::vars_os().find(|(k, _)| k.eq_ignore_ascii_case("PATH"));
+    let (path_key, path_value) = match inherited {
+        Some((k, v)) => (k, Some(v)),
+        None => (OsString::from("PATH"), None),
+    };
+    if let Some(path) = crate::managed_bins::terminal_path(path_value.as_ref()) {
+        env.insert(path_key, path);
+    }
     let injected = crate::shell_resolver::shell_integration_env(program);
     if !injected.is_empty() {
         tracing::debug!(

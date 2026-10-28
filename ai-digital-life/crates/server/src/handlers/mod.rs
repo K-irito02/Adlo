@@ -5,6 +5,7 @@ pub mod dsh;
 pub mod durable;
 pub mod env;
 pub mod health;
+pub mod harness;
 pub mod patch;
 pub mod reference;
 pub mod retrieval;

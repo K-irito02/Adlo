@@ -31,7 +31,7 @@ describe('storage category keys parity', () => {
       'config',
       'clipboard',
       'snapshot',
-      'dsh',
+      'harnesses',
       'logs',
       'credentials_fallback',
       'downloads_default',

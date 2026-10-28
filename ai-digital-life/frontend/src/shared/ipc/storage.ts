@@ -224,7 +224,7 @@ export const STORAGE_CATEGORY_KEYS = [
   'config',
   'clipboard',
   'snapshot',
-  'dsh',
+  'harnesses',
   'logs',
   'credentials_fallback',
   'downloads_default',

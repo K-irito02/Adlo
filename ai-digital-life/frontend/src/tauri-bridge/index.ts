@@ -14,6 +14,7 @@ import { createPtyWsClient } from '../shared/ipc/pty-ws';
 import { createTauriAppBridge } from './tauri-app';
 import { createTauriBrowserBridge } from './tauri-browser';
 import { createTauriDshBridge } from './tauri-dsh';
+import { createTauriOpencodeBridge } from './tauri-opencode';
 import { createTauriEnvBridge } from './tauri-env';
 import { createTauriReservedBridge } from './tauri-reserved';
 import { createTauriWindowBridge } from './tauri-window';
@@ -74,6 +75,7 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
     // dsh 无专属视图：进程拉起/终止走 ad-server HTTP `/dsh/*`，承载页是普通浏览器
     // 中心标签，其 WebView 归浏览器池所有（见 tauri-dsh.ts）。
     dsh: createTauriDshBridge(http.dsh),
+    opencode: createTauriOpencodeBridge(http.opencode),
 
     // env 无专属视图：检测/安装走 ad-server HTTP `/env/*`，经 httpBridge 透传
     //（见 tauri-env.ts，与 dsh 域同模式）。

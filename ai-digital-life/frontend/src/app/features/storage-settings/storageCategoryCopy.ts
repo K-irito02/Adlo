@@ -62,10 +62,10 @@ export const CATEGORY_COPY: Record<(typeof STORAGE_CATEGORY_KEYS)[number], Categ
     desc: 'storageCategorySnapshotDesc',
     related: 'storageCategorySnapshotRelated',
   },
-  dsh: {
-    name: 'storageCategoryDsh',
-    desc: 'storageCategoryDshDesc',
-    related: 'storageCategoryDshRelated',
+  harnesses: {
+    name: 'storageCategoryHarnesses',
+    desc: 'storageCategoryHarnessesDesc',
+    related: 'storageCategoryHarnessesRelated',
   },
   logs: {
     name: 'storageCategoryLogs',

@@ -22,6 +22,8 @@ pub struct DownloadSourceConfig {
     pub source_mode: SourceMode,
     /// 版本来源偏好：auto=自动检测，system=只用系统安装，host=只用宿主安装。
     pub version_source: VersionSourceMode,
+    /// OpenCode 的版本来源偏好（DSH 仍用 `version_source`；两者互不影响）。
+    pub opencode_version_source: VersionSourceMode,
 }
 
 impl Default for DownloadSourceConfig {
@@ -34,6 +36,7 @@ impl Default for DownloadSourceConfig {
             prefer_offline: DEFAULT_PREFER_OFFLINE,
             source_mode: SourceMode::Auto,
             version_source: VersionSourceMode::Auto,
+            opencode_version_source: VersionSourceMode::Auto,
         }
     }
 }

@@ -302,6 +302,74 @@ pub async fn fetch_catalog_for(
     Ok(parse_catalog(&json, &spec.catalog))
 }
 
+/// 精确查询某个版本是否已发布（catalog 限量后，历史版本仍可手动指定安装）。
+pub async fn version_exists(
+    spec: &spec::HarnessSpec,
+    data_dir: &Path,
+    version: &str,
+) -> Result<bool, AppError> {
+    let version = version.trim();
+    semver::Version::parse(version)
+        .map_err(|_| AppError::InvalidInput(format!("invalid version {version}")))?;
+    let base = registry_base(data_dir)?;
+    let config = adl_download_source::load(data_dir)?;
+    let client = adl_download_source::build_http_client(&config)?;
+    let url = format!("{base}/{}/{version}", spec.package);
+    let resp = client
+        .get(url)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .map_err(|e| AppError::Network(format!("query version failed: {e}")))?;
+    let status = resp.status();
+    if status.is_success() {
+        Ok(true)
+    } else if status == reqwest::StatusCode::NOT_FOUND {
+        Ok(false)
+    } else {
+        Err(AppError::Network(format!("query version failed: HTTP {status}")))
+    }
+}
+
+/// 系统安装的 harness（不在应用数据目录内的那份）。
+#[derive(Debug, Clone)]
+pub struct SystemHarnessInfo {
+    pub path: PathBuf,
+    pub version: Option<String>,
+}
+
+/// 探测 PATH 上的系统安装：`where <bin>` → `<bin> --version` → 取最后一个可解析 semver 的 token。
+/// 任一步失败都返回 `None`（不抛错）；版本无法解析时保留 path、version=None。
+pub fn detect_system_bin(spec: &spec::HarnessSpec) -> Option<SystemHarnessInfo> {
+    let output = std::process::Command::new("where").arg(spec.system_bin).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let path = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .next()?
+        .trim()
+        .to_string();
+    if path.is_empty() {
+        return None;
+    }
+    let version = std::process::Command::new(&path)
+        .arg("--version")
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| parse_version_token(&String::from_utf8_lossy(&o.stdout)));
+    Some(SystemHarnessInfo { path: PathBuf::from(path), version })
+}
+
+fn parse_version_token(output: &str) -> Option<String> {
+    output
+        .split_whitespace()
+        .rev()
+        .find_map(|t| semver::Version::parse(t.trim_start_matches('v')).ok())
+        .map(|v| v.to_string())
+}
+
 /// semver 全量比较（含 pre 段）：`latest` 是否严格新于 `current`。
 /// `current` 缺失（从未选中）且 `latest` 存在 → 视为有更新（与 `has_update` 旧语义对齐）。
 fn semver_is_newer(current: Option<&str>, latest: Option<&str>) -> bool {
@@ -341,10 +409,19 @@ fn resolve_stable_latest(
 /// 预发布通道置“未知”（`prerelease_available=None + prerelease_unknown=true`，
 /// 调用方不得展示“暂无”）。两路皆失败时返回 `Err(Network)`（保留旧离线契约）。
 pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionStatus, AppError> {
+    get_version_status_for(&spec::DSH, root, data_dir).await
+}
+
+/// 同 [`get_version_status`]，按任意 harness 描述符查询。
+pub async fn get_version_status_for(
+    spec: &spec::HarnessSpec,
+    root: &Path,
+    data_dir: &Path,
+) -> Result<VersionStatus, AppError> {
     let current_selected = read_selected(root)?;
     let installed = list_installed(root)?;
-    let dist_latest = latest_available(data_dir).await.ok().flatten();
-    match fetch_catalog(data_dir).await {
+    let dist_latest = latest_available_for(spec, data_dir).await.ok().flatten();
+    match fetch_catalog_for(spec, data_dir).await {
         Ok(catalog) => {
             let latest = resolve_stable_latest(&catalog, dist_latest.as_deref());
             let has_update = semver_is_newer(current_selected.as_deref(), latest.as_deref());
@@ -404,17 +481,27 @@ pub async fn update_with_task(
     data_dir: &Path,
     task: &ProgressTask,
 ) -> Result<String, AppError> {
-    let target = match fetch_catalog(data_dir).await {
+    update_for(&spec::DSH, root, data_dir, task).await
+}
+
+/// 任意 harness 升级到最新可用版本（稳定桶为空时回退 `latest` 标签）。
+pub async fn update_for(
+    spec: &spec::HarnessSpec,
+    root: &Path,
+    data_dir: &Path,
+    task: &ProgressTask,
+) -> Result<String, AppError> {
+    let target = match fetch_catalog_for(spec, data_dir).await {
         Ok(catalog) => resolve_stable_latest(&catalog, None),
         Err(e) => {
-            tracing::debug!(error = %e, "harness-version: update falls back to dist-tag latest");
-            latest_available(data_dir).await.ok().flatten()
+            tracing::debug!(error = %e, harness = spec.id.key(), "harness-version: update falls back to dist-tag latest");
+            latest_available_for(spec, data_dir).await.ok().flatten()
         },
     }
-    .ok_or_else(|| AppError::NotFound("no stable release published upstream".into()))?;
-    tracing::debug!(%target, "harness-version: update to latest stable");
+    .ok_or_else(|| AppError::NotFound("no release published upstream".into()))?;
+    tracing::debug!(%target, harness = spec.id.key(), "harness-version: update to latest");
     task.set_version(&target);
-    install::install(root, data_dir, &target, task, true).await
+    install::install_for(spec, root, data_dir, &target, task, true).await
 }
 
 /// 安装指定版本（正式版或预发布均可）：校验版本号与官方发布状态，
@@ -434,16 +521,40 @@ pub async fn install_version_with_task(
     task: &ProgressTask,
     select: bool,
 ) -> Result<String, AppError> {
-    tracing::debug!(%version, select, "harness-version::install_version: delegating to kernel");
-    install::install(root, data_dir, version, task, select).await
+    install_version_with_task_for(&spec::DSH, root, data_dir, version, task, select).await
+}
+
+pub async fn install_version_with_task_for(
+    spec: &spec::HarnessSpec,
+    root: &Path,
+    data_dir: &Path,
+    version: &str,
+    task: &ProgressTask,
+    select: bool,
+) -> Result<String, AppError> {
+    tracing::debug!(
+        %version,
+        select,
+        harness = spec.id.key(),
+        "harness-version::install_version: delegating to kernel"
+    );
+    install::install_for(spec, root, data_dir, version, task, select).await
 }
 
 /// 回退/切换：校验版本号并确认已完整安装后，把该版本写入 selected。
 pub async fn revert(root: &Path, version: &str) -> Result<String, AppError> {
-    tracing::debug!(%version, "harness-version::revert: request");
+    revert_for(&spec::DSH, root, version).await
+}
+
+pub async fn revert_for(
+    spec: &spec::HarnessSpec,
+    root: &Path,
+    version: &str,
+) -> Result<String, AppError> {
+    tracing::debug!(%version, harness = spec.id.key(), "harness-version::revert: request");
     semver::Version::parse(version)
         .map_err(|_| AppError::InvalidInput(format!("invalid version {version}")))?;
-    if !is_host_version_installed(root, version) {
+    if !is_version_installed_for(spec, root, version) {
         tracing::debug!(%version, "harness-version::revert: rejected (not installed)");
         return Err(AppError::NotFound(format!("version {version} not installed")));
     }
@@ -478,10 +589,19 @@ pub async fn reinstall_with_task(
     data_dir: &Path,
     task: &ProgressTask,
 ) -> Result<String, AppError> {
+    reinstall_for(&spec::DSH, root, data_dir, task).await
+}
+
+pub async fn reinstall_for(
+    spec: &spec::HarnessSpec,
+    root: &Path,
+    data_dir: &Path,
+    task: &ProgressTask,
+) -> Result<String, AppError> {
     let selected =
         read_selected(root)?.ok_or_else(|| AppError::NotFound("no selected version".into()))?;
-    tracing::debug!(version = %selected, "harness-version::reinstall: reinstalling selected");
-    install::install(root, data_dir, &selected, task, true).await
+    tracing::debug!(version = %selected, harness = spec.id.key(), "harness-version::reinstall: reinstalling selected");
+    install::install_for(spec, root, data_dir, &selected, task, true).await
 }
 
 // ---------------------------------------------------------------------------

@@ -78,6 +78,10 @@ pub struct ServerState {
     /// 当前版本任务进度（安装/卸载/重装的真实进度与取消标志）。
     /// 实现收敛至 hosted（字段名不变，只换类型；结构体内部持 Arc，可直接存 state）。
     pub dsh_version_task: adl_hosted::ProgressTask,
+    /// OpenCode 版本任务（安装/卸载/重装/升级；与 DSH 独立，可并行）。
+    pub opencode_version_task: adl_hosted::ProgressTask,
+    /// 串行化 OpenCode 版本目录变更。
+    pub opencode_version_lock: Arc<AsyncMutex<()>>,
     /// 串行化 env 依赖安装（node/git MinGit），避免并发写入同一宿主目录。
     /// 与 `dsh_version_lock` 同模式：`InstallLock::new()` 一次构造出共享 Arc。
     pub env_install_lock: Arc<AsyncMutex<()>>,

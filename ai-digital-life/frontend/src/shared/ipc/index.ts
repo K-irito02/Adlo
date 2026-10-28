@@ -23,6 +23,7 @@ export { toUserMessage } from '@ai-digital-life/kernel';
 export * from './app';
 export * from './clipboard';
 export * from './dsh';
+export * from './opencode';
 export * from './system_monitor';
 export * from './workspace';
 export * from './patch';

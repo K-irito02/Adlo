@@ -113,11 +113,29 @@ pub fn opencode_platform_packages(platform: &str, arch: &str, avx2: bool) -> Vec
     }
 }
 
-/// 当前机器的 OpenCode 平台包候选（Rust 侧运行时检测 AVX2，等价于上游的
-/// `IsProcessorFeaturePresent(40)`，不必再拉 PowerShell）。
+/// 当前机器对应的 npm 平台/架构标识（npm 用 `darwin`/`x64`/`arm64`）。
+pub fn current_platform_arch() -> (&'static str, &'static str) {
+    let platform = match std::env::consts::OS {
+        "macos" => "darwin",
+        other => other,
+    };
+    let arch = match std::env::consts::ARCH {
+        "x86_64" => "x64",
+        "aarch64" => "arm64",
+        other => other,
+    };
+    (platform, arch)
+}
+
+/// 当前 CPU 是否支持 AVX2（等价于上游 `IsProcessorFeaturePresent(40)`）。
+pub fn current_avx2() -> bool {
+    cfg!(target_arch = "x86_64") && std::is_x86_feature_detected!("avx2")
+}
+
+/// 当前机器的 OpenCode 平台包候选（`current_platform_arch` + `current_avx2`）。
 pub fn opencode_platform_packages_for_current() -> Vec<String> {
-    let avx2 = cfg!(target_arch = "x86_64") && std::is_x86_feature_detected!("avx2");
-    opencode_platform_packages(std::env::consts::OS, std::env::consts::ARCH, avx2)
+    let (platform, arch) = current_platform_arch();
+    opencode_platform_packages(platform, arch, current_avx2())
 }
 
 #[cfg(test)]

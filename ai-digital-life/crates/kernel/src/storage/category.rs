@@ -13,7 +13,7 @@ pub enum StorageCategory {
     Config,
     Clipboard,
     Snapshot,
-    Dsh,
+    Harnesses,
     Logs,
     CredentialsFallback,
     DownloadsDefault,
@@ -29,7 +29,7 @@ impl StorageCategory {
         StorageCategory::Config,
         StorageCategory::Clipboard,
         StorageCategory::Snapshot,
-        StorageCategory::Dsh,
+        StorageCategory::Harnesses,
         StorageCategory::Logs,
         StorageCategory::CredentialsFallback,
         StorageCategory::DownloadsDefault,
@@ -45,7 +45,7 @@ impl StorageCategory {
             StorageCategory::Config => "config",
             StorageCategory::Clipboard => "clipboard",
             StorageCategory::Snapshot => "snapshot",
-            StorageCategory::Dsh => "dsh",
+            StorageCategory::Harnesses => "harnesses",
             StorageCategory::Logs => "logs",
             StorageCategory::CredentialsFallback => "credentials_fallback",
             StorageCategory::DownloadsDefault => "downloads_default",
@@ -74,11 +74,14 @@ mod tests {
     #[test]
     fn category_round_trips_and_works_as_map_key() {
         let mut map = std::collections::BTreeMap::new();
-        map.insert(StorageCategory::Dsh, "/tmp/dsh".to_string());
+        map.insert(StorageCategory::Harnesses, "/tmp/harnesses".to_string());
         let json = serde_json::to_string(&map).unwrap();
-        assert_eq!(json, "{\"dsh\":\"/tmp/dsh\"}");
+        assert_eq!(json, "{\"harnesses\":\"/tmp/harnesses\"}");
         let back: std::collections::BTreeMap<StorageCategory, String> =
             serde_json::from_str(&json).unwrap();
-        assert_eq!(back.get(&StorageCategory::Dsh).map(String::as_str), Some("/tmp/dsh"));
+        assert_eq!(
+            back.get(&StorageCategory::Harnesses).map(String::as_str),
+            Some("/tmp/harnesses")
+        );
     }
 }

@@ -441,6 +441,7 @@ export type SettingsGroupId =
   | 'terminal'
   | 'browser'
   | 'dsh'
+  | 'opencode'
   | 'network'
   | 'environment'
   | 'storage'

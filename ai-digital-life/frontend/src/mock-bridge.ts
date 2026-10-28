@@ -31,6 +31,7 @@ import { mockSnapshot } from './mock/mock-snapshot';
 import { mockReference } from './mock/mock-reference';
 import { mockDurable } from './mock/mock-durable';
 import { mockDsh } from './mock/mock-dsh';
+import { mockOpencode } from './mock/mock-opencode';
 import { createMockEnv } from './mock/mock-env';
 import { mockReserved } from './mock/mock-reserved';
 import { mockClipboard } from './mock/mock-clipboard';
@@ -120,6 +121,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   workspace: mockWorkspace,
   retrieval: mockRetrieval,
   dsh: mockDsh,
+  opencode: mockOpencode,
   env: createMockEnv(),
   patch: mockPatch,
   pty: mockPty,

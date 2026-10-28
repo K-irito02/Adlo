@@ -50,8 +50,8 @@ pub fn owns_file(category: StorageCategory, base: &Path, path: &Path) -> bool {
         },
         // `<base>/<hash>/...`：文件必须在 hash 子目录之下。
         StorageCategory::Snapshot => rel.len() >= 2,
-        // base 本身即 dsh-versions 或 dsh-bundle 目录。
-        StorageCategory::Dsh => !rel.is_empty(),
+        // base 本身即 harness 版本目录的公共父目录（其下按工具分 `dsh/`、`opencode/`）。
+        StorageCategory::Harnesses => !rel.is_empty(),
         StorageCategory::Logs => {
             name.starts_with("terminal-logs") || name.starts_with("debug-logs")
         },
@@ -72,7 +72,7 @@ pub fn owns_file(category: StorageCategory, base: &Path, path: &Path) -> bool {
 /// （`dsh-versions` 六万级文件，遍历纯属浪费）。若将来收紧对应 `owns_file` 分支，
 /// 必须同步撤销这里的 true，否则外部文件提示会静默漏报。
 pub fn owns_entire_tree(category: StorageCategory) -> bool {
-    matches!(category, StorageCategory::Config | StorageCategory::Dsh)
+    matches!(category, StorageCategory::Config | StorageCategory::Harnesses)
 }
 
 /// 判断 `dir` 是否是该分类允许的**自有目录**（用于清理时能否 `remove_dir`）。
@@ -87,7 +87,7 @@ pub fn is_own_dir(category: StorageCategory, base: &Path, dir: &Path) -> bool {
             matches!(rel.first().map(String::as_str), Some("images") | Some("thumbs"))
         },
         StorageCategory::Snapshot => !rel.is_empty(),
-        StorageCategory::Dsh => !rel.is_empty(),
+        StorageCategory::Harnesses => !rel.is_empty(),
         StorageCategory::Logs => rel.is_empty(),
         // 主库/下载库/站点元库/树缓存库直接位于共享根，凭据目录由 OS 配置目录承载，均不视为可删自有目录。
         StorageCategory::Database
@@ -114,7 +114,7 @@ pub fn category_roots(category: StorageCategory, paths: &StoragePaths) -> Vec<Pa
         StorageCategory::Config => vec![paths.config_dir.clone()],
         StorageCategory::Clipboard => vec![paths.clipboard_dir.clone()],
         StorageCategory::Snapshot => vec![paths.snapshot_dir.clone()],
-        StorageCategory::Dsh => vec![paths.dsh_versions_dir.clone(), paths.dsh_bundle_dir.clone()],
+        StorageCategory::Harnesses => vec![paths.harnesses_dir.clone()],
         StorageCategory::Logs => vec![paths.logs_dir.clone()],
         StorageCategory::CredentialsFallback => vec![paths.credentials_dir.clone()],
         StorageCategory::DownloadsDefault => Vec::new(),
@@ -217,22 +217,22 @@ mod tests {
     }
 
     #[test]
-    fn dsh_owns_everything_under_its_two_bases() {
+    fn harnesses_own_everything_under_the_shared_root() {
         let p = default_paths();
         assert!(owns_file(
-            StorageCategory::Dsh,
-            &p.dsh_versions_dir,
-            &p.dsh_versions_dir.join("v1/x.bin")
+            StorageCategory::Harnesses,
+            &p.harnesses_dir,
+            &p.harnesses_dir.join("dsh/versions/v1/x.bin")
         ));
         assert!(owns_file(
-            StorageCategory::Dsh,
-            &p.dsh_bundle_dir,
-            &p.dsh_bundle_dir.join("version.txt")
+            StorageCategory::Harnesses,
+            &p.harnesses_dir,
+            &p.harnesses_dir.join("opencode/versions/1.0.0/bin/opencode.exe")
         ));
         assert!(is_own_dir(
-            StorageCategory::Dsh,
-            &p.dsh_versions_dir,
-            Path::new("/d/dsh-versions/v1")
+            StorageCategory::Harnesses,
+            &p.harnesses_dir,
+            Path::new("/d/harnesses/dsh")
         ));
     }
 
@@ -296,11 +296,11 @@ mod tests {
     #[test]
     fn owns_entire_tree_covers_exactly_the_always_owned_categories() {
         // 与 `owns_file` 的 `!rel.is_empty()` 分支同步：这两类基目录下任意深度的文件都归自有。
-        for category in [StorageCategory::Config, StorageCategory::Dsh] {
+        for category in [StorageCategory::Config, StorageCategory::Harnesses] {
             assert!(owns_entire_tree(category), "{category:?} must own its whole tree");
         }
         for category in StorageCategory::ALL {
-            if matches!(category, StorageCategory::Config | StorageCategory::Dsh) {
+            if matches!(category, StorageCategory::Config | StorageCategory::Harnesses) {
                 continue;
             }
             assert!(
@@ -352,8 +352,8 @@ mod tests {
         assert_eq!(category_roots(StorageCategory::Clipboard, &p), vec![p.clipboard_dir.clone()]);
         assert_eq!(category_roots(StorageCategory::Snapshot, &p), vec![p.snapshot_dir.clone()]);
         assert_eq!(
-            category_roots(StorageCategory::Dsh, &p),
-            vec![p.dsh_versions_dir.clone(), p.dsh_bundle_dir.clone()]
+            category_roots(StorageCategory::Harnesses, &p),
+            vec![p.harnesses_dir.clone()]
         );
         assert_eq!(category_roots(StorageCategory::Logs, &p), vec![p.logs_dir.clone()]);
         assert_eq!(

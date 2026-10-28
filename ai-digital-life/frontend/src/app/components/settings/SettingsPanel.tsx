@@ -43,6 +43,7 @@ import { KeybindSettings } from './KeybindSettings';
 import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSettings';
 import { BrowserSettings } from '../../features/browser-settings/BrowserSettings';
 import { DshSettings } from '../../features/dsh/DshSettings';
+import { OpencodeSettings } from '../../features/opencode/OpencodeSettings';
 import { NetworkSettings } from '../../features/network/NetworkSettings';
 import { EnvironmentSettings } from '../../features/environment/EnvironmentSettings';
 import { StorageSettings } from '../../features/storage-settings/StorageSettings';
@@ -87,6 +88,7 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   workspace: WorkspaceSettings,
   browser: BrowserSettings,
   dsh: DshSettings,
+  opencode: OpencodeSettings,
   network: NetworkSettings,
   environment: EnvironmentSettings,
   storage: StorageSettings,
@@ -241,11 +243,13 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     envStatus,
   ]);
 
-  // 除环境组外全默认 → 顶部「恢复全部默认」禁用（口径与侧边栏行 disabled 同源）。
-  // 环境组不进 ResetAll 自动序列，故不参与顶部判定（其状态未知时的单独禁用也不会误伤）。
+  // 除环境组与 OpenCode 组外全默认 → 顶部「恢复全部默认」禁用（口径与侧边栏行 disabled 同源）。
+  // 环境组不进 ResetAll 自动序列；OpenCode 组无侧边栏重置按钮（组内自带「恢复默认」），
+  // 两者都不参与顶部判定。
   const allGroupsAtDefault =
-    SETTINGS_GROUPS.filter((g) => g.id !== 'environment' && !disabledResetGroups.has(g.id))
-      .length === 0;
+    SETTINGS_GROUPS.filter(
+      (g) => g.id !== 'environment' && g.id !== 'opencode' && !disabledResetGroups.has(g.id),
+    ).length === 0;
 
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
   const changeDownloadPath = useAppStore((s) => s.changeDownloadPath);

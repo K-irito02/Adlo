@@ -91,6 +91,7 @@ import type {
   DshSettingsSnapshot,
   DshVersionTaskResult,
 } from './shared/ipc/dsh';
+import type { OpencodeSourceStatus } from './shared/ipc/opencode';
 import type { DurableSessionState } from './shared/ipc/durable';
 import type { EnvBridge, EnvSourceMode, EnvStatus } from './shared/ipc/env';
 import type { ClipboardBridge, ClipboardSaveToFileResult } from './shared/ipc/clipboard';
@@ -1121,6 +1122,27 @@ export function createHttpBridge({
       saveSourceConfig: (config: DshSourceConfig) =>
         call<boolean>(baseUrl, '/dsh/source-config', POST(config)),
       testSource: (url: string) => call<DshTestResult>(baseUrl, '/dsh/test-source', POST({ url })),
+    },
+
+    // ── OpenCode CLI harness domain (/opencode/*, crates/server handlers/harness.rs).
+    opencode: {
+      getVersionTask: () => call<DshVersionTaskResult>(baseUrl, '/opencode/version-task', POST({})),
+      cancelVersionTask: () => call<boolean>(baseUrl, '/opencode/cancel-version-task', POST({})),
+      getVersionStatus: () =>
+        call<DshVersionStatus>(baseUrl, '/opencode/get-version-status', POST({})),
+      getVersionCatalog: () =>
+        call<DshVersionCatalog>(baseUrl, '/opencode/version-catalog', POST({})),
+      installVersion: (version: string, select?: boolean) =>
+        call<string>(baseUrl, '/opencode/install-version', POST({ version, select })),
+      update: () => call<string>(baseUrl, '/opencode/update', POST({})),
+      revert: (version: string) => call<string>(baseUrl, '/opencode/revert', POST({ version })),
+      uninstall: (version: string) =>
+        call<boolean>(baseUrl, '/opencode/uninstall', POST({ version })),
+      reinstall: () => call<string>(baseUrl, '/opencode/reinstall', POST({})),
+      getSourceStatus: () =>
+        call<OpencodeSourceStatus>(baseUrl, '/opencode/source-status', POST({})),
+      saveVersionSource: (mode) =>
+        call<boolean>(baseUrl, '/opencode/version-source', POST({ mode })),
     },
 
     // ── env 环境依赖 domain (`GET /env/status` + `POST /env/*`,
