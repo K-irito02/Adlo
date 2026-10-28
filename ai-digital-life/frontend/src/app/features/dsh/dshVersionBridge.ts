@@ -106,6 +106,7 @@ export function createDshVersionBridge(
       sourceExtra: source,
       // 首屏快照完整失败（三腿皆无数据）才进错误态；按腿降级沿用旧值。
       failed: st.settingsSnapshotFailed && st.versionStatus === null && source === null,
+      catalogFailed: st.versionCatalogFailed === true,
     };
   };
 
@@ -183,6 +184,29 @@ export function createDshVersionBridge(
         return failed();
       }
       return { ok: true };
+    } catch {
+      return thrown(t.dshReinstallFailed);
+    } finally {
+      settle();
+    }
+  };
+
+  /**
+   * 行内「重装」非当前版本：只修目录、不改选中（`select=false`），也不重启。
+   * 与迁移前 `handleInstallVersion(v, section, false)` 的成功文案一致。
+   */
+  const reinstallVersion = async (version: string): Promise<HarnessVersionResult> => {
+    if (!bridge) {
+      return OFFLINE;
+    }
+    lastTarget = version;
+    state().setDshOpBusy(true);
+    try {
+      const ok = await actions.installDshVersion(version, false);
+      if (!ok) {
+        return failed();
+      }
+      return { ok: true, message: t.dshReinstalledOnly.replace('{version}', version) };
     } catch {
       return thrown(t.dshReinstallFailed);
     } finally {
@@ -304,6 +328,7 @@ export function createDshVersionBridge(
       taskCounts: true,
       missingBanner: true,
       resetSourceAction: false,
+      channelPicker: true,
     },
     load: async () => {
       // 首屏/操作后一次原子快照：source + version + catalog 同一次提交。
@@ -317,6 +342,7 @@ export function createDshVersionBridge(
     install,
     update,
     revert,
+    reinstallVersion,
     uninstall,
     reinstall,
     cancel: async () => {

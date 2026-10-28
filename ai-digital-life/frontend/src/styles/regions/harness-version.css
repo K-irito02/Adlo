@@ -162,3 +162,147 @@
   align-items: center;
   gap: var(--space-2);
 }
+
+/* 双通道行：选择器 + 发布时间 + 行内操作，允许换行避免挤压。 */
+.adl-harness-version__channel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adl-harness-version__channel-time {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+}
+
+.adl-harness-version__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* 行内版本选择器（下拉菜单触发器）：版本号 + 状态徽章 + 勾号槽 + 箭头。 */
+.adl-harness-version__picker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 9rem;
+  max-width: 100%;
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-muted);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: inherit;
+}
+
+.adl-harness-version__picker:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.adl-harness-version__picker:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-harness-version__picker:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-harness-version__picker-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.adl-harness-version__picker-version,
+.adl-harness-version__menu-item-version {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+/* 勾号槽位常驻：未选中时留空，徽章不因勾号出现而位移。 */
+.adl-harness-version__picker-check,
+.adl-harness-version__menu-item-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.adl-harness-version__picker-chevron {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+/* 通道版本菜单（portal 到 body，fixed 定位由组件按触发器实测几何给出）。 */
+.adl-harness-version__menu {
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--bg-elevated, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.adl-harness-version__menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.adl-harness-version__menu-item[aria-selected='true'] {
+  background: var(--bg-muted);
+}
+
+.adl-harness-version__menu-item-action {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.adl-harness-version__menu-item-action:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-harness-version__menu-item-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-harness-version__menu-item-time {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.adl-harness-version__menu-item-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}

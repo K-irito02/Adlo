@@ -64,6 +64,8 @@ export interface HarnessVersionSnapshot<TSource = unknown> {
   /** 工具专属来源数据（如 OpenCode 的 terminalInjection），原样交给插槽渲染。 */
   sourceExtra?: TSource | null;
   failed?: boolean;
+  /** 版本目录拉取失败：通道显示「未知」而不是「官方暂无」。 */
+  catalogFailed?: boolean;
 }
 
 /**
@@ -85,6 +87,11 @@ export interface HarnessVersionCapabilities {
   missingBanner?: boolean;
   /** 显示「恢复默认」来源操作。 */
   resetSourceAction?: boolean;
+  /**
+   * 稳定/预发布双通道使用行内版本选择器（下拉菜单列出该通道全部版本），
+   * 替代 OpenCode 风格的 `<select>` + 单个最新预发布行。DSH 需要。
+   */
+  channelPicker?: boolean;
 }
 
 /**
@@ -107,6 +114,8 @@ export interface HarnessVersionBridge<TSource = unknown> {
   update: () => Promise<HarnessVersionResult>;
   /** 切换到某个已安装版本。 */
   revert: (version: string) => Promise<HarnessVersionResult>;
+  /** 重装某个已安装的非当前版本（不改变选中）；缺省回退到 `install(version)`。 */
+  reinstallVersion?: (version: string) => Promise<HarnessVersionResult>;
   uninstall: (version: string) => Promise<HarnessVersionResult>;
   reinstall: () => Promise<HarnessVersionResult>;
   cancel: () => Promise<HarnessVersionResult>;
