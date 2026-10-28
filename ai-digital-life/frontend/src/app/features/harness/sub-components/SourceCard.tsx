@@ -1,10 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
-import type {
-  HarnessVersionSourceMode,
-  HarnessVersionSourceStatus,
-} from '../harnessVersionBridge';
+import type { HarnessVersionSourceMode, HarnessVersionSourceStatus } from '../harnessVersionBridge';
 
 interface SourceCardProps {
   source: HarnessVersionSourceStatus | null;

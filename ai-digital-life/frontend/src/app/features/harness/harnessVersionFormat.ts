@@ -11,9 +11,11 @@ export function formatPublishedAt(rfc3339: string | null, locale: string): strin
     return rfc3339;
   }
   try {
-    return new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }).format(
-      date,
-    );
+    const formatter = new Intl.DateTimeFormat(locale, {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    });
+    return formatter.format(date);
   } catch {
     return rfc3339;
   }

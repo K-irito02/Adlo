@@ -10,10 +10,7 @@ import type {
   HarnessVersionTone,
 } from './harnessVersionBridge';
 import { useHarnessVersionData } from './hooks/useHarnessVersionData';
-import {
-  pickEffective,
-  useHarnessVersionChannelMenu,
-} from './hooks/useHarnessVersionChannelMenu';
+import { pickEffective, useHarnessVersionChannelMenu } from './hooks/useHarnessVersionChannelMenu';
 import { useHarnessVersionActions } from './hooks/useHarnessVersionActions';
 import { ChannelRow } from './sub-components/ChannelRow';
 import { InstalledVersionsCard } from './sub-components/InstalledVersionsCard';
