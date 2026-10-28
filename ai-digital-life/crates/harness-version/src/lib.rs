@@ -9,6 +9,7 @@ use adl_errors::AppError;
 use adl_hosted::{HostedVersions, ProgressTask};
 
 pub mod install;
+pub mod install_opencode;
 pub mod spec;
 
 /// `ProgressTask::begin(kind, ...)` 的 kind 命名空间（dsh 版本任务）。
@@ -19,6 +20,8 @@ pub mod task_kind {
     pub const REINSTALL: &str = "dsh-reinstall";
     /// 升级到最新（与“安装指定版本”区分展示/埋点）。
     pub const UPDATE: &str = "dsh-update";
+    /// OpenCode 平台包安装（直接下载 tarball，不经 npm）。
+    pub const OPENCODE_INSTALL: &str = "opencode-install";
 }
 
 /// npm registry 上 @deepseek-ai/dsh 最新版本元数据端点（默认官方源）。
@@ -34,23 +37,18 @@ fn registry_base(data_dir: &Path) -> Result<String, AppError> {
     Ok(adl_download_source::resolve_registry(&config).trim_end_matches('/').to_string())
 }
 
-/// 宿主管理的 dsh cli 版本目录的版本管理：已装版本列表、查最新、回退、卸载、升级、重装。
+/// 宿主管理的 harness 版本目录的版本管理：已装版本列表、查最新、回退、卸载、升级、重装。
 ///
-/// 作用域硬边界：只读写宿主版本目录 `<root>`（`selected.txt` + `installed/<version>/`
-/// + `bundled.txt`），绝不写入/改动 dsh 自身的会话/配置/插件目录。
+/// 作用域硬边界：只读写宿主版本目录 `<root>`（`selected.txt` + `installed/<version>/`），
+/// 绝不写入/改动 harness 自身的会话/配置/插件目录。
 ///
-/// 内置版本没有独立概念：安装包投放的内置包在服务启动时被收编成 `installed/<version>/`
-/// 下的一条普通版本（收编逻辑在 `adl-dsh-bundle` crate），`bundled.txt` 只记录「它当初是
-/// 内置预置的」这一来源事实，其余行为与其它已装版本完全一致。
+/// 本应用不随安装包预置任何 harness 版本：首次使用由 harness 向导按需下载。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionStatus {
     pub current_selected: Option<String>,
-    /// 已安装到 `installed/<version>/` 的版本（含安装包预置、之后被收编的那一份）。
+    /// 已安装到 `installed/<version>/` 的版本。
     pub installed: Vec<String>,
-    /// 内置预置版本号（来源记录 `bundled.txt`）；该版本被卸载或重装后即消失。
-    /// 仅供 UI 标「已内置 / 内置」徽章，不参与任何来源判定。
-    pub bundled_version: Option<String>,
     /// 最新正式版（catalog 正式版桶最大；失败回退时为 dist-tag `latest`，可能为预发布）。
     pub latest_available: Option<String>,
     /// 是否有更新的正式版（统一走 semver 比较，不再用忽略 pre 后缀的 tokens 口径）。
@@ -108,6 +106,16 @@ pub fn host_bin(root: &Path, version: &str) -> PathBuf {
     dsh_versions(root).installed_marker(version)
 }
 
+/// 按任意描述符取宿主版本的可执行 marker 路径（无存在性检查）。
+pub fn host_bin_for(spec: &spec::HarnessSpec, root: &Path, version: &str) -> PathBuf {
+    HostedVersions::open(root, "", spec.marker_rel).installed_marker(version)
+}
+
+/// 按任意描述符判断宿主版本是否完整安装（marker 存在即算）。
+pub fn is_version_installed_for(spec: &spec::HarnessSpec, root: &Path, version: &str) -> bool {
+    HostedVersions::open(root, "", spec.marker_rel).is_installed(version)
+}
+
 /// 宿主版本是否完整安装（以 bin.js 存在为准；空目录不算已安装）。
 pub fn is_host_version_installed(root: &Path, version: &str) -> bool {
     dsh_versions(root).is_installed(version)
@@ -116,46 +124,6 @@ pub fn is_host_version_installed(root: &Path, version: &str) -> bool {
 /// 读取当前选中的版本号。
 pub fn read_selected(root: &Path) -> Result<Option<String>, AppError> {
     dsh_versions(root).read_selected()
-}
-
-/// 内置来源记录文件名（位于版本目录根，与 `selected.txt` 同级）。
-///
-/// 只记「这个版本号当初是由安装包预置的」；它是 UI「已内置/内置」徽章的唯一依据。
-/// 用户卸载该版本、或重装/重新安装覆盖其内容后即删除记录——之后它只是一条普通
-/// 宿主版本，不再算内置（用户 2026-10-22 要求）。
-const BUNDLED_FILE: &str = "bundled.txt";
-
-/// 读取内置来源记录；该版本已不完整存在时视为无记录。
-pub fn read_bundled_version(root: &Path) -> Result<Option<String>, AppError> {
-    let path = root.join(BUNDLED_FILE);
-    let Ok(raw) = std::fs::read_to_string(&path) else {
-        return Ok(None);
-    };
-    let version = raw.trim().to_string();
-    if version.is_empty() || !is_host_version_installed(root, &version) {
-        return Ok(None);
-    }
-    Ok(Some(version))
-}
-
-/// 写入内置来源记录（收编内置包时调用一次）。
-pub async fn set_bundled_version(root: &Path, version: &str) -> Result<(), AppError> {
-    tokio::fs::create_dir_all(root)
-        .await
-        .map_err(|e| AppError::Io(format!("create version root: {e}")))?;
-    tokio::fs::write(root.join(BUNDLED_FILE), format!("{version}\n"))
-        .await
-        .map_err(|e| AppError::Io(format!("write bundled marker: {e}")))
-}
-
-/// 内容被覆盖（重装/重新安装）或版本被卸载时清除来源记录：内置状态随之结束。
-pub fn clear_bundled_version_if(root: &Path, version: &str) -> Result<(), AppError> {
-    let path = root.join(BUNDLED_FILE);
-    match std::fs::read_to_string(&path) {
-        Ok(raw) if raw.trim() == version => std::fs::remove_file(&path)
-            .map_err(|e| AppError::Io(format!("remove bundled marker: {e}"))),
-        _ => Ok(()),
-    }
 }
 
 pub(crate) fn list_installed(root: &Path) -> Result<Vec<String>, AppError> {
@@ -375,9 +343,6 @@ fn resolve_stable_latest(
 pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionStatus, AppError> {
     let current_selected = read_selected(root)?;
     let installed = list_installed(root)?;
-    // 内置仅表示「该版本号由安装包预置」：记录存在且版本仍完整安装才算，
-    // 卸载或重装覆盖后记录即被清除（不再算内置）。
-    let bundled_version = read_bundled_version(root)?;
     let dist_latest = latest_available(data_dir).await.ok().flatten();
     match fetch_catalog(data_dir).await {
         Ok(catalog) => {
@@ -390,13 +355,11 @@ pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionS
                 has_update,
                 ?pre,
                 has_prerelease_update = has_pre,
-                ?bundled_version,
                 "harness-version: version status resolved"
             );
             Ok(VersionStatus {
                 current_selected,
                 installed,
-                bundled_version,
                 latest_available: latest,
                 has_update,
                 prerelease_available: pre,
@@ -416,7 +379,6 @@ pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionS
                     Ok(VersionStatus {
                         current_selected,
                         installed,
-                        bundled_version,
                         latest_available: Some(latest),
                         has_update,
                         prerelease_available: None,
@@ -502,10 +464,6 @@ pub async fn uninstall_with_task(
 ) -> Result<(), AppError> {
     tracing::debug!(%version, "harness-version::uninstall: delegating to kernel");
     install::uninstall(root, version, task).await?;
-    // 版本已删成功：来源记录清不掉不该让卸载报错（否则 UI 显示失败但磁盘已改）。
-    if let Err(e) = clear_bundled_version_if(root, version) {
-        tracing::warn!(%version, error = %e, "harness-version::uninstall: clear bundled marker failed");
-    }
     Ok(())
 }
 
@@ -551,9 +509,6 @@ pub enum DshSource {
 }
 
 /// 解析后的实际来源（供 UI 展示与来源选择）。
-///
-/// 内置版本不单列：它由安装包预置并收编成一条普通宿主版本，归属与其它已装版本
-/// 完全相同，「是否内置」只由 [`read_bundled_version`] 的来源记录决定，与启动链路无关。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum EffectiveSource {
@@ -846,28 +801,6 @@ mod tests {
         let root = fresh_root("empty_list");
         let versions = list_installed(&root).expect("no error on missing dir");
         assert!(versions.is_empty());
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    /// 内置只是「来源记录」：记录存在且版本完整安装时才对外报告为内置。
-    #[test]
-    fn bundled_marker_requires_complete_install_and_clears_on_match() {
-        let root = fresh_root("bundled_marker");
-        std::fs::create_dir_all(&root).expect("mkdir root");
-        // 记录在、版本不存在 → 视为无内置。
-        std::fs::write(root.join("bundled.txt"), "2.0.0\n").expect("write marker");
-        assert_eq!(read_bundled_version(&root).expect("read"), None);
-        // 版本完整安装 → 报告为内置。
-        let lib = root.join("installed").join("2.0.0").join("node_modules/@deepseek-ai/dsh/lib");
-        std::fs::create_dir_all(&lib).expect("mkdir");
-        std::fs::write(lib.join("bin.js"), "").expect("write bin");
-        assert_eq!(read_bundled_version(&root).expect("read").as_deref(), Some("2.0.0"));
-        // 其它版本被覆盖/卸载不影响本记录。
-        clear_bundled_version_if(&root, "1.0.0").expect("clear other");
-        assert_eq!(read_bundled_version(&root).expect("read").as_deref(), Some("2.0.0"));
-        // 命中记录 → 清除（重装覆盖 / 卸载后不再算内置）。
-        clear_bundled_version_if(&root, "2.0.0").expect("clear");
-        assert_eq!(read_bundled_version(&root).expect("read"), None);
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -1168,7 +1101,6 @@ mod tests {
         let status = VersionStatus {
             current_selected: Some("0.2.0".into()),
             installed: vec!["0.2.0".into()],
-            bundled_version: Some("0.2.0".into()),
             latest_available: None,
             has_update: false,
             prerelease_available: Some("0.2.1-rc.2".into()),
@@ -1177,7 +1109,6 @@ mod tests {
         };
         let json = serde_json::to_value(&status).unwrap();
         assert_eq!(json["currentSelected"], "0.2.0");
-        assert_eq!(json["bundledVersion"], "0.2.0");
         assert!(json["latestAvailable"].is_null());
         assert_eq!(json["prereleaseAvailable"], "0.2.1-rc.2");
         assert_eq!(json["hasPrereleaseUpdate"], true);

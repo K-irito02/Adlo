@@ -11,7 +11,6 @@ use crate::ServerState;
 use crate::ipc;
 use crate::state::{DshSpawnSource, ManagedDsh};
 use adl_download_source;
-use adl_dsh_bundle;
 use adl_harness_version;
 use adl_errors::AppError;
 use adl_webapp_host::DSH_DEFAULT_PORT;
@@ -570,48 +569,6 @@ async fn run_open(
     *guard = Some(ManagedDsh { process: hp, version: spawn_version, source: spawn_source });
     tracing::info!(total_elapsed_ms = start_time.elapsed().as_millis(), "dsh::run_open: completed");
     Ok(serde_json::json!({ "url": url, "freedPort": freed }))
-}
-
-/// 内置包收编（服务启动、预拉起之前调用一次）。
-///
-/// 安装器投放的 `<数据根>/dsh-bundle/` 会被搬成 `installed/<version>/` 下的一条
-/// **普通宿主版本**，并记录来源（`bundled.txt`）；内置包目录随后删除，磁盘上只留
-/// 一份。收编之后启动、切换、重装、卸载全走普通版本链路，没有任何内置特例。
-pub async fn adopt_bundled_version(state: &ServerState) {
-    // 两侧目录都取 StoragePaths 的正式口径（均可被存储设置覆盖）。
-    let paths = state.storage.paths();
-    let bundle_dir = paths.dsh_bundle_dir.clone();
-    let root = dsh_root(state);
-    let adopt_root = root.clone();
-    // 收编含目录移动/复制（跨卷时可能是几百 MB），必须放 blocking 池，别堵运行时。
-    let adopted =
-        tokio::task::spawn_blocking(move || adl_dsh_bundle::adopt(&bundle_dir, &adopt_root)).await;
-    let version = match adopted {
-        Ok(Ok(Some(version))) => version,
-        Ok(Ok(None)) => return,
-        Ok(Err(e)) => {
-            tracing::warn!(error = %e, "dsh::adopt_bundle: failed, bundled package left for later retry");
-            return;
-        },
-        Err(e) => {
-            tracing::warn!(error = %e, "dsh::adopt_bundle: blocking task failed");
-            return;
-        },
-    };
-    if let Err(e) = adl_harness_version::set_bundled_version(&root, &version).await {
-        tracing::warn!(error = %e, version = %version, "dsh::adopt_bundle: marker write failed");
-    }
-    // 预置即「装上即用」：没有选中版本时直接选中它；已有选中则不打扰用户。
-    match adl_harness_version::read_selected(&root) {
-        Ok(None) => {
-            if let Err(e) = adl_harness_version::revert(&root, &version).await {
-                tracing::warn!(error = %e, version = %version, "dsh::adopt_bundle: auto-select failed");
-            }
-        },
-        Ok(Some(_)) => {},
-        Err(e) => tracing::warn!(error = %e, "dsh::adopt_bundle: read selected failed"),
-    }
-    tracing::info!(version = %version, "dsh::adopt_bundle: bundled version adopted as host version");
 }
 
 /// Pre-start dsh in background. Called from `serve()` after server is ready.

@@ -17,3 +17,5 @@ semver = "1"
 tracing.workspace = true
 adl-download-source = { path = "../download-source" }
 adl-webapp-host = { path = "../webapp-host" }
+flate2 = { workspace = true }
+tar = { workspace = true }
