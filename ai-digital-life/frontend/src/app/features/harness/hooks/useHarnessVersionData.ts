@@ -113,9 +113,7 @@ export function useHarnessVersionData<TSource>(bridge: HarnessVersionBridge<TSou
     if (stable.length > 0) {
       return stable;
     }
-    return catalog?.latestStable
-      ? [{ version: catalog.latestStable, publishedAt: null }]
-      : [];
+    return catalog?.latestStable ? [{ version: catalog.latestStable, publishedAt: null }] : [];
   }, [catalog?.latestStable, stable]);
   const prereleaseInfos = useMemo(() => catalog?.prerelease ?? [], [catalog]);
   // 目录拉取失败 / 预发布未知：通道显示「未知」，不得误报「官方暂无」。

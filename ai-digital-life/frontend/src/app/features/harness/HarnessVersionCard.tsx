@@ -174,9 +174,7 @@ export function HarnessVersionCard<TSource = unknown>({
               slots.headerHint ?? formatT(t, 'harnessVersionHint', { tool: bridge.toolName })
             }
           />
-          <SettingsHeader
-            title={formatT(t, 'harnessVersionTitle', { tool: bridge.toolName })}
-          />
+          <SettingsHeader title={formatT(t, 'harnessVersionTitle', { tool: bridge.toolName })} />
         </div>
       )}
 

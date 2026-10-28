@@ -16,16 +16,8 @@ import { DshSettings } from '@features/dsh/DshSettings';
 import { NetworkSettings } from '@features/network/NetworkSettings';
 import { EnvironmentSettings } from '@features/environment/EnvironmentSettings';
 import { KeybindSettings } from './KeybindSettings';
-import { settingsZh } from '@i18n/zh-CN/settings';
-import { browserZh } from '@i18n/zh-CN/browser';
-import { dshZh } from '@i18n/zh-CN/dsh';
-import { harnessVersionZh } from '@i18n/zh-CN/harnessVersion';
-import { environmentZh } from '@i18n/zh-CN/environment';
-import { settingsEn } from '@i18n/en-US/settings';
-import { browserEn } from '@i18n/en-US/browser';
-import { dshEn } from '@i18n/en-US/dsh';
-import { harnessVersionEn } from '@i18n/en-US/harnessVersion';
-import { environmentEn } from '@i18n/en-US/environment';
+import { zhCN } from '@i18n/zh-CN';
+import { enUS } from '@i18n/en-US';
 import { SettingsControls } from './SettingsControls';
 import { buildSettingsSearchIndex, anchorFor, filterSearchIndex } from './settingsSearchIndex';
 import { SETTINGS_ROW_ATTRIBUTE } from './settingsRowLocate';
@@ -402,13 +394,7 @@ describe('settings search anchors', () => {
   });
 
   it('DSH 版本块的正式版本/预发布版本/升级检索词仍命中', () => {
-    const zhT = {
-      ...settingsZh,
-      ...browserZh,
-      ...dshZh,
-      ...harnessVersionZh,
-      ...environmentZh,
-    } as unknown as CopyDict;
+    const zhT = zhCN as unknown as CopyDict;
     const index = buildSettingsSearchIndex({ t: zhT, settings: [], keybinds: {} });
 
     for (const query of ['正式版本', '预发布版本', '升级']) {
@@ -496,26 +482,8 @@ describe('settings search anchors', () => {
     // 都能译出文案，且同组内文案值两两不同（单 locale 撞车会让该语言下跳转静默落到
     // 同组第一行，另一 locale 的断言拦不住）。
     const localeCopies: [string, Record<string, string>][] = [
-      [
-        'zh-CN',
-        {
-          ...settingsZh,
-          ...browserZh,
-          ...dshZh,
-          ...harnessVersionZh,
-          ...environmentZh,
-        } as Record<string, string>,
-      ],
-      [
-        'en-US',
-        {
-          ...settingsEn,
-          ...browserEn,
-          ...dshEn,
-          ...harnessVersionEn,
-          ...environmentEn,
-        } as Record<string, string>,
-      ],
+      ['zh-CN', zhCN as unknown as Record<string, string>],
+      ['en-US', enUS as unknown as Record<string, string>],
     ];
     for (const [locale, dict] of localeCopies) {
       for (const group of ['workspace', 'storage', 'browser', 'dsh', 'environment'] as const) {

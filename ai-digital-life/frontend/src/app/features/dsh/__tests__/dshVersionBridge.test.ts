@@ -1,12 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { CopyDict } from '@i18n';
 import { useAppStore } from '@stores/slicedStore';
-import type {
-  DshBridge,
-  DshSourceStatus,
-  DshVersionStatus,
-  DshVersionTask,
-} from '@shared/ipc/dsh';
+import type { DshBridge, DshSourceStatus, DshVersionStatus, DshVersionTask } from '@shared/ipc/dsh';
 import { createDshVersionBridge, type DshVersionBridgeActions } from '../dshVersionBridge';
 
 const mockT = new Proxy({} as Record<string, string>, {

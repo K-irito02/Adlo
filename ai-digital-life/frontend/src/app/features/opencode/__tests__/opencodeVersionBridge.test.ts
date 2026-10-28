@@ -8,7 +8,7 @@ const mockT = new Proxy({} as Record<string, string>, {
   get: (_, key) => (typeof key === 'string' ? key : ''),
 }) as unknown as CopyDict;
 
-const ok = <T,>(data: T) => ({ ok: true as const, data });
+const ok = <T>(data: T) => ({ ok: true as const, data });
 const err = (message: string) => ({ ok: false as const, error: { code: 'x', message } });
 
 function sourceStatus(overrides: Partial<OpencodeSourceStatus> = {}): OpencodeSourceStatus {

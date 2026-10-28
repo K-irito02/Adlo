@@ -838,8 +838,7 @@ describe('HarnessVersionCard', () => {
           }
         : null,
     );
-    bridge.taskStageText = (task) =>
-      task ? 'dshTaskStageInstalling' : 'dshTaskStageFinalizing';
+    bridge.taskStageText = (task) => (task ? 'dshTaskStageInstalling' : 'dshTaskStageFinalizing');
 
     renderCard(bridge);
     await waitFor(() =>

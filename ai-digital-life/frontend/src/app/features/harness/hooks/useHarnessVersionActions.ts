@@ -97,8 +97,9 @@ export function useHarnessVersionActions<TSource>({
         void run(() => bridge.reinstall(), t.harnessVersionReinstalled, 'reinstall');
         return;
       }
-      if (bridge.reinstallVersion) {
-        void run(() => bridge.reinstallVersion(version), null);
+      const reinstallVersion = bridge.reinstallVersion;
+      if (reinstallVersion) {
+        void run(() => reinstallVersion(version), null);
         return;
       }
       void run(() => bridge.install(version), t.harnessVersionInstallStarted, 'install');
