@@ -52,7 +52,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "regis
 tracing-appender = "0.2"
 rusqlite = { version = "0.39", features = ["bundled", "serde_json"] }
 notify = "7"
-reqwest = { version = "0.13.2", features = ["json", "rustls", "query", "form", "stream", "system-proxy", "blocking", "socks"], default-features = false }
+reqwest = { version = "0.13.2", features = ["json", "rustls", "query", "form", "stream", "system-proxy", "blocking", "socks"], default-features = false } # socks: Dapan 等 SOCKS 代理 env 下 registry/下载请求必需（无则 hyper-util 拒识 socks5h）；保持开启
 tauri = "2"
 tauri-build = "2"
 tauri-plugin-dialog = "2"

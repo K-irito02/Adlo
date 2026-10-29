@@ -242,16 +242,20 @@ export function createDshVersionBridge(
 
   /**
    * 只检查更新（DSH 的「检查更新」行）：查询 + 提示，不安装。结果文案沿用
-   * 迁移前的三态（含失败分支；与旧 `handleCheckUpdate` 逐行一致）：
-   * 抓取返回值不作为分支条件——失败已记全局错误卡片，结果按当时 store
-   * 旧值提示，保证点击必有反馈（旧语义；silent 会让点击只闪一下）。
+   * 迁移前的三态（含失败分支；旧 `handleCheckUpdate` 在抓取失败时直接返回，
+   * 不做旧值推断——失败只记全局错误卡片；此处额外给一个失败 toast，保证点击
+   * 必有反馈，避免“只闪一下”的无响应感）。
    */
   const checkUpdate = async (): Promise<HarnessVersionResult> => {
     if (!bridge) {
       return OFFLINE;
     }
     try {
-      await actions.fetchDshVersionStatus();
+      const ok = await actions.fetchDshVersionStatus();
+      if (!ok) {
+        notify(t.dshCheckUpdateFailed, 'error');
+        return { ok: true };
+      }
       const st = state().versionStatus;
       if (!st?.latestAvailable) {
         if (st?.hasPrereleaseUpdate && st.prereleaseAvailable) {

@@ -472,8 +472,8 @@ describe('HarnessVersionCard old-DSH row descriptions and footer', () => {
     await screen.findByRole('button', { name: '1.1.0' });
 
     const card = mainCard(container);
-    // 行律契约：末行必须是链接行本身（中间不得有测量尺等空 div），否则
-    // `:last-child` 收边失效、多出一条分隔线。
+    // 行律契约：末行必须是链接行本身（测量尺挂卡外，不参与 `:last-child`）。
     expect(card.lastElementChild?.getAttribute('data-settings-row')).toBe('dshOfficialLinksLabel');
+    expect(card.querySelector('.adl-harness-version__version-sizer')).toBeNull();
   });
 });

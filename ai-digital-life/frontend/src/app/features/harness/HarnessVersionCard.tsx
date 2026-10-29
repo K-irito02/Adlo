@@ -303,15 +303,17 @@ export function HarnessVersionCard<TSource = unknown>({
             ) : null}
           </>
         ) : null}
-        {/* 测量尺必须在页脚行之前：行律契约要求末行是链接行本身，否则
-            `:last-child` 收边失效、多出一条分隔线。 */}
-        <ChannelSizer
-          longestStable={longestVersionOf(data.stableInfos)}
-          longestPrerelease={longestVersionOf(data.prereleaseInfos)}
-          refs={menu.sizerRefs}
-        />
         {renderSlot(slots.footer, slotContext)}
       </div>
+
+      {/* 测量尺挂卡外：行律契约要求末行是链接行本身（`:last-child` 收边）。
+          尺子 `position:absolute + visibility:hidden`，不依赖卡片容器即可实测；
+          放卡内时，无页脚槽的形态（OpenCode）末行收边失效、多出一条分隔线。 */}
+      <ChannelSizer
+        longestStable={longestVersionOf(data.stableInfos)}
+        longestPrerelease={longestVersionOf(data.prereleaseInfos)}
+        refs={menu.sizerRefs}
+      />
 
       {showExtraRows && data.manageVisible ? (
         <InstalledVersionsCard

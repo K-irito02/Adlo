@@ -83,8 +83,6 @@ describe('opencodeVersionBridge', () => {
       updateAction: 'install',
       taskPercent: true,
       taskCounts: false,
-      // 与 DSH 精确一致：双通道 picker + 无额外行 + 无恢复默认行；
-      // 终端开关/说明走 sourceFooter 插槽（唯一差异）。
       channelPicker: true,
       extraRows: 'none',
       resetSourceAction: false,
