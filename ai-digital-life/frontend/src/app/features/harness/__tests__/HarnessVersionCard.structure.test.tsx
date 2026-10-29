@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { render, cleanup, fireEvent, screen, within } from '@testing-library/react';
 import type { CopyDict } from '@i18n';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
@@ -174,7 +174,8 @@ describe('HarnessVersionCard old-DSH structure', () => {
   it('renders exactly one settings card with the old six-row order', async () => {
     const bridge = dshBridge();
     const { container } = renderDshCard(bridge);
-    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    // 首屏快照落定后断言（`load` 被调用不等于快照已应用；picker 按钮只在落定后出现）。
+    await screen.findByRole('button', { name: '1.1.0' });
 
     const card = mainCard(container);
     expect(rowMarkers(card)).toEqual([
@@ -190,7 +191,8 @@ describe('HarnessVersionCard old-DSH structure', () => {
   it('renders the source row first with a select and the warn-note slot', async () => {
     const bridge = dshBridge();
     const { container } = renderDshCard(bridge);
-    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    // 首屏快照落定后断言（`load` 被调用不等于快照已应用；picker 按钮只在落定后出现）。
+    await screen.findByRole('button', { name: '1.1.0' });
 
     const card = mainCard(container);
     const sourceRow = card.querySelector(
@@ -210,7 +212,8 @@ describe('HarnessVersionCard old-DSH structure', () => {
   it('keeps the current row readout inline with badges and the uninstall hint slot', async () => {
     const bridge = dshBridge();
     const { container } = renderDshCard(bridge);
-    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    // 首屏快照落定后断言（`load` 被调用不等于快照已应用；picker 按钮只在落定后出现）。
+    await screen.findByRole('button', { name: '1.1.0' });
 
     const card = mainCard(container);
     const currentRow = card.querySelector(
@@ -226,7 +229,8 @@ describe('HarnessVersionCard old-DSH structure', () => {
   it('opens the channel picker menu with version/time/badges/check-slot and aria wiring', async () => {
     const bridge = dshBridge();
     const { container } = renderDshCard(bridge);
-    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    // 首屏快照落定后断言（`load` 被调用不等于快照已应用；picker 按钮只在落定后出现）。
+    await screen.findByRole('button', { name: '1.1.0' });
 
     const card = mainCard(container);
     const stableRow = card.querySelector(
@@ -264,7 +268,8 @@ describe('HarnessVersionCard old-DSH structure', () => {
   it('has no new-prefix remnants without an old counterpart', async () => {
     const bridge = dshBridge();
     const { container } = renderDshCard(bridge);
-    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    // 首屏快照落定后断言（`load` 被调用不等于快照已应用；picker 按钮只在落定后出现）。
+    await screen.findByRole('button', { name: '1.1.0' });
 
     mainCard(container);
     for (const cls of [
@@ -286,7 +291,8 @@ describe('HarnessVersionCard old-DSH structure', () => {
   it('renders no manual row and no separate installed card for the DSH default', async () => {
     const bridge = dshBridge();
     const { container } = renderDshCard(bridge);
-    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    // 首屏快照落定后断言（`load` 被调用不等于快照已应用；picker 按钮只在落定后出现）。
+    await screen.findByRole('button', { name: '1.1.0' });
 
     mainCard(container);
     expect(container.querySelector('[data-settings-row="harnessVersionManual"]')).toBeNull();

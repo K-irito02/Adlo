@@ -275,16 +275,20 @@ describe('HarnessVersionCard', () => {
   });
 
   it('renders the not-installed and missing-harness guidance for an empty install', async () => {
-    renderCard(
-      makeBridge({
-        initial: snapshot({
-          status: status({ currentSelected: null, installed: [] }),
-        }),
+    const bridge = makeBridge({
+      initial: snapshot({
+        status: status({ currentSelected: null, installed: [] }),
       }),
-    );
+    });
+    renderCard(bridge);
 
+    // 缺失横幅依赖首屏快照落定（`status !== null`），必须等到加载后断言，
+    // 否则首帧空快照下读数已显示而横幅未出、断言竞态。
+    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('harnessVersionNotInstalled')).toBeInTheDocument());
-    expect(screen.getByText('harnessVersionMissingBanner')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText('harnessVersionMissingBanner')).toBeInTheDocument(),
+    );
   });
 
   it('renders an error readout when the status cannot be loaded', async () => {
