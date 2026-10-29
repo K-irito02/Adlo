@@ -126,6 +126,30 @@ pub fn resolve_registry(config: &DownloadSourceConfig) -> &str {
     }
 }
 
+/// 脱敏代理地址：只保留 `scheme://host:port`，`@` 之前的 userinfo 一律剥离
+/// （凭据永不进日志）。无法解析时返回占位，避免原文（可能含密钥）外泄。
+fn redact_proxy_endpoint(raw: &str) -> String {
+    let Some(scheme_end) = raw.find("://") else {
+        return "<unparseable>".to_string();
+    };
+    let (scheme, rest) = raw.split_at(scheme_end);
+    let rest = &rest[3..];
+    let authority_end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
+    let authority = &rest[..authority_end];
+    let host_port = authority.rsplit('@').next().unwrap_or(authority);
+    if host_port.is_empty() {
+        return "<unparseable>".to_string();
+    }
+    format!("{scheme}://{host_port}")
+}
+
+fn redact_proxy_endpoint_opt(raw: &Option<String>) -> String {
+    match raw {
+        Some(url) if !url.trim().is_empty() => redact_proxy_endpoint(url.trim()),
+        _ => "<unset>".to_string(),
+    }
+}
+
 pub fn build_http_client(config: &DownloadSourceConfig) -> Result<reqwest::Client, AppError> {
     build_http_client_with_timeout(config, Duration::from_secs(30))
 }
@@ -178,7 +202,16 @@ pub fn build_http_client_with_timeout(
             }
         },
         ProxyMode::Auto => {
-            // reqwest with system-proxy feature will use system proxy by default
+            // reqwest with system-proxy feature will use system proxy by default.
+            // 可观测性（2026-10-29）：打印脱敏后的有效代理 env。若 reqwest
+            // 不支持该 scheme（如缺 `socks` 特性时的 socks5h），请求会直接
+            // 失败且只留 "error sending request"；凭据永不进日志。
+            tracing::info!(
+                all_proxy = %redact_proxy_endpoint_opt(&std::env::var("ALL_PROXY").ok().or_else(|| std::env::var("all_proxy").ok())),
+                https_proxy = %redact_proxy_endpoint_opt(&std::env::var("HTTPS_PROXY").ok().or_else(|| std::env::var("https_proxy").ok())),
+                http_proxy = %redact_proxy_endpoint_opt(&std::env::var("HTTP_PROXY").ok().or_else(|| std::env::var("http_proxy").ok())),
+                "download-source: building HTTP client with environment proxy",
+            );
         },
     }
 
@@ -279,6 +312,23 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(resolve_registry(&config), "https://mirror.example.com");
+    }
+
+    /// 代理地址脱敏：userinfo 必须剥离（凭据永不进日志），无 userinfo 时原样保留。
+    #[test]
+    fn redact_proxy_endpoint_strips_credentials() {
+        assert_eq!(redact_proxy_endpoint("socks5h://127.0.0.1:17890"), "socks5h://127.0.0.1:17890");
+        assert_eq!(
+            redact_proxy_endpoint("http://user:pass@proxy.internal:8080"),
+            "http://proxy.internal:8080"
+        );
+        assert_eq!(redact_proxy_endpoint("https://proxy.example.com"), "https://proxy.example.com");
+        assert_eq!(redact_proxy_endpoint("https://h:443/path?q=1"), "https://h:443");
+        assert_eq!(redact_proxy_endpoint("not a url"), "<unparseable>");
+        assert_eq!(redact_proxy_endpoint("socks5://:1080"), "socks5://:1080");
+        assert_eq!(redact_proxy_endpoint_opt(&None), "<unset>");
+        assert_eq!(redact_proxy_endpoint_opt(&Some("  ".to_string())), "<unset>");
+        assert_eq!(redact_proxy_endpoint_opt(&Some("http://u:p@h:1".to_string())), "http://h:1");
     }
 
     #[test]
