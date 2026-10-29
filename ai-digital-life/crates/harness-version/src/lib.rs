@@ -1069,25 +1069,33 @@ mod tests {
     }
 
     #[test]
-    fn opencode_catalog_keeps_latest_50_stable_and_only_the_newest_beta() {
+    fn opencode_catalog_keeps_latest_50_stable_and_latest_50_beta() {
         let mut versions = serde_json::Map::new();
         for i in 1..=60 {
             versions.insert(format!("1.0.{i}"), serde_json::json!({}));
         }
-        versions.insert("0.0.0-beta-202608110357".to_string(), serde_json::json!({}));
-        versions.insert("0.0.0-beta-202608110326".to_string(), serde_json::json!({}));
+        for i in 1..=55 {
+            versions.insert(format!("0.0.0-beta-202608{i:04}"), serde_json::json!({}));
+        }
+        // 上游遗留版本：`pre` 为 `beta3`（无横线），semver 主版本 0.1.0 会反超
+        // 全部 0.0.0-beta-*，必须被 `beta-` 前缀排除，不得冒充桶首。
+        versions.insert("0.1.0-beta3".to_string(), serde_json::json!({}));
         versions.insert("0.0.0-dev-202610280534".to_string(), serde_json::json!({}));
         versions.insert("0.0.0-next-202606270058".to_string(), serde_json::json!({}));
         let json = serde_json::json!({
-            "dist-tags": { "latest": "1.0.60", "beta": "0.0.0-beta-202608110357" },
+            "dist-tags": { "latest": "1.0.60", "beta": "0.0.0-beta-2026080055" },
             "versions": versions,
         });
         let catalog = parse_catalog(&json, &spec::OPENCODE.catalog);
         assert_eq!(catalog.stable.len(), 50);
         assert_eq!(catalog.stable[0].version, "1.0.60");
-        assert_eq!(catalog.prerelease.len(), 1);
-        assert_eq!(catalog.prerelease[0].version, "0.0.0-beta-202608110357");
-        assert_eq!(catalog.latest_prerelease.as_deref(), Some("0.0.0-beta-202608110357"));
+        assert_eq!(catalog.prerelease.len(), 50);
+        assert_eq!(catalog.prerelease[0].version, "0.0.0-beta-2026080055");
+        assert!(
+            catalog.prerelease.iter().all(|i| i.version.starts_with("0.0.0-beta-")),
+            "legacy 0.1.0-beta3 must be excluded"
+        );
+        assert_eq!(catalog.latest_prerelease.as_deref(), Some("0.0.0-beta-2026080055"));
     }
 
     #[test]

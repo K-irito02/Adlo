@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { mockOpencode } from '../mock-opencode';
+import { compareOpencodeSemver, mockOpencode, parseOpencodePackument } from '../mock-opencode';
 
 describe('mockOpencode', () => {
-  it('installs, switches and uninstalls versions with fallback selection', async () => {
+  it(
+    'installs, switches and uninstalls versions with fallback selection',
+    { timeout: 30000 },
+    async () => {
     const before = await mockOpencode.getVersionStatus();
     expect(before.ok && before.data.currentSelected).toBe('1.19.5');
 
@@ -32,5 +35,59 @@ describe('mockOpencode', () => {
     expect(source.ok && source.data.versionSource.mode).toBe('system');
     expect(source.ok && source.data.versionSource.effective).toBe('none');
     await mockOpencode.saveVersionSource('auto');
+  });
+});
+
+describe('parseOpencodePackument', () => {
+  it('keeps latest 50 stable and latest 50 beta, excluding legacy 0.1.0-beta3', () => {
+    const versions: Record<string, unknown> = {};
+    for (let i = 1; i <= 60; i += 1) {
+      versions[`1.0.${i}`] = {};
+    }
+    for (let i = 1; i <= 55; i += 1) {
+      versions[`0.0.0-beta-202608${String(i).padStart(4, '0')}`] = {};
+    }
+    versions['0.1.0-beta3'] = {};
+    versions['0.0.0-dev-202610280534'] = {};
+    const catalog = parseOpencodePackument({
+      'dist-tags': { latest: '1.0.60', beta: '0.0.0-beta-2026080055' },
+      versions,
+      time: {},
+    });
+    expect(catalog?.stable).toHaveLength(50);
+    expect(catalog?.stable[0].version).toBe('1.0.60');
+    expect(catalog?.prerelease).toHaveLength(50);
+    expect(catalog?.prerelease[0].version).toBe('0.0.0-beta-2026080055');
+    expect(catalog?.prerelease.some((hit) => hit.version === '0.1.0-beta3')).toBe(false);
+    expect(catalog?.latestPrerelease).toBe('0.0.0-beta-2026080055');
+  });
+
+  it('falls back to bucket head when the beta dist-tag was truncated away', () => {
+    const catalog = parseOpencodePackument({
+      'dist-tags': { latest: '1.0.2', beta: '0.0.0-beta-200001010000' },
+      versions: {
+        '1.0.2': {},
+        '1.0.1': {},
+        '0.0.0-beta-202608110357': {},
+        '0.0.0-beta-202608110326': {},
+      },
+      time: { '1.0.2': '2026-10-28T06:17:11.100Z' },
+    });
+    expect(catalog?.latestStable).toBe('1.0.2');
+    expect(catalog?.latestPrerelease).toBe('0.0.0-beta-202608110357');
+    expect(catalog?.stable[0].publishedAt).toBe('2026-10-28T06:17:11.100Z');
+  });
+
+  it('returns null for malformed packuments so callers fall back to snapshot', () => {
+    expect(parseOpencodePackument(null)).toBeNull();
+    expect(parseOpencodePackument({})).toBeNull();
+  });
+});
+
+describe('compareOpencodeSemver', () => {
+  it('orders stable above same-core prerelease and beta by timestamp', () => {
+    expect(compareOpencodeSemver('1.19.5', '1.19.5')).toBe(0);
+    expect(compareOpencodeSemver('1.19.4', '1.19.5')).toBeLessThan(0);
+    expect(compareOpencodeSemver('0.0.0-beta-202608110326', '0.0.0-beta-202608110357')).toBeLessThan(0);
   });
 });

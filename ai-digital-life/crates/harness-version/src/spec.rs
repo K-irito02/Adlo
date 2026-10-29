@@ -82,7 +82,9 @@ pub const OPENCODE_BIN_REL: &str =
     if cfg!(windows) { "bin/opencode.exe" } else { "bin/opencode" };
 
 /// OpenCode：直接下载平台包，入口为包内 `bin/opencode(.exe)`。
-/// 稳定版 950 个、beta 3,151 个——限量到「最近 50 个稳定版 + 最新 1 个 beta」。
+/// 稳定版 950 个、beta（`0.0.0-beta-日期`）3,150 个——限量到「最近 50 个稳定版 + 最新 50 个 beta」。
+/// 前缀用 `beta-`（带横线）：排除上游遗留的 `0.1.0-beta3`（`pre` 为 `beta3`，
+/// semver 主版本 `0.1.0 > 0.0.0` 会反超全部真 beta，冒充桶首；见 `parse_catalog` 单测）。
 pub const OPENCODE: HarnessSpec = HarnessSpec {
     id: HarnessId::OpenCode,
     package: "opencode-ai",
@@ -91,8 +93,8 @@ pub const OPENCODE: HarnessSpec = HarnessSpec {
     system_bin: "opencode",
     catalog: CatalogPolicy {
         stable_limit: Some(50),
-        prerelease_limit: Some(1),
-        prerelease_prefix: Some("beta"),
+        prerelease_limit: Some(50),
+        prerelease_prefix: Some("beta-"),
         prerelease_tags: &["beta"],
     },
 };
@@ -158,8 +160,8 @@ mod tests {
         assert_eq!(OPENCODE.channel, InstallChannel::PlatformTarball);
         assert_eq!(OPENCODE.package, "opencode-ai");
         assert_eq!(OPENCODE.catalog.stable_limit, Some(50));
-        assert_eq!(OPENCODE.catalog.prerelease_limit, Some(1));
-        assert_eq!(OPENCODE.catalog.prerelease_prefix, Some("beta"));
+        assert_eq!(OPENCODE.catalog.prerelease_limit, Some(50));
+        assert_eq!(OPENCODE.catalog.prerelease_prefix, Some("beta-"));
         assert_eq!(OPENCODE.catalog.prerelease_tags, &["beta"]);
     }
 
