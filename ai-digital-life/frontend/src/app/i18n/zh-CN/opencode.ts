@@ -32,9 +32,9 @@ export const opencodeZh = {
   opencodeCheckUpdateFound: '发现正式版本 {version}',
   opencodeCheckUpdatePrerelease: '发现预发布版本 {version}',
   opencodeStable: '正式版本',
-  opencodeStableDesc: '官方发布的稳定版本',
+  opencodeStableDesc: '官方发布的正式版本',
   opencodeStableHint:
-    '稳定版本是推荐给大多数人用的版本，平时用它们就好。\n· 版本选择下拉框：点一下展开本分区全部正式版本（默认选中当前版本或本分区最新）；点某个版本只切换下拉框展示，不会立即安装或切换。\n· 右侧按钮随选中版本动态变化：没装过的显示“安装”；已装的显示“卸载/重装当前版本”；已装非当前的再加“切换”。\n· 安装是真下载：从下载源把该版本装到应用数据目录并选中它，成功后新开的终端会话即生效。',
+    '正式版本是推荐给大多数人用的版本，平时用它们就好。\n· 版本选择下拉框：点一下展开本分区全部正式版本（默认选中当前版本或本分区最新）；点某个版本只切换下拉框展示，不会立即安装或切换。\n· 右侧按钮随选中版本动态变化：没装过的显示“安装”；已装的显示“卸载/重装当前版本”；已装非当前的再加“切换”。\n· 安装是真下载：从下载源把该版本装到应用数据目录并选中它，成功后新开的终端会话即生效。',
   opencodePrerelease: '预发布版本',
   opencodePrereleaseDesc: '可提前体验新功能，预发布版本可能不稳定',
   opencodePrereleaseHint:
