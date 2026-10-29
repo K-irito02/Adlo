@@ -18,7 +18,7 @@ use tokio::sync::Mutex as AsyncMutex;
 pub struct ManagedDsh {
     pub process: HostedProcess,
     pub version: Option<String>,
-    /// 本次 spawn 的来源（host=宿主安装版本 / system=系统安装命令）。
+    /// 本次 spawn 的来源（host=宿主托管版本 / system=系统安装命令）。
     /// `running.source` 对外暴露 `host|system|external`，external 只用于
     /// 非宿主持有（外部复用）进程，不会写入本结构。
     pub source: DshSpawnSource,

@@ -692,7 +692,7 @@ async fn install_inner(
             webview2::install()?;
             Ok(started_payload())
         },
-        // bash 无宿主安装（宿主 Git 是 MinGit，不含 bash）：引导系统来源。
+        // bash 无宿主托管版本（宿主 Git 是 MinGit，不含 bash）：引导系统来源。
         "bash" => Err(AppError::InvalidInput(
             "bash is not host-installed; use system Git for Windows / WSL / MSYS2 and set the path"
                 .into(),
@@ -701,7 +701,7 @@ async fn install_inner(
     }
 }
 
-/// 后台执行 node 宿主安装（`env_install_lock` 下串行；进度经 `env_task`
+/// 后台执行 node 宿主托管安装（`env_install_lock` 下串行；进度经 `env_task`
 /// 由 `GET /env/status` 的 `task` 节轮询）。
 /// 成功由 provider `finish()` 清快照；失败留 error 快照供轮询，
 /// 下次 install 经 `try_begin_env_task` 回收。
@@ -724,7 +724,7 @@ fn spawn_node_install(state: &ServerState, version: String, dist_base: String) {
     });
 }
 
-/// 后台执行 MinGit 宿主安装（tag+asset 逐字透传 baseline；语义同上）。
+/// 后台执行 MinGit 宿主托管安装（tag+asset 逐字透传 baseline；语义同上）。
 fn spawn_git_install(
     state: &ServerState,
     version: String,
@@ -1242,7 +1242,7 @@ mod tests {
         }
     }
 
-    /// bash 无宿主安装 → 机器码 `bash-follows-git`。
+    /// bash 无宿主托管版本 → 机器码 `bash-follows-git`。
     #[test]
     fn validate_uninstall_points_bash_at_git() {
         let err = validate_uninstall("bash").expect_err("bash follows git");

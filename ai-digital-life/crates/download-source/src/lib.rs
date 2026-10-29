@@ -20,7 +20,7 @@ pub struct DownloadSourceConfig {
     /// 下载源选择模式：auto=自动检测（延迟实测选优，前端负责解析写回 registry）；
     /// manual=用户手选（npm_registry 即所选值）。
     pub source_mode: SourceMode,
-    /// 版本来源偏好：auto=自动检测，system=只用系统安装，host=只用宿主安装。
+    /// 版本来源偏好：auto=自动检测，system=只用系统安装，host=只用宿主托管。
     pub version_source: VersionSourceMode,
     /// OpenCode 的版本来源偏好（DSH 仍用 `version_source`；两者互不影响）。
     pub opencode_version_source: VersionSourceMode,

@@ -49,7 +49,7 @@ export interface DshSourceStatus {
     dsh_mirror: string | null;
     /** 下载源选择模式：auto=自动检测（延迟实测选优），manual=用户手选 */
     source_mode: 'auto' | 'manual';
-    /** 版本来源偏好：auto=自动检测，system=系统安装，host=宿主安装 */
+    /** 版本来源偏好：auto=自动检测，system=系统安装，host=宿主托管 */
     version_source: DshVersionSourceMode;
     /** 代理模式（后端 ProxyMode snake_case 封闭值域：auto | manual | none） */
     proxy: {
@@ -152,7 +152,7 @@ export interface DshBridge {
    */
   open: () => Promise<IpcResult<DshOpenResult>>;
   /**
-   * 重启正在运行的 dsh（本应用托管或经验证的外部进程），返回新地址
+   * 重启正在运行的 dsh（宿主托管或经验证的外部进程），返回新地址
    */
   restart: () => Promise<IpcResult<DshRestartResult>>;
   /**

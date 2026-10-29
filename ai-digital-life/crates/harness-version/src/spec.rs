@@ -24,7 +24,7 @@ impl HarnessId {
     }
 }
 
-/// 宿主安装通道。两者最终都落到「版本目录 + 可执行 marker」，但取包方式不同。
+/// 宿主托管通道。两者最终都落到「版本目录 + 可执行 marker」，但取包方式不同。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InstallChannel {
     /// `npm install --prefix <tmp> <package>@<version>`（DSH：JS 包，运行时也要 node）。
