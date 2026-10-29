@@ -142,12 +142,13 @@ function makeBridge(
     toolName: 'OpenCode CLI',
     available: true,
     capabilities: {
-      // OpenCode 与 DSH 精确一致：双通道 picker + 无额外行 + 无恢复默认行；
-      // 终端开关/说明走 sourceFooter 插槽（唯一差异）。
       channelPicker: true,
       extraRows: 'none',
       resetSourceAction: false,
     },
+    // 与真实桥一致：首帧种子同步供给（无种子时卡片画骨架）。
+    peekSnapshot: () => initial,
+    peekSourceMode: () => initial.source?.mode ?? null,
     load: vi.fn(async () => initial),
     getTask: vi.fn(async () => null),
     install: vi.fn(async () => OK),
