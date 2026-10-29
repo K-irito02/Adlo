@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
+import { formatT } from '@i18n/formatT';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
 import type {
@@ -10,17 +11,25 @@ import type {
   HarnessVersionTone,
 } from './harnessVersionBridge';
 import { useHarnessVersionData } from './hooks/useHarnessVersionData';
-import { pickEffective, useHarnessVersionChannelMenu } from './hooks/useHarnessVersionChannelMenu';
+import {
+  longestVersionOf,
+  pickEffective,
+  useHarnessVersionChannelMenu,
+} from './hooks/useHarnessVersionChannelMenu';
 import { useHarnessVersionActions } from './hooks/useHarnessVersionActions';
-import { ChannelRow } from './sub-components/ChannelRow';
+import { ChannelRow, ChannelSizer, type HarnessChannelTask } from './sub-components/ChannelRow';
 import { InstalledVersionsCard } from './sub-components/InstalledVersionsCard';
 import { LegacyChannelRows } from './sub-components/LegacyChannelRows';
 import { ManualVersionRow } from './sub-components/ManualVersionRow';
 import { ResetSourceRow } from './sub-components/ResetSourceRow';
-import { SourceCard } from './sub-components/SourceCard';
+import { SourceRow, SystemPathRow, type HarnessSourceOption } from './sub-components/SourceCard';
 import { TaskRow } from './sub-components/TaskRow';
 import { UpdateRow } from './sub-components/UpdateRow';
-import { CurrentVersionRow, StatusRows } from './sub-components/VersionStatusRows';
+import {
+  CurrentVersionRow,
+  FallbackReadout,
+  MissingBannerRow,
+} from './sub-components/VersionStatusRows';
 
 export interface HarnessVersionSlotContext<TSource> {
   /** 有任一版本操作进行中。 */
@@ -49,15 +58,23 @@ export interface HarnessVersionSlots<TSource> {
   headerHint?: string;
   /** 版本来源行「?」提示内容；缺省使用通用说明。 */
   sourceHint?: string;
+  /** 版本来源三态选项（工具术语不同时覆盖；缺省使用通用来源文案）。 */
+  sourceOptions?: HarnessSourceOption[];
+  /** 当前版本行「?」提示内容；缺省不渲染。 */
+  currentHint?: string;
+  /** 正式版本行「?」提示内容；缺省不渲染。 */
+  stableHint?: string;
+  /** 预发布版本行「?」提示内容；缺省不渲染。 */
+  prereleaseHint?: string;
   /** 未安装引导横幅；缺省使用带 `{tool}` 插值的通用文案。 */
   missingBanner?: HarnessVersionSlot<TSource>;
-  /** 来源卡片内的说明行（工具专属来源解释）。 */
+  /** 版本来源行内的说明行（工具专属来源解释，旧 DSH 行内警告口径）。 */
   sourceNote?: HarnessVersionSlot<TSource>;
-  /** 来源卡片尾部的工具内容（如 OpenCode 的终端可用性开关）。 */
+  /** 来源行之后、当前版本行之前的工具专属行（如 OpenCode 的终端可用性开关）。 */
   sourceFooter?: HarnessVersionSlot<TSource>;
   /** 当前版本读数旁的运行态内容（DSH 的运行地址/系统安装读数）。 */
   runtimeReadout?: HarnessVersionSlot<TSource>;
-  /** 卡片尾部内容。 */
+  /** 卡片尾部内容（旧 DSH 官方版本信息行，渲染为卡内末行）。 */
   footer?: HarnessVersionSlot<TSource>;
 }
 
@@ -77,17 +94,19 @@ function renderSlot<TSource>(
 }
 
 /**
- * 通用 harness 版本卡片：安装/更新/切换/卸载/重装、稳定与预发布通道、
- * 手动版本号、来源三态、任务进度与取消。
+ * 通用 harness 版本卡片（旧 DSH 版本管理块的单卡结构，可复用）：
+ * 来源 → 当前版本 → 检查更新 → 正式版本 → 预发布版本 → 官方信息，
+ * 行内通道选择器（菜单 Portal + 实测同宽）、行内任务、行内读数。
  *
  * 卡片只依赖 {@link HarnessVersionBridge} 与可选插槽，不读取任何 store，
  * 也不访问 `window.digitalLife`。状态/动作/菜单分别由 hooks 与子组件承载。
+ * 手动版本行与已安装版本独立卡由 `capabilities.extraRows` 门控（缺省不渲染）。
  */
 export function HarnessVersionCard<TSource = unknown>({
   bridge,
   slots = {},
 }: HarnessVersionCardProps<TSource>) {
-  const { t, formatT } = useTCopy();
+  const { t } = useTCopy();
   const data = useHarnessVersionData(bridge);
   const actions = useHarnessVersionActions({
     bridge,
@@ -95,7 +114,11 @@ export function HarnessVersionCard<TSource = unknown>({
     current: data.current,
     latestAvailable: data.status?.latestAvailable ?? null,
   });
-  const menu = useHarnessVersionChannelMenu(data.current);
+  const menu = useHarnessVersionChannelMenu({
+    current: data.current,
+    stableInfos: data.stableInfos,
+    prereleaseInfos: data.prereleaseInfos,
+  });
 
   const stableEffective = pickEffective(data.stableInfos, menu.stableChoice, data.current);
   const prereleaseEffective = pickEffective(
@@ -126,6 +149,8 @@ export function HarnessVersionCard<TSource = unknown>({
     notify: bridge.notify,
   };
 
+  const extraRows = bridge.capabilities?.extraRows ?? 'none';
+  const showExtraRows = extraRows === 'manual+installed';
   const updateMode = bridge.capabilities?.updateAction ?? 'install';
   const runUpdateAction =
     updateMode === 'check'
@@ -135,6 +160,36 @@ export function HarnessVersionCard<TSource = unknown>({
     void data.run(() => bridge.revert(version), t.harnessVersionSwitched, 'switch');
   const reinstallCurrent = () =>
     void data.run(() => bridge.reinstall(), t.harnessVersionReinstalled, 'reinstall');
+
+  const showCounts =
+    bridge.capabilities?.taskCounts === true &&
+    data.hasLiveTask &&
+    (data.shownTask?.phase === 'installing' || data.shownTask?.phase === 'removing');
+  const channelTask = (effective: string | null): HarnessChannelTask | null => {
+    const shown = data.shownTask;
+    if (!shown || shown.version !== effective) {
+      return null;
+    }
+    return {
+      shownTask: shown,
+      hasLiveTask: data.hasLiveTask,
+      stageText: data.stageText,
+      countsText:
+        showCounts && shown.total > 0
+          ? formatT(t, 'harnessVersionTaskCount', { done: shown.done, total: shown.total })
+          : '',
+      cancelLabel: data.cancelLabel,
+      cancellable: shown.cancellable,
+      onCancel: () => void bridge.cancel(),
+    };
+  };
+
+  const sourceOptions: HarnessSourceOption[] = slots.sourceOptions ?? [
+    { value: 'auto', label: t.harnessVersionSourceAuto },
+    { value: 'system', label: t.harnessVersionSourceSystem },
+    { value: 'host', label: t.harnessVersionSourceHost },
+  ];
+
   const channelRow = (channel: 'stable' | 'prerelease') => (
     <ChannelRow
       channel={channel}
@@ -142,6 +197,7 @@ export function HarnessVersionCard<TSource = unknown>({
         (channel === 'stable' ? bridge.labels?.stable : bridge.labels?.prerelease) ??
         (channel === 'stable' ? t.harnessVersionStable : t.harnessVersionPrerelease)
       }
+      hint={channel === 'stable' ? slots.stableHint : slots.prereleaseHint}
       infos={channel === 'stable' ? data.stableInfos : data.prereleaseInfos}
       effective={channel === 'stable' ? stableEffective : prereleaseEffective}
       current={data.current}
@@ -152,9 +208,10 @@ export function HarnessVersionCard<TSource = unknown>({
       }
       disabled={data.disabled}
       menuOpen={menu.openChannel === channel}
-      menuStyle={menu.menuStyle}
-      menuAnchorRef={menu.menuAnchorRef}
+      menuGeometry={menu.menuGeometry}
       menuPanelRef={menu.menuPanelRef}
+      fixedWidth={channel === 'stable' ? menu.menuWidths.stable : menu.menuWidths.prerelease}
+      task={channelTask(channel === 'stable' ? stableEffective : prereleaseEffective)}
       uninstallArmed={actions.uninstallArmed}
       onToggle={menu.toggleChannelMenu}
       onPick={menu.pickChannelVersion}
@@ -179,22 +236,37 @@ export function HarnessVersionCard<TSource = unknown>({
       )}
 
       <div className="adl-settings-card">
+        <SourceRow
+          mode={data.source?.mode ?? 'auto'}
+          options={sourceOptions}
+          hint={slots.sourceHint ?? formatT(t, 'harnessVersionHint', { tool: bridge.toolName })}
+          disabled={data.disabled}
+          note={renderSlot(slots.sourceNote, slotContext)}
+          onChange={(mode: HarnessVersionSourceMode) => actions.handleSourceChange(mode)}
+        />
+        {showExtraRows ? <SystemPathRow systemPath={data.source?.systemPath ?? null} /> : null}
+        {renderSlot(slots.sourceFooter, slotContext)}
         <CurrentVersionRow
-          current={data.current}
-          effectiveLabel={effectiveLabel}
-          uninstallHint={bridge.labels?.uninstallCurrentHint}
-          armed={actions.uninstallArmed !== null}
-          runtimeReadout={renderSlot(slots.runtimeReadout, slotContext)}
-        />
-        <StatusRows
-          failed={data.snapshot?.failed === true}
-          showMissing={data.status !== null && data.installed.length === 0}
-          missingBanner={
-            slots.missingBanner
-              ? renderSlot(slots.missingBanner, slotContext)
-              : formatT(t, 'harnessVersionMissingBanner', { tool: bridge.toolName })
+          hint={slots.currentHint}
+          uninstallWarn={
+            actions.uninstallArmed !== null ? bridge.labels?.uninstallCurrentHint : undefined
           }
-        />
+        >
+          {renderSlot(slots.runtimeReadout, slotContext) ?? (
+            <FallbackReadout
+              current={data.current}
+              effectiveLabel={effectiveLabel}
+              failed={data.snapshot?.failed === true}
+            />
+          )}
+        </CurrentVersionRow>
+        {showExtraRows ? (
+          <MissingBannerRow visible={data.status !== null && data.installed.length === 0}>
+            {slots.missingBanner
+              ? renderSlot(slots.missingBanner, slotContext)
+              : formatT(t, 'harnessVersionMissingBanner', { tool: bridge.toolName })}
+          </MissingBannerRow>
+        ) : null}
         {data.manageVisible ? (
           <>
             <UpdateRow
@@ -221,17 +293,26 @@ export function HarnessVersionCard<TSource = unknown>({
                 onInstall={actions.installVersion}
               />
             )}
-            <ManualVersionRow
-              value={actions.manual}
-              disabled={data.disabled}
-              onChange={actions.setManual}
-              onInstall={actions.installManual}
-            />
+            {showExtraRows ? (
+              <ManualVersionRow
+                value={actions.manual}
+                disabled={data.disabled}
+                onChange={actions.setManual}
+                onInstall={actions.installManual}
+              />
+            ) : null}
           </>
         ) : null}
+        {renderSlot(slots.footer, slotContext)}
+
+        <ChannelSizer
+          longestStable={longestVersionOf(data.stableInfos)}
+          longestPrerelease={longestVersionOf(data.prereleaseInfos)}
+          refs={menu.sizerRefs}
+        />
       </div>
 
-      {data.manageVisible ? (
+      {showExtraRows && data.manageVisible ? (
         <InstalledVersionsCard
           installed={data.installed}
           current={data.current}
@@ -243,31 +324,17 @@ export function HarnessVersionCard<TSource = unknown>({
         />
       ) : null}
 
-      <SourceCard
-        source={data.source}
-        sourceHint={
-          slots.sourceHint ?? formatT(t, 'harnessVersionSourceHint', { tool: bridge.toolName })
-        }
-        disabled={data.disabled}
-        onSourceChange={(mode: HarnessVersionSourceMode) => actions.handleSourceChange(mode)}
-        note={renderSlot(slots.sourceNote, slotContext)}
-        footer={renderSlot(slots.sourceFooter, slotContext)}
-      />
-
-      {data.shownTask ? (
+      {!data.channelPicker && data.shownTask ? (
         <TaskRow
           stageText={data.stageText}
           cancelLabel={data.cancelLabel}
           percent={data.shownTask.percent}
           done={data.shownTask.done}
           total={data.shownTask.total}
+          hasLiveTask={data.hasLiveTask}
           cancellable={data.shownTask.cancellable}
           showPercent={bridge.capabilities?.taskPercent !== false}
-          showCounts={
-            bridge.capabilities?.taskCounts === true &&
-            data.hasLiveTask &&
-            (data.shownTask.phase === 'installing' || data.shownTask.phase === 'removing')
-          }
+          showCounts={showCounts}
           onCancel={() => void bridge.cancel()}
         />
       ) : null}
@@ -279,8 +346,6 @@ export function HarnessVersionCard<TSource = unknown>({
           onReset={() => void data.run(() => bridge.resetSourceMode(), t.harnessVersionResetDone)}
         />
       ) : null}
-
-      {renderSlot(slots.footer, slotContext)}
     </div>
   );
 }

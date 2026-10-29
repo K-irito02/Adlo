@@ -8,7 +8,7 @@ interface DshVersionSourceNoteProps {
   mode: DshVersionSourceMode;
 }
 
-/** 版本来源卡内的说明行（系统托管 / 下次启动生效 / 无可用来源）。 */
+/** 版本来源行内的说明行（系统托管 / 下次启动生效 / 无可用来源，旧 DSH 行内警告口径）。 */
 export function DshVersionSourceNote({
   systemManaged,
   deferredSource,
@@ -18,15 +18,15 @@ export function DshVersionSourceNote({
   const { t } = useTCopy();
   return (
     <>
-      <small className="adl-harness-version__note">{t.dshVersionSourceDesc}</small>
+      <small>{t.dshVersionSourceDesc}</small>
       {systemManaged ? (
-        <small className="adl-harness-version__note">{t.dshSystemManagedNote}</small>
+        <small className="adl-harness-version__row-warn">{t.dshSystemManagedNote}</small>
       ) : null}
       {deferredSource ? (
-        <small className="adl-harness-version__note">{t.dshVersionSourceDeferredNote}</small>
+        <small className="adl-harness-version__row-warn">{t.dshVersionSourceDeferredNote}</small>
       ) : null}
       {!systemManaged && resolvedSource === 'none' ? (
-        <small className="adl-harness-version__note">
+        <small className="adl-harness-version__row-warn">
           {mode === 'host' ? t.dshNoSourceHostNote : t.dshNoSourceAutoNote}
         </small>
       ) : null}

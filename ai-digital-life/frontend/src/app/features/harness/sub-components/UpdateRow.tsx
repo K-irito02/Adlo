@@ -33,9 +33,9 @@ export function UpdateRow({
           <span>{t.harnessVersionUpdate}</span>
         </div>
       </div>
-      <div className="adl-settings-row__control">
+      <div className="adl-settings-row__control adl-harness-version__version-actions">
         {mode === 'install' && hasLatest && !catalogFailed ? (
-          <span className="adl-harness-version__hint">
+          <span className="adl-harness-version__readout-sub">
             {hasUpdate ? t.harnessVersionHasUpdate : t.harnessVersionNoUpdate}
           </span>
         ) : null}

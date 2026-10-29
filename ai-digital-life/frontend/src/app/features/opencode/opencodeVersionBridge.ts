@@ -106,6 +106,8 @@ export function createOpencodeVersionBridge(
       taskPercent: true,
       taskCounts: false,
       resetSourceAction: true,
+      // OpenCode 保留其原有功能：手动版本行 + 已安装版本独立卡。
+      extraRows: 'manual+installed',
     },
     taskStageText,
     load: async (): Promise<HarnessVersionSnapshot<OpencodeSourceStatus>> => {

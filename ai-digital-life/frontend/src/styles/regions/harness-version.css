@@ -1,38 +1,45 @@
-/* 通用版本卡片：仅补充版本卡自身的排版，不复制 settings.css 的通用行样式。 */
+/* ==========================================================================
+   Regions: 通用 harness 版本卡片局部样式（设置面板版本管理块）
+   --------------------------------------------------------------------------
+   - 由旧 DSH 版本管理块样式（`dsh-version.css`，基线 `2ea69fd7`）逐条移植，
+     类名前缀 `adl-dsh-settings__` → `adl-harness-version__`（复用载体去 DSH 专属命名）。
+   - DSH 来源切换对话框仍用 `adl-dsh-source-dialog__*`（DSH 专属，不改名）。
+   - 块内统一的提示小字色用中性 `var(--text-muted)`（hint-color 规则：不复活
+     旧 `--dsh-note-fg` accent 混合推导；旧值见下方 `__row-warn` 与
+     `__version-menu-item-current` 注释）。
+   - 卡片根节点 `.adl-harness-version` 仅作样式作用域（`display: contents`
+     零视觉效果，不增加卡间距；旧根即卡片本身）。
+   ========================================================================== */
 
-/* 卡片根节点自成一层，保持设置组原有的块间距（header + 多张卡）。 */
+/* 卡片根节点自成作用域但不产生盒子：子卡片直接按组 section 间距排列。 */
 .adl-harness-version {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  display: contents;
 }
 
-.adl-harness-version__value {
-  font-family: var(--font-mono);
-  font-size: 0.85em;
-  color: var(--text-secondary);
+/* 来源行下拉框与其它控件同宽：下拉框定宽 160px（含 min-width 锁定意图）。 */
+.adl-harness-version .adl-settings-dropdown {
+  width: 160px;
+  min-width: 160px;
 }
 
-.adl-harness-version__hint {
-  font-size: 0.85em;
-  color: var(--text-tertiary);
-}
+/* -------- 版本管理块 -------- */
 
-.adl-harness-version__badge {
-  margin-left: var(--space-1);
-  padding: 0 var(--space-1);
-  border-radius: 999px;
-  background: var(--bg-muted);
-  color: var(--text-secondary);
-  font-size: 0.75em;
-}
-
-/* 工具专属读数插槽（DSH 的运行态 / 来源读数）：纵向堆叠，右对齐与设置行一致。 */
+/* 当前版本行右侧「版本号 + 状态徽标 + 最新版本」纵向读数。 */
 .adl-harness-version__readout {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: var(--space-1);
+}
+
+.adl-harness-version__latest {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.adl-harness-version__readout-sub {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
 }
 
 .adl-harness-version__readout-value {
@@ -49,12 +56,8 @@
   color: var(--text-muted);
 }
 
-.adl-harness-version__readout-sub {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}
-
-/* 读数加载态：中性灰胶囊 + 水平波浪，不引入强调色（亮暗主题均可见）。 */
+/* 当前版本读数加载态：圆弧胶囊 + 水平波浪扫过，中性灰，
+   不引入强调色；亮暗主题均可见（固定 rgba，不依赖主题变量对比度）。 */
 .adl-harness-version__readout-loading {
   display: inline-block;
   width: 148px;
@@ -80,30 +83,387 @@
   }
 }
 
+/* 状态徽标（已是最新 / 发现新版本）——无边框。 */
+.adl-harness-version__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-wide);
+  line-height: var(--leading-none);
+  min-height: 20px;
+  background: var(--success-soft);
+  color: var(--success);
+}
+
 .adl-harness-version__badge--update {
-  color: var(--warning);
   background: var(--warning-soft);
+  color: var(--warning);
 }
 
-/* 工具专属说明行（DSH 来源解释 / 系统安装 / 延迟生效 / 无来源提示）：
-   逐条成块，原文换行保留；中性灰（不使用强调色作警醒色）。 */
-.adl-harness-version__note {
-  display: block;
+/* 版本操作行按钮组：右对齐、允许换行。 */
+.adl-harness-version__version-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.adl-harness-version__version-task {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* 任务阶段文案（阶段＋真实计数，不伪造进度；弱化，不抢按钮）。 */
+.adl-harness-version__version-task-stage {
+  font-size: 11px;
   color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 阶段文案扫光（中性灰，亮暗主题均可见；计数部分保持静止）。 */
+.adl-harness-version__version-task-shimmer {
+  background: linear-gradient(100deg, #8a8a8a 30%, #d4d4d4 50%, #8a8a8a 70%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: adl-harness-task-shimmer 2.6s ease-in-out infinite;
+}
+
+@keyframes adl-harness-task-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.adl-harness-version__version-task-count {
+  margin-left: 0.25em;
+}
+
+/* 版本操作按钮：与其它设置块控件同构——常驻灰底、无边框线、radius-sm 近直角；
+   悬停时加边框线。统宽 + 内容居中：spinner 替换文案时按钮不变形。 */
+.adl-harness-version__action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-harness-version__action-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  /* 浅色下 bg-muted 与 surface-hover 同值，hover 全靠边框变化保证可见 */
+  border-color: var(--border-strong);
+}
+
+.adl-harness-version__action-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-harness-version__action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-harness-version__action-btn--danger {
+  color: var(--danger);
+}
+
+/* 行内警告小字（卸载二次确认 / 系统托管 / 延迟生效 / 无可用来源）：
+   `.adl-settings-row__label small` 会覆盖颜色，用复合选择器提权，避免 !important。
+   多行说明按原文换行呈现：基础 small 无 pre-line 会把换行压成一段，且 5 行 clamp
+   会在窄面板下截断后续分项，故按原文换行（pre-line）+ 解除 clamp（块级 + 可见溢出）。
+   颜色取中性 `var(--text-muted)`（旧 `--dsh-note-fg` accent 推导按 hint-color 规则退役）。 */
+.adl-harness-version small.adl-harness-version__row-warn {
+  color: var(--text-muted);
+  display: block;
+  white-space: pre-line;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
+}
+
+/* DSH 来源切换对话框正文：保留原文换行（对话框为 Portal，不在卡片子树内）。 */
+.adl-dsh-source-dialog__message {
+  white-space: pre-line;
+}
+
+/* 换到空来源时的后果提示。 */
+.adl-dsh-source-dialog__message--warn {
+  color: var(--warning);
+}
+
+/* 版本下拉菜单：经 Portal 挂到 body（fixed 定位，坐标由 JS 计算），
+   不受设置面板滚动容器裁剪。与 SettingsSelect 下拉菜单同视觉口径：
+   四角偏直角（radius-sm）、卡片内 padding 让悬停灰底不贴左右边缘、
+   菜单宽度由 JS 设为与触发下拉框实时一致。 */
+.adl-harness-version__version-menu {
+  position: fixed;
+  z-index: var(--z-overlay);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-1);
+}
+
+.adl-harness-version__version-menu-list {
+  max-height: 280px;
+  /* 原生滚动条由 `adl-reveal-scroll` 隐藏，滚动指示用项目 RevealScrollbar
+    （overlay 悬停显现式，与 SettingsSelect 下拉菜单同源；悬停灰底可与
+     滚动条重叠显示，无需为滚动条区域预留）。 */
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* hover 灰底与 overlay 滚动条重叠：不做右侧内缩。 */
+}
+
+.adl-harness-version__version-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
   font-size: var(--text-xs);
-  white-space: pre-line;
+  transition: background 120ms;
+  white-space: nowrap;
 }
 
-.adl-harness-version__note + .adl-harness-version__note {
-  margin-top: var(--space-1);
+.adl-harness-version__version-menu-item:hover {
+  background: var(--bg-hover);
 }
 
-/* 来源切换确认框正文：保留原文换行。 */
-.adl-harness-version__dialog-message {
-  white-space: pre-line;
+/* 选中项不高亮背景：仅保留勾选图标，打勾即代表选中。 */
+
+/* 回退动作按钮：占据行的信息区（版本 + 时间），与右侧徽标/卸载并列的原生按钮。 */
+.adl-harness-version__version-menu-item-revert {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-/* 说明文字内嵌链接：与正文同色、无下划线，点击跟随「打开方式」落点跳转。 */
+.adl-harness-version__version-menu-item-revert:disabled {
+  cursor: default;
+}
+
+.adl-harness-version__version-menu-item-version {
+  font-family: var(--font-mono);
+  font-weight: var(--font-semibold);
+}
+
+.adl-harness-version__version-menu-item-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.adl-harness-version__version-menu-item-badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.adl-harness-version__version-menu-item-check {
+  width: 16px;
+  height: 16px;
+  /* 继承文字颜色，不使用蓝色：选中态无蓝色。 */
+  color: inherit;
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+/* 版本状态徽章（「当前版本」/「已装版本」）：共用同一套胶囊样式。
+   菜单卡片内二者互斥，按 当前版本 > 已装版本 取一个。
+   勾号槽位常驻（未选中时留空 16px），所以徽章不会因为勾号出现而左移。 */
+.adl-harness-version__version-menu-item-installed {
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--font-semibold);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* 「当前版本」徽章文字色取中性（旧 `--dsh-note-fg` accent 推导按 hint-color 规则退役，
+   与提示小字同色）；底色比 `--accent-soft` 更淡（旧值保留）。 */
+.adl-harness-version__version-menu-item-current {
+  color: var(--text-muted);
+}
+
+.adl-harness-version__version-menu-item-current {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.adl-harness-version__version-menu-item-check svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 官方版本列表（正式版 / 预发布行内列表）：纵向排列，单行左版本右操作。 */
+.adl-harness-version__version-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: stretch;
+  min-width: 0;
+}
+
+.adl-harness-version__version-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.adl-harness-version__version-list-item-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 版本选择下拉框按钮：展示版本号 + 来源徽标（已装版本）+ 当前勾 + 下拉箭头，
+   固定行内最左；宽度由 JS 设为分区最长选项实测值（菜单同宽，菜单内单行不换行）。 */
+.adl-harness-version__version-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: var(--transition-colors);
+  flex-shrink: 0;
+  justify-content: space-between;
+  /* 同行时把右侧按钮组推到最右；换行后按钮组另起一行贴左。 */
+  margin-right: auto;
+}
+
+.adl-harness-version__version-picker:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.adl-harness-version__version-picker:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-harness-version__version-picker:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-harness-version__version-picker-version {
+  font-family: var(--font-mono);
+  font-weight: var(--font-semibold);
+  white-space: nowrap;
+}
+
+/* 下拉框左侧内容组：版本号 + 徽章 + 勾选贴在一起，右侧只剩下拉箭头
+   （按钮 space-between，组占左、箭头占右）。 */
+.adl-harness-version__version-picker-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.adl-harness-version__version-picker-chevron {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.adl-harness-version__version-picker-chevron svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 正式版 / 预发布行：标签在上、控件独占下一行整宽。
+   行内最多 5 个控件（4 文字按钮 + 下拉框），与标题副标题同行时过宽；
+   整体换行后提示文案独占一行、控件行左对齐，充分利用卡片宽度且中英皆美观。 */
+.adl-harness-version .adl-harness-version__row--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.adl-harness-version .adl-harness-version__row--stack > .adl-settings-row__control {
+  width: 100%;
+}
+
+.adl-harness-version__version-list-item {
+  flex-wrap: wrap;
+  row-gap: var(--space-1);
+}
+
+/* 行内动态按钮组：固定同行最右（下拉框固定最左后，中间剩余空间由它隔开）。 */
+.adl-harness-version__version-list-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+/* 宽度测量尺：脱离布局但保留渲染（visibility 非 display），用于实测最长选项宽度。
+   关键：测量项必须用 inline-flex 收缩包裹内容——块级 flex 盒会自动拉伸到
+   容器（卡片内容区）宽度，量到的就是卡片宽度而非内容宽度。
+   width:auto 覆盖菜单项的 width:100%。 */
+.adl-harness-version__version-sizer {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.adl-harness-version__version-sizer-item {
+  display: inline-flex;
+  width: auto;
+}
+
+/* 测量时内层不参与空闲空间瓜分，保证收缩宽度即内容宽度。 */
+.adl-harness-version__version-sizer-item .adl-harness-version__version-menu-item-revert {
+  flex: none;
+}
+
+/* 说明文字内嵌链接：与标题同色（无蓝色/灰色特殊色），无下划线；
+   点击跟随「打开方式」网址落点跳转。保留 focus 描边保证键盘可达性。 */
 .adl-harness-version__inline-link {
   padding: 0;
   border: none;
@@ -124,185 +484,20 @@
   outline-offset: var(--focus-ring-offset);
 }
 
-.adl-harness-version__action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 3.5rem;
-  padding: var(--space-1) var(--space-2);
-  background: var(--bg-muted);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font: inherit;
-}
-
-.adl-harness-version__action-btn:hover:not(:disabled) {
-  background: var(--surface-hover);
-  border-color: var(--border-strong);
-}
-
-.adl-harness-version__action-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.adl-harness-version__action-btn:disabled {
+/* 行内链接禁用态：busy 时仍保持文字形态，但必须有可见反馈（否则会被当成可点）。 */
+.adl-harness-version__inline-link:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.adl-harness-version__action-btn--danger {
-  color: var(--danger);
-}
+/* 窄档：操作行改为纵向堆叠时，按钮组左对齐（换行后不再贴右），读数同档左对齐。
+   用 `.adl-settings-panel__content` 前缀提权，不依赖跨样式表导入顺序。 */
+@container settings-content (max-width: 600px) {
+  .adl-settings-panel__content .adl-harness-version__version-actions {
+    justify-content: flex-start;
+  }
 
-.adl-harness-version__progress {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-/* 双通道行：选择器 + 发布时间 + 行内操作，允许换行避免挤压。 */
-.adl-harness-version__channel {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.adl-harness-version__channel-time {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  font-family: var(--font-mono);
-}
-
-.adl-harness-version__actions {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-/* 行内版本选择器（下拉菜单触发器）：版本号 + 状态徽章 + 勾号槽 + 箭头。 */
-.adl-harness-version__picker {
-  display: inline-flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  min-width: 9rem;
-  max-width: 100%;
-  padding: var(--space-1) var(--space-2);
-  background: var(--bg-muted);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font: inherit;
-}
-
-.adl-harness-version__picker:hover:not(:disabled) {
-  background: var(--surface-hover);
-  border-color: var(--border-strong);
-}
-
-.adl-harness-version__picker:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.adl-harness-version__picker:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.adl-harness-version__picker-label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.adl-harness-version__picker-version,
-.adl-harness-version__menu-item-version {
-  font-family: var(--font-mono);
-  font-size: 0.85em;
-  white-space: nowrap;
-}
-
-/* 勾号槽位常驻：未选中时留空，徽章不因勾号出现而位移。 */
-.adl-harness-version__picker-check,
-.adl-harness-version__menu-item-check {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-}
-
-.adl-harness-version__picker-chevron {
-  display: inline-flex;
-  color: var(--text-muted);
-}
-
-/* 通道版本菜单（portal 到 body，fixed 定位由组件按触发器实测几何给出）。 */
-.adl-harness-version__menu {
-  z-index: var(--z-overlay);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-1);
-  background: var(--bg-elevated, var(--surface));
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-}
-
-.adl-harness-version__menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
-}
-
-.adl-harness-version__menu-item[aria-selected='true'] {
-  background: var(--bg-muted);
-}
-
-.adl-harness-version__menu-item-action {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  min-width: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.adl-harness-version__menu-item-action:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.adl-harness-version__menu-item-action:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.adl-harness-version__menu-item-time {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  font-family: var(--font-mono);
-  white-space: nowrap;
-}
-
-.adl-harness-version__menu-item-badges {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
+  .adl-settings-panel__content .adl-harness-version__readout {
+    align-items: flex-start;
+  }
 }

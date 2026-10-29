@@ -51,7 +51,7 @@ export function DshSourceSwitchDialog({
           <h3 className="adl-confirm-dialog__title">{title}</h3>
         </div>
         <div className="adl-confirm-dialog__body">
-          <p className="adl-confirm-dialog__message adl-harness-version__dialog-message">
+          <p className="adl-confirm-dialog__message adl-dsh-source-dialog__message">
             {state.fromEmpty
               ? t.dshVersionSourceSwitchDialogFromEmpty.replaceAll('{target}', targetLabel)
               : state.mode === 'system'
@@ -62,7 +62,7 @@ export function DshSourceSwitchDialog({
                 : t.dshVersionSourceSwitchDialogMessage.replaceAll('{target}', targetLabel)}
           </p>
           {state.targetEmpty ? (
-            <p className="adl-confirm-dialog__message adl-harness-version__dialog-message">
+            <p className="adl-confirm-dialog__message adl-dsh-source-dialog__message adl-dsh-source-dialog__message--warn">
               {t.dshVersionSourceSwitchDialogEmpty.replaceAll('{target}', targetLabel)}
             </p>
           ) : null}

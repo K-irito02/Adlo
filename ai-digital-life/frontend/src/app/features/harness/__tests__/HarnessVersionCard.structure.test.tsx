@@ -233,23 +233,27 @@ describe('HarnessVersionCard old-DSH structure', () => {
       ':scope > .adl-settings-row[data-settings-row="dshOfficialStable"]',
     ) as HTMLElement;
     const picker = within(stableRow).getByRole('button', { name: '1.1.0' });
-    expect(picker.className).toContain('adl-harness-version__picker');
+    expect(picker.className).toContain('adl-harness-version__version-picker');
     expect(picker).toHaveAttribute('aria-haspopup', 'listbox');
     expect(picker).toHaveAttribute('aria-expanded', 'false');
 
     fireEvent.click(picker);
     expect(picker).toHaveAttribute('aria-expanded', 'true');
     const menu = screen.getByRole('listbox');
-    expect(menu.className).toContain('adl-harness-version__menu');
+    expect(menu.className).toContain('adl-harness-version__version-menu');
     const options = within(menu).getAllByRole('option');
     expect(options).toHaveLength(3);
     for (const option of options) {
-      expect(option.className).toContain('adl-harness-version__menu-item');
+      expect(option.className).toContain('adl-harness-version__version-menu-item');
       expect(option).toHaveAttribute('aria-selected');
-      expect(option.querySelector('.adl-harness-version__menu-item-version')).not.toBeNull();
-      expect(option.querySelector('.adl-harness-version__menu-item-badges')).not.toBeNull();
+      expect(
+        option.querySelector('.adl-harness-version__version-menu-item-version'),
+      ).not.toBeNull();
+      expect(option.querySelector('.adl-harness-version__version-menu-item-badges')).not.toBeNull();
       // 勾号槽位常驻：徽章不因勾号出现而位移。
-      expect(option.querySelectorAll('.adl-harness-version__menu-item-check')).toHaveLength(1);
+      expect(option.querySelectorAll('.adl-harness-version__version-menu-item-check')).toHaveLength(
+        1,
+      );
     }
     const current = options.find((o) => o.textContent?.includes('1.1.0'))!;
     expect(current.getAttribute('aria-selected')).toBe('true');

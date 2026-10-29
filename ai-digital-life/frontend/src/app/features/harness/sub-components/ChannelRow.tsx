@@ -1,8 +1,12 @@
 import { createPortal } from 'react-dom';
 import type { CSSProperties, ReactNode, RefObject } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
+import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import { RevealScrollbar } from '@components/RevealScrollbar';
+import { useRevealScrollbar } from '@hooks/useRevealScrollbar';
 import { formatPublishedAt } from '../harnessVersionFormat';
-import type { HarnessChannelKey } from '../hooks/useHarnessVersionChannelMenu';
+import type { HarnessChannelKey, HarnessMenuGeometry } from '../hooks/useHarnessVersionChannelMenu';
+import type { HarnessVersionTask } from '../harnessVersionBridge';
 import { CheckIcon, ChevronDownIcon } from './icons';
 
 export interface HarnessChannelInfo {
@@ -10,9 +14,22 @@ export interface HarnessChannelInfo {
   publishedAt: string | null;
 }
 
+/** 作用行内的任务态（旧 `renderVersionRowAction` 的任务分支）。 */
+export interface HarnessChannelTask {
+  shownTask: HarnessVersionTask | null;
+  hasLiveTask: boolean;
+  stageText: string;
+  countsText: string;
+  cancelLabel: string;
+  cancellable: boolean;
+  onCancel: () => void;
+}
+
 interface ChannelRowProps {
   channel: HarnessChannelKey;
   title: string;
+  /** 行内「?」提示内容（DSH 传入通道说明；缺省不渲染）。 */
+  hint?: string;
   infos: HarnessChannelInfo[];
   effective: string | null;
   current: string | null;
@@ -21,9 +38,11 @@ interface ChannelRowProps {
   emptyText: string;
   disabled: boolean;
   menuOpen: boolean;
-  menuStyle: CSSProperties | null;
-  menuAnchorRef: RefObject<HTMLElement | null>;
+  menuGeometry: HarnessMenuGeometry | null;
   menuPanelRef: RefObject<HTMLDivElement | null>;
+  fixedWidth: number | null;
+  /** 本行展示版本在途的任务（`shownTask.version === effective` 时行内展示）。 */
+  task: HarnessChannelTask | null;
   uninstallArmed: string | null;
   onToggle: (channel: HarnessChannelKey, anchor: HTMLElement) => void;
   onPick: (channel: HarnessChannelKey, version: string) => void;
@@ -34,12 +53,13 @@ interface ChannelRowProps {
 }
 
 /**
- * 双通道行（DSH）：选择器只切换本行展示的版本，安装/切换/卸载仍走行内按钮。
- * 每行同一时刻只展示一个版本（通道各自限量），完整列表在该行的选择菜单里。
+ * 双通道行（旧 DSH 正式版本/预发布版本行）：标签在上、控件独占下一行整宽；
+ * 选择器只切换本行展示的版本，安装/切换/卸载仍走行内按钮；在途任务行内展示。
  */
 export function ChannelRow({
   channel,
   title,
+  hint,
   infos,
   effective,
   current,
@@ -48,9 +68,10 @@ export function ChannelRow({
   emptyText,
   disabled,
   menuOpen,
-  menuStyle,
-  menuAnchorRef,
+  menuGeometry,
   menuPanelRef,
+  fixedWidth,
+  task,
   uninstallArmed,
   onToggle,
   onPick,
@@ -63,23 +84,24 @@ export function ChannelRow({
 
   const row = (control: ReactNode) => (
     <div
-      className="adl-settings-row"
+      className={`adl-settings-row${infos.length > 0 ? ' adl-harness-version__row--stack' : ''}`}
       data-settings-row={title}
       data-harness-channel={channel}
       key={channel}
     >
       <div className="adl-settings-row__label">
         <div className="adl-settings-row__label-text">
+          {hint ? <SettingsHintButton content={hint} /> : null}
           <span>{title}</span>
         </div>
       </div>
-      <div className="adl-settings-row__control adl-harness-version__channel">{control}</div>
+      <div className="adl-settings-row__control">{control}</div>
     </div>
   );
 
   if (!effective) {
     return row(
-      <span className="adl-harness-version__value is-empty">
+      <span className="adl-harness-version__readout-value is-empty">
         {unknown ? t.harnessVersionListUnknown : emptyText}
       </span>,
     );
@@ -90,139 +112,307 @@ export function ChannelRow({
   const time = hit ? formatPublishedAt(hit.publishedAt, locale) : '';
   const isCurrent = version === current;
   const isInstalled = installed.includes(version);
-  const menuId = `adl-harness-version-menu-${channel}`;
   return row(
-    <>
-      <button
-        type="button"
-        className="adl-harness-version__picker"
-        disabled={disabled}
-        aria-expanded={menuOpen}
-        aria-haspopup="listbox"
-        aria-controls={menuOpen ? menuId : undefined}
-        aria-label={version}
-        title={[
-          version,
-          isCurrent ? t.harnessVersionCurrentBadge : isInstalled ? t.harnessVersionInstalled : null,
-        ]
-          .filter(Boolean)
-          .join(' · ')}
-        onClick={(event) => onToggle(channel, event.currentTarget)}
+    <div className="adl-harness-version__version-list">
+      <div
+        key={version}
+        className={`adl-harness-version__version-list-item${
+          isCurrent ? ' adl-harness-version__version-list-item--current' : ''
+        }`}
       >
-        <span className="adl-harness-version__picker-label">
-          <span className="adl-harness-version__picker-version">{version}</span>
-          {isCurrent ? (
-            <span className="adl-harness-version__badge">{t.harnessVersionCurrentBadge}</span>
-          ) : isInstalled ? (
-            <span className="adl-harness-version__badge">{t.harnessVersionInstalled}</span>
-          ) : null}
-          <span className="adl-harness-version__picker-check" aria-hidden={!isCurrent}>
-            {isCurrent ? <CheckIcon /> : null}
+        <button
+          type="button"
+          className="adl-harness-version__version-picker"
+          style={fixedWidth != null ? { width: fixedWidth } : undefined}
+          onClick={(event) => onToggle(channel, event.currentTarget)}
+          disabled={disabled}
+          aria-expanded={menuOpen}
+          aria-haspopup="listbox"
+          aria-label={version}
+          title={[
+            version,
+            isCurrent
+              ? t.harnessVersionCurrentBadge
+              : isInstalled
+                ? t.harnessVersionInstalled
+                : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        >
+          <span className="adl-harness-version__version-picker-label">
+            <span className="adl-harness-version__version-picker-version">{version}</span>
+            {/* 与菜单卡片同一口径：当前版本 > 已装版本，单徽章互斥。 */}
+            {isCurrent ? (
+              <span className="adl-harness-version__version-menu-item-installed adl-harness-version__version-menu-item-current">
+                {t.harnessVersionCurrentBadge}
+              </span>
+            ) : isInstalled ? (
+              <span className="adl-harness-version__version-menu-item-installed">
+                {t.harnessVersionInstalled}
+              </span>
+            ) : null}
+            <span className="adl-harness-version__version-menu-item-check" aria-hidden={!isCurrent}>
+              {isCurrent ? <CheckIcon /> : null}
+            </span>
           </span>
-        </span>
-        <span className="adl-harness-version__picker-chevron">
-          <ChevronDownIcon />
-        </span>
-      </button>
-      {time ? <span className="adl-harness-version__channel-time">{time}</span> : null}
-      <div className="adl-harness-version__actions">
-        {isInstalled ? (
-          <button
-            type="button"
-            className={`adl-harness-version__action-btn${
-              uninstallArmed === version ? ' adl-harness-version__action-btn--danger' : ''
-            }`}
-            disabled={disabled}
-            onClick={() => onUninstall(version)}
-          >
-            {uninstallArmed === version
-              ? t.harnessVersionConfirmUninstall
-              : t.harnessVersionUninstall}
-          </button>
+          <span className="adl-harness-version__version-picker-chevron">
+            <ChevronDownIcon />
+          </span>
+        </button>
+        {/* 任务进行中时隐藏发布时间：任务行只保留阶段文案＋取消按钮。 */}
+        {task ? null : time ? (
+          <span className="adl-harness-version__version-list-item-time">{time}</span>
         ) : null}
-        {isInstalled ? (
-          <button
-            type="button"
-            className="adl-harness-version__action-btn"
-            disabled={disabled}
-            onClick={() => onReinstall(version)}
-          >
-            {t.harnessVersionReinstallAction}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="adl-harness-version__action-btn"
-            disabled={disabled}
-            onClick={() => onInstall(version)}
-          >
-            {t.harnessVersionInstall}
-          </button>
-        )}
-        {isInstalled && !isCurrent ? (
-          <button
-            type="button"
-            className="adl-harness-version__action-btn"
-            disabled={disabled}
-            onClick={() => onSwitch(version)}
-          >
-            {t.harnessVersionSwitchTo}
-          </button>
-        ) : null}
-      </div>
-      {menuOpen
-        ? createPortal(
-            <div
-              id={menuId}
-              ref={menuPanelRef}
-              className="adl-harness-version__menu"
-              role="listbox"
-              aria-label={title}
-              style={menuStyle ?? undefined}
+        {task ? (
+          <div className="adl-harness-version__version-task">
+            <span className="adl-harness-version__version-task-stage" aria-live="polite">
+              <span className="adl-harness-version__version-task-shimmer">{task.stageText}</span>
+              {task.countsText ? (
+                <span className="adl-harness-version__version-task-count">{task.countsText}</span>
+              ) : null}
+            </span>
+            <button
+              type="button"
+              className="adl-harness-version__action-btn"
+              onClick={() => task.onCancel()}
+              disabled={!task.hasLiveTask || !task.cancellable}
             >
-              {infos.map((info) => {
-                const v = info.version;
-                const picked = v === version;
-                const itemTime = formatPublishedAt(info.publishedAt, locale);
-                return (
-                  <div
-                    key={v}
-                    className="adl-harness-version__menu-item"
-                    role="option"
-                    aria-selected={picked}
-                  >
-                    <button
-                      type="button"
-                      className="adl-harness-version__menu-item-action"
-                      disabled={disabled}
-                      onClick={() => onPick(channel, v)}
-                    >
-                      <span className="adl-harness-version__menu-item-version">{v}</span>
-                      {itemTime ? (
-                        <span className="adl-harness-version__menu-item-time">{itemTime}</span>
-                      ) : null}
-                    </button>
-                    <div className="adl-harness-version__menu-item-badges">
-                      {v === current ? (
-                        <span className="adl-harness-version__badge">
-                          {t.harnessVersionCurrentBadge}
-                        </span>
-                      ) : installed.includes(v) ? (
-                        <span className="adl-harness-version__badge">
-                          {t.harnessVersionInstalled}
-                        </span>
-                      ) : null}
-                      <span className="adl-harness-version__menu-item-check" aria-hidden={!picked}>
-                        {picked ? <CheckIcon /> : null}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>,
-            document.body,
-          )
-        : null}
-    </>,
+              {task.cancelLabel}
+            </button>
+          </div>
+        ) : (
+          <div className="adl-harness-version__version-list-actions">
+            {isInstalled ? (
+              <button
+                type="button"
+                className={`adl-harness-version__action-btn${
+                  uninstallArmed === version ? ' adl-harness-version__action-btn--danger' : ''
+                }`}
+                onClick={() => onUninstall(version)}
+                disabled={disabled}
+              >
+                {uninstallArmed === version
+                  ? t.harnessVersionConfirmUninstall
+                  : t.harnessVersionUninstall}
+              </button>
+            ) : null}
+            {isInstalled ? (
+              <button
+                type="button"
+                className="adl-harness-version__action-btn"
+                onClick={() => onReinstall(version)}
+                disabled={disabled}
+              >
+                {t.harnessVersionReinstallAction}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="adl-harness-version__action-btn"
+                onClick={() => onInstall(version)}
+                disabled={disabled}
+              >
+                {t.harnessVersionInstall}
+              </button>
+            )}
+            {isInstalled && !isCurrent ? (
+              <button
+                type="button"
+                className="adl-harness-version__action-btn"
+                onClick={() => onSwitch(version)}
+                disabled={disabled}
+              >
+                {t.harnessVersionSwitchTo}
+              </button>
+            ) : null}
+          </div>
+        )}
+        {menuOpen && menuGeometry
+          ? createPortal(
+              <ChannelMenu
+                title={title}
+                infos={infos}
+                effective={version}
+                current={current}
+                installed={installed}
+                disabled={disabled}
+                geometry={menuGeometry}
+                panelRef={menuPanelRef}
+                onPick={(picked) => onPick(channel, picked)}
+              />,
+              document.body,
+            )
+          : null}
+      </div>
+    </div>,
+  );
+}
+
+interface ChannelMenuProps {
+  title: string;
+  infos: HarnessChannelInfo[];
+  /** 下拉框当前展示的版本（菜单内勾选标记跟随它）。 */
+  effective: string;
+  current: string | null;
+  installed: string[];
+  disabled: boolean;
+  geometry: HarnessMenuGeometry;
+  panelRef: RefObject<HTMLDivElement | null>;
+  onPick: (version: string) => void;
+}
+
+/** 版本选择下拉菜单（Portal）：列出所属分区全部版本，点击只切换展示。 */
+function ChannelMenu({
+  title,
+  infos,
+  effective,
+  current,
+  installed,
+  disabled,
+  geometry,
+  panelRef,
+  onPick,
+}: ChannelMenuProps) {
+  const { t, locale } = useTCopy();
+  const scrollbar = useRevealScrollbar([infos.length, geometry !== null]);
+  return (
+    <div
+      ref={panelRef}
+      className="adl-harness-version__version-menu"
+      role="listbox"
+      aria-label={title}
+      style={{
+        top: geometry.top,
+        bottom: geometry.bottom,
+        left: geometry.left,
+        width: geometry.width,
+        maxHeight: geometry.maxHeight,
+      }}
+      {...scrollbar.hoverProps}
+    >
+      <div
+        className="adl-harness-version__version-menu-list adl-reveal-scroll"
+        ref={scrollbar.scrollRef as unknown as React.Ref<HTMLDivElement>}
+        style={
+          geometry.maxHeight != null
+            ? { maxHeight: Math.max(0, geometry.maxHeight - 8) }
+            : undefined
+        }
+      >
+        {infos.map((info) => {
+          const v = info.version;
+          const isInstalled = installed.includes(v);
+          const isPicked = v === effective;
+          const time = formatPublishedAt(info.publishedAt, locale);
+          return (
+            <div
+              key={v}
+              className="adl-harness-version__version-menu-item"
+              role="option"
+              aria-selected={isPicked}
+            >
+              <button
+                type="button"
+                className="adl-harness-version__version-menu-item-revert"
+                onClick={() => onPick(v)}
+                disabled={disabled}
+              >
+                <span className="adl-harness-version__version-menu-item-version">{v}</span>
+                {time ? (
+                  <span className="adl-harness-version__version-menu-item-time">{time}</span>
+                ) : null}
+              </button>
+              <div className="adl-harness-version__version-menu-item-badges">
+                {/* 每行最多一个状态徽章，优先级：当前版本 > 已装版本。
+                    勾号槽位常驻（未选中时留空）：徽章不会因勾号出现而左移。 */}
+                {v === current ? (
+                  <span className="adl-harness-version__version-menu-item-installed adl-harness-version__version-menu-item-current">
+                    {t.harnessVersionCurrentBadge}
+                  </span>
+                ) : isInstalled ? (
+                  <span className="adl-harness-version__version-menu-item-installed">
+                    {t.harnessVersionInstalled}
+                  </span>
+                ) : null}
+                <span
+                  className="adl-harness-version__version-menu-item-check"
+                  aria-hidden={!isPicked}
+                >
+                  {isPicked ? <CheckIcon /> : null}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <RevealScrollbar
+        controller={scrollbar.scrollable ? { ...scrollbar, visible: true } : scrollbar}
+      />
+    </div>
+  );
+}
+
+interface ChannelSizerProps {
+  longestStable: string | null;
+  longestPrerelease: string | null;
+  refs: {
+    stableSizerRef: RefObject<HTMLDivElement | null>;
+    prereleaseSizerRef: RefObject<HTMLDivElement | null>;
+    stablePickerSizerRef: RefObject<HTMLDivElement | null>;
+    prereleasePickerSizerRef: RefObject<HTMLDivElement | null>;
+  };
+}
+
+/**
+ * 宽度测量尺（隐藏）：取分区最长选项实测宽度，下拉框与菜单卡片同宽，
+ * 保证菜单内“版本号 + 徽章”全部单行。结构与真实菜单项一致，同类名保证
+ * 字体/间距一致；外加收缩类避免块级拉伸。另附下拉框 replica（含箭头）：
+ * 两者取最大，否则横向下拉框内容超出纵向菜单项宽度时勾选压住箭头。
+ */
+export function ChannelSizer({ longestStable, longestPrerelease, refs }: ChannelSizerProps) {
+  const { t } = useTCopy();
+  const menuItem = (longest: string, ref: RefObject<HTMLDivElement | null>) => (
+    <div
+      ref={ref}
+      className="adl-harness-version__version-menu-item adl-harness-version__version-sizer-item"
+    >
+      <span className="adl-harness-version__version-menu-item-revert">
+        <span className="adl-harness-version__version-menu-item-version">{longest}</span>
+        <span className="adl-harness-version__version-menu-item-time">0000-00-00 00:00</span>
+      </span>
+      <span className="adl-harness-version__version-menu-item-badges">
+        <span className="adl-harness-version__version-menu-item-installed">
+          {t.harnessVersionInstalled}
+        </span>
+        <span className="adl-harness-version__version-menu-item-check">
+          <CheckIcon />
+        </span>
+      </span>
+    </div>
+  );
+  const picker = (longest: string, ref: RefObject<HTMLDivElement | null>) => (
+    <div ref={ref} className="adl-harness-version__version-picker">
+      <span className="adl-harness-version__version-picker-label">
+        <span className="adl-harness-version__version-picker-version">{longest}</span>
+        <span className="adl-harness-version__version-menu-item-installed">
+          {t.harnessVersionInstalled}
+        </span>
+        <span className="adl-harness-version__version-menu-item-check">
+          <CheckIcon />
+        </span>
+      </span>
+      <span className="adl-harness-version__version-picker-chevron">
+        <ChevronDownIcon />
+      </span>
+    </div>
+  );
+  return (
+    <div aria-hidden="true" className="adl-harness-version__version-sizer">
+      {longestStable ? menuItem(longestStable, refs.stableSizerRef) : null}
+      {longestStable ? picker(longestStable, refs.stablePickerSizerRef) : null}
+      {longestPrerelease ? menuItem(longestPrerelease, refs.prereleaseSizerRef) : null}
+      {longestPrerelease ? picker(longestPrerelease, refs.prereleasePickerSizerRef) : null}
+    </div>
   );
 }

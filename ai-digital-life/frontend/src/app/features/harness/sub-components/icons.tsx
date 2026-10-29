@@ -1,12 +1,11 @@
-/** 通用版本卡片的内联图标（继承 currentColor，避免依赖图标字体）。 */
+/** 通用版本卡片的内联图标（继承 currentColor；路径与旧 DSH 版本菜单图标一致）。 */
 export function CheckIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M3.5 8.5l3 3 6-7"
-        fill="none"
+        d="M3 8.5L6.5 12L13 4"
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -14,14 +13,14 @@ export function CheckIcon() {
   );
 }
 
+/** 版本选择下拉框按钮用下拉箭头（路径与旧 DSH 版本菜单图标一致）。 */
 export function ChevronDownIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M4 6l4 4 4-4"
-        fill="none"
+        d="M4 6L8 10L12 6"
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />

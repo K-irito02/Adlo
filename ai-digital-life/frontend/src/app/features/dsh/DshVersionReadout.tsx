@@ -17,9 +17,9 @@ interface VersionReadout {
 /**
  * DSH 组的运行态 / 来源读数（通用版本卡片的 `runtimeReadout` 插槽内容）。
  *
- * 迁移前这段读数长在旧 DSH 版本组件的「当前版本」行里（该组件已随 ticket #5 删除）：任何 effective
- * 都优先显示真实版本号，副行按来源标注运行地址（运行中 · 系统安装 / 外部运行）
- * 或系统安装路径；首屏快照未到、操作在途、拉起中时显示中性骨架。抽出后卡片
+ * 读数容器由卡片提供（当前版本行内单个 `__readout`），本组件只渲染片段：
+ * 主行版本号 + 来源副行 + 徽标 + 最新可用版本。任何 effective 都优先显示
+ * 真实版本号；首屏快照未到、操作在途、拉起中时显示中性骨架。抽出后卡片
  * 自身不感知 DSH 的运行模型。
  */
 export function DshVersionReadout({ busy }: { busy: boolean }) {
@@ -139,7 +139,7 @@ export function DshVersionReadout({ busy }: { busy: boolean }) {
       readout.text === currentSelected);
 
   return (
-    <div className="adl-harness-version__readout">
+    <>
       {readoutLoading ? (
         <span
           className="adl-harness-version__readout-loading"
@@ -169,10 +169,10 @@ export function DshVersionReadout({ busy }: { busy: boolean }) {
         </small>
       ) : null}
       {manageVisible && latestAvailable ? (
-        <small className="adl-harness-version__readout-sub">
+        <small className="adl-harness-version__latest">
           {formatT(t, 'dshLatest', { version: latestAvailable })}
         </small>
       ) : null}
-    </div>
+    </>
   );
 }

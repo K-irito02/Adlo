@@ -1,4 +1,5 @@
 import { useTCopy } from '@i18n/useTCopy';
+import { formatT } from '@i18n/formatT';
 
 interface TaskRowProps {
   stageText: string;
@@ -6,25 +7,30 @@ interface TaskRowProps {
   percent: number | null;
   done: number;
   total: number;
+  hasLiveTask: boolean;
   cancellable: boolean;
   showPercent: boolean;
   showCounts: boolean;
   onCancel: () => void;
 }
 
-/** 版本任务行：阶段文案（适配器可覆盖）+ 可选百分比/计数 + 取消。 */
+/**
+ * 版本任务独立卡（无行内选择器的通道形态才渲染，旧 OpenCode 任务卡）：
+ * 阶段文案 + 可选百分比/计数 + 取消。行内选择器形态下任务行内展示，不用本卡。
+ */
 export function TaskRow({
   stageText,
   cancelLabel,
   percent,
   done,
   total,
+  hasLiveTask,
   cancellable,
   showPercent,
   showCounts,
   onCancel,
 }: TaskRowProps) {
-  const { t, formatT } = useTCopy();
+  const { t } = useTCopy();
   return (
     <div className="adl-settings-card">
       <div className="adl-settings-row">
@@ -33,22 +39,27 @@ export function TaskRow({
             <span>{stageText}</span>
           </div>
         </div>
-        <div className="adl-settings-row__control adl-harness-version__progress">
-          {showCounts && total > 0 ? (
-            <span className="adl-harness-version__hint">
-              {formatT(t, 'harnessVersionTaskCount', { done, total })}
-            </span>
-          ) : null}
-          {showPercent ? (
-            <span className="adl-harness-version__value">
-              {percent === null ? '—' : `${percent}%`}
-            </span>
-          ) : null}
-          {cancellable ? (
-            <button type="button" className="adl-harness-version__action-btn" onClick={onCancel}>
+        <div className="adl-settings-row__control">
+          <div className="adl-harness-version__version-task">
+            {showCounts && hasLiveTask && total > 0 ? (
+              <span className="adl-harness-version__version-task-count">
+                {formatT(t, 'harnessVersionTaskCount', { done, total })}
+              </span>
+            ) : null}
+            {showPercent ? (
+              <span className="adl-harness-version__version-task-count">
+                {percent === null ? '—' : `${percent}%`}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              className="adl-harness-version__action-btn"
+              disabled={!hasLiveTask || !cancellable}
+              onClick={onCancel}
+            >
               {cancelLabel || t.harnessVersionCancel}
             </button>
-          ) : null}
+          </div>
         </div>
       </div>
     </div>

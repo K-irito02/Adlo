@@ -62,7 +62,7 @@ export function LegacyChannelRows({
             </div>
           </div>
           <div className="adl-settings-row__control">
-            <span className="adl-harness-version__value">{latestPrerelease.version}</span>
+            <span className="adl-harness-version__readout-value">{latestPrerelease.version}</span>
             <button
               type="button"
               className="adl-harness-version__action-btn"

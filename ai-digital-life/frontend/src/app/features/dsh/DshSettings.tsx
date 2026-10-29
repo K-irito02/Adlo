@@ -44,11 +44,15 @@ export function DshSettings() {
         slots={{
           // 块头复用 DSH 组原有块头（锚点 + 问号 + 版本管理标题）。
           hideHeader: true,
-          headerHint: t.dshVersionManagementHint,
           sourceHint: t.dshVersionSourceHint,
-          missingBanner: () => (
-            <span data-testid="dsh-missing-banner">{t.harnessMissingBannerDsh}</span>
-          ),
+          sourceOptions: [
+            { value: 'auto', label: t.dshVersionSourceAuto },
+            { value: 'system', label: t.dshVersionSourceSystem },
+            { value: 'host', label: t.dshVersionSourceHost },
+          ],
+          currentHint: t.dshCurrentVersionHint,
+          stableHint: t.dshOfficialStableHint,
+          prereleaseHint: t.dshPrereleaseHint,
           sourceNote: (
             <DshVersionSourceNote
               systemManaged={systemManaged}
@@ -58,6 +62,7 @@ export function DshSettings() {
             />
           ),
           runtimeReadout: ({ busy }) => <DshVersionReadout busy={busy} />,
+          // 官方版本信息行：卡片渲染为卡内末行（旧 DSH 行5口径）。
           footer: <DshOfficialLinksCard />,
         }}
       />
