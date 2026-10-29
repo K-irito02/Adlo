@@ -48,6 +48,8 @@ interface ChannelRowProps {
   task: HarnessChannelTask | null;
   /** 本行刷新（目录腿）：标题前置按钮 + 控件区扫光；缺省不渲染。 */
   refresh?: HarnessRowRefresh;
+  /** 任一分腿刷新在途：行内变更按钮禁用，保证读数一致。 */
+  refreshBusy?: boolean;
   /** 控件区扫光态（本腿刷新在途且已有旧值）。 */
   spinning?: boolean;
   uninstallArmed: string | null;
@@ -81,6 +83,7 @@ export function ChannelRow({
   fixedWidth,
   task,
   refresh,
+  refreshBusy,
   spinning,
   uninstallArmed,
   onToggle,
@@ -91,6 +94,8 @@ export function ChannelRow({
   onSwitch,
 }: ChannelRowProps) {
   const { t, locale } = useTCopy();
+  // 任一分腿刷新在途：本行变更按钮禁用，保证读数一致（扫光行无按钮，不受影响）。
+  const actionsDisabled = disabled || refreshBusy === true;
 
   const row = (control: ReactNode) => (
     <div
@@ -213,7 +218,7 @@ export function ChannelRow({
                   uninstallArmed === version ? ' adl-harness-version__action-btn--danger' : ''
                 }`}
                 onClick={() => onUninstall(version)}
-                disabled={disabled}
+                disabled={actionsDisabled}
               >
                 {uninstallArmed === version
                   ? t.harnessVersionConfirmUninstall
@@ -225,7 +230,7 @@ export function ChannelRow({
                 type="button"
                 className="adl-harness-version__action-btn"
                 onClick={() => onReinstall(version)}
-                disabled={disabled}
+                disabled={actionsDisabled}
               >
                 {t.harnessVersionReinstallAction}
               </button>
@@ -234,7 +239,7 @@ export function ChannelRow({
                 type="button"
                 className="adl-harness-version__action-btn"
                 onClick={() => onInstall(version)}
-                disabled={disabled}
+                disabled={actionsDisabled}
               >
                 {t.harnessVersionInstall}
               </button>
@@ -244,7 +249,7 @@ export function ChannelRow({
                 type="button"
                 className="adl-harness-version__action-btn"
                 onClick={() => onSwitch(version)}
-                disabled={disabled}
+                disabled={actionsDisabled}
               >
                 {t.harnessVersionSwitchTo}
               </button>

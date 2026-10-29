@@ -152,11 +152,13 @@ export function HarnessVersionCard<TSource = unknown>({
   // 后端只有整快照重载口（`load` 三腿并发），分腿只是视觉口径：
   // 按钮转圈 + 该行控件区扫光，不展示中途值。
   const [refreshing, setRefreshing] = useState<string | null>(null);
+  // 任一分腿刷新在途：行内变更按钮禁用，保证读数一致（DSH 无刷新按钮，恒 false）。
+  const refreshBusy = refreshing !== null;
   // data 整对象每渲染更新身份：解构出稳定的 refresh 回调，避免按钮 props 无谓抖动。
-  const { refresh: reloadSnapshot } = data;
+  const { refresh: reloadSnapshot, disabled: cardDisabled } = data;
   const runRefresh = useCallback(
     async (leg: string) => {
-      if (!bridge.available || refreshing !== null) {
+      if (!bridge.available || cardDisabled || refreshing !== null) {
         return;
       }
       setRefreshing(leg);
@@ -166,7 +168,7 @@ export function HarnessVersionCard<TSource = unknown>({
         setRefreshing(null);
       }
     },
-    [bridge.available, reloadSnapshot, refreshing],
+    [bridge.available, cardDisabled, reloadSnapshot, refreshing],
   );
   const showRefresh = bridge.capabilities?.refreshRows === true;
   const refreshFor = (leg: string, label: string): HarnessRowRefresh | undefined =>
@@ -328,6 +330,8 @@ export function HarnessVersionCard<TSource = unknown>({
         channel === 'stable' ? t.harnessVersionStableEmpty : t.harnessVersionPrereleaseEmpty
       }
       disabled={data.disabled}
+      // 任一分腿刷新在途时行内变更按钮禁用（读数一致性；DSH 无刷新按钮恒为 null，无影响）。
+      refreshBusy={refreshBusy}
       refresh={refreshFor(
         channel,
         channel === 'stable' ? t.harnessVersionStable : t.harnessVersionPrerelease,
@@ -416,6 +420,7 @@ export function HarnessVersionCard<TSource = unknown>({
               hint={slots.checkHint}
               desc={slots.descCheck}
               disabled={data.disabled}
+              refreshBusy={refreshBusy}
               refresh={refreshFor('check', t.harnessVersionUpdate)}
               onInstall={() => void data.run(runUpdateAction, t.harnessVersionUpdated, 'update')}
               onCheck={() => void data.run(runUpdateAction, null)}
@@ -426,6 +431,7 @@ export function HarnessVersionCard<TSource = unknown>({
               <ManualVersionRow
                 value={actions.manual}
                 disabled={data.disabled}
+                refreshBusy={refreshBusy}
                 hint={slots.manualHint}
                 desc={slots.descManual}
                 onChange={actions.setManual}

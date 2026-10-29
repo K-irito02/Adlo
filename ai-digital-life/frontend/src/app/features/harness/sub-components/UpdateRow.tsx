@@ -14,6 +14,8 @@ interface UpdateRowProps {
   /** 标签下描述小字；缺省不渲染。 */
   desc?: string;
   disabled: boolean;
+  /** 任一分腿刷新在途：检查按钮禁用，保证读数一致。 */
+  refreshBusy?: boolean;
   /** 本行刷新（状态+目录腿）：标题前置按钮；缺省不渲染。 */
   refresh?: HarnessRowRefresh;
   onInstall: () => void;
@@ -21,8 +23,8 @@ interface UpdateRowProps {
 }
 
 /**
- * 「检查更新」行：`install` 模式直接装最新（OpenCode），`check` 模式只查询并
- * 由适配器提示结果（DSH）。`check` 模式不显示更新状态提示。
+ * 「检查更新」行：`install` 模式直接装最新，`check` 模式只查询并
+ * 由适配器提示结果。`check` 模式不显示更新状态提示。
  */
 export function UpdateRow({
   mode,
@@ -32,6 +34,7 @@ export function UpdateRow({
   hint,
   desc,
   disabled,
+  refreshBusy,
   refresh,
   onInstall,
   onCheck,
@@ -56,7 +59,7 @@ export function UpdateRow({
         <button
           type="button"
           className="adl-harness-version__action-btn"
-          disabled={disabled || refresh?.spinning === true}
+          disabled={disabled || refreshBusy === true || refresh?.spinning === true}
           onClick={mode === 'check' ? onCheck : onInstall}
         >
           {mode === 'check' ? t.harnessVersionUpdate : t.harnessVersionUpdateAction}

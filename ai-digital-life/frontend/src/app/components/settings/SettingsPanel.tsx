@@ -602,7 +602,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   }, [activeGroup, sourceStatus, setNetworkBlocksAtDefault]);
 
   // 悬停/聚焦侧边栏行再预热一次：移动→点击的天然延迟是免费的命中窗口。
-  // 组预热注册表（feature 侧登记、面板侧按组调用）：新增需预热的组只加表项，勿再加分支。
+  // 组预热注册表（面板侧按组登记/调用）：新增需预热的组只加表项，勿再加分支。
   const handleNavPreheatGroup = useCallback((group: SettingsGroupId) => {
     groupPrefetchers[group]?.();
   }, []);

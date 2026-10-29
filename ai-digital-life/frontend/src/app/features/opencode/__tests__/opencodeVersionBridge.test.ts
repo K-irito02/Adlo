@@ -197,6 +197,17 @@ describe('opencodeVersionBridge', () => {
     expect(notify).toHaveBeenCalledWith('harnessVersionNoUpdate', 'success');
   });
 
+  it('checkUpdate reports a failed check when the status leg fails', async () => {
+    const notify = vi.fn();
+    const { raw, adapter } = makeBridge(
+      { getVersionStatus: vi.fn(async () => err('status failed')) },
+      { notify },
+    );
+    await expect(adapter.checkUpdate?.()).resolves.toEqual({ ok: true });
+    expect(notify).toHaveBeenCalledWith('opencodeCheckUpdateFailed', 'error');
+    expect(raw.update).not.toHaveBeenCalled();
+  });
+
   it('passes the terminal-injection source data through the snapshot slot', async () => {
     const { adapter } = makeBridge();
     const snapshot = await adapter.load();
