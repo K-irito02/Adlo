@@ -289,6 +289,8 @@ powershell -NoProfile -File "$ROOT/ai-digital-life/.cargo/clean-target.ps1"     
 powershell -NoProfile -File "$ROOT/ai-digital-life/.cargo/clean-target.ps1" -WhatIf   # 干跑
 git -C "$ROOT" worktree remove "$WT_ROOT/<name>"                                      # 用户批准后
 git -C "$ROOT" worktree prune
+# Windows 长路径（node_modules 深嵌套）致 remove 报 `Filename too long` 时（用户已批准删除）：
+Remove-Item -LiteralPath "\\?\$WT_ROOT\<name>" -Recurse -Force                        # 整删后重跑 worktree prune
 ```
 
 磁盘预算（实测 2026-10-24：`E:` 余 118 GB）：并发工作树 ≤ 2，单工作树 `target` ≤ 30 GB，新建工作树前余量 ≥ 60 GB。
@@ -318,6 +320,8 @@ git -C "$ROOT" worktree prune
 
 `mode` = `new-worktree` / `existing-worktree`；`slot` = 工作树目录名；`history` 记录该工作树承载过的分支（固定绑定下一般只有一条，特批换分支后追加）；`status` 状态机 `active → paused → merged / done`（后两者均保留目录）。
 
+写注册表文件必须显式 UTF-8 无 BOM（`[System.IO.File]::WriteAllText($p, $json, [System.Text.UTF8Encoding]::new($false))`）；禁止经 PowerShell 管道/重定向传文本（CJK 会被写成 `?`），见规则 `shell-encoding.md`。
+
 ---
 
 ## 7. 异常对照
@@ -338,6 +342,7 @@ git -C "$ROOT" worktree prune
 | 启动即被杀 | 同工作树重复启动或共享 target | 确认唯一实例，检查 `CARGO_TARGET_DIR` | 反复重启 |
 | 构建产物消失 | 有人跑了全量 `cargo clean` | 重建，告知用户 | 改清理脚本 |
 | `could not create work tree dir` | 目标目录已存在 | `git worktree prune` 后确认归属 | `rm -rf` 未知目录 |
+| `worktree remove` 报 `Filename too long` | Windows 长路径（`node_modules` 深嵌套超 MAX_PATH） | `\\?\` 前缀整删（已批准）后重跑 `worktree prune` | 反复 `remove --force` |
 | 合并后异常但无文本冲突 | 语义冲突 | 回退合并，按 §4.1 重划领地 | 在合并提交上打补丁 |
 
 ---
