@@ -957,4 +957,84 @@ describe('HarnessVersionCard', () => {
       ).toBeInTheDocument(),
     );
   });
+
+  it('renders the standalone task card when the channel picker is off', async () => {
+    let resolveInstall!: (result: HarnessVersionResult) => void;
+    const installPromise = new Promise<HarnessVersionResult>((resolve) => {
+      resolveInstall = resolve;
+    });
+    const bridge = makeBridge({
+      capabilities: { channelPicker: false },
+      initial: snapshot({
+        status: status({ currentSelected: null, installed: [] }),
+      }),
+    });
+    bridge.install = vi.fn(() => installPromise);
+    bridge.getTask = vi.fn(async () => ({
+      kind: 'dsh-install' as const,
+      version: '1.1.0',
+      phase: 'installing' as const,
+      percent: 42,
+      done: 42,
+      total: 100,
+      cancellable: true,
+    }));
+
+    renderCard(bridge);
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.0.0' })).toBeTruthy(),
+    );
+    openChannelMenu('stable', '1.0.0');
+    pickChannelVersion('1.1.0');
+
+    vi.useFakeTimers();
+    fireEvent.click(
+      within(channelRow('stable')).getByRole('button', { name: 'harnessVersionInstall' }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+
+    // 无 picker 时任务走独立卡；行内选择器仍按生效版本渲染行内任务行，
+    // 两处阶段文案同时出现（生产中已无此组合：双工具均为 picker）。
+    const stages = screen.getAllByText('harnessVersionPhaseInstalling');
+    expect(stages).toHaveLength(2);
+    expect(screen.getByText('42%')).toBeInTheDocument();
+    const cancels = screen.getAllByRole('button', { name: 'harnessVersionCancel' });
+    const cardCancel = cancels.find((b) => !channelRow('stable').contains(b));
+    expect(cardCancel).toBeTruthy();
+    expect(cardCancel).toBeEnabled();
+    fireEvent.click(cardCancel!);
+    expect(bridge.cancel).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveInstall(OK);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  });
+
+  it('renders the reset row when the adapter opts into resetSourceAction', async () => {
+    const bridge = makeBridge({
+      capabilities: { resetSourceAction: true },
+      initial: snapshot({
+        source: { mode: 'host', effective: 'host', systemPath: null, ready: true },
+      }),
+    });
+    const { unmount } = renderCard(bridge);
+
+    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    const resetButton = screen.getByRole('button', { name: 'harnessVersionResetDefaults' });
+    expect(resetButton).toBeEnabled();
+    fireEvent.click(resetButton);
+    await waitFor(() => expect(bridge.resetSourceMode).toHaveBeenCalledTimes(1));
+    unmount();
+
+    // auto 下恢复默认无意义：按钮禁用。
+    const autoBridge = makeBridge({ capabilities: { resetSourceAction: true } });
+    const second = renderCard(autoBridge);
+    await waitFor(() => expect(autoBridge.load).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: 'harnessVersionResetDefaults' })).toBeDisabled();
+    second.unmount();
+  });
 });

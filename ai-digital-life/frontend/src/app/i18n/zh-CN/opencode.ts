@@ -6,8 +6,6 @@ export const opencodeZh = {
   opencodeTerminalNote: '安装后新开终端会话即可直接使用；已打开的终端需要重开。',
   opencodeTerminalInjection: '在终端中可用（新会话）',
   opencodeTerminalInjectionSaved: '终端可用性已保存',
-  harnessMissingBannerDsh:
-    '尚未安装 DSH 版本：请在下方安装；若安装失败，先在「环境」组确认 Node.js 已就绪。',
   harnessWizardTitle: '安装 harness',
   harnessWizardDesc:
     '应用可以托管 DSH 与 OpenCode CLI 的版本；现在安装，或稍后在对应设置组里安装。',

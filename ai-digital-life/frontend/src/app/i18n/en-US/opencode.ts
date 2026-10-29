@@ -7,8 +7,6 @@ export const opencodeEn = {
     'Available in new terminal sessions after install; already-open terminals must be reopened.',
   opencodeTerminalInjection: 'Available in terminals (new sessions)',
   opencodeTerminalInjectionSaved: 'Terminal availability saved',
-  harnessMissingBannerDsh:
-    'No DSH version installed yet — install below. If it fails, make sure Node.js is ready in the Environment group.',
   harnessWizardTitle: 'Install harnesses',
   harnessWizardDesc:
     'The app can manage DSH and OpenCode CLI versions. Install now, or later from their settings groups.',
