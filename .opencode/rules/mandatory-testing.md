@@ -250,3 +250,13 @@ ESLint/Clippy 的 `--fix` 自动修复和任何人工修复必须遵守以下约
 3. 结论必须附实测输出（`activeElement`、`pointer-events`、`aria-disabled` 等计算值），不得仅凭 jsdom 通过即宣称"无障碍正确"
 
 > 反面案例（2026-09-17 剪贴板历史收尾）：清空进行中把对话框按钮全部 `disabled`，jsdom 断言"焦点仍在 dialog 内"通过，真实 Chromium 实测焦点已逃到 `<body>` —— 修正为 `aria-disabled` + `pointer-events:none` 后实测 63/63 断言通过。
+
+### 异步渲染断言（等内容，不等容器）
+
+`render` 返回后容器即存在，但数据（快照/轮询/测量）尚未落定：以容器存在（`querySelector` 非空、`toBeTruthy`）作为 `waitFor` 同步点是竞态——单文件跑必过，并发跑偶发红。同步点必须落在**可见内容**上（`findByText` / `findByRole` / 业务文案 `getByText`）。
+
+> 反面案例（2026-10-29 版本卡片）：7 处 `await waitFor(() => expect(channelRow('stable')).toBeTruthy())` 在多文件并发时 1 条偶发失败；同步点改为各自依赖内容（版本按钮/卸载按钮/空态或未知文案）后连跑两次全绿。
+
+### 设置卡片行律收边锁
+
+行律契约（`styles/components/settings.css:257`，`:first-child`/`:last-child` 收边假定行是卡片直接子元素）：测量尺、portal 挂载点等非行空 div 不得出现在卡片内末位，否则末行分隔线去不掉。结构测试必须锁定 `card.lastElementChild` 即末行本身（例：`HarnessVersionCard.structure.test.tsx`「页脚行为末行断言 + sizer 在卡外」）。
