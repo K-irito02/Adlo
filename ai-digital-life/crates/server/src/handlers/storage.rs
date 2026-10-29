@@ -581,7 +581,7 @@ mod tests {
                 "config",
                 "clipboard",
                 "snapshot",
-                "dsh",
+                "harnesses",
                 "logs",
                 "credentials_fallback",
                 "downloads_default",
