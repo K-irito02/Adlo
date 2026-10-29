@@ -108,6 +108,9 @@ const groupPrefetchers: Partial<Record<SettingsGroupId, () => void>> = {
   storage: () => {
     void prefetchStorageSettings();
   },
+  environment: () => {
+    void prefetchEnvSettings();
+  },
   opencode: () => {
     void prefetchOpencodeSettings();
   },

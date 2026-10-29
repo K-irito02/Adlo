@@ -12,7 +12,11 @@ import {
   type HarnessVersionSlotContext,
 } from '@features/harness/HarnessVersionCard';
 import type { OpencodeBridge, OpencodeSourceStatus } from '@shared/ipc/opencode';
-import { createOpencodeVersionBridge, prefetchOpencodeSnapshot } from './opencodeVersionBridge';
+import {
+  createOpencodeVersionBridge,
+  prefetchOpencodeSnapshot,
+  resetOpencodeSnapshotCache,
+} from './opencodeVersionBridge';
 import { OpencodeOfficialLinksCard } from './sub-components/OpencodeOfficialLinksCard';
 import { OpencodeSourceSummaryCard } from './sub-components/OpencodeSourceSummaryCard';
 import { OpencodeVersionSourceNote } from './sub-components/OpencodeVersionSourceNote';
@@ -172,8 +176,12 @@ export function OpencodeSettings() {
           return;
         }
         showToast(t.settingsResetComplete, 'success');
+        // 先清旧快照再预热：否则预热 no-op，重挂首帧闪现旧值。
+        resetOpencodeSnapshotCache();
         await prefetchOpencodeSnapshot();
         setCardEpoch((epoch) => epoch + 1);
+      } catch {
+        showToast(t.harnessVersionOpFailed, 'error');
       } finally {
         setGroupResetBusy(false);
       }

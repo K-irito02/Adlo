@@ -232,7 +232,12 @@ export function createOpencodeVersionBridge(
           bridge.getVersionStatus(),
           bridge.getVersionCatalog(),
         ]);
-        const next = status.ok ? status.data : null;
+        // 状态腿失败时不得按旧目录推断"暂无正式版本"：如实报检查失败。
+        if (!status.ok) {
+          notify(t.opencodeCheckUpdateFailed, 'error');
+          return { ok: true };
+        }
+        const next = status.data;
         if (catalog.ok) {
           cachedSnapshot = {
             status: next,
@@ -241,8 +246,8 @@ export function createOpencodeVersionBridge(
             sourceExtra: cachedSnapshot?.sourceExtra ?? null,
           };
         }
-        if (!next?.latestAvailable) {
-          if (next?.hasPrereleaseUpdate && next.prereleaseAvailable) {
+        if (!next.latestAvailable) {
+          if (next.hasPrereleaseUpdate && next.prereleaseAvailable) {
             notify(
               t.opencodeCheckUpdatePrerelease.replace('{version}', next.prereleaseAvailable),
               'success',

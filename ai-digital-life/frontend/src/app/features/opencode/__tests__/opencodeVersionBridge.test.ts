@@ -172,16 +172,6 @@ describe('opencodeVersionBridge', () => {
     expect(raw.saveVersionSource).toHaveBeenNthCalledWith(2, 'auto');
   });
 
-  it('maps the source mode both ways and resets to auto', async () => {
-    const { raw, adapter } = makeBridge();
-
-    await adapter.saveSourceMode('system');
-    await adapter.resetSourceMode();
-
-    expect(raw.saveVersionSource).toHaveBeenNthCalledWith(1, 'system');
-    expect(raw.saveVersionSource).toHaveBeenNthCalledWith(2, 'auto');
-  });
-
   it('checkUpdate notifies the three states without installing', async () => {
     const notify = vi.fn();
     const { raw, adapter } = makeBridge({}, { notify });

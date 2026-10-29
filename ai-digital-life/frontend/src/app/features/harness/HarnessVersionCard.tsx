@@ -152,6 +152,8 @@ export function HarnessVersionCard<TSource = unknown>({
   // 后端只有整快照重载口（`load` 三腿并发），分腿只是视觉口径：
   // 按钮转圈 + 该行控件区扫光，不展示中途值。
   const [refreshing, setRefreshing] = useState<string | null>(null);
+  // data 整对象每渲染更新身份：解构出稳定的 refresh 回调，避免按钮 props 无谓抖动。
+  const { refresh: reloadSnapshot } = data;
   const runRefresh = useCallback(
     async (leg: string) => {
       if (!bridge.available || refreshing !== null) {
@@ -159,12 +161,12 @@ export function HarnessVersionCard<TSource = unknown>({
       }
       setRefreshing(leg);
       try {
-        await data.refresh();
+        await reloadSnapshot();
       } finally {
         setRefreshing(null);
       }
     },
-    [bridge.available, data, refreshing],
+    [bridge.available, reloadSnapshot, refreshing],
   );
   const showRefresh = bridge.capabilities?.refreshRows === true;
   const refreshFor = (leg: string, label: string): HarnessRowRefresh | undefined =>
@@ -202,8 +204,14 @@ export function HarnessVersionCard<TSource = unknown>({
 
   // 冷启动骨架（会话内无快照种子时）：按关组前的来源偏好定形，
   // `system` 不含管理三行，其余按含画（自动解析为系统后行隐藏）。
+  // peek 异常回退未知（骨架按含管理行画；失败态由快照 failed 支路承载，不走这里）。
   if (data.snapshot === null) {
-    const skeletonManaged = (bridge.peekSourceMode?.() ?? 'auto') !== 'system';
+    let skeletonManaged = true;
+    try {
+      skeletonManaged = (bridge.peekSourceMode?.() ?? 'auto') !== 'system';
+    } catch {
+      skeletonManaged = true;
+    }
     const skeletonRows = [
       t.harnessVersionSourceTitle,
       t.harnessVersionCurrent,
@@ -223,7 +231,7 @@ export function HarnessVersionCard<TSource = unknown>({
             <SettingsHeader title={formatT(t, 'harnessVersionTitle', { tool: bridge.toolName })} />
           </div>
         )}
-        <div className="adl-settings-card" aria-label={t.harnessVersionLoading}>
+        <div className="adl-settings-card" role="status" aria-label={t.harnessVersionLoading}>
           {skeletonRows.map((label) => (
             <div className="adl-settings-row" key={label}>
               <div className="adl-settings-row__label">

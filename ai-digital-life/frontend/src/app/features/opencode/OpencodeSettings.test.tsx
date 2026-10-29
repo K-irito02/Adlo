@@ -9,6 +9,8 @@ import { commonZh } from '../../i18n/zh-CN/common';
 import { dshZh } from '../../i18n/zh-CN/dsh';
 import { harnessVersionZh } from '../../i18n/zh-CN/harnessVersion';
 import { opencodeZh } from '../../i18n/zh-CN/opencode';
+import { opencodeEn } from '../../i18n/en-US/opencode';
+import { harnessVersionEn } from '../../i18n/en-US/harnessVersion';
 import { settingsZh } from '../../i18n/zh-CN/settings';
 import { useAppStore } from '../../stores/slicedStore';
 import { OpencodeSettings } from './OpencodeSettings';
@@ -232,5 +234,20 @@ describe('OpencodeSettings DSH parity (generic card slots)', () => {
     );
     expect(screen.getByText('正式版本')).toBeTruthy();
     expect(screen.queryByLabelText('状态读取中')).toBeNull();
+  });
+});
+
+describe('opencode search locate parity', () => {
+  // 搜索索引 opencode 块用本域行键做定位文案，卡片 DOM 挂通用文案：
+  // 两边取值必须逐字相同，否则跳转落点失效。跨键 4 对在此锁定，同键自洽。
+  it('row label values match the generic copy rendered by the card', () => {
+    expect(opencodeZh.opencodeCurrentVersion).toBe(harnessVersionZh.harnessVersionCurrent);
+    expect(opencodeZh.opencodeUpdate).toBe(harnessVersionZh.harnessVersionUpdate);
+    expect(opencodeZh.opencodeSourceTitle).toBe(harnessVersionZh.harnessVersionSourceTitle);
+    expect(opencodeZh.opencodeManualVersion).toBe(harnessVersionZh.harnessVersionManual);
+    expect(opencodeEn.opencodeCurrentVersion).toBe(harnessVersionEn.harnessVersionCurrent);
+    expect(opencodeEn.opencodeUpdate).toBe(harnessVersionEn.harnessVersionUpdate);
+    expect(opencodeEn.opencodeSourceTitle).toBe(harnessVersionEn.harnessVersionSourceTitle);
+    expect(opencodeEn.opencodeManualVersion).toBe(harnessVersionEn.harnessVersionManual);
   });
 });
