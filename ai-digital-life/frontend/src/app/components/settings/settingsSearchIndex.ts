@@ -297,6 +297,54 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     ],
   },
   {
+    // OpenCode CLI「版本管理」块（与 DSH 块同构：来源/当前/检查/正式/预发布/指定版本/官方信息）。
+    group: 'opencode',
+    anchorId: 'version',
+    labelKey: 'opencodeVersionTitle',
+    rows: [
+      {
+        labelKey: 'opencodeSourceTitle',
+        hintKeys: ['opencodeSourceDesc', 'opencodeSourceHint'],
+      },
+      {
+        labelKey: 'opencodeCurrentVersion',
+        hintKeys: ['opencodeCurrentVersionDesc', 'opencodeCurrentVersionHint'],
+      },
+      {
+        labelKey: 'opencodeUpdate',
+        hintKeys: ['opencodeUpdateDesc', 'opencodeUpdateHint'],
+      },
+      {
+        labelKey: 'opencodeStable',
+        hintKeys: ['opencodeStableDesc', 'opencodeStableHint'],
+      },
+      {
+        labelKey: 'opencodePrerelease',
+        hintKeys: ['opencodePrereleaseDesc', 'opencodePrereleaseHint'],
+      },
+      {
+        labelKey: 'opencodeManualVersion',
+        hintKeys: ['opencodeManualVersionDesc', 'opencodeManualVersionHint'],
+      },
+      {
+        labelKey: 'opencodeOfficialLinksLabel',
+        hintKeys: ['opencodeOfficialLinksDesc'],
+      },
+    ],
+  },
+  {
+    // OpenCode CLI「当前下载源」独立沉底卡（与 DSH 源卡同构）。
+    group: 'opencode',
+    anchorId: 'source',
+    labelKey: 'opencodeSourceSummaryTitle',
+    rows: [
+      {
+        labelKey: 'opencodeSourceSummaryTitle',
+        hintKeys: ['opencodeSourceSummaryHint'],
+      },
+    ],
+  },
+  {
     // 环境组：两块七行 —— 安装/切换/卸载/重装/重测/复制/复制全部。
     // 卸载/重装仅在宿主来源且已安装的行渲染（条件行），行级落点经
     // `data-settings-row` 同名标记（Phase 3 随按钮一起加回）。

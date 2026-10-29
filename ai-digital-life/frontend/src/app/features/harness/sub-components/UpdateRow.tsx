@@ -1,5 +1,6 @@
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import { HarnessRefreshButton, type HarnessRowRefresh } from './VersionStatusRows';
 
 interface UpdateRowProps {
   mode: 'install' | 'check';
@@ -13,6 +14,8 @@ interface UpdateRowProps {
   /** 标签下描述小字；缺省不渲染。 */
   desc?: string;
   disabled: boolean;
+  /** 本行刷新（状态+目录腿）：标题前置按钮；缺省不渲染。 */
+  refresh?: HarnessRowRefresh;
   onInstall: () => void;
   onCheck: () => void;
 }
@@ -29,6 +32,7 @@ export function UpdateRow({
   hint,
   desc,
   disabled,
+  refresh,
   onInstall,
   onCheck,
 }: UpdateRowProps) {
@@ -37,8 +41,9 @@ export function UpdateRow({
     <div className="adl-settings-row" data-settings-row={t.harnessVersionUpdate}>
       <div className="adl-settings-row__label">
         <div className="adl-settings-row__label-text">
-          {hint ? <SettingsHintButton content={hint} /> : null}
+          {refresh ? <HarnessRefreshButton refresh={refresh} disabled={disabled} /> : null}
           <span>{t.harnessVersionUpdate}</span>
+          {hint ? <SettingsHintButton content={hint} /> : null}
         </div>
         {desc ? <small>{desc}</small> : null}
       </div>
@@ -51,7 +56,7 @@ export function UpdateRow({
         <button
           type="button"
           className="adl-harness-version__action-btn"
-          disabled={disabled}
+          disabled={disabled || refresh?.spinning === true}
           onClick={mode === 'check' ? onCheck : onInstall}
         >
           {mode === 'check' ? t.harnessVersionUpdate : t.harnessVersionUpdateAction}

@@ -410,6 +410,16 @@ export function createDshVersionBridge(
       await actions.fetchDshSettingsSnapshot();
       return readSnapshot();
     },
+    // store 常驻供给：切组重挂首帧即瞬显，后台仍静默再验证。
+    // 失败标记同样同步透出：快照读取失败时首帧即错误态，不画无限骨架。
+    peekSnapshot: () => {
+      const snap = readSnapshot();
+      return snap.status !== null || snap.source !== null || snap.failed === true ? snap : null;
+    },
+    peekSourceMode: () =>
+      state().sourceStatus?.versionSource?.mode ??
+      state().sourceStatus?.config.version_source ??
+      null,
     getTask: async (): Promise<DshVersionTask | null> => {
       await actions.fetchVersionTask();
       return state().versionTask;

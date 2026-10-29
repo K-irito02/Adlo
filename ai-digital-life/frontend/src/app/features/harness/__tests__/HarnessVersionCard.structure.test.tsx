@@ -433,7 +433,7 @@ describe('HarnessVersionCard old-DSH row descriptions and footer', () => {
     await screen.findByRole('button', { name: '1.1.0' });
 
     const card = mainCard(container);
-    const descs: Array<[string, string]> = [
+    const descs: [string, string][] = [
       ['harnessVersionCurrent', 'dshCurrentVersionDesc'],
       ['harnessVersionUpdate', 'dshCheckUpdateDesc'],
       ['dshOfficialStable', 'dshOfficialStableDesc'],

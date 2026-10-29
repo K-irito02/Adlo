@@ -17,7 +17,15 @@ import { useHarnessVersionTaskPoll } from './useHarnessVersionTaskPoll';
  */
 export function useHarnessVersionData<TSource>(bridge: HarnessVersionBridge<TSource>) {
   const { t } = useTCopy();
-  const [snapshot, setSnapshot] = useState<HarnessVersionSnapshot<TSource> | null>(null);
+  // 会话级种子：切组重挂首帧即瞬显（store/模块缓存常驻），后台仍静默再验证；
+  // 冷启动无种子时为 null，卡片画骨架。
+  const [snapshot, setSnapshot] = useState<HarnessVersionSnapshot<TSource> | null>(() => {
+    try {
+      return bridge.peekSnapshot?.() ?? null;
+    } catch {
+      return null;
+    }
+  });
   const [busy, setBusy] = useState(false);
   const task = useHarnessVersionTaskPoll(bridge, busy);
 

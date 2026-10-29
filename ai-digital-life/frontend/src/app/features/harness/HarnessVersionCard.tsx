@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useCallback, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
@@ -28,6 +29,7 @@ import {
   CurrentVersionRow,
   FallbackReadout,
   MissingBannerRow,
+  type HarnessRowRefresh,
 } from './sub-components/VersionStatusRows';
 
 export interface HarnessVersionSlotContext<TSource> {
@@ -57,6 +59,8 @@ export interface HarnessVersionSlots<TSource> {
   headerHint?: string;
   /** 版本来源行「?」提示内容；缺省使用通用说明。 */
   sourceHint?: string;
+  /** 版本来源行描述小字；缺省不渲染。 */
+  descSource?: string;
   /** 版本来源三态选项（工具术语不同时覆盖；缺省使用通用来源文案）。 */
   sourceOptions?: HarnessSourceOption[];
   /** 当前版本行「?」提示内容；缺省不渲染。 */
@@ -83,6 +87,14 @@ export interface HarnessVersionSlots<TSource> {
   sourceFooter?: HarnessVersionSlot<TSource>;
   /** 当前版本读数旁的运行态内容（DSH 的运行地址/系统安装读数）。 */
   runtimeReadout?: HarnessVersionSlot<TSource>;
+  /** 「系统安装路径」行「?」提示内容；缺省不渲染。 */
+  systemPathHint?: string;
+  /** 「系统安装路径」行描述小字；缺省不渲染。 */
+  systemPathDesc?: string;
+  /** 「指定版本」行「?」提示内容；缺省不渲染。 */
+  manualHint?: string;
+  /** 「指定版本」行描述小字；缺省不渲染。 */
+  descManual?: string;
   /** 卡片尾部内容（旧 DSH 官方版本信息行，渲染为卡内末行）。 */
   footer?: HarnessVersionSlot<TSource>;
 }
@@ -135,6 +147,97 @@ export function HarnessVersionCard<TSource = unknown>({
     menu.prereleaseChoice,
     data.current,
   );
+
+  // 分腿刷新在途的行键（`current`/`check`/`stable`/`prerelease`；null = 空闲）。
+  // 后端只有整快照重载口（`load` 三腿并发），分腿只是视觉口径：
+  // 按钮转圈 + 该行控件区扫光，不展示中途值。
+  const [refreshing, setRefreshing] = useState<string | null>(null);
+  const runRefresh = useCallback(
+    async (leg: string) => {
+      if (!bridge.available || refreshing !== null) {
+        return;
+      }
+      setRefreshing(leg);
+      try {
+        await data.refresh();
+      } finally {
+        setRefreshing(null);
+      }
+    },
+    [bridge.available, data, refreshing],
+  );
+  const showRefresh = bridge.capabilities?.refreshRows === true;
+  const refreshFor = (leg: string, label: string): HarnessRowRefresh | undefined =>
+    showRefresh
+      ? { label, spinning: refreshing === leg, onRefresh: () => void runRefresh(leg) }
+      : undefined;
+
+  // 检查更新发现的新版本提示（标题下方蓝色小字；静默检查与手动检查共用，
+  // 无新版本时不渲染）。两工具共用正式/预发布两套通用文案。
+  const updateNote = (() => {
+    if (!data.manageVisible) {
+      return null;
+    }
+    const st = data.status;
+    if (!st) {
+      return null;
+    }
+    const notes: ReactNode[] = [];
+    if (st.hasUpdate && st.latestAvailable) {
+      notes.push(
+        <small key="stable" className="adl-harness-version__row-warn">
+          {formatT(t, 'harnessVersionUpdateFoundStable', { version: st.latestAvailable })}
+        </small>,
+      );
+    }
+    if (st.hasPrereleaseUpdate && st.prereleaseAvailable) {
+      notes.push(
+        <small key="prerelease" className="adl-harness-version__row-warn">
+          {formatT(t, 'harnessVersionUpdateFoundPrerelease', { version: st.prereleaseAvailable })}
+        </small>,
+      );
+    }
+    return notes.length > 0 ? <>{notes}</> : null;
+  })();
+
+  // 冷启动骨架（会话内无快照种子时）：按关组前的来源偏好定形，
+  // `system` 不含管理三行，其余按含画（自动解析为系统后行隐藏）。
+  if (data.snapshot === null) {
+    const skeletonManaged = (bridge.peekSourceMode?.() ?? 'auto') !== 'system';
+    const skeletonRows = [
+      t.harnessVersionSourceTitle,
+      t.harnessVersionCurrent,
+      ...(skeletonManaged
+        ? [t.harnessVersionUpdate, t.harnessVersionStable, t.harnessVersionPrerelease]
+        : []),
+    ];
+    return (
+      <div className="adl-harness-version">
+        {slots.hideHeader ? null : (
+          <div className="adl-settings-storage__header adl-settings-storage__header--section">
+            <SettingsHintButton
+              content={
+                slots.headerHint ?? formatT(t, 'harnessVersionHint', { tool: bridge.toolName })
+              }
+            />
+            <SettingsHeader title={formatT(t, 'harnessVersionTitle', { tool: bridge.toolName })} />
+          </div>
+        )}
+        <div className="adl-settings-card" aria-label={t.harnessVersionLoading}>
+          {skeletonRows.map((label) => (
+            <div className="adl-settings-row" key={label}>
+              <div className="adl-settings-row__label">
+                <span className="adl-harness-version__skeleton-bar" aria-hidden="true" />
+              </div>
+              <div className="adl-settings-row__control">
+                <span className="adl-harness-version__skeleton-control" aria-hidden="true" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const effectiveLabel = (() => {
     switch (data.source?.effective) {
@@ -217,6 +320,11 @@ export function HarnessVersionCard<TSource = unknown>({
         channel === 'stable' ? t.harnessVersionStableEmpty : t.harnessVersionPrereleaseEmpty
       }
       disabled={data.disabled}
+      refresh={refreshFor(
+        channel,
+        channel === 'stable' ? t.harnessVersionStable : t.harnessVersionPrerelease,
+      )}
+      spinning={refreshing === channel}
       menuOpen={menu.openChannel === channel}
       menuGeometry={menu.menuGeometry}
       menuPanelRef={menu.menuPanelRef}
@@ -250,15 +358,27 @@ export function HarnessVersionCard<TSource = unknown>({
           mode={data.source?.mode ?? 'auto'}
           options={sourceOptions}
           hint={slots.sourceHint ?? t.harnessVersionSourceHint}
+          desc={slots.descSource}
           disabled={data.disabled}
           note={renderSlot(slots.sourceNote, slotContext)}
           onChange={(mode: HarnessVersionSourceMode) => actions.handleSourceChange(mode)}
         />
-        {showExtraRows ? <SystemPathRow systemPath={data.source?.systemPath ?? null} /> : null}
+        {showExtraRows ? (
+          <SystemPathRow
+            systemPath={data.source?.systemPath ?? null}
+            systemVersion={data.source?.systemVersion ?? null}
+            hint={slots.systemPathHint}
+            desc={slots.systemPathDesc}
+          />
+        ) : null}
         {renderSlot(slots.sourceFooter, slotContext)}
         <CurrentVersionRow
           hint={slots.currentHint}
           desc={slots.descCurrent}
+          updateNote={updateNote}
+          disabled={data.disabled}
+          refresh={refreshFor('current', t.harnessVersionCurrent)}
+          spinning={refreshing === 'current'}
           uninstallWarn={
             actions.uninstallArmed !== null ? bridge.labels?.uninstallCurrentHint : undefined
           }
@@ -271,7 +391,7 @@ export function HarnessVersionCard<TSource = unknown>({
             />
           )}
         </CurrentVersionRow>
-        {showExtraRows ? (
+        {showExtraRows && data.manageVisible ? (
           <MissingBannerRow visible={data.status !== null && data.installed.length === 0}>
             {slots.missingBanner
               ? renderSlot(slots.missingBanner, slotContext)
@@ -288,6 +408,7 @@ export function HarnessVersionCard<TSource = unknown>({
               hint={slots.checkHint}
               desc={slots.descCheck}
               disabled={data.disabled}
+              refresh={refreshFor('check', t.harnessVersionUpdate)}
               onInstall={() => void data.run(runUpdateAction, t.harnessVersionUpdated, 'update')}
               onCheck={() => void data.run(runUpdateAction, null)}
             />
@@ -297,6 +418,8 @@ export function HarnessVersionCard<TSource = unknown>({
               <ManualVersionRow
                 value={actions.manual}
                 disabled={data.disabled}
+                hint={slots.manualHint}
+                desc={slots.descManual}
                 onChange={actions.setManual}
                 onInstall={actions.installManual}
               />

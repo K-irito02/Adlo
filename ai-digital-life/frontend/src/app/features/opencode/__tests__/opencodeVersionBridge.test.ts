@@ -1,8 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { CopyDict } from '@i18n';
 import type { OpencodeBridge, OpencodeSourceStatus } from '@shared/ipc/opencode';
 import type { DshSourceConfig, DshTestResult } from '@shared/ipc/dsh';
-import { createOpencodeVersionBridge } from '../opencodeVersionBridge';
+import { createOpencodeVersionBridge, resetOpencodeSnapshotCache } from '../opencodeVersionBridge';
+
+beforeEach(() => {
+  resetOpencodeSnapshotCache();
+});
 
 const mockT = new Proxy({} as Record<string, string>, {
   get: (_, key) => (typeof key === 'string' ? key : ''),
@@ -77,18 +81,23 @@ function makeBridge(
 }
 
 describe('opencodeVersionBridge', () => {
-  it('declares the OpenCode capabilities (install-on-update, percent, generic labels)', () => {
+  it('declares the OpenCode capabilities (check-only update, percent, manual+installed)', () => {
     const { adapter } = makeBridge();
     expect(adapter.capabilities).toMatchObject({
-      updateAction: 'install',
+      updateAction: 'check',
       taskPercent: true,
       taskCounts: false,
       channelPicker: true,
-      extraRows: 'none',
+      extraRows: 'manual+installed',
       resetSourceAction: false,
       uninstallConfirm: false,
+      refreshRows: true,
+      sourceManaged: true,
     });
-    expect(adapter.labels).toBeUndefined();
+    expect(adapter.labels).toMatchObject({
+      stable: 'opencodeStable',
+      prerelease: 'opencodePrerelease',
+    });
   });
 
   it('optimises the auto source before installing and never in manual mode', async () => {
@@ -145,6 +154,14 @@ describe('opencodeVersionBridge', () => {
     expect(raw.cancelVersionTask).toHaveBeenCalledTimes(1);
   });
 
+  it('seeds the card snapshot from the module cache after load', async () => {
+    const { adapter } = makeBridge();
+    expect(adapter.peekSnapshot?.()).toBeNull();
+    await adapter.load();
+    expect(adapter.peekSnapshot?.()?.status).toMatchObject({ currentSelected: '1.3.0' });
+    expect(adapter.peekSourceMode?.()).toBe('auto');
+  });
+
   it('maps the source mode both ways and resets to auto', async () => {
     const { raw, adapter } = makeBridge();
 
@@ -153,6 +170,41 @@ describe('opencodeVersionBridge', () => {
 
     expect(raw.saveVersionSource).toHaveBeenNthCalledWith(1, 'system');
     expect(raw.saveVersionSource).toHaveBeenNthCalledWith(2, 'auto');
+  });
+
+  it('maps the source mode both ways and resets to auto', async () => {
+    const { raw, adapter } = makeBridge();
+
+    await adapter.saveSourceMode('system');
+    await adapter.resetSourceMode();
+
+    expect(raw.saveVersionSource).toHaveBeenNthCalledWith(1, 'system');
+    expect(raw.saveVersionSource).toHaveBeenNthCalledWith(2, 'auto');
+  });
+
+  it('checkUpdate notifies the three states without installing', async () => {
+    const notify = vi.fn();
+    const { raw, adapter } = makeBridge({}, { notify });
+    // 有新版本 → 成功提示新版本。
+    await expect(adapter.checkUpdate?.()).resolves.toEqual({ ok: true });
+    expect(notify).toHaveBeenCalledWith('opencodeCheckUpdateFound', 'success');
+    expect(raw.update).not.toHaveBeenCalled();
+
+    // 已是最新 → 成功提示已是最新。
+    notify.mockClear();
+    raw.getVersionStatus = vi.fn(async () =>
+      ok({
+        currentSelected: '1.4.0',
+        installed: ['1.4.0'],
+        latestAvailable: '1.4.0',
+        hasUpdate: false,
+        prereleaseAvailable: null,
+        hasPrereleaseUpdate: false,
+        prereleaseUnknown: false,
+      }),
+    );
+    await expect(adapter.checkUpdate?.()).resolves.toEqual({ ok: true });
+    expect(notify).toHaveBeenCalledWith('harnessVersionNoUpdate', 'success');
   });
 
   it('passes the terminal-injection source data through the snapshot slot', async () => {

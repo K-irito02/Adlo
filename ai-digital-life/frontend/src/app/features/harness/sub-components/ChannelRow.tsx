@@ -8,6 +8,7 @@ import { formatPublishedAt } from '../harnessVersionFormat';
 import type { HarnessChannelKey, HarnessMenuGeometry } from '../hooks/useHarnessVersionChannelMenu';
 import type { HarnessVersionTask } from '../harnessVersionBridge';
 import { CheckIcon, ChevronDownIcon } from './icons';
+import { HarnessRefreshButton, type HarnessRowRefresh } from './VersionStatusRows';
 
 export interface HarnessChannelInfo {
   version: string;
@@ -45,6 +46,10 @@ interface ChannelRowProps {
   fixedWidth: number | null;
   /** 本行展示版本在途的任务（`shownTask.version === effective` 时行内展示）。 */
   task: HarnessChannelTask | null;
+  /** 本行刷新（目录腿）：标题前置按钮 + 控件区扫光；缺省不渲染。 */
+  refresh?: HarnessRowRefresh;
+  /** 控件区扫光态（本腿刷新在途且已有旧值）。 */
+  spinning?: boolean;
   uninstallArmed: string | null;
   onToggle: (channel: HarnessChannelKey, anchor: HTMLElement) => void;
   onPick: (channel: HarnessChannelKey, version: string) => void;
@@ -75,6 +80,8 @@ export function ChannelRow({
   menuPanelRef,
   fixedWidth,
   task,
+  refresh,
+  spinning,
   uninstallArmed,
   onToggle,
   onPick,
@@ -94,14 +101,26 @@ export function ChannelRow({
     >
       <div className="adl-settings-row__label">
         <div className="adl-settings-row__label-text">
-          {hint ? <SettingsHintButton content={hint} /> : null}
+          {refresh ? <HarnessRefreshButton refresh={refresh} disabled={disabled} /> : null}
           <span>{title}</span>
+          {hint ? <SettingsHintButton content={hint} /> : null}
         </div>
         {desc ? <small>{desc}</small> : null}
       </div>
       <div className="adl-settings-row__control">{control}</div>
     </div>
   );
+
+  // 目录腿刷新在途且已有旧展示值：控件区扫光，不展示中途值。
+  if (spinning && effective) {
+    return row(
+      <span
+        className="adl-harness-version__readout-loading"
+        role="status"
+        aria-label={t.harnessVersionLoading}
+      />,
+    );
+  }
 
   if (!effective) {
     return row(

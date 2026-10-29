@@ -31,6 +31,8 @@ export interface HarnessVersionSourceStatus {
   mode: HarnessVersionSourceMode;
   effective: HarnessVersionEffectiveSource;
   systemPath: string | null;
+  /** 系统安装的版本号（探测到路径但版本未知时为 null）。 */
+  systemVersion?: string | null;
   /**
    * 来源状态是否已就绪（DSH 的 `resolvedByMode` 到达前为 false）。
    * 缺省按 true；配合 `capabilities.sourceManaged` 可避免首帧闪现管理项。
@@ -94,6 +96,11 @@ export interface HarnessVersionCapabilities {
   /** 显示「恢复默认」来源操作。 */
   resetSourceAction?: boolean;
   /**
+   * 行内刷新按钮（检查更新/当前版本/正式版本/预发布版本）：标题前置、
+   * 问号后置；分腿在途时该行控件区扫光。缺省不渲染（DSH 无此按钮）。
+   */
+  refreshRows?: boolean;
+  /**
    * 稳定/预发布双通道使用行内版本选择器（下拉菜单列出该通道全部版本），
    * 替代 OpenCode 风格的 `<select>` + 单个最新预发布行。DSH 需要。
    */
@@ -136,6 +143,17 @@ export interface HarnessVersionBridge<TSource = unknown> {
   labels?: HarnessVersionLabels;
   /** 首屏/操作完成后重新读取版本状态。 */
   load: () => Promise<HarnessVersionSnapshot<TSource>>;
+  /**
+   * 会话级快照种子（stale-while-revalidate）：切组重挂时首帧即瞬显上次快照，
+   * 后台仍走 `load` 静默再验证。缺省（冷启动）返回 null，卡片画骨架。
+   * DSH 由 store 常驻供给；OpenCode 由适配器模块缓存供给。
+   */
+  peekSnapshot?: () => HarnessVersionSnapshot<TSource> | null;
+  /**
+   * 关组前的版本来源偏好：冷启动骨架按它定形（含/不含管理三行）。
+   * 缺省按 `auto`（管理行按含画，解析为系统后行隐藏）。
+   */
+  peekSourceMode?: () => HarnessVersionSourceMode | null;
   /** 查询进行中的版本任务；无任务返回 null。 */
   getTask: () => Promise<HarnessVersionTask | null>;
   install: (version: string) => Promise<HarnessVersionResult>;

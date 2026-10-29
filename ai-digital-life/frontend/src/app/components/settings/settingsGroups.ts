@@ -50,12 +50,12 @@ export const RESET_ALL_GROUP_LABEL_KEYS: Record<GroupKey, keyof CopyDict> = {
 
 /**
  * 组级重置 patch 工厂（偏好直写组）：按钮渲染与执行行为同源。
- * 未接入 patch 工厂的组：storage/browser/dsh/network/environment 走自有流程（侧边栏只切组 +
+ * 未接入 patch 工厂的组：storage/browser/dsh/network/environment/opencode 走自有流程（侧边栏只切组 +
  * 置 pending 信号，确认对话框与执行由 StorageSettings / BrowserSettings /
- * DshSettings / NetworkSettings / EnvironmentSettings 承接，见 uiSlice `*GroupResetPending`）。
+ * DshSettings / NetworkSettings / EnvironmentSettings / OpencodeSettings 承接，见 uiSlice `*GroupResetPending`）。
  *
  * 类型不变式：`RESETTABLE_GROUPS ⊇ keys(GROUP_RESET_PATCHES)`，差集仅允许
- * `storage`、`browser`、`dsh`、`network`、`environment`。
+ * `storage`、`browser`、`dsh`、`network`、`environment`、`opencode`。
  */
 export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPreferencePatch>> = {
   // 刻意不含 language / themeMode：二者是用户个人基线（跟随系统或用户选定值），
@@ -87,11 +87,11 @@ export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPrefe
 
 /**
  * 侧边栏渲染重置按钮的组 = patch 工厂键 + storage + browser + dsh + network +
- * environment（自有流程见上）。
+ * environment + opencode（自有流程见上）。
  *
- * 通用消费者不得直接取 `GROUP_RESET_PATCHES[group]`（storage/browser/dsh/network/environment
- * 无工厂）——用 `getGroupResetPatch(group)`（五组返回 null，调用方走自有流程），
- * `SettingsPanel.handleRequestResetGroup` 已对五组提前分支；
+ * 通用消费者不得直接取 `GROUP_RESET_PATCHES[group]`（storage/browser/dsh/network/environment/opencode
+ * 无工厂）——用 `getGroupResetPatch(group)`（六组返回 null，调用方走自有流程），
+ * `SettingsPanel.handleRequestResetGroup` 已对六组提前分支；
  * `SettingsPanel.test.tsx` 的"单注册表"用例锁定该差集（task4 M-2）。
  */
 export const RESETTABLE_GROUPS: ReadonlySet<SettingsGroupId> = new Set([
@@ -101,12 +101,13 @@ export const RESETTABLE_GROUPS: ReadonlySet<SettingsGroupId> = new Set([
   'dsh',
   'network',
   'environment',
+  'opencode',
 ]);
 
 /**
- * 组级重置 patch 单一入口：偏好直写组返回 patch，storage/browser/dsh/network/environment
+ * 组级重置 patch 单一入口：偏好直写组返回 patch，storage/browser/dsh/network/environment/opencode
  * 返回 null（调用方走各组自有确认对话框与多步流程）。
- * 直接索引 `GROUP_RESET_PATCHES[group]` 是非惯用法（五组会拿到 undefined）。
+ * 直接索引 `GROUP_RESET_PATCHES[group]` 是非惯用法（六组会拿到 undefined）。
  */
 export function getGroupResetPatch(group: SettingsGroupId): AppPreferencePatch | null {
   if (
@@ -114,7 +115,8 @@ export function getGroupResetPatch(group: SettingsGroupId): AppPreferencePatch |
     group === 'browser' ||
     group === 'dsh' ||
     group === 'network' ||
-    group === 'environment'
+    group === 'environment' ||
+    group === 'opencode'
   ) {
     return null;
   }

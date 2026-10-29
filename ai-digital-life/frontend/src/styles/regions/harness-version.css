@@ -98,6 +98,65 @@
   }
 }
 
+/* 行内刷新图标按钮（标题前置、问号后置；Git 可视化图表同款 `IconRefreshCw`）：
+   小尺寸图标按钮，悬停跟随主题；加载中由 `adl-spin` 旋转。 */
+.adl-harness-version__refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.adl-harness-version__refresh-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.adl-harness-version__refresh-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-harness-version__refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 首帧骨架占位（会话内无快照种子、冷启动首次进组时）：标题/控件两条
+   中性灰扫光条，按来源偏好定形（含/不含管理三行）。 */
+.adl-harness-version__skeleton-bar,
+.adl-harness-version__skeleton-control {
+  display: inline-block;
+  height: 16px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-muted);
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(128, 128, 128, 0.4) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: adl-harness-skeleton-wave 2.6s ease-in-out infinite;
+}
+
+.adl-harness-version__skeleton-bar {
+  width: 120px;
+}
+
+.adl-harness-version__skeleton-control {
+  width: 160px;
+  height: 20px;
+}
+
 /* 状态徽标（已是最新 / 发现新版本）——无边框。 */
 .adl-harness-version__badge {
   display: inline-flex;
