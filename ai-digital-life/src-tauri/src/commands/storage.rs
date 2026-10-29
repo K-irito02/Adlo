@@ -177,7 +177,7 @@ fn category_statuses(svc: &st::StorageService) -> Vec<StorageCategoryStatus> {
         .into_iter()
         .map(|c| {
             // path 报覆盖值语义（`override_dir`，round-trip 恒等，事项 9 根因修复）；
-            // 占用统计与存在性用实际解析路径 `dir(c)`（DB 类是文件、dsh 是子目录）。
+            // 占用统计与存在性用实际解析路径 `dir(c)`（DB 类是文件、harnesses 是子目录）。
             let actual = paths.dir(c);
             let (bytes, files) = st::category_usage(c, &actual);
             StorageCategoryStatus {
@@ -496,17 +496,17 @@ mod tests {
     }
 
     #[test]
-    fn build_status_snapshot_counts_dsh_fixture() {
+    fn build_status_snapshot_counts_harnesses_fixture() {
         // 事项 9 根因回归：快照构造是纯函数（blocking 线程执行），给定 fixture
-        // 必须精确统计。dsh-versions 下 2 文件共 12 字节。
+        // 必须精确统计。harnesses 下 2 文件共 12 字节。
         let base =
             std::env::temp_dir().join(format!("adl-shell-storage-snap-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         let root = base.join("root");
-        let dsh = root.join("dsh-versions");
-        std::fs::create_dir_all(dsh.join("sub")).unwrap();
-        std::fs::write(dsh.join("a.bin"), [0u8; 5]).unwrap();
-        std::fs::write(dsh.join("sub").join("b.bin"), [0u8; 7]).unwrap();
+        let harnesses = root.join("harnesses");
+        std::fs::create_dir_all(harnesses.join("sub")).unwrap();
+        std::fs::write(harnesses.join("a.bin"), [0u8; 5]).unwrap();
+        std::fs::write(harnesses.join("sub").join("b.bin"), [0u8; 7]).unwrap();
         let defaults = st::StorageDefaults {
             root: root.clone(),
             credentials_dir: base.join("cred"),
@@ -516,8 +516,9 @@ mod tests {
         loc.selection.root = Some(root);
         let svc = st::StorageService::from_locator(&loc, &defaults);
         let snap = build_status_snapshot(&svc);
-        let dsh_status = snap.categories.iter().find(|c| c.key == "dsh").expect("dsh status");
-        assert_eq!((dsh_status.bytes, dsh_status.files), (12, 2));
+        let harnesses_status =
+            snap.categories.iter().find(|c| c.key == "harnesses").expect("harnesses status");
+        assert_eq!((harnesses_status.bytes, harnesses_status.files), (12, 2));
         let _ = std::fs::remove_dir_all(&base);
     }
 }
