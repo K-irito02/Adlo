@@ -14,3 +14,4 @@ Lessons learned from Tauri backend development and synchronization fixes.
 - [storage-status-ui-thread-hang-2026-10-20.md](./storage-status-ui-thread-hang-2026-10-20.md) — 设置面板打开即卡死：storage 同步命令在 UI 线程遍历 6 万文件（cdb 行号定位）+ 诊断心跳重 arm 防抖致零落盘
 - [dsh-version-provenance-and-pending-switch-2026-10-20.md](./dsh-version-provenance-and-pending-switch-2026-10-20.md) — dsh 版本显示溯源（无后缀 shim 的 `.cmd` 回退须探测/拉起同口径；运行中版本只认 spawn 登记）+ 破坏性来源切换的 pending/启动兑现模式 + 一次性 token 进持久化的一律剥离
 - [dsh-version-task-cancel-and-restart-ensure-2026-10-26.md](./dsh-version-task-cancel-and-restart-ensure-2026-10-26.md) — 同步全树 walk 饿死取消检查（搬 spawn_blocking + 独立快检分支 + 自适应节流；junction 需查 reparse 属性）+ `run_restart` 改“确保运行”语义 + `syncDshTab` 先开后关防中心空态补 launcher
+- [reqwest-socks-proxy-env-2026-10-29.md](./reqwest-socks-proxy-env-2026-10-29.md) — reqwest 缺 `socks` 特性时 SOCKS 代理 env 下全部出站失败（`unsupported scheme socks5h`，curl/Node 不受影响）；workspace 特性加 `socks` 即修，不回退直连
