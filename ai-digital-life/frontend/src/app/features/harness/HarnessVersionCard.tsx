@@ -19,7 +19,6 @@ import {
 import { useHarnessVersionActions } from './hooks/useHarnessVersionActions';
 import { ChannelRow, ChannelSizer, type HarnessChannelTask } from './sub-components/ChannelRow';
 import { InstalledVersionsCard } from './sub-components/InstalledVersionsCard';
-import { LegacyChannelRows } from './sub-components/LegacyChannelRows';
 import { ManualVersionRow } from './sub-components/ManualVersionRow';
 import { ResetSourceRow } from './sub-components/ResetSourceRow';
 import { SourceRow, SystemPathRow, type HarnessSourceOption } from './sub-components/SourceCard';
@@ -292,21 +291,8 @@ export function HarnessVersionCard<TSource = unknown>({
               onInstall={() => void data.run(runUpdateAction, t.harnessVersionUpdated, 'update')}
               onCheck={() => void data.run(runUpdateAction, null)}
             />
-            {data.channelPicker ? (
-              <>
-                {channelRow('stable')}
-                {channelRow('prerelease')}
-              </>
-            ) : (
-              <LegacyChannelRows
-                stable={data.stable}
-                stablePick={actions.stablePick}
-                latestPrerelease={data.latestPrerelease}
-                disabled={data.disabled}
-                onStablePick={actions.setStablePick}
-                onInstall={actions.installVersion}
-              />
-            )}
+            {channelRow('stable')}
+            {channelRow('prerelease')}
             {showExtraRows ? (
               <ManualVersionRow
                 value={actions.manual}

@@ -105,9 +105,11 @@ export function createOpencodeVersionBridge(
       updateAction: 'install',
       taskPercent: true,
       taskCounts: false,
-      resetSourceAction: true,
-      // OpenCode 保留其原有功能：手动版本行 + 已安装版本独立卡。
-      extraRows: 'manual+installed',
+      // 与 DSH 精确一致：双通道 picker + 无额外行 + 无恢复默认行；
+      // 终端开关/说明走 sourceFooter 插槽（唯一差异）。
+      channelPicker: true,
+      resetSourceAction: false,
+      extraRows: 'none',
     },
     taskStageText,
     load: async (): Promise<HarnessVersionSnapshot<OpencodeSourceStatus>> => {

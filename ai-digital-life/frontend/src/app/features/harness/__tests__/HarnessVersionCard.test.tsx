@@ -142,9 +142,11 @@ function makeBridge(
     toolName: 'OpenCode CLI',
     available: true,
     capabilities: {
-      // 本文件覆盖 OpenCode 形态（手动版本行 + 已安装版本独立卡 + 来源读数）；
-      // DSH 形态（`extraRows: 'none'`）由 structure 测试覆盖。
-      extraRows: 'manual+installed',
+      // OpenCode 与 DSH 精确一致：双通道 picker + 无额外行 + 无恢复默认行；
+      // 终端开关/说明走 sourceFooter 插槽（唯一差异）。
+      channelPicker: true,
+      extraRows: 'none',
+      resetSourceAction: false,
     },
     load: vi.fn(async () => initial),
     getTask: vi.fn(async () => null),
@@ -187,12 +189,15 @@ describe('HarnessVersionCard', () => {
     });
     renderCard(bridge);
 
-    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.0.0' })).toBeTruthy(),
+    );
+    openChannelMenu('stable', '1.0.0');
+    pickChannelVersion('1.1.0');
 
-    const stableSelect = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
-    await waitFor(() => expect(stableSelect.value).toBe('1.1.0'));
-    const stableRow = stableSelect.closest('.adl-settings-row') as HTMLElement;
-    fireEvent.click(within(stableRow).getByRole('button', { name: 'harnessVersionInstall' }));
+    fireEvent.click(
+      within(channelRow('stable')).getByRole('button', { name: 'harnessVersionInstall' }),
+    );
 
     await waitFor(() => expect(bridge.install).toHaveBeenCalledWith('1.1.0'));
     await waitFor(() =>
@@ -204,9 +209,15 @@ describe('HarnessVersionCard', () => {
     const bridge = makeBridge();
     renderCard(bridge);
 
-    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.0.0' })).toBeTruthy(),
+    );
+    openChannelMenu('stable', '1.0.0');
+    pickChannelVersion('1.1.0');
 
-    fireEvent.click(within(rowFor('1.1.0')).getByRole('button', { name: 'harnessVersionSwitch' }));
+    fireEvent.click(
+      within(channelRow('stable')).getByRole('button', { name: 'harnessVersionSwitchTo' }),
+    );
 
     await waitFor(() => expect(bridge.revert).toHaveBeenCalledWith('1.1.0'));
     await waitFor(() =>
@@ -217,15 +228,31 @@ describe('HarnessVersionCard', () => {
   it('marks the current version and disables switching to it', async () => {
     renderCard(makeBridge());
 
-    await waitFor(() => expect(rowFor('1.0.0')).toBeTruthy());
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.0.0' })).toBeTruthy(),
+    );
 
-    expect(within(rowFor('1.0.0')).getByText('harnessVersionCurrentBadge')).toBeInTheDocument();
+    // 当前版本行：徽章 + 无切换按钮。
     expect(
-      within(rowFor('1.0.0')).getByRole('button', { name: 'harnessVersionSwitch' }),
-    ).toBeDisabled();
+      within(channelRow('stable')).getByText('harnessVersionCurrentBadge'),
+    ).toBeInTheDocument();
     expect(
-      within(rowFor('1.1.0')).getByRole('button', { name: 'harnessVersionSwitch' }),
+      within(channelRow('stable')).queryByRole('button', { name: 'harnessVersionSwitchTo' }),
+    ).toBeNull();
+
+    // 切到已装非当前版本：出现切换按钮且可用。
+    openChannelMenu('stable', '1.0.0');
+    pickChannelVersion('1.1.0');
+    expect(
+      within(channelRow('stable')).getByRole('button', { name: 'harnessVersionSwitchTo' }),
     ).toBeEnabled();
+
+    // 切回当前版本：切换按钮消失。
+    openChannelMenu('stable', '1.1.0');
+    pickChannelVersion('1.0.0');
+    expect(
+      within(channelRow('stable')).queryByRole('button', { name: 'harnessVersionSwitchTo' }),
+    ).toBeNull();
   });
 
   it('disables actions while busy and lets the running task be cancelled', async () => {
@@ -233,7 +260,11 @@ describe('HarnessVersionCard', () => {
     const installPromise = new Promise<HarnessVersionResult>((resolve) => {
       resolveInstall = resolve;
     });
-    const bridge = makeBridge();
+    const bridge = makeBridge({
+      initial: snapshot({
+        status: status({ currentSelected: null, installed: [] }),
+      }),
+    });
     bridge.install = vi.fn(() => installPromise);
     bridge.getTask = vi.fn(async () => ({
       kind: 'dsh-install' as const,
@@ -246,25 +277,30 @@ describe('HarnessVersionCard', () => {
     }));
 
     renderCard(bridge);
-    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
-
-    const stableSelect = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
-    await waitFor(() => expect(stableSelect.value).toBe('1.0.0'));
-    const stableRow = stableSelect.closest('.adl-settings-row') as HTMLElement;
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.0.0' })).toBeTruthy(),
+    );
+    openChannelMenu('stable', '1.0.0');
+    pickChannelVersion('1.1.0');
 
     vi.useFakeTimers();
-    fireEvent.click(within(stableRow).getByRole('button', { name: 'harnessVersionInstall' }));
+    fireEvent.click(
+      within(channelRow('stable')).getByRole('button', { name: 'harnessVersionInstall' }),
+    );
 
-    expect(
-      within(rowFor('1.1.0')).getByRole('button', { name: 'harnessVersionSwitch' }),
-    ).toBeDisabled();
+    // 在途：通道选择器与更新按钮禁用，只有取消可点。
+    expect(within(channelRow('stable')).getByRole('button', { name: '1.1.0' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'harnessVersionUpdateAction' })).toBeDisabled();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(800);
     });
 
-    expect(screen.getByText('42%')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'harnessVersionCancel' }));
+    // picker 形态任务行内展示阶段文案（无百分比）+ 取消按钮。
+    expect(screen.getByText('harnessVersionPhaseInstalling')).toBeInTheDocument();
+    const cancel = screen.getByRole('button', { name: 'harnessVersionCancel' });
+    expect(cancel).toBeEnabled();
+    fireEvent.click(cancel);
     expect(bridge.cancel).toHaveBeenCalledTimes(1);
 
     await act(async () => {
@@ -274,7 +310,7 @@ describe('HarnessVersionCard', () => {
     });
   });
 
-  it('renders the not-installed and missing-harness guidance for an empty install', async () => {
+  it('renders the not-installed readout without the missing-harness banner when extra rows are off', async () => {
     const bridge = makeBridge({
       initial: snapshot({
         status: status({ currentSelected: null, installed: [] }),
@@ -282,13 +318,29 @@ describe('HarnessVersionCard', () => {
     });
     renderCard(bridge);
 
-    // 缺失横幅依赖首屏快照落定（`status !== null`），必须等到加载后断言，
-    // 否则首帧空快照下读数已显示而横幅未出、断言竞态。
+    // DSH 精确形态无缺失横幅行：只读数空态。
     await waitFor(() => expect(bridge.load).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('harnessVersionNotInstalled')).toBeInTheDocument());
+    expect(screen.queryByText('harnessVersionMissingBanner')).not.toBeInTheDocument();
+  });
+
+  it('renders the DSH-exact card without manual/installed/reset rows when extra rows are off', async () => {
+    renderCard(makeBridge());
+
     await waitFor(() =>
-      expect(screen.getByText('harnessVersionMissingBanner')).toBeInTheDocument(),
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.0.0' })).toBeTruthy(),
     );
+
+    // 双通道为 picker（按钮形态），无传统下拉、无手动行、无已安装独立卡、无恢复默认行。
+    // 注意：已装徽章文案（harnessVersionInstalled）仍会出现在 picker 徽章里，
+    // 因此按结构断言（输入框 / 版本行 / 按钮），不按文案断言。
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.queryByPlaceholderText('harnessVersionManualPlaceholder')).toBeNull();
+    expect(document.querySelector('[data-harness-version-row]')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'harnessVersionResetDefaults' })).toBeNull();
+    // 来源下拉（自定义按钮）与检查更新按钮仍在。
+    expect(screen.getByRole('button', { name: 'harnessVersionSourceTitle' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'harnessVersionUpdateAction' })).toBeInTheDocument();
   });
 
   it('renders an error readout when the status cannot be loaded', async () => {
@@ -321,11 +373,10 @@ describe('HarnessVersionCard', () => {
     expect(screen.queryByRole('combobox')).toBeNull();
     expect(screen.getByRole('button', { name: 'harnessVersionSourceTitle' })).toBeInTheDocument();
     expect(screen.queryByText('harnessVersionStable')).not.toBeInTheDocument();
-    expect(screen.queryByText('harnessVersionManual')).not.toBeInTheDocument();
+    expect(screen.queryByText('dshOfficialStable')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('harnessVersionManualPlaceholder')).toBeNull();
     expect(screen.queryByRole('button', { name: 'harnessVersionUpdateAction' })).toBeNull();
-    // 来源行与系统路径读数仍可见（用户要能判断当前连的是系统安装）。
-    expect(screen.getByText('harnessVersionSourceTitle')).toBeInTheDocument();
-    expect(screen.getByText('C:/Program Files/dsh/dsh.exe')).toBeInTheDocument();
+    // 系统路径行随额外行一起关闭（DSH 精确形态；系统安装读数走运行态插槽）。
   });
 
   it('lets the adapter own the host block header', async () => {
@@ -340,15 +391,23 @@ describe('HarnessVersionCard', () => {
   });
 
   it('prefers the adapter-provided success message over the generic one', async () => {
-    const bridge = makeBridge();
+    const bridge = makeBridge({
+      initial: snapshot({
+        status: status({ currentSelected: null, installed: [] }),
+      }),
+    });
     bridge.install = vi.fn(async () => ({ ok: true, message: 'dshInstalledRestarted' }));
 
     renderCard(bridge);
-    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.0.0' })).toBeTruthy(),
+    );
+    openChannelMenu('stable', '1.0.0');
+    pickChannelVersion('1.1.0');
 
-    const stableSelect = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
-    const stableRow = stableSelect.closest('.adl-settings-row') as HTMLElement;
-    fireEvent.click(within(stableRow).getByRole('button', { name: 'harnessVersionInstall' }));
+    fireEvent.click(
+      within(channelRow('stable')).getByRole('button', { name: 'harnessVersionInstall' }),
+    );
 
     await waitFor(() =>
       expect(bridge.notify).toHaveBeenCalledWith('dshInstalledRestarted', 'success'),
@@ -380,7 +439,11 @@ describe('HarnessVersionCard', () => {
     const installPromise = new Promise<HarnessVersionResult>((resolve) => {
       resolveInstall = resolve;
     });
-    const bridge = makeBridge();
+    const bridge = makeBridge({
+      initial: snapshot({
+        status: status({ currentSelected: null, installed: [] }),
+      }),
+    });
     bridge.install = vi.fn(() => installPromise);
     bridge.getTask = vi.fn(async () => ({
       kind: 'dsh-install' as const,
@@ -393,13 +456,16 @@ describe('HarnessVersionCard', () => {
     }));
 
     renderCard(bridge);
-    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
-
-    const stableSelect = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
-    const stableRow = stableSelect.closest('.adl-settings-row') as HTMLElement;
+    await waitFor(() =>
+      expect(within(channelRow('stable')).getByRole('button', { name: '1.0.0' })).toBeTruthy(),
+    );
+    openChannelMenu('stable', '1.0.0');
+    pickChannelVersion('1.1.0');
 
     vi.useFakeTimers();
-    fireEvent.click(within(stableRow).getByRole('button', { name: 'harnessVersionInstall' }));
+    fireEvent.click(
+      within(channelRow('stable')).getByRole('button', { name: 'harnessVersionInstall' }),
+    );
     await act(async () => {
       await vi.advanceTimersByTimeAsync(800);
     });
