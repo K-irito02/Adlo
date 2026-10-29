@@ -5,6 +5,8 @@ import { SettingsHintButton } from '@components/settings/SettingsHintButton';
 interface CurrentVersionRowProps {
   /** 行内「?」提示内容（DSH 传入当前版本说明；缺省不渲染）。 */
   hint?: string;
+  /** 标签下描述小字（旧行文案；缺省不渲染）。 */
+  desc?: string;
   /** 卸载二次确认时的行内警告（适配器提供；`undefined` 时不渲染）。 */
   uninstallWarn?: string;
   /** 行内读数：运行态插槽或通用回退读数。 */
@@ -12,7 +14,7 @@ interface CurrentVersionRowProps {
 }
 
 /** 当前版本行：副标题 + 提示图标；右侧为行内版本读数。 */
-export function CurrentVersionRow({ hint, uninstallWarn, children }: CurrentVersionRowProps) {
+export function CurrentVersionRow({ hint, desc, uninstallWarn, children }: CurrentVersionRowProps) {
   const { t } = useTCopy();
   return (
     <div className="adl-settings-row" data-settings-row={t.harnessVersionCurrent}>
@@ -21,6 +23,7 @@ export function CurrentVersionRow({ hint, uninstallWarn, children }: CurrentVers
           {hint ? <SettingsHintButton content={hint} /> : null}
           <span>{t.harnessVersionCurrent}</span>
         </div>
+        {desc ? <small>{desc}</small> : null}
         {uninstallWarn ? (
           <small className="adl-harness-version__row-warn">{uninstallWarn}</small>
         ) : null}

@@ -433,13 +433,8 @@ describe('HarnessVersionCard', () => {
     const menu = openChannelMenu('stable', '1.1.0');
     expect(menu.getAttribute('aria-label')).toBe('dshOfficialStable');
     expect(within(menu).getAllByRole('option')).toHaveLength(3);
-    expect(
-      within(menu).getByText(
-        new Intl.DateTimeFormat('en-US', { dateStyle: 'short', timeStyle: 'short' }).format(
-          new Date('2026-01-02T03:04:00Z'),
-        ),
-      ),
-    ).toBeInTheDocument();
+    // 旧行文案：发布时间为 `YYYY-MM-DD HH:mm`（用户要求恢复）。
+    expect(within(menu).getByText('2026-01-02 03:04')).toBeInTheDocument();
 
     pickChannelVersion('1.2.0');
     await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());

@@ -4,9 +4,9 @@
    - 由旧 DSH 版本管理块样式（`dsh-version.css`，基线 `2ea69fd7`）逐条移植，
      类名前缀 `adl-dsh-settings__` → `adl-harness-version__`（复用载体去 DSH 专属命名）。
    - DSH 来源切换对话框仍用 `adl-dsh-source-dialog__*`（DSH 专属，不改名）。
-   - 块内统一的提示小字色用中性 `var(--text-muted)`（hint-color 规则：不复活
-     旧 `--dsh-note-fg` accent 混合推导；旧值见下方 `__row-warn` 与
-     `__version-menu-item-current` 注释）。
+   - 块内统一的提示小字色沿用旧压暗蓝推导（用户已批准） `var(--text-muted)`（hint-color 规则确认后恢复；token 见下方注释）
+     新 token `--harness-note-fg`（旧推导逐字恢复）作用于 `__row-warn` 与
+     `__version-menu-item-current` 两处规则，见下方注释）。
    - 卡片根节点 `.adl-harness-version` 仅作样式作用域（`display: contents`
      零视觉效果，不增加卡间距；旧根即卡片本身）。
    ========================================================================== */
@@ -14,6 +14,21 @@
 /* 卡片根节点自成作用域但不产生盒子：子卡片直接按组 section 间距排列。 */
 .adl-harness-version {
   display: contents;
+}
+
+/* 块内统一的「压暗蓝」文字色：提示小字（row-warn）、当前版本菜单项共用同一个值
+   （用户特殊设计，2026-10-29 确认保留；hint-color 规则的“需确认”条件已满足）。
+   做法与旧 `--dsh-note-fg` 逐字一致：正文蓝 `--accent` 与次级文字色混合压一档；
+   暗色主题混 `--text-muted` 再压一档。必须同时定义在 Portal 菜单面板上（菜单挂到
+   `body`，不在卡片子树内，取不到块内 token）。 */
+.adl-harness-version,
+.adl-harness-version__version-menu {
+  --harness-note-fg: color-mix(in srgb, var(--accent) 72%, var(--text-secondary));
+}
+
+[data-theme='dark'] .adl-harness-version,
+[data-theme='dark'] .adl-harness-version__version-menu {
+  --harness-note-fg: color-mix(in srgb, var(--accent) 62%, var(--text-muted));
 }
 
 /* 来源行下拉框与其它控件同宽：下拉框定宽 160px（含 min-width 锁定意图）。 */
@@ -189,9 +204,9 @@
    `.adl-settings-row__label small` 会覆盖颜色，用复合选择器提权，避免 !important。
    多行说明按原文换行呈现：基础 small 无 pre-line 会把换行压成一段，且 5 行 clamp
    会在窄面板下截断后续分项，故按原文换行（pre-line）+ 解除 clamp（块级 + 可见溢出）。
-   颜色取中性 `var(--text-muted)`（旧 `--dsh-note-fg` accent 推导按 hint-color 规则退役）。 */
+   颜色取 `--harness-note-fg` 压暗蓝（旧值逐字恢复，用户已批准）。 */
 .adl-harness-version small.adl-harness-version__row-warn {
-  color: var(--text-muted);
+  color: var(--harness-note-fg);
   display: block;
   white-space: pre-line;
   -webkit-line-clamp: unset;
@@ -315,10 +330,10 @@
   white-space: nowrap;
 }
 
-/* 「当前版本」徽章文字色取中性（旧 `--dsh-note-fg` accent 推导按 hint-color 规则退役，
+/* 「当前版本」徽章文字色取 `--harness-note-fg` 压暗蓝（旧值逐字恢复，用户已批准，
    与提示小字同色）；底色比 `--accent-soft` 更淡（旧值保留）。 */
 .adl-harness-version__version-menu-item-current {
-  color: var(--text-muted);
+  color: var(--harness-note-fg);
 }
 
 .adl-harness-version__version-menu-item-current {

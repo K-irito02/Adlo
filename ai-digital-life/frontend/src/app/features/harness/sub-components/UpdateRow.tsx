@@ -1,4 +1,5 @@
 import { useTCopy } from '@i18n/useTCopy';
+import { SettingsHintButton } from '@components/settings/SettingsHintButton';
 
 interface UpdateRowProps {
   mode: 'install' | 'check';
@@ -7,6 +8,10 @@ interface UpdateRowProps {
   /** 目录拉取失败时同样不显示更新结论（避免误报「已是最新」）。 */
   catalogFailed: boolean;
   hasUpdate: boolean;
+  /** 行内「?」提示内容；缺省不渲染。 */
+  hint?: string;
+  /** 标签下描述小字；缺省不渲染。 */
+  desc?: string;
   disabled: boolean;
   onInstall: () => void;
   onCheck: () => void;
@@ -21,6 +26,8 @@ export function UpdateRow({
   hasLatest,
   catalogFailed,
   hasUpdate,
+  hint,
+  desc,
   disabled,
   onInstall,
   onCheck,
@@ -30,8 +37,10 @@ export function UpdateRow({
     <div className="adl-settings-row" data-settings-row={t.harnessVersionUpdate}>
       <div className="adl-settings-row__label">
         <div className="adl-settings-row__label-text">
+          {hint ? <SettingsHintButton content={hint} /> : null}
           <span>{t.harnessVersionUpdate}</span>
         </div>
+        {desc ? <small>{desc}</small> : null}
       </div>
       <div className="adl-settings-row__control adl-harness-version__version-actions">
         {mode === 'install' && hasLatest && !catalogFailed ? (

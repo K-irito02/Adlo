@@ -53,6 +53,7 @@ export const dshEn = {
   dshVersionManagementHint:
     'Manage the assistant versions.\n· Auto detect prefers the running one, then a version this app installed, then your system install\n· Install, switch or uninstall below; the assistant restarts automatically',
   dshCurrentVersionNone: 'Not installed',
+  dshCurrentVersionDesc: 'The assistant version in use right now',
   dshCurrentVersionHint:
     'Shows the version of the assistant actually in use right now, and where it comes from.\n· In-app version: installed and managed by this app; you can switch, reinstall or uninstall it at any time.\n· System install: a version you installed yourself; this app only uses it and never modifies it. The version is probed at startup (about half a second); if the probe fails it honestly shows “Version unknown”.\n· Running: an assistant is already running on this computer; this app connects to it directly.\n· Only one assistant runs at a time: it always uses port 3080. On launch or open, this app probes 3080 first — if a verified assistant is already listening there (no matter who started it), it simply connects, never starts a second one; only when 3080 is free does it launch one for the current version source, and if another program holds the port it reports an error for you to handle. Cleaning up a blocking stale dsh touches only processes whose command line identifies them as dsh, never anything else. Background pre-start follows exactly this probing logic (using the available host version, ready in about ten seconds), so seeing “Running” before you ever clicked open is normal — the version shown is then the available host version.\n· If that running assistant was started externally by you (not by this app), its version cannot be detected and “Version unknown” is shown instead of a made-up number.\nAfter installing, switching or uninstalling, the assistant restarts automatically — no need to restart the app.',
   dshVersionUnknown: 'Version unknown',
@@ -112,6 +113,9 @@ export const dshEn = {
   dshUninstalledSwitched: 'Uninstalled {version}; switched to {next}',
   dshUninstalledNoVersion: 'Uninstalled {version}; no version is available now',
   dshRestartFailed: 'Version saved, but the assistant failed to restart; please reopen it',
+  dshCheckUpdateDesc: 'See if a newer version is out',
+  dshCheckUpdateHint:
+    'Checks the official source once. A newer release is marked on the Current version row, and newer prereleases are flagged too. If the check cannot reach the network, it tells you the check failed.',
   dshCheckUpdateFound: 'New version {version} available',
   dshCheckUpdateNoStable: 'No stable release published yet',
   dshCheckUpdatePrerelease: 'New prerelease {version} available to try',
@@ -119,7 +123,9 @@ export const dshEn = {
   dshUninstallCurrentHint:
     'This is the currently selected version. After uninstalling, reinstall it or switch to another version before use',
   dshOfficialStable: 'Stable releases',
+  dshOfficialStableDesc: 'Stable releases from the official source',
   dshPrereleaseTitle: 'Prerelease versions',
+  dshPrereleaseDesc: 'Try new features early; prereleases may be unstable',
   dshOfficialStableHint:
     'Stable releases are the ones recommended for most people — good for everyday use.\n· Version picker: click to expand all stable versions in this channel (defaults to the current version or the newest in the channel); picking one only changes what the picker shows, it installs or switches nothing yet.\n· The buttons on the right change with the picked version: not-installed shows “Install”; installed shows “Uninstall version / Reinstall”; installed-but-not-current additionally shows “Switch to this version”; the current-version row has no install or switch button.\n· Each row carries at most one status badge, in priority order: Current version > Installed versions; its buttons are identical to any other installed version: “Uninstall version / Reinstall / Switch to this version”.\n· Install really downloads: it installs @deepseek-ai/dsh@version from the download source into the app data directory and selects it, then the assistant restarts automatically; if the version was never published upstream it fails with a message.\n· Switch only changes the selection and restarts; reinstall fully reinstalls the currently selected version; uninstall deletes that version directory (the currently selected version needs two clicks to confirm, afterwards the highest remaining version is auto-selected, or “Not installed” when none is left; installed versions follow the same rules).\n· Install / reinstall / uninstall show a progress line (“Downloading / Installing N of M / Removing N of M / Finalizing”; N = packages in place, M = pre-install estimate): the real tree can be larger than the estimate (e.g. bundled dependencies not counted in the total), so N exceeding M is normal, not an error; “Cancel install / Cancel uninstall / Cancel reinstall” only works while cancellable (the button becomes disabled once past that point); cancelling reports “Operation cancelled”, and if the assistant was already stopped it tries to bring it back up.',
   dshPrereleaseHint:

@@ -62,10 +62,20 @@ export interface HarnessVersionSlots<TSource> {
   sourceOptions?: HarnessSourceOption[];
   /** 当前版本行「?」提示内容；缺省不渲染。 */
   currentHint?: string;
+  /** 当前版本行描述小字；缺省不渲染。 */
+  descCurrent?: string;
+  /** 检查更新行「?」提示内容；缺省不渲染。 */
+  checkHint?: string;
+  /** 检查更新行描述小字；缺省不渲染。 */
+  descCheck?: string;
   /** 正式版本行「?」提示内容；缺省不渲染。 */
   stableHint?: string;
+  /** 正式版本行描述小字；缺省不渲染。 */
+  descStable?: string;
   /** 预发布版本行「?」提示内容；缺省不渲染。 */
   prereleaseHint?: string;
+  /** 预发布版本行描述小字；缺省不渲染。 */
+  descPrerelease?: string;
   /** 未安装引导横幅；缺省使用带 `{tool}` 插值的通用文案。 */
   missingBanner?: HarnessVersionSlot<TSource>;
   /** 版本来源行内的说明行（工具专属来源解释，旧 DSH 行内警告口径）。 */
@@ -198,6 +208,7 @@ export function HarnessVersionCard<TSource = unknown>({
         (channel === 'stable' ? t.harnessVersionStable : t.harnessVersionPrerelease)
       }
       hint={channel === 'stable' ? slots.stableHint : slots.prereleaseHint}
+      desc={channel === 'stable' ? slots.descStable : slots.descPrerelease}
       infos={channel === 'stable' ? data.stableInfos : data.prereleaseInfos}
       effective={channel === 'stable' ? stableEffective : prereleaseEffective}
       current={data.current}
@@ -248,6 +259,7 @@ export function HarnessVersionCard<TSource = unknown>({
         {renderSlot(slots.sourceFooter, slotContext)}
         <CurrentVersionRow
           hint={slots.currentHint}
+          desc={slots.descCurrent}
           uninstallWarn={
             actions.uninstallArmed !== null ? bridge.labels?.uninstallCurrentHint : undefined
           }
@@ -274,6 +286,8 @@ export function HarnessVersionCard<TSource = unknown>({
               hasLatest={data.status?.latestAvailable != null}
               catalogFailed={data.snapshot?.catalogFailed === true}
               hasUpdate={data.status?.hasUpdate === true}
+              hint={slots.checkHint}
+              desc={slots.descCheck}
               disabled={data.disabled}
               onInstall={() => void data.run(runUpdateAction, t.harnessVersionUpdated, 'update')}
               onCheck={() => void data.run(runUpdateAction, null)}
@@ -303,13 +317,14 @@ export function HarnessVersionCard<TSource = unknown>({
             ) : null}
           </>
         ) : null}
-        {renderSlot(slots.footer, slotContext)}
-
+        {/* 测量尺必须在页脚行之前：行律契约要求末行是链接行本身，否则
+            `:last-child` 收边失效、多出一条分隔线。 */}
         <ChannelSizer
           longestStable={longestVersionOf(data.stableInfos)}
           longestPrerelease={longestVersionOf(data.prereleaseInfos)}
           refs={menu.sizerRefs}
         />
+        {renderSlot(slots.footer, slotContext)}
       </div>
 
       {showExtraRows && data.manageVisible ? (

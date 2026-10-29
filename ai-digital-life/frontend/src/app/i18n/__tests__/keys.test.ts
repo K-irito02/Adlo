@@ -455,26 +455,24 @@ describe('i18n en-US namespace keys', () => {
   it('retires the legacy dsh version-card keys (single generic card, ticket #5)', () => {
     // 旧 DSH 版本组件删除后，仅它使用的键必须同时从双语字典消失（不得复活）；
     // 通用卡片文案改由 `harnessVersion*` 域承载。
+    // 例外（2026-10-29 用户明确要求恢复旧行文案）：`dshCheckUpdateDesc` /
+    // `dshCheckUpdateHint` / `dshCurrentVersionDesc` / `dshOfficialStableDesc` /
+    // `dshPrereleaseDesc` 已恢复，见下方单测。
     for (const key of [
       'dshHasUpdate',
       'dshNoUpdate',
       'dshCheckUpdate',
-      'dshCheckUpdateDesc',
-      'dshCheckUpdateHint',
       'dshUpdate',
       'dshRevertedTo',
       'dshUninstall',
       'dshReinstall',
       'dshInstalledVersions',
       'dshCurrentVersionLabel',
-      'dshCurrentVersionDesc',
       'dshCurrentVersionBadge',
       'dshVersionSource',
       'dshVersionCancelled',
       'dshVersionListUnknown',
       'dshOfficialStableEmpty',
-      'dshOfficialStableDesc',
-      'dshPrereleaseDesc',
       'dshPrereleaseUpdateAvailable',
       'dshOfficialPrereleaseEmpty',
       'dshReinstallVersion',
@@ -483,6 +481,21 @@ describe('i18n en-US namespace keys', () => {
     ] as const) {
       expect(enUS, `en:${key}`).not.toHaveProperty(key);
       expect(zhCN, `zh:${key}`).not.toHaveProperty(key);
+    }
+  });
+
+  it('restores the old DSH row copy keys (user-approved 2026-10-29)', () => {
+    // 旧四行（当前版本/检查更新/正式版本/预发布版本）的描述小字 + 检查更新 ? 提示：
+    // 通用卡片按旧行结构渲染，双语必须同时存在。
+    for (const key of [
+      'dshCurrentVersionDesc',
+      'dshCheckUpdateDesc',
+      'dshCheckUpdateHint',
+      'dshOfficialStableDesc',
+      'dshPrereleaseDesc',
+    ] as const) {
+      expect(enUS, `en:${key}`).toHaveProperty(key);
+      expect(zhCN, `zh:${key}`).toHaveProperty(key);
     }
   });
 

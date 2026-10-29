@@ -1,22 +1,14 @@
 /**
- * 版本发布时间格式化：走 `Intl.DateTimeFormat`（按当前 locale 的短日期 + 短时间），
- * 不在代码里拼固定格式。无法解析时原样返回，避免把坏数据吞成空白。
+ * 版本发布时间格式化：`YYYY-MM-DD HH:mm`（旧 DSH 行文案逐字恢复，用户要求）。
+ * 缺失返回空串；非法或无时间部分时回退原文，避免把坏数据吞成空白。
  */
-export function formatPublishedAt(rfc3339: string | null, locale: string): string {
+export function formatPublishedAt(rfc3339: string | null, _locale?: string): string {
   if (!rfc3339) {
     return '';
   }
-  const date = new Date(rfc3339);
-  if (Number.isNaN(date.getTime())) {
-    return rfc3339;
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(rfc3339);
+  if (match) {
+    return `${match[1]} ${match[2]}`;
   }
-  try {
-    const formatter = new Intl.DateTimeFormat(locale, {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    });
-    return formatter.format(date);
-  } catch {
-    return rfc3339;
-  }
+  return rfc3339;
 }

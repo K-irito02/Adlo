@@ -429,14 +429,19 @@ describe('dshVersionBridge', () => {
     expect(notify).toHaveBeenCalledWith('harnessVersionNoUpdate', 'success');
   });
 
-  it('surfaces a check failure without installing', async () => {
+  it('falls back to the stale snapshot for feedback when the status fetch fails', async () => {
+    // 旧 handleCheckUpdate 语义：不看布尔值，失败也按当时 store 旧值提示（必有反馈），
+    // 只 record 全局错误卡片。静默返回会让点击看起来毫无反应（busy 闪一下）。
+    useAppStore.setState({
+      versionStatus: status({ latestAvailable: null, hasUpdate: false }),
+    });
     const notify = vi.fn();
     const actions = makeActions({ fetchDshVersionStatus: vi.fn(async () => false) });
     const bridge = makeBridge(actions, { notify, t: checkT });
 
-    await expect(bridge.checkUpdate?.()).resolves.toMatchObject({ ok: false, silent: true });
+    await expect(bridge.checkUpdate?.()).resolves.toMatchObject({ ok: true });
     expect(actions.updateDsh).not.toHaveBeenCalled();
-    expect(notify).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith('dshCheckUpdateNoStable', 'warning');
   });
 
   it('owns the DSH stage text (counts inline) and per-kind cancel labels', () => {

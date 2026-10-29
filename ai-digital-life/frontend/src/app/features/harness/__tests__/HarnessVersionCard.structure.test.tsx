@@ -394,3 +394,86 @@ describe('DshVersionReadout old-DSH readout structure', () => {
     expect(value?.className).toContain('is-empty');
   });
 });
+
+describe('HarnessVersionCard old-DSH row descriptions and footer', () => {
+  function renderDshCardWithDescs(bridge: HarnessVersionBridge<unknown>) {
+    return render(
+      <TCopyProvider t={mockT} locale="en-US">
+        <HarnessVersionCard
+          bridge={bridge}
+          slots={{
+            hideHeader: true,
+            sourceHint: 'dshVersionSourceHint',
+            currentHint: 'dshCurrentVersionHint',
+            descCurrent: 'dshCurrentVersionDesc',
+            checkHint: 'dshCheckUpdateHint',
+            descCheck: 'dshCheckUpdateDesc',
+            stableHint: 'dshOfficialStableHint',
+            descStable: 'dshOfficialStableDesc',
+            prereleaseHint: 'dshPrereleaseHint',
+            descPrerelease: 'dshPrereleaseDesc',
+            runtimeReadout: <span className="adl-harness-version__readout-value">1.1.0</span>,
+            footer: (
+              <div className="adl-settings-row" data-settings-row="dshOfficialLinksLabel">
+                <div className="adl-settings-row__label">
+                  <div className="adl-settings-row__label-text">
+                    <span>dshOfficialLinksLabel</span>
+                  </div>
+                </div>
+              </div>
+            ),
+          }}
+        />
+      </TCopyProvider>,
+    );
+  }
+
+  it('renders desc smalls under current/check/stable/prerelease rows (old DSH row copy)', async () => {
+    const { container } = renderDshCardWithDescs(dshBridge());
+    await screen.findByRole('button', { name: '1.1.0' });
+
+    const card = mainCard(container);
+    const descs: Array<[string, string]> = [
+      ['harnessVersionCurrent', 'dshCurrentVersionDesc'],
+      ['harnessVersionUpdate', 'dshCheckUpdateDesc'],
+      ['dshOfficialStable', 'dshOfficialStableDesc'],
+      ['dshPrereleaseTitle', 'dshPrereleaseDesc'],
+    ];
+    for (const [marker, desc] of descs) {
+      const row = card.querySelector(
+        `:scope > .adl-settings-row[data-settings-row="${marker}"]`,
+      ) as HTMLElement;
+      expect(row, marker).not.toBeNull();
+      // 描述小字长在 label 内、label-text 之后（旧 DOM 位置）。
+      const small = row.querySelector(
+        ':scope > .adl-settings-row__label > small:not(.adl-harness-version__row-warn)',
+      );
+      expect(small?.textContent, marker).toBe(desc);
+    }
+  });
+
+  it('renders the check row hint button (old ? icon)', async () => {
+    const { container } = renderDshCardWithDescs(dshBridge());
+    await screen.findByRole('button', { name: '1.1.0' });
+
+    const card = mainCard(container);
+    const checkRow = card.querySelector(
+      ':scope > .adl-settings-row[data-settings-row="harnessVersionUpdate"]',
+    ) as HTMLElement;
+    expect(checkRow).not.toBeNull();
+    // 旧行：标签旁 ? 按钮（hint）+ 右侧检查更新按钮，共两个。
+    const buttons = within(checkRow).getAllByRole('button');
+    expect(buttons).toHaveLength(2);
+    expect(within(checkRow).getByRole('button', { name: 'harnessVersionUpdate' })).not.toBeNull();
+  });
+
+  it('keeps the official-links footer row as the last child of the main card', async () => {
+    const { container } = renderDshCardWithDescs(dshBridge());
+    await screen.findByRole('button', { name: '1.1.0' });
+
+    const card = mainCard(container);
+    // 行律契约：末行必须是链接行本身（中间不得有测量尺等空 div），否则
+    // `:last-child` 收边失效、多出一条分隔线。
+    expect(card.lastElementChild?.getAttribute('data-settings-row')).toBe('dshOfficialLinksLabel');
+  });
+});

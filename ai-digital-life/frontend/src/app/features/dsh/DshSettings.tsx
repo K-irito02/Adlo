@@ -51,8 +51,13 @@ export function DshSettings() {
             { value: 'host', label: t.dshVersionSourceHost },
           ],
           currentHint: t.dshCurrentVersionHint,
+          descCurrent: t.dshCurrentVersionDesc,
+          checkHint: t.dshCheckUpdateHint,
+          descCheck: t.dshCheckUpdateDesc,
           stableHint: t.dshOfficialStableHint,
+          descStable: t.dshOfficialStableDesc,
           prereleaseHint: t.dshPrereleaseHint,
+          descPrerelease: t.dshPrereleaseDesc,
           sourceNote: (
             <DshVersionSourceNote
               systemManaged={systemManaged}

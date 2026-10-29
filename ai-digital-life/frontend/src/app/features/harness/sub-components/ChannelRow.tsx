@@ -30,6 +30,8 @@ interface ChannelRowProps {
   title: string;
   /** 行内「?」提示内容（DSH 传入通道说明；缺省不渲染）。 */
   hint?: string;
+  /** 标签下描述小字（旧行文案；缺省不渲染）。 */
+  desc?: string;
   infos: HarnessChannelInfo[];
   effective: string | null;
   current: string | null;
@@ -60,6 +62,7 @@ export function ChannelRow({
   channel,
   title,
   hint,
+  desc,
   infos,
   effective,
   current,
@@ -94,6 +97,7 @@ export function ChannelRow({
           {hint ? <SettingsHintButton content={hint} /> : null}
           <span>{title}</span>
         </div>
+        {desc ? <small>{desc}</small> : null}
       </div>
       <div className="adl-settings-row__control">{control}</div>
     </div>
