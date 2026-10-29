@@ -59,7 +59,7 @@ export function UpdateRow({
         <button
           type="button"
           className="adl-harness-version__action-btn"
-          disabled={disabled || refreshBusy === true || refresh?.spinning === true}
+          disabled={disabled || refreshBusy === true}
           onClick={mode === 'check' ? onCheck : onInstall}
         >
           {mode === 'check' ? t.harnessVersionUpdate : t.harnessVersionUpdateAction}
