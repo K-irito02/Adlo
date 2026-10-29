@@ -351,10 +351,7 @@ mod tests {
         assert_eq!(category_roots(StorageCategory::Config, &p), vec![p.config_dir.clone()]);
         assert_eq!(category_roots(StorageCategory::Clipboard, &p), vec![p.clipboard_dir.clone()]);
         assert_eq!(category_roots(StorageCategory::Snapshot, &p), vec![p.snapshot_dir.clone()]);
-        assert_eq!(
-            category_roots(StorageCategory::Harnesses, &p),
-            vec![p.harnesses_dir.clone()]
-        );
+        assert_eq!(category_roots(StorageCategory::Harnesses, &p), vec![p.harnesses_dir.clone()]);
         assert_eq!(category_roots(StorageCategory::Logs, &p), vec![p.logs_dir.clone()]);
         assert_eq!(
             category_roots(StorageCategory::CredentialsFallback, &p),

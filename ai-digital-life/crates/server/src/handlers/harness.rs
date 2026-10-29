@@ -70,13 +70,10 @@ fn try_begin(state: &ServerState, kind: &str, version: &str) -> Result<(), AppEr
 
 /// `POST /opencode/get-version-status`
 pub async fn get_version_status(State(state): State<ServerState>) -> impl IntoResponse {
-    let result = hv::get_version_status_for(
-        &spec::OPENCODE,
-        &root(&state),
-        &state.storage.paths().root,
-    )
-    .await
-    .map(|v| serde_json::json!(v));
+    let result =
+        hv::get_version_status_for(&spec::OPENCODE, &root(&state), &state.storage.paths().root)
+            .await
+            .map(|v| serde_json::json!(v));
     ipc::to_response(result)
 }
 
@@ -173,13 +170,10 @@ pub async fn uninstall(
         return ipc::to_response(Err(e));
     }
     let _guard = state.opencode_version_lock.lock().await;
-    let result = hv::uninstall_with_task(
-        &root(&state),
-        &input.version,
-        &state.opencode_version_task,
-    )
-    .await
-    .map(|()| serde_json::json!(true));
+    let result =
+        hv::uninstall_with_task(&root(&state), &input.version, &state.opencode_version_task)
+            .await
+            .map(|()| serde_json::json!(true));
     state.opencode_version_task.finish();
     refresh_managed_bins(&state);
     ipc::to_response(result)
@@ -270,7 +264,8 @@ fn source_status_inner(state: &ServerState) -> Result<serde_json::Value, AppErro
 }
 
 /// `POST /opencode/version-source` body `{ mode }`
-pub async fn save_version_source(    State(state): State<ServerState>,
+pub async fn save_version_source(
+    State(state): State<ServerState>,
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
     #[derive(Deserialize)]

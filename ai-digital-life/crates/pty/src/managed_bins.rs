@@ -38,7 +38,11 @@ pub fn terminal_path(inherited: Option<&OsString>) -> Option<OsString> {
 
 /// 便捷入口：给定版本目录与可执行相对路径，返回其父目录（bin）。
 pub fn bin_dir_for(version_dir: &Path, marker_rel: &str) -> PathBuf {
-    version_dir.join(marker_rel).parent().map(Path::to_path_buf).unwrap_or_else(|| version_dir.to_path_buf())
+    version_dir
+        .join(marker_rel)
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| version_dir.to_path_buf())
 }
 
 #[cfg(test)]
@@ -51,7 +55,10 @@ mod tests {
         let inherited = OsString::from("/usr/bin");
         let path = terminal_path(Some(&inherited)).expect("path");
         let text = path.to_string_lossy();
-        assert!(text.starts_with(&format!("/managed/a{}", std::path::MAIN_SEPARATOR)) || text.starts_with("/managed/a"));
+        assert!(
+            text.starts_with(&format!("/managed/a{}", std::path::MAIN_SEPARATOR))
+                || text.starts_with("/managed/a")
+        );
         assert!(text.contains("/managed/b"));
         assert!(text.contains("/usr/bin"));
         set_managed_bin_dirs(Vec::new());

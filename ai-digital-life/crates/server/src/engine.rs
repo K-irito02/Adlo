@@ -195,7 +195,8 @@ pub async fn init_server_state(
     let dsh_catalog_cache = Arc::new(RwLock::new(None));
 
     let state = ServerState {
-        data_dir: data_dir.to_path_buf(),        storage: storage.clone(),
+        data_dir: data_dir.to_path_buf(),
+        storage: storage.clone(),
         db,
         config: Arc::new(RwLock::new(config)),
         event_bus,

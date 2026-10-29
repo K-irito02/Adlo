@@ -123,10 +123,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/opencode/cancel-version-task", post(handlers::harness::cancel_version_task))
         .route("/opencode/source-status", post(handlers::harness::get_source_status))
         .route("/opencode/version-source", post(handlers::harness::save_version_source))
-        .route(
-            "/opencode/terminal-injection",
-            post(handlers::harness::save_terminal_injection),
-        )
+        .route("/opencode/terminal-injection", post(handlers::harness::save_terminal_injection))
         // Env domain (Task 11 — environment dependencies status + installs)
         .route("/env/status", get(handlers::env::status))
         .route("/env/install", post(handlers::env::install))

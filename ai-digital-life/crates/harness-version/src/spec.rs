@@ -78,8 +78,7 @@ pub const DSH: HarnessSpec = HarnessSpec {
 };
 
 /// OpenCode 版本目录里的可执行文件相对路径（平台包内布局固定为 `bin/opencode*`）。
-pub const OPENCODE_BIN_REL: &str =
-    if cfg!(windows) { "bin/opencode.exe" } else { "bin/opencode" };
+pub const OPENCODE_BIN_REL: &str = if cfg!(windows) { "bin/opencode.exe" } else { "bin/opencode" };
 
 /// OpenCode：直接下载平台包，入口为包内 `bin/opencode(.exe)`。
 /// 稳定版 950 个、beta（`0.0.0-beta-日期`）3,150 个——限量到「最近 50 个稳定版 + 最新 50 个 beta」。

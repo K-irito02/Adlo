@@ -95,18 +95,13 @@ async fn download_to_file(
 ///
 /// 只写目标条目：tar 里的其它路径（含绝对路径/`..`）一律不落地，天然规避
 /// tar-slip；路径比较按 `/` 归一，兼容 Windows。
-pub fn extract_binary_from_tgz(
-    tgz: &Path,
-    bin_rel: &str,
-    dest: &Path,
-) -> Result<u64, AppError> {
+pub fn extract_binary_from_tgz(tgz: &Path, bin_rel: &str, dest: &Path) -> Result<u64, AppError> {
     let wanted = format!("package/{}", bin_rel.replace('\\', "/"));
     let file = std::fs::File::open(tgz)
         .map_err(|e| AppError::Io(format!("open {}: {e}", tgz.display())))?;
     let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
-    let entries = archive
-        .entries()
-        .map_err(|e| AppError::Io(format!("read tar {}: {e}", tgz.display())))?;
+    let entries =
+        archive.entries().map_err(|e| AppError::Io(format!("read tar {}: {e}", tgz.display())))?;
     for entry in entries {
         let mut entry =
             entry.map_err(|e| AppError::Io(format!("read tar entry in {}: {e}", tgz.display())))?;
@@ -156,8 +151,8 @@ async fn try_candidate(
     let url = platform_tarball_url(registry, package, input.version);
     tracing::info!(%url, "opencode install: downloading platform package");
     download_to_file(client, &url, tgz, task).await?;
-    let staging = crate::installed_dir(input.root)
-        .join(format!(".tmp-{}-{}", input.version, nonce()));
+    let staging =
+        crate::installed_dir(input.root).join(format!(".tmp-{}-{}", input.version, nonce()));
     if staging.exists() {
         let _ = tokio::fs::remove_dir_all(&staging).await;
     }
@@ -196,10 +191,11 @@ async fn try_candidate(
     let final_dir = crate::installed_dir(input.root).join(input.version);
     let swap_staging = staging.clone();
     let swap_target = final_dir.clone();
-    let swapped =
-        tokio::task::spawn_blocking(move || adl_hosted::swap_into_place(&swap_staging, &swap_target))
-            .await
-            .unwrap_or_else(|e| Err(AppError::Io(format!("swap task failed: {e}"))));
+    let swapped = tokio::task::spawn_blocking(move || {
+        adl_hosted::swap_into_place(&swap_staging, &swap_target)
+    })
+    .await
+    .unwrap_or_else(|e| Err(AppError::Io(format!("swap task failed: {e}"))));
     if let Err(e) = swapped {
         let _ = tokio::fs::remove_dir_all(&staging).await;
         return Err(e);
@@ -401,8 +397,7 @@ mod tests {
             ],
         );
         let dest = dir.join("out").join("bin").join("opencode.exe");
-        let written =
-            extract_binary_from_tgz(&tgz, "bin/opencode.exe", &dest).expect("extract");
+        let written = extract_binary_from_tgz(&tgz, "bin/opencode.exe", &dest).expect("extract");
         assert_eq!(written, b"fake-binary".len() as u64);
         assert_eq!(std::fs::read(&dest).expect("read"), b"fake-binary");
         assert!(!dir.join("out").join("unrelated.txt").exists());
@@ -430,8 +425,7 @@ mod tests {
             &[("other/bin/opencode.exe", b"evil"), ("package/bin/opencode.exe", b"good")],
         );
         let dest = dir.join("out").join("opencode.exe");
-        let written =
-            extract_binary_from_tgz(&tgz, "bin/opencode.exe", &dest).expect("extract");
+        let written = extract_binary_from_tgz(&tgz, "bin/opencode.exe", &dest).expect("extract");
         assert_eq!(written, b"good".len() as u64);
         assert_eq!(std::fs::read(&dest).expect("read"), b"good");
         assert!(!dir.join("out").join("other").exists());

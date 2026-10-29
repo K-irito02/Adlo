@@ -11,8 +11,8 @@ use crate::ServerState;
 use crate::ipc;
 use crate::state::{DshSpawnSource, ManagedDsh};
 use adl_download_source;
-use adl_harness_version;
 use adl_errors::AppError;
+use adl_harness_version;
 use adl_webapp_host::DSH_DEFAULT_PORT;
 use adl_webapp_host::spawn_and_wait_ready;
 use adl_webapp_host::spawn_node_direct;
@@ -625,7 +625,8 @@ pub async fn get_version_status(State(state): State<ServerState>) -> impl IntoRe
 
 /// POST `/dsh/update` — 升级 dsh 至最新可用版本，返回新版本串。
 pub async fn update(State(state): State<ServerState>) -> impl IntoResponse {
-    if let Err(e) = try_begin_version_task(&state, adl_harness_version::task_kind::UPDATE, "latest") {
+    if let Err(e) = try_begin_version_task(&state, adl_harness_version::task_kind::UPDATE, "latest")
+    {
         return ipc::to_response(Err(e));
     }
     let guard = state.dsh_version_lock.clone().lock_owned().await;
@@ -654,7 +655,8 @@ pub async fn revert(
     tracing::debug!(version = %input.version, "dsh::revert: request");
     let _guard = state.dsh_version_lock.lock().await;
     let root = dsh_root(&state);
-    let result = adl_harness_version::revert(&root, &input.version).await.map(|v| serde_json::json!(v));
+    let result =
+        adl_harness_version::revert(&root, &input.version).await.map(|v| serde_json::json!(v));
     match &result {
         Ok(_) => tracing::debug!(version = %input.version, "dsh::revert: ok"),
         Err(e) => tracing::debug!(version = %input.version, error = %e, "dsh::revert: failed"),
@@ -716,7 +718,8 @@ pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
         },
     };
     tracing::debug!(version = %selected, "dsh::reinstall: request");
-    if let Err(e) = try_begin_version_task(&state, adl_harness_version::task_kind::REINSTALL, &selected)
+    if let Err(e) =
+        try_begin_version_task(&state, adl_harness_version::task_kind::REINSTALL, &selected)
     {
         return ipc::to_response(Err(e));
     }
@@ -1094,7 +1097,8 @@ async fn get_settings_snapshot_inner(state: &ServerState) -> Result<serde_json::
 /// `/dsh/get-version-status` 与聚合快照共用的版本状态取值。
 async fn get_version_status_value(state: &ServerState) -> Result<serde_json::Value, AppError> {
     let root = dsh_root(state);
-    let status = adl_harness_version::get_version_status(&root, &state.storage.paths().root).await?;
+    let status =
+        adl_harness_version::get_version_status(&root, &state.storage.paths().root).await?;
     serde_json::to_value(&status).map_err(|e| AppError::Internal(e.to_string()))
 }
 
@@ -1493,8 +1497,10 @@ mod tests {
     /// running payload：宿主拉起时带 spawn 来源与版本，外部进程按 unknown/external。
     #[test]
     fn running_payload_distinguishes_managed_source_and_external() {
-        let info =
-            adl_harness_version::RunningDshInfo { url: "http://127.0.0.1:3080/".into(), port: 3080 };
+        let info = adl_harness_version::RunningDshInfo {
+            url: "http://127.0.0.1:3080/".into(),
+            port: 3080,
+        };
         let managed = running_payload(
             info.clone(),
             Some(ManagedSnapshot {

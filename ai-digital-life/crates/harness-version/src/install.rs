@@ -496,7 +496,8 @@ async fn install_npm(
     // 分母恒用 dry-run 预测（npm `added` 理想树计数）；真实树可能更大
     //（如 bundleDependencies 随包附带，不计入预测——用户确认保留真实计数、
     // N 可大于 M，含义见界面文案）。
-    let total = dry_run_total(spec.package, &tmp, version, registry, &config, task).await.unwrap_or(0);
+    let total =
+        dry_run_total(spec.package, &tmp, version, registry, &config, task).await.unwrap_or(0);
     tracing::debug!(%version, %registry, %total, "harness install: dry-run done");
     if task.is_cancelled() {
         tracing::debug!(%version, "dsh install: cancelled after dry-run, tmp removed");
@@ -522,10 +523,7 @@ async fn install_npm(
     if !tmp_bin.is_file() {
         tracing::debug!(%version, marker = spec.marker_rel, "harness install: rejected (marker missing)");
         let _ = tokio::fs::remove_dir_all(&tmp).await;
-        return Err(AppError::Io(format!(
-            "installed {version} without {}",
-            spec.marker_rel
-        )));
+        return Err(AppError::Io(format!("installed {version} without {}", spec.marker_rel)));
     }
 
     task.update(ProgressPhase::Finalizing, Some(98), total, total, false);

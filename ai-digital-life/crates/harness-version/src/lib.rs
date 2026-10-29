@@ -345,11 +345,7 @@ pub fn detect_system_bin(spec: &spec::HarnessSpec) -> Option<SystemHarnessInfo> 
     if !output.status.success() {
         return None;
     }
-    let path = String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .next()?
-        .trim()
-        .to_string();
+    let path = String::from_utf8_lossy(&output.stdout).lines().next()?.trim().to_string();
     if path.is_empty() {
         return None;
     }
