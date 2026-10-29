@@ -239,7 +239,7 @@ export function HarnessVersionCard<TSource = unknown>({
         <SourceRow
           mode={data.source?.mode ?? 'auto'}
           options={sourceOptions}
-          hint={slots.sourceHint ?? formatT(t, 'harnessVersionHint', { tool: bridge.toolName })}
+          hint={slots.sourceHint ?? t.harnessVersionSourceHint}
           disabled={data.disabled}
           note={renderSlot(slots.sourceNote, slotContext)}
           onChange={(mode: HarnessVersionSourceMode) => actions.handleSourceChange(mode)}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, cleanup, fireEvent, waitFor, act, screen } from '@testing-library/react';
+import { render, cleanup, fireEvent, waitFor, act, screen, within } from '@testing-library/react';
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { dshZh } from '../../i18n/zh-CN/dsh';
@@ -231,14 +231,23 @@ describe('DshSettings', () => {
     expect(sourceRow?.querySelector('.adl-icon-button--info')).not.toBeNull();
   });
 
-  it('未安装任何版本时显示缺失横幅（通用卡片 missingBanner 插槽）', async () => {
+  it('未安装任何版本时读数区显示「未安装」，不渲染缺失横幅（旧 DSH 单卡无此行）', async () => {
     useAppStore.setState({
-      sourceStatus: makeStatus(),
+      sourceStatus: {
+        ...makeStatus(),
+        versionSource: {
+          mode: 'host',
+          effective: 'none',
+          resolvedByMode: { auto: 'none', host: 'none', system: 'none' },
+          hostVersion: null,
+        },
+      },
       versionStatus: makeVersionStatus({ currentSelected: null, installed: [] }),
     });
-    renderSettings();
-    const banner = await screen.findByTestId('dsh-missing-banner');
-    expect(banner.textContent).toBe('harnessMissingBannerDsh');
+    renderSettingsWithSummary();
+    // 空宿主读数：主行如实报「未安装」，不拼缺失横幅行。
+    expect(await screen.findByText('未安装')).not.toBeNull();
+    expect(screen.queryByTestId('dsh-missing-banner')).toBeNull();
     // 旧 DSH 版本组件不再渲染：页面上只有通用卡片这一套版本 UI。
     expect(document.querySelectorAll('.adl-harness-version')).toHaveLength(1);
   });
@@ -308,9 +317,13 @@ describe('DshSettings', () => {
       versionStatus: makeVersionStatus(),
     });
     renderSettings();
-    const selects = Array.from(document.querySelectorAll('select'));
-    // 第一处是稳定版选择，最后一个才是版本来源。
-    fireEvent.change(selects[selects.length - 1], { target: { value: 'system' } });
+    // 来源行是自定义下拉（旧 DSH SettingsSelect 口径）：点触发器展开再点选项。
+    const sourceRow = document.querySelector(
+      '[data-settings-row="harnessVersionSourceTitle"]',
+    ) as HTMLElement;
+    fireEvent.click(within(sourceRow).getByRole('button', { name: 'harnessVersionSourceTitle' }));
+    const menu = await screen.findByRole('listbox');
+    fireEvent.click(within(menu).getByRole('option', { name: 'dshVersionSourceSystem' }));
 
     const dialog = await screen.findByRole('dialog');
     expect(dialog.textContent).toContain('dshVersionSourceSystemDialogTitle');
@@ -330,8 +343,12 @@ describe('DshSettings', () => {
       versionStatus: makeVersionStatus(),
     });
     renderSettings();
-    const selects = Array.from(document.querySelectorAll('select'));
-    fireEvent.change(selects[selects.length - 1], { target: { value: 'system' } });
+    const sourceRow = document.querySelector(
+      '[data-settings-row="harnessVersionSourceTitle"]',
+    ) as HTMLElement;
+    fireEvent.click(within(sourceRow).getByRole('button', { name: 'harnessVersionSourceTitle' }));
+    const menu = await screen.findByRole('listbox');
+    fireEvent.click(within(menu).getByRole('option', { name: 'dshVersionSourceSystem' }));
 
     await waitFor(() => {
       expect(useAppStore.getState().toasts.some((t) => t.message === 'dshSystemMissing')).toBe(
@@ -544,11 +561,11 @@ describe('DshSettings', () => {
       });
       renderSettings();
       await waitFor(() => {
+        // DSH 默认单卡（`extraRows: 'none'`）：手动版本行恒不渲染，不在显隐断言内。
         const rows = [
           document.querySelector('[data-settings-row="harnessVersionUpdate"]'),
           document.querySelector('[data-settings-row="dshOfficialStable"]'),
           document.querySelector('[data-settings-row="dshPrereleaseTitle"]'),
-          document.querySelector('[data-settings-row="harnessVersionManual"]'),
         ];
         if (testCase.visible) {
           for (const row of rows) {

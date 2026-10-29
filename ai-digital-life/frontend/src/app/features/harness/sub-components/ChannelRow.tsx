@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import type { CSSProperties, ReactNode, RefObject } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
 import { RevealScrollbar } from '@components/RevealScrollbar';

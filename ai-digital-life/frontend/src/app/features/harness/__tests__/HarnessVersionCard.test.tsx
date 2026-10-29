@@ -84,6 +84,7 @@ function dshBridge(
       taskPercent: false,
       taskCounts: true,
       sourceManaged: true,
+      extraRows: 'manual+installed',
     },
     labels: {
       stable: 'dshOfficialStable',
@@ -140,7 +141,11 @@ function makeBridge(
   return {
     toolName: 'OpenCode CLI',
     available: true,
-    capabilities: {},
+    capabilities: {
+      // 本文件覆盖 OpenCode 形态（手动版本行 + 已安装版本独立卡 + 来源读数）；
+      // DSH 形态（`extraRows: 'none'`）由 structure 测试覆盖。
+      extraRows: 'manual+installed',
+    },
     load: vi.fn(async () => initial),
     getTask: vi.fn(async () => null),
     install: vi.fn(async () => OK),
@@ -308,8 +313,9 @@ describe('HarnessVersionCard', () => {
     );
 
     await waitFor(() => expect(screen.getByText('harnessVersionCurrent')).toBeInTheDocument());
-    // 管理行整体隐藏：只剩来源下拉一个 combobox。
-    expect(screen.getAllByRole('combobox')).toHaveLength(1);
+    // 管理行整体隐藏：来源行保留自定义下拉（按钮形态，不再是原生 select）。
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.getByRole('button', { name: 'harnessVersionSourceTitle' })).toBeInTheDocument();
     expect(screen.queryByText('harnessVersionStable')).not.toBeInTheDocument();
     expect(screen.queryByText('harnessVersionManual')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'harnessVersionUpdateAction' })).toBeNull();
@@ -356,10 +362,10 @@ describe('HarnessVersionCard', () => {
     renderCard(bridge);
     await waitFor(() => expect(bridge.load).toHaveBeenCalled());
 
-    const sourceSelect = screen.getAllByRole('combobox');
-    fireEvent.change(sourceSelect[sourceSelect.length - 1] as HTMLSelectElement, {
-      target: { value: 'system' },
-    });
+    // 来源行是自定义下拉：点触发器展开菜单，再点目标选项。
+    fireEvent.click(screen.getByRole('button', { name: 'harnessVersionSourceTitle' }));
+    const menu = await screen.findByRole('listbox');
+    fireEvent.click(within(menu).getByRole('option', { name: 'harnessVersionSourceSystem' }));
 
     await waitFor(() => expect(changeSourceMode).toHaveBeenCalledWith('system'));
     expect(bridge.notify).not.toHaveBeenCalledWith('harnessVersionSourceSaved', 'success');
@@ -506,10 +512,12 @@ describe('HarnessVersionCard', () => {
     expect(current.getAttribute('aria-selected')).toBe('true');
     expect(installed.getAttribute('aria-selected')).toBe('false');
     for (const option of [current, installed, fresh]) {
-      expect(option.querySelectorAll('.adl-harness-version__menu-item-check')).toHaveLength(1);
+      expect(option.querySelectorAll('.adl-harness-version__version-menu-item-check')).toHaveLength(
+        1,
+      );
     }
-    expect(current.querySelector('.adl-harness-version__menu-item-check svg')).toBeTruthy();
-    expect(installed.querySelector('.adl-harness-version__menu-item-check svg')).toBeNull();
+    expect(current.querySelector('.adl-harness-version__version-menu-item-check svg')).toBeTruthy();
+    expect(installed.querySelector('.adl-harness-version__version-menu-item-check svg')).toBeNull();
     expect(within(menu).getAllByRole('option')).toHaveLength(3);
   });
 

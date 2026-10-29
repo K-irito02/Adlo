@@ -273,6 +273,9 @@ const CONDITIONAL_ROW_MARKERS: string[] = [
   // 已装版本，故列为条件行）；双通道行在 `channelPicker` 下恒渲染（含空态），
   // 因此 `dshOfficialStable` / `dshPrereleaseTitle` 属于默认可见行。
   'harnessVersionInstalled',
+  // 手动版本行仅 `extraRows: 'manual+installed'` 时渲染（OpenCode 形态）；
+  // DSH 默认单卡无此行，故列为条件行（检索词仍命中版本块，落点回退块锚点）。
+  'harnessVersionManual',
   // 「前往配置」行已随「网络与模型」块删除（该标记只挂在已删除的网络行上）。
 ];
 
