@@ -55,6 +55,7 @@ import {
   setCachedStorageStatus,
 } from '../../features/storage-settings/storageStatusCache';
 import { prefetchEnvSettings } from '../../features/environment/envStatusCache';
+import { prefetchOpencodeSettings } from '../../features/opencode/opencodeStatusCache';
 import { computeStorageBlocksAtDefault } from '../../features/storage-settings/storageAtDefault';
 import {
   TREE_CACHE_DEFAULTS,
@@ -102,6 +103,16 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
  */
 const SEARCH_JUMP_DEADLINE_MS = 2000;
 
+/** 侧边栏悬停/聚焦预热注册表：有预取能力的组在此登记，面板按组调用。 */
+const groupPrefetchers: Partial<Record<SettingsGroupId, () => void>> = {
+  storage: () => {
+    void prefetchStorageSettings();
+  },
+  opencode: () => {
+    void prefetchOpencodeSettings();
+  },
+};
+
 /** 待解析的跳转意图：切组后由 effect 等锚点出现，再滚动 + 高亮。 */
 interface PendingJump {
   group: SettingsGroupId;
@@ -135,11 +146,13 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     requestDshGroupReset,
     requestNetworkGroupReset,
     requestEnvironmentGroupReset,
+    requestOpencodeGroupReset,
     config,
     storageBlocksAtDefault,
     browserBlocksAtDefault,
     dshBlocksAtDefault,
     networkBlocksAtDefault,
+    opencodeBlocksAtDefault,
     envStatus,
     adServerReachable,
   } = useAppStore(
@@ -163,11 +176,13 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       requestDshGroupReset: s.requestDshGroupReset,
       requestNetworkGroupReset: s.requestNetworkGroupReset,
       requestEnvironmentGroupReset: s.requestEnvironmentGroupReset,
+      requestOpencodeGroupReset: s.requestOpencodeGroupReset,
       config: s.appInfo?.config,
       storageBlocksAtDefault: s.storageBlocksAtDefault,
       browserBlocksAtDefault: s.browserBlocksAtDefault,
       dshBlocksAtDefault: s.dshBlocksAtDefault,
       networkBlocksAtDefault: s.networkBlocksAtDefault,
+      opencodeBlocksAtDefault: s.opencodeBlocksAtDefault,
       envStatus: s.envStatus,
       adServerReachable: s.adServerReachable,
     })),
@@ -233,6 +248,9 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     if (networkBlocksAtDefault === true) {
       disabled.add('network');
     }
+    if (opencodeBlocksAtDefault === true) {
+      disabled.add('opencode');
+    }
     return disabled;
   }, [
     config,
@@ -240,11 +258,13 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     browserBlocksAtDefault,
     dshBlocksAtDefault,
     networkBlocksAtDefault,
+    opencodeBlocksAtDefault,
     envStatus,
   ]);
 
   // 除环境组与 OpenCode 组外全默认 → 顶部「恢复全部默认」禁用（口径与侧边栏行 disabled 同源）。
-  // 环境组不进 ResetAll 自动序列；OpenCode 组无侧边栏重置按钮（组内自带「恢复默认」），
+  // 环境组不进 ResetAll 自动序列；OpenCode 组虽有侧边栏重置按钮（自有确认流程），
+  // 但不进 ResetAll 自动序列（ResetAll 按 GroupKey 编排，opencode 无执行腿），
   // 两者都不参与顶部判定。
   const allGroupsAtDefault =
     SETTINGS_GROUPS.filter(
@@ -471,9 +491,12 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   // 方案 C 预取：设置面板打开即预热「存储」组快照（写入方案 B 的进场缓存），
   // 用户随后点击时数据多已就绪，首次进入也基本无加载骨架。
   // 「环境」组同理：打开即 `prefetchEnvSettings()` 冷填充，Task 7 实装挂载即瞬显。
+  // 「OpenCode CLI」组同理：打开即 `prefetchOpencodeSettings()` 冷填充三腿快照，
+  // 首次进组直接瞬显（骨架仅缓存全空时画），切组重挂走缓存 + 静默再验证。
   useEffect(() => {
     void prefetchStorageSettings();
     void prefetchEnvSettings();
+    void prefetchOpencodeSettings();
   }, []);
 
   // 存储组聚合初始化/校正（事项 7）：存储组未激活（StorageSettings 未挂载、无路径
@@ -575,13 +598,10 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     }
   }, [activeGroup, sourceStatus, setNetworkBlocksAtDefault]);
 
-  // 悬停/聚焦侧边栏存储行再预热一次：移动→点击的天然延迟是免费的命中窗口。
-  // Tech-debt 注记：面板直连具体 feature 模块的预热函数；当第二个组需要预热时，
-  // 改为 groupPrefetchers 注册表（feature 侧登记、面板侧按组调用），勿再加分支。
+  // 悬停/聚焦侧边栏行再预热一次：移动→点击的天然延迟是免费的命中窗口。
+  // 组预热注册表（feature 侧登记、面板侧按组调用）：新增需预热的组只加表项，勿再加分支。
   const handleNavPreheatGroup = useCallback((group: SettingsGroupId) => {
-    if (group === 'storage') {
-      void prefetchStorageSettings();
-    }
+    groupPrefetchers[group]?.();
   }, []);
 
   const handleNavResizeStart = useCallback(
@@ -1057,6 +1077,16 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         requestEnvironmentGroupReset();
         return;
       }
+      if (group === 'opencode') {
+        // OpenCode CLI 组为自有流程（版本来源 + 终端可用性走 opencode 桥，
+        // 无偏好 patch，不进 ResetAll 自动序列）：先关通用确认框，再切组 +
+        // 置 pending 信号，由 OpencodeSettings 弹出自有确认对话框并执行。
+        setConfirmResetOpen(false);
+        setPendingResetGroup(null);
+        setActiveGroup('opencode');
+        requestOpencodeGroupReset();
+        return;
+      }
       setPendingResetGroup(group);
       setConfirmResetOpen(true);
     },
@@ -1068,6 +1098,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       requestDshGroupReset,
       requestNetworkGroupReset,
       requestEnvironmentGroupReset,
+      requestOpencodeGroupReset,
       setActiveGroup,
     ],
   );

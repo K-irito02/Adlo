@@ -90,6 +90,8 @@ export const createUISlice = (
     networkGroupResetPending: false,
     networkBlocksAtDefault: null,
     environmentGroupResetPending: false,
+    opencodeGroupResetPending: false,
+    opencodeBlocksAtDefault: null,
     siblingWebviewNonce: 0,
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
     changesStatusFilter: new Set(),
@@ -259,6 +261,15 @@ export const createUISlice = (
     },
     requestEnvironmentGroupReset: () => set({ environmentGroupResetPending: true }),
     consumeEnvironmentGroupReset: () => set({ environmentGroupResetPending: false }),
+    requestOpencodeGroupReset: () => set({ opencodeGroupResetPending: true }),
+    consumeOpencodeGroupReset: () => set({ opencodeGroupResetPending: false }),
+    setOpencodeBlocksAtDefault: (value) => {
+      // 同值不写：聚合 effect 每次谓词重算都调用，守卫避免订阅者无效通知。
+      if (get().opencodeBlocksAtDefault === value) {
+        return;
+      }
+      set({ opencodeBlocksAtDefault: value });
+    },
     bumpSiblingWebviewNonce: () =>
       set((state) => ({ siblingWebviewNonce: state.siblingWebviewNonce + 1 })),
     setNavigatorCollapsed: (tool, collapsed) =>

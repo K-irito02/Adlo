@@ -52,17 +52,20 @@ describe('getGroupResetPatch(openMethod)', () => {
 });
 
 describe('settings registry single source (Task 4)', () => {
-  it('RESETTABLE_GROUPS ⊇ keys(GROUP_RESET_PATCHES)，差集恰为自有流程五组', () => {
+  it('RESETTABLE_GROUPS ⊇ keys(GROUP_RESET_PATCHES)，差集恰为自有流程六组', () => {
     const factoryKeys = new Set(Object.keys(GROUP_RESET_PATCHES));
     for (const key of factoryKeys) {
       expect(RESETTABLE_GROUPS.has(key as SettingsGroupId)).toBe(true);
     }
     const diff = [...RESETTABLE_GROUPS].filter((group) => !factoryKeys.has(group));
-    expect(new Set(diff)).toEqual(new Set(['storage', 'browser', 'dsh', 'network', 'environment']));
+    expect(new Set(diff)).toEqual(
+      new Set(['storage', 'browser', 'dsh', 'network', 'environment', 'opencode']),
+    );
   });
 
-  it('network/environment 走自有流程：getGroupResetPatch 返回 null', () => {
+  it('network/environment/opencode 走自有流程：getGroupResetPatch 返回 null', () => {
     expect(getGroupResetPatch('network')).toBeNull();
     expect(getGroupResetPatch('environment')).toBeNull();
+    expect(getGroupResetPatch('opencode')).toBeNull();
   });
 });

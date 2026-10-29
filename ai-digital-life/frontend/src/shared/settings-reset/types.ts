@@ -15,6 +15,7 @@ export type GroupResetStep =
   | 'downloadPath'
   | 'downloadPathSwitch'
   | 'saveSourceConfig'
+  | 'terminalInjection'
   | 'corePaths'
   | 'corePathsPreflight'
   | 'treeCache';

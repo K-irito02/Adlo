@@ -61,7 +61,7 @@ export const dshEn = {
   dshSettingsSaveFailed: 'Failed to save settings',
   dshSettingsAutoDetected: 'Auto-selected {source}',
   dshSettingsAutoDetectFailed: 'Auto-detection failed; current source kept',
-  dshVersionManagement: 'Version management',
+  dshVersionManagement: 'DeepSeek Harness version management',
   dshVersionManagementHint:
     'Manage the assistant versions.\n· Auto detect prefers the running one, then the bundled copy, then your system install\n· Install, switch or uninstall below; the assistant restarts automatically',
   dshCurrentVersionLabel: 'Current version',

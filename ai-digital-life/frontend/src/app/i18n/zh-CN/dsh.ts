@@ -58,7 +58,7 @@ export const dshZh = {
   dshSettingsSaveFailed: '保存失败',
   dshSettingsAutoDetected: '已自动选择 {source}',
   dshSettingsAutoDetectFailed: '自动检测失败，已保留当前下载源',
-  dshVersionManagement: '版本管理',
+  dshVersionManagement: 'DeepSeek Harness 版本管理',
   dshVersionManagementHint:
     '管理助手要用的版本。\n· 自动检测会优先用正在跑的，再用应用自带的，最后看你电脑里装的\n· 在下面安装、切换或卸载，完成后助手会自动重启，不用你手动操作',
   dshCurrentVersionLabel: '当前版本',

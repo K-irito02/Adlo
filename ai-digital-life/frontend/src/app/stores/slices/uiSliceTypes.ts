@@ -213,6 +213,19 @@ export interface UISlice {
    */
   environmentGroupResetPending: boolean;
   /**
+   * 「OpenCode CLI」组级恢复默认**待处理**信号（transient，不持久化）：与 dsh 同构
+   * ——侧边栏重置按钮置 true，OpencodeSettings 承接消费（版本来源走 opencode 桥
+   * saveVersionSource + 终端可用性走 setTerminalInjection，无偏好 patch，
+   * 须自有确认对话框与执行流程）。
+   */
+  opencodeGroupResetPending: boolean;
+  /**
+   * OpenCode CLI 组（版本来源 + 终端可用性）是否全默认的聚合信号（transient，不持久化）：
+   * OpencodeSettings 挂载时按 `source.versionSource.mode === 'auto' && terminalInjection === true`
+   * 判定写入，未知（source 为 null）保持启用 fail-open，卸载保留，供侧边栏行 disabled 用。
+   */
+  opencodeBlocksAtDefault: boolean | null;
+  /**
    * 兄弟子窗口（dsh/浏览器 tab 原生 WebView）创建计数器（transient，不持久化）：
    * 每次新建原生子窗口即 +1（新窗口盖在最上层），透明桥接条据此重建回到最上层。
    */
@@ -311,6 +324,12 @@ export interface UISlice {
   requestEnvironmentGroupReset: () => void;
   /** 消费环境组级恢复待处理（EnvironmentSettings 开框前/入口守卫丢弃时调用）。 */
   consumeEnvironmentGroupReset: () => void;
+  /** 置位 OpenCode CLI 组级恢复待处理（幂等：已 pending 再点保持 true）。 */
+  requestOpencodeGroupReset: () => void;
+  /** 消费 OpenCode CLI 组级恢复待处理（OpencodeSettings 开框前/入口守卫丢弃时调用）。 */
+  consumeOpencodeGroupReset: () => void;
+  /** 设置 OpenCode CLI 组是否全默认的聚合信号（OpencodeSettings 挂载维护，卸载保留）。 */
+  setOpencodeBlocksAtDefault: (value: boolean | null) => void;
   /** 兄弟子窗口新建即 +1（透明桥接条 z-order 重建信号）。 */
   bumpSiblingWebviewNonce: () => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;

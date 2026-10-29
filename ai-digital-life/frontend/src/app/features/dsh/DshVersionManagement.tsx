@@ -1559,6 +1559,11 @@ export function DshVersionManagement({ footer }: { footer?: ReactNode }) {
           {uninstallConfirmVersion !== null ? (
             <small className="adl-dsh-settings__row-warn">{t.dshUninstallCurrentHint}</small>
           ) : null}
+          {manageVisible && hasUpdate && latestAvailable ? (
+            <small className="adl-dsh-settings__row-warn">
+              {t.dshCheckUpdateFound.replace('{version}', latestAvailable)}
+            </small>
+          ) : null}
           {manageVisible && hasPrereleaseUpdate && prereleaseAvailable ? (
             <small className="adl-dsh-settings__row-warn">
               {t.dshPrereleaseUpdateAvailable.replace('{version}', prereleaseAvailable)}
