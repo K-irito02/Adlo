@@ -6,6 +6,7 @@
 
 | 文件 | 说明 |
 |------|------|
+| [merge-into-refactored-branch-2026-10-30.md](./merge-into-refactored-branch-2026-10-30.md) | 合入含大重构的分支：弃重写、就架构重落位（slots/capabilities/peek 扩展点、定点取合入前尖端） |
 | [cross-task-integration-gaps-2026-09-29.md](./cross-task-integration-gaps-2026-09-29.md) | 逐任务审查看不见的跨任务整合缺口（语义对照、判别联合对策） |
 | [execution-lessons.md](./execution-lessons.md) | 第十轮重构执行报告（死代码清理、Rust 性能、Store、文件拆分） |
 | [high-risk-refactoring-2026-06-12.md](./high-risk-refactoring-2026-06-12.md) | 高风险重构经验（桥接语义、面板切片重组、Hook/Store 拆分） |
