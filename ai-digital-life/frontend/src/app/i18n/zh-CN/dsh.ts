@@ -25,9 +25,13 @@ export const dshZh = {
   dshSettingsProxyMode: '代理模式',
   dshSettingsProxyModeAuto: '自动检测',
   dshSettingsProxyModeManual: '自定义',
-  dshSettingsProxyModeNone: '无',
+  dshSettingsProxyModeNone: '关闭',
   dshSettingsProxyDesc: '下载文件时是否经过代理，以及用哪个代理',
-  dshSettingsProxyHint: '“自动检测”跟随系统设置；“自定义”手动填写代理地址；“无”表示直连，不走代理',
+  dshSettingsProxyHint:
+    '“自动检测”跟随系统设置，检测到的代理不可用时自动改为直连；“自定义”手动填写代理地址；“关闭”表示直连，不走代理',
+  dshSettingsProxyResolved: '当前实际使用：{proxy}',
+  dshSettingsProxyAutoDirect: '未检测到代理，当前直连',
+  dshSettingsProxyAutoFallback: '代理 {proxy} 不可用，已自动改为直连',
   dshSettingsProxyHttp: 'HTTP 代理',
   dshSettingsProxyHttps: 'HTTPS 代理',
   dshSettingsProxyNoProxy: '直连名单',
@@ -43,10 +47,14 @@ export const dshZh = {
   dshSettingsTestErrorUnknown: '未知错误',
   dshSettingsTestErrorRequestFailed: '请求失败',
   dshSettingsTestErrorNetwork: '网络错误',
+  dshSettingsTestErrorProxyUnreachable: '代理不可用（{proxy}）',
+  dshSettingsTestErrorViaProxy: '经代理 {proxy} 连接失败',
+  dshSettingsTestErrorHttp: '下载源返回 HTTP {status}',
   dshSettingsTestTesting: '测试中...',
   dshSettingsSaveFailed: '保存失败',
   dshSettingsAutoDetected: '已自动选择 {source}',
   dshSettingsAutoDetectFailed: '自动检测失败，已保留当前下载源',
+  dshSettingsAutoDetectFailedProxy: '自动检测失败：代理不可用（{proxy}），已保留当前下载源',
   dshVersionManagement: 'DeepSeek Harness 版本管理',
   dshVersionManagementHint:
     '管理助手要用的版本。\n· 自动检测会优先用正在跑的，再用本应用安装的，最后看你电脑里装的\n· 在下面安装、切换或卸载，完成后助手会自动重启，不用你手动操作',
@@ -59,7 +67,7 @@ export const dshZh = {
   dshVersionStateFailed: '状态读取失败',
   dshVersionSourceDesc: '选择助手版本的来源',
   dshVersionSourceHint:
-    '决定优先使用哪一个助手。自动检测会先看有没有正在运行的助手，再用本应用装好的版本（两者都算“宿主托管”），最后用你电脑上安装的版本。\n· 这里显示的始终是你选择的偏好（自动检测／系统安装／宿主托管），不会因为实际生效的来源不同而改变；实际生效的是哪一个、是不是宿主托管那份，看“当前版本”那一行。\n· 下面的“检查更新、正式版本、预发布版本”各行是否显示，即代表当前是否由本应用管理版本：显示表示可在这里安装、切换、卸载或重装；隐藏表示当前实际用的是系统安装，由你自己维护（把“版本来源”选为“系统安装”时恒隐藏；“自动检测”下若“宿主托管”没有可用版本、解析结果为系统安装时也会隐藏；隐藏时会出现一行提示，告诉你改回“宿主托管”才能继续在这里安装、切换或卸载）。',
+    '决定优先使用哪一个助手。自动检测的优先级：正在运行的助手 → 本应用装好的版本（宿主托管）→ 你电脑上安装的版本（系统安装）。\n· 下拉框始终显示你的选择（自动检测／系统安装／宿主托管）；它下方那行蓝色小字是自动检测实际解析到的来源，方便你确认。\n· 下方的“检查更新、正式版本、预发布版本”是否显示，代表本应用当前是否能管理版本：显示即可在这里安装、切换、卸载或重装；只有“系统安装”实际生效时才隐藏（此时版本由你自己维护，旁边会有一行说明）。',
   dshVersionSourceSwitchDialogTitle: '切换版本来源',
   dshVersionSourceSwitchDialogMessage:
     '切换到“{target}”会改变助手的版本来源：\n· 立即生效：马上切换；助手正在运行时会重启，未运行时将按新来源启动。\n· 下次启动生效：本次继续使用当前来源，下次打开本应用时再切换。\n· 取消：保持当前来源，不做任何改动。',
@@ -79,8 +87,7 @@ export const dshZh = {
     '当前使用的是你自己安装的助手（系统安装），本应用不会修改它。\n· 想在这里安装、切换或卸载版本，请把“版本来源”从“系统安装”改为“宿主托管”；切换来源时会弹出确认框，由你选择立即生效或下次启动生效。\n· 选“立即生效”会马上切换（助手正在运行时会重启），管理项随即恢复显示；选“下次启动生效”则本次保持现状，管理项在下次启动完成切换前保持隐藏。',
   dshNoSourceHostNote:
     '“宿主托管”下没有可用的助手版本，助手将无法拉起。请在下面安装或选择一个版本，或把“版本来源”切换回有版本的来源。',
-  dshNoSourceAutoNote:
-    '没有可用的宿主版本，也没有检测到系统安装，助手将无法拉起。可切换到“宿主托管”安装版本。',
+  dshNoSourceAutoNote: '没有任何可用的助手版本，助手将无法拉起。请在下方安装一个版本。',
   dshVersionSourceSwitchDialogEmpty:
     '注意：切换后“{target}”下没有任何可用版本，这会关闭已打开的 dsh 浏览器标签。你可以在“{target}”来源下安装版本、切换已安装的版本 或者 切换回有版本的来源。',
   dshVersionSourceSwitchDialogFromEmpty:

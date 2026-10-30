@@ -188,7 +188,7 @@ pub async fn latest_available_for(
 ) -> Result<Option<String>, AppError> {
     let base = registry_base(data_dir)?;
     let download_config = adl_download_source::load(data_dir)?;
-    let client = adl_download_source::build_http_client(&download_config)?;
+    let client = adl_download_source::build_http_client(&download_config).await?;
     let url = format!("{base}/{}/latest", spec.package);
     tracing::debug!(%url, harness = spec.id.key(), "harness-version: querying latest");
     let resp = client
@@ -282,12 +282,15 @@ pub async fn fetch_catalog_for(
 ) -> Result<VersionCatalog, AppError> {
     let base = registry_base(data_dir)?;
     let download_config = adl_download_source::load(data_dir)?;
-    let client = adl_download_source::build_http_client(&download_config)?;
+    let client = adl_download_source::build_http_client(&download_config).await?;
     let url = format!("{base}/{}", spec.package);
     tracing::debug!(%url, harness = spec.id.key(), "harness-version: fetching version catalog");
     let resp = client
         .get(url)
-        .timeout(std::time::Duration::from_secs(15))
+        // opencode 完整 packument 约 12k 版本：gzip 后仍约 3.6 MB，实测 10–15 s；
+        // 30 s 曾在本机弱网抖动时踩线失败（2026-10-30），放宽到 60 s —— 超时只影响
+        // 失败上限，不拖慢正常请求。
+        .timeout(std::time::Duration::from_secs(60))
         .send()
         .await
         .map_err(|e| AppError::Network(format!("query harness catalog failed: {e}")))?;
@@ -313,7 +316,7 @@ pub async fn version_exists(
         .map_err(|_| AppError::InvalidInput(format!("invalid version {version}")))?;
     let base = registry_base(data_dir)?;
     let config = adl_download_source::load(data_dir)?;
-    let client = adl_download_source::build_http_client(&config)?;
+    let client = adl_download_source::build_http_client(&config).await?;
     let url = format!("{base}/{}/{version}", spec.package);
     let resp = client
         .get(url)

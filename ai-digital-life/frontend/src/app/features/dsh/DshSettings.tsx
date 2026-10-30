@@ -25,6 +25,7 @@ export function DshSettings() {
     deferredSource,
     systemManaged,
     resolvedSource,
+    effectiveSource,
     mode,
     sourceSwitch,
     groupReset,
@@ -63,6 +64,7 @@ export function DshSettings() {
               systemManaged={systemManaged}
               deferredSource={deferredSource}
               resolvedSource={resolvedSource}
+              effectiveSource={effectiveSource}
               mode={mode}
             />
           ),

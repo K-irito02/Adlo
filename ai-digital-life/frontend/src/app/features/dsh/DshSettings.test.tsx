@@ -584,6 +584,36 @@ describe('DshSettings', () => {
     }
   });
 
+  it('自动检测在没有任何版本时保持「自动检测」，不再被兜底改写成宿主托管', async () => {
+    seedDshBridge();
+    const status = makeStatus({ version_source: 'host' });
+    useAppStore.setState({
+      sourceStatus: {
+        ...status,
+        versionSource: {
+          mode: 'host',
+          effective: 'none',
+          resolvedByMode: { auto: 'none', host: 'none', system: 'none' },
+          hostVersion: null,
+        },
+      },
+      versionStatus: makeVersionStatus({ currentSelected: null, installed: [] }),
+    });
+    renderSettings();
+    const sourceRow = document.querySelector(
+      '[data-settings-row="harnessVersionSourceTitle"]',
+    ) as HTMLElement;
+    fireEvent.click(within(sourceRow).getByRole('button', { name: 'harnessVersionSourceTitle' }));
+    const menu = await screen.findByRole('listbox');
+    fireEvent.click(within(menu).getByRole('option', { name: 'dshVersionSourceAuto' }));
+
+    await waitFor(() =>
+      expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'auto' }, true),
+    );
+    // 旧兜底会把 auto 改写为 host；现在不许再出现这次写入。
+    expect(saveSourceConfig).not.toHaveBeenCalledWith({ version_source: 'host' }, true);
+  });
+
   it('无可用来源时管理项保持可见，并保留「宿主托管无版本」提示', async () => {
     const status = makeStatus({ version_source: 'host' });
     useAppStore.setState({

@@ -33,6 +33,7 @@ export const commonZh = {
   toolSwitcher: '工具切换',
   statusHealthy: '健康',
   statusDegraded: '降级',
+  settingsAutoResolved: '当前实际使用：{value}',
   rejectApproval: '拒绝',
   noApprovals: '当前没有待处理审批',
   retryStep: '重试',

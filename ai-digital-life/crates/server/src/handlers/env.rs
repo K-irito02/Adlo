@@ -271,7 +271,7 @@ async fn probe_client(
             return Ok(client.clone());
         }
     }
-    let client = adl_download_source::build_http_client_with_timeout(download, PROBE_TIMEOUT)?;
+    let client = adl_download_source::build_http_client_with_timeout(download, PROBE_TIMEOUT).await?;
     *slot = Some((key, client.clone()));
     Ok(client)
 }

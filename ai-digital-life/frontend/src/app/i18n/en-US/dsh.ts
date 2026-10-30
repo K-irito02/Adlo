@@ -25,10 +25,13 @@ export const dshEn = {
   dshSettingsProxyMode: 'Proxy Mode',
   dshSettingsProxyModeAuto: 'Auto Detect',
   dshSettingsProxyModeManual: 'Custom',
-  dshSettingsProxyModeNone: 'None',
+  dshSettingsProxyModeNone: 'Off',
   dshSettingsProxyDesc: 'Whether downloads go through a proxy, and which one',
   dshSettingsProxyHint:
-    '"Auto Detect" follows the system settings; "Custom" uses the addresses you fill in; "None" connects directly without a proxy',
+    '"Auto Detect" follows the system settings and silently switches to a direct connection when the detected proxy is unavailable; "Custom" uses the addresses you fill in; "Off" connects directly without a proxy',
+  dshSettingsProxyResolved: 'Currently using: {proxy}',
+  dshSettingsProxyAutoDirect: 'No proxy detected; connecting directly',
+  dshSettingsProxyAutoFallback: 'Proxy {proxy} is unavailable; switched to a direct connection',
   dshSettingsProxyHttp: 'HTTP Proxy',
   dshSettingsProxyHttps: 'HTTPS Proxy',
   dshSettingsProxyNoProxy: 'No-proxy list',
@@ -44,11 +47,16 @@ export const dshEn = {
   dshSettingsTestFailed: 'Failed: {error}',
   dshSettingsTestErrorUnknown: 'Unknown error',
   dshSettingsTestErrorRequestFailed: 'Request failed',
-  dshSettingsTestErrorNetwork: 'Network error',
+  dshSettingsTestErrorNetwork: 'Network unreachable',
+  dshSettingsTestErrorProxyUnreachable: 'Proxy unavailable ({proxy})',
+  dshSettingsTestErrorViaProxy: 'Failed through proxy {proxy}',
+  dshSettingsTestErrorHttp: 'Source returned HTTP {status}',
   dshSettingsTestTesting: 'Testing...',
   dshSettingsSaveFailed: 'Failed to save settings',
   dshSettingsAutoDetected: 'Auto-selected {source}',
   dshSettingsAutoDetectFailed: 'Auto-detection failed; current source kept',
+  dshSettingsAutoDetectFailedProxy:
+    'Auto-detection failed: proxy {proxy} is unavailable; current source kept',
   dshVersionManagement: 'DeepSeek Harness version management',
   dshVersionManagementHint:
     'Manage the assistant versions.\n· Auto detect prefers the running one, then a version this app installed, then your system install\n· Install, switch or uninstall below; the assistant restarts automatically',
@@ -61,7 +69,7 @@ export const dshEn = {
   dshVersionStateFailed: 'Failed to read state',
   dshVersionSourceDesc: 'Choose where the assistant version comes from',
   dshVersionSourceHint:
-    'Decides which assistant to prefer. Auto detect first looks for a running assistant, then a version this app has installed (both count as a “host-managed version”), then a version installed on your computer.\n· This selector always shows your chosen preference (Auto detect / System install / Host-managed) and never changes it to match whatever is actually in effect; the “Current version” row tells you what is really in effect — and whether it is the host-managed one.\n· Whether the rows below (“Check for updates”, “Stable releases”, “Prerelease versions”) are visible tells if this app manages versions: visible means you can install, switch, uninstall or reinstall here; hidden means the system install is actually in use and you maintain it yourself (always hidden with “Version source” set to “System install”; also hidden under “Auto detect” when “Host-managed” has no usable version and the resolved source is the system install; a note row then tells you to switch back to “Host-managed” to manage versions here).',
+    'Decides which assistant to prefer. Auto detect resolves in this order: a running assistant → a version this app installed (host-managed) → a version installed on your computer (system install).\n· The dropdown always shows your choice (Auto detect / System install / Host-managed); the blue line under it tells you which source auto detect actually resolved to.\n· Whether the “Check for updates”, “Stable releases” and “Prerelease versions” rows are visible tells you whether this app can manage versions: visible means you can install, switch, uninstall or reinstall here; hidden only when the system install is actually in effect (you maintain that copy yourself, and a note explains it).',
   dshVersionSourceSwitchDialogTitle: 'Switch version source',
   dshVersionSourceSwitchDialogMessage:
     'Switching to “{target}” changes where the assistant version comes from:\n· Apply now: switch immediately; the assistant restarts if it is running, or starts from the new source if it is not.\n· Apply next launch: keep the current source for this session and switch the next time this app starts.\n· Cancel: keep the current source and change nothing.',
@@ -83,7 +91,7 @@ export const dshEn = {
   dshNoSourceHostNote:
     'No assistant version is available under “Host-managed”, so the assistant cannot start. Install or pick a version below, or switch “Version source” back to a source that has one.',
   dshNoSourceAutoNote:
-    'No host version is available and no system install was detected, so the assistant cannot start. Switch to “Host-managed” to install a version.',
+    'No usable assistant version exists, so the assistant cannot start. Install one below.',
   dshVersionSourceSwitchDialogEmpty:
     'Note: “{target}” has no available version, and switching will close any open dsh browser tabs. You can install a version under “{target}”, switch to an installed version, or switch back to a source that has one.',
   dshVersionSourceSwitchDialogFromEmpty:

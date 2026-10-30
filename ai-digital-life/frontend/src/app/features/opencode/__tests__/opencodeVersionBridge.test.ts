@@ -162,6 +162,26 @@ describe('opencodeVersionBridge', () => {
     expect(adapter.peekSourceMode?.()).toBe('auto');
   });
 
+  it('marks the catalog as failed so channels show unknown instead of "none published"', async () => {
+    const { adapter } = makeBridge({
+      getVersionCatalog: vi.fn(async () => err('network down')),
+    });
+
+    const snapshot = await adapter.load();
+
+    expect(snapshot.catalog).toBeNull();
+    expect(snapshot.catalogFailed).toBe(true);
+    expect(adapter.peekSnapshot?.()?.catalogFailed).toBe(true);
+  });
+
+  it('keeps catalogFailed false when the catalog leg succeeds', async () => {
+    const { adapter } = makeBridge();
+
+    const snapshot = await adapter.load();
+
+    expect(snapshot.catalogFailed).toBe(false);
+  });
+
   it('maps the source mode both ways and resets to auto', async () => {
     const { raw, adapter } = makeBridge();
 

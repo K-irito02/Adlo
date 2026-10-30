@@ -41,7 +41,7 @@ export const harnessVersionZh = {
   harnessVersionSourceAuto: '自动',
   harnessVersionSourceSystem: '系统安装',
   harnessVersionSourceHost: '宿主托管',
-  harnessVersionSourceNone: '不可用',
+  harnessVersionSourceNone: '无可用版本',
   harnessVersionSourceRunning: '运行中',
   harnessVersionSourceSaved: '版本来源已保存',
   harnessVersionSystemPath: '系统安装位置',

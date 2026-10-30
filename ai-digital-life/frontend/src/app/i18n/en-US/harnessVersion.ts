@@ -42,7 +42,7 @@ export const harnessVersionEn = {
   harnessVersionSourceAuto: 'Automatic',
   harnessVersionSourceSystem: 'System install',
   harnessVersionSourceHost: 'Host-managed',
-  harnessVersionSourceNone: 'Unavailable',
+  harnessVersionSourceNone: 'No usable version',
   harnessVersionSourceRunning: 'Running',
   harnessVersionSourceSaved: 'Version source saved',
   harnessVersionSystemPath: 'System install path',

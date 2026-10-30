@@ -1,4 +1,6 @@
 import { useTCopy } from '@i18n/useTCopy';
+import { formatT } from '@i18n/formatT';
+import { AutoResolvedNote } from '@components/settings/AutoResolvedNote';
 import type { DshVersionSourceMode } from '@shared/ipc/dsh';
 
 interface OpencodeVersionSourceNoteProps {
@@ -16,6 +18,15 @@ export function OpencodeVersionSourceNote({
   const { t } = useTCopy();
   return (
     <>
+      {/* 自动检测的背后真实状态：下拉仍是「自动检测」，这里只说明实际使用的**来源**
+          （宿主托管 / 系统安装）；版本是否已安装由下方提示行与状态胶囊表达。 */}
+      {mode === 'auto' && resolvedSource ? (
+        <AutoResolvedNote>
+          {formatT(t, 'settingsAutoResolved', {
+            value: resolvedSource === 'system' ? t.opencodeSourceSystem : t.opencodeSourceHost,
+          })}
+        </AutoResolvedNote>
+      ) : null}
       {systemManaged ? (
         <small className="adl-harness-version__row-warn">{t.opencodeSystemManagedNote}</small>
       ) : null}

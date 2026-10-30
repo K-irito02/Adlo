@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
@@ -16,13 +16,10 @@ export function useDshSettings() {
   const { t } = useTCopy();
   const actions = useAppActions();
   const sourceStatus = useAppStore((s) => s.sourceStatus);
-  const versionStatus = useAppStore((s) => s.versionStatus);
   const showToast = useAppStore((s) => s.showToast);
   const setDshBlocksAtDefault = useAppStore((s) => s.setDshBlocksAtDefault);
   const deferredSource = useAppStore((s) => s.dshVersionSourceDeferred);
   const pendingSource = useAppStore((s) => s.dshVersionSourcePending);
-  const setPendingSource = useAppStore((s) => s.setDshVersionSourcePending);
-  const setDeferredSource = useAppStore((s) => s.setDshVersionSourceDeferred);
   const dshFastPoll = useAppStore((s) => s.dshRestarting || s.sourceStatus?.starting === true);
 
   // 卸载兜底：pending 置位后若组件在消费前卸载，清信号避免下次挂载「迟到弹窗」。
@@ -88,38 +85,18 @@ export function useDshSettings() {
     [rawBridge, t, actions, notify, sourceSwitch.changeSourceMode],
   );
 
-  // auto → 宿主自动切换（迁移前的兜底）：自动检测无可用来源且没有任何已装版本时，
-  // 落盘宿主来源一次，避免助手永远拉不起来。
+  // 已移除 auto→host 自动改写（用户实测 2026-10-30）：`auto` 的解析优先级本来就是
+  // 宿主 > 系统 > 无，没有任何版本时 `host` 同样解析为 none —— 这次改写既不能拉起
+  // 助手，还会把用户选择的「自动检测」悄悄改成「宿主托管」，与「下拉始终显示用户
+  // 选择、真实结果由蓝色提示行说明」的约定冲突。
   const versionSource = sourceStatus?.versionSource ?? null;
-  const autoSource = versionSource;
-  const autoSwitchedRef = useRef(false);
-  useEffect(() => {
-    if (!autoSource || autoSource.mode !== 'auto') {
-      autoSwitchedRef.current = false;
-      return;
-    }
-    if (autoSource.effective !== 'none') {
-      return;
-    }
-    if (!versionStatus || versionStatus.installed.length > 0) {
-      return;
-    }
-    if (autoSwitchedRef.current) {
-      return;
-    }
-    autoSwitchedRef.current = true;
-    void (async () => {
-      const ok = await actions.saveSourceConfig({ version_source: 'host' }, true);
-      if (ok) {
-        setPendingSource(null);
-        setDeferredSource(false);
-      }
-    })();
-  }, [autoSource, versionStatus, actions, setPendingSource, setDeferredSource]);
 
   const mode: DshVersionSourceMode =
     versionSource?.mode ?? sourceStatus?.config.version_source ?? 'auto';
   const resolvedSource = versionSource?.resolvedByMode?.[mode] ?? null;
+  // 运行时实际来源（可能为 running）：自动检测下如果外部已有助手在跑，蓝色状态行
+  // 应显示「正在运行」，而不是偏好解析出的「无可用版本」。
+  const effectiveSource = versionSource?.effective ?? null;
   // 显隐：配置为系统 / 偏好解析落在系统 / 待切换为系统，任一成立即视为系统托管。
   const systemManaged =
     mode === 'system' || resolvedSource === 'system' || pendingSource === 'system';
@@ -131,6 +108,7 @@ export function useDshSettings() {
     deferredSource,
     systemManaged,
     resolvedSource,
+    effectiveSource,
     mode,
     sourceSwitch,
     groupReset,

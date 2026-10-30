@@ -195,7 +195,7 @@ pub async fn install(
     let base = if cfg.mingit_base.is_empty() { OFFICIAL_MINGIT_BASE } else { cfg.mingit_base };
     let url = mingit_url(base, cfg.mingit_tag, cfg.mingit_asset);
     reporter.update(ProgressPhase::Installing, Some(10), 0, 100, false);
-    let client = adl_download_source::build_http_client(cfg.download).inspect_err(|e| {
+    let client = adl_download_source::build_http_client(cfg.download).await.inspect_err(|e| {
         reporter.set_error(&e.to_string());
     })?;
     let staging = match super::fetch_and_stage(&client, &url, MARKER_REL).await {

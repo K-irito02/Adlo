@@ -103,6 +103,8 @@ export function prefetchOpencodeSnapshot(): Promise<void> {
           catalog: catalog.ok ? catalog.data : null,
           source: source.ok ? toSourceStatus(source.data) : null,
           sourceExtra: source.ok ? source.data : null,
+          // 目录腿失败必须透出：卡片据此显示「未知」，而不是误报「官方暂无」。
+          catalogFailed: !catalog.ok,
         };
       }
     } catch {
@@ -212,6 +214,8 @@ export function createOpencodeVersionBridge(
         source: source.ok ? toSourceStatus(source.data) : null,
         sourceExtra: source.ok ? source.data : null,
         failed: !status.ok && !catalog.ok && !source.ok,
+        // 与 DSH 适配器同口径：目录拉取失败 → 通道显示「未知」，不得误报「官方暂无」。
+        catalogFailed: !catalog.ok,
       };
       cachedSnapshot = snapshot;
       return snapshot;
@@ -238,14 +242,14 @@ export function createOpencodeVersionBridge(
           return { ok: true };
         }
         const next = status.data;
-        if (catalog.ok) {
-          cachedSnapshot = {
-            status: next,
-            catalog: catalog.data,
-            source: cachedSnapshot?.source ?? null,
-            sourceExtra: cachedSnapshot?.sourceExtra ?? null,
-          };
-        }
+        cachedSnapshot = {
+          status: next,
+          // 目录腿失败时保留旧目录值（通道行仍可展示上次结果），但失败标记必须如实置位。
+          catalog: catalog.ok ? catalog.data : (cachedSnapshot?.catalog ?? null),
+          source: cachedSnapshot?.source ?? null,
+          sourceExtra: cachedSnapshot?.sourceExtra ?? null,
+          catalogFailed: !catalog.ok,
+        };
         if (!next.latestAvailable) {
           if (next.hasPrereleaseUpdate && next.prereleaseAvailable) {
             notify(

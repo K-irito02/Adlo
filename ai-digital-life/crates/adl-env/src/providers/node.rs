@@ -182,7 +182,7 @@ pub async fn install(
     let base = if cfg.dist_base.is_empty() { OFFICIAL_DIST_BASE } else { cfg.dist_base };
     let url = node_dist_url(base, version);
     reporter.update(ProgressPhase::Installing, Some(10), 0, 100, false);
-    let client = adl_download_source::build_http_client(cfg.download).inspect_err(|e| {
+    let client = adl_download_source::build_http_client(cfg.download).await.inspect_err(|e| {
         reporter.set_error(&e.to_string());
     })?;
     let staging = match super::fetch_and_stage(&client, &url, MARKER_REL).await {

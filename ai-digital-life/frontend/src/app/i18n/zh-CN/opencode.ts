@@ -9,7 +9,7 @@ export const opencodeZh = {
   opencodeSourceTitle: '版本来源',
   opencodeSourceDesc: '选择 OpenCode CLI 版本的来源',
   opencodeSourceHint:
-    '决定优先使用哪一个 OpenCode CLI 版本。自动检测会先用本应用装好的版本，最后用你电脑上安装的版本。\n· 这里显示的始终是你选择的偏好（自动检测／系统安装／宿主托管），不会因为实际生效的来源不同而改变；实际生效的是哪一个，看“当前版本”那一行。\n· 下面的“检查更新、正式版本、预发布版本”几行是否显示，即代表当前是否由本应用管理版本：显示表示可在这里安装、切换或卸载；隐藏表示当前实际用的是系统安装，由你自己维护（把“版本来源”选为“系统安装”时恒隐藏；“自动检测”下若“宿主托管”没有可用版本、解析结果为系统安装时也会隐藏）。',
+    '决定优先使用哪一个 OpenCode CLI 版本。自动检测的优先级：本应用装好的版本（宿主托管）→ 你电脑上安装的版本（系统安装）。\n· 下拉框始终显示你的选择（自动检测／系统安装／宿主托管）；它下方那行蓝色小字是自动检测实际解析到的来源，方便你确认。\n· 下方的“检查更新、正式版本、预发布版本”是否显示，代表本应用当前是否能管理版本：显示即可在这里安装、切换或卸载；只有“系统安装”实际生效时才隐藏（此时版本由你自己维护）。',
   opencodeSourceAuto: '自动检测',
   opencodeSourceSystem: '系统安装',
   opencodeSourceHost: '宿主托管',
@@ -18,7 +18,7 @@ export const opencodeZh = {
   opencodeNoSourceHostNote:
     '“宿主托管”下没有可用的版本，新终端会话将无法使用 opencode 命令。请在下面安装一个版本，或把“版本来源”切换回有版本的来源。',
   opencodeNoSourceAutoNote:
-    '没有可用的宿主版本，也没有检测到系统安装，新终端会话将无法使用 opencode 命令。可切换到“宿主托管”安装版本。',
+    '没有任何可用的版本，新终端会话将无法使用 opencode 命令。请在下方安装一个版本。',
   opencodeCurrentVersion: '当前版本',
   opencodeCurrentVersionDesc: '现在正在用的 OpenCode CLI 版本',
   opencodeCurrentVersionHint:

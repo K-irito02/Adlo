@@ -178,14 +178,38 @@ async function main() {
   delete appEnv.PORT;
   delete appEnv.ADL_DEV_TOKEN;
 
+  ensureFrontendDist();
   const tauri = spawnChecked(cargoCommand, ["tauri", "dev", "--config", tauriConfig], appEnv);
   children.push(tauri);
-
   if (mode === "both") {
     console.log(`[adl-run] browser preview remains available at ${devUrl}`);
   }
 
   await holdUntilStopped();
+}
+
+/**
+ * Tauri 的 `generate_context!` 在**编译期**就要求 `frontendDist` 目录存在，即使 dev
+ * 模式实际走 `devUrl`。`frontend/dist` 是构建产物且被 gitignore，干净检出的工作树
+ * 没有它 → `cargo tauri dev` 直接 proc macro panic（用户实测 2026-10-30）。
+ * dev 模式不会读取该目录内容，缺失时写一个最小占位；release / `tauri build` 的
+ * beforeBuildCommand 会真正执行 `pnpm frontend:build` 覆盖它。
+ */
+function ensureFrontendDist() {
+  const distDir = path.join(repoRoot, "frontend", "dist");
+  const indexFile = path.join(distDir, "index.html");
+  if (fs.existsSync(indexFile)) {
+    return;
+  }
+  fs.mkdirSync(distDir, { recursive: true });
+  fs.writeFileSync(
+    indexFile,
+    '<!doctype html><html><head><meta charset="utf-8"><title>dev placeholder</title></head><body></body></html>\n',
+    "utf8",
+  );
+  console.log(
+    "[adl-run] frontend/dist was missing (gitignored build artifact); wrote a dev placeholder so tauri generate_context can compile",
+  );
 }
 
 function spawnChecked(command, args, envOverrides, cwd = repoRoot) {

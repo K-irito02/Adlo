@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { SettingsSelect } from '@components/settings/SettingsSelect';
+import { AutoResolvedNote } from '@components/settings/AutoResolvedNote';
 import { FlashIcon, flashPhaseFor, useActionFlash } from '@components/settings/actionFlash';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
 import type {
@@ -504,6 +505,17 @@ export function EnvDepRow({
             {section !== null ? <EnvDepPill dep={dep} section={section} /> : null}
           </div>
           <small>{descText}</small>
+          {/* 自动检测的背后真实状态（蓝色提示行）：下拉仍是「自动检测」。 */}
+          {section !== null && section.mode === 'auto' && section.effective !== 'none' ? (
+            <AutoResolvedNote>
+              {formatT(t, 'settingsAutoResolved', {
+                value:
+                  section.effective === 'system'
+                    ? t.environmentSourceSystem
+                    : t.environmentSourceHost,
+              })}
+            </AutoResolvedNote>
+          ) : null}
           {renderStatusLine()}
           {renderTaskProgress()}
           {showHelpLinks ? (

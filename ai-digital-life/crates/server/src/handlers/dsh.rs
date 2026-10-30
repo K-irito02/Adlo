@@ -922,6 +922,9 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
     });
     let config_value =
         serde_json::to_value(&config).map_err(|e| AppError::Internal(e.to_string()))?;
+    // 代理「背后真实状态」：代理软件可能已关闭（环境变量残留），自动检测会静默
+    // 回退直连；设置面板据此显示蓝色提示行，下拉仍保持「自动检测」。
+    let proxy_effective = adl_download_source::proxy_health(&config).await;
 
     Ok(serde_json::json!({
         "system": system,
@@ -930,6 +933,7 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
         "starting": state.dsh_starting.load(std::sync::atomic::Ordering::Relaxed),
         "versionSource": version_source,
         "config": config_value,
+        "proxyEffective": proxy_effective,
     }))
 }
 
@@ -1223,13 +1227,24 @@ async fn save_source_config_inner(
     Ok(serde_json::json!(true))
 }
 
-/// POST `/dsh/test-source` — 测试下载源连通性。
-pub async fn test_source(body: axum::body::Bytes) -> impl IntoResponse {
-    let result = test_source_inner(body).await;
+/// POST `/dsh/test-source` — 测试下载源连通性（与真实下载同一套代理语义）。
+pub async fn test_source(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    // 探针必须与真实下载走同一份代理配置：否则「代理=无/自定义」时这里仍走环境
+    // 代理，测试结论与实际安装行为不一致（用户实测 2026-10-30）。
+    let result = match adl_download_source::load(&state.storage.paths().root) {
+        Ok(config) => test_source_inner(body, &config).await,
+        Err(e) => Err(e),
+    };
     ipc::to_response(result)
 }
 
-async fn test_source_inner(body: axum::body::Bytes) -> Result<serde_json::Value, AppError> {
+async fn test_source_inner(
+    body: axum::body::Bytes,
+    config: &adl_download_source::DownloadSourceConfig,
+) -> Result<serde_json::Value, AppError> {
     let input: serde_json::Value =
         serde_json::from_slice(&body).map_err(|e| AppError::InvalidInput(e.to_string()))?;
 
@@ -1238,15 +1253,19 @@ async fn test_source_inner(body: axum::body::Bytes) -> Result<serde_json::Value,
         .and_then(|v| v.as_str())
         .ok_or_else(|| AppError::InvalidInput("missing 'url' field".into()))?;
 
-    let status = adl_download_source::test_source(url, std::time::Duration::from_secs(10)).await;
+    let status =
+        adl_download_source::test_source(url, config, std::time::Duration::from_secs(10)).await;
 
-    // 键名与前端 `DshTestResult` 对齐（reachable/latency_ms/error 全 snake_case，
-    // 与 source-status 的 config 序列化口径一致；曾误写 latencyMs 致前端读到
-    // undefined 显示 "-ms"，且自动检测的延迟比较恒取首项）。
+    // 键名与前端 `DshTestResult` 对齐（全 snake_case，`error_kind`/`proxy` 供本地化
+    // 文案与诊断；原始 `error` 仅供日志）。曾误写 `latencyMs` 致前端读到 undefined
+    // 显示 "-ms"，且自动检测的延迟比较恒取首项。
     Ok(serde_json::json!({
         "reachable": status.reachable,
         "latency_ms": status.latency_ms,
         "error": status.error,
+        "error_kind": status.error_kind,
+        "proxy": status.proxy,
+        "http_status": status.http_status,
     }))
 }
 
@@ -1409,11 +1428,23 @@ mod tests {
     #[tokio::test]
     async fn test_source_response_keys_match_frontend_type() {
         let body = axum::body::Bytes::from(r#"{ "url": "http://127.0.0.1:1/" }"#);
-        let value = test_source_inner(body).await.unwrap();
+        let config = adl_download_source::DownloadSourceConfig {
+            proxy: adl_download_source::ProxyConfig {
+                mode: adl_download_source::ProxyMode::None,
+                http_proxy: None,
+                https_proxy: None,
+                no_proxy: None,
+            },
+            ..Default::default()
+        };
+        let value = test_source_inner(body, &config).await.unwrap();
         assert_eq!(value.get("reachable").and_then(|v| v.as_bool()), Some(false));
         assert!(value.get("latency_ms").is_some());
         assert!(value.get("latencyMs").is_none());
         assert!(value.get("error").is_some());
+        assert_eq!(value.get("error_kind").and_then(|v| v.as_str()), Some("network"));
+        assert!(value.get("proxy").is_some());
+        assert!(value.get("http_status").is_some());
     }
 
     /// save_source_config 非法输入直接 InvalidInput，且校验全部发生在落盘前

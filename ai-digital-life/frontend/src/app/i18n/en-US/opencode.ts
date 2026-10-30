@@ -9,7 +9,7 @@ export const opencodeEn = {
   opencodeSourceTitle: 'Version source',
   opencodeSourceDesc: 'Choose which OpenCode CLI build to use',
   opencodeSourceHint:
-    'Decides which OpenCode CLI build takes effect. Automatic prefers the app-managed build, then your system install.\n· This always shows your preference (Automatic / System install / Host-managed), never the resolved result; the "Current version" row shows what actually takes effect.\n· Whether the "Check for updates, Stable, Prerelease" rows appear tells you if versions are managed here: visible means install/switch/uninstall is available; hidden means the system install is in effect and maintained by you (always hidden for "System install"; also hidden under "Automatic" when no host-managed version is available).',
+    'Decides which OpenCode CLI build takes effect. Automatic resolves in this order: a version this app installed (host-managed) → a version installed on your computer (system install).\n· The dropdown always shows your choice (Automatic / System install / Host-managed); the blue line under it tells you which source automatic actually resolved to.\n· Whether the "Check for updates", "Stable" and "Prerelease" rows appear tells you whether this app can manage versions: visible means you can install, switch or uninstall here; hidden only when the system install is actually in effect (you maintain that copy yourself).',
   opencodeSourceAuto: 'Automatic',
   opencodeSourceSystem: 'System install',
   opencodeSourceHost: 'Host-managed',
@@ -18,7 +18,7 @@ export const opencodeEn = {
   opencodeNoSourceHostNote:
     'No usable version under "Host-managed"; new terminal sessions will not have the opencode command. Install a version below or switch "Version source" back to a source that has one.',
   opencodeNoSourceAutoNote:
-    'No host-managed version and no system install detected; new terminal sessions will not have the opencode command. Switch to "Host-managed" to install one.',
+    'No usable version exists; new terminal sessions will not have the opencode command. Install one below.',
   opencodeCurrentVersion: 'Current version',
   opencodeCurrentVersionDesc: 'The OpenCode CLI version currently in use',
   opencodeCurrentVersionHint:

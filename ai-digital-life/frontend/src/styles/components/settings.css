@@ -1502,6 +1502,16 @@
   align-items: center;
 }
 
+/* 「自动检测」真实状态提示行：与 DSH 组提示小字同色（压暗蓝，用户批准）。
+   挂在设置项标题下方的描述小字区，只在自动检测且真实状态已知时渲染。 */
+.adl-settings-auto-note {
+  color: color-mix(in srgb, var(--accent) 72%, var(--text-secondary));
+}
+
+[data-theme='dark'] .adl-settings-auto-note {
+  color: color-mix(in srgb, var(--accent) 62%, var(--text-muted));
+}
+
 /* 存储组「应用」主按钮：不用品牌蓝，改中性高对比（灰阶/黑白）。
    仅作用于存储组卡内的按钮（迁移/清除确认对话框经 Portal 挂 body，不受影响）。 */
 .adl-storage-settings .adl-btn--primary {

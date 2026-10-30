@@ -5,6 +5,8 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { executeNetworkResetPlan, NPMJS_URL } from '@shared/settings-reset/networkReset';
 import { NPMMIRROR_URL, pickFastestSource } from './sourceAutoDetect';
+import { describeDetectFailure, describeProbeFailure } from './probeError';
+import { AutoResolvedNote } from '@components/settings/AutoResolvedNote';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { StaticResetSpacer } from '../../components/settings/StaticResetSpacer';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
@@ -234,11 +236,10 @@ export function NetworkSettings() {
         { url: NPMMIRROR_URL, label: t.dshSettingsSourceNpmmirror, result: mirror },
       ].filter((c) => c.result?.reachable === true);
       if (candidates.length === 0) {
-        // 空候选才提示：静默模式（桥失败 null / 双源不可达）直接返回不打扰；
-        // 单桥失败但另一路可达时照常选优（事项 11 Phase 4 B1-B-1）。
-        // 用户手动触发而空候选：把 source_mode 落盘（本次选择即语义），再提示。
+        // 空候选：能归因代理就点名端点（手动代理不可达），否则给通用文案。
+        // 静默模式（挂载/恢复后）不弹 toast。
         if (!silent) {
-          showToast(t.dshSettingsAutoDetectFailed, 'error');
+          showToast(describeDetectFailure(t, [official, mirror]), 'error');
           await persist({ source_mode: 'auto' });
         }
         return;
@@ -590,10 +591,7 @@ export function NetworkSettings() {
         ok = result.reachable;
         message = ok
           ? t.dshSettingsTestSuccess.replace('{latency}', String(result.latency_ms ?? '-'))
-          : t.dshSettingsTestFailed.replace(
-              '{error}',
-              result.error ?? t.dshSettingsTestErrorUnknown,
-            );
+          : t.dshSettingsTestFailed.replace('{error}', describeProbeFailure(t, result));
       } else {
         message = t.dshSettingsTestFailed.replace('{error}', t.dshSettingsTestErrorRequestFailed);
       }
@@ -650,6 +648,40 @@ export function NetworkSettings() {
   const proxyResetDisabled = proxyAtDefault;
   const testDisabled = testing || (sourceType === 'custom' && !customUrl.trim());
 
+  // 「自动检测」的背后真实状态（蓝色提示行）：仅在自动模式且状态已知时渲染。
+  // 代理：端点可达则显示端点，不可达时后端已静默回退直连（下拉仍是「自动检测」）。
+  const proxyResolvedNote = (() => {
+    if (proxyMode !== 'auto') {
+      return null;
+    }
+    const info = sourceStatus?.proxyEffective;
+    if (!info) {
+      return null;
+    }
+    if (info.autoFallback) {
+      return formatT(t, 'dshSettingsProxyAutoFallback', { proxy: info.endpoint ?? '—' });
+    }
+    if (info.endpoint) {
+      return formatT(t, 'dshSettingsProxyResolved', { proxy: info.endpoint });
+    }
+    return t.dshSettingsProxyAutoDirect;
+  })();
+
+  // 下载源：自动检测实际写回的 registry 就是「当前实际使用」的来源。
+  const sourceResolvedNote = (() => {
+    if (sourceType !== 'auto' || !sourceStatus) {
+      return null;
+    }
+    const registry = sourceStatus.config.npm_registry;
+    const label =
+      registry === NPMJS_URL
+        ? t.dshSettingsSourceNpmjs
+        : registry === NPMMIRROR_URL
+          ? t.dshSettingsSourceNpmmirror
+          : registry;
+    return formatT(t, 'settingsAutoResolved', { value: label });
+  })();
+
   return (
     <div className="adl-settings-section adl-dsh-settings adl-network-settings">
       <div
@@ -677,6 +709,7 @@ export function NetworkSettings() {
               <span>{t.dshSettingsSource}</span>
             </div>
             <small>{t.dshSettingsSourceDesc}</small>
+            {sourceResolvedNote ? <AutoResolvedNote>{sourceResolvedNote}</AutoResolvedNote> : null}
           </div>
           <div className="adl-settings-row__control">
             <SettingsSelect
@@ -734,6 +767,7 @@ export function NetworkSettings() {
               <span>{t.dshSettingsProxyMode}</span>
             </div>
             <small>{t.dshSettingsProxyDesc}</small>
+            {proxyResolvedNote ? <AutoResolvedNote>{proxyResolvedNote}</AutoResolvedNote> : null}
           </div>
           <div className="adl-settings-row__control">
             <SettingsSelect

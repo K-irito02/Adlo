@@ -59,6 +59,24 @@ export interface DshSourceStatus {
       no_proxy: string | null;
     };
   };
+  /**
+   * 代理「背后真实状态」（服务端按当前代理配置 + 端点可达性计算）。
+   * 自动检测代理不可达时服务端已静默改走直连，下拉仍显示「自动检测」，
+   * 界面用蓝色提示行说明真实状态；缺省（旧后端/首帧）不渲染提示。
+   */
+  proxyEffective?: DshProxyEffective;
+}
+
+/** 代理生效状态（与 Rust `ProxyHealth` camelCase 对齐；端点已脱敏）。 */
+export interface DshProxyEffective {
+  /** 实际使用的代理端点；直连为 null。 */
+  endpoint: string | null;
+  /** 端点可达性（直连恒 true）。 */
+  reachable: boolean;
+  /** 当前是否会绕过代理（模式=关闭，或自动检测回退直连）。 */
+  usingDirect: boolean;
+  /** 自动检测因代理不可达而回退直连。 */
+  autoFallback: boolean;
 }
 
 export type DshVersionSourceMode = 'auto' | 'system' | 'host';
@@ -131,12 +149,24 @@ export interface DshSourceConfig {
 }
 
 /**
+ * 下载源探测的失败分类（与 Rust `adl_download_source::SourceErrorKind` 对齐）：
+ * 界面按它给本地化、可操作的文案，不直接展示底层错误串。
+ */
+export type DshSourceProbeErrorKind = 'proxy_unreachable' | 'network' | 'http' | 'unknown';
+
+/**
  * 下载源可达性测试结果
  */
 export interface DshTestResult {
   reachable: boolean;
   latency_ms: number | null;
+  /** 底层错误细节（日志/诊断用；界面展示走 `error_kind`）。 */
   error: string | null;
+  error_kind?: DshSourceProbeErrorKind | null;
+  /** 本次探测实际使用的代理端点（已脱敏）；直连为 null。 */
+  proxy?: string | null;
+  /** 目标返回的 HTTP 状态码（仅 `http` 类失败）。 */
+  http_status?: number | null;
 }
 
 /**

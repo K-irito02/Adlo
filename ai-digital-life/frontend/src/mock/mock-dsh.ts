@@ -54,6 +54,12 @@ const sourceStatus: DshSourceStatus = {
       no_proxy: null,
     },
   },
+  proxyEffective: {
+    endpoint: null,
+    reachable: true,
+    usingDirect: true,
+    autoFallback: false,
+  },
 };
 
 function syncEffective(): void {
@@ -99,6 +105,7 @@ function cloneSourceStatus(): DshSourceStatus {
       resolvedByMode: { ...sourceStatus.versionSource.resolvedByMode },
     },
     running: sourceStatus.running ? { ...sourceStatus.running } : null,
+    proxyEffective: sourceStatus.proxyEffective ? { ...sourceStatus.proxyEffective } : undefined,
   };
 }
 

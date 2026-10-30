@@ -158,6 +158,31 @@ describe('OpencodeSettings DSH parity (generic card slots)', () => {
     expect(screen.getByTestId('opencode-source-summary-card')).toBeTruthy();
   });
 
+  it('自动检测解析为宿主托管时显示「当前实际使用：宿主托管」', async () => {
+    installBridge(makeSource('auto', 'host'), makeStatus());
+    render(
+      <TestProvider>
+        <OpencodeSettings />
+      </TestProvider>,
+    );
+    expect(await screen.findByText('当前实际使用：宿主托管')).toBeTruthy();
+  });
+
+  it('自动检测无任何版本时仍显示来源「宿主托管」，缺失由下方提示说明', async () => {
+    installBridge(makeSource('auto', 'none'), makeStatus({ currentSelected: null, installed: [] }));
+    render(
+      <TestProvider>
+        <OpencodeSettings />
+      </TestProvider>,
+    );
+    // 蓝色行只表达「来源」，不表达「有没有可用版本」。
+    expect(await screen.findByText('当前实际使用：宿主托管')).toBeTruthy();
+    expect(screen.queryByText(/无可用版本/)).toBeNull();
+    // 版本缺失信息由下方提示行承担，且不再建议切换到宿主托管。
+    expect(screen.getByText(/请在下方安装一个版本/)).toBeTruthy();
+    expect(screen.queryByText(/可切换到/)).toBeNull();
+  });
+
   it('系统安装时隐藏检查更新/正式版/预发布版/指定版本并显示托管说明', async () => {
     const source = makeSource('system', 'system');
     source.system = { path: '/usr/local/bin/opencode', version: null };

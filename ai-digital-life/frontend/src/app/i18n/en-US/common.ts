@@ -33,6 +33,7 @@ export const commonEn = {
   toolSwitcher: 'Tool Switcher',
   statusHealthy: 'healthy',
   statusDegraded: 'degraded',
+  settingsAutoResolved: 'Currently using: {value}',
   rejectApproval: 'Reject',
   noApprovals: 'No pending approvals',
   retryStep: 'Retry',

@@ -55,6 +55,12 @@ function makeStatus(patch: Partial<DshSourceStatus['config']> = {}): DshSourceSt
       proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
       ...patch,
     },
+    proxyEffective: {
+      endpoint: null,
+      reachable: true,
+      usingDirect: true,
+      autoFallback: false,
+    },
   };
 }
 
@@ -249,6 +255,60 @@ describe('NetworkSettings', () => {
     await waitFor(() => {
       expect(saveSourceConfig).toHaveBeenCalledWith({ source_mode: 'auto' }, false);
     });
+  });
+
+  it('代理自动检测且已回退直连：蓝色提示行说明真实状态，下拉仍显示「自动检测」', async () => {
+    useAppStore.setState({
+      sourceStatus: {
+        ...makeStatus({ source_mode: 'manual', npm_registry: NPMJS_URL }),
+        proxyEffective: {
+          endpoint: 'socks5h://127.0.0.1:17890',
+          reachable: false,
+          usingDirect: true,
+          autoFallback: true,
+        },
+      },
+    });
+    renderSettings();
+
+    const note = await screen.findByText('dshSettingsProxyAutoFallback');
+    expect(note.className).toContain('adl-settings-auto-note');
+    // 下拉保持「自动检测」（静默回退，不改写用户选择）。
+    expect(screen.getByLabelText('dshSettingsProxyMode').textContent).toContain(
+      'dshSettingsProxyModeAuto',
+    );
+  });
+
+  it('下载源为自动检测时显示当前实际使用的来源', async () => {
+    useAppStore.setState({
+      sourceStatus: makeStatus({ source_mode: 'auto', npm_registry: NPMMIRROR_URL }),
+    });
+    renderSettings();
+
+    await waitFor(() => {
+      const notes = screen
+        .getAllByText('settingsAutoResolved')
+        .filter((node) => node.className.includes('adl-settings-auto-note'));
+      expect(notes).toHaveLength(1);
+    });
+  });
+
+  it('非自动模式不显示真实状态提示行', () => {
+    useAppStore.setState({
+      sourceStatus: makeStatus({
+        source_mode: 'manual',
+        npm_registry: NPMJS_URL,
+        proxy: {
+          mode: 'manual',
+          http_proxy: 'http://proxy:8080',
+          https_proxy: null,
+          no_proxy: null,
+        },
+      }),
+    });
+    renderSettings();
+    expect(screen.queryByText('settingsAutoResolved')).toBeNull();
+    expect(screen.queryByText('dshSettingsProxyAutoDirect')).toBeNull();
   });
 
   it('静默检测遇桥失败（null 结果）：不弹失败提示、不写回', async () => {

@@ -212,7 +212,7 @@ async fn install_inner(
         .map_err(|_| AppError::InvalidInput(format!("invalid version {version}")))?;
     let config = adl_download_source::load(input.data_dir)?;
     let registry = adl_download_source::resolve_registry(&config).to_string();
-    let client = adl_download_source::build_http_client(&config)?;
+    let client = adl_download_source::build_http_client(&config).await?;
     let installed = crate::installed_dir(input.root);
     tokio::fs::create_dir_all(&installed)
         .await
