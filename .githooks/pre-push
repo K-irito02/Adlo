@@ -12,6 +12,8 @@ ROOT="$(git rev-parse --show-toplevel)"
 ( cd "$ROOT/ai-digital-life" && pnpm run scripts:format:check )
 # Desktop E2E TypeScript: its own package/tsconfig, so `check:changed` below does not see it.
 ( cd "$ROOT/ai-digital-life" && pnpm run e2e:typecheck )
+# Rust affected scope: fmt always (seconds), clippy only when Rust files changed.
+( cd "$ROOT/ai-digital-life" && node ./scripts/check-rust-changed.mjs )
 cd "$ROOT/ai-digital-life/frontend"
 if [ "$ADL_PREPUSH_FULL" = "1" ]; then
   echo "[pre-push] FULL gate (user-approved): check:full"

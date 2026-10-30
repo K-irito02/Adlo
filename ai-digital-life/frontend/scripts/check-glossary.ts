@@ -3,8 +3,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const glossaryPath = path.resolve(here, '../../../GLOSSARY.md');
 const repoRoot = path.resolve(here, '../../..');
+const fileArgIndex = process.argv.indexOf('--file');
+const glossaryPath =
+  fileArgIndex !== -1 && process.argv[fileArgIndex + 1]
+    ? path.resolve(process.cwd(), process.argv[fileArgIndex + 1] as string)
+    : path.resolve(here, '../../../GLOSSARY.md');
 
 const IMPLEMENTATION_TOKEN = /`[^`]*(\/|\\|::|\.(?:rs|ts|tsx|js|jsx|css|json|toml|sql)\b)[^`]*`/;
 const NUMERIC_COUNT = /\d+\s*个/;
@@ -64,6 +68,23 @@ lines.forEach((line, index) => {
   }
   if (NUMERIC_COUNT.test(line)) {
     problems.push(`line ${index + 1}: stale-prone numeric count in glossary`);
+  }
+});
+
+/**
+ * Markdown 强调符损坏守卫：Prettier 会把未用反引号包裹的环境变量名（HTTP_PROXY）
+ * 当成强调解析，改写成 HTTP*PROXY，并把 `_Avoid_` 转义成 `\_Avoid_`。这类损坏在
+ * 语义上把术语定义改错，却不会触发「缺 _Avoid_」检查，因此单独扫正文行。
+ */
+lines.forEach((line, index) => {
+  if (line.startsWith('_Avoid_:') || /^\*\*[^*]+\*\*:/.test(line)) {
+    return;
+  }
+  const stripped = line.replace(/`[^`]*`/g, '');
+  if (/\\_/.test(stripped) || /\*/.test(stripped)) {
+    problems.push(
+      `line ${index + 1}: Markdown emphasis corruption in glossary body (escape env vars with backticks)`,
+    );
   }
 });
 

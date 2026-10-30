@@ -60,13 +60,16 @@ const git = (args) => capture('git', ['-C', repoRoot, ...args], { env: cleanGitE
 
 function resolveBase() {
   try {
-    return git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']).trim();
+    return {
+      base: git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']).trim(),
+      fallback: null,
+    };
   } catch {
     try {
       git(['rev-parse', '--verify', 'origin/main']);
-      return 'origin/main';
+      return { base: 'origin/main', fallback: null };
     } catch {
-      return 'HEAD';
+      return { base: 'HEAD', fallback: 'HEAD' };
     }
   }
 }
@@ -74,7 +77,12 @@ function resolveBase() {
 const frontendDir = cwd.replace(/\\/g, '/');
 const prefix = frontendDir.startsWith(repoRoot) ? `${frontendDir.slice(repoRoot.length + 1)}/` : '';
 
-const base = resolveBase();
+const { base, fallback } = resolveBase();
+if (fallback === 'HEAD') {
+  console.warn(
+    '[check:changed] WARNING: no upstream and no origin/main; base=HEAD makes the affected scope empty — gates may be vacuous.',
+  );
+}
 const changedSinceBase = git(['diff', '--name-only', '--diff-filter=ACMR', base]).split(/\r?\n/);
 const untracked = git(['ls-files', '--others', '--exclude-standard', '--full-name']).split(/\r?\n/);
 const changed = [...new Set([...changedSinceBase, ...untracked])]
