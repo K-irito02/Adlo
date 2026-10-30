@@ -11,6 +11,7 @@ const t = {
   dshSettingsTestErrorHttp: '下载源返回 HTTP {status}',
   dshSettingsAutoDetectFailed: '自动检测失败，已保留当前下载源',
   dshSettingsAutoDetectFailedProxy: '自动检测失败：代理不可用（{proxy}），已保留当前下载源',
+  dshSettingsAutoDetectFailedViaProxy: '自动检测失败：经代理 {proxy} 连接失败，已保留当前下载源',
 } as unknown as CopyDict;
 
 describe('probeError', () => {
@@ -93,5 +94,57 @@ describe('probeError', () => {
       { reachable: false, latency_ms: null, error: 'x' },
     ]);
     expect(message).toBe('自动检测失败，已保留当前下载源');
+  });
+
+  it('reports the via-proxy cause when the proxy was reachable but the source failed', () => {
+    const message = describeDetectFailure(t, [
+      {
+        reachable: false,
+        latency_ms: null,
+        error: 'x',
+        error_kind: 'network',
+        proxy: 'http://proxy:8080',
+      },
+      { reachable: false, latency_ms: null, error: 'y' },
+    ]);
+    expect(message).toBe('自动检测失败：经代理 http://proxy:8080 连接失败，已保留当前下载源');
+  });
+
+  it('does not blame the proxy for http-kind failures', () => {
+    const message = describeDetectFailure(t, [
+      {
+        reachable: false,
+        latency_ms: null,
+        error: 'HTTP 403',
+        error_kind: 'http',
+        http_status: 403,
+        proxy: 'http://proxy:8080',
+      },
+      { reachable: false, latency_ms: null, error: 'y' },
+    ]);
+    expect(message).toBe('自动检测失败，已保留当前下载源');
+  });
+
+  it('handles the unknown kind and the unparseable proxy sentinel without leaking it', () => {
+    expect(describeProbeFailure(t, { reachable: false, latency_ms: null, error: 'x' })).toBe(
+      '网络错误',
+    );
+    expect(
+      describeProbeFailure(t, {
+        reachable: false,
+        latency_ms: null,
+        error: 'x',
+        error_kind: 'unknown',
+      }),
+    ).toBe('未知错误');
+    expect(
+      describeProbeFailure(t, {
+        reachable: false,
+        latency_ms: null,
+        error: 'x',
+        error_kind: 'proxy_unreachable',
+        proxy: '<unparseable>',
+      }),
+    ).toBe('代理不可用（未知错误）');
   });
 });

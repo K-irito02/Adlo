@@ -11,11 +11,20 @@ import type { DshTestResult } from '../../../shared/ipc/dsh';
  * 是代理软件关了还是下载源挂了。
  */
 
+/** 后端脱敏失败时回传的 `<unparseable>` 占位：任何界面文案都不得直接展示它。 */
+export function usableProxy(proxy: string | null | undefined): string | null {
+  if (!proxy || proxy === '<unparseable>') {
+    return null;
+  }
+  return proxy;
+}
+
 /** 单次探测失败的原因（测试连接按钮 / 自动检测共用）。 */
 export function describeProbeFailure(t: CopyDict, result: DshTestResult): string {
+  const proxy = usableProxy(result.proxy);
   if (result.error_kind === 'proxy_unreachable') {
     return formatT(t, 'dshSettingsTestErrorProxyUnreachable', {
-      proxy: result.proxy ?? t.dshSettingsTestErrorUnknown,
+      proxy: proxy ?? t.dshSettingsTestErrorUnknown,
     });
   }
   if (result.error_kind === 'http') {
@@ -23,9 +32,13 @@ export function describeProbeFailure(t: CopyDict, result: DshTestResult): string
       status: String(result.http_status ?? '-'),
     });
   }
+  if (result.error_kind === 'unknown') {
+    // 客户端构建失败等非网络原因：不要把「未知」说成网络错误。
+    return t.dshSettingsTestErrorUnknown;
+  }
   // 代理可用但请求仍失败：说明是「经代理连不上源」，与纯直连网络错误区分。
-  if (result.proxy) {
-    return formatT(t, 'dshSettingsTestErrorViaProxy', { proxy: result.proxy });
+  if (proxy) {
+    return formatT(t, 'dshSettingsTestErrorViaProxy', { proxy });
   }
   return t.dshSettingsTestErrorNetwork;
 }
@@ -38,9 +51,23 @@ export function describeDetectFailure(
   t: CopyDict,
   results: readonly (DshTestResult | null | undefined)[],
 ): string {
-  const proxy = results.find((result) => result?.error_kind === 'proxy_unreachable')?.proxy ?? null;
-  if (proxy) {
-    return formatT(t, 'dshSettingsAutoDetectFailedProxy', { proxy });
+  const failed = results.filter((result): result is DshTestResult => !!result && !result.reachable);
+  const unreachable = failed.find((result) => result.error_kind === 'proxy_unreachable');
+  const unreachableProxy = usableProxy(unreachable?.proxy);
+  if (unreachableProxy) {
+    return formatT(t, 'dshSettingsAutoDetectFailedProxy', { proxy: unreachableProxy });
+  }
+  // 「经代理连接失败」只适用于网络类失败：HTTP 4xx/5xx 与客户端错误都不能甩锅给代理。
+  const viaProxy = usableProxy(
+    failed.find(
+      (result) =>
+        result.error_kind !== 'http' &&
+        result.error_kind !== 'unknown' &&
+        usableProxy(result.proxy),
+    )?.proxy,
+  );
+  if (viaProxy) {
+    return formatT(t, 'dshSettingsAutoDetectFailedViaProxy', { proxy: viaProxy });
   }
   return t.dshSettingsAutoDetectFailed;
 }

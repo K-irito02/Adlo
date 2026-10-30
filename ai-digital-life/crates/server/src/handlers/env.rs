@@ -259,20 +259,34 @@ async fn status_inner(state: &ServerState) -> Result<serde_json::Value, AppError
     Ok(value)
 }
 
-/// 复用缓存的短超时探测 client；仅下载源配置变化时重建。
+/// 复用缓存的短超时探测 client；下载源配置或「自动回退直连」状态变化时重建。
+///
+/// 锁只在读/写缓存时短暂持有：客户端构建已变为 async（含代理预检），持锁跨 await
+/// 会让并发的 `/env/status` 串行等待。
 async fn probe_client(
     state: &ServerState,
     download: &adl_download_source::DownloadSourceConfig,
 ) -> Result<reqwest::Client, AppError> {
-    let key = serde_json::to_string(download).unwrap_or_default();
-    let mut slot = state.env_probe_client.lock().await;
-    if let Some((cached_key, client)) = slot.as_ref() {
-        if cached_key == &key {
-            return Ok(client.clone());
-        }
+    // 自动回退状态纳入 key：代理软件重新打开后（健康缓存 5s 过期）client 会重建为
+    // 走代理，而不是永久沿用 `no_proxy()` 的旧实例。只有 Auto 需要探测代理端点，
+    // 其余模式不得为此多付一次预检延迟。
+    let fallback = if matches!(download.proxy.mode, adl_download_source::ProxyMode::Auto) {
+        adl_download_source::proxy_health(download).await.auto_fallback
+    } else {
+        false
+    };
+    let key = format!("{}|fallback={fallback}", serde_json::to_string(download).unwrap_or_default());
+    if let Some(client) = {
+        let slot = state.env_probe_client.lock().await;
+        slot.as_ref().and_then(|(cached_key, client)| {
+            (cached_key == &key).then(|| client.clone())
+        })
+    } {
+        return Ok(client);
     }
-    let client = adl_download_source::build_http_client_with_timeout(download, PROBE_TIMEOUT).await?;
-    *slot = Some((key, client.clone()));
+    let client =
+        adl_download_source::build_http_client_with_timeout(download, PROBE_TIMEOUT).await?;
+    *state.env_probe_client.lock().await = Some((key, client.clone()));
     Ok(client)
 }
 

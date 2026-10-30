@@ -1503,12 +1503,16 @@
 }
 
 /* 「自动检测」真实状态提示行：与 DSH 组提示小字同色（压暗蓝，用户批准）。
-   挂在设置项标题下方的描述小字区，只在自动检测且真实状态已知时渲染。 */
-.adl-settings-auto-note {
+   挂在设置项标题下方的描述小字区，只在自动检测且真实状态已知时渲染。
+   选择器必须带 `.adl-settings-row__label small` 前缀：通用行小字规则（settings.css
+   的 `.adl-settings-row__label small`，0-1-1）会以更高特异性覆盖单纯的类选择器
+   （0-1-0），导致亮色主题下变成灰色（与 harness-version.css 记录的同类坑一致）。
+   所有 AutoResolvedNote 宿主都在 label 区，故不再保留无前缀的裸类选择器。 */
+.adl-settings-row__label small.adl-settings-auto-note {
   color: color-mix(in srgb, var(--accent) 72%, var(--text-secondary));
 }
 
-[data-theme='dark'] .adl-settings-auto-note {
+[data-theme='dark'] .adl-settings-row__label small.adl-settings-auto-note {
   color: color-mix(in srgb, var(--accent) 62%, var(--text-muted));
 }
 

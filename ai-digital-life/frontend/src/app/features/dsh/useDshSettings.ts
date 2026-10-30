@@ -9,8 +9,11 @@ import { useDshSourceSwitch } from './useDshSourceSwitch';
 import { VERSION_TOAST_MS } from './dshVersionRuntime';
 
 /**
- * DSH 设置组的状态编排：运行态轮询、聚合信号、auto→宿主兜底、来源切换对话框
- * 与组级恢复。渲染交给 `DshSettings` 与子组件，hook 本身不返回 JSX。
+ * DSH 设置组的状态编排：运行态轮询、聚合信号、来源切换对话框与组级恢复。
+ * 渲染交给 `DshSettings` 与子组件，hook 本身不返回 JSX。
+ *
+ * 历史注意：这里曾有「auto→宿主」自动兜底写入，已于 2026-10-30 移除（见下方说明），
+ * 版本来源永远只由用户显式改动。
  */
 export function useDshSettings() {
   const { t } = useTCopy();
@@ -19,7 +22,6 @@ export function useDshSettings() {
   const showToast = useAppStore((s) => s.showToast);
   const setDshBlocksAtDefault = useAppStore((s) => s.setDshBlocksAtDefault);
   const deferredSource = useAppStore((s) => s.dshVersionSourceDeferred);
-  const pendingSource = useAppStore((s) => s.dshVersionSourcePending);
   const dshFastPoll = useAppStore((s) => s.dshRestarting || s.sourceStatus?.starting === true);
 
   // 卸载兜底：pending 置位后若组件在消费前卸载，清信号避免下次挂载「迟到弹窗」。
@@ -94,12 +96,14 @@ export function useDshSettings() {
   const mode: DshVersionSourceMode =
     versionSource?.mode ?? sourceStatus?.config.version_source ?? 'auto';
   const resolvedSource = versionSource?.resolvedByMode?.[mode] ?? null;
-  // 运行时实际来源（可能为 running）：自动检测下如果外部已有助手在跑，蓝色状态行
-  // 应显示「正在运行」，而不是偏好解析出的「无可用版本」。
+  // 运行时实际来源（可能为 running）：外部进程在跑时状态行显示「运行中」，
+  // 应用自启的托管版本仍按偏好来源显示宿主托管/系统安装。
   const effectiveSource = versionSource?.effective ?? null;
-  // 显隐：配置为系统 / 偏好解析落在系统 / 待切换为系统，任一成立即视为系统托管。
-  const systemManaged =
-    mode === 'system' || resolvedSource === 'system' || pendingSource === 'system';
+  const runningSource = sourceStatus?.running?.source ?? null;
+  // 显隐：配置为系统 / 偏好解析落在系统 → 视为系统托管。
+  // 注意：这里**不**包含「待切换为系统」（pending）—— 下次启动才生效时，现在实际
+  // 用的仍是原来源，蓝色状态行与系统托管说明不能提前声称已是系统安装。
+  const systemManaged = mode === 'system' || resolvedSource === 'system';
 
   return {
     t,
@@ -109,6 +113,7 @@ export function useDshSettings() {
     systemManaged,
     resolvedSource,
     effectiveSource,
+    runningSource,
     mode,
     sourceSwitch,
     groupReset,

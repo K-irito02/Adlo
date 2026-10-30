@@ -506,7 +506,11 @@ export function EnvDepRow({
           </div>
           <small>{descText}</small>
           {/* 自动检测的背后真实状态（蓝色提示行）：下拉仍是「自动检测」。 */}
-          {section !== null && section.mode === 'auto' && section.effective !== 'none' ? (
+          {section !== null &&
+          section.mode === 'auto' &&
+          section.effective !== 'none' &&
+          !compact &&
+          OPERABLE_DEP_SET.has(dep) ? (
             <AutoResolvedNote>
               {formatT(t, 'settingsAutoResolved', {
                 value:

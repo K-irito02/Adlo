@@ -5,7 +5,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { executeNetworkResetPlan, NPMJS_URL } from '@shared/settings-reset/networkReset';
 import { NPMMIRROR_URL, pickFastestSource } from './sourceAutoDetect';
-import { describeDetectFailure, describeProbeFailure } from './probeError';
+import { describeDetectFailure, describeProbeFailure, usableProxy } from './probeError';
 import { AutoResolvedNote } from '@components/settings/AutoResolvedNote';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { StaticResetSpacer } from '../../components/settings/StaticResetSpacer';
@@ -650,26 +650,30 @@ export function NetworkSettings() {
 
   // 「自动检测」的背后真实状态（蓝色提示行）：仅在自动模式且状态已知时渲染。
   // 代理：端点可达则显示端点，不可达时后端已静默回退直连（下拉仍是「自动检测」）。
+  // 同时要求「草稿模式 = 已落盘模式」：刚切到自动检测、落盘尚未完成时，
+  // `proxyEffective` 还是上一份配置的结果，先不显示，避免短暂说错端点。
   const proxyResolvedNote = (() => {
-    if (proxyMode !== 'auto') {
-      return null;
-    }
     const info = sourceStatus?.proxyEffective;
-    if (!info) {
+    if (proxyMode !== 'auto' || sourceStatus?.config.proxy.mode !== 'auto' || !info) {
       return null;
     }
     if (info.autoFallback) {
-      return formatT(t, 'dshSettingsProxyAutoFallback', { proxy: info.endpoint ?? '—' });
+      const endpoint = usableProxy(info.endpoint);
+      return endpoint
+        ? formatT(t, 'dshSettingsProxyAutoFallback', { proxy: endpoint })
+        : t.dshSettingsProxyAutoInvalid;
     }
-    if (info.endpoint) {
-      return formatT(t, 'dshSettingsProxyResolved', { proxy: info.endpoint });
+    const endpoint = usableProxy(info.endpoint);
+    if (endpoint) {
+      return formatT(t, 'dshSettingsProxyResolved', { proxy: endpoint });
     }
     return t.dshSettingsProxyAutoDirect;
   })();
 
-  // 下载源：自动检测实际写回的 registry 就是「当前实际使用」的来源。
+  // 下载源：自动检测实际写回的 registry 就是「当前实际使用」的来源；同样要求
+  // 已落盘的 source_mode 也是 auto，避免切换瞬间读到上一份 registry。
   const sourceResolvedNote = (() => {
-    if (sourceType !== 'auto' || !sourceStatus) {
+    if (sourceType !== 'auto' || sourceStatus?.config.source_mode !== 'auto') {
       return null;
     }
     const registry = sourceStatus.config.npm_registry;

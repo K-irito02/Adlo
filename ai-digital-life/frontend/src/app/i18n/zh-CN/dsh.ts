@@ -30,8 +30,9 @@ export const dshZh = {
   dshSettingsProxyHint:
     '“自动检测”跟随系统设置，检测到的代理不可用时自动改为直连；“自定义”手动填写代理地址；“关闭”表示直连，不走代理',
   dshSettingsProxyResolved: '当前实际使用：{proxy}',
-  dshSettingsProxyAutoDirect: '未检测到代理，当前直连',
+  dshSettingsProxyAutoDirect: '未检测到环境代理，跟随系统设置',
   dshSettingsProxyAutoFallback: '代理 {proxy} 不可用，已自动改为直连',
+  dshSettingsProxyAutoInvalid: '代理设置无效，已自动改为直连',
   dshSettingsProxyHttp: 'HTTP 代理',
   dshSettingsProxyHttps: 'HTTPS 代理',
   dshSettingsProxyNoProxy: '直连名单',
@@ -55,6 +56,7 @@ export const dshZh = {
   dshSettingsAutoDetected: '已自动选择 {source}',
   dshSettingsAutoDetectFailed: '自动检测失败，已保留当前下载源',
   dshSettingsAutoDetectFailedProxy: '自动检测失败：代理不可用（{proxy}），已保留当前下载源',
+  dshSettingsAutoDetectFailedViaProxy: '自动检测失败：经代理 {proxy} 连接失败，已保留当前下载源',
   dshVersionManagement: 'DeepSeek Harness 版本管理',
   dshVersionManagementHint:
     '管理助手要用的版本。\n· 自动检测会优先用正在跑的，再用本应用安装的，最后看你电脑里装的\n· 在下面安装、切换或卸载，完成后助手会自动重启，不用你手动操作',
@@ -67,7 +69,7 @@ export const dshZh = {
   dshVersionStateFailed: '状态读取失败',
   dshVersionSourceDesc: '选择助手版本的来源',
   dshVersionSourceHint:
-    '决定优先使用哪一个助手。自动检测的优先级：正在运行的助手 → 本应用装好的版本（宿主托管）→ 你电脑上安装的版本（系统安装）。\n· 下拉框始终显示你的选择（自动检测／系统安装／宿主托管）；它下方那行蓝色小字是自动检测实际解析到的来源，方便你确认。\n· 下方的“检查更新、正式版本、预发布版本”是否显示，代表本应用当前是否能管理版本：显示即可在这里安装、切换、卸载或重装；只有“系统安装”实际生效时才隐藏（此时版本由你自己维护，旁边会有一行说明）。',
+    '决定优先使用哪一个助手。自动检测的优先级：正在运行的助手 → 本应用装好的版本（宿主托管）→ 你电脑上安装的版本（系统安装）。\n· 下拉框始终显示你的选择（自动检测／系统安装／宿主托管）；它下方那行蓝色小字是自动检测实际解析到的来源，方便你确认。\n· 下方的“检查更新、正式版本、预发布版本”是否显示，代表本应用当前是否能管理版本：显示即可在这里安装、切换、卸载或重装；只有“系统安装”实际生效、或已设定「下次启动生效」切到系统安装时才隐藏（此时版本由你自己维护，旁边会有一行说明）。',
   dshVersionSourceSwitchDialogTitle: '切换版本来源',
   dshVersionSourceSwitchDialogMessage:
     '切换到“{target}”会改变助手的版本来源：\n· 立即生效：马上切换；助手正在运行时会重启，未运行时将按新来源启动。\n· 下次启动生效：本次继续使用当前来源，下次打开本应用时再切换。\n· 取消：保持当前来源，不做任何改动。',
@@ -84,7 +86,7 @@ export const dshZh = {
   dshVersionSourceDeferredNote: '已设为下次启动生效，本次仍使用当前来源。',
   dshSystemMissing: '未检测到系统安装，无法切换到系统安装。',
   dshSystemManagedNote:
-    '当前使用的是你自己安装的助手（系统安装），本应用不会修改它。\n· 想在这里安装、切换或卸载版本，请把“版本来源”从“系统安装”改为“宿主托管”；切换来源时会弹出确认框，由你选择立即生效或下次启动生效。\n· 选“立即生效”会马上切换（助手正在运行时会重启），管理项随即恢复显示；选“下次启动生效”则本次保持现状，管理项在下次启动完成切换前保持隐藏。',
+    '当前使用的是你自己安装的助手（系统安装），本应用不会修改它。\n· 想在这里安装、切换或卸载版本，请把“版本来源”改为“宿主托管”；切换来源时会弹出确认框，由你选择立即生效或下次启动生效。\n· 选“立即生效”会马上切换（助手正在运行时会重启），管理项随即恢复显示；选“下次启动生效”则本次保持现状，管理项在下次启动完成切换前保持隐藏。',
   dshNoSourceHostNote:
     '“宿主托管”下没有可用的助手版本，助手将无法拉起。请在下面安装或选择一个版本，或把“版本来源”切换回有版本的来源。',
   dshNoSourceAutoNote: '没有任何可用的助手版本，助手将无法拉起。请在下方安装一个版本。',

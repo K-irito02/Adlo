@@ -30,8 +30,9 @@ export const dshEn = {
   dshSettingsProxyHint:
     '"Auto Detect" follows the system settings and silently switches to a direct connection when the detected proxy is unavailable; "Custom" uses the addresses you fill in; "Off" connects directly without a proxy',
   dshSettingsProxyResolved: 'Currently using: {proxy}',
-  dshSettingsProxyAutoDirect: 'No proxy detected; connecting directly',
+  dshSettingsProxyAutoDirect: 'No environment proxy detected; following the system settings',
   dshSettingsProxyAutoFallback: 'Proxy {proxy} is unavailable; switched to a direct connection',
+  dshSettingsProxyAutoInvalid: 'Invalid proxy setting; switched to a direct connection',
   dshSettingsProxyHttp: 'HTTP Proxy',
   dshSettingsProxyHttps: 'HTTPS Proxy',
   dshSettingsProxyNoProxy: 'No-proxy list',
@@ -57,6 +58,8 @@ export const dshEn = {
   dshSettingsAutoDetectFailed: 'Auto-detection failed; current source kept',
   dshSettingsAutoDetectFailedProxy:
     'Auto-detection failed: proxy {proxy} is unavailable; current source kept',
+  dshSettingsAutoDetectFailedViaProxy:
+    'Auto-detection failed: proxy {proxy} could not connect; current source kept',
   dshVersionManagement: 'DeepSeek Harness version management',
   dshVersionManagementHint:
     'Manage the assistant versions.\n· Auto detect prefers the running one, then a version this app installed, then your system install\n· Install, switch or uninstall below; the assistant restarts automatically',
@@ -69,7 +72,7 @@ export const dshEn = {
   dshVersionStateFailed: 'Failed to read state',
   dshVersionSourceDesc: 'Choose where the assistant version comes from',
   dshVersionSourceHint:
-    'Decides which assistant to prefer. Auto detect resolves in this order: a running assistant → a version this app installed (host-managed) → a version installed on your computer (system install).\n· The dropdown always shows your choice (Auto detect / System install / Host-managed); the blue line under it tells you which source auto detect actually resolved to.\n· Whether the “Check for updates”, “Stable releases” and “Prerelease versions” rows are visible tells you whether this app can manage versions: visible means you can install, switch, uninstall or reinstall here; hidden only when the system install is actually in effect (you maintain that copy yourself, and a note explains it).',
+    'Decides which assistant to prefer. Auto detect resolves in this order: a running assistant → a version this app installed (host-managed) → a version installed on your computer (system install).\n· The dropdown always shows your choice (Auto detect / System install / Host-managed); the blue line under it tells you which source auto detect actually resolved to.\n· Whether the “Check for updates”, “Stable releases” and “Prerelease versions” rows are visible tells you whether this app can manage versions: visible means you can install, switch, uninstall or reinstall here; hidden only when the system install is actually in effect or a “next launch” switch to it is pending (you maintain that copy yourself, and a note explains it).',
   dshVersionSourceSwitchDialogTitle: 'Switch version source',
   dshVersionSourceSwitchDialogMessage:
     'Switching to “{target}” changes where the assistant version comes from:\n· Apply now: switch immediately; the assistant restarts if it is running, or starts from the new source if it is not.\n· Apply next launch: keep the current source for this session and switch the next time this app starts.\n· Cancel: keep the current source and change nothing.',
@@ -87,7 +90,7 @@ export const dshEn = {
     'Will apply next launch; the current source is still in use this session.',
   dshSystemMissing: 'No system install found; cannot switch to system install.',
   dshSystemManagedNote:
-    'The assistant currently in use was installed by you (system install), and this app will not modify it.\n· To install, switch or uninstall versions here, change “Version source” from “System install” to “Host-managed”; every source switch opens a confirm dialog where you choose apply now or apply next launch.\n· “Apply now” switches immediately (restarting the assistant if it is running), bringing the management rows back; “Apply next launch” keeps things as they are for this session, and the management rows stay hidden until the next launch completes the switch.',
+    'The assistant currently in use was installed by you (system install), and this app will not modify it.\n· To install, switch or uninstall versions here, set “Version source” to “Host-managed”; every source switch opens a confirm dialog where you choose apply now or apply next launch.\n· “Apply now” switches immediately (restarting the assistant if it is running), bringing the management rows back; “Apply next launch” keeps things as they are for this session, and the management rows stay hidden until the next launch completes the switch.',
   dshNoSourceHostNote:
     'No assistant version is available under “Host-managed”, so the assistant cannot start. Install or pick a version below, or switch “Version source” back to a source that has one.',
   dshNoSourceAutoNote:

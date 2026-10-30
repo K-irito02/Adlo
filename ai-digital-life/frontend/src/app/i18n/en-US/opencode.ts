@@ -14,7 +14,7 @@ export const opencodeEn = {
   opencodeSourceSystem: 'System install',
   opencodeSourceHost: 'Host-managed',
   opencodeSystemManagedNote:
-    'The version in use is your own system install; the app never modifies it.\n· To install, switch or uninstall here, change "Version source" from "System install" to "Host-managed".',
+    'The version in use is your own system install; the app never modifies it.\n· To install, switch or uninstall here, set "Version source" to "Host-managed".',
   opencodeNoSourceHostNote:
     'No usable version under "Host-managed"; new terminal sessions will not have the opencode command. Install a version below or switch "Version source" back to a source that has one.',
   opencodeNoSourceAutoNote:

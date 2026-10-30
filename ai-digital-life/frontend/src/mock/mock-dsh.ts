@@ -56,8 +56,6 @@ const sourceStatus: DshSourceStatus = {
   },
   proxyEffective: {
     endpoint: null,
-    reachable: true,
-    usingDirect: true,
     autoFallback: false,
   },
 };

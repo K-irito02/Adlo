@@ -586,6 +586,29 @@ describe('DshSettings', () => {
 
   it('自动检测在没有任何版本时保持「自动检测」，不再被兜底改写成宿主托管', async () => {
     seedDshBridge();
+    const status = makeStatus();
+    useAppStore.setState({
+      sourceStatus: {
+        ...status,
+        versionSource: {
+          mode: 'auto',
+          effective: 'none',
+          resolvedByMode: { auto: 'none', host: 'none', system: 'none' },
+          hostVersion: null,
+        },
+      },
+      versionStatus: makeVersionStatus({ currentSelected: null, installed: [] }),
+    });
+    renderSettings();
+    // 旧兜底会在挂载后自动写盘 host；给足 effect 窗口再断言从未发生。
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    });
+    expect(saveSourceConfig).not.toHaveBeenCalledWith({ version_source: 'host' }, true);
+  });
+
+  it('切换版本来源到自动检测时只写 auto，不回写宿主托管', async () => {
+    seedDshBridge();
     const status = makeStatus({ version_source: 'host' });
     useAppStore.setState({
       sourceStatus: {
@@ -612,6 +635,28 @@ describe('DshSettings', () => {
     );
     // 旧兜底会把 auto 改写为 host；现在不许再出现这次写入。
     expect(saveSourceConfig).not.toHaveBeenCalledWith({ version_source: 'host' }, true);
+  });
+
+  it('「下次启动生效」切到系统安装：不提前声称系统托管，仍显示当前来源', async () => {
+    const status = makeStatus();
+    useAppStore.setState({
+      sourceStatus: {
+        ...status,
+        versionSource: {
+          mode: 'auto',
+          effective: 'host',
+          resolvedByMode: { auto: 'host', host: 'host', system: 'system' },
+          hostVersion: '0.1.0',
+        },
+      },
+      versionStatus: makeVersionStatus(),
+      dshVersionSourcePending: 'system',
+      dshVersionSourceDeferred: true,
+    });
+    renderSettings();
+    await waitFor(() => expect(document.querySelector('[data-settings-auto-note]')).not.toBeNull());
+    expect(screen.queryByText('dshSystemManagedNote')).toBeNull();
+    expect(screen.getByText('dshVersionSourceDeferredNote')).not.toBeNull();
   });
 
   it('无可用来源时管理项保持可见，并保留「宿主托管无版本」提示', async () => {

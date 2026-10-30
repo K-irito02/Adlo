@@ -203,8 +203,8 @@ pub async fn build_http_client_with_timeout(
                 let proxy = reqwest::Proxy::custom(move |url| {
                     let host = url.host_str().unwrap_or("");
                     let skip = no_proxy
-                        .as_ref()
-                        .map(|np| np.split(',').any(|p| !p.is_empty() && host.contains(p.trim())))
+                        .as_deref()
+                        .map(|np| no_proxy_matches(np, &host.to_ascii_lowercase()))
                         .unwrap_or(false);
                     if skip {
                         None
@@ -276,6 +276,29 @@ fn no_proxy_matches(no_proxy: &str, host: &str) -> bool {
         })
 }
 
+/// Auto 模式下 reqwest 会采用的代理端点：scheme 专用优先，`ALL_PROXY` 兜底。
+///
+/// 两个解析口（这里与 [`resolve_proxy_url`]）必须同序，否则「回退判定用的代理」
+/// 与「真实请求用的代理」可能不是同一个。空字符串按「未设置」处理并继续回退到
+/// `ALL_PROXY`（与 hyper-util 的语义一致）。
+fn proxy_from_env(
+    get: impl Fn(&str) -> Option<String>,
+    is_https: bool,
+) -> Option<String> {
+    let normalized = |raw: Option<String>| {
+        raw.map(|p| p.trim().to_string()).filter(|p| !p.is_empty())
+    };
+    let scheme_specific = if is_https { get("HTTPS_PROXY") } else { get("HTTP_PROXY") };
+    normalized(scheme_specific).or_else(|| normalized(get("ALL_PROXY")))
+}
+
+fn env_proxy_for_scheme(is_https: bool) -> Option<String> {
+    let get = |name: &str| {
+        std::env::var(name).ok().or_else(|| std::env::var(name.to_ascii_lowercase()).ok())
+    };
+    proxy_from_env(get, is_https)
+}
+
 /// 本次请求实际会走的代理端点（原始值，可能含凭据；对外展示前必须脱敏）。
 ///
 /// Auto 按 reqwest `system-proxy` 的环境变量口径复刻（scheme 专用优先，`ALL_PROXY`
@@ -292,24 +315,25 @@ fn resolve_proxy_url(config: &DownloadSourceConfig, url: &str) -> Option<String>
             if no_proxy_matches(config.proxy.no_proxy.as_deref().unwrap_or(""), &host) {
                 return None;
             }
+            // 与 `build_http_client` 的 Manual 分支逐字段一致：https 只认 https_proxy，
+            // http 只认 http_proxy（不做跨字段回退，否则探针会报真实客户端没用的端点）。
             if is_https {
-                config.proxy.https_proxy.clone().or_else(|| config.proxy.http_proxy.clone())
+                config.proxy.https_proxy.clone()
             } else {
-                config.proxy.http_proxy.clone().or_else(|| config.proxy.https_proxy.clone())
+                config.proxy.http_proxy.clone()
             }
         },
         ProxyMode::Auto => {
-            let env = |name: &str| {
-                std::env::var(name)
+            if no_proxy_matches(
+                &std::env::var("NO_PROXY")
                     .ok()
-                    .or_else(|| std::env::var(name.to_ascii_lowercase()).ok())
-            };
-            if no_proxy_matches(&env("NO_PROXY").unwrap_or_default(), &host) {
+                    .or_else(|| std::env::var("no_proxy").ok())
+                    .unwrap_or_default(),
+                &host,
+            ) {
                 return None;
             }
-            let scheme_specific =
-                if is_https { env("HTTPS_PROXY") } else { env("HTTP_PROXY") };
-            scheme_specific.or_else(|| env("ALL_PROXY"))
+            env_proxy_for_scheme(is_https)
         },
     };
     picked.map(|p| p.trim().to_string()).filter(|p| !p.is_empty())
@@ -358,7 +382,7 @@ fn store_proxy_reachable(endpoint: &str, ok: bool) {
 }
 
 /// 带缓存的代理端点可达性（`build_http_client` / 探针 / source-status 共用）。
-pub async fn proxy_endpoint_reachable_cached(endpoint: &str) -> bool {
+async fn proxy_endpoint_reachable_cached(endpoint: &str) -> bool {
     if let Some(ok) = cached_proxy_reachable(endpoint) {
         return ok;
     }
@@ -367,16 +391,14 @@ pub async fn proxy_endpoint_reachable_cached(endpoint: &str) -> bool {
     ok
 }
 
-/// `ProxyMode::Auto` 下 reqwest 会采用的环境代理端点（优先级：ALL_PROXY → HTTPS → HTTP）。
+/// `ProxyMode::Auto` 下用于「回退判定」的代理端点。
+///
+/// 客户端同时服务 http/https；registry/下载流量几乎全是 https，故按 https 口径
+/// 取（HTTPS_PROXY → ALL_PROXY），与 `resolve_proxy_url` 对 https 目标的结果一致。
+/// 注意：Windows 注册表里的系统代理这里读不到（reqwest 内部会读），这类环境只能
+/// 归为「未检测到环境代理」，界面文案不得断言「已直连」。
 fn env_proxy_endpoint() -> Option<String> {
-    let env = |name: &str| {
-        std::env::var(name).ok().or_else(|| std::env::var(name.to_ascii_lowercase()).ok())
-    };
-    env("ALL_PROXY")
-        .or_else(|| env("HTTPS_PROXY"))
-        .or_else(|| env("HTTP_PROXY"))
-        .map(|p| p.trim().to_string())
-        .filter(|p| !p.is_empty())
+    env_proxy_for_scheme(true)
 }
 
 /// 代理生效状态（供设置面板显示「背后真实状态」；端点已脱敏）。
@@ -385,47 +407,51 @@ fn env_proxy_endpoint() -> Option<String> {
 pub struct ProxyHealth {
     /// 实际使用的代理端点；直连为 None。
     pub endpoint: Option<String>,
-    /// 端点可达性（直连恒 true）。
-    pub reachable: bool,
-    /// 本次请求是否会绕过代理（模式=关闭，或自动检测回退直连）。
-    pub using_direct: bool,
     /// 自动检测因代理不可达而回退直连（界面据此显示「已自动改为直连」）。
     pub auto_fallback: bool,
 }
 
+/// `proxy_health` 的判定目标：用用户配置的下载源（含 scheme / NO_PROXY 语义），
+/// 不再硬编码 npmjs；配置值不可解析时退回官方源。
+fn health_target(config: &DownloadSourceConfig) -> String {
+    let registry = config.npm_registry.trim().trim_end_matches('/');
+    if reqwest::Url::parse(registry).is_ok() {
+        format!("{registry}/")
+    } else {
+        "https://registry.npmjs.org/".to_string()
+    }
+}
+
 /// 计算当前代理的真实生效状态（含自动检测回退判定）。
+///
+/// `endpoint` 按**目标源**解析（含 scheme / NO_PROXY），用于状态行展示；
+/// `auto_fallback` 必须按**全局**端点判定 —— `build_http_client` 是 client 级决策
+/// （https 端点不可达即整个 client `no_proxy()`），否则 http 源会显示成「已回退」
+/// 而真实请求并没有。
 pub async fn proxy_health(config: &DownloadSourceConfig) -> ProxyHealth {
+    let target = health_target(config);
+    let endpoint = resolve_proxy_url(config, &target);
+    let endpoint_label = endpoint.as_deref().map(redact_proxy_endpoint);
     match config.proxy.mode {
-        ProxyMode::None => ProxyHealth {
-            endpoint: None,
-            reachable: true,
-            using_direct: true,
-            auto_fallback: false,
-        },
-        ProxyMode::Manual => {
-            let endpoint = resolve_proxy_url(config, "https://registry.npmjs.org/");
-            let reachable = match endpoint.as_deref() {
-                Some(endpoint) => proxy_endpoint_reachable_cached(endpoint).await,
-                None => true,
-            };
-            ProxyHealth {
-                endpoint: endpoint.as_deref().map(redact_proxy_endpoint),
-                reachable,
-                using_direct: endpoint.is_none(),
-                auto_fallback: false,
-            }
-        },
+        ProxyMode::None => ProxyHealth { endpoint: None, auto_fallback: false },
+        ProxyMode::Manual => ProxyHealth { endpoint: endpoint_label, auto_fallback: false },
         ProxyMode::Auto => {
-            let endpoint = env_proxy_endpoint();
-            let reachable = match endpoint.as_deref() {
-                Some(endpoint) => proxy_endpoint_reachable_cached(endpoint).await,
-                None => true,
+            let global = env_proxy_endpoint();
+            // 回退只在「目标确实会走代理」且「全局端点确实不可达」时才成立：
+            // 命中 NO_PROXY 的目标本来就直连，也不必为它多付一次端点预检。
+            let auto_fallback = match (endpoint.as_deref(), global.as_deref()) {
+                (Some(_), Some(global)) => !proxy_endpoint_reachable_cached(global).await,
+                _ => false,
             };
             ProxyHealth {
-                endpoint: endpoint.as_deref().map(redact_proxy_endpoint),
-                reachable,
-                using_direct: endpoint.is_none() || !reachable,
-                auto_fallback: endpoint.is_some() && !reachable,
+                // 回退提示必须点名真正不可达的那个端点（全局 https 口径），
+                // 而不是目标各自解析出的、可能仍然存活的 http 代理。
+                endpoint: if auto_fallback {
+                    global.as_deref().map(redact_proxy_endpoint)
+                } else {
+                    endpoint_label
+                },
+                auto_fallback,
             }
         },
     }
@@ -445,26 +471,28 @@ pub async fn test_source(
     let mut proxy_label = proxy_url.as_deref().map(redact_proxy_endpoint);
 
     // 代理端点在、但端口不通（代理软件没开/地址写错）：
-    // - 手动模式：直接归因代理，不让用户去怀疑下载源；
-    // - 自动模式：静默回退直连（与 `build_http_client` 同一策略），探针结论
-    //   反映的是回退后真实会发生的结果，`proxy` 置 None 表示本次未走代理。
-    if let Some(proxy) = proxy_url.as_deref() {
-        if !proxy_endpoint_reachable_cached(proxy).await {
-            if config.proxy.mode == ProxyMode::Auto {
+    // - 自动模式：客户端是**全局**决策（https 端点不可达 → 整个 client `no_proxy()`），
+    //   探针必须镜像同一决策，否则 `proxy` 字段会声称走了代理而真实请求已直连；
+    // - 手动模式：直接归因代理，不让用户去怀疑下载源。
+    if config.proxy.mode == ProxyMode::Auto {
+        if let Some(global) = env_proxy_endpoint() {
+            if !proxy_endpoint_reachable_cached(&global).await {
                 proxy_label = None;
-            } else {
-                return SourceStatus {
-                    reachable: false,
-                    latency_ms: None,
-                    error: Some(format!(
-                        "proxy endpoint unreachable: {}",
-                        proxy_label.as_deref().unwrap_or("<unparseable>")
-                    )),
-                    error_kind: Some(SourceErrorKind::ProxyUnreachable),
-                    proxy: proxy_label,
-                    http_status: None,
-                };
             }
+        }
+    } else if let Some(proxy) = proxy_url.as_deref() {
+        if !proxy_endpoint_reachable_cached(proxy).await {
+            return SourceStatus {
+                reachable: false,
+                latency_ms: None,
+                error: Some(format!(
+                    "proxy endpoint unreachable: {}",
+                    proxy_label.as_deref().unwrap_or("<unparseable>")
+                )),
+                error_kind: Some(SourceErrorKind::ProxyUnreachable),
+                proxy: proxy_label,
+                http_status: None,
+            };
         }
     }
 
@@ -500,7 +528,11 @@ pub async fn test_source(
         Err(e) => SourceStatus {
             reachable: false,
             latency_ms: None,
-            error: Some(e.to_string()),
+            // 原始错误只进日志（界面用 error_kind 的本地化文案）；避免用户看到英文内部错误。
+            error: Some({
+                tracing::debug!(url, error = %e, "download-source: probe request failed");
+                e.to_string()
+            }),
             error_kind: Some(SourceErrorKind::Network),
             proxy: proxy_label,
             http_status: None,
@@ -766,13 +798,15 @@ mod tests {
         assert!(!status.error.unwrap_or_default().contains("secret"));
     }
 
-    /// 手动代理 + 直连名单：命中名单的 host 必须直连（不归因代理）。
+    /// 手动代理 + 直连名单：命中名单的 host 必须直连；https 只认 https_proxy
+    ///（与真实客户端一致，不做跨字段回退）。
     #[test]
-    fn manual_proxy_resolution_respects_no_proxy() {        let config = DownloadSourceConfig {
+    fn manual_proxy_resolution_respects_no_proxy() {
+        let config = DownloadSourceConfig {
             proxy: ProxyConfig {
                 mode: ProxyMode::Manual,
                 http_proxy: Some("http://proxy.internal:8080".into()),
-                https_proxy: None,
+                https_proxy: Some("http://secure.internal:8443".into()),
                 no_proxy: Some("localhost,.internal".into()),
             },
             ..Default::default()
@@ -780,20 +814,92 @@ mod tests {
 
         assert_eq!(
             resolve_proxy_url(&config, "https://registry.npmjs.org/@deepseek-ai/dsh").as_deref(),
+            Some("http://secure.internal:8443")
+        );
+        assert_eq!(
+            resolve_proxy_url(&config, "http://registry.npmjs.org/x").as_deref(),
             Some("http://proxy.internal:8080")
         );
         assert_eq!(resolve_proxy_url(&config, "https://api.internal/x"), None);
+
+        // 只有 http_proxy 时，https 目标直连（客户端不会把 http 代理套到 https 上）。
+        let only_http = DownloadSourceConfig {
+            proxy: ProxyConfig {
+                mode: ProxyMode::Manual,
+                http_proxy: Some("http://proxy.internal:8080".into()),
+                https_proxy: None,
+                no_proxy: None,
+            },
+            ..Default::default()
+        };
+        assert_eq!(resolve_proxy_url(&only_http, "https://registry.npmjs.org/x"), None);
+    }
+
+    /// NO_PROXY 条目按「精确 host / 子域后缀」匹配，不做子串误伤。
+    #[test]
+    fn no_proxy_matching_is_exact_or_suffix() {
+        assert!(no_proxy_matches("localhost,127.0.0.1", "localhost"));
+        assert!(no_proxy_matches(".internal", "api.internal"));
+        assert!(no_proxy_matches("*", "anything.example"));
+        assert!(!no_proxy_matches("10.0.0.1", "110.0.0.10"));
+        assert!(!no_proxy_matches("internal", "notinternal.example"));
+    }
+
+    /// 环境代理优先级：scheme 专用 > ALL_PROXY；空值视为未设置并继续回退。
+    #[test]
+    fn proxy_env_resolution_prefers_scheme_then_all_proxy() {
+        fn env_of(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
+            let owned: Vec<(String, String)> =
+                pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+            move |name: &str| {
+                owned.iter().find(|(key, _)| key == name).map(|(_, value)| value.clone())
+            }
+        }
+
+        assert_eq!(
+            proxy_from_env(
+                env_of(&[
+                    ("HTTPS_PROXY", "http://https.proxy:1"),
+                    ("ALL_PROXY", "http://all.proxy:2"),
+                ]),
+                true
+            )
+            .as_deref(),
+            Some("http://https.proxy:1")
+        );
+        assert_eq!(
+            proxy_from_env(
+                env_of(&[
+                    ("HTTPS_PROXY", "http://https.proxy:1"),
+                    ("ALL_PROXY", "http://all.proxy:2"),
+                ]),
+                false
+            )
+            .as_deref(),
+            Some("http://all.proxy:2")
+        );
+        // 空格/空串按未设置处理，继续回退 ALL_PROXY（与 hyper-util 一致）。
+        assert_eq!(
+            proxy_from_env(
+                env_of(&[("HTTPS_PROXY", "   "), ("ALL_PROXY", "http://all.proxy:2")]),
+                true
+            )
+            .as_deref(),
+            Some("http://all.proxy:2")
+        );
+        assert_eq!(proxy_from_env(env_of(&[]), true), None);
     }
 
     /// 手动代理：真实状态如实报「不可达」，且不静默回退（用户显式选择应被尊重）。
+    /// `proxy_health` 用 https 目标解析，故这里配置 `https_proxy`。
     #[tokio::test]
     async fn proxy_health_manual_dead_proxy_does_not_fall_back() {
         let port = closed_local_port();
         let config = DownloadSourceConfig {
             proxy: ProxyConfig {
                 mode: ProxyMode::Manual,
-                http_proxy: Some(format!("http://127.0.0.1:{port}")),
-                https_proxy: None,
+                http_proxy: None,
+                https_proxy: Some(format!("https://127.0.0.1:{port}")),
                 no_proxy: None,
             },
             ..Default::default()
@@ -801,9 +907,7 @@ mod tests {
 
         let health = proxy_health(&config).await;
 
-        assert_eq!(health.endpoint.as_deref(), Some(format!("http://127.0.0.1:{port}").as_str()));
-        assert!(!health.reachable);
-        assert!(!health.using_direct);
+        assert_eq!(health.endpoint.as_deref(), Some(format!("https://127.0.0.1:{port}").as_str()));
         assert!(!health.auto_fallback);
     }
 
@@ -823,7 +927,6 @@ mod tests {
         let health = proxy_health(&config).await;
 
         assert_eq!(health.endpoint, None);
-        assert!(health.using_direct);
         assert!(!health.auto_fallback);
     }
 }

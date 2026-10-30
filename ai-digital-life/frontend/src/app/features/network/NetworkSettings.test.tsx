@@ -57,8 +57,6 @@ function makeStatus(patch: Partial<DshSourceStatus['config']> = {}): DshSourceSt
     },
     proxyEffective: {
       endpoint: null,
-      reachable: true,
-      usingDirect: true,
       autoFallback: false,
     },
   };
@@ -263,8 +261,6 @@ describe('NetworkSettings', () => {
         ...makeStatus({ source_mode: 'manual', npm_registry: NPMJS_URL }),
         proxyEffective: {
           endpoint: 'socks5h://127.0.0.1:17890',
-          reachable: false,
-          usingDirect: true,
           autoFallback: true,
         },
       },

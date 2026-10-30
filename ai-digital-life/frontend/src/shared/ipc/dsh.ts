@@ -71,10 +71,6 @@ export interface DshSourceStatus {
 export interface DshProxyEffective {
   /** 实际使用的代理端点；直连为 null。 */
   endpoint: string | null;
-  /** 端点可达性（直连恒 true）。 */
-  reachable: boolean;
-  /** 当前是否会绕过代理（模式=关闭，或自动检测回退直连）。 */
-  usingDirect: boolean;
   /** 自动检测因代理不可达而回退直连。 */
   autoFallback: boolean;
 }

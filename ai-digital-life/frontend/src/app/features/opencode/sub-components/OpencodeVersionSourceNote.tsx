@@ -9,7 +9,10 @@ interface OpencodeVersionSourceNoteProps {
   mode: DshVersionSourceMode;
 }
 
-/** 版本来源行内的说明行（系统托管 / 无可用来源，旧 OpenCode 行内警告口径）。 */
+/**
+ * 版本来源行内的说明行：描述小字 + 「自动检测真实来源」蓝色提示行 + 工具专属警告
+ * （系统托管 / 无可用来源，旧 OpenCode 行内警告口径）。
+ */
 export function OpencodeVersionSourceNote({
   systemManaged,
   resolvedSource,
