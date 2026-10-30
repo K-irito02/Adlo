@@ -32,11 +32,11 @@
 
 ### 1.3 规模
 
-当前 **44 条规则**（不含本目录的 `README.md` 索引）：
+当前 **45 条规则**（不含本目录的 `README.md` 索引）：
 
 | 应用方式 | 条数 | 含义 |
 |----------|------|------|
-| `alwaysApply: true` | 9 | 全局常驻，任何任务都生效 |
+| `alwaysApply: true` | 10 | 全局常驻，任何任务都生效 |
 | `alwaysApply: false` + `globs` | 35 | 命中指定路径时才注入，减少无关上下文 |
 
 > 条数以 `.agents/rules/` 实际文件为准；`scripts/check-agent-dirs.test.mjs` 会在 pre-commit 校验本表与目录一致。
@@ -128,7 +128,7 @@ alwaysApply: false
 | `alwaysApply: true` | 每次会话常驻注入 | 全域约束（项目形态、执行规则、验收门禁、UI 模式） |
 | `globs` 命中 | 仅当任务涉及匹配路径的文件时注入 | 语言 / 框架 / 目录级约定 |
 
-**始终应用的 9 条**（`alwaysApply: true`）：
+**始终应用的 10 条**（`alwaysApply: true`）：
 
 | 规则文件 | 覆盖内容 |
 |----------|----------|
@@ -136,6 +136,7 @@ alwaysApply: false
 | `multi-dimensional-architecture-design.md` | 多维度架构与架构事实真源 |
 | `phase-boundary.md` | 项目形态、范围边界与排除项 |
 | `dev-rules.md` | 代理交互与执行规则 |
+| `preference-writes.md` | 用户偏好只由用户操作写入，后台逻辑不得静默改写 |
 | `mandatory-testing.md` | 结束验收与强制红绿测试 |
 | `error-handling.md` | 错误处理与加载状态 |
 | `commands.md` | 常用命令速查 |
@@ -150,7 +151,7 @@ alwaysApply: false
 
 > 分组仅用于**导航**，不参与加载判定（加载只看 frontmatter）。「应用方式」标注 `始终` 或 `glob` 的作用域摘要，完整模式以各文件 frontmatter 为准。
 
-### 6.1 治理与项目形态（5）
+### 6.1 治理与项目形态（6）
 
 | 规则文件 | 应用方式 | 约束内容 |
 |----------|----------|----------|
@@ -159,6 +160,7 @@ alwaysApply: false
 | `phase-boundary.md` | 始终 | 项目形态、范围边界与排除项，防止范围蔓延 |
 | `codebase-map.md` | `ai-digital-life/**` | 代码地图：Cargo 工作区、前端目录、包列表与索引策略 |
 | `dev-rules.md` | 始终 | 代理交互与执行规则：询问卡片、终端命令、代码修改、问题排查、编码风格、并行工作树约束 |
+| `preference-writes.md` | 始终 | 用户显式选择类配置只由用户操作写入，后台 effect/定时器不得静默改写偏好 |
 
 ### 6.2 质量与验收（3）
 

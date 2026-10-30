@@ -158,47 +158,9 @@ app/stores/
 
 **优先级**：调试日志收起器是最高优先级的调试手段，遇到 UI/交互问题时优先使用。详见 [仓库根 AGENTS.md](../AGENTS.md#问题排查与调试)。
 
-### 开发阶段日志 CLI 覆盖（session-only）
+### 日志 CLI 与落点
 
-用户与 agent 可在终端启动时直接指定三项日志设置（**只对本次进程生效，不写回 `config.json`**）：
-
-```powershell
-pnpm dev:tauri   -- --log-level trace --terminal-log-mode multi --debug-log-mode append
-pnpm dev:browser -- --log-level debug
-pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个模式
-```
-
-| flag | 等价环境变量 | 取值 |
-|------|--------------|------|
-| `--log-level` | `ADL_LOG_LEVEL` | `error` \| `warn` \| `info` \| `debug` \| `trace` |
-| `--terminal-log-mode` | `ADL_TERMINAL_LOG_MODE` | `overwrite` \| `append` \| `multi` |
-| `--debug-log-mode` | `ADL_DEBUG_LOG_MODE` | `overwrite` \| `append` \| `multi` |
-| `--log-mode`（简写） | `ADL_CLI_LOG_MODE` | 同时设终端与调试 |
-
-- **优先级**：CLI flag > `ADL_*` env > `config.json` > 默认值；另有 `RUST_LOG` 作为**硬顶**（见下）
-- **硬顶**：`RUST_LOG` 设了就是多层 filter 的 AND 上限——`RUST_LOG=error` 时 CLI `--log-level trace` 也顶不开；想运行期调高级别，先 unset `RUST_LOG`
-- 非法取值打印 `[ADL-CLI] ignoring invalid …` 告警后忽略（不阻断启动）；重复 flag 取最后一次；手写 `config.json` 的大小写不敏感（`"INFO"` 照收）
-- 启动会打印自证行：`[ADL-LOG] logger ready level=… prefix=…` 与 `[ADL-CLI] … (session override, not persisted)`
-- **级别语义**：`log-level` 控制 stdout 层；**文件层下限恒为 `debug`**（保留 post-mortem 能力），即可调高到 trace、不会低于 debug
-- env 是跨进程通道：shell 派生的 `adl-server` 子进程自动继承，单一 env 同时覆盖两个后端进程
-- **传递通道只有 env**：flag 由启动脚本转成 `ADL_*` 环境变量后注入子进程。**不要**把 flag 透传给 `cargo tauri dev`——实测它会把 `--` 之后的参数当作 cargo 自身的参数并报 `unexpected argument '--log-level'`
-- **运行期同步**：桌面 UI 改设置 → 壳立即生效并落盘，同时 POST 到 adl-server 的 `/app/log-settings`（仅运行时、**不落盘**，避免用 server 的旧内存快照覆盖壳刚写的其它字段）；浏览器模式经 `/app/preferences`（含落盘）
-- **会话覆盖锁定**：CLI/env 锁定的字段，UI 改后运行期保持 CLI 值、仅落盘（下次无覆盖启动生效），前端弹顶部提示"下次启动生效"；落盘失败会回滚运行期
-- **浏览器模式失败即失败**：ad-server 不可达时 `app` 域不再回退 mock，直接以错误卡呈现；设置面板另有"未连接后端"离线标识
-
-### 日志文件落点（debug 构建；实证 2026-10-11）
-
-`resolve_log_dir` 以各 crate 的 `CARGO_MANIFEST_DIR` 上推两级作为 `dev_project_root`，因此**两个进程的 `.adl-logs` 目录不同**：
-
-| 进程 / 模式 | 日志目录 | 文件 |
-|-------------|----------|------|
-| Tauri 桌面壳（`src-tauri`） | `<仓库根>/.adl-logs/` | `terminal-logs*.txt`（壳 tracing）、`debug-logs*.txt`（壳调试日志） |
-| 浏览器前端（dev preview service） | `<仓库根>/.adl-logs/` | `debug-logs-browser*.txt`（与壳的 `debug-logs*.txt` **分名**，避免 `dev:both` 下互相覆盖） |
-| adl-server 后端引擎（`crates/server`） | `<仓库根>/ai-digital-life/.adl-logs/` | `adl-server-logs*.txt` |
-
-- `multi` 模式额外写 `<前缀>-<时间戳>.txt` 会话文件；`overwrite` / `append` 只写固定名文件
-- release 构建不写 `.adl-logs`，统一落 `<数据根>/logs/`
-- 检索提示：`.adl-logs/` 被 `.gitignore` 排除，`Glob`/`Grep` 找不到，须用 `LS`/`Read` 绝对路径
+日志级别与写入模式的 CLI 覆盖（`--log-level`、`--terminal-log-mode`、`--debug-log-mode`、`--log-mode`）、优先级与 `RUST_LOG` 硬顶、`session-only` 语义、运行期同步，以及壳 / 浏览器 / `adl-server` 三个进程的日志文件落点，统一见 [docs/development/log-system-manual.md](../docs/development/log-system-manual.md)。本节不复述，避免手册与文档漂移。
 
 ## 问题排查规范
 

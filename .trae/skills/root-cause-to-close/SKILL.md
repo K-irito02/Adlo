@@ -216,7 +216,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 ## P3：验证
 
 1. **补日志**（P2A 已加则跳过）：格式 `[时间戳] [级别] [组件::函数] 消息 — 键=值`；级别 DEBUG（路径追踪）/ INFO（状态转换）/ WARN（预期异常）/ ERROR（意外失败）。
-2. **触发验证：** 有自动化操作能力则自己驱动触发（见调试埋点触发节），否则把用户当"手"：给出编号操作步骤（启动哪个模式、打开哪个地址/窗口、点击哪里、预期哪个文件出现什么日志），等用户回复"操作完成"后再读日志；**不预告成功**；记进度文件。
+2. **触发验证：** 有自动化操作能力则自己驱动触发（见调试埋点触发节），否则把用户当"手"：给出编号操作步骤（启动哪个模式、打开哪个地址/窗口、点击哪里、预期哪个文件出现什么日志），等用户回复"操作完成"后再读日志；**不预告成功**；记进度文件。需要直接验证后端接口（不起桌面壳）时用 `pnpm --dir ai-digital-life run serve:server`：先构建 `adl-server`，再以临时数据目录启动并打印 URL 与 `proxyEffective`，避免手跑旧二进制得出错误结论。
 3. **日志分析**（按日志协议只取最新）：预期条目在 → 生效；错误条目 → 边界缺口；条目缺失 → 路径未触发；意外模式 → 假设错。
 4. **分流：**
    - 通过（日志 + 触发方双确认）→ 状态置 `待用户确认`（**不要直接标 `已完成`**；`已完成` 仅由用户确认解决后标记，见「记录协议」），停下走 P3→P4 门控（获批才进 P4）。
@@ -255,9 +255,11 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 两类都无变更 → 跳过 4c–4e（进度文件记理由），仅保留 Exit criteria 中的分级测试。有变更时按下述建快照，再进 4c 两轮必跑：
 
 1. 建 `.review-diffs/`（已在 `.gitignore`，P6 删除）。
-2. 按文件拆快照：文件列表 = `git diff --name-only HEAD` ∪（存在时）`git diff --name-only "$BASE..HEAD"`；每文件把两来源的 diff 拼接为 `<路径斜杠换下划线>-rev<N>.diff`（例：`src_app_foo.ts-rev1.diff`）；同步写 `changed-files-rev<N>.txt` 与 `git log --oneline "$BASE..HEAD" > commits-rev<N>.txt`（审查代理可自证范围）。文件数明显多于预期时，先核对 `BASE` 是否等于本分支分叉点，再继续。
-   - **编码安全**：用 `git diff HEAD -- <file> --output=<safe>-rev<N>.diff` 直接写文件；**禁止**把 `git diff` 结果经 PowerShell 管道 / `Out-File` 转存（本仓实测会把 UTF-8 中文注释转成 GBK 乱码，审查代理只能退回读源码）。
-   - **新增未跟踪文件**先 `git add -N <file>`，否则 `git diff` 看不到它们、快照会漏审。
+2. **一键生成快照（推荐）**：`node ai-digital-life/scripts/review-snapshot.mjs --rev <N>`
+   脚本完成：解析 base（`merge-base(origin/HEAD, HEAD)`，无远端回退 `HEAD`）→ `git add -N` 未跟踪文件 → 每文件写 `<safe>-rev<N>.diff` → 写 `changed-files-rev<N>.txt` / `commits-rev<N>.txt`；空 diff 直接失败。文件数明显多于预期时，先核对 base 是否等于本分支分叉点，再继续。
+   - 手工等价物（脚本不可用时）：`git diff --output=<safe>-rev<N>.diff HEAD -- <file>` —— **`--output` 必须在 `--` 之前**；放到 `--` 之后会被 git 当成 pathspec（不写文件、整段 diff 进 stdout，实测一次刷出约 100KB）。
+   - **编码安全**：禁止把 `git diff` 结果经 PowerShell 管道 / `Out-File` 转存（本仓实测会把 UTF-8 中文注释转成 GBK 乱码，审查代理只能退回读源码）。
+   - **新增未跟踪文件**：脚本已自动 `git add -N`；手工执行时必须先做，否则 `git diff` 看不到它们、快照会漏审。
 3. 子代理只读快照，禁止终端 `git diff`；每轮修复后 rev 递增**全量重生成**，复审看最新完整 diff（禁只看增量/复用旧快照）。
 
 ### 4c. 两轮循环审查（顺序门控，两轮皆不可跳过）

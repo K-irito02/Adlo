@@ -28,7 +28,7 @@
 
 - 真实 adl-server（独立数据目录）实测：Auto + 死代理 → `proxyEffective.autoFallback=true`，探针 750 ms 直连成功；手动死代理 → `proxy_unreachable`；`/opencode/version-catalog` 12–15 s 返回。
 - 单测：`adl-download-source` 24 例（含 env/注册表优先级、NO_PROXY 匹配、ProxyOverride 转换、代理地址规范化、手动代理不回退）；前端 185 例。
-- 注册表路径 E2E 冒烟：清空 `ALL_PROXY` 后启动真实 adl-server，`proxyEffective = {endpoint:null, autoFallback:false}`（与本机 `ProxyEnable=0` 一致），探针直连成功。正路径（`ProxyEnable=1`）未做机器级验证，以免改动用户系统代理；由注入式纯函数测试 + Windows 读取冒烟覆盖。
+- 注册表路径 E2E：清空 `ALL_PROXY` 后启动真实 adl-server，`proxyEffective = {endpoint:null, autoFallback:false}`（与本机 `ProxyEnable=0` 时一致）。随后用户开启代理软件（`ProxyEnable=1`、`ProxyServer=127.0.0.1:17890`），同一命令得到 `proxyEffective={"endpoint":"http://127.0.0.1:17890","autoFallback":false}` —— 注册表代理被正确读取、优先于 `ALL_PROXY`（与 hyper-util 一致），且未误判为回退。
 
 ## 边界与教训
 

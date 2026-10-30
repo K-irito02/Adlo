@@ -60,6 +60,8 @@ OpenCode 通过项目配置 `.opencode/opencode.json` 接入 `codegraph` MCP ser
 
 调用签名：`codegraph_explore({ query, maxFiles?, projectPath? })`。`cwd` 已绑定默认项目，通常只传 `query`；查询其它项目时传绝对路径 `projectPath`。OpenCode 的 Code Mode 下通过 `execute` 调用 `tools.codegraph.codegraph_explore({ query })`。
 
+**控制返回体积**：问"某个符号怎么实现/谁调用它"时，把查询写成精确符号名并传 `maxFiles: 3`；宽泛的自然语言查询（如"设置面板版本来源与代理…"）会一次带出多个大组件，单次可达数万字符、挤占上下文。先窄后宽，不够再追加一次精确查询。
+
 验证与重连：
 
 ```powershell
