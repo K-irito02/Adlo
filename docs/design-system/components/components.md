@@ -119,6 +119,23 @@ Empty states are rendered with the shared classes in
 only. `.adl-sortable-empty` (drop zone) and `.adl-welcome__empty` (center welcome) are the
 documented exceptions.
 
+## Auto-resolved note（自动检测·真实状态提示行）
+
+Source of truth: `frontend/src/app/components/settings/AutoResolvedNote.tsx`;
+style `.adl-settings-row__label small.adl-settings-auto-note` in
+`frontend/src/styles/components/settings.css`.
+
+```tsx
+<AutoResolvedNote>{formatT(t, 'settingsAutoResolved', { value })}</AutoResolvedNote>
+```
+
+- A `select` shows the user's preference (`自动检测` / Automatic); the note under the label states what that preference **actually resolves to** (host-managed / system install / external running, proxy endpoint, registry).
+- Render only while the mode is `auto` **and** the resolved value is known; never render it in explicit modes.
+- The note reports **source**, not availability: "当前实际使用：宿主托管" stays even when nothing is installed yet — availability belongs to the status pill and the warning line below.
+- Colour uses the same dark-blue mix as the harness note (`color-mix(in srgb, var(--accent) 72%, var(--text-secondary))`; dark theme 62% mixed with `--text-muted`). This is the approved exception to the neutral hint rule: it describes state, not a warning.
+- Specificity trap: the generic `.adl-settings-row__label small` rule is 0-1-1, so the class must be scoped as `.adl-settings-row__label small.adl-settings-auto-note`; a bare class selector renders grey in the light theme.
+- Data comes from the server (`proxyEffective` and similar), not from draft form state: gate the note on the **persisted** mode so a just-changed draft can never display the previous resolution.
+
 ## Navigation item
 
 ```ts

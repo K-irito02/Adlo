@@ -44,6 +44,8 @@ pnpm run dev:browser
 pnpm run dev:both
 ```
 
+> `pnpm dev:tauri` 会在缺失时自动创建 `ai-digital-life/frontend/dist/` 占位页：Tauri 的 `generate_context!` 在编译期就要求该目录存在（dev 实际走 `devUrl`）。release / `tauri build` 由 `beforeBuildCommand` 重新构建前端覆盖占位，无需手工处理。
+
 ### 提交前门禁（本地执行）
 
 本项目**不使用远程 CI**：lint / 类型检查 / 格式 / i18n / 术语表 / 生成物一致性 / 测试全部在本地完成。装一次 pre-push 钩子即可获得推送前拦截：

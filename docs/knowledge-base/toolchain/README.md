@@ -9,3 +9,4 @@ Lessons learned from toolchain configuration and troubleshooting.
 - [tauri-dev-stale-exe-lock-2026-08-16.md](./tauri-dev-stale-exe-lock-2026-08-16.md) — Tauri dev 模式 Windows 残留进程锁定 exe 导致 Rust 修改不生效（根因、路径精确 kill、waitForUnlock、红绿测试方法）
 - [skill-system-retirement-2026-10-24.md](./skill-system-retirement-2026-10-24.md) — 技能系统精简与文档真源化：三个技能退役并入 `root-cause-to-close`、产物目录归档、技能说明集中到根 `SKILLS.md`
 - [wdio-tauri-desktop-e2e-eval-2026-10-28.md](./wdio-tauri-desktop-e2e-eval-2026-10-28.md) — 桌面端 E2E 实测评估：`@wdio/tauri-service` 跑通 5 条真机冒烟（3 连跑全绿、整轮 ~15s），集成成本中等，结论可行但按需启用（不进默认门禁）
+- [tauri-frontend-dist-dev-bootstrap-2026-10-30.md](./tauri-frontend-dist-dev-bootstrap-2026-10-30.md) — `cargo tauri dev` 编译期要求 `frontend/dist` 存在；启动器补 dev 占位页，release 的 beforeBuildCommand 覆盖
