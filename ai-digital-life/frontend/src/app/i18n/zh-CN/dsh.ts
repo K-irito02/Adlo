@@ -28,7 +28,7 @@ export const dshZh = {
   dshSettingsProxyModeNone: '关闭',
   dshSettingsProxyDesc: '下载文件时是否经过代理，以及用哪个代理',
   dshSettingsProxyHint:
-    '“自动检测”跟随系统设置，检测到的代理不可用时自动改为直连；“自定义”手动填写代理地址；“关闭”表示直连，不走代理',
+    '# 代理模式\n管理本应用下载文件、查询版本、检测运行环境时使用的代理。不修改 Windows 系统代理，也不影响内嵌浏览器。\n\n· 自动检测（推荐）：建立连接前探测代理端口，结果缓存 5 秒；不可达时静默改走直连，下拉仍显示“自动检测”，真实状态看下方蓝色小字。\n· 取代理的顺序：① 环境变量 HTTPS_PROXY / HTTP_PROXY（按目标协议）→ ② 都没有时读 Windows“Internet 选项”里的系统代理（含跳过列表）→ ③ 再看 ALL_PROXY。\n· 直连名单：设置环境变量 NO_PROXY 时以它为准；未设置时用系统代理“跳过列表”里的地址一律直连。\n· 自定义：只使用你填写的地址，HTTP / HTTPS 分别生效；连不上会如实报错，不会擅自改走直连。\n· 关闭：始终直连，不使用任何代理。\n\n# 补充\n· 代理软件打开“系统代理”后无需重启应用，最多 5 秒自动生效；只开 TUN 未开系统代理时仍按直连处理（TUN 对所有程序透明）。\n· PAC“自动配置脚本”不解析；需要走代理请把具体地址填到“自定义”。\n· 修改立即保存，下一次请求生效；代理只作用于本应用的网络请求，内嵌浏览器仍用系统代理。',
   dshSettingsProxyResolved: '当前实际使用：{proxy}',
   dshSettingsProxyAutoDirect: '未检测到代理，当前直连',
   dshSettingsProxyAutoFallback: '代理 {proxy} 不可用，已自动改为直连',
