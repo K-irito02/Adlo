@@ -30,7 +30,7 @@ export const dshZh = {
   dshSettingsProxyHint:
     '“自动检测”跟随系统设置，检测到的代理不可用时自动改为直连；“自定义”手动填写代理地址；“关闭”表示直连，不走代理',
   dshSettingsProxyResolved: '当前实际使用：{proxy}',
-  dshSettingsProxyAutoDirect: '未检测到环境代理，跟随系统设置',
+  dshSettingsProxyAutoDirect: '未检测到代理，当前直连',
   dshSettingsProxyAutoFallback: '代理 {proxy} 不可用，已自动改为直连',
   dshSettingsProxyAutoInvalid: '代理设置无效，已自动改为直连',
   dshSettingsProxyHttp: 'HTTP 代理',

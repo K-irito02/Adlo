@@ -30,7 +30,7 @@ export const dshEn = {
   dshSettingsProxyHint:
     '"Auto Detect" follows the system settings and silently switches to a direct connection when the detected proxy is unavailable; "Custom" uses the addresses you fill in; "Off" connects directly without a proxy',
   dshSettingsProxyResolved: 'Currently using: {proxy}',
-  dshSettingsProxyAutoDirect: 'No environment proxy detected; following the system settings',
+  dshSettingsProxyAutoDirect: 'No proxy detected; connecting directly',
   dshSettingsProxyAutoFallback: 'Proxy {proxy} is unavailable; switched to a direct connection',
   dshSettingsProxyAutoInvalid: 'Invalid proxy setting; switched to a direct connection',
   dshSettingsProxyHttp: 'HTTP Proxy',

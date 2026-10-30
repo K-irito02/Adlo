@@ -98,7 +98,7 @@ dsh 与 OpenCode CLI 共用的版本内核，位于 `crates/harness-version/`：
 ### Download Source
 可配置的下载源系统，位于 `crates/download-source/`。支持 npm 仓库地址、镜像源（如 npmmirror）、代理设置与「自动检测选源」（仅 `source_mode=auto` 时生效，手动选择后不再自动覆盖）。配置文件为 `<data_dir>/config/download-sources.json`。
 
-代理三态 `auto | manual | none`（界面文案：自动检测 / 自定义 / 关闭）：`auto` 在构建 HTTP 客户端前对代理端点做 TCP 预检（5 s 缓存），不可达即静默改用直连，真实状态经 `/dsh/source-status` 的 `proxyEffective` 暴露给设置面板；`manual` 失败如实报 `proxy_unreachable`，不静默绕过。探测（`test_source`）与真实下载共用同一套代理解析与回退决策，失败按 `proxy_unreachable / network / http / unknown` 分类后由前端本地化。版本目录请求启用 reqwest `gzip` 并把超时放宽到 60 s（OpenCode 完整 packument 约 25 MB / 12k 版本，gzip 后约 3.6 MB）。Windows 注册表系统代理无法被上述解析读取（reqwest 内部会读），相关界面文案不得断言「已直连」。
+代理三态 `auto | manual | none`（界面文案：自动检测 / 自定义 / 关闭）：`auto` 在构建 HTTP 客户端前对代理端点做 TCP 预检（5 s 缓存），不可达即静默改用直连，真实状态经 `/dsh/source-status` 的 `proxyEffective` 暴露给设置面板；`manual` 失败如实报 `proxy_unreachable`，不静默绕过。探测（`test_source`）与真实下载共用同一套代理解析与回退决策，失败按 `proxy_unreachable / network / http / unknown` 分类后由前端本地化。版本目录请求启用 reqwest `gzip` 并把超时放宽到 60 s（OpenCode 完整 packument 约 25 MB / 12k 版本，gzip 后约 3.6 MB）。代理解析与 reqwest 同源：同一 scheme 下 `HTTP(S)_PROXY`（非空即胜出，即便不可解析）→ Windows 注册表 `ProxyServer` → `ALL_PROXY`；注册表读取 `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings` 的 `ProxyEnable / ProxyServer / ProxyOverride`（直连名单同步生效）。PAC（`AutoConfigURL`）与 hyper-util 一样不解析，因此「未检测到代理，当前直连」的文案成立。
 
 ### 环境依赖 (Env Dependency)
 应用运行所需的六项外部依赖：`node`、`git`、`bash`、`webview2`、`adlserver`、`netprobe`。由 `crates/adl-env/` 的 provider 检测/安装，状态经 adl-server 的 `GET /env/status` 暴露（`EnvStatus`：六依赖状态 + 任务快照 + `dataDir` + `dshReady`）。

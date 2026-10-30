@@ -97,6 +97,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "windows-registry",
 ]
 
 [[package]]

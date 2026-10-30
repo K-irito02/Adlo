@@ -12,3 +12,8 @@ serde_json = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+
+# Windows 系统代理：与 reqwest/hyper-util 同源读取 HKCU Internet Settings。
+# 该 crate 已是 hyper-util 的传递依赖（Cargo.lock 已存在），不引入新的下载。
+[target.'cfg(windows)'.dependencies]
+windows-registry = "0.6"

@@ -171,9 +171,7 @@ fn redact_proxy_endpoint_opt(raw: &Option<String>) -> String {
     }
 }
 
-pub async fn build_http_client(
-    config: &DownloadSourceConfig,
-) -> Result<reqwest::Client, AppError> {
+pub async fn build_http_client(config: &DownloadSourceConfig) -> Result<reqwest::Client, AppError> {
     build_http_client_with_timeout(config, Duration::from_secs(30)).await
 }
 
@@ -230,20 +228,22 @@ pub async fn build_http_client_with_timeout(
         },
         ProxyMode::Auto => {
             // reqwest with system-proxy feature will use system proxy by default.
-            // 可观测性（2026-10-29）：打印脱敏后的有效代理 env。若 reqwest
-            // 不支持该 scheme（如缺 `socks` 特性时的 socks5h），请求会直接
-            // 失败且只留 "error sending request"；凭据永不进日志。
+            // 可观测性：打印脱敏后的有效代理 env + 解析出的端点（env 或 Windows
+            // 注册表系统代理）。若 reqwest 不支持该 scheme（如缺 `socks` 特性时的
+            // socks5h），请求会直接失败且只留 "error sending request"；凭据永不进日志。
+            let resolved = env_proxy_endpoint();
             tracing::info!(
-                all_proxy = %redact_proxy_endpoint_opt(&std::env::var("ALL_PROXY").ok().or_else(|| std::env::var("all_proxy").ok())),
-                https_proxy = %redact_proxy_endpoint_opt(&std::env::var("HTTPS_PROXY").ok().or_else(|| std::env::var("https_proxy").ok())),
-                http_proxy = %redact_proxy_endpoint_opt(&std::env::var("HTTP_PROXY").ok().or_else(|| std::env::var("http_proxy").ok())),
-                "download-source: building HTTP client with environment proxy",
+                all_proxy = %redact_proxy_endpoint_opt(&env_raw("ALL_PROXY")),
+                https_proxy = %redact_proxy_endpoint_opt(&env_raw("HTTPS_PROXY")),
+                http_proxy = %redact_proxy_endpoint_opt(&env_raw("HTTP_PROXY")),
+                resolved = %redact_proxy_endpoint_opt(&resolved),
+                "download-source: building HTTP client with system proxy",
             );
             // 自动检测 = 跟随系统；但代理软件被关掉后环境变量仍残留（用户实测
             // 2026-10-30：ALL_PROXY 指向已停止监听的本地端口）→ 静默改走直连，
             // 避免「下载源/版本目录/环境检测」整体不可用。手动模式不做回退：
             // 用户显式填的代理失败时应当报错，而不是偷偷绕过。
-            if let Some(endpoint) = env_proxy_endpoint() {
+            if let Some(endpoint) = resolved {
                 if !proxy_endpoint_reachable_cached(&endpoint).await {
                     tracing::info!(
                         proxy = %redact_proxy_endpoint(&endpoint),
@@ -263,53 +263,130 @@ pub async fn build_http_client_with_timeout(
 
 /// NO_PROXY/直连名单匹配：`*` 全匹配；条目支持精确 host 与 `.suffix` 子域后缀。
 fn no_proxy_matches(no_proxy: &str, host: &str) -> bool {
-    no_proxy
-        .split(',')
-        .map(str::trim)
-        .filter(|entry| !entry.is_empty())
-        .any(|entry| {
-            if entry == "*" {
-                return true;
-            }
-            let entry = entry.trim_start_matches('.').to_ascii_lowercase();
-            host == entry || host.ends_with(&format!(".{entry}"))
-        })
+    no_proxy.split(',').map(str::trim).filter(|entry| !entry.is_empty()).any(|entry| {
+        if entry == "*" {
+            return true;
+        }
+        let entry = entry.trim_start_matches('.').to_ascii_lowercase();
+        host == entry || host.ends_with(&format!(".{entry}"))
+    })
 }
 
-/// Auto 模式下 reqwest 会采用的代理端点：scheme 专用优先，`ALL_PROXY` 兜底。
+/// 读取环境变量并去掉首尾空白；空串按「未设置」处理（与 hyper-util 的 `is_empty()` 口径一致）。
+fn env_trimmed(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .or_else(|| std::env::var(name.to_ascii_lowercase()).ok())
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+/// 读取环境变量原值（不去空白）：只有「缺失或空串」才算未设置，与 hyper-util
+/// `get_first_env(...).is_empty()` 的判定一致；纯空白值仍算「已设置但不可解析」。
+fn env_raw(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .or_else(|| std::env::var(name.to_ascii_lowercase()).ok())
+        .filter(|value| !value.is_empty())
+}
+
+/// 把代理地址规范成可解析的 URL：无 scheme 时按 `http://` 处理（与 hyper-util 一致），
+/// 并校验 scheme/host，供探测、脱敏与展示共用。
+fn normalize_proxy_url(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let candidate =
+        if trimmed.contains("://") { trimmed.to_string() } else { format!("http://{trimmed}") };
+    let parsed = reqwest::Url::parse(&candidate).ok()?;
+    parsed.host_str()?;
+    match parsed.scheme() {
+        "http" | "https" | "socks4" | "socks4a" | "socks5" | "socks5h" => Some(candidate),
+        _ => None,
+    }
+}
+
+/// Windows 系统代理（HKCU Internet Settings）：与 hyper-util `win::with_system` 同源。
 ///
-/// 两个解析口（这里与 [`resolve_proxy_url`]）必须同序，否则「回退判定用的代理」
-/// 与「真实请求用的代理」可能不是同一个。空字符串按「未设置」处理并继续回退到
-/// `ALL_PROXY`（与 hyper-util 的语义一致）。
-fn proxy_from_env(
-    get: impl Fn(&str) -> Option<String>,
+/// 返回 `(ProxyServer 原值, ProxyOverride 原值)`；`ProxyEnable=0` 视为未启用。
+/// hyper-util 不解析 `http=...;https=...` 的映射写法，这里同样原样返回，保证
+/// 「健康检查看到的代理」就是「真实请求使用的代理」。
+#[cfg(windows)]
+fn windows_proxy_settings() -> Option<(String, Option<String>)> {
+    let settings = windows_registry::CURRENT_USER
+        .open("Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings")
+        .ok()?;
+    if settings.get_u32("ProxyEnable").unwrap_or(0) == 0 {
+        return None;
+    }
+    let server = settings.get_string("ProxyServer").ok()?;
+    if server.trim().is_empty() {
+        return None;
+    }
+    let override_list = settings.get_string("ProxyOverride").ok();
+    Some((server, override_list))
+}
+
+#[cfg(not(windows))]
+fn windows_proxy_settings() -> Option<(String, Option<String>)> {
+    None
+}
+
+/// 注册表 `ProxyOverride` → NO_PROXY 口径（`;` 分隔、去掉 `*.`，与 hyper-util 一致）。
+fn proxy_override_to_no_proxy(raw: &str) -> String {
+    raw.split(';')
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .collect::<Vec<_>>()
+        .join(",")
+        .replace("*.", "")
+}
+
+/// Auto 模式下的直连名单：env `NO_PROXY` 非空优先，否则用注册表 `ProxyOverride`。
+fn auto_no_proxy() -> String {
+    env_trimmed("NO_PROXY").unwrap_or_else(|| {
+        windows_proxy_settings()
+            .and_then(|(_, override_list)| override_list)
+            .map(|raw| proxy_override_to_no_proxy(&raw))
+            .unwrap_or_default()
+    })
+}
+
+/// Auto 模式的代理选择（纯函数，便于注入 env/注册表做单测）。
+///
+/// 逐条对齐 hyper-util `Builder::from_system().build()`：
+/// - scheme 专用 env（非空即占位，即使无法解析）→ 该值，解析失败才回退 `ALL_PROXY`；
+/// - scheme 专用 env 为空 → 注册表 `ProxyServer` → `ALL_PROXY`；
+/// - 无前缀地址按 `http://` 规范化。
+fn auto_proxy_for_scheme(
+    get: &impl Fn(&str) -> Option<String>,
+    registry: Option<&str>,
     is_https: bool,
 ) -> Option<String> {
-    let normalized = |raw: Option<String>| {
-        raw.map(|p| p.trim().to_string()).filter(|p| !p.is_empty())
-    };
-    let scheme_specific = if is_https { get("HTTPS_PROXY") } else { get("HTTP_PROXY") };
-    normalized(scheme_specific).or_else(|| normalized(get("ALL_PROXY")))
+    let all = || get("ALL_PROXY").and_then(|raw| normalize_proxy_url(&raw));
+    let specific = if is_https { "HTTPS_PROXY" } else { "HTTP_PROXY" };
+    match get(specific) {
+        Some(raw) => normalize_proxy_url(&raw).or_else(all),
+        None => registry.and_then(normalize_proxy_url).or_else(all),
+    }
 }
 
 fn env_proxy_for_scheme(is_https: bool) -> Option<String> {
-    let get = |name: &str| {
-        std::env::var(name).ok().or_else(|| std::env::var(name.to_ascii_lowercase()).ok())
-    };
-    proxy_from_env(get, is_https)
+    let registry = windows_proxy_settings().map(|(server, _)| server);
+    auto_proxy_for_scheme(&env_raw, registry.as_deref(), is_https)
 }
 
-/// 本次请求实际会走的代理端点（原始值，可能含凭据；对外展示前必须脱敏）。
+/// 本次请求实际会走的代理端点（已规范化；可能含凭据，对外展示前必须脱敏）。
 ///
-/// Auto 按 reqwest `system-proxy` 的环境变量口径复刻（scheme 专用优先，`ALL_PROXY`
-/// 兜底，`NO_PROXY` 命中则直连）；Windows 注册表系统代理无法在此读出，未命中时
-/// 退回「网络不可达」分类，仍好于展示原始错误串。
+/// Auto 与 reqwest `system-proxy` 同源：env（scheme 专用 → ALL_PROXY）+ Windows
+/// 注册表系统代理，并遵守 env/注册表的直连名单；Manual 只认配置里的同 scheme 字段。
 fn resolve_proxy_url(config: &DownloadSourceConfig, url: &str) -> Option<String> {
     let target = reqwest::Url::parse(url).ok()?;
     let host = target.host_str()?.to_ascii_lowercase();
     let is_https = target.scheme() == "https";
 
-    let picked = match config.proxy.mode {
+    match config.proxy.mode {
         ProxyMode::None => None,
         ProxyMode::Manual => {
             if no_proxy_matches(config.proxy.no_proxy.as_deref().unwrap_or(""), &host) {
@@ -317,26 +394,20 @@ fn resolve_proxy_url(config: &DownloadSourceConfig, url: &str) -> Option<String>
             }
             // 与 `build_http_client` 的 Manual 分支逐字段一致：https 只认 https_proxy，
             // http 只认 http_proxy（不做跨字段回退，否则探针会报真实客户端没用的端点）。
-            if is_https {
-                config.proxy.https_proxy.clone()
+            let raw = if is_https {
+                config.proxy.https_proxy.as_deref()
             } else {
-                config.proxy.http_proxy.clone()
-            }
+                config.proxy.http_proxy.as_deref()
+            };
+            raw.and_then(normalize_proxy_url)
         },
         ProxyMode::Auto => {
-            if no_proxy_matches(
-                &std::env::var("NO_PROXY")
-                    .ok()
-                    .or_else(|| std::env::var("no_proxy").ok())
-                    .unwrap_or_default(),
-                &host,
-            ) {
+            if no_proxy_matches(&auto_no_proxy(), &host) {
                 return None;
             }
             env_proxy_for_scheme(is_https)
         },
-    };
-    picked.map(|p| p.trim().to_string()).filter(|p| !p.is_empty())
+    }
 }
 
 /// 代理端点 TCP 可达性预检：把「代理没开」与「下载源不通」区分开。
@@ -394,9 +465,8 @@ async fn proxy_endpoint_reachable_cached(endpoint: &str) -> bool {
 /// `ProxyMode::Auto` 下用于「回退判定」的代理端点。
 ///
 /// 客户端同时服务 http/https；registry/下载流量几乎全是 https，故按 https 口径
-/// 取（HTTPS_PROXY → ALL_PROXY），与 `resolve_proxy_url` 对 https 目标的结果一致。
-/// 注意：Windows 注册表里的系统代理这里读不到（reqwest 内部会读），这类环境只能
-/// 归为「未检测到环境代理」，界面文案不得断言「已直连」。
+/// 取（HTTPS_PROXY → Windows 注册表系统代理 → ALL_PROXY），与 `resolve_proxy_url`
+/// 对 https 目标的结果一致。
 fn env_proxy_endpoint() -> Option<String> {
     env_proxy_for_scheme(true)
 }
@@ -845,49 +915,93 @@ mod tests {
         assert!(!no_proxy_matches("internal", "notinternal.example"));
     }
 
-    /// 环境代理优先级：scheme 专用 > ALL_PROXY；空值视为未设置并继续回退。
+    /// Auto 代理优先级（与 hyper-util 对齐）：scheme env（非空即占位）→ 注册表 → ALL_PROXY。
     #[test]
-    fn proxy_env_resolution_prefers_scheme_then_all_proxy() {
+    fn auto_proxy_prefers_scheme_env_then_registry_then_all_proxy() {
         fn env_of(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
             let owned: Vec<(String, String)> =
                 pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
             move |name: &str| {
-                owned.iter().find(|(key, _)| key == name).map(|(_, value)| value.clone())
+                owned
+                    .iter()
+                    .find(|(key, _)| key == name)
+                    .map(|(_, value)| value.clone())
+                    .filter(|value| !value.is_empty())
             }
         }
 
+        // scheme env 赢过注册表。
         assert_eq!(
-            proxy_from_env(
-                env_of(&[
+            auto_proxy_for_scheme(
+                &env_of(&[
                     ("HTTPS_PROXY", "http://https.proxy:1"),
                     ("ALL_PROXY", "http://all.proxy:2"),
                 ]),
+                Some("127.0.0.1:7890"),
                 true
             )
             .as_deref(),
             Some("http://https.proxy:1")
         );
+        // scheme env 为空 → 注册表（原样值按 http:// 规范化）。
         assert_eq!(
-            proxy_from_env(
-                env_of(&[
-                    ("HTTPS_PROXY", "http://https.proxy:1"),
-                    ("ALL_PROXY", "http://all.proxy:2"),
-                ]),
-                false
-            )
-            .as_deref(),
-            Some("http://all.proxy:2")
+            auto_proxy_for_scheme(&env_of(&[]), Some("127.0.0.1:7890"), true).as_deref(),
+            Some("http://127.0.0.1:7890")
         );
-        // 空格/空串按未设置处理，继续回退 ALL_PROXY（与 hyper-util 一致）。
+        // 注册表赢过 ALL_PROXY（hyper-util 中 http/https 优先于 all）。
         assert_eq!(
-            proxy_from_env(
-                env_of(&[("HTTPS_PROXY", "   "), ("ALL_PROXY", "http://all.proxy:2")]),
+            auto_proxy_for_scheme(
+                &env_of(&[("ALL_PROXY", "http://all.proxy:2")]),
+                Some("127.0.0.1:7890"),
                 true
             )
             .as_deref(),
-            Some("http://all.proxy:2")
+            Some("http://127.0.0.1:7890")
         );
-        assert_eq!(proxy_from_env(env_of(&[]), true), None);
+        // 纯空白值算「已设置但不可解析」：不回退注册表，也拿不到 ALL_PROXY → None
+        //（与 hyper-util 的 `is_empty()` 判定一致）。
+        assert_eq!(
+            auto_proxy_for_scheme(&env_of(&[("HTTPS_PROXY", "   ")]), Some("127.0.0.1:7890"), true),
+            None
+        );
+        // 无 scheme env、无注册表 → ALL_PROXY；全空 → None。
+        assert_eq!(
+            auto_proxy_for_scheme(&env_of(&[("HTTP_PROXY", "http://http.proxy:3")]), None, false)
+                .as_deref(),
+            Some("http://http.proxy:3")
+        );
+        assert_eq!(auto_proxy_for_scheme(&env_of(&[]), None, true), None);
+    }
+
+    /// 代理地址规范化：无 scheme 补 `http://`，未知 scheme / 空值 / 无 host 一律不可用。
+    #[test]
+    fn normalize_proxy_url_adds_default_scheme_and_validates() {
+        assert_eq!(normalize_proxy_url("127.0.0.1:7890").as_deref(), Some("http://127.0.0.1:7890"));
+        assert_eq!(
+            normalize_proxy_url(" socks5h://127.0.0.1:1080 ").as_deref(),
+            Some("socks5h://127.0.0.1:1080")
+        );
+        assert_eq!(normalize_proxy_url("ftp://proxy:21"), None);
+        assert_eq!(normalize_proxy_url(""), None);
+        assert_eq!(normalize_proxy_url("   "), None);
+        assert_eq!(normalize_proxy_url("http://"), None);
+    }
+
+    /// 注册表 `ProxyOverride` → NO_PROXY：`;` 分隔、去掉 `*.`、丢弃空项。
+    #[test]
+    fn proxy_override_is_converted_to_no_proxy_syntax() {
+        assert_eq!(
+            proxy_override_to_no_proxy("localhost;127.0.0.1;*.internal; ;*.example.com"),
+            "localhost,127.0.0.1,internal,example.com"
+        );
+        assert_eq!(proxy_override_to_no_proxy(""), "");
+    }
+
+    /// Windows 注册表读取是「只读 + 容错」：调用不得 panic（不存在的值按未启用处理）。
+    #[cfg(windows)]
+    #[test]
+    fn windows_proxy_settings_read_is_non_panicking() {
+        let _ = windows_proxy_settings();
     }
 
     /// 手动代理：真实状态如实报「不可达」，且不静默回退（用户显式选择应被尊重）。

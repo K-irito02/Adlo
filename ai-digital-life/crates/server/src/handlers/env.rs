@@ -275,12 +275,11 @@ async fn probe_client(
     } else {
         false
     };
-    let key = format!("{}|fallback={fallback}", serde_json::to_string(download).unwrap_or_default());
+    let key =
+        format!("{}|fallback={fallback}", serde_json::to_string(download).unwrap_or_default());
     if let Some(client) = {
         let slot = state.env_probe_client.lock().await;
-        slot.as_ref().and_then(|(cached_key, client)| {
-            (cached_key == &key).then(|| client.clone())
-        })
+        slot.as_ref().and_then(|(cached_key, client)| (cached_key == &key).then(|| client.clone()))
     } {
         return Ok(client);
     }
