@@ -19,6 +19,17 @@ fi
 PREFILES="$(echo "$STAGED" | grep -E '^ai-digital-life/frontend/.*\.(ts|tsx|js|jsx|mjs|cjs|css|json|md)$' || true)"
 if [ -n "$PREFILES" ]; then
   echo "$PREFILES" | sed 's|^ai-digital-life/frontend/||' | ( cd "$ROOT/ai-digital-life/frontend" && xargs -d '\n' npx prettier --write )
+  # 让「被 hook 规范化」可见：shell 批量改写源码（Set-Content/WriteAllLines/here-string）
+  # 最常见的后果就是 CRLF/格式漂移，prettier 会静默抹平，agent 永远学不到教训。
+  REFORMATTED="$(echo "$PREFILES" | while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    if ! git -C "$ROOT" diff --quiet -- "$f"; then echo "$f"; fi
+  done)"
+  if [ -n "$REFORMATTED" ]; then
+    echo "[pre-commit] prettier 规范化了以下暂存文件（多为行尾/格式漂移）："
+    echo "$REFORMATTED" | sed 's/^/  - /'
+    echo "[pre-commit] 提示：编辑源码/文档请用 edit/write 工具；禁止 shell 批量改写（见 .agents/rules/shell-encoding.md）"
+  fi
   echo "$PREFILES" | while IFS= read -r f; do
     [ -n "$f" ] && git -C "$ROOT" add -- "$f"
   done

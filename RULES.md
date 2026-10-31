@@ -36,8 +36,8 @@
 
 | 应用方式 | 条数 | 含义 |
 |----------|------|------|
-| `alwaysApply: true` | 10 | 全局常驻，任何任务都生效 |
-| `alwaysApply: false` + `globs` | 35 | 命中指定路径时才注入，减少无关上下文 |
+| `alwaysApply: true` | 9 | 全局常驻，任何任务都生效 |
+| `alwaysApply: false` + `globs` | 36 | 命中指定路径时才注入，减少无关上下文 |
 
 > 条数以 `.agents/rules/` 实际文件为准；`scripts/check-agent-dirs.test.mjs` 会在 pre-commit 校验本表与目录一致。
 
@@ -125,10 +125,10 @@ alwaysApply: false
 
 | 机制 | 行为 | 适用 |
 |------|------|------|
-| `alwaysApply: true` | 每次会话常驻注入 | 全域约束（项目形态、执行规则、验收门禁、UI 模式） |
+| `alwaysApply: true` | 每次会话常驻注入 | 全域约束（项目形态、执行规则、验收门禁） |
 | `globs` 命中 | 仅当任务涉及匹配路径的文件时注入 | 语言 / 框架 / 目录级约定 |
 
-**始终应用的 10 条**（`alwaysApply: true`）：
+**始终应用的 9 条**（`alwaysApply: true`）：
 
 | 规则文件 | 覆盖内容 |
 |----------|----------|
@@ -141,9 +141,9 @@ alwaysApply: false
 | `error-handling.md` | 错误处理与加载状态 |
 | `commands.md` | 常用命令速查 |
 | `shell-encoding.md` | 终端中文编码、只读场景与批量替换约束 |
-| `ui-patterns.md` | UI 模式速查 |
 
-> 其余 35 条按 `globs` 生效，清单见 §6「应用方式」列。
+> 其余 36 条按 `globs` 生效，清单见 §6「应用方式」列。
+> `ui-patterns.md`（944 行速查表）自 2026-10-31 起改为**按需查阅**，入口见 `docs/design-system/README.md`。
 
 ---
 
@@ -230,7 +230,7 @@ alwaysApply: false
 | `css-architecture.md` | `frontend/**/*.css` | CSS 拆分阈值、死 CSS 预防、布局稳定性 |
 | `css-adl-prefix-private-variable-naming.md` | `frontend/**/*.css` | 公共 Token 无前缀、组件/区域私有变量 `--adl-` 前缀 |
 | `design-system.md` | `frontend/**` | 设计系统约束、主题、组件规范与可访问性 |
-| `ui-patterns.md` | 始终 | UI 模式速查唯一入口（对话框 / 菜单 / 悬停 / 点击 / 颜色 / Hint Card / 按钮 / 文件树 / Tooltip / Toast） |
+| `ui-patterns.md` | 按需（`docs/design-system/README.md` 入口） | UI 模式速查唯一入口（对话框 / 菜单 / 悬停 / 点击 / 颜色 / Hint Card / 按钮 / 文件树 / Tooltip / Toast） |
 | `hint-color-usage.md` | `frontend/**` | 提示色规范：拖拽手柄、分界线用中性色，禁用 accent 蓝 |
 
 ### 6.9 i18n 与图标（3）

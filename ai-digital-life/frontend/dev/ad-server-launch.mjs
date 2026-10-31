@@ -35,7 +35,7 @@
 // orchestrator only runs when this file is the main module.
 
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -76,7 +76,41 @@ export function resolveDevDataDir(repoRoot, env = process.env) {
 
 const dataDir = resolveDevDataDir(repoRoot);
 const healthTimeoutMs = Number.parseInt(process.env.ADL_AD_SERVER_HEALTH_TIMEOUT_MS ?? '60000', 10);
-const portLineTimeoutMs = 180_000; // `cargo run` may need to build the binary first
+// `cargo run` 首次会先编译 adl-server（本工作树实测约 2m28s）；180s 会在冷构建时误判失败。
+// 默认 300s，可用 ADL_AD_SERVER_PORT_TIMEOUT_MS 覆盖（CI/慢盘）。
+const portLineTimeoutMs = Number.parseInt(
+  process.env.ADL_AD_SERVER_PORT_TIMEOUT_MS ?? '300000',
+  10,
+);
+
+/** 本实例的运行态标记文件：供 dev:status 判断「这个端口有没有注入后端、是不是孤儿」。 */
+function instanceStateDir(instance) {
+  return instance.stateDir ?? path.join(repoRoot, 'target', 'adl-instance');
+}
+
+function writeInstanceMarker(instance, data) {
+  const dir = instanceStateDir(instance);
+  try {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      path.join(dir, 'dev-instance.json'),
+      `${JSON.stringify(data, null, 2)}\n`,
+      'utf8',
+    );
+  } catch (error) {
+    warn(`failed to write dev-instance.json: ${error.message}`);
+  }
+}
+
+function clearInstanceMarker(instance) {
+  try {
+    rmSync(path.join(instanceStateDir(instance), 'dev-instance.json'), { force: true });
+  } catch {
+    // 标记文件只是诊断线索，清理失败不影响退出。
+  }
+}
+
+let currentInstance = null;
 
 const log = (...args) => console.log('[adl-dev]', ...args);
 const serverLog = (...args) => console.log('[ad-server]', ...args);
@@ -107,6 +141,9 @@ function killTree(pid) {
 }
 
 function cleanup() {
+  if (currentInstance) {
+    clearInstanceMarker(currentInstance);
+  }
   if (adServer) {
     // Skip the tree-kill when the child already exited (its process is gone —
     // taskkill would just error 128). The kill exists to reap the ad-server
@@ -167,12 +204,28 @@ function startVite(adServerBaseUrl, logFlags, frontendPort, runHost) {
       adServerBaseUrl ?? '(unset → preview/mock fallback)'
     })`,
   );
+  if (!adServerBaseUrl) {
+    warn(
+      'preview/mock fallback active: app-domain HTTP calls will fail (启动器没有可用的 ad-server)。' +
+        ' 跨端口排查见 `pnpm run dev:status` 的 server=/health= 列。',
+    );
+  }
   viteChild = spawn(process.execPath, [viteBin, ...viteArgs], {
     cwd: frontendRoot,
     stdio: 'inherit',
     env,
     windowsHide: false,
   });
+  if (currentInstance) {
+    writeInstanceMarker(currentInstance, {
+      schema: 1,
+      worktree: repoRoot,
+      port: frontendPort,
+      serverUrl: adServerBaseUrl,
+      launcherPid: process.pid,
+      startedAt: new Date().toISOString(),
+    });
+  }
   viteChild.on('error', (err) => {
     warn(`failed to start Vite: ${err.message}`);
     cleanup();
@@ -191,9 +244,10 @@ function startVite(adServerBaseUrl, logFlags, frontendPort, runHost) {
 function spawnAdServer(logFlags) {
   const args = ['--port', String(requestedPort), '--data-dir', dataDir];
   const env = buildAdServerEnv(process.env, logFlags.env);
+  let child;
   if (existsSync(AD_SERVER_BIN)) {
     log(`launching prebuilt ${AD_SERVER_BIN} --port ${requestedPort}`);
-    adServer = spawn(AD_SERVER_BIN, args, {
+    child = spawn(AD_SERVER_BIN, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
       env,
@@ -202,23 +256,26 @@ function spawnAdServer(logFlags) {
     log(
       `prebuilt ${AD_SERVER_BIN_NAME} not found; falling back to \`cargo run -p ${AD_SERVER_PACKAGE}\` (first run builds)`,
     );
-    adServer = spawn(
+    child = spawn(
       process.platform === 'win32' ? 'cargo.exe' : 'cargo',
       ['run', '-p', AD_SERVER_PACKAGE, '--', ...args],
       { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env },
     );
   }
+  // 局部变量持有子进程：cleanup() 会把模块级 adServer 置空，监听器若再引用全局变量
+  // 就会在「超时回退 → cleanup → 子进程随后 exit」时命中 null（2026-10-31 实测 TypeError）。
+  adServer = child;
   // Node ChildProcess 没有 `kind` 属性（恒走 fallback）：只记 pid（Phase 4 D1）。
-  serverLog(`spawned ad-server (pid ${adServer.pid})`);
-  adServer.exited = false;
-  adServer.on('exit', (code, signal) => {
-    adServer.exited = true;
+  serverLog(`spawned ad-server (pid ${child.pid})`);
+  child.exited = false;
+  child.on('exit', (code, signal) => {
+    child.exited = true;
     serverLog(`ad-server exited (code ${code}, signal ${signal})`);
   });
-  adServer.on('error', (err) => {
+  child.on('error', (err) => {
     serverLog(`ad-server spawn error: ${err.message}`);
   });
-  return adServer;
+  return child;
 }
 
 /** Resolve the bound port from `AD_SERVER_PORT=` stdout, else null on timeout. */
@@ -300,6 +357,7 @@ async function main() {
   // Phase 4 F4）。端口/宿主解析与 `dev:tauri` 共用 `resolveDevPort`（校验/占用/稳定端口顺延）。
   const logFlags = parseLogFlags(process.argv.slice(2));
   const instance = resolveInstance({ repoRoot });
+  currentInstance = instance;
   const { bindHost, port: frontendPort } = await resolveDevPort({
     args: logFlags.restArgs,
     suffix: instance.suffix,

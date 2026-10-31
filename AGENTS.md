@@ -56,15 +56,14 @@
 ## 禁止项
 
 > 标注「自动校验」的条目由对应脚本在 pre-commit / pre-push 强制执行；其余条目仍需审查判断。
+> 更细的规范见 [`.agents/rules/`](.agents/rules/)（`shell-encoding`、`hint-color-usage`、`quality-gates`、`dev-rules` 等）；本清单只保留高频、跨领域的硬约束。
 
 - WebView 直接触达系统能力（必须通过 Tauri Command）
 - 低层 crate 依赖高层 crate
 - 凭据写入普通配置或日志（必须通过 `crates/credential/` 存储）
 - UI/UX 或功能变更后跳过红绿测试
 - 未获用户批准就执行全量测试 / 全量门禁（`check:full`、`cargo test --workspace`）或发布打包（`cargo tauri build`）；日常只跑受变更影响的测试
-- 在 capability 文件中使用 `"all"` / `"**"` 通配权限（自动校验：`ai-digital-life/scripts/check-release-guards.test.mjs`）
-- e2e 专用 feature / Tauri 配置泄漏到生产构建（自动校验：`ai-digital-life/scripts/check-release-guards.test.mjs`）
-- 只改 `.agents/rules` 或 `.agents/skills` 而不同步 `.opencode` / `.trae` 镜像（自动校验：`ai-digital-life/scripts/check-agent-dirs.test.mjs`）
+- 以下三类已由自动校验拦截（pre-commit 跑 `ai-digital-life/scripts/*.test.mjs`）：capability 通配权限、e2e 配置泄漏到生产构建、`.agents` 规则/技能未同步到 `.opencode` / `.trae` 镜像——不要用 `--no-verify` 绕过
 - 功能或显示效果仅在 Tauri 或浏览器单一模式下可用（必须双端一致）
 - WebView URL 变化被动触发 Tauri navigateTab（必须由前端发起操作显式调用，见 `browserpanel.tsx:submitAddress`、`BrowserPanelActionsContext.ts:handleOpenTabFromTree`）
 - 任何 UI 展示文本硬编码（包括但不限于按钮/Tooltip/aria-label/占位符/过滤器标签/相对时间/日期格式/面包屑标签映射），必须使用 i18n key

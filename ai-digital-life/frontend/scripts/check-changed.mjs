@@ -2,11 +2,13 @@
  * 受影响范围的本地门禁（默认执行）：
  * - lint / format 只跑变更文件（超出阈值时回退全量）
  * - 类型检查与跨语言契约检查为全局不变量，始终执行
- * - 测试只在 src 下发生变更时执行，并用 `vitest related` 精确挑选受影响用例
+ * - 测试只在 src 下发生变更时执行：i18n 字典改动按域收窄（`i18n-test-scope.mjs`），
+ *   其余用 `vitest related` 精确挑选受影响用例
  *
  * 全量门禁（check:full / cargo test --workspace / 发布打包）必须先获得用户批准。
  */
 import { spawnSync } from 'node:child_process';
+import { i18nTestScopes } from './i18n-test-scope.mjs';
 
 const cwd = process.cwd();
 const MAX_COMMAND_LENGTH = 6000;
@@ -129,10 +131,20 @@ run(
 );
 
 if (srcChanges.length > 0) {
-  run(
-    `vitest related (${srcChanges.length} changed source files)`,
-    `npx vitest related ${srcChanges.map(quote).join(' ')} --passWithNoTests`,
-  );
+  // i18n 字典被几乎所有组件引用：`vitest related` 会把整张导入图拉进来。
+  // 仅当变更文件全部是**已知**字典域时才收窄，未知字典仍走 related（宁可多跑）。
+  const i18nScopes = i18nTestScopes(srcChanges);
+  if (i18nScopes) {
+    run(
+      `vitest scoped (i18n-only change -> ${i18nScopes.length} dirs)`,
+      `npx vitest run ${i18nScopes.map(quote).join(' ')} --passWithNoTests`,
+    );
+  } else {
+    run(
+      `vitest related (${srcChanges.length} changed source files)`,
+      `npx vitest related ${srcChanges.map(quote).join(' ')} --passWithNoTests`,
+    );
+  }
 } else {
   console.log('[check:changed] tests skipped (no src changes)');
 }

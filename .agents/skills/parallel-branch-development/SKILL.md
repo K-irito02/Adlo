@@ -77,7 +77,7 @@ Test-Path -LiteralPath "ai-digital-life/.codegraph"  # 9 CodeGraph 索引是否�
 | 8 | 输出 `.githooks` | 未启用 → `pnpm --dir ai-digital-life run setup:worktree`（仓库级，一处即可） |
 | 9 | 目录存在 | 缺失 → 同上（`codegraph init`，索引不入库） |
 
-输出环境快照块（**没有快照视为未开工**）。固定 9 行：一项一行，键用英文冒号对齐（键宽 8、前后各一空格），未知值写 `—`，禁止把多项挤进一行。首行 `[ENV]` 独占一行，保留可 grep 标记：
+输出环境快照块（**没有快照视为未开工**）。固定 10 行：一项一行，键用英文冒号对齐（键宽 8、前后各一空格），未知值写 `—`，禁止把多项挤进一行。首行 `[ENV]` 独占一行，保留可 grep 标记：
 
 ```text
 [ENV]
@@ -89,6 +89,7 @@ Test-Path -LiteralPath "ai-digital-life/.codegraph"  # 9 CodeGraph 索引是否�
   others   : <无|占用当前目录的 active 会话>        # #3 分支占用 / #4 会话占用
   instance : <none|运行中的 exe 路径（注明归属工作树）>
   hooks    : <ok|missing> / graph : <ok|missing>   # #8 本地门禁 / #9 索引是否就绪
+  registry : <session>.json|missing                # 本会话注册表是否已写入 .sessions/
 ```
 
 示例：
@@ -103,7 +104,10 @@ Test-Path -LiteralPath "ai-digital-life/.codegraph"  # 9 CodeGraph 索引是否�
   others   : 无
   instance : E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/target/debug/ai-digital-life.exe（归属主工作树，slot-1 无实例）
   hooks    : ok / graph : ok
+  registry : settings-version-cleanup.json
 ```
+
+> `registry` 为 `missing` 时**不算开工完成**：先按 §6 在 `$WT_ROOT/.sessions/` 写入本会话文件（只写自己的），再通知用户可以开始开发。
 
 读完 §2 后必须进入 §3 交互流程（先列表、再让用户选）；**禁止跳过用户选择直接定目录开工**。
 
@@ -129,7 +133,7 @@ Test-Path -LiteralPath "ai-digital-life/.codegraph"  # 9 CodeGraph 索引是否�
 3. 询问用户二选一（用提问工具或正文提问；**未获答复不得继续**，选错目录会在错误分支上提交，造成跨树污染）：
    - A：新建工作树分支 → 走 §3.1；
    - B：复用已存在的某个工作树分支 → 走 §3.2。
-4. 按用户选择建好 / 切好环境后，在**目标工作树目录**重跑 §2 自检；逐项通过后，明确通知用户“可以在该工作树分支下开始开发了”，方可动手改代码。
+4. 按用户选择建好 / 切好环境后，在**目标工作树目录**重跑 §2 自检（含 `registry` 行：写入本会话 `.sessions/<session>.json`）；逐项通过后，明确通知用户“可以在该工作树分支下开始开发了”，方可动手改代码。
 5. 全程遵守分支固定绑定：无用户批准不得变更任何工作树的分支名称（特批见 §3.3）。
 
 ### 3.1 新建工作树分支

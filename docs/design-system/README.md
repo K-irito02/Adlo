@@ -17,6 +17,9 @@ This folder is the **implementation contract**: anything the renderer ships must
 
 ## Directory Structure
 
+> **Pattern quick reference**: the per-pattern checklist lives in
+> [`.agents/rules/ui-patterns.md`](../../.agents/rules/ui-patterns.md) (on-demand, not injected every session).
+
 ```
 docs/design-system/
 ├── README.md                # This file — overview & index

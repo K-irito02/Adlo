@@ -32,3 +32,10 @@
 
 - 能：快照 refs 定位、fill/click/check、eval 断言、console/requests 排障、route mock、tracing、screenshot。
 - 不能：触达 Tauri 桌面壳（只到浏览器，桌面点击仍需 WebdriverIO 方案）；`run-project-surfaces` 只启动不代开页面，需与本技能组合。
+
+## 5. 截图成本（2026-10-31 实测）
+
+- **先用 eval 断言，再决定要不要截图**：结构（`textContent`、`data-settings-row`、`children.length`）与几何（`getBoundingClientRect` 的中心/高度差）都能用 `--raw eval` 证明；一次 eval 的成本远低于一张图。
+- **截图只用于人眼审美判断**（配色、间距观感、对齐是否"看着舒服"）；同一状态每轮 ≤2 张，取最终态，不拍中间态。
+- 产物落 Temp 并在清理阶段整批删除；不要把截图放进仓库（`.playwright-cli/`、`test-artifacts/` 都不入库）。
+- 原型流程里 4 个方案可以先各拍 1 张终态对比图；方案内部的布局 bug 用 eval 判断，不要靠反复截图找。
