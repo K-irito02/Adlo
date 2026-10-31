@@ -292,7 +292,7 @@ describe('DshSettings', () => {
     await waitFor(() => {
       expect(root?.querySelector('[data-settings-row="harnessVersionUpdate"]')).toBeNull();
     });
-    // DSH 默认单卡（`extraRows: 'none'`）：双通道行随管理行一起隐藏。
+    // DSH 固定单卡（无手动版本行 / 已安装独立卡）：双通道行随管理行一起隐藏。
     expect(root?.querySelector('[data-settings-row="dshOfficialStable"]')).toBeNull();
     // 当前版本行与系统安装读数仍可见。
     expect(root?.querySelector('[data-settings-row="harnessVersionCurrent"]')).not.toBeNull();
@@ -554,7 +554,7 @@ describe('DshSettings', () => {
       });
       renderSettings();
       await waitFor(() => {
-        // DSH 默认单卡（`extraRows: 'none'`）：管理行按来源显隐，已安装独立卡不在显隐断言内。
+        // DSH 固定单卡（无手动版本行 / 已安装独立卡）：管理行按来源显隐。
         const rows = [
           document.querySelector('[data-settings-row="harnessVersionUpdate"]'),
           document.querySelector('[data-settings-row="dshOfficialStable"]'),

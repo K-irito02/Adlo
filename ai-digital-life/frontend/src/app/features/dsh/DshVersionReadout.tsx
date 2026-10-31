@@ -10,13 +10,14 @@ interface VersionReadout {
 }
 
 /**
- * DSH 组的运行态 / 来源读数（通用版本卡片的 `runtimeReadout` 插槽内容）。
+ * DSH 当前版本读数（通用版本卡片的 `runtimeReadout` 插槽内容）。
  *
  * 读数容器由卡片提供（当前版本行内单个 `__readout`），本组件只渲染一个值：
- * 真实版本号，或未安装 / 版本未知 / 读取中的占位文案。
+ * 真实版本号，或未安装 / 版本未知的占位文案（读取中由骨架表达）。
  *
  * 刻意**不**在这里显示更新结论（有新版本可用 / 已是最新 / 最新版本号）与运行地址：
  * 更新信息归「检查更新」行，来源（宿主托管 / 系统安装 / 运行中）归「版本来源」行，
+ * 运行地址自 2026-10-31 起不再展示（用户要求当前版本行只显示版本号）。
  * 当前版本行只回答「现在用的是什么版本」。
  */
 export function DshVersionReadout({ busy }: { busy: boolean }) {
@@ -40,13 +41,10 @@ export function DshVersionReadout({ busy }: { busy: boolean }) {
   );
 
   const readout = useMemo<VersionReadout>(() => {
-    // 快照 source 腿未到：如实显示中性「状态读取中」，不拿 currentSelected 顶替
-    // 实际来源；快照 source 腿失败且无任何可用数据时切错误态，不再无限骨架。
+    // source 腿未到：由下方 readoutLoading 的骨架接管（不拿 currentSelected 顶替
+    // 实际来源）；快照失败时覆盖骨架并直接显示失败文案，不再无限骨架。
     if (!versionSource) {
-      return {
-        text: snapshotFailed ? t.dshVersionStateFailed : t.dshVersionStateReading,
-        empty: true,
-      };
+      return { text: t.dshVersionStateFailed, empty: true };
     }
     switch (versionSource.effective) {
       case 'host': {
@@ -67,7 +65,7 @@ export function DshVersionReadout({ busy }: { busy: boolean }) {
       default:
         return { text: t.dshCurrentVersionNone, empty: true };
     }
-  }, [versionSource, sourceStatus, currentSelected, snapshotFailed, t, runningReadout]);
+  }, [versionSource, sourceStatus, currentSelected, t, runningReadout]);
 
   // 读数骨架态：首次快照未到、版本操作在途、拉起中/重启长尾时，统一显示中性
   // 骨架胶囊，不展示中途值；快照失败错误态不进骨架（错误文本即最终展示）。

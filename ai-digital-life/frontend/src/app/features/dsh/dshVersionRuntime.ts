@@ -85,25 +85,6 @@ export async function ensureDshRunning(
   }
 }
 
-/** 运行地址的展示端点（host:port）：读数副行只放端点，完整地址放 title。 */
-export function displayEndpoint(url: string): string {
-  try {
-    return new URL(url).host;
-  } catch {
-    return url;
-  }
-}
-
-/** 完整地址去凭据：剥离 query（dsh 入口可能带一次性 token）。 */
-export function displayUrl(url: string): string {
-  try {
-    const parsed = new URL(url);
-    return `${parsed.origin}${parsed.pathname}`;
-  } catch {
-    return url.split('?')[0];
-  }
-}
-
 /**
  * 管理项显隐（与迁移前一致）：偏好为系统安装、偏好解析落在系统安装、
  * 或待切换来源为系统安装，任一成立即隐藏；source-status 未就绪（解析未知）时不显示。

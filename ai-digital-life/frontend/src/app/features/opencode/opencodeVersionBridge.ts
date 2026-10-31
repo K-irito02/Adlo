@@ -33,9 +33,6 @@ function toSourceStatus(source: OpencodeSourceStatus): HarnessVersionSourceStatu
   const resolved = source.versionSource.resolvedByMode?.[mode] ?? null;
   return {
     mode,
-    effective: source.versionSource.effective,
-    systemPath: source.system?.path ?? null,
-    systemVersion: source.system?.version ?? null,
     // 系统安装生效时隐藏管理项（与 DSH `managed` 语义一致）。
     managed: !(mode === 'system' || resolved === 'system'),
     ready: true,
@@ -178,9 +175,7 @@ export function createOpencodeVersionBridge(
       sourceModeChange: 'immediate',
       // 检查更新只查询并提示（用户要求：不做升级动作）。
       updateAction: 'check',
-      taskPercent: true,
       taskCounts: false,
-      channelPicker: true,
       resetSourceAction: false,
       // 行内刷新按钮（检查/当前/正式/预发布）+ 分腿扫光。
       refreshRows: true,

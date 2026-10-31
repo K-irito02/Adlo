@@ -22,7 +22,7 @@ export function OpencodeVersionSourceNote({
   return (
     <>
       {/* 自动检测的背后真实状态：下拉仍是「自动检测」，这里只说明实际使用的**来源**
-          （宿主托管 / 系统安装）；版本是否已安装由下方提示行与状态胶囊表达。 */}
+          （宿主托管 / 系统安装）；已安装/未安装由「当前版本」读数表达。 */}
       {mode === 'auto' && resolvedSource ? (
         <AutoResolvedNote>
           {formatT(t, 'settingsAutoResolved', {

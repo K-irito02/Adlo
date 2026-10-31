@@ -9,7 +9,6 @@ import type {
   HarnessVersionResult,
   HarnessVersionSourceMode,
   HarnessVersionSourceStatus,
-  HarnessVersionTone,
 } from './harnessVersionBridge';
 import { useHarnessVersionData } from './hooks/useHarnessVersionData';
 import {
@@ -21,7 +20,6 @@ import { useHarnessVersionActions } from './hooks/useHarnessVersionActions';
 import { ChannelRow, ChannelSizer, type HarnessChannelTask } from './sub-components/ChannelRow';
 import { ResetSourceRow } from './sub-components/ResetSourceRow';
 import { SourceRow, type HarnessSourceOption } from './sub-components/SourceCard';
-import { TaskRow } from './sub-components/TaskRow';
 import { UpdateRow } from './sub-components/UpdateRow';
 import {
   CurrentVersionRow,
@@ -42,7 +40,6 @@ export interface HarnessVersionSlotContext<TSource> {
     action: () => Promise<HarnessVersionResult>,
     successMessage: string | null,
   ) => Promise<void>;
-  notify: (message: string, tone: HarnessVersionTone) => void;
 }
 
 export type HarnessVersionSlot<TSource> =
@@ -80,7 +77,7 @@ export interface HarnessVersionSlots<TSource> {
   sourceNote?: HarnessVersionSlot<TSource>;
   /** 来源行之后、当前版本行之前的工具专属行（如 OpenCode 的终端可用性开关）。 */
   sourceFooter?: HarnessVersionSlot<TSource>;
-  /** 当前版本读数旁的运行态内容（DSH 的运行地址/系统安装读数）。 */
+  /** 当前版本读数旁的运行态版本号（DSH）；不得承载更新结论、来源说明或运行地址。 */
   runtimeReadout?: HarnessVersionSlot<TSource>;
   /** 卡片尾部内容（旧 DSH 官方版本信息行，渲染为卡内末行）。 */
   footer?: HarnessVersionSlot<TSource>;
@@ -126,12 +123,12 @@ export function HarnessVersionCard<TSource = unknown>({
     prereleaseInfos: data.prereleaseInfos,
   });
 
-  const stableEffective = pickEffective(data.stableInfos, menu.stableChoice, data.current);
-  const prereleaseEffective = pickEffective(
-    data.prereleaseInfos,
-    menu.prereleaseChoice,
-    data.current,
-  );
+  // 通道信息已由数据层并入「目录外已安装版本」（useHarnessVersionData）：通道行、
+  // 菜单与宽度尺共用同一份数组，避免只改动其中一处导致菜单缺项或宽度失准。
+  const { stableInfos, prereleaseInfos } = data;
+  const currentVersion = data.current;
+  const stableEffective = pickEffective(stableInfos, menu.stableChoice, currentVersion);
+  const prereleaseEffective = pickEffective(prereleaseInfos, menu.prereleaseChoice, currentVersion);
 
   // 分腿刷新在途的行键（`current`/`check`/`stable`/`prerelease`；null = 空闲）。
   // 后端只有整快照重载口（`load` 三腿并发），分腿只是视觉口径：
@@ -164,31 +161,29 @@ export function HarnessVersionCard<TSource = unknown>({
   // 检查更新发现的新版本提示：标题下方一组中性徽章（「新」+ 通道 + 版本号）。
   // 静默检查与手动检查共用；无新版本时不渲染。两工具共用同一套徽章。
   const updateNote = (() => {
-    if (!data.manageVisible) {
-      return null;
-    }
     const st = data.status;
     if (!st) {
       return null;
     }
     const badge = (key: string, label: string, version: string) => (
       <span key={key} className="adl-harness-version__update-badge">
-        <span className="adl-harness-version__update-badge-new">{t.harnessVersionBadgeNew}</span>
+        <span className="adl-harness-version__update-badge-new">{t.harnessVersionNewBadge}</span>{' '}
         <span className="adl-harness-version__update-badge-text">
-          {label}
-          <span className="adl-harness-version__update-badge-version">{version}</span>
+          {label} <span className="adl-harness-version__update-badge-version">{version}</span>
         </span>
       </span>
     );
     const badges: ReactNode[] = [];
     if (st.hasUpdate && st.latestAvailable) {
-      badges.push(badge('stable', t.harnessVersionBadgeStable, st.latestAvailable));
+      badges.push(badge('stable', t.harnessVersionStableBadge, st.latestAvailable));
     }
     if (st.hasPrereleaseUpdate && st.prereleaseAvailable) {
-      badges.push(badge('prerelease', t.harnessVersionBadgePrerelease, st.prereleaseAvailable));
+      badges.push(badge('prerelease', t.harnessVersionPrereleaseBadge, st.prereleaseAvailable));
     }
     return badges.length > 0 ? (
-      <div className="adl-harness-version__update-badges">{badges}</div>
+      <div className="adl-harness-version__update-badges" role="status" aria-live="polite">
+        {badges}
+      </div>
     ) : null;
   })();
 
@@ -243,7 +238,6 @@ export function HarnessVersionCard<TSource = unknown>({
     source: data.source,
     sourceExtra: data.sourceExtra,
     run: data.run,
-    notify: bridge.notify,
   };
 
   const updateMode = bridge.capabilities?.updateAction ?? 'install';
@@ -292,7 +286,7 @@ export function HarnessVersionCard<TSource = unknown>({
       }
       hint={channel === 'stable' ? slots.stableHint : slots.prereleaseHint}
       desc={channel === 'stable' ? slots.descStable : slots.descPrerelease}
-      infos={channel === 'stable' ? data.stableInfos : data.prereleaseInfos}
+      infos={channel === 'stable' ? stableInfos : prereleaseInfos}
       effective={channel === 'stable' ? stableEffective : prereleaseEffective}
       current={data.current}
       installed={data.installed}
@@ -388,25 +382,10 @@ export function HarnessVersionCard<TSource = unknown>({
           尺子 `position:absolute + visibility:hidden`，不依赖卡片容器即可实测；
           放卡内时，无页脚槽的形态（OpenCode）末行收边失效、多出一条分隔线。 */}
       <ChannelSizer
-        longestStable={longestVersionOf(data.stableInfos)}
-        longestPrerelease={longestVersionOf(data.prereleaseInfos)}
+        longestStable={longestVersionOf(stableInfos)}
+        longestPrerelease={longestVersionOf(prereleaseInfos)}
         refs={menu.sizerRefs}
       />
-
-      {!data.channelPicker && data.shownTask ? (
-        <TaskRow
-          stageText={data.stageText}
-          cancelLabel={data.cancelLabel}
-          percent={data.shownTask.percent}
-          done={data.shownTask.done}
-          total={data.shownTask.total}
-          hasLiveTask={data.hasLiveTask}
-          cancellable={data.shownTask.cancellable}
-          showPercent={bridge.capabilities?.taskPercent !== false}
-          showCounts={showCounts}
-          onCancel={() => void bridge.cancel()}
-        />
-      ) : null}
 
       {bridge.capabilities?.resetSourceAction !== false ? (
         <ResetSourceRow

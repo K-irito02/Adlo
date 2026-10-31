@@ -261,7 +261,6 @@ describe('dshVersionBridge', () => {
     const bridge = makeBridge(makeActions(), { changeSourceMode });
 
     expect(bridge.capabilities?.sourceModeChange).toBe('deferred');
-    expect(bridge.capabilities?.channelPicker).toBe(true);
     await bridge.changeSourceMode?.('system');
     expect(changeSourceMode).toHaveBeenCalledWith('system');
   });
@@ -286,8 +285,6 @@ describe('dshVersionBridge', () => {
     expect(snapshot.status?.currentSelected).toBe('1.0.0');
     expect(snapshot.source).toEqual({
       mode: 'auto',
-      effective: 'host',
-      systemPath: 'C:/Program Files/dsh/dsh.exe',
       ready: true,
       managed: true,
     });
@@ -308,7 +305,7 @@ describe('dshVersionBridge', () => {
     const bridge = makeBridge(makeActions());
 
     const snapshot = await bridge.load();
-    expect(snapshot.source).toMatchObject({ mode: 'system', effective: 'system', managed: false });
+    expect(snapshot.source).toMatchObject({ mode: 'system', managed: false });
   });
 
   it('returns the task fetched from the store', async () => {
@@ -362,10 +359,8 @@ describe('dshVersionBridge', () => {
 
     expect(bridge.capabilities).toMatchObject({
       updateAction: 'check',
-      taskPercent: false,
       taskCounts: true,
       sourceManaged: true,
-      channelPicker: true,
     });
     expect(bridge.labels).toMatchObject({
       stable: 'dshOfficialStable',

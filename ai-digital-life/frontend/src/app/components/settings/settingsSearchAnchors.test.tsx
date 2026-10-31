@@ -270,7 +270,7 @@ const CONDITIONAL_ROW_MARKERS: string[] = [
   // 聚合条仅在环境状态加载后渲染。
   'environmentCopyAllForAgent',
   // 通用版本卡片的已安装版本独立区已随 OpenCode 对齐删除（不再渲染独立卡）；
-  // 双通道行在 `channelPicker` 下恒渲染（含空态），
+  // 双通道行由 `manageVisible` 门控、恒渲染（含空态），
   // 因此 `dshOfficialStable` / `dshPrereleaseTitle` 属于默认可见行。
   // 「前往配置」行已随「网络与模型」块删除（该标记只挂在已删除的网络行上）。
 ];

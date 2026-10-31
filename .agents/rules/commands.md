@@ -67,7 +67,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `pnpm --dir frontend run check:i18n` | 前端 i18n 覆盖检查（CI 门禁） |
 | `pnpm run cargo:test` | Rust 全量测试（内部先 `stage:sidecar`；裸 `cargo test --workspace` 需先 staging） |
 | `cargo test -p <crate>` | Rust 指定 crate 测试 |
-| `cargo test <test_name>` | Rust 模糊匹配测试名称 |
+| `cargo test -p <crate> <test_name>` | Rust 按名称过滤测试（限定 crate，避免编译壳层） |
 | `pnpm run e2e:build` | 构建桌面 E2E 调试产物（内部先 `stage:sidecar`；`--features e2e`，**不要**换 release 构建） |
 | `pnpm run e2e` | 桌面 E2E 全量冒烟（真实 Tauri 窗口，整轮 ~15s） |
 | `pnpm run e2e:typecheck` | e2e 包 TypeScript 检查（pre-push 自动执行） |
@@ -86,8 +86,8 @@ cargo test -p adl-server
 # Rust — 仅指定集成测试文件
 cargo test -p adl-server --test workspace_all
 
-# Rust — 模糊匹配测试名称
-cargo test reference_list
+# Rust — 模糊匹配测试名称（限定 crate，避免编译壳层）
+cargo test -p adl-server reference_list
 
 # 前端 — 仅指定测试文件
 pnpm --dir frontend run test -- src/app/features/browser
@@ -150,14 +150,16 @@ $env:LIB = "$msvc\lib\x64;$sdk\Lib\$sdkv\um\x64;$sdk\Lib\$sdkv\ucrt\x64"
 | `pnpm run cargo:check` | 编译检查（无二进制输出；内部先 `stage:sidecar`） |
 | `cargo fmt --all -- --check` | Rust 格式检查（修复用 `cargo fmt --all`；不触发生成物，无需 staging） |
 | `pnpm run cargo:test` | 运行所有 Rust 测试（内部先 `stage:sidecar`） |
-| `pnpm run cargo:build` | 完整编译（内部先 `stage:sidecar`） |
+| `pnpm run cargo:build` | 完整编译（debug profile；内部先 `stage:sidecar`。release 打包用 `pnpm run build`） |
 | `pnpm run cargo:clippy` | Lint 检查（内部先 `stage:sidecar`） |
 
 > **工作区级 cargo 命令前置条件**：`src-tauri` 含 `bundle.externalBin`，tauri-build 构建脚本会在每次构建时校验
 > `src-tauri/binaries/adl-server-<triple>.exe`，缺失即 `resource path ... doesn't exist` 并直接失败。
 > 裸 `cargo build` / `cargo check --workspace` / `cargo test --workspace` / `cargo clippy --workspace`
-> **不会**触发 staging 钩子，干净工作树首次执行前必须先 `pnpm run stage:sidecar`；直接用上表的 `pnpm run cargo:*`
-> 可免记该步骤（详见 [ai-digital-life/CONTRIBUTING.md](../../ai-digital-life/CONTRIBUTING.md)）。
+> **不会**触发 staging 钩子，干净工作树首次执行前必须先 `pnpm run stage:sidecar`；按名称过滤的
+> `cargo test <name>` 与 `-p ai-digital-life` 同属会编译壳层的形态。
+> 直接用上表的 `pnpm run cargo:build` / `cargo:check` / `cargo:clippy` / `cargo:test` 可免记该步骤
+> （`cargo:fmt` / `cargo:fmt:check` 不编译，不在此列；详见 [ai-digital-life/CONTRIBUTING.md](../../ai-digital-life/CONTRIBUTING.md)）。
 
 ## ⚠️ Node.js 环境变量
 

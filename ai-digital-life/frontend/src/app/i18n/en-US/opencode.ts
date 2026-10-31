@@ -22,7 +22,7 @@ export const opencodeEn = {
   opencodeCurrentVersion: 'Current version',
   opencodeCurrentVersionDesc: 'The OpenCode CLI version currently in use',
   opencodeCurrentVersionHint:
-    'Shows the OpenCode CLI version actually in use and where it comes from.\n· App-managed versions are installed and managed by the app; install, switch or uninstall them here.\n· System install: a version you installed yourself; the app only uses it and never modifies it.\n· Only one version takes effect at a time, resolved from the "Version source" preference.\nNew terminal sessions pick up installs, switches or uninstalls immediately; no app restart needed.',
+    'Shows only the OpenCode CLI version actually in use; see "Version source" above for where it comes from.\n· App-managed versions are installed and managed by the app; install, switch or uninstall them here.\n· System install: a version you installed yourself; the app only uses it and never modifies it.\n· Only one version takes effect at a time, resolved from the "Version source" preference.\nNew terminal sessions pick up installs, switches or uninstalls immediately; no app restart needed.',
   opencodeUpdate: 'Check for updates',
   opencodeUpdateDesc: 'See whether a newer version exists',
   opencodeUpdateHint:
@@ -34,7 +34,7 @@ export const opencodeEn = {
   opencodeStable: 'Stable',
   opencodeStableDesc: 'Officially released stable versions',
   opencodeStableHint:
-    'Stable releases are recommended for most people.\n· The dropdown lists every stable release in this channel (defaulting to the current version or the channel latest); picking one only changes the dropdown, it does not install or switch.\n· Buttons on the right follow the selected version: "Install" when missing; "Uninstall / Reinstall" when installed; plus "Switch" when installed but not current.\n· Installing really downloads the release into the app data directory and selects it; new terminal sessions use it right away.',
+    'Stable releases are recommended for most people.\n· The dropdown lists the available stable releases in this channel (defaulting to the current version or the channel latest); picking one only changes the dropdown, it does not install or switch.\n· Buttons on the right follow the selected version: "Install" when missing; "Uninstall / Reinstall" when installed; plus "Switch" when installed but not current.\n· Installing really downloads the release into the app data directory and selects it; new terminal sessions use it right away.',
   opencodePrerelease: 'Prerelease',
   opencodePrereleaseDesc: 'Try new features early; prereleases may be unstable',
   opencodePrereleaseHint:

@@ -13,9 +13,12 @@
 ### Rust 端
 
 - `cargo fmt --all -- --check`
-- `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo check --workspace`
-- `cargo test --workspace`
+- `pnpm run cargo:clippy`
+- `pnpm run cargo:check`
+- `pnpm run cargo:test`
+
+> 以上 `cargo:*` 脚本会先 `stage:sidecar`。若直接跑裸 `cargo clippy/check/test --workspace`，
+> 干净工作树需先 `pnpm run stage:sidecar`（见下方「Windows Rust Toolchain Notes」）。
 
 ### 前端
 

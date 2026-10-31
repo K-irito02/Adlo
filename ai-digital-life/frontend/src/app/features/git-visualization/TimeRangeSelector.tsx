@@ -2,7 +2,7 @@ import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useTCopy } from '@i18n/useTCopy';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
-import { IconCheck, IconChevronLeft, IconChevronRight } from '@app/icons';
+import { IconCheck, IconChevronLeft, IconChevronRight, REFRESH_ARC_PATH } from '@app/icons';
 import { MiniDatePicker } from './MiniDatePicker';
 import { resolveRollingRange, resolveTimeRangeForFetch } from './timeRangeUtils';
 import { useAppStore } from '@stores/slicedStore';
@@ -425,7 +425,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                 >
-                                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                  <path d={REFRESH_ARC_PATH} />
                                 </svg>
                               </motion.span>
                             ) : buttonAnim === 'success' ? (

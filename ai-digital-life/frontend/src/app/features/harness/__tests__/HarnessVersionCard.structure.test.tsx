@@ -15,9 +15,9 @@ import { DshVersionReadout } from '@features/dsh/DshVersionReadout';
 /**
  * 旧 DSH 版本管理块的结构契约（基线 `2ea69fd7` 的 `DshVersionManagement` + `dsh-version.css`）：
  * 单张 `adl-settings-card`、行顺序 source → current → check/update → stable → prerelease →
- * official-links、行内 channel picker 菜单、行内读数（含骨架/徽章/latest/卸载提示）。
- * 通用卡片改用中性前缀 `adl-harness-version__*` 复刻这套结构；DSH 默认不渲染
- * 手动版本行与已安装独立卡（能力门控 `extraRows`，默认 `'none'`）。
+ * official-links、行内 channel picker 菜单、行内单值读数与卸载提示。
+ * 通用卡片改用中性前缀 `adl-harness-version__*` 复刻这套结构；手动版本行、
+ * 系统安装位置行、未安装提示行与已安装版本独立卡均已删除，两组结构一致。
  */
 
 const mockT = new Proxy({} as Record<string, string>, {
@@ -55,7 +55,7 @@ function snapshot(overrides: Partial<HarnessVersionSnapshot> = {}): HarnessVersi
   return {
     status: status(),
     catalog: CATALOG,
-    source: { mode: 'auto', effective: 'host', systemPath: null, ready: true },
+    source: { mode: 'auto', ready: true },
     failed: false,
     ...overrides,
   };
@@ -72,10 +72,8 @@ function dshBridge(
     toolName: 'settingsDsh',
     available: true,
     capabilities: {
-      channelPicker: true,
       uninstallConfirm: true,
       updateAction: 'check',
-      taskPercent: false,
       taskCounts: true,
       sourceManaged: true,
       resetSourceAction: false,
@@ -293,7 +291,7 @@ describe('HarnessVersionCard old-DSH structure', () => {
     }
   });
 
-  it('renders no separate installed card for the DSH default', async () => {
+  it('renders no separate installed-versions card', async () => {
     const bridge = dshBridge();
     const { container } = renderDshCard(bridge);
     // 首屏快照落定后断言（`load` 被调用不等于快照已应用；picker 按钮只在落定后出现）。
@@ -301,7 +299,6 @@ describe('HarnessVersionCard old-DSH structure', () => {
 
     mainCard(container);
     expect(container.querySelector('[data-settings-row="harnessVersionInstalled"]')).toBeNull();
-    expect(container.querySelector('[data-harness-version-row]')).toBeNull();
     expect(container.querySelectorAll('.adl-settings-card')).toHaveLength(1);
   });
 });
@@ -346,11 +343,10 @@ describe('DshVersionReadout old-DSH readout structure', () => {
     // 读数容器由卡片提供，插槽只渲染片段：容器内没有嵌套的第二层 readout。
     expect(readout.querySelector('.adl-harness-version__readout')).toBeNull();
     expect(readout.querySelector('.adl-harness-version__readout-value')).not.toBeNull();
-    // 当前版本行只回答「用的是什么版本」：更新徽章 / 最新版本 / 来源副行都不在这里渲染。
+    // 当前版本行只回答「用的是什么版本」：不渲染更新结论，也不渲染来源副行。
     expect(readout.children).toHaveLength(1);
     expect(readout.textContent).not.toContain('harnessVersionHasUpdate');
     expect(readout.textContent).not.toContain('harnessVersionNoUpdate');
-    expect(readout.textContent).not.toContain('dshLatest');
   });
 
   it('renders the skeleton with role=status while busy', () => {

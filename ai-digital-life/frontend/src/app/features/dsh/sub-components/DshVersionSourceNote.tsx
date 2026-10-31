@@ -27,22 +27,31 @@ export function DshVersionSourceNote({
   mode,
 }: DshVersionSourceNoteProps) {
   const { t } = useTCopy();
+  // running 状态在两种场景都要披露：自动检测下说明「实际是运行中的实例」；
+  // 偏好已钉住时，只要实际生效落在 running（外部进程，或应用自启但来源与偏好不一致），
+  // 也必须说明，否则下拉与实际生效不一致却无处可见。
+  const runningActive = effectiveSource === 'running';
+  const showResolved = (resolvedSource || effectiveSource) && (mode === 'auto' || runningActive);
+  const resolvedLabel = runningActive
+    ? runningSource === 'system'
+      ? t.dshVersionSourceSystem
+      : runningSource === 'host'
+        ? t.dshVersionSourceHost
+        : t.harnessVersionSourceRunning
+    : resolvedSource === 'system'
+      ? t.dshVersionSourceSystem
+      : t.dshVersionSourceHost;
   return (
     <>
       <small>{t.dshVersionSourceDesc}</small>
       {/* 自动检测的背后真实状态：下拉仍是「自动检测」，这里只说明实际使用的**来源**
-          （宿主托管 / 系统安装 / 外部运行中）。版本是否已安装由下方提示行与状态胶囊表达。
+          （宿主托管 / 系统安装 / 外部运行中）。
+          外部运行中不只在「自动检测」下才值得说明：用户把来源钉成宿主/系统、但机器上已有
+          外部启动的实例在跑时，实际生效的就是那个实例，来源行必须如实说明，否则该状态无处可见。
           偏好解析优先：应用自启的托管版本仍显示宿主/系统；只有外部进程才显示「运行中」。 */}
-      {mode === 'auto' && (resolvedSource || effectiveSource) ? (
+      {showResolved ? (
         <AutoResolvedNote>
-          {formatT(t, 'settingsAutoResolved', {
-            value:
-              effectiveSource === 'running' && runningSource === 'external'
-                ? t.harnessVersionSourceRunning
-                : resolvedSource === 'system'
-                  ? t.dshVersionSourceSystem
-                  : t.dshVersionSourceHost,
-          })}
+          {formatT(t, 'settingsAutoResolved', { value: resolvedLabel })}
         </AutoResolvedNote>
       ) : null}
       {systemManaged ? (

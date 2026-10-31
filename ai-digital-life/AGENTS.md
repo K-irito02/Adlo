@@ -13,7 +13,7 @@
 | 包管理 | pnpm（前端）/ Cargo（Rust） |
 | Rust 质量 | `cargo clippy` + `cargo fmt` + `rustfmt.toml` + `clippy.toml` |
 | 前端质量 | ESLint v9（flat config）+ Prettier + TypeScript-ESLint + React Hooks plugin |
-| Rust Lint | `cargo clippy --workspace --all-targets` |
+| Rust Lint | `pnpm run cargo:clippy` |
 | 前端 Lint | `cd frontend && npx eslint . && npx tsc --noEmit` |
 | 桌面 E2E | `@wdio/tauri-service`（embedded WebDriver，opt-in；`pnpm run e2e`，**不进** `check:all`，见技能 `desktop-e2e-wdio`） |
 | 门禁 | 唯一真源：[`.agents/rules/quality-gates.md`](../.agents/rules/quality-gates.md)。日常 `pnpm --dir frontend run check:changed`；合并/发布前 `pnpm run check:all`（含前端 `check:full`）。全量必须先获用户批准；hooks 启用：`pnpm --dir ai-digital-life run setup:worktree` |
@@ -48,7 +48,7 @@
 
 - 能力清单与实现落点：[system-overview.md](../docs/architecture/core/system-overview.md#已实现能力清单详细)（AGENTS 不再复制清单，只保留边界与约束）。
 - 架构概念与文件落点：[CONTEXT.md](../CONTEXT.md)；并行/运行/调试：技能 [parallel-branch-development](../.agents/skills/parallel-branch-development/SKILL.md)（唯一真源）。
-- 测试计数不在此维护，运行 `cargo test --workspace` / `pnpm --dir frontend run test` 获取。
+- 测试计数不在此维护，运行 `pnpm run cargo:test` / `pnpm --dir frontend run test` 获取。
 
 ## 安全边界
 

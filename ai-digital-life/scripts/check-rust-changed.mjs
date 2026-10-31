@@ -6,8 +6,11 @@
  * （2026-10-30 实测：两个提交带着 `cargo fmt` 差异）。本脚本补上这一腿：
  *
  * - `cargo fmt --all -- --check`：永远执行（秒级）；
- * - 仅当本次推送涉及 Rust 源码/构建配置时执行 `cargo clippy --workspace --all-targets -- -D warnings`
- *   （增量、缓存友好；全工作区口径与 `check:all` 一致）。
+ * - 仅当本次推送涉及 Rust 源码/构建配置时执行 clippy（受影响 crate 口径，
+ *   未改壳层时 `--workspace --exclude ai-digital-life`；与 `check:all` 的全工作区口径
+ *   只在「有壳层改动」时才一致）；
+ * - 含壳层改动时先调 `scripts/build-stage-sidecar.ps1 -Profile debug` 生成
+ *   `src-tauri/binaries/adl-server-<triple>.exe`（重副作用：会写构建产物；该脚本仅 Windows）。
  *
  * 用法：node scripts/check-rust-changed.mjs [--base <ref>] [--all] [--skip-fmt]
  */
@@ -128,10 +131,19 @@ const WORKSPACE_LEVEL_FILES = new Set([
   "ai-digital-life/.cargo/config.toml",
 ]);
 
+/**
+ * pre-push 是否需要先 stage sidecar：仅当 clippy 会编译壳层（`src-tauri`）时。
+ * 从受影响 crate 直接判定，避免从 argv 反推（`--exclude ai-digital-life` 的值
+ * 也会被 `args.includes('ai-digital-life')` 命中）。
+ */
+export function shouldStageSidecar(files) {
+  return affectedCrateDirs(files).includes("src-tauri");
+}
+
 export function clippyArgs(files) {
   const workspaceLevel = files.some((file) => WORKSPACE_LEVEL_FILES.has(file));
   const dirs = affectedCrateDirs(files);
-  const shellChanged = dirs.includes("src-tauri");
+  const shellChanged = shouldStageSidecar(files);
   const args = ["clippy"];
   if (workspaceLevel || dirs.length === 0) {
     args.push("--workspace");
@@ -174,11 +186,38 @@ function main() {
   }
   if (options.all || rustFiles.length > 0) {
     const args = clippyArgs(rustFiles);
-    // 运行中的桌面实例会锁住 target/debug/adl-server.exe（tauri-build 在
-    // src-tauri 构建脚本里复制 sidecar 时删除旧文件失败），给出可操作提示。
-    if (args.includes("--workspace") || args.includes("ai-digital-life")) {
+    // 含壳层时先 stage sidecar：`src-tauri` 的 build script 会校验
+    // `bundle.externalBin`（`src-tauri/binaries/adl-server-<triple>.exe`），
+    // 干净工作树直接 clippy 会以「resource path ... doesn't exist」失败。
+    // 与 `pnpm run cargo:build/check/clippy/test` 的前置步骤保持一致（pre-push 也不能漏）。
+    // 判定直接来自受影响 crate（不要从 argv 反推：`--exclude ai-digital-life` 的值
+    // 同样会被 `args.includes('ai-digital-life')` 命中）。
+    const compilesShell = shouldStageSidecar(rustFiles);
+    if (compilesShell && process.platform !== "win32") {
+      console.error(
+        "[check-rust] 含 src-tauri 改动：externalBin 校验依赖 Windows staging 脚本（scripts/build-stage-sidecar.ps1），" +
+          "当前平台无法自动完成。请在 Windows 环境执行该推送，或在 Windows 上先跑 `pnpm run cargo:check` 再推送。",
+      );
+      process.exit(1);
+    }
+    if (compilesShell) {
+      // 提示先于 staging：staging 自身也会写 target/debug/adl-server.exe 并被运行实例锁住。
       console.warn(
-        "[check-rust] note: a running desktop instance locks target/debug/adl-server.exe; close it if clippy fails with PermissionDenied.",
+        "[check-rust] 注意：桌面实例会锁住 target/debug/adl-server.exe；若 staging 或 clippy 报 PermissionDenied，先关闭它。",
+      );
+      // 参数与 package.json#stage:sidecar 保持一致（-Profile debug）。
+      run(
+        "powershell",
+        [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          path.join(implRoot, "scripts", "build-stage-sidecar.ps1"),
+          "-Profile",
+          "debug",
+        ],
+        "stage sidecar (shell build)",
       );
     }
     run(cargo, args, `cargo ${args.join(" ")}`);

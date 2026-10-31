@@ -81,13 +81,11 @@ function makeBridge(
 }
 
 describe('opencodeVersionBridge', () => {
-  it('declares the OpenCode capabilities (check-only update, percent, channel picker)', () => {
+  it('declares the OpenCode capabilities (check-only update, refresh rows)', () => {
     const { adapter } = makeBridge();
     expect(adapter.capabilities).toMatchObject({
       updateAction: 'check',
-      taskPercent: true,
       taskCounts: false,
-      channelPicker: true,
       resetSourceAction: false,
       uninstallConfirm: false,
       refreshRows: true,
@@ -233,8 +231,6 @@ describe('opencodeVersionBridge', () => {
 
     expect(snapshot.source).toMatchObject({
       mode: 'auto',
-      effective: 'host',
-      systemPath: 'C:/Program Files/opencode/opencode.exe',
       ready: true,
     });
     expect(snapshot.sourceExtra).toMatchObject({

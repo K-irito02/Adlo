@@ -451,6 +451,33 @@ describe('i18n en-US namespace keys', () => {
     }
   });
 
+  it('retires the harness/opencode rows removed by the settings cleanup', () => {
+    // 2026-10-31：删除系统安装位置行 / 指定版本行 / 未安装提示行 / 已安装版本独立卡，
+    // 以及收敛为单值读数后不再使用的来源标签；这些键不得在此后复活。
+    for (const key of [
+      'harnessVersionSystemPath',
+      'harnessVersionSystemNotDetected',
+      'harnessVersionSystemVersionUnknown',
+      'harnessVersionManual',
+      'harnessVersionManualPlaceholder',
+      'harnessVersionMissingBanner',
+      'harnessVersionUpdateFoundStable',
+      'harnessVersionUpdateFoundPrerelease',
+      'harnessVersionEffectiveSource',
+      'harnessVersionSwitch',
+      'harnessVersionReinstall',
+      'harnessVersionSourceNone',
+      'opencodeManualVersion',
+      'opencodeManualVersionDesc',
+      'opencodeManualVersionHint',
+      'opencodeSystemPathDesc',
+      'opencodeSystemPathHint',
+    ] as const) {
+      expect(enUS, `en:${key}`).not.toHaveProperty(key);
+      expect(zhCN, `zh:${key}`).not.toHaveProperty(key);
+    }
+  });
+
   it('retires the legacy dsh version-card keys (single generic card, ticket #5)', () => {
     // 旧 DSH 版本组件删除后，仅它使用的键必须同时从双语字典消失（不得复活）；
     // 通用卡片文案改由 `harnessVersion*` 域承载。

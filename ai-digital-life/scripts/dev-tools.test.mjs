@@ -6,6 +6,7 @@ import {
   clippyArgs,
   isRustPath,
   parseArgs as parseRustArgs,
+  shouldStageSidecar,
 } from "./check-rust-changed.mjs";
 import { parseArgs as parseServeArgs } from "./serve-adl-server.mjs";
 
@@ -100,6 +101,21 @@ test("clippyArgs scopes to changed crates and excludes the shell when it did not
     "-D",
     "warnings",
   ]);
+});
+
+test("shouldStageSidecar only when clippy compiles the shell", () => {
+  // 壳层文件变更 → 需要 staging。
+  assert.equal(shouldStageSidecar(["ai-digital-life/src-tauri/src/main.rs"]), true);
+  // 工作区级文件 + 壳层同时变更 → 需要 staging。
+  assert.equal(
+    shouldStageSidecar(["ai-digital-life/Cargo.lock", "ai-digital-life/src-tauri/tauri.conf.json"]),
+    true,
+  );
+  // 只改 crates/** → 不需要（clippy 只 -p 该 crate）。
+  assert.equal(shouldStageSidecar(["ai-digital-life/crates/download-source/src/lib.rs"]), false);
+  // 只改工作区文件 → clippy 走 --workspace --exclude ai-digital-life，不编译壳层。
+  assert.equal(shouldStageSidecar(["ai-digital-life/Cargo.lock"]), false);
+  assert.equal(shouldStageSidecar([]), false);
 });
 
 test("check-rust parses --all/--skip-fmt/--base", () => {

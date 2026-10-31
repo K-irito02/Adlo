@@ -78,7 +78,31 @@ describe('DshVersionSourceNote', () => {
     expect(screen.getByText('助手将无法拉起，请安装')).not.toBeNull();
   });
 
-  it('非自动模式不渲染来源行', () => {
+  it('非自动模式 + 实际在跑外部实例：仍披露「运行中」', () => {
+    renderNote({
+      systemManaged: false,
+      deferredSource: false,
+      resolvedSource: 'system',
+      effectiveSource: 'running',
+      runningSource: 'external',
+      mode: 'system',
+    });
+    expect(screen.getByText('当前实际使用：运行中')).not.toBeNull();
+  });
+
+  it('非自动模式 + 实际运行的是应用自启的宿主实例：披露真实来源', () => {
+    renderNote({
+      systemManaged: false,
+      deferredSource: false,
+      resolvedSource: 'system',
+      effectiveSource: 'running',
+      runningSource: 'host',
+      mode: 'system',
+    });
+    expect(screen.getByText('当前实际使用：宿主托管')).not.toBeNull();
+  });
+
+  it('非自动模式且无运行实例：不渲染来源行', () => {
     renderNote({
       systemManaged: false,
       deferredSource: false,

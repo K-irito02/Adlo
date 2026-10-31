@@ -3,7 +3,6 @@ import type {
   DshVersionSourceMode,
   DshVersionStatus,
   DshVersionTask,
-  DshVersionTaskPhase,
 } from '@shared/ipc/dsh';
 
 /**
@@ -15,7 +14,6 @@ import type {
  */
 
 export type HarnessVersionSourceMode = DshVersionSourceMode;
-export type HarnessVersionTaskPhase = DshVersionTaskPhase;
 export type HarnessVersionStatus = DshVersionStatus;
 export type HarnessVersionCatalog = DshVersionCatalog;
 export type HarnessVersionTask = DshVersionTask;
@@ -23,16 +21,9 @@ export type HarnessVersionTask = DshVersionTask;
 /** 通用反馈语调，与项目 toast 语义一致。 */
 export type HarnessVersionTone = 'success' | 'warning' | 'error';
 
-/** 卡片当前生效来源（`running` 仅供运行态工具，如 DSH）。 */
-export type HarnessVersionEffectiveSource = 'running' | 'host' | 'system' | 'none';
-
-/** 通用版本来源状态；`systemPath` 为系统安装路径（未检测到为 null）。 */
+/** 通用版本来源状态。 */
 export interface HarnessVersionSourceStatus {
   mode: HarnessVersionSourceMode;
-  effective: HarnessVersionEffectiveSource;
-  systemPath: string | null;
-  /** 系统安装的版本号（探测到路径但版本未知时为 null）。 */
-  systemVersion?: string | null;
   /**
    * 来源状态是否已就绪（DSH 的 `resolvedByMode` 到达前为 false）。
    * 缺省按 true；配合 `capabilities.sourceManaged` 可避免首帧闪现管理项。
@@ -71,7 +62,12 @@ export interface HarnessVersionSnapshot<TSource = unknown> {
   /** 工具专属来源数据（如 OpenCode 的 terminalInjection），原样交给插槽渲染。 */
   sourceExtra?: TSource | null;
   failed?: boolean;
-  /** 版本目录拉取失败：通道显示「未知」而不是「官方暂无」。 */
+  /**
+   * 版本目录拉取失败。
+   *
+   * 有已安装版本时通道行会并入这些版本（仍可管理），此时「未知」提示由
+   * 「检查更新」行的目录失败提示承担；该通道没有任何可展示版本时才显示「未知」。
+   */
   catalogFailed?: boolean;
 }
 
@@ -89,8 +85,6 @@ export interface HarnessVersionCapabilities {
    * `check`（只查询并提示，DSH）。`check` 需要适配器实现 `checkUpdate`。
    */
   updateAction?: 'install' | 'check';
-  /** 任务行是否显示完成百分比（OpenCode 显示，DSH 不显示）。 */
-  taskPercent?: boolean;
   /** 任务行是否显示已完成/总量（`done/total`）。DSH 把计数并入阶段文案，故关闭。 */
   taskCounts?: boolean;
   /** 显示「恢复默认」来源操作。 */
@@ -100,11 +94,6 @@ export interface HarnessVersionCapabilities {
    * 问号后置；分腿在途时该行控件区扫光。缺省不渲染（DSH 无此按钮）。
    */
   refreshRows?: boolean;
-  /**
-   * 稳定/预发布双通道使用行内版本选择器（下拉菜单列出该通道全部版本），
-   * 替代 OpenCode 风格的 `<select>` + 单个最新预发布行。DSH 需要。
-   */
-  channelPicker?: boolean;
   /**
    * 适配器拥有来源就绪/托管语义：只有 `source.ready === true` 且非系统托管时
    * 才渲染管理行（DSH）。缺省按 `source.managed` 判定。

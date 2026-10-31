@@ -100,8 +100,6 @@ export function createDshVersionBridge(
       source: source
         ? {
             mode,
-            effective: versionSource?.effective ?? 'none',
-            systemPath: source.system?.path ?? null,
             // 首帧 `resolvedByMode` 未到时管理项保持隐藏（迁移前 sourceReady）。
             ready: versionSource?.resolvedByMode != null,
             managed: dshManageVisible(source, st.dshVersionSourcePending),
@@ -389,10 +387,8 @@ export function createDshVersionBridge(
       uninstallConfirm: true,
       sourceModeChange: 'deferred',
       updateAction: 'check',
-      taskPercent: false,
       taskCounts: true,
       resetSourceAction: false,
-      channelPicker: true,
       sourceManaged: true,
     },
     labels: {

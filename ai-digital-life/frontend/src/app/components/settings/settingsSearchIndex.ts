@@ -289,7 +289,7 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     ],
   },
   {
-    // OpenCode CLI「版本管理」块（与 DSH 块同构：来源/当前/检查/正式/预发布/指定版本/官方信息）。
+    // OpenCode CLI「版本管理」块（与 DSH 块同构：来源/终端可用性/当前/检查/正式/预发布/官方信息）。
     group: 'opencode',
     anchorId: 'version',
     labelKey: 'opencodeVersionTitle',
@@ -297,6 +297,10 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
       {
         labelKey: 'opencodeSourceTitle',
         hintKeys: ['opencodeSourceDesc', 'opencodeSourceHint'],
+      },
+      {
+        labelKey: 'opencodeTerminalInjection',
+        hintKeys: ['opencodeTerminalInjectionHint', 'opencodeTerminalNote'],
       },
       {
         labelKey: 'opencodeCurrentVersion',

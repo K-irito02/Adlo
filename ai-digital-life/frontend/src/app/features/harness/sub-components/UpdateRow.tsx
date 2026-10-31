@@ -14,7 +14,7 @@ interface UpdateRowProps {
   hint?: string;
   /** 标签下描述小字；缺省不渲染。 */
   desc?: string;
-  /** 检查更新发现的新版本提示（标题下方蓝色小字；无新版本时为 null）。 */
+  /** 检查更新发现的新版本提示（标题下方中性徽章组；无新版本时为 null）。 */
   updateNote?: ReactNode;
   disabled: boolean;
   /** 任一分腿刷新在途：检查按钮禁用，保证读数一致。 */
@@ -27,7 +27,8 @@ interface UpdateRowProps {
 
 /**
  * 「检查更新」行：`install` 模式直接装最新，`check` 模式只查询并
- * 由适配器提示结果。`check` 模式不显示更新状态提示。
+ * 由适配器提示结果。控制区的更新结论只在 `install` 模式出现；
+ * 「发现新版本」徽章走 `updateNote`（两种模式都用，是否带更新由适配器决定）。
  */
 export function UpdateRow({
   mode,
@@ -56,6 +57,11 @@ export function UpdateRow({
           {hint ? <SettingsHintButton content={hint} /> : null}
         </div>
         {desc ? <small>{desc}</small> : null}
+        {catalogFailed ? (
+          <small className="adl-harness-version__row-warn">
+            {t.harnessVersionCatalogUnavailable}
+          </small>
+        ) : null}
         {updateNote}
       </div>
       <div className="adl-settings-row__control adl-harness-version__version-actions">

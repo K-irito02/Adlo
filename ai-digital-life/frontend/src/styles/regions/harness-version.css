@@ -39,13 +39,10 @@
 
 /* -------- 版本管理块 -------- */
 
-/* 当前版本行右侧读数槽：现在只承载单个值（版本号或占位文案），
-   纵向 flex 仅用于与行内其它读数保持同一容器语义。 */
+/* 当前版本行右侧读数槽：只承载单个值（版本号或占位文案），右对齐即可。 */
 .adl-harness-version__readout {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--space-1);
+  justify-content: flex-end;
 }
 
 .adl-harness-version__readout-sub {
@@ -54,9 +51,6 @@
 }
 
 .adl-harness-version__readout-value {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--text-primary);
@@ -236,8 +230,10 @@
 }
 
 /* 检查更新发现的新版本提示：标题下方一组中性徽章。
-   「新」+ 通道名 + 版本号（等宽）：新字与通道之间留一档间距，通道与版本紧贴；
-   不使用强调色，靠底色与字重区分层次（提示色规范：未经批准不引入蓝色）。 */
+   「新」+ 通道名 + 版本号（等宽）：新字与通道之间留一档间距；
+   不使用强调色，靠底色与字重区分层次（提示色规范：未经批准不引入蓝色）。
+   文字统一 `--text-primary`：11px 小字在 `--bg-muted` 上，`--text-muted` / `--text-secondary`
+   在浅色主题只有约 2.3:1 / 4.1:1，达不到 hint-color 规则要求的 4.5:1。 */
 .adl-harness-version__update-badges {
   display: flex;
   flex-wrap: wrap;
@@ -249,31 +245,28 @@
   display: inline-flex;
   align-items: baseline;
   gap: var(--space-1);
-  padding: 2px var(--space-2);
+  padding: var(--space-0-5) var(--space-2);
   min-height: 20px;
   border-radius: var(--radius-full);
   background: var(--bg-muted);
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 11px;
   line-height: var(--leading-tight);
 }
 
 .adl-harness-version__update-badge-new {
   font-weight: var(--font-semibold);
-  color: var(--text-secondary);
 }
 
 .adl-harness-version__update-badge-text {
   display: inline-flex;
   align-items: baseline;
   gap: var(--space-1);
-  color: var(--text-muted);
 }
 
 .adl-harness-version__update-badge-version {
   font-family: var(--font-mono);
   font-weight: var(--font-semibold);
-  color: var(--text-secondary);
   white-space: nowrap;
 }
 
@@ -516,27 +509,19 @@
   gap: var(--space-2);
 }
 
-/* 单值行（当前版本 / 检查更新）：右侧只有一行读数或一个按钮。
-   通用设置行是 `align-items: flex-start`，当左侧标题下方还有描述小字时，
-   右侧控件会贴着标题顶边、视觉上偏上，故让**控件**在行内纵向居中。
-   用 `align-self` 而不是改行的 `align-items`：窄档（容器 ≤600px）整行会切成
-   纵向堆叠、`align-items: stretch` 是那一档的排版契约，改行级对齐会把
-   label 也压成内容宽度并居中，破坏左对齐。
+/* 宽档：控件在行内纵向居中。行内块控件（开关按钮等）默认按文字基线摆放，
+   会在线盒里贴顶（实测 control 26px / toggle 20px，开关整体偏上约 3px），
+   所以控件自身也做成 flex 居中盒（`__version-actions` 已自带同款声明，
+   这里覆盖没有该类的当前版本/开关行）。
+   整块只在宽档生效：窄档（容器 ≤600px）整行堆叠、控件占满宽度，必须保持左对齐；
+   阈值用 `(width > 600px)` 与既有 `max-width: 600px` 严格互补。
    正式版 / 预发布行**不加**此修饰类：它们要与左侧版本选择器同行对齐。 */
-.adl-harness-version
-  .adl-settings-row.adl-harness-version__row--center
-  > .adl-settings-row__control {
-  align-self: center;
-}
-
-/* 宽档：控件自身也做成纵向居中盒。行内块控件（开关按钮等）默认按文字基线摆放，
-   会在线盒里贴顶（实测 control 26px / toggle 20px，开关整体偏上约 3px）。
-   窄档（容器 ≤600px）不启用：整行堆叠后控件占满宽度，保持左对齐契约。 */
-@container settings-content (min-width: 601px) {
+@container settings-content (width > 600px) {
   .adl-settings-row.adl-harness-version__row--center > .adl-settings-row__control {
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    align-self: center;
   }
 }
 
@@ -607,6 +592,8 @@
 }
 
 /* 窄档：操作行改为纵向堆叠时，按钮组左对齐（换行后不再贴右），读数同档左对齐。
+   读数槽是横向 flex + `justify-content: flex-end`，窄档需把主轴对齐改回起边；
+   `align-items` 在横轴上只控制纵向，改了不会左对齐。
    用 `.adl-settings-panel__content` 前缀提权，不依赖跨样式表导入顺序。 */
 @container settings-content (max-width: 600px) {
   .adl-settings-panel__content .adl-harness-version__version-actions {
@@ -614,6 +601,6 @@
   }
 
   .adl-settings-panel__content .adl-harness-version__readout {
-    align-items: flex-start;
+    justify-content: flex-start;
   }
 }

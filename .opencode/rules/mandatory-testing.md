@@ -99,12 +99,12 @@ Agent 在触发验收时，先评估变更范围，确定测试层级：
 │
 └── 后端组（Rust）：
     ├── ① rustfmt 格式化：         cargo fmt --all
-    ├── ② clippy 检测并修复：      cargo clippy --workspace --all-targets --fix -- -D warnings
-    └── ③ 编译检查：               cargo check --workspace
+    ├── ② clippy 检测并修复：      pnpm run stage:sidecar && cargo clippy --workspace --all-targets --fix -- -D warnings
+    └── ③ 编译检查：               pnpm run cargo:check
 
 步骤 2（并行）：
 ├── 前端测试：   pnpm --dir frontend run test
-└── Rust 测试：  cargo test --workspace
+└── Rust 测试：  pnpm run cargo:test
 
 步骤 3（可选，仅配置后可用）：
 ├── 前端覆盖率： pnpm --dir frontend run coverage
@@ -120,7 +120,7 @@ Agent 在触发验收时，先评估变更范围，确定测试层级：
 Rust 受影响测试：
 ├── cargo test -p <crate>              # 仅运行指定 crate 的测试
 ├── cargo test -p adl-server --test reference_retrieval  # 运行指定集成测试文件
-└── cargo test <test_name>             # 运行匹配名称的测试（模糊匹配）
+└── cargo test -p <crate> <test_name>  # 运行匹配名称的测试（模糊匹配；限定 crate 以免编译壳层）
 
 前端受影响测试：
 ├── pnpm --dir frontend run test -- <test-file-pattern>   # 运行匹配的测试文件

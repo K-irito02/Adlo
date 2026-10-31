@@ -51,7 +51,7 @@ function snapshot(overrides: Partial<HarnessVersionSnapshot> = {}): HarnessVersi
   return {
     status: status(),
     catalog: CATALOG,
-    source: { mode: 'auto', effective: 'host', systemPath: null, ready: true },
+    source: { mode: 'auto', ready: true },
     failed: false,
     ...overrides,
   };
@@ -79,10 +79,8 @@ function dshBridge(
 ): HarnessVersionBridge<unknown> {
   return makeBridge({
     capabilities: {
-      channelPicker: true,
       uninstallConfirm: true,
       updateAction: 'check',
-      taskPercent: false,
       taskCounts: true,
       sourceManaged: true,
     },
@@ -100,7 +98,7 @@ function dshBridge(
         hasPrereleaseUpdate: true,
       }),
       catalog: DSH_CATALOG,
-      source: { mode: 'auto', effective: 'host', systemPath: null, ready: true },
+      source: { mode: 'auto', ready: true },
     }),
     ...overrides,
   });
@@ -141,7 +139,6 @@ function makeBridge(
     toolName: 'OpenCode CLI',
     available: true,
     capabilities: {
-      channelPicker: true,
       resetSourceAction: false,
     },
     // 与真实桥一致：首帧种子同步供给（无种子时卡片画骨架）。
@@ -311,9 +308,15 @@ describe('HarnessVersionCard', () => {
 
     await waitFor(() => expect(bridge.load).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('harnessVersionNotInstalled')).toBeInTheDocument());
+    const currentRow = document.querySelector(
+      '[data-settings-row="harnessVersionCurrent"]',
+    ) as HTMLElement;
+    const readout = currentRow.querySelector('.adl-harness-version__readout') as HTMLElement;
+    expect(readout.textContent?.trim()).toBe('harnessVersionNotInstalled');
+    expect(readout.children).toHaveLength(1);
   });
 
-  it('renders the DSH-exact card without installed/reset rows when extra rows are off', async () => {
+  it('renders the DSH-exact card without installed/reset rows on the shared layout', async () => {
     renderCard(makeBridge());
 
     await waitFor(() =>
@@ -347,8 +350,6 @@ describe('HarnessVersionCard', () => {
         initial: snapshot({
           source: {
             mode: 'system',
-            effective: 'system',
-            systemPath: 'C:/Program Files/dsh/dsh.exe',
             managed: false,
           },
         }),
@@ -464,7 +465,7 @@ describe('HarnessVersionCard', () => {
     });
   });
 
-  // —— 双通道行内选择器（`capabilities.channelPicker`，DSH 形态） ——
+  // —— 双通道行内选择器（DSH 形态） ——
 
   it('shows one effective version per channel and only changes the display on pick', async () => {
     const bridge = dshBridge();
@@ -736,9 +737,8 @@ describe('HarnessVersionCard', () => {
       await vi.advanceTimersByTimeAsync(800);
     });
     expect(screen.getByText('dshTaskStageInstalling')).toBeInTheDocument();
-    // DSH 任务行没有百分比；计数单独显示（`taskCounts`），阶段文案不含计数。
+    // DSH 任务行把计数并入阶段行（`taskCounts`），不渲染百分比。
     expect(screen.getByText('42/100')).toBeInTheDocument();
-    expect(screen.queryByText('42%')).toBeNull();
     const cancel = screen.getByRole('button', { name: 'dshCancelInstall' });
     expect(cancel).toBeEnabled();
 
@@ -756,7 +756,6 @@ describe('HarnessVersionCard', () => {
     // 取消映射为警告提示，卡片重新载入回到操作前状态。
     expect(bridge.notify).toHaveBeenCalledWith('harnessVersionCancelled', 'warning');
     expect(vi.mocked(bridge.load).mock.calls.length).toBeGreaterThanOrEqual(2);
-    expect(screen.queryByText('42%')).toBeNull();
     expect(within(channelRow('stable')).getByRole('button', { name: '1.2.0' })).toBeEnabled();
   });
 
@@ -841,8 +840,6 @@ describe('HarnessVersionCard', () => {
       initial: snapshot({
         source: {
           mode: 'auto',
-          effective: 'host',
-          systemPath: null,
           ready: false,
           managed: true,
         },
@@ -922,82 +919,11 @@ describe('HarnessVersionCard', () => {
     expect(readout.querySelectorAll('.adl-harness-version__readout-value')).toHaveLength(1);
   });
 
-  it('renders only the placeholder text when no version is in use', async () => {
-    const bridge = makeBridge({
-      initial: snapshot({ status: status({ currentSelected: null, installed: [] }) }),
-    });
-    renderCard(bridge);
-    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
-
-    const currentRow = document.querySelector(
-      '[data-settings-row="harnessVersionCurrent"]',
-    ) as HTMLElement;
-    const readout = currentRow.querySelector('.adl-harness-version__readout') as HTMLElement;
-    expect(readout.textContent?.trim()).toBe('harnessVersionNotInstalled');
-    expect(readout.children).toHaveLength(1);
-  });
-
-  it('renders the standalone task card when the channel picker is off', async () => {
-    let resolveInstall!: (result: HarnessVersionResult) => void;
-    const installPromise = new Promise<HarnessVersionResult>((resolve) => {
-      resolveInstall = resolve;
-    });
-    const bridge = makeBridge({
-      capabilities: { channelPicker: false },
-      initial: snapshot({
-        status: status({ currentSelected: null, installed: [] }),
-      }),
-    });
-    bridge.install = vi.fn(() => installPromise);
-    bridge.getTask = vi.fn(async () => ({
-      kind: 'dsh-install' as const,
-      version: '1.1.0',
-      phase: 'installing' as const,
-      percent: 42,
-      done: 42,
-      total: 100,
-      cancellable: true,
-    }));
-
-    renderCard(bridge);
-    await waitFor(() =>
-      expect(within(channelRow('stable')).getByRole('button', { name: '1.0.0' })).toBeTruthy(),
-    );
-    openChannelMenu('stable', '1.0.0');
-    pickChannelVersion('1.1.0');
-
-    vi.useFakeTimers();
-    fireEvent.click(
-      within(channelRow('stable')).getByRole('button', { name: 'harnessVersionInstall' }),
-    );
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(800);
-    });
-
-    // 无 picker 时任务走独立卡；行内选择器仍按生效版本渲染行内任务行，
-    // 两处阶段文案同时出现（生产中已无此组合：双工具均为 picker）。
-    const stages = screen.getAllByText('harnessVersionPhaseInstalling');
-    expect(stages).toHaveLength(2);
-    expect(screen.getByText('42%')).toBeInTheDocument();
-    const cancels = screen.getAllByRole('button', { name: 'harnessVersionCancel' });
-    const cardCancel = cancels.find((b) => !channelRow('stable').contains(b));
-    expect(cardCancel).toBeTruthy();
-    expect(cardCancel).toBeEnabled();
-    fireEvent.click(cardCancel!);
-    expect(bridge.cancel).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      resolveInstall(OK);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-  });
-
   it('renders the reset row when the adapter opts into resetSourceAction', async () => {
     const bridge = makeBridge({
       capabilities: { resetSourceAction: true },
       initial: snapshot({
-        source: { mode: 'host', effective: 'host', systemPath: null, ready: true },
+        source: { mode: 'host', ready: true },
       }),
     });
     const { unmount } = renderCard(bridge);
@@ -1019,27 +945,26 @@ describe('HarnessVersionCard', () => {
 });
 
 describe('HarnessVersionCard layout adjustments', () => {
-  it('renders no system-path row, no manual row and no missing-version banner', async () => {
+  it('renders only the five baseline rows (no system path, manual, banner or installed card)', async () => {
     const bridge = dshBridge({
       initial: snapshot({ status: status({ currentSelected: null, installed: [] }) }),
     });
     renderCard(bridge);
     await waitFor(() => expect(bridge.load).toHaveBeenCalled());
 
-    expect(screen.queryByText('harnessVersionSystemPath')).toBeNull();
-    expect(screen.queryByText('harnessVersionMissingBanner')).toBeNull();
-    expect(screen.queryByPlaceholderText('harnessVersionManualPlaceholder')).toBeNull();
-    expect(document.querySelector('[data-settings-row="harnessVersionManual"]')).toBeNull();
-  });
-
-  it('renders no separate installed-versions card even when versions are installed', async () => {
-    const bridge = makeBridge();
-    renderCard(bridge);
-    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
-
-    expect(document.querySelector('[data-settings-row="harnessVersionInstalled"]')).toBeNull();
-    expect(document.querySelector('[data-harness-version-row]')).toBeNull();
-    expect(document.querySelectorAll('.adl-harness-version > .adl-settings-card')).toHaveLength(1);
+    const rows = [
+      ...document.querySelectorAll('.adl-harness-version .adl-settings-card > .adl-settings-row'),
+    ]
+      .map((row) => row.getAttribute('data-settings-row'))
+      .filter((row): row is string => row !== null);
+    expect(rows).toEqual([
+      'harnessVersionSourceTitle',
+      'harnessVersionCurrent',
+      'harnessVersionUpdate',
+      'dshOfficialStable',
+      'dshPrereleaseTitle',
+    ]);
+    expect(document.querySelector('.adl-harness-version input')).toBeNull();
   });
 
   it('renders the discovered-version notes as badges under the update row instead of the current row', async () => {
@@ -1065,11 +990,76 @@ describe('HarnessVersionCard layout adjustments', () => {
     expect(currentRow.querySelectorAll('.adl-harness-version__update-badge')).toHaveLength(0);
     const badges = updateRow.querySelectorAll('.adl-harness-version__update-badge');
     expect(badges).toHaveLength(2);
-    expect(badges[0].textContent).toContain('harnessVersionBadgeNew');
-    expect(badges[0].textContent).toContain('harnessVersionBadgeStable');
-    expect(badges[0].textContent).toContain('1.2.0');
-    expect(badges[1].textContent).toContain('harnessVersionBadgePrerelease');
-    expect(badges[1].textContent).toContain('2.0.0-rc.2');
+    // 徽章只由文字构成（规格明确不要向上箭头），文字之间保留空格便于读屏。
+    expect(badges[0].querySelector('svg')).toBeNull();
+    expect(badges[0].textContent?.trim()).toBe(
+      'harnessVersionNewBadge harnessVersionStableBadge 1.2.0',
+    );
+    expect(badges[1].textContent?.trim()).toBe(
+      'harnessVersionNewBadge harnessVersionPrereleaseBadge 2.0.0-rc.2',
+    );
+  });
+
+  it('keeps installed versions outside the catalog window manageable', async () => {
+    // OpenCode 目录只保留最近 50+50；更早安装的版本不在任何通道里。
+    // 删除「已安装版本」独立卡后，通道行是该版本唯一的切换/卸载/重装入口。
+    const bridge = makeBridge({
+      initial: snapshot({
+        status: status({ currentSelected: '0.9.0', installed: ['0.9.0'] }),
+        catalog: {
+          stable: [{ version: '1.2.0', publishedAt: null }],
+          prerelease: [],
+          latestStable: '1.2.0',
+          latestPrerelease: null,
+        },
+      }),
+    });
+    renderCard(bridge);
+    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+
+    const stableRow = channelRow('stable');
+    expect(within(stableRow).getByRole('button', { name: '0.9.0' })).toBeInTheDocument();
+    expect(
+      within(stableRow).getByRole('button', { name: 'harnessVersionUninstall' }),
+    ).toBeInTheDocument();
+  });
+
+  it('buckets out-of-catalog versions by semver pre-release and never duplicates them', async () => {
+    const bridge = makeBridge({
+      initial: snapshot({
+        status: status({
+          currentSelected: '1.2.3+build-7',
+          installed: ['1.2.3+build-7', '0.0.0-beta-202601010000', '1.0.0'],
+        }),
+        catalog: {
+          stable: [{ version: '1.0.0', publishedAt: null }],
+          prerelease: [],
+          latestStable: '1.0.0',
+          latestPrerelease: null,
+        },
+      }),
+    });
+    renderCard(bridge);
+    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+
+    // `1.2.3+build-7` 是正式版（+build 段不算预发布）；预发布只认 semver pre 段。
+    expect(
+      within(channelRow('stable')).getByRole('button', { name: '1.2.3+build-7' }),
+    ).toBeInTheDocument();
+    openChannelMenu('stable', '1.2.3+build-7');
+    const stableOptions = within(screen.getByRole('listbox')).getAllByRole('option');
+    expect(stableOptions.filter((o) => o.textContent?.includes('1.2.3+build-7'))).toHaveLength(1);
+    expect(stableOptions.some((o) => o.textContent?.includes('0.0.0-beta'))).toBe(false);
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    const prereleaseRow = channelRow('prerelease');
+    expect(
+      within(prereleaseRow).getByRole('button', { name: '0.0.0-beta-202601010000' }),
+    ).toBeInTheDocument();
+    // 目录内已存在的版本不重复追加。
+    openChannelMenu('stable', '1.2.3+build-7');
+    const options = within(screen.getByRole('listbox')).getAllByRole('option');
+    expect(options.filter((o) => o.textContent?.includes('1.0.0'))).toHaveLength(1);
   });
 
   it('uses the git-visualization arc icon for every row refresh button', async () => {

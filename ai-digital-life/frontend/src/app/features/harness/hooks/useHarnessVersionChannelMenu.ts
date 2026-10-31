@@ -61,7 +61,7 @@ export interface HarnessChannelMenuOptions {
 }
 
 /**
- * 双通道行内选择器的交互面（`capabilities.channelPicker`）：每个通道同一时刻
+ * 双通道行内选择器的交互面：每个通道同一时刻
  * 只展示一个版本，选择只换展示；下拉框与菜单卡片同宽（取分区最长选项实测值，
  * 菜单内单行不换行），菜单经 Portal 挂到 body（fixed 定位，右对齐触发器并钳制
  * 在视口内，下方空间不足时上翻）。交互语义与旧 DSH 版本菜单一致。
@@ -246,7 +246,6 @@ export function useHarnessVersionChannelMenu({
     stableChoice,
     prereleaseChoice,
     openChannel,
-    menuAnchor,
     menuGeometry,
     menuPanelRef,
     menuWidths,

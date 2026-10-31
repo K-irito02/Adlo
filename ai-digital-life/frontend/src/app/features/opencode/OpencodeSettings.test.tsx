@@ -178,7 +178,7 @@ describe('OpencodeSettings DSH parity (generic card slots)', () => {
     // 蓝色行只表达「来源」，不表达「有没有可用版本」。
     expect(await screen.findByText('当前实际使用：宿主托管')).toBeTruthy();
     expect(screen.queryByText(/无可用版本/)).toBeNull();
-    // 版本缺失信息由下方提示行承担，且不再建议切换到宿主托管。
+    // 版本缺失信息由来源行提示承担（画面上方的蓝色说明），且不再建议切换到宿主托管。
     expect(screen.getByText(/请在下方安装一个版本/)).toBeTruthy();
     expect(screen.queryByText(/可切换到/)).toBeNull();
   });
@@ -217,6 +217,9 @@ describe('OpencodeSettings DSH parity (generic card slots)', () => {
     expect(badges[0].textContent).toContain('1.1.0');
     expect(badges[1].textContent).toContain('预发布');
     expect(badges[1].textContent).toContain('1.2.0-beta');
+    // 徽章只属于「检查更新」行，当前版本行保持单值。
+    const currentRow = document.querySelector('[data-settings-row="当前版本"]') as HTMLElement;
+    expect(currentRow.querySelectorAll('.adl-harness-version__update-badge')).toHaveLength(0);
   });
 
   it('刷新按钮点击触发重新加载', async () => {
@@ -274,7 +277,7 @@ describe('OpencodeSettings DSH parity (generic card slots)', () => {
 
 describe('opencode search locate parity', () => {
   // 搜索索引 opencode 块用本域行键做定位文案，卡片 DOM 挂通用文案：
-  // 两边取值必须逐字相同，否则跳转落点失效。跨键 4 对在此锁定，同键自洽。
+  // 两边取值必须逐字相同，否则跳转落点失效。跨键 3 对在此锁定，同键自洽。
   it('row label values match the generic copy rendered by the card', () => {
     expect(opencodeZh.opencodeCurrentVersion).toBe(harnessVersionZh.harnessVersionCurrent);
     expect(opencodeZh.opencodeUpdate).toBe(harnessVersionZh.harnessVersionUpdate);
@@ -286,7 +289,7 @@ describe('opencode search locate parity', () => {
 });
 
 describe('opencode version card layout adjustments', () => {
-  it('drops the system path row, the manual version row and the missing-version banner', async () => {
+  it('renders only the baseline rows (no system path, manual version or missing banner)', async () => {
     installBridge(makeSource(), makeStatus({ currentSelected: null, installed: [] }));
     render(
       <TestProvider>
@@ -295,9 +298,20 @@ describe('opencode version card layout adjustments', () => {
     );
     await screen.findByText('正式版本');
 
-    expect(screen.queryByText('系统安装位置')).toBeNull();
-    expect(screen.queryByText('指定版本')).toBeNull();
-    expect(screen.queryByText(/尚未安装 OpenCode CLI 版本/)).toBeNull();
+    const rows = [
+      ...document.querySelectorAll(
+        '.adl-opencode-settings .adl-harness-version .adl-settings-card > .adl-settings-row',
+      ),
+    ].map((row) => row.getAttribute('data-settings-row'));
+    expect(rows).toEqual([
+      '版本来源',
+      '新终端窗口自动启用',
+      '当前版本',
+      '检查更新',
+      '正式版本',
+      '预发布版本',
+      '官方版本信息',
+    ]);
   });
 
   it('places the terminal-injection toggle in a vertically centered row', async () => {
@@ -312,23 +326,5 @@ describe('opencode version card layout adjustments', () => {
     const row = document.querySelector('[data-settings-row="新终端窗口自动启用"]') as HTMLElement;
     expect(row).not.toBeNull();
     expect(row.className).toContain('adl-harness-version__row--center');
-  });
-
-  it('renders the discovered-version badges under the check-update row', async () => {
-    installBridge(makeSource(), makeStatus());
-    render(
-      <TestProvider>
-        <OpencodeSettings />
-      </TestProvider>,
-    );
-    await screen.findByText('正式版本');
-
-    const currentRow = document.querySelector('[data-settings-row="当前版本"]') as HTMLElement;
-    const updateRow = document.querySelector('[data-settings-row="检查更新"]') as HTMLElement;
-    expect(currentRow.querySelectorAll('.adl-harness-version__update-badge')).toHaveLength(0);
-    const badges = updateRow.querySelectorAll('.adl-harness-version__update-badge');
-    expect(badges).toHaveLength(2);
-    expect(badges[0].textContent).toContain('1.1.0');
-    expect(badges[1].textContent).toContain('1.2.0-beta');
   });
 });

@@ -36,7 +36,7 @@ pnpm --dir frontend test -- --run \
 - All design-system imports type-check.
 - All CSS imports resolve and merge (styles 已拆 40+ 文件 + Tailwind，具体体积以构建输出为准）。
 
-`pnpm --dir frontend run typecheck` covers the WebView frontend; `cargo check --workspace` covers the Rust backend.
+`pnpm --dir frontend run typecheck` covers the WebView frontend; `pnpm run cargo:check` covers the Rust backend.
 
 ## 4. Visual regression
 
@@ -64,7 +64,7 @@ pnpm --dir frontend exec vitest src/design-system/__tests__/theme.test.ts
 
 # Type check (frontend + Rust backend)
 pnpm --dir frontend run typecheck
-cargo check --workspace
+pnpm run cargo:check
 
 # Build to verify CSS + JS bundle size
 pnpm --dir frontend run build

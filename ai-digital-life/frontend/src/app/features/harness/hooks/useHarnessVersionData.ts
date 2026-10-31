@@ -2,11 +2,46 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import type {
   HarnessVersionBridge,
+  HarnessVersionCatalog,
   HarnessVersionMutation,
   HarnessVersionResult,
   HarnessVersionSnapshot,
 } from '../harnessVersionBridge';
 import { useHarnessVersionTaskPoll } from './useHarnessVersionTaskPoll';
+
+/**
+ * semver 预发布判定（忽略 `+build` 段）。
+ *
+ * 只用于「已安装但不在官方目录窗口内」的补录版本：后端目录已带通道归属，
+ * 这里没有目录条目可依，只能按 semver 语义兜底；`1.2.3+build-7` 是正式版，
+ * `0.0.0-beta-x` 是预发布。
+ */
+function isPrereleaseVersion(version: string): boolean {
+  const plus = version.indexOf('+');
+  const core = plus === -1 ? version : version.slice(0, plus);
+  return core.includes('-');
+}
+
+/**
+ * 把已安装、但不在目录窗口内的版本补进对应通道（`publishedAt: null`）。
+ *
+ * 删除「已安装版本」独立卡后，通道行是切换/卸载/重装的唯一入口；OpenCode 目录
+ * 只保留最近 50+50，更早装下的版本否则会彻底失去管理能力。合成在数据层完成，
+ * 让通道行、菜单与宽度测量尺消费同一份数组。
+ */
+function withInstalledInfos(
+  infos: HarnessVersionCatalog['stable'],
+  installed: string[],
+  channel: 'stable' | 'prerelease',
+) {
+  const known = new Set(infos.map((info) => info.version));
+  const extra = installed.filter(
+    (version) => !known.has(version) && isPrereleaseVersion(version) === (channel === 'prerelease'),
+  );
+  return extra.length > 0
+    ? [...infos, ...extra.map((version) => ({ version, publishedAt: null }))]
+    : infos;
+}
 
 /**
  * 版本卡片的数据面：快照、忙碌门与变更执行（任务行由
@@ -117,14 +152,24 @@ export function useHarnessVersionData<TSource>(bridge: HarnessVersionBridge<TSou
   const installed = useMemo(() => status?.installed ?? [], [status]);
   const stable = useMemo(() => catalog?.stable ?? [], [catalog]);
   // 稳定桶为空但后端给出 latestStable 时，稳定行仍要能解析到该版本。
-  const stableInfos = useMemo(() => {
+  const stableBase = useMemo(() => {
     if (stable.length > 0) {
       return stable;
     }
     return catalog?.latestStable ? [{ version: catalog.latestStable, publishedAt: null }] : [];
   }, [catalog?.latestStable, stable]);
-  const prereleaseInfos = useMemo(() => catalog?.prerelease ?? [], [catalog]);
-  // 目录拉取失败 / 预发布未知：通道显示「未知」，不得误报「官方暂无」。
+  const prereleaseBase = useMemo(() => catalog?.prerelease ?? [], [catalog]);
+  // 目录外已安装版本并入通道（见 withInstalledInfos）；菜单与尺子消费同一份结果。
+  const stableInfos = useMemo(
+    () => withInstalledInfos(stableBase, installed, 'stable'),
+    [stableBase, installed],
+  );
+  const prereleaseInfos = useMemo(
+    () => withInstalledInfos(prereleaseBase, installed, 'prerelease'),
+    [prereleaseBase, installed],
+  );
+  // 目录拉取失败 / 预发布未知：该通道没有任何可展示版本时显示「未知」，不得误报「官方暂无」；
+  // 有已安装版本时会并入通道（仍可管理），失败信号由「检查更新」行的提示承担。
   const channelUnknown = snapshot?.catalogFailed === true || status?.prereleaseUnknown === true;
   const disabled = busy || !bridge.available;
   // 适配器拥有来源模型（DSH）时，来源未就绪前不渲染管理项，避免首帧闪现。
@@ -138,17 +183,13 @@ export function useHarnessVersionData<TSource>(bridge: HarnessVersionBridge<TSou
     refresh,
     run,
     status,
-    catalog,
     source,
     sourceExtra: snapshot?.sourceExtra ?? null,
     current,
     installed,
-    stable,
     stableInfos,
     prereleaseInfos,
-    latestPrerelease: catalog?.prerelease[0] ?? null,
     channelUnknown,
-    channelPicker: bridge.capabilities?.channelPicker === true,
     disabled,
     manageVisible,
     shownTask: task.shownTask,

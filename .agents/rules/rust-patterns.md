@@ -25,7 +25,7 @@ alwaysApply: false
 - kernel 类型保留 `pub use types::*` 向后兼容，同时提供 `pub mod domain { ... }` 分组路径
 
 ## 编译与类型安全
-- `cargo check --workspace` 和 `cargo test --workspace` 必须在任何 crate 结构变更后执行
+- `pnpm run cargo:check` 和 `pnpm run cargo:test` 必须在任何 crate 结构变更后执行
 - 编译期断言优于运行时检查（参考 `type _StoreTypeCheck` 模式）
 - 第三方 crate 版本升级需在 workspace 级别统一管理
 
