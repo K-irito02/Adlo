@@ -928,6 +928,23 @@ describe('EnvironmentSettings', () => {
     await waitFor(() => expect(recheckEnv).toHaveBeenCalledWith(['webview2', 'adlserver']));
   });
 
+  it('跨块连续刷新排队执行，不静默丢弃（R1-ENV-02）', async () => {
+    let resolveFirst!: (v: boolean) => void;
+    recheckEnv.mockImplementationOnce(() => new Promise<boolean>((r) => (resolveFirst = r)));
+    recheckEnv.mockResolvedValue(true);
+    await renderWithRows();
+    recheckEnv.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: 'refresh:environmentBlockRuntime' }));
+    await waitFor(() => expect(recheckEnv).toHaveBeenCalledWith(['node', 'git', 'bash']));
+    fireEvent.click(screen.getByRole('button', { name: 'refresh:environmentBlockSystem' }));
+    // 第一个块仍在途：第二个请求入队而不是被丢弃。
+    expect(recheckEnv).toHaveBeenCalledTimes(1);
+
+    resolveFirst(true);
+    await waitFor(() => expect(recheckEnv).toHaveBeenCalledWith(['webview2', 'adlserver']));
+  });
+
   it('行级刷新只传单个 dep', async () => {
     await renderWithRows();
     recheckEnv.mockClear();

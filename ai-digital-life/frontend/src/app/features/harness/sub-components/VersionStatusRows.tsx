@@ -76,10 +76,10 @@ interface FallbackReadoutProps {
   failed: boolean;
 }
 
-/** 无运行态插槽时的通用读数：只显示版本号，未安装时显示中性占位文案。 */
+/** 无运行态插槽时的通用读数：只显示版本号；只有完全没有读数时才展示失败文案。 */
 export function FallbackReadout({ current, failed }: FallbackReadoutProps) {
   const { t } = useTCopy();
-  if (failed) {
+  if (failed && current === null) {
     return (
       <span className="adl-harness-version__readout-value is-empty">
         {t.harnessVersionLoadFailed}

@@ -303,7 +303,9 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         return false;
       }
       get().setEnvStatus(result.data);
-      get().setEnvBusy(false);
+      // 与 fetchEnvStatus 同口径：任务仍在进行时保持 busy，避免把安装轮询提前解锁。
+      const task = result.data.task;
+      get().setEnvBusy(task !== null && (task.error ?? '') === '');
       return true;
     },
 

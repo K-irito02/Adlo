@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useRef } from 'react';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
@@ -8,6 +8,7 @@ import {
   HarnessVersionCard,
   type HarnessVersionCardHandle,
 } from '@features/harness/HarnessVersionCard';
+import { useHarnessBlockRefresh } from '@features/harness/hooks/useHarnessBlockRefresh';
 import { DshVersionReadout } from './DshVersionReadout';
 import { DshOfficialLinksCard } from './sub-components/DshOfficialLinksCard';
 import { DshSourceSummaryCard } from './sub-components/DshSourceSummaryCard';
@@ -38,16 +39,13 @@ export function DshSettings() {
   } = useDshSettings();
 
   const cardRef = useRef<HarnessVersionCardHandle>(null);
-  const [refreshingAll, setRefreshingAll] = useState(false);
-  const handleRefreshAll = useCallback(() => {
-    if (refreshingAll) {
-      return;
-    }
-    setRefreshingAll(true);
-    void (cardRef.current?.refreshAll() ?? Promise.resolve()).finally(() => {
-      setRefreshingAll(false);
-    });
-  }, [refreshingAll]);
+  // 块级刷新：卡片忙碌时禁用按钮，点击驱动整卡重载（宿主侧状态与 OpenCode 共用）。
+  const {
+    refreshingAll,
+    cardBusy,
+    setCardBusy,
+    refreshAll: handleRefreshAll,
+  } = useHarnessBlockRefresh(cardRef);
 
   return (
     <div className="adl-settings-section adl-dsh-settings">
@@ -63,6 +61,7 @@ export function DshSettings() {
               block
               label={t.dshVersionManagement}
               spinning={refreshingAll}
+              disabled={cardBusy}
               onRefresh={handleRefreshAll}
             />
           }
@@ -71,6 +70,7 @@ export function DshSettings() {
       <HarnessVersionCard
         ref={cardRef}
         bridge={bridge}
+        onBusyChange={setCardBusy}
         slots={{
           // 块头复用 DSH 组原有块头（锚点 + 问号 + 版本管理标题）。
           hideHeader: true,

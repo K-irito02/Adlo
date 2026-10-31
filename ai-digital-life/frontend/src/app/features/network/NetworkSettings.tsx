@@ -281,7 +281,8 @@ export function NetworkSettings() {
       return;
     }
     setProxyRefreshBusy(true);
-    void actions.fetchSourceStatus(true, true).finally(() => setProxyRefreshBusy(false));
+    // 显式刷新：非静默（失败落全局错误卡片）+ force（清 5s 健康缓存）。
+    void actions.fetchSourceStatus(false, true).finally(() => setProxyRefreshBusy(false));
   }, [actions, proxyRefreshBusy]);
 
   // 源状态缺失时自行静默拉取：网络组可能先于 DSH 组挂载（或 DSH 快照失败），

@@ -1020,23 +1020,28 @@
   display: inline-flex;
   align-items: center;
   width: 0;
+  /* label-text 的 gap 对零宽子项仍生效：负外边距抵消收起态的常驻空隙。 */
+  margin-left: calc(-1 * var(--space-1));
   opacity: 0;
   overflow: hidden;
   flex-shrink: 0;
   transition:
     opacity 0.12s ease,
-    width 0.12s ease;
+    width 0.12s ease,
+    margin-left 0.12s ease;
 }
 
 .adl-settings-row:hover .adl-settings-row__refresh,
 .adl-settings-row:focus-within .adl-settings-row__refresh {
   width: 22px;
+  margin-left: 0;
   opacity: 1;
 }
 
 @media (hover: none) {
   .adl-settings-row__refresh {
     width: 22px;
+    margin-left: 0;
     opacity: 1;
   }
 }
@@ -1056,14 +1061,19 @@
   flex-shrink: 0;
 }
 
-.adl-settings-refresh:hover:not(:disabled) {
+.adl-settings-refresh:hover:not(:disabled):not([aria-disabled='true']) {
   background: var(--surface-hover);
   color: var(--text-primary);
 }
 
 .adl-settings-refresh:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+  /* 行内槽宽 22px + overflow:hidden：环画在按钮外会被裁掉，向内收 2px。 */
+  outline-offset: -2px;
+}
+
+.adl-settings-refresh[aria-disabled='true'] {
+  cursor: default;
 }
 
 .adl-settings-refresh:disabled {
@@ -1570,7 +1580,6 @@
    内部不画分隔线（用户要求，避免把同一类设置切碎）。 */
 .adl-network-settings__proxy-card--manual > .adl-settings-row {
   border-bottom: none;
-  align-items: center;
 }
 
 /* 代理自定义三行的控件盒：flex 居中，消除行内基线与 descender 造成的几像素偏移。 */
@@ -1663,7 +1672,7 @@
   align-items: center;
   justify-content: center;
   width: 16px;
-  height: 9px;
+  height: 12px;
   padding: 0;
   border: none;
   border-radius: 2px;
@@ -1702,7 +1711,7 @@
 
 .adl-network-no-proxy__expand:hover:not(:disabled),
 .adl-network-no-proxy__expand.is-open {
-  background: transparent;
+  background: var(--surface-hover);
   color: var(--text-primary);
 }
 
@@ -1720,12 +1729,12 @@
 
 .adl-network-no-proxy__popover {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--z-popover);
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--shadow-lg);
   max-width: calc(100vw - 16px);
 }
 
@@ -1977,6 +1986,12 @@
     padding: var(--space-4);
   }
 
+  /* 卡片内边距收窄到 16px 后放不下展开按钮的 27px 右侧沟槽：
+     在控件列右侧预留 28px，三框一起左移，保持同宽与右对齐。 */
+  .adl-network-proxy-field-control {
+    padding-right: 28px;
+  }
+
   /* 粘性工具栏负边距与容器上 padding 同步（原 --space-4 契约，见其注释）：
      上 padding 收到 space-3，top/margin-top/padding-top 同步下移。 */
   .adl-settings-keybinds__toolbar {
@@ -2028,6 +2043,19 @@
     max-width: 260px;
   }
 
+  /* 代理自定义三框（HTTP / HTTPS / 直连名单）保持同宽：随控件列拉伸，
+     但上限仍是宽档 200px，展开按钮才有空间留在输入框与卡片内边距之间。 */
+  .adl-network-proxy-field-control .adl-settings-input,
+  .adl-network-proxy-field-control .adl-network-no-proxy,
+  .adl-network-proxy-field-control .adl-network-no-proxy__field {
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .adl-network-proxy-field-control .adl-network-no-proxy__input {
+    width: 100%;
+  }
+
   .adl-settings-dropdown,
   .adl-settings-font--row .adl-settings-dropdown {
     min-width: 0;
@@ -2068,6 +2096,12 @@
 
   .adl-settings-keybinds__search-label {
     white-space: normal;
+  }
+
+  /* 当前版本读数窄档改左对齐后，绝对定位的加载胶囊跟随回左侧。 */
+  .adl-harness-version__readout > .adl-harness-version__control-overlay {
+    left: 0;
+    right: auto;
   }
 
   /* 存储组底部粘性提交条：提示与操作按钮换行，避免窄档互相挤压。 */

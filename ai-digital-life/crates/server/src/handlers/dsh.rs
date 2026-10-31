@@ -870,16 +870,20 @@ pub async fn get_source_status(
     State(state): State<ServerState>,
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
-    let force = if body.is_empty() {
-        false
-    } else {
-        serde_json::from_slice::<SourceStatusInput>(&body).map(|input| input.force).unwrap_or(false)
-    };
+    let force = parse_source_status_force(&body);
     if force {
         adl_download_source::invalidate_proxy_health_cache();
     }
     let result = get_source_status_inner(&state).await;
     ipc::to_response(result)
+}
+
+/// 空 body / `{}` / 畸形 body 一律按 `force=false`（宽松口径，避免旧客户端 400）。
+fn parse_source_status_force(body: &[u8]) -> bool {
+    if body.is_empty() {
+        return false;
+    }
+    serde_json::from_slice::<SourceStatusInput>(body).map(|input| input.force).unwrap_or(false)
 }
 
 #[derive(serde::Deserialize)]
@@ -1238,6 +1242,8 @@ async fn save_source_config_inner(
 
     adl_download_source::save(&state.storage.paths().root, &config)?;
     clear_source_cache(state);
+    // 代理配置变化后立即失效 5s 健康缓存：前端保存后紧接的无 force 拉取也能看到新结论。
+    adl_download_source::invalidate_proxy_health_cache();
     // 下载源/代理变化会使目录缓存可能来自旧 registry：清空，下次快照重新拉取。
     if let Ok(mut cache) = state.dsh_catalog_cache.write() {
         *cache = None;
@@ -1311,6 +1317,16 @@ mod tests {
             dsh_root_dir(storage.paths()),
             PathBuf::from("/tmp/data/harnesses/dsh/versions")
         );
+    }
+
+    /// `/dsh/source-status` 的 force 解析：空 body / `{}` / 畸形 body 都是 false。
+    #[test]
+    fn source_status_force_body_is_lenient() {
+        assert!(!parse_source_status_force(b""));
+        assert!(!parse_source_status_force(b"{}"));
+        assert!(parse_source_status_force(br#"{"force":true}"#));
+        assert!(!parse_source_status_force(br#"{"force":false}"#));
+        assert!(!parse_source_status_force(b"not json"));
     }
 
     /// `revert`/`uninstall` 对非法 body 返回 BAD_REQUEST（INVALID_INPUT），不触达版本逻辑。

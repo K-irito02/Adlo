@@ -206,7 +206,9 @@ export function createOpencodeVersionBridge(
         catalog: catalog.ok ? catalog.data : null,
         source: source.ok ? toSourceStatus(source.data) : null,
         sourceExtra: source.ok ? source.data : null,
-        failed: !status.ok && !catalog.ok && !source.ok,
+        // 任一条腿失败都标记 failed：显式刷新要能提示失败（首屏由静默忽略）。
+        // 行内「未知」仍由 catalogFailed 单独表达，不把旧读数打成错误态。
+        failed: !status.ok || !catalog.ok || !source.ok,
         // 与 DSH 适配器同口径：目录拉取失败 → 通道显示「未知」，不得误报「官方暂无」。
         catalogFailed: !catalog.ok,
       };

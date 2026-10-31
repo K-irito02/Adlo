@@ -56,6 +56,11 @@
 | `POST /env/set-custom-path` | `{ dep, path }` 显式覆盖路径 |
 | `POST /env/recheck` | `{ deps?: string[] }` 按依赖重新探测（空/缺省 = 全量）；返回合并后的 `EnvStatus`，未请求字段保持缓存原值（「基础依赖」与「系统组件」块互不联动） |
 
+`/env/recheck` 的两个边界：
+
+- `netprobe` 不可重检（它代表外网连通性，不是可重装的依赖），请求里出现即为 4xx `InvalidInput`；未知 dep 同样 4xx。
+- 冷缓存（进程内还没有任何 `EnvStatus` 快照）会退回 `status_inner` 全量探测并写回缓存 —— 此时另一块也会一起变新，属已知耦合；有缓存后严格只合并请求的 deps。
+
 > 环境依赖**不是 Tauri command**，因此不新增 `capabilities/*.json` 权限；桌面壳 `tauri-env.ts` 只是把调用转发到同一组 HTTP 端点。
 
 ## 前端表面

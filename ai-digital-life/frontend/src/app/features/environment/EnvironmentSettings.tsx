@@ -198,10 +198,20 @@ export function EnvironmentSettings() {
   const [groupResetOpen, setGroupResetOpen] = useState(false);
   const [groupResetBusy, setGroupResetBusy] = useState(false);
   // 行级 / 块级刷新的在途标记：只驱动对应的图标，不消费全局 envBusy。
-  const [refreshingRows, setRefreshingRows] = useState<Record<string, boolean>>({});
+  // 行用计数：同一 dep 可能同时被「行刷新」与「块刷新」排队覆盖，先完成的
+  // 那一路不能提前熄灭另一路还在跑的 spinner。
+  const [refreshingRows, setRefreshingRows] = useState<Record<string, number>>({});
   const [refreshingBlocks, setRefreshingBlocks] = useState<Record<string, boolean>>({});
-  // 同一时刻只跑一次重检：两个块「独立」指互不影响，不指并发探测。
-  const refreshingRef = useRef(false);
+  // 重检串行队列：允许连续点多个块/行（各自转圈），但不并发探测、不静默丢弃。
+  const envRefreshChainRef = useRef<Promise<void>>(Promise.resolve());
+  const enqueueEnvRefresh = useCallback(<T,>(task: () => Promise<T>): Promise<T> => {
+    const run = envRefreshChainRef.current.then(() => task());
+    envRefreshChainRef.current = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }, []);
 
   /**
    * 按 dep 集合刷新（块级传块标题 key，行级传 null）。
@@ -209,14 +219,13 @@ export function EnvironmentSettings() {
    */
   const refreshDeps = useCallback(
     async (blockKey: string | null, deps: string[]) => {
-      if (deps.length === 0 || refreshingRef.current) {
+      if (deps.length === 0) {
         return;
       }
-      refreshingRef.current = true;
       setRefreshingRows((prev) => {
         const next = { ...prev };
         deps.forEach((dep) => {
-          next[dep] = true;
+          next[dep] = (next[dep] ?? 0) + 1;
         });
         return next;
       });
@@ -224,22 +233,30 @@ export function EnvironmentSettings() {
         setRefreshingBlocks((prev) => ({ ...prev, [blockKey]: true }));
       }
       try {
-        await actions.recheckEnv(deps);
+        await enqueueEnvRefresh(() => actions.recheckEnv(deps));
       } finally {
         setRefreshingRows((prev) => {
           const next = { ...prev };
           deps.forEach((dep) => {
-            delete next[dep];
+            const remaining = (next[dep] ?? 0) - 1;
+            if (remaining > 0) {
+              next[dep] = remaining;
+            } else {
+              delete next[dep];
+            }
           });
           return next;
         });
         if (blockKey !== null) {
-          setRefreshingBlocks((prev) => ({ ...prev, [blockKey]: false }));
+          setRefreshingBlocks((prev) => {
+            const next = { ...prev };
+            delete next[blockKey];
+            return next;
+          });
         }
-        refreshingRef.current = false;
       }
     },
-    [actions],
+    [actions, enqueueEnvRefresh],
   );
   // 细粒度操作态（事项 1/1c）：聚合条「重新检测 / 复制全部」与空态重试各锁自身，
   // 不再消费全局 envBusy，避免无关联行变灰与禁用。store 的 envBusy 仍保留供
@@ -331,8 +348,8 @@ export function EnvironmentSettings() {
     if (flashPhaseFor(phases, 'recheck') === 'loading') {
       return;
     }
-    run('recheck', () => actions.recheckEnv());
-  }, [actions, phases, run]);
+    run('recheck', () => enqueueEnvRefresh(() => actions.recheckEnv()));
+  }, [actions, enqueueEnvRefresh, phases, run]);
 
   const handleFetch = useCallback(() => {
     if (flashPhaseFor(phases, 'fetch') === 'loading') {
@@ -408,7 +425,7 @@ export function EnvironmentSettings() {
           }
         }
         if (ok) {
-          ok = await actions.recheckEnv();
+          ok = await enqueueEnvRefresh(() => actions.recheckEnv());
         }
         if (ok) {
           showToast(t.settingsResetComplete, 'success');
@@ -417,7 +434,7 @@ export function EnvironmentSettings() {
         setGroupResetBusy(false);
       }
     })();
-  }, [groupResetBusy, resetOneDepSource, actions, showToast, t]);
+  }, [groupResetBusy, resetOneDepSource, actions, enqueueEnvRefresh, showToast, t]);
 
   const handleGroupCancel = useCallback(() => {
     setGroupResetOpen(false);
@@ -592,7 +609,7 @@ export function EnvironmentSettings() {
                     isTauri={isTauri}
                     actions={rowActions}
                     refresh={{
-                      spinning: refreshingRows[dep] === true,
+                      spinning: (refreshingRows[dep] ?? 0) > 0,
                       onRefresh: () => void refreshDeps(null, [dep]),
                     }}
                   />

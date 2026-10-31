@@ -873,14 +873,15 @@ describe('NetworkSettings', () => {
     await waitFor(() => expect(saveSourceConfig).toHaveBeenCalled());
   });
 
-  it('代理刷新：强制重探系统代理（force=true）', async () => {
+  it('代理刷新：强制重探系统代理，失败走非静默错误通道', async () => {
     useAppStore.setState({
       sourceStatus: makeStatus({ source_mode: 'manual', npm_registry: NPMJS_URL }),
     });
     renderSettings();
     fetchSourceStatus.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'refresh:dshSettingsProxyMode' }));
-    await waitFor(() => expect(fetchSourceStatus).toHaveBeenCalledWith(true, true));
+    // force=true 清 5s 健康缓存；silent=false 让失败落到全局错误卡片。
+    await waitFor(() => expect(fetchSourceStatus).toHaveBeenCalledWith(false, true));
   });
 
   it('自定义代理的直连名单按行翻页（单行输入 + 上下箭头）', () => {

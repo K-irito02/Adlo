@@ -53,18 +53,27 @@ const status: EnvStatus = {
   dshReady: true,
 };
 
-function cloneStatus(): EnvStatus {
+function cloneOf(source: EnvStatus): EnvStatus {
   return {
-    ...status,
-    node: { ...status.node },
-    git: { ...status.git },
-    bash: { ...status.bash },
-    webview2: { ...status.webview2 },
-    adlserver: { ...status.adlserver },
-    netprobe: { ...status.netprobe },
-    task: status.task ? { ...status.task } : null,
+    ...source,
+    node: { ...source.node },
+    git: { ...source.git },
+    bash: { ...source.bash },
+    webview2: { ...source.webview2 },
+    adlserver: { ...source.adlserver },
+    netprobe: { ...source.netprobe },
+    task: source.task ? { ...source.task } : null,
   };
 }
+
+/** mock 的当前状态：recheck 只替换请求的依赖，其余保持原值（块互不联动）。 */
+let current = cloneOf(status);
+
+function cloneStatus(): EnvStatus {
+  return cloneOf(current);
+}
+
+const DEP_KEYS = ['node', 'git', 'bash', 'webview2', 'adlserver'] as const;
 
 /**
  * Mock env bridge：固定八键可用数据（6 段依赖 + task null + dshReady true）
@@ -77,6 +86,20 @@ export function createMockEnv(): EnvBridge {
     uninstall: async (_dep: string, _version?: string) => ({ ok: true, data: { started: true } }),
     selectSource: async (_dep: string, _mode) => ({ ok: true, data: true }),
     setCustomPath: async (_dep: string, _path: string) => ({ ok: true, data: true }),
-    recheck: async (_deps?: string[]) => ({ ok: true, data: cloneStatus() }),
+    recheck: async (deps?: string[]) => {
+      if (!deps || deps.length === 0) {
+        current = cloneOf(status);
+      } else {
+        const next = cloneOf(current);
+        for (const dep of deps) {
+          if ((DEP_KEYS as readonly string[]).includes(dep)) {
+            const key = dep as (typeof DEP_KEYS)[number];
+            next[key] = { ...status[key] };
+          }
+        }
+        current = next;
+      }
+      return { ok: true, data: cloneStatus() };
+    },
   };
 }

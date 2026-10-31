@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -10,7 +11,7 @@ import {
 import { createPortal } from 'react-dom';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
-import { IconClose, IconExpandVertical } from '@icons';
+import { IconChevronDown, IconChevronUp, IconClose, IconExpandVertical } from '@icons';
 
 /** 直连名单条目：兼容历史逗号分隔与设置面板的换行分隔。 */
 function splitEntries(value: string): string[] {
@@ -22,19 +23,6 @@ function splitEntries(value: string): string[] {
 
 function normalizeText(value: string): string {
   return splitEntries(value).join('\n');
-}
-
-function StepChevron({ direction }: { direction: 'up' | 'down' }) {
-  return (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d={direction === 'up' ? 'M6 14l6-6 6 6' : 'M6 10l6 6 6-6'}
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
 }
 
 const SETTINGS_CONTENT_SELECTOR = '.adl-settings-panel__content';
@@ -73,13 +61,12 @@ function clampPosition(
 export function NoProxyField({
   value,
   onChange,
-  disabled,
 }: {
   value: string;
   onChange: (next: string) => void;
-  disabled?: boolean;
 }) {
   const { t } = useTCopy();
+  const countId = useId();
   // 本地草稿保留「刚按 Enter 新增的空条目」；保存值仍过滤空行。
   const [entries, setEntries] = useState<string[]>(() => splitEntries(value));
   const lastValueRef = useRef(value);
@@ -136,6 +123,19 @@ export function NoProxyField({
     setIndex((safeIndex + delta + entries.length) % entries.length);
   };
 
+  const closePopover = useCallback(() => {
+    setAnchorEl(null);
+    expandRef.current?.focus();
+  }, []);
+
+  const countText =
+    entries.length === 0
+      ? formatT(t, 'dshSettingsNoProxyCount', { current: 0, total: 0 })
+      : formatT(t, 'dshSettingsNoProxyCount', {
+          current: safeIndex + 1,
+          total: entries.length,
+        });
+
   return (
     <span className="adl-network-no-proxy">
       <span className="adl-network-no-proxy__field">
@@ -143,15 +143,15 @@ export function NoProxyField({
           type="text"
           className="adl-settings-input adl-network-no-proxy__input"
           aria-label={t.dshSettingsProxyNoProxy}
+          aria-describedby={countId}
           placeholder={t.dshSettingsProxyNoProxyPlaceholder}
           value={current}
-          disabled={disabled}
           onChange={(event: ChangeEvent<HTMLInputElement>) =>
             setEntry(safeIndex, event.target.value)
           }
           onKeyDown={(event) => {
-            // Enter / Shift+Enter：在当前条目后新增一条，不打开弹层。
-            if (event.key === 'Enter') {
+            // Enter / Shift+Enter：在当前条目后新增一条，不打开弹层。IME 上屏不触发。
+            if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
               event.preventDefault();
               event.stopPropagation();
               insertEntry();
@@ -159,33 +159,31 @@ export function NoProxyField({
           }}
         />
         <span className="adl-network-no-proxy__counter" aria-hidden="true">
-          {entries.length === 0
-            ? '0/0'
-            : formatT(t, 'dshSettingsNoProxyCount', {
-                current: safeIndex + 1,
-                total: entries.length,
-              })}
+          {countText}
         </span>
-        <span className="adl-network-no-proxy__stepper">
-          <button
-            type="button"
-            className="adl-network-no-proxy__step"
-            aria-label={t.dshSettingsNoProxyPrev}
-            disabled={disabled === true || entries.length <= 1}
-            onClick={() => step(-1)}
-          >
-            <StepChevron direction="up" />
-          </button>
-          <button
-            type="button"
-            className="adl-network-no-proxy__step"
-            aria-label={t.dshSettingsNoProxyNext}
-            disabled={disabled === true || entries.length <= 1}
-            onClick={() => step(1)}
-          >
-            <StepChevron direction="down" />
-          </button>
+        <span id={countId} className="sr-only">
+          {countText}
         </span>
+        {entries.length > 1 ? (
+          <span className="adl-network-no-proxy__stepper">
+            <button
+              type="button"
+              className="adl-network-no-proxy__step"
+              aria-label={t.dshSettingsNoProxyPrev}
+              onClick={() => step(-1)}
+            >
+              <IconChevronUp size={12} decorative />
+            </button>
+            <button
+              type="button"
+              className="adl-network-no-proxy__step"
+              aria-label={t.dshSettingsNoProxyNext}
+              onClick={() => step(1)}
+            >
+              <IconChevronDown size={12} decorative />
+            </button>
+          </span>
+        ) : null}
       </span>
       <button
         ref={expandRef}
@@ -193,8 +191,15 @@ export function NoProxyField({
         className={`adl-network-no-proxy__expand${anchorEl ? ' is-open' : ''}`}
         title={t.dshSettingsNoProxyExpand}
         aria-label={t.dshSettingsNoProxyExpand}
-        disabled={disabled}
-        onClick={() => setAnchorEl(expandRef.current)}
+        aria-haspopup="dialog"
+        aria-expanded={anchorEl !== null}
+        onClick={() => {
+          if (anchorEl) {
+            closePopover();
+          } else {
+            setAnchorEl(expandRef.current);
+          }
+        }}
       >
         <IconExpandVertical size={18} decorative />
       </button>
@@ -203,7 +208,7 @@ export function NoProxyField({
           anchorEl={anchorEl}
           value={value}
           onChange={onChange}
-          onClose={() => setAnchorEl(null)}
+          onClose={closePopover}
         />
       ) : null}
     </span>
@@ -222,6 +227,7 @@ function NoProxyEditorPopover({
   onClose: () => void;
 }) {
   const { t } = useTCopy();
+  const titleId = useId();
   const popoverRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [draft, setDraft] = useState(() => normalizeText(value));
@@ -231,7 +237,6 @@ function NoProxyEditorPopover({
     startY: number;
     left: number;
     top: number;
-    pointerId: number;
   } | null>(null);
   const [dragging, setDragging] = useState(false);
   const count = splitEntries(draft).length;
@@ -260,6 +265,56 @@ function NoProxyEditorPopover({
     textarea.style.height = `${textarea.scrollHeight}px`;
   }, [draft, geom]);
 
+  // 首帧高度按 300 兜底，真实高度可能更高：渲染后用实际高度再夹一次。
+  useLayoutEffect(() => {
+    const el = popoverRef.current;
+    if (!el || !geom) {
+      return;
+    }
+    const next = clampPosition(
+      geom.left,
+      geom.top,
+      geom.width,
+      el.offsetHeight,
+      contentBounds(anchorEl),
+    );
+    if (next.left !== geom.left || next.top !== geom.top) {
+      setGeom({ ...geom, ...next });
+    }
+  }, [anchorEl, geom]);
+
+  // 设置内容区滚动 / 窗口尺寸变化时把弹层夹回内容区，避免与锚点视觉脱离。
+  useEffect(() => {
+    if (!geom) {
+      return;
+    }
+    const reposition = () => {
+      const el = popoverRef.current;
+      if (!el) {
+        return;
+      }
+      setGeom((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const next = clampPosition(
+          prev.left,
+          prev.top,
+          prev.width,
+          el.offsetHeight,
+          contentBounds(anchorEl),
+        );
+        return next.left === prev.left && next.top === prev.top ? prev : { ...prev, ...next };
+      });
+    };
+    document.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
+    return () => {
+      document.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
+    };
+  }, [anchorEl, geom]);
+
   useEffect(() => {
     textareaRef.current?.focus();
   }, []);
@@ -274,6 +329,7 @@ function NoProxyEditorPopover({
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.stopPropagation();
         onClose();
       }
     };
@@ -295,7 +351,6 @@ function NoProxyEditorPopover({
       startY: event.clientY,
       left: geom.left,
       top: geom.top,
-      pointerId: event.pointerId,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragging(true);
@@ -338,7 +393,8 @@ function NoProxyEditorPopover({
       className="adl-network-no-proxy__popover"
       style={{ left: geom.left, top: geom.top, width: geom.width }}
       role="dialog"
-      aria-label={t.dshSettingsProxyNoProxy}
+      aria-labelledby={titleId}
+      aria-modal="false"
     >
       <div
         className={`adl-network-no-proxy__popover-head${dragging ? ' is-dragging' : ''}`}
@@ -347,7 +403,9 @@ function NoProxyEditorPopover({
         onPointerUp={finishDrag}
         onPointerCancel={finishDrag}
       >
-        <span className="adl-network-no-proxy__popover-title">{t.dshSettingsProxyNoProxy}</span>
+        <span id={titleId} className="adl-network-no-proxy__popover-title">
+          {t.dshSettingsProxyNoProxy}
+        </span>
         <span className="adl-network-no-proxy__popover-count">
           {formatT(t, 'dshSettingsNoProxyItemCount', { count })}
         </span>

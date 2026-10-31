@@ -26,6 +26,11 @@ function renderField(value: string, onChange = vi.fn()) {
   return onChange;
 }
 
+/** 可见计数（另有 sr-only 同文本，供读屏使用）。 */
+function visibleCount(): string {
+  return document.querySelector('.adl-network-no-proxy__counter')?.textContent ?? '';
+}
+
 describe('NoProxyField', () => {
   afterEach(() => cleanup());
 
@@ -35,11 +40,11 @@ describe('NoProxyField', () => {
       name: 'dshSettingsProxyNoProxy',
     }) as HTMLInputElement;
     expect(input.value).toBe('localhost');
-    expect(screen.getByText('1/2')).toBeTruthy();
+    expect(visibleCount()).toBe('1/2');
 
     fireEvent.click(screen.getByRole('button', { name: 'dshSettingsNoProxyNext' }));
     expect(input.value).toBe('127.0.0.1');
-    expect(screen.getByText('2/2')).toBeTruthy();
+    expect(visibleCount()).toBe('2/2');
 
     fireEvent.click(screen.getByRole('button', { name: 'dshSettingsNoProxyNext' }));
     expect(input.value).toBe('localhost');
@@ -61,7 +66,7 @@ describe('NoProxyField', () => {
     }) as HTMLInputElement;
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(input.value).toBe('');
-    expect(screen.getByText('2/2')).toBeTruthy();
+    expect(visibleCount()).toBe('2/2');
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(onChange).not.toHaveBeenCalled();
 
@@ -76,8 +81,21 @@ describe('NoProxyField', () => {
     }) as HTMLInputElement;
     fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
     expect(input.value).toBe('');
-    expect(screen.getByText('2/2')).toBeTruthy();
+    expect(visibleCount()).toBe('2/2');
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('展开按钮是开关：再次点击关闭弹层并回焦', async () => {
+    renderField('localhost');
+    const expand = screen.getByRole('button', { name: 'dshSettingsNoProxyExpand' });
+    fireEvent.click(expand);
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(expand.getAttribute('aria-expanded')).toBe('true');
+
+    fireEvent.click(expand);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(expand.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(expand);
   });
 
   it('兼容历史逗号分隔：展开后按行显示', async () => {

@@ -13,6 +13,7 @@ import {
   type HarnessVersionCardHandle,
   type HarnessVersionSlotContext,
 } from '@features/harness/HarnessVersionCard';
+import { useHarnessBlockRefresh } from '@features/harness/hooks/useHarnessBlockRefresh';
 import type { OpencodeBridge, OpencodeSourceStatus } from '@shared/ipc/opencode';
 import {
   createOpencodeVersionBridge,
@@ -135,16 +136,13 @@ export function OpencodeSettings() {
   const [groupResetOpen, setGroupResetOpen] = useState(false);
   const [groupResetBusy, setGroupResetBusy] = useState(false);
   const cardRef = useRef<HarnessVersionCardHandle>(null);
-  const [refreshingAll, setRefreshingAll] = useState(false);
-  const handleRefreshAll = useCallback(() => {
-    if (refreshingAll) {
-      return;
-    }
-    setRefreshingAll(true);
-    void (cardRef.current?.refreshAll() ?? Promise.resolve()).finally(() => {
-      setRefreshingAll(false);
-    });
-  }, [refreshingAll]);
+  // 块级刷新：卡片忙碌时禁用按钮，点击驱动整卡重载（宿主侧状态与 DSH 共用）。
+  const {
+    refreshingAll,
+    cardBusy,
+    setCardBusy,
+    refreshAll: handleRefreshAll,
+  } = useHarnessBlockRefresh(cardRef);
 
   // 卸载兜底：pending 置位后若组件在消费前卸载，清信号避免下次挂载"迟到弹窗"。
   useEffect(
@@ -229,6 +227,7 @@ export function OpencodeSettings() {
               block
               label={t.opencodeVersionTitle}
               spinning={refreshingAll}
+              disabled={cardBusy}
               onRefresh={handleRefreshAll}
             />
           }
@@ -238,6 +237,7 @@ export function OpencodeSettings() {
         key={cardEpoch}
         ref={cardRef}
         bridge={bridge}
+        onBusyChange={setCardBusy}
         slots={{
           // 块头复用 OpenCode 组原有块头（锚点 + 问号 + 版本管理标题）。
           hideHeader: true,

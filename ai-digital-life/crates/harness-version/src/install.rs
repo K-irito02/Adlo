@@ -111,7 +111,19 @@ fn apply_proxy_env(cmd: &mut TokioCommand, config: &adl_download_source::Downloa
         ProxyMode::Manual => {
             set_proxy_env(cmd, "HTTP_PROXY", "http_proxy", &config.proxy.http_proxy);
             set_proxy_env(cmd, "HTTPS_PROXY", "https_proxy", &config.proxy.https_proxy);
-            set_proxy_env(cmd, "NO_PROXY", "no_proxy", &config.proxy.no_proxy);
+            // npm / node 只按逗号切分；设置面板保存的是换行分隔，必须归一化。
+            // 注意「清空直连名单」落盘是 None（不是 Some("")）：两种都视为空 →
+            // 显式压过父进程继承的 NO_PROXY。
+            let normalized = adl_download_source::no_proxy_env_value(
+                config.proxy.no_proxy.as_deref().unwrap_or_default(),
+            );
+            if normalized.is_empty() {
+                cmd.env_remove("NO_PROXY");
+                cmd.env_remove("no_proxy");
+            } else {
+                cmd.env("NO_PROXY", &normalized);
+                cmd.env("no_proxy", &normalized);
+            }
         },
         ProxyMode::None => {
             // 大小写双删：npm/node 会读取小写变量，只删大写等于没关代理。
@@ -848,9 +860,35 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    /// 子进程环境接线：大小写双写、换行归一化为逗号、空值显式移除。
     #[test]
     fn apply_proxy_env_covers_lowercase_vars() {
         use adl_download_source::{DownloadSourceConfig, ProxyConfig, ProxyMode};
+
+        fn env_pairs(cmd: &TokioCommand) -> Vec<(String, Option<String>)> {
+            cmd.as_std()
+                .get_envs()
+                .map(|(key, value)| {
+                    (
+                        key.to_string_lossy().into_owned(),
+                        value.map(|v| v.to_string_lossy().into_owned()),
+                    )
+                })
+                .collect()
+        }
+        fn env_of<'a>(pairs: &'a [(String, Option<String>)], key: &str) -> Option<&'a str> {
+            // Windows 环境变量名大小写不敏感，`get_envs()` 可能只保留一个键；
+            // 这里按平台语义做大小写不敏感查找。
+            pairs.iter().find(|(k, _)| k.eq_ignore_ascii_case(key)).and_then(|(_, v)| v.as_deref())
+        }
+        /// `Some(None)` = 显式移除（tombstone）；`None` = 完全没写过这个键。
+        fn env_entry<'a>(
+            pairs: &'a [(String, Option<String>)],
+            key: &str,
+        ) -> Option<&'a Option<String>> {
+            pairs.iter().find(|(k, _)| k.eq_ignore_ascii_case(key)).map(|(_, v)| v)
+        }
+
         let mut manual = TokioCommand::new("npm");
         apply_proxy_env(
             &mut manual,
@@ -859,13 +897,53 @@ mod tests {
                     mode: ProxyMode::Manual,
                     http_proxy: Some("http://127.0.0.1:8080".into()),
                     https_proxy: None,
-                    no_proxy: Some("localhost".into()),
+                    no_proxy: Some("localhost\n127.0.0.1".into()),
                 },
                 ..Default::default()
             },
         );
-        // TokioCommand 不暴露 env 快照：至少保证函数可调用且不 panic；
-        // 大小写双写由实现逐行保证（见函数体 set_proxy_env）。
+        let pairs = env_pairs(&manual);
+        assert_eq!(env_of(&pairs, "HTTP_PROXY"), Some("http://127.0.0.1:8080"));
+        assert_eq!(env_of(&pairs, "http_proxy"), Some("http://127.0.0.1:8080"));
+        // npm 只按逗号切分：换行存储必须在导出时归一化。
+        assert_eq!(env_of(&pairs, "NO_PROXY"), Some("localhost,127.0.0.1"));
+        assert_eq!(env_of(&pairs, "no_proxy"), Some("localhost,127.0.0.1"));
+
+        // 空直连名单 = 显式压过父进程继承的 NO_PROXY。
+        let mut empty = TokioCommand::new("npm");
+        apply_proxy_env(
+            &mut empty,
+            &DownloadSourceConfig {
+                proxy: ProxyConfig {
+                    mode: ProxyMode::Manual,
+                    no_proxy: Some("  \n".into()),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        );
+        let pairs = env_pairs(&empty);
+        assert_eq!(env_entry(&pairs, "NO_PROXY"), Some(&None));
+        assert_eq!(env_entry(&pairs, "no_proxy"), Some(&None));
+
+        // 「清空直连名单」落盘为 None：同样必须显式移除，而不是继承父进程。
+        let mut cleared = TokioCommand::new("npm");
+        apply_proxy_env(
+            &mut cleared,
+            &DownloadSourceConfig {
+                proxy: ProxyConfig {
+                    mode: ProxyMode::Manual,
+                    no_proxy: None,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        );
+        let pairs = env_pairs(&cleared);
+        assert_eq!(env_entry(&pairs, "NO_PROXY"), Some(&None));
+        assert_eq!(env_entry(&pairs, "no_proxy"), Some(&None));
+
+        // 关闭代理：清掉代理变量并强制全直连。
         let mut none = TokioCommand::new("npm");
         apply_proxy_env(
             &mut none,
@@ -874,6 +952,10 @@ mod tests {
                 ..Default::default()
             },
         );
+        let pairs = env_pairs(&none);
+        assert_eq!(env_of(&pairs, "HTTP_PROXY"), None);
+        assert_eq!(env_of(&pairs, "NO_PROXY"), Some("*"));
+        assert_eq!(env_of(&pairs, "no_proxy"), Some("*"));
     }
 
     fn make_complete_version(root: &Path, version: &str) {

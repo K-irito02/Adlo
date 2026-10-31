@@ -275,6 +275,19 @@ fn no_proxy_matches(no_proxy: &str, host: &str) -> bool {
     )
 }
 
+/// 导出给外部子进程（npm 等）的 `NO_PROXY`：统一为逗号分隔。
+///
+/// 设置面板把直连名单保存为换行分隔；npm 的 `proxy-from-env` 只按逗号切分，
+/// 直接透传换行值会被当成一个条目而整体失效。所有「导出给外部工具」的消费端
+/// 都必须复用本函数，避免再次出现两套分隔符。
+pub fn no_proxy_env_value(raw: &str) -> String {
+    raw.split([',', '\n', '\r'])
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
 /// 读取环境变量并去掉首尾空白；空串按「未设置」处理（与 hyper-util 的 `is_empty()` 口径一致）。
 fn env_trimmed(name: &str) -> Option<String> {
     std::env::var(name)
@@ -925,6 +938,25 @@ mod tests {
         assert!(no_proxy_matches("*", "anything.example"));
         assert!(!no_proxy_matches("10.0.0.1", "110.0.0.10"));
         assert!(!no_proxy_matches("internal", "notinternal.example"));
+    }
+
+    /// 导出给外部子进程时必须统一成逗号分隔（npm 只认逗号）。
+    #[test]
+    fn no_proxy_env_value_normalizes_newlines() {
+        assert_eq!(no_proxy_env_value("localhost\n127.0.0.1"), "localhost,127.0.0.1");
+        assert_eq!(no_proxy_env_value(" a ,\r\n b \n"), "a,b");
+        assert_eq!(no_proxy_env_value("\n,\r\n"), "");
+    }
+
+    /// 显式刷新（force）与保存配置都会清空健康缓存，绕开 5s 冷却。
+    #[test]
+    fn invalidate_proxy_health_cache_drops_entry() {
+        // 用唯一 endpoint 避免与其它测试共享的全局缓存互相干扰。
+        let endpoint = "http://127.0.0.1:9/adl-invalidate-probe";
+        store_proxy_reachable(endpoint, true);
+        assert_eq!(cached_proxy_reachable(endpoint), Some(true));
+        invalidate_proxy_health_cache();
+        assert_eq!(cached_proxy_reachable(endpoint), None);
     }
 
     /// Auto 代理优先级（与 hyper-util 对齐）：scheme env（非空即占位）→ 注册表 → ALL_PROXY。

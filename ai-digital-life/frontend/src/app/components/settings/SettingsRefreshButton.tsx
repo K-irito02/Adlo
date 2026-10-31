@@ -42,8 +42,14 @@ export function SettingsRefreshButton({
       title={t.refresh}
       aria-label={formatT(t, 'settingsRefreshAria', { target: label })}
       aria-busy={spinning}
-      disabled={disabled === true || spinning}
-      onClick={onRefresh}
+      aria-disabled={disabled === true || spinning}
+      disabled={disabled === true}
+      onClick={() => {
+        if (disabled === true || spinning) {
+          return;
+        }
+        onRefresh();
+      }}
     >
       <IconRefreshArc
         size={block ? 16 : 14}

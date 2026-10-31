@@ -15,7 +15,6 @@ export const harnessVersionEn = {
   harnessVersionPrereleaseBadge: 'Prerelease',
   harnessVersionCatalogUnavailable:
     'Could not refresh the official version list; the current list may be out of date',
-  harnessVersionRefreshRow: 'Reload',
   harnessVersionStable: 'Stable',
   harnessVersionInstall: 'Install',
   harnessVersionInstallStarted: 'Installation started',

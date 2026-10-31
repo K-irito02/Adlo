@@ -1,9 +1,14 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
+import { createRef } from 'react';
 import { render, cleanup, fireEvent, screen, waitFor, within, act } from '@testing-library/react';
 import type { CopyDict } from '@i18n';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { REFRESH_ARC_PATH } from '@icons';
-import { HarnessVersionCard, type HarnessVersionSlots } from '../HarnessVersionCard';
+import {
+  HarnessVersionCard,
+  type HarnessVersionCardHandle,
+  type HarnessVersionSlots,
+} from '../HarnessVersionCard';
 import type {
   HarnessVersionBridge,
   HarnessVersionResult,
@@ -1086,5 +1091,186 @@ describe('HarnessVersionCard layout adjustments', () => {
       '[data-settings-row="harnessVersionUpdate"]',
     ) as HTMLElement;
     expect(within(updateRow).queryByRole('button', { name: /settingsRefreshAria/ })).toBeNull();
+  });
+
+  it('refreshing one row never disables other rows or the update action', async () => {
+    const bridge = makeBridge({
+      capabilities: {
+        refreshRows: { source: true, current: true, stable: true, prerelease: true },
+      },
+    });
+    renderCard(bridge);
+    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+
+    fireEvent.click(
+      within(channelRow('stable')).getByRole('button', { name: /settingsRefreshAria/ }),
+    );
+
+    expect(screen.getByRole('button', { name: 'harnessVersionUpdateAction' })).not.toBeDisabled();
+    const currentRow = document.querySelector(
+      '[data-settings-row="harnessVersionCurrent"]',
+    ) as HTMLElement;
+    expect(
+      within(currentRow).getByRole('button', { name: /settingsRefreshAria/ }),
+    ).not.toBeDisabled();
+  });
+
+  it('serializes row refreshes and keeps per-row spinners', async () => {
+    const resolvers: ((value: HarnessVersionSnapshot) => void)[] = [];
+    const bridge = makeBridge({
+      capabilities: {
+        refreshRows: { source: true, current: true, stable: true, prerelease: true },
+      },
+      load: vi.fn(
+        () =>
+          new Promise<HarnessVersionSnapshot>((resolve) => {
+            resolvers.push(resolve);
+          }),
+      ),
+    });
+    renderCard(bridge);
+    await waitFor(() => expect(resolvers).toHaveLength(1));
+
+    // 首屏快照尚未返回时也可点行刷新（种子已渲染）；第一个行刷新立即发起。
+    fireEvent.click(
+      within(channelRow('stable')).getByRole('button', { name: /settingsRefreshAria/ }),
+    );
+    await waitFor(() => expect(resolvers).toHaveLength(2));
+
+    // 第二个行刷新只排队，不并发发起 load。
+    fireEvent.click(
+      within(channelRow('prerelease')).getByRole('button', { name: /settingsRefreshAria/ }),
+    );
+    expect(resolvers).toHaveLength(2);
+
+    act(() => resolvers[1](snapshot()));
+    await waitFor(() => expect(resolvers).toHaveLength(3));
+    await waitFor(() =>
+      expect(
+        within(channelRow('stable')).getByRole('button', { name: /settingsRefreshAria/ }),
+      ).toHaveAttribute('aria-busy', 'false'),
+    );
+    expect(
+      within(channelRow('prerelease')).getByRole('button', { name: /settingsRefreshAria/ }),
+    ).toHaveAttribute('aria-busy', 'true');
+    act(() => resolvers[2](snapshot()));
+    act(() => resolvers[0](snapshot()));
+  });
+
+  it('ignores a stale load response that arrives after a newer refresh', async () => {
+    const resolvers: ((value: HarnessVersionSnapshot) => void)[] = [];
+    const bridge = makeBridge({
+      capabilities: { refreshRows: { current: true } },
+      load: vi.fn(
+        () =>
+          new Promise<HarnessVersionSnapshot>((resolve) => {
+            resolvers.push(resolve);
+          }),
+      ),
+    });
+    renderCard(bridge);
+    await waitFor(() => expect(resolvers).toHaveLength(1));
+    const currentRow = document.querySelector(
+      '[data-settings-row="harnessVersionCurrent"]',
+    ) as HTMLElement;
+
+    // 首屏未返回时点当前版本行刷新（后发起的 load 才算数）。
+    fireEvent.click(within(currentRow).getByRole('button', { name: /settingsRefreshAria/ }));
+    await waitFor(() => expect(resolvers).toHaveLength(2));
+    act(() =>
+      resolvers[1](
+        snapshot({
+          status: status({
+            currentSelected: '1.2.0',
+            installed: ['1.2.0'],
+            latestAvailable: '1.2.0',
+          }),
+        }),
+      ),
+    );
+    await waitFor(() => expect(within(currentRow).getByText('1.2.0')).toBeTruthy());
+
+    // 旧的首屏响应后到：不得把读数回退到 1.0.0。
+    act(() => resolvers[0](snapshot()));
+    expect(within(currentRow).queryByText('1.0.0')).toBeNull();
+    expect(within(currentRow).getByText('1.2.0')).toBeTruthy();
+  });
+
+  it('reports card busy state so hosts can disable the block refresh', async () => {
+    const onBusyChange = vi.fn();
+    const bridge = makeBridge({ available: false });
+    render(
+      <TCopyProvider t={mockT} locale="en-US">
+        <HarnessVersionCard bridge={bridge} onBusyChange={onBusyChange} />
+      </TCopyProvider>,
+    );
+    await waitFor(() => expect(onBusyChange).toHaveBeenCalledWith(true));
+  });
+
+  it('gates the block refresh and keeps it on the same serial queue as row refreshes', async () => {
+    const resolvers: ((value: HarnessVersionSnapshot) => void)[] = [];
+    const bridge = makeBridge({
+      capabilities: { refreshRows: { stable: true } },
+      load: vi.fn(
+        () =>
+          new Promise<HarnessVersionSnapshot>((resolve) => {
+            resolvers.push(resolve);
+          }),
+      ),
+    });
+    const ref = createRef<HarnessVersionCardHandle>();
+    render(
+      <TCopyProvider t={mockT} locale="en-US">
+        <HarnessVersionCard bridge={bridge} ref={ref} />
+      </TCopyProvider>,
+    );
+    await waitFor(() => expect(resolvers).toHaveLength(1));
+
+    // 行刷新先入队；块刷新必须排在它之后，不并发发起第三个 load。
+    fireEvent.click(
+      within(channelRow('stable')).getByRole('button', { name: /settingsRefreshAria/ }),
+    );
+    await waitFor(() => expect(resolvers).toHaveLength(2));
+    void ref.current?.refreshAll();
+    expect(resolvers).toHaveLength(2);
+
+    act(() => resolvers[1](snapshot()));
+    await waitFor(() => expect(resolvers).toHaveLength(3));
+    act(() => resolvers[2](snapshot()));
+    act(() => resolvers[0](snapshot()));
+  });
+
+  it('keeps the current readout when a refresh fails but data is still available', async () => {
+    const bridge = makeBridge({
+      initial: snapshot({ failed: true }),
+    });
+    renderCard(bridge);
+    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    const currentRow = document.querySelector(
+      '[data-settings-row="harnessVersionCurrent"]',
+    ) as HTMLElement;
+    expect(within(currentRow).getByText('1.0.0')).toBeTruthy();
+    expect(within(currentRow).queryByText('harnessVersionLoadFailed')).toBeNull();
+  });
+
+  it('surfaces an explicit block refresh failure once', async () => {
+    const bridge = makeBridge({
+      load: vi.fn(async () =>
+        snapshot({ status: null, catalog: null, source: null, failed: true }),
+      ),
+    });
+    const ref = createRef<HarnessVersionCardHandle>();
+    render(
+      <TCopyProvider t={mockT} locale="en-US">
+        <HarnessVersionCard bridge={bridge} ref={ref} />
+      </TCopyProvider>,
+    );
+    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+    expect(bridge.notify).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await ref.current?.refreshAll();
+    });
+    expect(bridge.notify).toHaveBeenCalledWith('harnessVersionLoadFailed', 'error');
   });
 });

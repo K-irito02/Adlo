@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import type {
   HarnessVersionBridge,
@@ -76,19 +76,39 @@ export function useHarnessVersionData<TSource>(bridge: HarnessVersionBridge<TSou
     }));
   }, []);
 
-  const refresh = useCallback(async () => {
-    try {
-      applySnapshot(await bridge.load());
-    } catch {
-      applySnapshot({
-        status: null,
-        catalog: null,
-        source: null,
-        sourceExtra: null,
-        failed: true,
-      });
-    }
-  }, [applySnapshot, bridge]);
+  // 只有「最后发起」的那次 load 允许写回：首屏 effect、显式刷新与操作收尾
+  // 都会各自发起 load，若按到达顺序覆盖，先发后到的旧快照会回退读数。
+  const loadSeqRef = useRef(0);
+  const refresh = useCallback(
+    async (options?: { notifyFailure?: boolean }) => {
+      const seq = ++loadSeqRef.current;
+      try {
+        const next = await bridge.load();
+        if (seq !== loadSeqRef.current) {
+          return;
+        }
+        applySnapshot(next);
+        if (options?.notifyFailure && next.failed === true) {
+          bridge.notify(t.harnessVersionLoadFailed, 'error');
+        }
+      } catch {
+        if (seq !== loadSeqRef.current) {
+          return;
+        }
+        applySnapshot({
+          status: null,
+          catalog: null,
+          source: null,
+          sourceExtra: null,
+          failed: true,
+        });
+        if (options?.notifyFailure) {
+          bridge.notify(t.harnessVersionLoadFailed, 'error');
+        }
+      }
+    },
+    [applySnapshot, bridge, t],
+  );
 
   // 首屏与操作后共用同一刷新路径（避免两处各写一份失败快照字面量）。
   useEffect(() => {

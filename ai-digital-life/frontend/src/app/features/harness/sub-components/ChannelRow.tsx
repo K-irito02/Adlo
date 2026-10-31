@@ -94,9 +94,6 @@ export function ChannelRow({
   onSwitch,
 }: ChannelRowProps) {
   const { t, locale } = useTCopy();
-  // 刷新只影响本行：借用遮罩期间原控件保持可见性隐藏，不再跨行禁用其它按钮。
-  const actionsDisabled = disabled;
-
   const row = (control: ReactNode, overlay = false) => (
     <div
       className={`adl-settings-row${infos.length > 0 ? ' adl-harness-version__row--stack' : ''}`}
@@ -225,7 +222,7 @@ export function ChannelRow({
                   uninstallArmed === version ? ' adl-harness-version__action-btn--danger' : ''
                 }`}
                 onClick={() => onUninstall(version)}
-                disabled={actionsDisabled}
+                disabled={disabled}
               >
                 {uninstallArmed === version
                   ? t.harnessVersionConfirmUninstall
@@ -237,7 +234,7 @@ export function ChannelRow({
                 type="button"
                 className="adl-harness-version__action-btn"
                 onClick={() => onReinstall(version)}
-                disabled={actionsDisabled}
+                disabled={disabled}
               >
                 {t.harnessVersionReinstallAction}
               </button>
@@ -246,7 +243,7 @@ export function ChannelRow({
                 type="button"
                 className="adl-harness-version__action-btn"
                 onClick={() => onInstall(version)}
-                disabled={actionsDisabled}
+                disabled={disabled}
               >
                 {t.harnessVersionInstall}
               </button>
@@ -256,7 +253,7 @@ export function ChannelRow({
                 type="button"
                 className="adl-harness-version__action-btn"
                 onClick={() => onSwitch(version)}
-                disabled={actionsDisabled}
+                disabled={disabled}
               >
                 {t.harnessVersionSwitchTo}
               </button>

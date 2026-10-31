@@ -1,5 +1,5 @@
 import type { ReactNode, Ref } from 'react';
-import { useCallback, useImperativeHandle, useRef, useState } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
@@ -90,6 +90,12 @@ export interface HarnessVersionCardProps<TSource = unknown> {
   bridge: HarnessVersionBridge<TSource>;
   slots?: HarnessVersionSlots<TSource>;
   ref?: Ref<HarnessVersionCardHandle>;
+  /**
+   * 卡片忙碌态（安装/卸载/检查等进行中或桥不可用）变化时回调。
+   * 宿主用它禁用块级刷新按钮：忙碌时 `refreshAll` 会按门控直接返回，
+   * 若按钮仍显示可用就是「点了没反应」。
+   */
+  onBusyChange?: (disabled: boolean) => void;
 }
 
 function renderSlot<TSource>(
@@ -114,11 +120,11 @@ export function HarnessVersionCard<TSource = unknown>({
   bridge,
   slots = {},
   ref,
+  onBusyChange,
 }: HarnessVersionCardProps<TSource>) {
   const { t } = useTCopy();
   const data = useHarnessVersionData(bridge);
-  // 块级刷新：宿主只拿到「重读整卡」这一个动作；忙碌态由宿主自己维护。
-  useImperativeHandle(ref, () => ({ refreshAll: data.refresh }), [data.refresh]);
+  // 块级刷新：与行级刷新共用同一条串行队列与忙碌门，避免并发 load 用旧快照覆盖新读数。
   const actions = useHarnessVersionActions({
     bridge,
     run: data.run,
@@ -149,13 +155,13 @@ export function HarnessVersionCard<TSource = unknown>({
   // data 整对象每渲染更新身份：解构出稳定的 refresh 回调，避免按钮 props 无谓抖动。
   const { refresh: reloadSnapshot, disabled: cardDisabled } = data;
   const runRefresh = useCallback(
-    (leg: string) => {
+    (leg: 'source' | 'current' | 'stable' | 'prerelease') => {
       if (!bridge.available || cardDisabled || refreshingRef.current.has(leg)) {
         return;
       }
       refreshingRef.current.add(leg);
       setRefreshing(new Set(refreshingRef.current));
-      const run = refreshChainRef.current.then(() => reloadSnapshot());
+      const run = refreshChainRef.current.then(() => reloadSnapshot({ notifyFailure: true }));
       refreshChainRef.current = run.catch(() => undefined);
       void run.finally(() => {
         refreshingRef.current.delete(leg);
@@ -164,6 +170,22 @@ export function HarnessVersionCard<TSource = unknown>({
     },
     [bridge.available, cardDisabled, reloadSnapshot],
   );
+  const refreshAll = useCallback(() => {
+    if (!bridge.available || cardDisabled) {
+      return Promise.resolve();
+    }
+    const run = refreshChainRef.current.then(() => reloadSnapshot({ notifyFailure: true }));
+    refreshChainRef.current = run.catch(() => undefined);
+    return run;
+  }, [bridge.available, cardDisabled, reloadSnapshot]);
+  useImperativeHandle(ref, () => ({ refreshAll }), [refreshAll]);
+
+  // 忙碌态透出给宿主：块级刷新按钮据此置 disabled，避免「点了没反应」。
+  useEffect(() => {
+    onBusyChange?.(cardDisabled);
+  }, [onBusyChange, cardDisabled]);
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
+
   const refreshRows = bridge.capabilities?.refreshRows;
   const refreshFor = (
     leg: 'source' | 'current' | 'stable' | 'prerelease',

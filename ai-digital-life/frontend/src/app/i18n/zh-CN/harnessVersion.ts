@@ -14,7 +14,6 @@ export const harnessVersionZh = {
   harnessVersionStableBadge: '正式',
   harnessVersionPrereleaseBadge: '预发布',
   harnessVersionCatalogUnavailable: '官方版本列表获取失败，当前列表可能不是最新',
-  harnessVersionRefreshRow: '重新加载',
   harnessVersionStable: '正式版本',
   harnessVersionInstall: '安装',
   harnessVersionInstallStarted: '已开始安装',

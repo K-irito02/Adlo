@@ -651,8 +651,9 @@ struct InstallInput {
     version: Option<String>,
 }
 
-/// Started-trigger response shared by `/env/install`, `/env/uninstall` and
-/// `/env/recheck`: the call kicks off work/refresh, progress comes from status.
+/// Started-trigger response shared by `/env/install` and `/env/uninstall`:
+/// the call kicks off work, progress comes from status. (`/env/recheck` returns
+/// a full `EnvStatus` snapshot instead.)
 fn started_payload() -> serde_json::Value {
     serde_json::json!({ "started": true })
 }
@@ -1034,16 +1035,33 @@ async fn recheck_inner(
         return status_inner(state).await;
     }
     if cache_peek(&state.env_status_cache).await.is_none() {
-        cache_clear(&state.env_status_cache).await;
+        // 冷缓存：直接全量探测并写回；不再 clear（peek 与 clear 之间可能已有
+        // 并发请求写入新快照，清掉只会让它白白多探测一次）。
         return status_inner(state).await;
     }
     let probed = probe_deps(state, &deps).await?;
+    let task_snapshot = state.env_task.snapshot();
+    let running = task_is_running(task_snapshot.as_ref());
     let merged = {
         let mut guard = state.env_status_cache.lock().await;
         match guard.as_mut() {
             Some((at, value)) => {
                 merge_probed(value, &probed);
-                *at = std::time::Instant::now();
+                // 活动任务期间 task 必须新鲜（与 status_inner 的不变量对齐）：
+                // 缓存里的旧 task 可能还是安装开始前的 null，直接返回会抹掉进度行。
+                if let Some(obj) = value.as_object_mut() {
+                    obj.insert(
+                        "task".to_string(),
+                        serde_json::to_value(&task_snapshot)
+                            .map_err(|e| AppError::Internal(e.to_string()))?,
+                    );
+                }
+                if !running {
+                    // running 时不延期 at：依赖所有 env 任务结束时的 RunGuard Drop
+                    // 失效缓存；若将来出现绕过 RunGuard 的结束路径，这里会留下
+                    // 「进行中」幽灵 task 直到 TTL 到期。
+                    *at = std::time::Instant::now();
+                }
                 Some(value.clone())
             },
             None => None,
@@ -1052,8 +1070,7 @@ async fn recheck_inner(
     match merged {
         Some(value) => Ok(value),
         None => {
-            // 极窄竞态：探测期间缓存被清空 → 全量兜底。
-            cache_clear(&state.env_status_cache).await;
+            // 极窄竞态：探测期间缓存被清空 → 全量兜底（status_inner 自行写回）。
             status_inner(state).await
         },
     }
@@ -1120,10 +1137,14 @@ async fn probe_deps(
     })
     .await
     .map_err(|e| AppError::Internal(format!("env detection task failed: {e}")))?;
-    Ok(probed
+    probed
         .into_iter()
-        .map(|(dep, state)| (dep, serde_json::to_value(state).unwrap_or(serde_json::Value::Null)))
-        .collect())
+        .map(|(dep, state)| {
+            serde_json::to_value(state).map(|value| (dep, value)).map_err(|e| {
+                AppError::Internal(format!("env probe serialize failed for {dep}: {e}"))
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()
 }
 
 /// 把探测片段写回完整快照；node 参与时重算 `dshReady`。
@@ -1383,6 +1404,38 @@ mod tests {
         assert!(value["adlserver"]["meetsBaseline"].is_boolean());
     }
 
+    /// 进行中任务期间 recheck 必须返回新鲜的 task 快照（不能被缓存里的旧 null 抹掉）。
+    #[tokio::test]
+    async fn recheck_keeps_running_task_snapshot() {
+        let state = crate::test_util::test_server_state();
+        cache_put(
+            &state.env_status_cache,
+            serde_json::json!({
+                "node": { "marker": "keep-node" },
+                "git": { "marker": "keep-git" },
+                "bash": { "marker": "keep-bash" },
+                "webview2": { "marker": "keep-webview2" },
+                "adlserver": { "marker": "keep-adlserver" },
+                "netprobe": {
+                    "registryOk": true,
+                    "registryLatencyMs": 1,
+                    "ciTokenConfigured": false
+                },
+                "task": null,
+                "dataDir": "/tmp",
+                "dshReady": true
+            }),
+        )
+        .await;
+        assert!(state.env_task.begin_with("env-git-install", "git 1.0.0", false));
+        let body =
+            axum::body::Bytes::from(serde_json::json!({ "deps": ["adlserver"] }).to_string());
+        let value = recheck_inner(&state, body).await.unwrap();
+        assert_eq!(value["task"]["kind"], "env-git-install");
+        assert_eq!(value["task"]["version"], "git 1.0.0");
+        state.env_task.finish();
+    }
+
     /// deps 校验：未知依赖与 netprobe 都是 4xx；重复项去重。
     #[test]
     fn parse_recheck_deps_validates_and_dedupes() {
@@ -1393,6 +1446,54 @@ mod tests {
             vec!["node"]
         );
         assert!(parse_recheck_deps(&axum::body::Bytes::new()).unwrap().is_empty());
+    }
+
+    /// 两个 dep 并发重检：锁内合并到当前缓存，后完成者包含前者的新值，互不覆盖。
+    #[tokio::test]
+    async fn recheck_concurrent_deps_merge_both() {
+        let state = crate::test_util::test_server_state();
+        cache_put(
+            &state.env_status_cache,
+            serde_json::json!({
+                "node": { "marker": "keep-node" },
+                "git": { "marker": "keep-git" },
+                "bash": { "marker": "keep-bash" },
+                "webview2": { "marker": "keep-webview2" },
+                "adlserver": { "marker": "keep-adlserver" },
+                "netprobe": {
+                    "registryOk": true,
+                    "registryLatencyMs": 1,
+                    "ciTokenConfigured": false
+                },
+                "task": null,
+                "dataDir": "/tmp",
+                "dshReady": true
+            }),
+        )
+        .await;
+        let node = recheck_inner(
+            &state,
+            axum::body::Bytes::from(serde_json::json!({ "deps": ["node"] }).to_string()),
+        );
+        let git = recheck_inner(
+            &state,
+            axum::body::Bytes::from(serde_json::json!({ "deps": ["git"] }).to_string()),
+        );
+        let (node_result, git_result) = tokio::join!(node, git);
+        node_result.unwrap();
+        git_result.unwrap();
+
+        let cached = {
+            let guard = state.env_status_cache.lock().await;
+            guard.as_ref().map(|(_, value)| value.clone()).unwrap()
+        };
+        // node / git 两个 dep 都被新探测结果替换；其它块保持种子标记。
+        assert_eq!(cached["node"]["marker"], serde_json::Value::Null);
+        assert_eq!(cached["git"]["marker"], serde_json::Value::Null);
+        // 序列化失败会写成 null（对非 object 取 ["marker"] 也是 Null）：用形状字段兜底。
+        assert!(cached["node"]["meetsBaseline"].is_boolean());
+        assert!(cached["git"]["meetsBaseline"].is_boolean());
+        assert_eq!(cached["adlserver"]["marker"], "keep-adlserver");
     }
 
     /// `/env/uninstall` 白名单：仅 node/git 拥有托管版本目录。

@@ -402,8 +402,11 @@ export function createDshVersionBridge(
     taskCancelLabel,
     load: async () => {
       // 首屏/操作后一次原子快照：source + version + catalog 同一次提交。
-      await actions.fetchDshSettingsSnapshot();
-      return readSnapshot();
+      // 失败时必须透出 failed（旧读数会保留）：显式刷新据此弹失败提示，
+      // 否则设置组刷新失败会完全静默。
+      const ok = await actions.fetchDshSettingsSnapshot();
+      const snap = readSnapshot();
+      return ok ? snap : { ...snap, failed: true };
     },
     // store 常驻供给：切组重挂首帧即瞬显，后台仍静默再验证。
     // 失败标记同样同步透出：快照读取失败时首帧即错误态，不画无限骨架。
