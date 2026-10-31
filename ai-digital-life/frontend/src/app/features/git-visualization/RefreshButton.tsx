@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, useAnimation } from 'motion/react';
+import { REFRESH_ARC_PATH } from '@icons';
 
 /**
  * 刷新按钮组件。
@@ -78,7 +79,7 @@ export function RefreshButton({
       >
         <motion.path
           animate={controls}
-          d="M21 12a9 9 0 1 1-6.219-8.56"
+          d={REFRESH_ARC_PATH}
           style={{ transformOrigin: '12px 12px' }}
           variants={{
             normal: { rotate: 0 },

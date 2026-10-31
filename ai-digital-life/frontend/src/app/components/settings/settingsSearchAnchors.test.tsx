@@ -269,13 +269,9 @@ const CONDITIONAL_ROW_MARKERS: string[] = [
   'environmentCopyForAgent',
   // 聚合条仅在环境状态加载后渲染。
   'environmentCopyAllForAgent',
-  // 通用版本卡片的已安装版本区仅在本机已装版本时渲染（DSH 组种子没有任何
-  // 已装版本，故列为条件行）；双通道行在 `channelPicker` 下恒渲染（含空态），
+  // 通用版本卡片的已安装版本独立区已随 OpenCode 对齐删除（不再渲染独立卡）；
+  // 双通道行在 `channelPicker` 下恒渲染（含空态），
   // 因此 `dshOfficialStable` / `dshPrereleaseTitle` 属于默认可见行。
-  'harnessVersionInstalled',
-  // 手动版本行仅 `extraRows: 'manual+installed'` 时渲染（OpenCode 形态）；
-  // DSH 默认单卡无此行，故列为条件行（检索词仍命中版本块，落点回退块锚点）。
-  'harnessVersionManual',
   // 「前往配置」行已随「网络与模型」块删除（该标记只挂在已删除的网络行上）。
 ];
 

@@ -81,14 +81,13 @@ function makeBridge(
 }
 
 describe('opencodeVersionBridge', () => {
-  it('declares the OpenCode capabilities (check-only update, percent, manual+installed)', () => {
+  it('declares the OpenCode capabilities (check-only update, percent, channel picker)', () => {
     const { adapter } = makeBridge();
     expect(adapter.capabilities).toMatchObject({
       updateAction: 'check',
       taskPercent: true,
       taskCounts: false,
       channelPicker: true,
-      extraRows: 'manual+installed',
       resetSourceAction: false,
       uninstallConfirm: false,
       refreshRows: true,

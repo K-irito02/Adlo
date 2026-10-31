@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
-import { IconRefreshCw } from '@icons';
+import { IconRefreshArc } from '@icons';
 
 export interface HarnessRowRefresh {
   /** 按钮无障碍名后缀（完整名为 `重新加载：{label}`）。 */
@@ -28,7 +28,7 @@ export function HarnessRefreshButton({
       disabled={disabled || refresh.spinning}
       onClick={refresh.onRefresh}
     >
-      <IconRefreshCw size={14} decorative className={refresh.spinning ? 'adl-spin' : undefined} />
+      <IconRefreshArc size={14} decorative className={refresh.spinning ? 'adl-spin' : undefined} />
     </button>
   );
 }
@@ -38,8 +38,6 @@ interface CurrentVersionRowProps {
   hint?: string;
   /** 标签下描述小字（旧行文案；缺省不渲染）。 */
   desc?: string;
-  /** 检查更新发现的新版本提示（标题下方蓝色小字；无新版本时为 null）。 */
-  updateNote?: ReactNode;
   /** 卸载二次确认时的行内警告（适配器提供；`undefined` 时不渲染）。 */
   uninstallWarn?: string;
   /** 本行刷新（状态腿）：标题前置按钮 + 读数位扫光；缺省不渲染。 */
@@ -52,11 +50,10 @@ interface CurrentVersionRowProps {
   children: ReactNode;
 }
 
-/** 当前版本行：副标题 + 提示图标；右侧为行内版本读数。 */
+/** 当前版本行：副标题 + 提示图标；右侧为行内版本读数（单值，纵向居中对齐）。 */
 export function CurrentVersionRow({
   hint,
   desc,
-  updateNote,
   uninstallWarn,
   refresh,
   spinning,
@@ -65,7 +62,10 @@ export function CurrentVersionRow({
 }: CurrentVersionRowProps) {
   const { t } = useTCopy();
   return (
-    <div className="adl-settings-row" data-settings-row={t.harnessVersionCurrent}>
+    <div
+      className="adl-settings-row adl-harness-version__row--center"
+      data-settings-row={t.harnessVersionCurrent}
+    >
       <div className="adl-settings-row__label">
         <div className="adl-settings-row__label-text">
           {refresh ? <HarnessRefreshButton refresh={refresh} disabled={disabled === true} /> : null}
@@ -73,7 +73,6 @@ export function CurrentVersionRow({
           {hint ? <SettingsHintButton content={hint} /> : null}
         </div>
         {desc ? <small>{desc}</small> : null}
-        {updateNote}
         {uninstallWarn ? (
           <small className="adl-harness-version__row-warn">{uninstallWarn}</small>
         ) : null}
@@ -97,13 +96,12 @@ export function CurrentVersionRow({
 
 interface FallbackReadoutProps {
   current: string | null;
-  effectiveLabel: string;
   /** 版本状态读取失败：读数区切错误态。 */
   failed: boolean;
 }
 
-/** 无运行态插槽时的通用回退读数：版本号 + 生效来源副行（未安装时只显示未安装）。 */
-export function FallbackReadout({ current, effectiveLabel, failed }: FallbackReadoutProps) {
+/** 无运行态插槽时的通用读数：只显示版本号，未安装时显示中性占位文案。 */
+export function FallbackReadout({ current, failed }: FallbackReadoutProps) {
   const { t } = useTCopy();
   if (failed) {
     return (
@@ -113,36 +111,8 @@ export function FallbackReadout({ current, effectiveLabel, failed }: FallbackRea
     );
   }
   return (
-    <>
-      <span className={`adl-harness-version__readout-value${current ? '' : ' is-empty'}`}>
-        {current ?? t.harnessVersionNotInstalled}
-      </span>
-      {current ? (
-        <small className="adl-harness-version__readout-sub">
-          {t.harnessVersionEffectiveSource}: {effectiveLabel}
-        </small>
-      ) : null}
-    </>
-  );
-}
-
-interface MissingBannerRowProps {
-  visible: boolean;
-  children: ReactNode;
-}
-
-/** 快照可读但未安装任何版本时的引导行（`extraRows` 形态才渲染）。 */
-export function MissingBannerRow({ visible, children }: MissingBannerRowProps) {
-  if (!visible) {
-    return null;
-  }
-  return (
-    <div className="adl-settings-row">
-      <div className="adl-settings-row__label">
-        <div className="adl-settings-row__label-text">
-          <span className="adl-harness-version__readout-value is-empty">{children}</span>
-        </div>
-      </div>
-    </div>
+    <span className={`adl-harness-version__readout-value${current ? '' : ' is-empty'}`}>
+      {current ?? t.harnessVersionNotInstalled}
+    </span>
   );
 }

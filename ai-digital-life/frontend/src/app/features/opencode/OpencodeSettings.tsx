@@ -42,7 +42,10 @@ function TerminalInjectionRows({
   const { t } = useTCopy();
   const enabled = source?.terminalInjection ?? true;
   return (
-    <div className="adl-settings-row" data-settings-row={t.opencodeTerminalInjection}>
+    <div
+      className="adl-settings-row adl-harness-version__row--center"
+      data-settings-row={t.opencodeTerminalInjection}
+    >
       <div className="adl-settings-row__label">
         <div className="adl-settings-row__label-text">
           <SettingsHintButton content={t.opencodeTerminalInjectionHint} />
@@ -241,10 +244,6 @@ export function OpencodeSettings() {
           descStable: t.opencodeStableDesc,
           prereleaseHint: t.opencodePrereleaseHint,
           descPrerelease: t.opencodePrereleaseDesc,
-          manualHint: t.opencodeManualVersionHint,
-          descManual: t.opencodeManualVersionDesc,
-          systemPathHint: t.opencodeSystemPathHint,
-          systemPathDesc: t.opencodeSystemPathDesc,
           sourceFooter: ({ sourceExtra, disabled, run }) => (
             <TerminalInjectionRows
               bridge={rawBridge}

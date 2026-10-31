@@ -17,28 +17,15 @@ interface Options<TSource> {
   bridge: HarnessVersionBridge<TSource>;
   run: Run;
   current: string | null;
-  latestAvailable: string | null;
 }
 
 /**
- * 版本卡片的动作面：安装（含手动版本号）、卸载（当前版本二次确认）、
- * 来源切换与行内重装。每个动作只做参数整理，忙碌/提示/刷新统一交给 `run`。
+ * 版本卡片的动作面：安装、卸载（当前版本二次确认）、来源切换与行内重装。
+ * 每个动作只做参数整理，忙碌/提示/刷新统一交给 `run`。
  */
-export function useHarnessVersionActions<TSource>({
-  bridge,
-  run,
-  current,
-  latestAvailable,
-}: Options<TSource>) {
+export function useHarnessVersionActions<TSource>({ bridge, run, current }: Options<TSource>) {
   const { t } = useTCopy();
-  const [stablePick, setStablePick] = useState('');
-  const [manual, setManual] = useState('');
   const [uninstallArmed, setUninstallArmed] = useState<string | null>(null);
-
-  // 下拉框默认跟随当前版本 / 通道最新（与迁移前一致）。
-  useEffect(() => {
-    setStablePick((previous) => previous || current || latestAvailable || '');
-  }, [current, latestAvailable]);
 
   // 当前版本变化（安装/切换完成）后解除确认态，避免确认按钮停在被替换的版本上。
   useEffect(() => {
@@ -55,11 +42,6 @@ export function useHarnessVersionActions<TSource>({
     },
     [bridge, run, t],
   );
-
-  const installManual = useCallback(() => {
-    installVersion(manual);
-    setManual('');
-  }, [installVersion, manual]);
 
   const handleUninstall = useCallback(
     (version: string) => {
@@ -108,12 +90,7 @@ export function useHarnessVersionActions<TSource>({
   );
 
   return {
-    stablePick,
-    setStablePick,
-    manual,
-    setManual,
     installVersion,
-    installManual,
     uninstallArmed,
     handleUninstall,
     handleSourceChange,

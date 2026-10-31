@@ -75,13 +75,8 @@ const READOUT_KEYS = new Set([
   'dshSourceSummaryUnknown',
   'dshSourceSummaryGoModify',
   'dshSettingsSourceAuto',
-  'dshEffectiveRunning',
-  'dshEffectiveRunningSystem',
-  'dshRunningExternalNote',
-  'dshEffectiveSystem',
   'dshVersionUnknown',
   'dshCurrentVersionNone',
-  'dshLatest',
 ]);
 
 const summaryT = new Proxy({} as Record<string, string>, {
@@ -252,7 +247,7 @@ describe('DshSettings', () => {
     expect(document.querySelectorAll('.adl-harness-version')).toHaveLength(1);
   });
 
-  it('运行态读数插槽保留运行地址与版本（token 剥离后只在 title 上）', () => {
+  it('运行态读数插槽只显示运行中的版本号（不再渲染地址副行）', () => {
     const status = makeStatus();
     useAppStore.setState({
       sourceStatus: {
@@ -269,13 +264,11 @@ describe('DshSettings', () => {
       versionStatus: makeVersionStatus({ currentSelected: '1.2.3' }),
     });
     renderSettingsWithSummary();
-    // 运行态读数插槽：主行是运行中的真实版本号，副行带端点，完整地址（去 token）在 title。
+    // 当前版本行只回答「用的是什么版本」：运行地址属于来源信息，归「版本来源」行。
     const readout = document.querySelector('.adl-harness-version__readout');
     expect(readout).not.toBeNull();
-    expect(readout?.textContent).toContain('1.2.3');
-    const sub = readout?.querySelector('.adl-harness-version__readout-sub');
-    expect(sub?.textContent).toBe('运行中（127.0.0.1:3080）');
-    expect(sub?.getAttribute('title')).toBe('http://127.0.0.1:3080/');
+    expect(readout?.textContent).toBe('1.2.3');
+    expect(readout?.children).toHaveLength(1);
   });
 
   it('系统安装生效时隐藏管理项并提示由系统维护（显隐规则与迁移前一致）', async () => {
@@ -299,8 +292,8 @@ describe('DshSettings', () => {
     await waitFor(() => {
       expect(root?.querySelector('[data-settings-row="harnessVersionUpdate"]')).toBeNull();
     });
+    // DSH 默认单卡（`extraRows: 'none'`）：双通道行随管理行一起隐藏。
     expect(root?.querySelector('[data-settings-row="dshOfficialStable"]')).toBeNull();
-    expect(root?.querySelector('[data-settings-row="harnessVersionManual"]')).toBeNull();
     // 当前版本行与系统安装读数仍可见。
     expect(root?.querySelector('[data-settings-row="harnessVersionCurrent"]')).not.toBeNull();
     expect(screen.getByText('dshSystemManagedNote')).not.toBeNull();
@@ -561,7 +554,7 @@ describe('DshSettings', () => {
       });
       renderSettings();
       await waitFor(() => {
-        // DSH 默认单卡（`extraRows: 'none'`）：手动版本行恒不渲染，不在显隐断言内。
+        // DSH 默认单卡（`extraRows: 'none'`）：管理行按来源显隐，已安装独立卡不在显隐断言内。
         const rows = [
           document.querySelector('[data-settings-row="harnessVersionUpdate"]'),
           document.querySelector('[data-settings-row="dshOfficialStable"]'),
@@ -681,7 +674,7 @@ describe('DshSettings', () => {
     expect(screen.queryByText('dshSystemManagedNote')).toBeNull();
   });
 
-  it('运行态插槽：系统安装显示版本号与安装路径', async () => {
+  it('运行态插槽：系统安装只显示版本号（安装路径不再重复展示）', async () => {
     const status = makeStatus();
     useAppStore.setState({
       sourceStatus: {
@@ -699,8 +692,7 @@ describe('DshSettings', () => {
     renderSettingsWithSummary();
     const readout = document.querySelector('.adl-harness-version__readout');
     expect(readout).not.toBeNull();
-    expect(readout?.textContent).toContain('0.9.0');
-    expect(readout?.textContent).toContain('系统安装（C:/Program Files/dsh/dsh.exe）');
+    expect(readout?.textContent).toBe('0.9.0');
   });
 
   it('运行态插槽：无可用版本时显示「未安装」', async () => {

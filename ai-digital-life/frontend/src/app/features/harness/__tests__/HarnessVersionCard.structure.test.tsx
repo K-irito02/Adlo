@@ -79,7 +79,6 @@ function dshBridge(
       taskCounts: true,
       sourceManaged: true,
       resetSourceAction: false,
-      extraRows: 'none',
     },
     labels: {
       stable: 'dshOfficialStable',
@@ -123,14 +122,7 @@ function renderDshCard(bridge: HarnessVersionBridge<unknown>) {
           currentHint: 'dshCurrentVersionHint',
           stableHint: 'dshOfficialStableHint',
           prereleaseHint: 'dshPrereleaseHint',
-          runtimeReadout: (
-            <span className="adl-harness-version__readout-value">
-              1.1.0
-              <span className="adl-harness-version__badge adl-harness-version__badge--update">
-                harnessVersionHasUpdate
-              </span>
-            </span>
-          ),
+          runtimeReadout: <span className="adl-harness-version__readout-value">1.1.0</span>,
           footer: (
             <div className="adl-settings-row" data-settings-row="dshOfficialLinksLabel">
               <div className="adl-settings-row__label">
@@ -209,7 +201,7 @@ describe('HarnessVersionCard old-DSH structure', () => {
     );
   });
 
-  it('keeps the current row readout inline with badges and the uninstall hint slot', async () => {
+  it('keeps the current row readout inline and vertically centered', async () => {
     const bridge = dshBridge();
     const { container } = renderDshCard(bridge);
     // 首屏快照落定后断言（`load` 被调用不等于快照已应用；picker 按钮只在落定后出现）。
@@ -223,7 +215,20 @@ describe('HarnessVersionCard old-DSH structure', () => {
     const readout = currentRow.querySelector('.adl-harness-version__readout');
     expect(readout).not.toBeNull();
     expect(readout?.querySelector('.adl-harness-version__readout-value')).not.toBeNull();
-    expect(readout?.querySelector('.adl-harness-version__badge--update')).not.toBeNull();
+    // 当前版本行只承载版本号：更新徽章 / 最新版本 / 来源副行都不在这一行。
+    expect(readout?.children).toHaveLength(1);
+    expect(readout?.textContent).not.toContain('harnessVersionHasUpdate');
+    expect(readout?.textContent).not.toContain('harnessVersionNoUpdate');
+    // 单值行纵向居中；通道行保持与版本选择器同行对齐（不加居中修饰类）。
+    expect(currentRow.className).toContain('adl-harness-version__row--center');
+    const updateRow = card.querySelector(
+      ':scope > .adl-settings-row[data-settings-row="harnessVersionUpdate"]',
+    ) as HTMLElement;
+    expect(updateRow.className).toContain('adl-harness-version__row--center');
+    const stableRow = card.querySelector(
+      ':scope > .adl-settings-row[data-settings-row="dshOfficialStable"]',
+    ) as HTMLElement;
+    expect(stableRow.className).not.toContain('adl-harness-version__row--center');
   });
 
   it('opens the channel picker menu with version/time/badges/check-slot and aria wiring', async () => {
@@ -288,15 +293,15 @@ describe('HarnessVersionCard old-DSH structure', () => {
     }
   });
 
-  it('renders no manual row and no separate installed card for the DSH default', async () => {
+  it('renders no separate installed card for the DSH default', async () => {
     const bridge = dshBridge();
     const { container } = renderDshCard(bridge);
     // 首屏快照落定后断言（`load` 被调用不等于快照已应用；picker 按钮只在落定后出现）。
     await screen.findByRole('button', { name: '1.1.0' });
 
     mainCard(container);
-    expect(container.querySelector('[data-settings-row="harnessVersionManual"]')).toBeNull();
     expect(container.querySelector('[data-settings-row="harnessVersionInstalled"]')).toBeNull();
+    expect(container.querySelector('[data-harness-version-row]')).toBeNull();
     expect(container.querySelectorAll('.adl-settings-card')).toHaveLength(1);
   });
 });
@@ -341,10 +346,11 @@ describe('DshVersionReadout old-DSH readout structure', () => {
     // 读数容器由卡片提供，插槽只渲染片段：容器内没有嵌套的第二层 readout。
     expect(readout.querySelector('.adl-harness-version__readout')).toBeNull();
     expect(readout.querySelector('.adl-harness-version__readout-value')).not.toBeNull();
-    expect(readout.querySelector('.adl-harness-version__badge--update')).not.toBeNull();
-    expect(readout.querySelector('.adl-harness-version__readout-sub')).toBeNull();
-    // 最新可用版本行用独立的 latest 类（与副行区分）。
-    expect(readout.querySelector('.adl-harness-version__latest')?.textContent).toBe('dshLatest');
+    // 当前版本行只回答「用的是什么版本」：更新徽章 / 最新版本 / 来源副行都不在这里渲染。
+    expect(readout.children).toHaveLength(1);
+    expect(readout.textContent).not.toContain('harnessVersionHasUpdate');
+    expect(readout.textContent).not.toContain('harnessVersionNoUpdate');
+    expect(readout.textContent).not.toContain('dshLatest');
   });
 
   it('renders the skeleton with role=status while busy', () => {

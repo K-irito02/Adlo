@@ -183,7 +183,7 @@ describe('OpencodeSettings DSH parity (generic card slots)', () => {
     expect(screen.queryByText(/可切换到/)).toBeNull();
   });
 
-  it('系统安装时隐藏检查更新/正式版/预发布版/指定版本并显示托管说明', async () => {
+  it('系统安装时隐藏检查更新/正式版/预发布版并显示托管说明', async () => {
     const source = makeSource('system', 'system');
     source.system = { path: '/usr/local/bin/opencode', version: null };
     installBridge(source, makeStatus());
@@ -192,21 +192,31 @@ describe('OpencodeSettings DSH parity (generic card slots)', () => {
         <OpencodeSettings />
       </TestProvider>,
     );
-    await screen.findByText('系统安装位置');
+    await screen.findByText('当前版本');
     expect(screen.queryByText('检查更新')).toBeNull();
-    expect(screen.queryByText('指定版本')).toBeNull();
     expect(screen.getByText(/本应用不会修改它/)).toBeTruthy();
   });
 
-  it('有新版本时当前版本标题下方显示蓝色提示小字', async () => {
+  it('有新版本时在检查更新行显示「新」徽章', async () => {
     installBridge(makeSource(), makeStatus());
     render(
       <TestProvider>
         <OpencodeSettings />
       </TestProvider>,
     );
-    expect(await screen.findByText('发现正式版本 1.1.0')).toBeTruthy();
-    expect(screen.getByText('发现预发布版本 1.2.0-beta')).toBeTruthy();
+    await waitFor(() =>
+      expect(document.querySelector('[data-settings-row="检查更新"]')).not.toBeNull(),
+    );
+    const updateRow = document.querySelector('[data-settings-row="检查更新"]') as HTMLElement;
+    await waitFor(() =>
+      expect(updateRow.querySelectorAll('.adl-harness-version__update-badge')).toHaveLength(2),
+    );
+    const badges = updateRow.querySelectorAll('.adl-harness-version__update-badge');
+    expect(badges[0].textContent).toContain('新');
+    expect(badges[0].textContent).toContain('正式');
+    expect(badges[0].textContent).toContain('1.1.0');
+    expect(badges[1].textContent).toContain('预发布');
+    expect(badges[1].textContent).toContain('1.2.0-beta');
   });
 
   it('刷新按钮点击触发重新加载', async () => {
@@ -269,10 +279,56 @@ describe('opencode search locate parity', () => {
     expect(opencodeZh.opencodeCurrentVersion).toBe(harnessVersionZh.harnessVersionCurrent);
     expect(opencodeZh.opencodeUpdate).toBe(harnessVersionZh.harnessVersionUpdate);
     expect(opencodeZh.opencodeSourceTitle).toBe(harnessVersionZh.harnessVersionSourceTitle);
-    expect(opencodeZh.opencodeManualVersion).toBe(harnessVersionZh.harnessVersionManual);
     expect(opencodeEn.opencodeCurrentVersion).toBe(harnessVersionEn.harnessVersionCurrent);
     expect(opencodeEn.opencodeUpdate).toBe(harnessVersionEn.harnessVersionUpdate);
     expect(opencodeEn.opencodeSourceTitle).toBe(harnessVersionEn.harnessVersionSourceTitle);
-    expect(opencodeEn.opencodeManualVersion).toBe(harnessVersionEn.harnessVersionManual);
+  });
+});
+
+describe('opencode version card layout adjustments', () => {
+  it('drops the system path row, the manual version row and the missing-version banner', async () => {
+    installBridge(makeSource(), makeStatus({ currentSelected: null, installed: [] }));
+    render(
+      <TestProvider>
+        <OpencodeSettings />
+      </TestProvider>,
+    );
+    await screen.findByText('正式版本');
+
+    expect(screen.queryByText('系统安装位置')).toBeNull();
+    expect(screen.queryByText('指定版本')).toBeNull();
+    expect(screen.queryByText(/尚未安装 OpenCode CLI 版本/)).toBeNull();
+  });
+
+  it('places the terminal-injection toggle in a vertically centered row', async () => {
+    installBridge(makeSource(), makeStatus());
+    render(
+      <TestProvider>
+        <OpencodeSettings />
+      </TestProvider>,
+    );
+    await screen.findByText('正式版本');
+
+    const row = document.querySelector('[data-settings-row="新终端窗口自动启用"]') as HTMLElement;
+    expect(row).not.toBeNull();
+    expect(row.className).toContain('adl-harness-version__row--center');
+  });
+
+  it('renders the discovered-version badges under the check-update row', async () => {
+    installBridge(makeSource(), makeStatus());
+    render(
+      <TestProvider>
+        <OpencodeSettings />
+      </TestProvider>,
+    );
+    await screen.findByText('正式版本');
+
+    const currentRow = document.querySelector('[data-settings-row="当前版本"]') as HTMLElement;
+    const updateRow = document.querySelector('[data-settings-row="检查更新"]') as HTMLElement;
+    expect(currentRow.querySelectorAll('.adl-harness-version__update-badge')).toHaveLength(0);
+    const badges = updateRow.querySelectorAll('.adl-harness-version__update-badge');
+    expect(badges).toHaveLength(2);
+    expect(badges[0].textContent).toContain('1.1.0');
+    expect(badges[1].textContent).toContain('1.2.0-beta');
   });
 });

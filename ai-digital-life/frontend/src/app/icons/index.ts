@@ -91,6 +91,8 @@ export {
   IconPlay,
   IconPause,
   IconRefreshCw,
+  IconRefreshArc,
+  REFRESH_ARC_PATH,
   IconResetDefaults,
   IconKeyboard,
   IconReplace,

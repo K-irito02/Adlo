@@ -203,6 +203,15 @@ export const IconRefreshCw = make(
 );
 
 /**
+ * 单圆弧刷新图标（Git 可视化页刷新按钮同款，来源
+ * `features/git-visualization/RefreshButton.tsx`）。路径字符串导出为常量，
+ * 供自带动画实现的调用方复用，避免同一形状两处各写一份。
+ */
+export const REFRESH_ARC_PATH = 'M21 12a9 9 0 1 1-6.219-8.56';
+
+export const IconRefreshArc = make(<path d={REFRESH_ARC_PATH} />);
+
+/**
  * 恢复默认图标（设置面板行内/导航组级重置共用）。
  * 源 SVG 为白色 stroke（#ffffff）+ 内部 g opacity 0.4，此处收敛为 currentColor 继承主题，
  * 经 makeThin 统一 strokeWidth 1.5 / round caps。禁止内联使用，请统一 import 此组件。

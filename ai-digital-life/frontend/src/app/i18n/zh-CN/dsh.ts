@@ -1,5 +1,4 @@
 export const dshZh = {
-  dshLatest: '最新版本：{version}',
   dshUninstallSuccess: '已卸载版本 {version}',
   dshUpdateFailed: '升级失败',
   dshRevertFailed: '回退版本失败',
@@ -119,7 +118,7 @@ export const dshZh = {
   dshRestartFailed: '版本已保存，但助手重启失败，请重新打开助手',
   dshCheckUpdateDesc: '看看有没有更新的版本',
   dshCheckUpdateHint:
-    '点一下就去官方源查一遍，有新版本会在当前版本那一行标出来，预发布的新版本也会提示。如果查不到（比如没联网），会告诉你检查失败。',
+    '点一下就去官方源查一遍，有新版本会在「检查更新」这一行标出来，预发布的新版本也会提示。如果查不到（比如没联网），会告诉你检查失败。',
   dshCheckUpdateFound: '发现新版本 {version}',
   dshCheckUpdateNoStable: '官方暂无正式版本',
   dshCheckUpdatePrerelease: '有新的预发布版本 {version} 可尝试',
@@ -139,10 +138,6 @@ export const dshZh = {
   dshOpenNoVersion: '暂无可用版本，请先在设置 DSH 组版本管理中安装',
   dshVersionBusyRetry: '版本操作进行中，请稍候再试',
   dshInstallFailed: '安装版本失败',
-  dshEffectiveRunning: '运行中（{url}）',
-  dshEffectiveRunningSystem: '运行中 · 系统安装（{url}）',
-  dshRunningExternalNote: '运行中（{url}，外部启动）',
-  dshEffectiveSystem: '系统安装（{path}）',
   dshOfficialLinksLabel: '官方版本信息',
   dshOfficialLinksDesc: '完整版本列表、发布时间和更新详情都在官方这里：',
   dshNpmPage: 'npm 包页面',

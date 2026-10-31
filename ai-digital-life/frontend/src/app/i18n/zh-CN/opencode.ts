@@ -26,7 +26,7 @@ export const opencodeZh = {
   opencodeUpdate: '检查更新',
   opencodeUpdateDesc: '看看有没有更新的版本',
   opencodeUpdateHint:
-    '点一下就去官方源查一遍，有新版本会在当前版本那一行标出来，预发布的新版本也会提示。如果查不到（比如没联网），会告诉你检查失败。',
+    '点一下就去官方源查一遍，有新版本会在「检查更新」这一行标出来，预发布的新版本也会提示。如果查不到（比如没联网），会告诉你检查失败。',
   opencodeCheckUpdateFailed: '检查更新失败',
   opencodeCheckUpdateNoStable: '官方暂无正式版本',
   opencodeCheckUpdateFound: '发现正式版本 {version}',
@@ -39,9 +39,6 @@ export const opencodeZh = {
   opencodePrereleaseDesc: '可提前体验新功能，预发布版本可能不稳定',
   opencodePrereleaseHint:
     '预发布版本是还没正式发布的新版本，能提前体验新功能，但也可能有没发现的问题。\n· 版本选择下拉框与右侧按钮的用法和正式版本完全一致，区别只在于版本本身可能不稳定。',
-  opencodeManualVersion: '指定版本',
-  opencodeManualVersionDesc: '手动输入一个官方已发布的版本号安装',
-  opencodeManualVersionHint: '知道确切版本号时可以直接输入安装；版本号不存在会直接失败并提示。',
   opencodeOfficialLinksLabel: '官方版本信息',
   opencodeOfficialLinksDesc: '完整版本列表、发布时间和更新详情都在官方这里：',
   opencodeNpmPage: 'npm 包页面',
@@ -50,9 +47,6 @@ export const opencodeZh = {
   opencodeSourceSummaryHint:
     '当前实际在用的下载地址。\n· 只读显示，去网络那一组修改\n· 自动检测会在官方和镜像之间选更快能连通的一个',
   opencodeSourceSummaryGoModify: '前往修改',
-  opencodeSystemPathDesc: '你电脑上自行安装的 OpenCode CLI 位置',
-  opencodeSystemPathHint:
-    '本应用只检测、不修改系统安装；版本号是启动时现查的，查不到会显示“版本未知”。',
   opencodeTerminalNote: '安装后新开终端会话即可直接使用；已打开的终端需要重开。',
   opencodeTerminalInjection: '新终端窗口自动启用',
   opencodeTerminalInjectionHint:

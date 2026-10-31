@@ -271,14 +271,6 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
         hintKeys: ['dshPrereleaseHint', 'dshPrereleaseDesc'],
       },
       {
-        labelKey: 'harnessVersionInstalled',
-        hintKeys: ['harnessVersionCurrentBadge'],
-      },
-      {
-        labelKey: 'harnessVersionManual',
-        hintKeys: ['harnessVersionManualPlaceholder'],
-      },
-      {
         labelKey: 'dshOfficialLinksLabel',
         hintKeys: ['dshOfficialLinksDesc'],
       },
@@ -321,10 +313,6 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
       {
         labelKey: 'opencodePrerelease',
         hintKeys: ['opencodePrereleaseDesc', 'opencodePrereleaseHint'],
-      },
-      {
-        labelKey: 'opencodeManualVersion',
-        hintKeys: ['opencodeManualVersionDesc', 'opencodeManualVersionHint'],
       },
       {
         labelKey: 'opencodeOfficialLinksLabel',

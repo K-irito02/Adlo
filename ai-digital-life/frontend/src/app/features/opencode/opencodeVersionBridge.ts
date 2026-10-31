@@ -180,10 +180,8 @@ export function createOpencodeVersionBridge(
       updateAction: 'check',
       taskPercent: true,
       taskCounts: false,
-      // 保留 OpenCode 原有功能：手动版本行 + 已安装版本独立卡 + 系统安装行。
       channelPicker: true,
       resetSourceAction: false,
-      extraRows: 'manual+installed',
       // 行内刷新按钮（检查/当前/正式/预发布）+ 分腿扫光。
       refreshRows: true,
       // 来源就绪/托管语义：首帧来源未到时隐藏管理项（与 DSH 同口径）。

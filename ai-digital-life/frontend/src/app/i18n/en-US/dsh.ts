@@ -1,5 +1,4 @@
 export const dshEn = {
-  dshLatest: 'Latest version: {version}',
   dshUninstallSuccess: 'Uninstalled version {version}',
   dshUpdateFailed: 'Failed to upgrade',
   dshRevertFailed: 'Failed to revert version',
@@ -126,7 +125,7 @@ export const dshEn = {
   dshRestartFailed: 'Version saved, but the assistant failed to restart; please reopen it',
   dshCheckUpdateDesc: 'See if a newer version is out',
   dshCheckUpdateHint:
-    'Checks the official source once. A newer release is marked on the Current version row, and newer prereleases are flagged too. If the check cannot reach the network, it tells you the check failed.',
+    'Checks the official source once. A newer release is marked on the Check for updates row, and newer prereleases are flagged too. If the check cannot reach the network, it tells you the check failed.',
   dshCheckUpdateFound: 'New version {version} available',
   dshCheckUpdateNoStable: 'No stable release published yet',
   dshCheckUpdatePrerelease: 'New prerelease {version} available to try',
@@ -147,10 +146,6 @@ export const dshEn = {
   dshOpenNoVersion: 'No usable version; install one in Settings → DSH → Version first',
   dshVersionBusyRetry: 'A version operation is in progress, please try again shortly',
   dshInstallFailed: 'Failed to install version',
-  dshEffectiveRunning: 'Running ({url})',
-  dshEffectiveRunningSystem: 'Running · system install ({url})',
-  dshRunningExternalNote: 'Running ({url}, started externally)',
-  dshEffectiveSystem: 'System install ({path})',
   dshOfficialLinksLabel: 'Official release info',
   dshOfficialLinksDesc:
     'Full version history, publish dates and changelogs live on the official pages:',

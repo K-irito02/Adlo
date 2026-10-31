@@ -106,12 +106,6 @@ export interface HarnessVersionCapabilities {
    */
   channelPicker?: boolean;
   /**
-   * 手动版本行与已安装版本独立卡：`'none'`（缺省）只渲染旧 DSH 的单卡 6 行；
-   * `'manual+installed'` 额外渲染手动版本行（主卡内）与已安装版本独立卡
-   * （OpenCode 保留其原有功能）。与版本来源行/任务行的显隐无关。
-   */
-  extraRows?: 'none' | 'manual+installed';
-  /**
    * 适配器拥有来源就绪/托管语义：只有 `source.ready === true` 且非系统托管时
    * 才渲染管理行（DSH）。缺省按 `source.managed` 判定。
    */
@@ -122,8 +116,6 @@ export interface HarnessVersionCapabilities {
 export interface HarnessVersionLabels {
   stable?: string;
   prerelease?: string;
-  /** 生效来源为 `running` 时的读数标签（DSH 的运行态模型）。 */
-  runningSource?: string;
   /** 二次确认卸载当前版本时，当前版本行下方的提示。 */
   uninstallCurrentHint?: string;
 }

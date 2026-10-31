@@ -394,13 +394,10 @@ export function createDshVersionBridge(
       resetSourceAction: false,
       channelPicker: true,
       sourceManaged: true,
-      // 旧 DSH 单卡 6 行：无手动版本行、无已安装版本独立卡。
-      extraRows: 'none',
     },
     labels: {
       stable: t.dshOfficialStable,
       prerelease: t.dshPrereleaseTitle,
-      runningSource: t.harnessVersionSourceRunning,
       uninstallCurrentHint: t.dshUninstallCurrentHint,
     },
     taskStageText,

@@ -26,7 +26,7 @@ export const opencodeEn = {
   opencodeUpdate: 'Check for updates',
   opencodeUpdateDesc: 'See whether a newer version exists',
   opencodeUpdateHint:
-    'Queries the official source once. A newer version is flagged on the current-version row, including prereleases. Failures (e.g. offline) are reported as a failed check.',
+    'Queries the official source once. A newer version is flagged on the Check for updates row, including prereleases. Failures (e.g. offline) are reported as a failed check.',
   opencodeCheckUpdateFailed: 'Update check failed',
   opencodeCheckUpdateNoStable: 'No stable release upstream',
   opencodeCheckUpdateFound: 'New stable release {version}',
@@ -39,10 +39,6 @@ export const opencodeEn = {
   opencodePrereleaseDesc: 'Try new features early; prereleases may be unstable',
   opencodePrereleaseHint:
     'Prereleases ship new features before they are final, but may contain undiscovered issues.\n· The dropdown and buttons work exactly like the stable channel; only the versions themselves may be unstable.',
-  opencodeManualVersion: 'Specific version',
-  opencodeManualVersionDesc: 'Install an exact officially released version number',
-  opencodeManualVersionHint:
-    'Use this when you know the exact version; unknown versions fail with an error.',
   opencodeOfficialLinksLabel: 'Official release info',
   opencodeOfficialLinksDesc: 'Full version list, publish dates and details live upstream:',
   opencodeNpmPage: 'npm package page',
@@ -51,9 +47,6 @@ export const opencodeEn = {
   opencodeSourceSummaryHint:
     'The download address actually in use.\n· Read-only; change it in the Network group\n· Automatic picks the faster reachable registry',
   opencodeSourceSummaryGoModify: 'Change',
-  opencodeSystemPathDesc: 'Where your self-installed OpenCode CLI lives',
-  opencodeSystemPathHint:
-    'The app only detects the system install and never modifies it; the version is probed at startup and shows “unknown” when undetectable.',
   opencodeTerminalNote:
     'Available in new terminal sessions after install; already-open terminals must be reopened.',
   opencodeTerminalInjection: 'Auto-enable in new terminal windows',

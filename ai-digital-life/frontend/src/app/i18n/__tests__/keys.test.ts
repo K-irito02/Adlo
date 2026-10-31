@@ -306,10 +306,6 @@ describe('i18n en-US namespace keys', () => {
       'dshVersionUnknown',
       'dshVersionStateReading',
       'dshVersionStateFailed',
-      'dshEffectiveRunning',
-      'dshEffectiveRunningSystem',
-      'dshRunningExternalNote',
-      'dshEffectiveSystem',
       'dshOfficialStableHint',
       'dshPrereleaseHint',
       'dshOfficialLinksLabel',
@@ -396,10 +392,6 @@ describe('i18n en-US namespace keys', () => {
       ['dshVersionSourceSystemDialogMessage', '{path}', 1],
       ['dshVersionSourceSwitchDialogEmpty', '{target}', 2],
       ['dshVersionSourceSwitchDialogFromEmpty', '{target}', 1],
-      ['dshEffectiveRunning', '{url}', 1],
-      ['dshEffectiveRunningSystem', '{url}', 1],
-      ['dshRunningExternalNote', '{url}', 1],
-      ['dshEffectiveSystem', '{path}', 1],
       ['dshSourceSummary', '{registry}', 1],
       ['dshSourceSummary', '{title}', 1],
       ['dshSourceSummaryMode', '{mode}', 1],
@@ -446,6 +438,13 @@ describe('i18n en-US namespace keys', () => {
       'dshUninstallBundledHint',
       // 2026-10-22：无可用来源提示按来源拆分为 host/auto 两条，旧通用文案退役（不得复活）。
       'dshNoSourceNote',
+      // 2026-10-31：当前版本行收敛为「只显示版本号」——读数里的运行地址/来源副行
+      // 与「最新版本：x.y.z」一并退役（更新信息只属于检查更新行，来源属于版本来源行）。
+      'dshLatest',
+      'dshEffectiveRunning',
+      'dshEffectiveRunningSystem',
+      'dshRunningExternalNote',
+      'dshEffectiveSystem',
     ] as const) {
       expect(enUS, `en:${key}`).not.toHaveProperty(key);
       expect(zhCN, `zh:${key}`).not.toHaveProperty(key);
