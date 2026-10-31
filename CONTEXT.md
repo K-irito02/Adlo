@@ -72,7 +72,7 @@ DSH 与 OpenCode CLI 共用一张版本卡片 `features/harness/HarnessVersionCa
 
 | 层 | 关键内容 |
 |---|---|
-| 通用卡片 | `features/harness/HarnessVersionCard.tsx`：来源三态、双通道选择、手动版本、进度与取消、卸载二次确认 |
+| 通用卡片 | `features/harness/HarnessVersionCard.tsx`：来源三态、当前版本单值读数、检查更新（含更新徽章）、双通道选择、进度与取消、卸载二次确认 |
 | 桥接接口 | `features/harness/harnessVersionBridge.ts`：卡片唯一依赖的接缝（测试注入假桥） |
 | DSH 适配器 | `features/dsh/dshVersionBridge.ts`：把 DSH store/actions 映射为桥；运行态与来源读数经 `DshVersionReadout` 插槽注入 |
 | DSH 组外壳 | `features/dsh/DshSettings.tsx`：块头锚点 `anchorFor('dsh','version')`、只读来源摘要卡 `anchorFor('dsh','source')`、组级重置 |
