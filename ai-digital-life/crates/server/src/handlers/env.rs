@@ -313,6 +313,14 @@ async fn cache_get(
     }
 }
 
+/// 读取最近一次快照（忽略 TTL）：按 dep 重检需要以它为合并基线，
+/// 不能因 2s TTL 过期就退化成全量探测。
+async fn cache_peek(
+    cache: &tokio::sync::Mutex<Option<(std::time::Instant, serde_json::Value)>>,
+) -> Option<serde_json::Value> {
+    cache.lock().await.as_ref().map(|(_, value)| value.clone())
+}
+
 async fn cache_put(
     cache: &tokio::sync::Mutex<Option<(std::time::Instant, serde_json::Value)>>,
     value: serde_json::Value,
@@ -1000,10 +1008,12 @@ async fn check_custom_version_bin(bin: &str, dep: &str) -> Result<(), AppError> 
     }
 }
 
-/// POST `/env/recheck` — trigger a fresh detection (`{ dep? }` optional;
-/// unknown dep is 4xx). The response is `{ started: true }`; the refreshed
-/// snapshot is read via `/env/status`. Recheck clears a stale errored task and
-/// invalidates the status cache before probing.
+/// POST `/env/recheck` — 按 dep 集合重新探测（空/缺省 = 全量）。
+///
+/// 返回合并后的完整 `EnvStatus`（不再返回 `{started:true}`）：
+/// - 只探测请求的依赖，其余字段保留当前缓存值；
+/// - 缓存写回与合并都在同一把锁内完成，两个块并发刷新不会互相覆盖；
+/// - 冷缓存（从未 `/env/status`）无可合并基线，退回全量探测。
 pub async fn recheck(
     State(state): State<ServerState>,
     body: axum::body::Bytes,
@@ -1016,25 +1026,122 @@ async fn recheck_inner(
     state: &ServerState,
     body: axum::body::Bytes,
 ) -> Result<serde_json::Value, AppError> {
-    // 空 body 视为 `{}`（与 `select-source` 的严格 body 口径不同：recheck 无必填字段）。
-    if !body.is_empty() {
-        let input: RecheckInput =
-            serde_json::from_slice(&body).map_err(|e| AppError::InvalidInput(e.to_string()))?;
-        if let Some(dep) = input.dep.as_deref() {
-            parse_dep(dep)?;
-        }
-    }
-    // 失败任务是终态：recheck 清掉它，下一次 status 才会重新探测/缓存。
+    let deps = parse_recheck_deps(&body)?;
+    // 失败任务是终态：recheck 清掉它，后续状态才会重新探测/缓存。
     state.env_task.clear_errored();
-    cache_clear(&state.env_status_cache).await;
-    status_inner(state).await?;
-    Ok(started_payload())
+    if deps.is_empty() {
+        cache_clear(&state.env_status_cache).await;
+        return status_inner(state).await;
+    }
+    if cache_peek(&state.env_status_cache).await.is_none() {
+        cache_clear(&state.env_status_cache).await;
+        return status_inner(state).await;
+    }
+    let probed = probe_deps(state, &deps).await?;
+    let merged = {
+        let mut guard = state.env_status_cache.lock().await;
+        match guard.as_mut() {
+            Some((at, value)) => {
+                merge_probed(value, &probed);
+                *at = std::time::Instant::now();
+                Some(value.clone())
+            },
+            None => None,
+        }
+    };
+    match merged {
+        Some(value) => Ok(value),
+        None => {
+            // 极窄竞态：探测期间缓存被清空 → 全量兜底。
+            cache_clear(&state.env_status_cache).await;
+            status_inner(state).await
+        },
+    }
 }
 
 #[derive(serde::Deserialize)]
 struct RecheckInput {
     #[serde(default)]
-    dep: Option<String>,
+    deps: Option<Vec<String>>,
+}
+
+/// 解析并校验 `deps`（去重、保留顺序）；`netprobe` 不是可重检的依赖项。
+fn parse_recheck_deps(body: &axum::body::Bytes) -> Result<Vec<&'static str>, AppError> {
+    // 空 body 视为全量（保持旧调用口径：`{}` / 无 body 都走全量）。
+    if body.is_empty() {
+        return Ok(Vec::new());
+    }
+    let input: RecheckInput =
+        serde_json::from_slice(body).map_err(|e| AppError::InvalidInput(e.to_string()))?;
+    let mut deps: Vec<&'static str> = Vec::new();
+    for dep in input.deps.unwrap_or_default() {
+        let dep = parse_dep(&dep)?;
+        if dep == "netprobe" {
+            return Err(AppError::InvalidInput("netprobe is not recheckable".into()));
+        }
+        if !deps.contains(&dep) {
+            deps.push(dep);
+        }
+    }
+    Ok(deps)
+}
+
+/// 只探测请求的依赖；返回值顺序与 `deps` 一致。
+async fn probe_deps(
+    state: &ServerState,
+    deps: &[&'static str],
+) -> Result<Vec<(&'static str, serde_json::Value)>, AppError> {
+    if deps.is_empty() {
+        return Ok(Vec::new());
+    }
+    let paths = state.storage.paths();
+    let root = paths.root.clone();
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .unwrap_or_default();
+    let baseline = adl_env::baseline::load(&exe_dir)?;
+    let sources = adl_env::config::load(&root)?;
+    let requested: Vec<&'static str> = deps.to_vec();
+    let probed = tokio::task::spawn_blocking(move || {
+        let mut out: Vec<(&'static str, adl_env::DependencyState)> = Vec::new();
+        for dep in requested {
+            let state = match dep {
+                "node" => node_state(&root, &sources, &baseline.node.stable),
+                "git" => git_state(&root, &sources, &baseline),
+                "bash" => bash_state(&sources),
+                "webview2" => webview2_state(&sources, &baseline.webview2.minimum),
+                "adlserver" => adlserver_state(&sources, &exe_dir),
+                _ => continue,
+            };
+            out.push((dep, state));
+        }
+        out
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("env detection task failed: {e}")))?;
+    Ok(probed
+        .into_iter()
+        .map(|(dep, state)| (dep, serde_json::to_value(state).unwrap_or(serde_json::Value::Null)))
+        .collect())
+}
+
+/// 把探测片段写回完整快照；node 参与时重算 `dshReady`。
+fn merge_probed(value: &mut serde_json::Value, probed: &[(&'static str, serde_json::Value)]) {
+    let Some(obj) = value.as_object_mut() else {
+        return;
+    };
+    for (dep, dep_value) in probed {
+        obj.insert((*dep).to_string(), dep_value.clone());
+    }
+    if probed.iter().any(|(dep, _)| *dep == "node") {
+        let dsh_ready = obj
+            .get("node")
+            .and_then(|node| node.get("meetsBaseline"))
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
+        obj.insert("dshReady".to_string(), serde_json::Value::Bool(dsh_ready));
+    }
 }
 
 #[cfg(test)]
@@ -1042,9 +1149,10 @@ mod tests {
     use super::{
         CustomPathInput, EnvStatus, NetprobeState, RunGuard, STATUS_CACHE_TTL, SelectInput,
         UninstallInput, bash_state_from_candidates, cache_clear, cache_get, cache_put,
-        meets_dotted, meets_semver, parse_dep, parse_mode, recheck_inner, select_source_inner,
-        selected_hosted_version, set_custom_path_inner, task_is_running, try_begin_env_task,
-        uninstall_inner, uninstall_kind, validate_hosted_source, validate_uninstall,
+        meets_dotted, meets_semver, parse_dep, parse_mode, parse_recheck_deps, recheck_inner,
+        select_source_inner, selected_hosted_version, set_custom_path_inner, task_is_running,
+        try_begin_env_task, uninstall_inner, uninstall_kind, validate_hosted_source,
+        validate_uninstall,
     };
     use adl_env::providers::{bash, node};
     use adl_env::{DependencyState, EffectiveSource, Origin, SourceMode};
@@ -1216,15 +1324,75 @@ mod tests {
         assert!(!task_is_running(state.env_task.snapshot().as_ref()));
     }
 
-    /// L9：recheck 只触发刷新，返回 `{started:true}`（状态经 /env/status 读取）。
+    /// L9：全量 recheck（无 deps）返回完整快照，不再是 `{started:true}`。
     /// 用运行中任务避免真实 registry 探测（该分支不触网）。
     #[tokio::test]
-    async fn recheck_returns_started_true() {
+    async fn recheck_full_returns_status_snapshot() {
         let state = crate::test_util::test_server_state();
         assert!(state.env_task.begin_with("env-node-install", "node 22.14.0", false));
         let value = recheck_inner(&state, axum::body::Bytes::new()).await.unwrap();
-        assert_eq!(value, serde_json::json!({ "started": true }));
+        for key in [
+            "node",
+            "git",
+            "bash",
+            "webview2",
+            "adlserver",
+            "netprobe",
+            "task",
+            "dataDir",
+            "dshReady",
+        ] {
+            assert!(value.get(key).is_some(), "missing {key} in {value}");
+        }
+        assert!(value.get("started").is_none());
         state.env_task.finish();
+    }
+
+    /// 按 dep 重检只替换请求的依赖，其他块（含 dshReady）保持缓存原值。
+    #[tokio::test]
+    async fn recheck_deps_preserves_other_sections() {
+        let state = crate::test_util::test_server_state();
+        cache_put(
+            &state.env_status_cache,
+            serde_json::json!({
+                "node": { "marker": "keep-node" },
+                "git": { "marker": "keep-git" },
+                "bash": { "marker": "keep-bash" },
+                "webview2": { "marker": "keep-webview2" },
+                "adlserver": { "marker": "keep-adlserver" },
+                "netprobe": {
+                    "registryOk": true,
+                    "registryLatencyMs": 1,
+                    "ciTokenConfigured": false
+                },
+                "task": null,
+                "dataDir": "/tmp",
+                "dshReady": true
+            }),
+        )
+        .await;
+        let body =
+            axum::body::Bytes::from(serde_json::json!({ "deps": ["adlserver"] }).to_string());
+        let value = recheck_inner(&state, body).await.unwrap();
+        assert_eq!(value["git"]["marker"], "keep-git");
+        assert_eq!(value["webview2"]["marker"], "keep-webview2");
+        assert_eq!(value["node"]["marker"], "keep-node");
+        assert_eq!(value["dshReady"], true);
+        // 只探测了 adlserver：其余依赖仍是种子标记，没有被动过。
+        assert_eq!(value["adlserver"]["marker"], serde_json::Value::Null);
+        assert!(value["adlserver"]["meetsBaseline"].is_boolean());
+    }
+
+    /// deps 校验：未知依赖与 netprobe 都是 4xx；重复项去重。
+    #[test]
+    fn parse_recheck_deps_validates_and_dedupes() {
+        assert!(parse_recheck_deps(&axum::body::Bytes::from(r#"{"deps":["netprobe"]}"#)).is_err());
+        assert!(parse_recheck_deps(&axum::body::Bytes::from(r#"{"deps":["bogus"]}"#)).is_err());
+        assert_eq!(
+            parse_recheck_deps(&axum::body::Bytes::from(r#"{"deps":["node","node"]}"#)).unwrap(),
+            vec!["node"]
+        );
+        assert!(parse_recheck_deps(&axum::body::Bytes::new()).unwrap().is_empty());
     }
 
     /// `/env/uninstall` 白名单：仅 node/git 拥有托管版本目录。

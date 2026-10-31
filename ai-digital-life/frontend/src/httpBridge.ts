@@ -1115,7 +1115,8 @@ export function createHttpBridge({
       revert: (version: string) => call<string>(baseUrl, '/dsh/revert', POST({ version })),
       uninstall: (version: string) => call<boolean>(baseUrl, '/dsh/uninstall', POST({ version })),
       reinstall: () => call<string>(baseUrl, '/dsh/reinstall', POST({})),
-      getSourceStatus: () => call<DshSourceStatus>(baseUrl, '/dsh/source-status', POST({})),
+      getSourceStatus: (force?: boolean) =>
+        call<DshSourceStatus>(baseUrl, '/dsh/source-status', POST(force ? { force: true } : {})),
       getRunning: () => call<DshRunningResult>(baseUrl, '/dsh/running', POST({})),
       getSettingsSnapshot: () =>
         call<DshSettingsSnapshot>(baseUrl, '/dsh/settings-snapshot', POST({})),
@@ -1150,8 +1151,8 @@ export function createHttpBridge({
     // ── env 环境依赖 domain (`GET /env/status` + `POST /env/*`,
     // crates/server handlers/env.rs). 请求体与 Task 2 锁定的后端口径一致：
     // install `{ dep, version? }`、select-source `{ dep, mode }`、
-    // set-custom-path `{ dep, path }`、recheck `{ dep? }`（无 dep 即空体，
-    // 后端空 body 视为 `{}` 全量重检）。
+    // set-custom-path `{ dep, path }`、recheck `{ deps?: string[] }`（空数组/缺省
+    // 即全量重检，返回合并后的 EnvStatus——行级/块级刷新据此只更新本块）。
     env: {
       getStatus: () => call<EnvStatus>(baseUrl, '/env/status', GET()),
       install: (dep: string, version?: string) =>
@@ -1162,8 +1163,12 @@ export function createHttpBridge({
         call<boolean>(baseUrl, '/env/select-source', POST({ dep, mode })),
       setCustomPath: (dep: string, path: string) =>
         call<boolean>(baseUrl, '/env/set-custom-path', POST({ dep, path })),
-      recheck: (dep?: string) =>
-        call<{ started: boolean }>(baseUrl, '/env/recheck', POST(dep !== undefined ? { dep } : {})),
+      recheck: (deps?: string[]) =>
+        call<EnvStatus>(
+          baseUrl,
+          '/env/recheck',
+          POST(deps !== undefined && deps.length > 0 ? { deps } : {}),
+        ),
     } satisfies EnvBridge,
 
     // ── Workspace domain (workspace_* + sidebar + git + git-vis).

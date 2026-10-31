@@ -1,37 +1,10 @@
 import type { ReactNode } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
-import { IconRefreshArc } from '@icons';
-
-export interface HarnessRowRefresh {
-  /** 按钮无障碍名后缀（完整名为 `重新加载：{label}`）。 */
-  label: string;
-  /** 本腿刷新在途：按钮转圈，读数位扫光。 */
-  spinning: boolean;
-  onRefresh: () => void;
-}
-
-export function HarnessRefreshButton({
-  refresh,
-  disabled,
-}: {
-  refresh: HarnessRowRefresh;
-  disabled: boolean;
-}) {
-  const { t } = useTCopy();
-  return (
-    <button
-      type="button"
-      className="adl-harness-version__refresh-btn"
-      title={t.harnessVersionRefreshRow}
-      aria-label={`${t.harnessVersionRefreshRow}：${refresh.label}`}
-      disabled={disabled || refresh.spinning}
-      onClick={refresh.onRefresh}
-    >
-      <IconRefreshArc size={14} decorative className={refresh.spinning ? 'adl-spin' : undefined} />
-    </button>
-  );
-}
+import {
+  SettingsRowRefresh,
+  type SettingsRowRefreshState,
+} from '@components/settings/SettingsRefreshButton';
 
 interface CurrentVersionRowProps {
   /** 行内「?」提示内容（DSH 传入当前版本说明；缺省不渲染）。 */
@@ -40,8 +13,8 @@ interface CurrentVersionRowProps {
   desc?: string;
   /** 卸载二次确认时的行内警告（适配器提供；`undefined` 时不渲染）。 */
   uninstallWarn?: string;
-  /** 本行刷新（状态腿）：标题前置按钮 + 读数位扫光；缺省不渲染。 */
-  refresh?: HarnessRowRefresh;
+  /** 本行刷新（状态腿）：标题右侧悬停显现；缺省不渲染。 */
+  refresh?: SettingsRowRefreshState;
   /** 读数位扫光态（本腿刷新在途且已有旧值）。 */
   spinning?: boolean;
   /** 刷新按钮禁用（卡片忙碌门）。 */
@@ -50,7 +23,10 @@ interface CurrentVersionRowProps {
   children: ReactNode;
 }
 
-/** 当前版本行：副标题 + 提示图标；右侧为行内版本读数（单值，纵向居中对齐）。 */
+/**
+ * 当前版本行：`?` 提示在标题左侧，刷新在标题右侧（悬停显现）；
+ * 右侧为行内版本读数（单值，纵向居中对齐）。
+ */
 export function CurrentVersionRow({
   hint,
   desc,
@@ -68,9 +44,9 @@ export function CurrentVersionRow({
     >
       <div className="adl-settings-row__label">
         <div className="adl-settings-row__label-text">
-          {refresh ? <HarnessRefreshButton refresh={refresh} disabled={disabled === true} /> : null}
-          <span>{t.harnessVersionCurrent}</span>
           {hint ? <SettingsHintButton content={hint} /> : null}
+          <span>{t.harnessVersionCurrent}</span>
+          <SettingsRowRefresh refresh={refresh} disabled={disabled} />
         </div>
         {desc ? <small>{desc}</small> : null}
         {uninstallWarn ? (
@@ -78,16 +54,17 @@ export function CurrentVersionRow({
         ) : null}
       </div>
       <div className="adl-settings-row__control">
-        <div className="adl-harness-version__readout">
+        <div className="adl-harness-version__readout adl-harness-version__control-slot">
+          <div className={spinning ? 'adl-harness-version__control-hidden' : undefined}>
+            {children}
+          </div>
           {spinning ? (
             <span
-              className="adl-harness-version__readout-loading"
+              className="adl-harness-version__readout-loading adl-harness-version__control-overlay"
               role="status"
               aria-label={t.harnessVersionLoading}
             />
-          ) : (
-            children
-          )}
+          ) : null}
         </div>
       </div>
     </div>
@@ -96,7 +73,6 @@ export function CurrentVersionRow({
 
 interface FallbackReadoutProps {
   current: string | null;
-  /** 版本状态读取失败：读数区切错误态。 */
   failed: boolean;
 }
 

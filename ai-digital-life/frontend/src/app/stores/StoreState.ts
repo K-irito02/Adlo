@@ -334,7 +334,7 @@ interface DshActions {
   reinstallDsh: () => Promise<boolean>;
   fetchVersionCatalog: (silent?: boolean) => Promise<boolean>;
   installDshVersion: (version: string, select?: boolean) => Promise<boolean>;
-  fetchSourceStatus: (silent?: boolean) => Promise<boolean>;
+  fetchSourceStatus: (silent?: boolean, force?: boolean) => Promise<boolean>;
   fetchDshSettingsSnapshot: (silent?: boolean) => Promise<boolean>;
   fetchDshRunning: (silent?: boolean) => Promise<boolean>;
   saveSourceConfig: (config: DshSourceConfig, silent?: boolean) => Promise<boolean>;
@@ -355,7 +355,7 @@ interface EnvActions {
   installEnvDep: (dep: string, version?: string) => Promise<boolean>;
   uninstallEnvDep: (dep: string, version?: string) => Promise<boolean>;
   setEnvCustomPath: (dep: string, path: string) => Promise<boolean>;
-  recheckEnv: (dep?: string) => Promise<boolean>;
+  recheckEnv: (deps?: string[]) => Promise<boolean>;
   pollEnvTaskWhileRunning: (options?: { suppressInitialError?: boolean }) => () => void;
 }
 

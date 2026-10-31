@@ -177,8 +177,8 @@ export function createOpencodeVersionBridge(
       updateAction: 'check',
       taskCounts: false,
       resetSourceAction: false,
-      // 行内刷新按钮（检查/当前/正式/预发布）+ 分腿扫光。
-      refreshRows: true,
+      // 行级刷新：来源 / 当前版本 / 正式版本 / 预发布版本（检查更新行由行内按钮承担）。
+      refreshRows: { source: true, current: true, stable: true, prerelease: true },
       // 来源就绪/托管语义：首帧来源未到时隐藏管理项（与 DSH 同口径）。
       sourceManaged: true,
     },

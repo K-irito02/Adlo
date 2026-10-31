@@ -390,6 +390,8 @@ export function createDshVersionBridge(
       taskCounts: true,
       resetSourceAction: false,
       sourceManaged: true,
+      // 行级刷新：来源 / 当前版本 / 正式版本 / 预发布版本（检查更新行不提供）。
+      refreshRows: { source: true, current: true, stable: true, prerelease: true },
     },
     labels: {
       stable: t.dshOfficialStable,

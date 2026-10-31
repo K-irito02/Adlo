@@ -262,14 +262,17 @@ pub async fn build_http_client_with_timeout(
 }
 
 /// NO_PROXY/直连名单匹配：`*` 全匹配；条目支持精确 host 与 `.suffix` 子域后缀。
+/// 分隔符兼容历史逗号与设置面板的「每行一个」（换行）写法。
 fn no_proxy_matches(no_proxy: &str, host: &str) -> bool {
-    no_proxy.split(',').map(str::trim).filter(|entry| !entry.is_empty()).any(|entry| {
-        if entry == "*" {
-            return true;
-        }
-        let entry = entry.trim_start_matches('.').to_ascii_lowercase();
-        host == entry || host.ends_with(&format!(".{entry}"))
-    })
+    no_proxy.split([',', '\n', '\r']).map(str::trim).filter(|entry| !entry.is_empty()).any(
+        |entry| {
+            if entry == "*" {
+                return true;
+            }
+            let entry = entry.trim_start_matches('.').to_ascii_lowercase();
+            host == entry || host.ends_with(&format!(".{entry}"))
+        },
+    )
 }
 
 /// 读取环境变量并去掉首尾空白；空串按「未设置」处理（与 hyper-util 的 `is_empty()` 口径一致）。
@@ -449,6 +452,13 @@ fn cached_proxy_reachable(endpoint: &str) -> Option<bool> {
 fn store_proxy_reachable(endpoint: &str, ok: bool) {
     if let Ok(mut guard) = proxy_health_cache().lock() {
         *guard = Some((endpoint.to_string(), std::time::Instant::now(), ok));
+    }
+}
+
+/// 清空代理健康缓存：显式刷新代理设置时绕过 5s 冷却，立即重新探测。
+pub fn invalidate_proxy_health_cache() {
+    if let Ok(mut guard) = proxy_health_cache().lock() {
+        *guard = None;
     }
 }
 
@@ -906,9 +916,11 @@ mod tests {
     }
 
     /// NO_PROXY 条目按「精确 host / 子域后缀」匹配，不做子串误伤。
+    /// 分隔符同时支持逗号与换行（设置面板「每行一个」）。
     #[test]
     fn no_proxy_matching_is_exact_or_suffix() {
         assert!(no_proxy_matches("localhost,127.0.0.1", "localhost"));
+        assert!(no_proxy_matches("localhost\n127.0.0.1", "127.0.0.1"));
         assert!(no_proxy_matches(".internal", "api.internal"));
         assert!(no_proxy_matches("*", "anything.example"));
         assert!(!no_proxy_matches("10.0.0.1", "110.0.0.10"));

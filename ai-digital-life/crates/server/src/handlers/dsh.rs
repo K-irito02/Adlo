@@ -865,9 +865,27 @@ pub async fn cancel_version_task(State(state): State<ServerState>) -> impl IntoR
 }
 
 /// POST `/dsh/source-status` — 获取下载源状态（system/running/config）。
-pub async fn get_source_status(State(state): State<ServerState>) -> impl IntoResponse {
+/// body `{ force?: boolean }`：force=true 时清空代理健康缓存，立即重探。
+pub async fn get_source_status(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let force = if body.is_empty() {
+        false
+    } else {
+        serde_json::from_slice::<SourceStatusInput>(&body).map(|input| input.force).unwrap_or(false)
+    };
+    if force {
+        adl_download_source::invalidate_proxy_health_cache();
+    }
     let result = get_source_status_inner(&state).await;
     ipc::to_response(result)
+}
+
+#[derive(serde::Deserialize)]
+struct SourceStatusInput {
+    #[serde(default)]
+    force: bool,
 }
 
 async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Value, AppError> {

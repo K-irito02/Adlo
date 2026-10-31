@@ -80,6 +80,7 @@ export const settingsZh = {
 
   // 无障碍
   settingsToggleVisibility: '切换可见性',
+  settingsRefreshAria: '刷新：{target}',
   settingsSearchLabel: '搜索设置',
   settingsSearchHistory: '搜索历史',
   settingsSearchHistoryClear: '清空',

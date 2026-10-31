@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
-import { HarnessRefreshButton, type HarnessRowRefresh } from './VersionStatusRows';
 
 interface UpdateRowProps {
   mode: 'install' | 'check';
@@ -17,10 +16,6 @@ interface UpdateRowProps {
   /** 检查更新发现的新版本提示（标题下方中性徽章组；无新版本时为 null）。 */
   updateNote?: ReactNode;
   disabled: boolean;
-  /** 任一分腿刷新在途：检查按钮禁用，保证读数一致。 */
-  refreshBusy?: boolean;
-  /** 本行刷新（状态+目录腿）：标题前置按钮；缺省不渲染。 */
-  refresh?: HarnessRowRefresh;
   onInstall: () => void;
   onCheck: () => void;
 }
@@ -39,8 +34,6 @@ export function UpdateRow({
   desc,
   updateNote,
   disabled,
-  refreshBusy,
-  refresh,
   onInstall,
   onCheck,
 }: UpdateRowProps) {
@@ -52,9 +45,8 @@ export function UpdateRow({
     >
       <div className="adl-settings-row__label">
         <div className="adl-settings-row__label-text">
-          {refresh ? <HarnessRefreshButton refresh={refresh} disabled={disabled} /> : null}
-          <span>{t.harnessVersionUpdate}</span>
           {hint ? <SettingsHintButton content={hint} /> : null}
+          <span>{t.harnessVersionUpdate}</span>
         </div>
         {desc ? <small>{desc}</small> : null}
         {catalogFailed ? (
@@ -73,7 +65,7 @@ export function UpdateRow({
         <button
           type="button"
           className="adl-harness-version__action-btn"
-          disabled={disabled || refreshBusy === true}
+          disabled={disabled}
           onClick={mode === 'check' ? onCheck : onInstall}
         >
           {mode === 'check' ? t.harnessVersionUpdate : t.harnessVersionUpdateAction}

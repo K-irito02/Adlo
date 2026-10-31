@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, cleanup, fireEvent, screen, waitFor, act } from '@testing-library/react';
+import { render, cleanup, fireEvent, screen, waitFor, act, within } from '@testing-library/react';
 import type { CopyDict } from '../../i18n';
 import type { DshVersionStatus } from '../../../shared/ipc/dsh';
 import type { OpencodeSourceStatus } from '../../../shared/ipc/opencode';
@@ -222,7 +222,25 @@ describe('OpencodeSettings DSH parity (generic card slots)', () => {
     expect(currentRow.querySelectorAll('.adl-harness-version__update-badge')).toHaveLength(0);
   });
 
-  it('刷新按钮点击触发重新加载', async () => {
+  it('行级刷新按钮点击触发重新加载（检查更新行不再有刷新）', async () => {
+    const bridge = installBridge(makeSource(), makeStatus());
+    render(
+      <TestProvider>
+        <OpencodeSettings />
+      </TestProvider>,
+    );
+    await screen.findByText('正式版本');
+    const checkRow = document.querySelector('[data-settings-row="检查更新"]') as HTMLElement;
+    expect(within(checkRow).queryByRole('button', { name: /^刷新：/ })).toBeNull();
+    const callsBefore = bridge.getVersionCatalog.mock.calls.length;
+    const refreshBtn = screen.getByRole('button', { name: '刷新：当前版本' });
+    fireEvent.click(refreshBtn);
+    await waitFor(() =>
+      expect(bridge.getVersionCatalog.mock.calls.length).toBeGreaterThan(callsBefore),
+    );
+  });
+
+  it('块级刷新重载整张版本卡', async () => {
     const bridge = installBridge(makeSource(), makeStatus());
     render(
       <TestProvider>
@@ -231,8 +249,7 @@ describe('OpencodeSettings DSH parity (generic card slots)', () => {
     );
     await screen.findByText('正式版本');
     const callsBefore = bridge.getVersionCatalog.mock.calls.length;
-    const refreshBtn = screen.getByRole('button', { name: '重新加载：检查更新' });
-    fireEvent.click(refreshBtn);
+    fireEvent.click(screen.getByRole('button', { name: '刷新：OpenCode CLI 版本管理' }));
     await waitFor(() =>
       expect(bridge.getVersionCatalog.mock.calls.length).toBeGreaterThan(callsBefore),
     );

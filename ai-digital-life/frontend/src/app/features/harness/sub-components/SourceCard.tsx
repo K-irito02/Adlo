@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import {
+  SettingsRowRefresh,
+  type SettingsRowRefreshState,
+} from '@components/settings/SettingsRefreshButton';
 import { SettingsSelect } from '@components/settings/SettingsSelect';
 import type { HarnessVersionSourceMode } from '../harnessVersionBridge';
 
@@ -16,13 +20,24 @@ interface SourceRowProps {
   /** 标签下描述小字；缺省不渲染。 */
   desc?: string;
   disabled: boolean;
+  /** 本行刷新（来源腿）：标题右侧悬停显现；缺省不渲染。 */
+  refresh?: SettingsRowRefreshState;
   /** 来源说明行（工具专属：托管/延迟生效/无可用来源提示）。 */
   note: ReactNode;
   onChange: (mode: HarnessVersionSourceMode) => void;
 }
 
 /** 「版本来源」行：三态选择 + 工具专属说明（旧 DSH 卡内首行）。 */
-export function SourceRow({ mode, options, hint, desc, disabled, note, onChange }: SourceRowProps) {
+export function SourceRow({
+  mode,
+  options,
+  hint,
+  desc,
+  disabled,
+  refresh,
+  note,
+  onChange,
+}: SourceRowProps) {
   const { t } = useTCopy();
   return (
     <div className="adl-settings-row" data-settings-row={t.harnessVersionSourceTitle}>
@@ -30,6 +45,7 @@ export function SourceRow({ mode, options, hint, desc, disabled, note, onChange 
         <div className="adl-settings-row__label-text">
           <SettingsHintButton content={hint} />
           <span>{t.harnessVersionSourceTitle}</span>
+          <SettingsRowRefresh refresh={refresh} disabled={disabled} />
         </div>
         {desc ? <small>{desc}</small> : null}
         {note}

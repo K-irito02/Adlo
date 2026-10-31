@@ -86,6 +86,7 @@ export const settingsEn = {
 
   // Accessibility
   settingsToggleVisibility: 'Toggle visibility',
+  settingsRefreshAria: 'Refresh: {target}',
   settingsSearchLabel: 'Search settings',
   settingsSearchHistory: 'Search history',
   settingsSearchHistoryClear: 'Clear',

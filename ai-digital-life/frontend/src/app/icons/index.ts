@@ -93,6 +93,7 @@ export {
   IconRefreshCw,
   IconRefreshArc,
   REFRESH_ARC_PATH,
+  IconExpandVertical,
   IconResetDefaults,
   IconKeyboard,
   IconReplace,

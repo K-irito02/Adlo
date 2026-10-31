@@ -54,7 +54,7 @@
 | `POST /env/uninstall` | `{ dep, version? }`，semver 守卫 + 选中版回退/清空，`removing` 阶段 |
 | `POST /env/select-source` | `{ dep, mode }`（auto/system/host） |
 | `POST /env/set-custom-path` | `{ dep, path }` 显式覆盖路径 |
-| `POST /env/recheck` | `{ dep? }` 触发重新探测（清除陈旧错误任务） |
+| `POST /env/recheck` | `{ deps?: string[] }` 按依赖重新探测（空/缺省 = 全量）；返回合并后的 `EnvStatus`，未请求字段保持缓存原值（「基础依赖」与「系统组件」块互不联动） |
 
 > 环境依赖**不是 Tauri command**，因此不新增 `capabilities/*.json` 权限；桌面壳 `tauri-env.ts` 只是把调用转发到同一组 HTTP 端点。
 
@@ -63,7 +63,8 @@
 - **设置面板「网络」组**（`features/network/`）：源/代理/测试连接，自 DSH 组搬迁，行为不变。
 - **设置面板「环境」组**（`features/environment/`）：7 依赖行（状态/来源/路径/版本/基线徽标）、顶部聚合条、
   「复制给 agent」（JSON 载荷含 `statusJson` / `baseline` / `runbook` / `dataDir` / `copyContext`）、卸载/重装
-  （仅 host 来源；git 重装仅限基线版）。
+  （仅 host 来源；git 重装仅限基线版）。行级刷新覆盖 node/git/bash/webview2/adlserver；「基础依赖」与
+  「系统组件」两个块各自带「刷新」块按钮，只重检本块 deps。
 - **首启环境向导**：四步引导，可跳过（记录跳过状态并显示续接横幅），设置面板可重新进入。
 - **runbook**：唯一真源 `features/environment/runbooks/`（`?raw` 内联，前端与桌面同源），
   `docs/runbooks/README.md` 仅作索引；固定五段：症状 / 检查命令 / 安装步骤 / 验证步骤 / 回滚。

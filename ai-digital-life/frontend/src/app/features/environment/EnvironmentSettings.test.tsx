@@ -38,7 +38,8 @@ vi.mock('@hooks/useAppActions', () => {
 });
 
 const mockT = new Proxy({} as Record<string, string>, {
-  get: (_, key) => (typeof key === 'string' ? key : ''),
+  get: (_, key) =>
+    key === 'settingsRefreshAria' ? 'refresh:{target}' : typeof key === 'string' ? key : '',
 }) as unknown as CopyDict;
 
 function TestProvider({ children }: { children: React.ReactNode }) {
@@ -914,5 +915,24 @@ describe('EnvironmentSettings', () => {
     } finally {
       Object.defineProperty(document, 'execCommand', { value: original, configurable: true });
     }
+  });
+
+  it('块级刷新只重检本块 deps，两个块互不联动', async () => {
+    await renderWithRows();
+    recheckEnv.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'refresh:environmentBlockRuntime' }));
+    await waitFor(() => expect(recheckEnv).toHaveBeenCalledWith(['node', 'git', 'bash']));
+
+    recheckEnv.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'refresh:environmentBlockSystem' }));
+    await waitFor(() => expect(recheckEnv).toHaveBeenCalledWith(['webview2', 'adlserver']));
+  });
+
+  it('行级刷新只传单个 dep', async () => {
+    await renderWithRows();
+    recheckEnv.mockClear();
+    const nodeRow = screen.getByTestId('env-dep-node');
+    fireEvent.click(within(nodeRow).getByRole('button', { name: 'refresh:environmentDepNode' }));
+    await waitFor(() => expect(recheckEnv).toHaveBeenCalledWith(['node']));
   });
 });

@@ -45,6 +45,43 @@
   justify-content: flex-end;
 }
 
+/* 刷新在途：原控件保持布局但不可见，胶囊骨架绝对定位覆盖在上面。
+   这样行高由原控件决定，骨架出现/消失不会撑高或压扁卡片（用户要求无跳动）。 */
+.adl-harness-version__control-slot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* 通道行的控件区左对齐（版本选择器固定行内最左，历史契约）。 */
+.adl-harness-version__control-slot--start {
+  justify-content: flex-start;
+}
+
+/* 通道行内容撑满控件区：版本选择器靠左，版本选择器自身的 `margin-right:auto`
+   把已装版本操作按钮推到最右（左版本 / 右操作）。 */
+.adl-harness-version__control-slot--start > .adl-harness-version__control-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.adl-harness-version__control-slot--start > .adl-harness-version__control-overlay {
+  left: 0;
+  right: auto;
+}
+
+.adl-harness-version__control-hidden {
+  visibility: hidden;
+}
+
+.adl-harness-version__control-overlay {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 .adl-harness-version__readout-sub {
   color: var(--text-muted);
   font-size: var(--text-xs);

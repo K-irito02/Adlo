@@ -275,17 +275,21 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
     },
 
     /**
-     * [recheckEnv - 重检依赖（可选单 dep，不传即全量）并静默刷新]
+     * [recheckEnv - 重检指定依赖（不传/空数组 = 全量）]
+     *
+     * 只更新后端返回的合并快照，不再追加一次全量 `getStatus`：行级/块级刷新
+     * 依赖这一点保持「基础依赖」与「系统组件」互不联动。
+     *
      * @returns true=成功；false=失败（已记录全局错误卡片 + toast，旧状态保留）
      * @writes envSlice.envStatus/envBusy
      * @see httpBridge.ts → env.recheck (/env/recheck)
      */
-    recheckEnv: async (dep?: string): Promise<boolean> => {
+    recheckEnv: async (deps?: string[]): Promise<boolean> => {
       clearError(get, SCOPE);
       get().setEnvBusy(true);
       let result: Awaited<ReturnType<typeof window.digitalLife.env.recheck>>;
       try {
-        result = await window.digitalLife.env.recheck(dep);
+        result = await window.digitalLife.env.recheck(deps);
       } catch (e) {
         captureError(get, e, SCOPE);
         get().showToast(envDict(get).failure, 'error');
@@ -298,7 +302,7 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         get().setEnvBusy(false);
         return false;
       }
-      await refreshEnvStatusSilently(get);
+      get().setEnvStatus(result.data);
       get().setEnvBusy(false);
       return true;
     },

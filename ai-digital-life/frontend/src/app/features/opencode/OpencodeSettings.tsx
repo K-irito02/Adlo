@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
@@ -6,9 +6,11 @@ import { useAppActions } from '@hooks/useAppActions';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import { SettingsRefreshButton } from '@components/settings/SettingsRefreshButton';
 import { ConfirmDialog } from '@components/ConfirmDialog';
 import {
   HarnessVersionCard,
+  type HarnessVersionCardHandle,
   type HarnessVersionSlotContext,
 } from '@features/harness/HarnessVersionCard';
 import type { OpencodeBridge, OpencodeSourceStatus } from '@shared/ipc/opencode';
@@ -132,6 +134,17 @@ export function OpencodeSettings() {
   const [cardEpoch, setCardEpoch] = useState(0);
   const [groupResetOpen, setGroupResetOpen] = useState(false);
   const [groupResetBusy, setGroupResetBusy] = useState(false);
+  const cardRef = useRef<HarnessVersionCardHandle>(null);
+  const [refreshingAll, setRefreshingAll] = useState(false);
+  const handleRefreshAll = useCallback(() => {
+    if (refreshingAll) {
+      return;
+    }
+    setRefreshingAll(true);
+    void (cardRef.current?.refreshAll() ?? Promise.resolve()).finally(() => {
+      setRefreshingAll(false);
+    });
+  }, [refreshingAll]);
 
   // 卸载兜底：pending 置位后若组件在消费前卸载，清信号避免下次挂载"迟到弹窗"。
   useEffect(
@@ -209,10 +222,21 @@ export function OpencodeSettings() {
         data-settings-anchor={anchorFor('opencode', 'version')}
       >
         <SettingsHintButton content={t.opencodeVersionHint} />
-        <SettingsHeader title={t.opencodeVersionTitle} />
+        <SettingsHeader
+          title={t.opencodeVersionTitle}
+          action={
+            <SettingsRefreshButton
+              block
+              label={t.opencodeVersionTitle}
+              spinning={refreshingAll}
+              onRefresh={handleRefreshAll}
+            />
+          }
+        />
       </div>
       <HarnessVersionCard
         key={cardEpoch}
+        ref={cardRef}
         bridge={bridge}
         slots={{
           // 块头复用 OpenCode 组原有块头（锚点 + 问号 + 版本管理标题）。

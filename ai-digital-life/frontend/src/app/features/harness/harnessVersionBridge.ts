@@ -90,10 +90,15 @@ export interface HarnessVersionCapabilities {
   /** 显示「恢复默认」来源操作。 */
   resetSourceAction?: boolean;
   /**
-   * 行内刷新按钮（检查更新/当前版本/正式版本/预发布版本）：标题前置、
-   * 问号后置；分腿在途时该行控件区扫光。缺省不渲染（DSH 无此按钮）。
+   * 行内刷新按钮（按行开关）：版本来源 / 当前版本 / 正式版本 / 预发布版本。
+   * 缺省全部不渲染；「检查更新」行不提供行级刷新，由行内检查按钮或块级刷新承担。
    */
-  refreshRows?: boolean;
+  refreshRows?: {
+    source?: boolean;
+    current?: boolean;
+    stable?: boolean;
+    prerelease?: boolean;
+  };
   /**
    * 适配器拥有来源就绪/托管语义：只有 `source.ready === true` 且非系统托管时
    * 才渲染管理行（DSH）。缺省按 `source.managed` 判定。

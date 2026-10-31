@@ -2,13 +2,16 @@ import { createPortal } from 'react-dom';
 import type { ReactNode, RefObject } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import {
+  SettingsRowRefresh,
+  type SettingsRowRefreshState,
+} from '@components/settings/SettingsRefreshButton';
 import { RevealScrollbar } from '@components/RevealScrollbar';
 import { useRevealScrollbar } from '@hooks/useRevealScrollbar';
 import { formatPublishedAt } from '../harnessVersionFormat';
 import type { HarnessChannelKey, HarnessMenuGeometry } from '../hooks/useHarnessVersionChannelMenu';
 import type { HarnessVersionTask } from '../harnessVersionBridge';
 import { CheckIcon, ChevronDownIcon } from './icons';
-import { HarnessRefreshButton, type HarnessRowRefresh } from './VersionStatusRows';
 
 export interface HarnessChannelInfo {
   version: string;
@@ -46,10 +49,8 @@ interface ChannelRowProps {
   fixedWidth: number | null;
   /** 本行展示版本在途的任务（`shownTask.version === effective` 时行内展示）。 */
   task: HarnessChannelTask | null;
-  /** 本行刷新（目录腿）：标题前置按钮 + 控件区扫光；缺省不渲染。 */
-  refresh?: HarnessRowRefresh;
-  /** 任一分腿刷新在途：行内变更按钮禁用，保证读数一致。 */
-  refreshBusy?: boolean;
+  /** 本行刷新（目录腿）：标题右侧悬停显现；缺省不渲染。 */
+  refresh?: SettingsRowRefreshState;
   /** 控件区扫光态（本腿刷新在途且已有旧值）。 */
   spinning?: boolean;
   uninstallArmed: string | null;
@@ -83,7 +84,6 @@ export function ChannelRow({
   fixedWidth,
   task,
   refresh,
-  refreshBusy,
   spinning,
   uninstallArmed,
   onToggle,
@@ -94,10 +94,10 @@ export function ChannelRow({
   onSwitch,
 }: ChannelRowProps) {
   const { t, locale } = useTCopy();
-  // 任一分腿刷新在途：本行变更按钮禁用，保证读数一致（扫光行无按钮，不受影响）。
-  const actionsDisabled = disabled || refreshBusy === true;
+  // 刷新只影响本行：借用遮罩期间原控件保持可见性隐藏，不再跨行禁用其它按钮。
+  const actionsDisabled = disabled;
 
-  const row = (control: ReactNode) => (
+  const row = (control: ReactNode, overlay = false) => (
     <div
       className={`adl-settings-row${infos.length > 0 ? ' adl-harness-version__row--stack' : ''}`}
       data-settings-row={title}
@@ -106,32 +106,39 @@ export function ChannelRow({
     >
       <div className="adl-settings-row__label">
         <div className="adl-settings-row__label-text">
-          {refresh ? <HarnessRefreshButton refresh={refresh} disabled={disabled} /> : null}
-          <span>{title}</span>
           {hint ? <SettingsHintButton content={hint} /> : null}
+          <span>{title}</span>
+          <SettingsRowRefresh refresh={refresh} disabled={disabled} />
         </div>
         {desc ? <small>{desc}</small> : null}
       </div>
-      <div className="adl-settings-row__control">{control}</div>
+      <div className="adl-settings-row__control">
+        <div className="adl-harness-version__control-slot adl-harness-version__control-slot--start">
+          <div
+            className={`adl-harness-version__control-body${
+              overlay ? ' adl-harness-version__control-hidden' : ''
+            }`}
+          >
+            {control}
+          </div>
+          {overlay ? (
+            <span
+              className="adl-harness-version__readout-loading adl-harness-version__control-overlay"
+              role="status"
+              aria-label={t.harnessVersionLoading}
+            />
+          ) : null}
+        </div>
+      </div>
     </div>
   );
-
-  // 目录腿刷新在途且已有旧展示值：控件区扫光，不展示中途值。
-  if (spinning && effective) {
-    return row(
-      <span
-        className="adl-harness-version__readout-loading"
-        role="status"
-        aria-label={t.harnessVersionLoading}
-      />,
-    );
-  }
 
   if (!effective) {
     return row(
       <span className="adl-harness-version__readout-value is-empty">
         {unknown ? t.harnessVersionListUnknown : emptyText}
       </span>,
+      spinning === true,
     );
   }
 
@@ -274,6 +281,7 @@ export function ChannelRow({
           : null}
       </div>
     </div>,
+    spinning === true,
   );
 }
 

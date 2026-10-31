@@ -228,9 +228,10 @@ export interface DshBridge {
   reinstall: () => Promise<IpcResult<string>>;
   /**
    * 获取 dsh 下载源状态（system / running / config）
+   * @param force 显式刷新代理设置时传 true：清空后端 5s 代理健康缓存并立即重探
    * @see httpBridge.ts → dsh.getSourceStatus (/dsh/source-status)
    */
-  getSourceStatus: () => Promise<IpcResult<DshSourceStatus>>;
+  getSourceStatus: (force?: boolean) => Promise<IpcResult<DshSourceStatus>>;
   /**
    * 轻量运行状态（仅探测端口 + 宿主托管，不跑 where/版本探测）；设置面板轮询用
    * @see httpBridge.ts → dsh.getRunning (/dsh/running)

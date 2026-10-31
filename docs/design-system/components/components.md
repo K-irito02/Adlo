@@ -136,6 +136,35 @@ style `.adl-settings-row__label small.adl-settings-auto-note` in
 - Specificity trap: the generic `.adl-settings-row__label small` rule is 0-1-1, so the class must be scoped as `.adl-settings-row__label small.adl-settings-auto-note`; a bare class selector renders grey in the light theme.
 - Data comes from the server (`proxyEffective` and similar), not from draft form state: gate the note on the **persisted** mode so a just-changed draft can never display the previous resolution.
 
+## Row refresh（行级刷新·悬停显现）
+
+Source of truth: `frontend/src/app/components/settings/SettingsRefreshButton.tsx`;
+styles `.adl-settings-row__refresh` / `.adl-settings-refresh` in
+`frontend/src/styles/components/settings.css`.
+
+```tsx
+<SettingsRowRefresh refresh={{ label, spinning, onRefresh }} disabled={disabled} />
+```
+
+- Row-level refresh lives in the row's title line, **after** the title text; when the row has a status pill, it goes **after the pill** (never reserve a permanent gap between title and pill).
+- The slot is `width: 0; opacity: 0` at rest and expands to 22px on row `:hover` / `:focus-within`; `@media (hover: none)` keeps it visible on touch. The button stays focusable while collapsed, so keyboard users can reveal it with Tab.
+- `title` is always `刷新` (Refresh); `aria-label` is `刷新：{target}` (`Refresh: {target}`) so multiple buttons on one page remain distinguishable.
+- Block-level refresh reuses the same component with `block` (26px) in the section header's `action` slot and refreshes every item in that block, including rows without their own icon.
+- Explicit refresh disables itself while in flight (`aria-busy` + spinner) and must surface failures; values are kept during refresh (shimmer on the control), never blanked.
+- **No cross-row coupling**: one row's refresh must not disable or dim buttons in other rows. If refreshes share one backend load, serialize them internally and keep a per-row spinner; only genuine card-busy state (install/uninstall/check in flight) disables actions.
+- **No height jump**: the loading pill overlays the control that is still in the layout (`visibility: hidden` on the original, absolute pill on top), so the row and card keep their height while the capsule shimmer is visible.
+- Environment independence: block/row refresh sends only its own dependency set; the backend merges the probed fields into the cached snapshot and returns the rest untouched.
+
+## Paged list field（直连名单·单行翻页）
+
+Source of truth: `frontend/src/app/features/network/NoProxyField.tsx`;
+styles `.adl-network-no-proxy*` in `frontend/src/styles/components/settings.css`.
+
+- A multi-value list is stored newline-separated. The inline field shows **one entry at a time** with an `n/total` counter and up/down chevrons; both appear only on row hover / `:focus-within` (always visible on touch).
+- The expand button is absolutely positioned in the card's right padding gutter, **not** in the control row, so the sibling inputs keep the same width and right edge (no reserved space inside the row).
+- The popover edits the whole list in a textarea using the project's `RevealScrollbar` (thin, hover-revealed). Its footer states that changes save automatically; close is an icon button (no text button).
+- Legacy comma-separated values are split for display; edits are written back newline-separated (the backend matcher accepts both separators).
+
 ## Navigation item
 
 ```ts

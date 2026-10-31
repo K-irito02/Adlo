@@ -27,7 +27,7 @@ interface EnvTestStore {
   installEnvDep: (dep: string, version?: string) => Promise<boolean>;
   uninstallEnvDep: (dep: string, version?: string) => Promise<boolean>;
   setEnvCustomPath: (dep: string, path: string) => Promise<boolean>;
-  recheckEnv: (dep?: string) => Promise<boolean>;
+  recheckEnv: (deps?: string[]) => Promise<boolean>;
   pollEnvTaskWhileRunning: (options?: { suppressInitialError?: boolean }) => () => void;
 }
 
@@ -731,13 +731,13 @@ describe('envActions mutations', () => {
     expect(store.getState().envStatus).toBe(old);
   });
 
-  it('recheckEnv 透传 dep 并刷新', async () => {
-    mockRecheck.mockResolvedValue({ ok: true, data: true });
-    mockGetStatus.mockResolvedValue({ ok: true, data: fakeStatus() });
+  it('recheckEnv 透传 deps 并用返回快照更新状态', async () => {
+    const next = fakeStatus();
+    mockRecheck.mockResolvedValue({ ok: true, data: next });
     const store = makeStore();
-    const ok = await store.getState().recheckEnv('git');
+    const ok = await store.getState().recheckEnv(['git']);
     expect(ok).toBe(true);
-    expect(mockRecheck).toHaveBeenCalledWith('git');
-    expect(store.getState().envStatus).not.toBeNull();
+    expect(mockRecheck).toHaveBeenCalledWith(['git']);
+    expect(store.getState().envStatus).toBe(next);
   });
 });

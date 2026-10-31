@@ -1012,6 +1012,70 @@
   color: var(--text-muted);
 }
 
+/* ---- Row / block refresh ----
+   行级刷新默认收起（width 0 + opacity 0），行悬停或内部获得焦点后展开为 22px；
+   不占常驻布局，避免标题与状态徽章之间出现永久空隙。触屏没有 hover，常显。 */
+
+.adl-settings-row__refresh {
+  display: inline-flex;
+  align-items: center;
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition:
+    opacity 0.12s ease,
+    width 0.12s ease;
+}
+
+.adl-settings-row:hover .adl-settings-row__refresh,
+.adl-settings-row:focus-within .adl-settings-row__refresh {
+  width: 22px;
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .adl-settings-row__refresh {
+    width: 22px;
+    opacity: 1;
+  }
+}
+
+.adl-settings-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.adl-settings-refresh:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.adl-settings-refresh:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-settings-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-settings-refresh--block {
+  width: 26px;
+  height: 26px;
+}
+
 /* 左侧导航行：组按钮占满整行；组级重置按钮绝对定位悬浮于右侧，
    不占布局——hover/选中灰底始终与右边缘贴合 */
 .adl-settings-nav__row {
@@ -1500,6 +1564,261 @@
    （与浏览器组同构，避免全局 flex-start 顶部对齐）。 */
 .adl-dsh-settings .adl-settings-row {
   align-items: center;
+}
+
+/* 代理「自定义」：代理模式与 HTTP / HTTPS / 直连名单同属一个设置块，
+   内部不画分隔线（用户要求，避免把同一类设置切碎）。 */
+.adl-network-settings__proxy-card--manual > .adl-settings-row {
+  border-bottom: none;
+  align-items: center;
+}
+
+/* 代理自定义三行的控件盒：flex 居中，消除行内基线与 descender 造成的几像素偏移。 */
+.adl-network-proxy-field-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* 直连名单是代理卡的最后一行：通用 `:last-child` 去掉了下内边距，
+   会让控件中心比行盒中心低约半行；补回对称内边距，保证输入框/展开按钮在行内垂直居中。 */
+.adl-network-settings__proxy-card--manual > .adl-settings-row:last-child {
+  padding-bottom: var(--space-3-5);
+}
+
+/* ---- 直连名单（单行翻页 + 展开编辑） ----
+   三个输入框同宽（200px）且右对齐；展开按钮绝对定位在输入框与卡片内边距之间，
+   不进入 flex 布局，因此不会把直连名单输入框挤窄。 */
+.adl-network-no-proxy {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 200px;
+  flex-shrink: 0;
+}
+
+.adl-network-no-proxy__field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 200px;
+}
+
+.adl-network-no-proxy__input {
+  width: 200px;
+  padding-right: 46px;
+}
+
+.adl-network-no-proxy__counter {
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.adl-network-no-proxy__stepper {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  width: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.adl-network-no-proxy__field:hover .adl-network-no-proxy__counter,
+.adl-network-no-proxy__field:focus-within .adl-network-no-proxy__counter,
+.adl-network-no-proxy__field:hover .adl-network-no-proxy__stepper,
+.adl-network-no-proxy__field:focus-within .adl-network-no-proxy__stepper {
+  opacity: 1;
+}
+
+.adl-network-no-proxy__field:hover .adl-network-no-proxy__stepper,
+.adl-network-no-proxy__field:focus-within .adl-network-no-proxy__stepper {
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .adl-network-no-proxy__counter {
+    opacity: 1;
+  }
+
+  .adl-network-no-proxy__stepper {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.adl-network-no-proxy__step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 9px;
+  padding: 0;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.adl-network-no-proxy__step:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.adl-network-no-proxy__step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.adl-network-no-proxy__expand {
+  position: absolute;
+  left: calc(100% + 1px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.adl-network-no-proxy__expand:hover:not(:disabled),
+.adl-network-no-proxy__expand.is-open {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.adl-network-no-proxy__expand:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-network-no-proxy__expand:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---- 直连名单展开弹层 ---- */
+
+.adl-network-no-proxy__popover {
+  position: fixed;
+  z-index: 1000;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  max-width: calc(100vw - 16px);
+}
+
+.adl-network-no-proxy__popover-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.adl-network-no-proxy__popover-head.is-dragging {
+  cursor: grabbing;
+}
+
+.adl-network-no-proxy__popover-title {
+  color: var(--text-primary);
+  font-weight: var(--font-medium);
+}
+
+.adl-network-no-proxy__popover-count {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.adl-network-no-proxy__popover-spacer {
+  flex: 1;
+}
+
+.adl-network-no-proxy__popover-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.adl-network-no-proxy__popover-close:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.adl-network-no-proxy__popover-close:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-network-no-proxy__scroll {
+  position: relative;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+}
+
+.adl-network-no-proxy__textarea {
+  display: block;
+  width: 100%;
+  min-height: 120px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+}
+
+.adl-network-no-proxy__footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 /* 「自动检测」真实状态提示行：与 DSH 组提示小字同色（压暗蓝，用户批准）。

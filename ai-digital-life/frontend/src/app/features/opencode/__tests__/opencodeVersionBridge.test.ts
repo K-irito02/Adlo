@@ -88,7 +88,7 @@ describe('opencodeVersionBridge', () => {
       taskCounts: false,
       resetSourceAction: false,
       uninstallConfirm: false,
-      refreshRows: true,
+      refreshRows: { source: true, current: true, stable: true, prerelease: true },
       sourceManaged: true,
     });
     expect(adapter.labels).toMatchObject({

@@ -6,6 +6,7 @@ import { SettingsSelect } from '@components/settings/SettingsSelect';
 import { AutoResolvedNote } from '@components/settings/AutoResolvedNote';
 import { FlashIcon, flashPhaseFor, useActionFlash } from '@components/settings/actionFlash';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import { SettingsRowRefresh } from '@components/settings/SettingsRefreshButton';
 import type {
   EnvDependencyState,
   EnvSourceMode,
@@ -52,6 +53,8 @@ export interface EnvDepRowProps {
   busy: boolean;
   isTauri: boolean;
   actions: EnvDepRowActions;
+  /** 行级刷新（只读行也可用）：标题/状态徽章右侧悬停显现。 */
+  refresh?: { spinning: boolean; onRefresh: () => void };
   /** 精简版（向导复用）：隐藏指定路径输入与兜底行。 */
   compact?: boolean;
 }
@@ -150,6 +153,7 @@ export function EnvDepRow({
   busy: _globalBusy,
   isTauri,
   actions,
+  refresh,
   compact = false,
 }: EnvDepRowProps) {
   const { t } = useTCopy();
@@ -503,6 +507,16 @@ export function EnvDepRow({
             {!compact ? <SettingsHintButton content={depHint} /> : null}
             <span>{depTitle}</span>
             {section !== null ? <EnvDepPill dep={dep} section={section} /> : null}
+            {refresh ? (
+              <SettingsRowRefresh
+                refresh={{
+                  label: depTitle,
+                  spinning: refresh.spinning,
+                  onRefresh: refresh.onRefresh,
+                }}
+                disabled={ownActive}
+              />
+            ) : null}
           </div>
           <small>{descText}</small>
           {/* 自动检测的背后真实状态（蓝色提示行）：下拉仍是「自动检测」。 */}

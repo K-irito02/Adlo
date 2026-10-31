@@ -226,6 +226,35 @@ describe('DshSettings', () => {
     expect(sourceRow?.querySelector('.adl-icon-button--info')).not.toBeNull();
   });
 
+  it('版本行提示图标位于标题左侧（当前 / 正式 / 预发布）', async () => {
+    useAppStore.setState({ sourceStatus: makeStatus() });
+    renderSettings();
+    await waitFor(() => {
+      expect(document.querySelector('[data-settings-row="harnessVersionCurrent"]')).not.toBeNull();
+    });
+    for (const [marker, titleKey] of [
+      ['harnessVersionCurrent', 'harnessVersionCurrent'],
+      ['dshOfficialStable', 'dshOfficialStable'],
+      ['dshPrereleaseTitle', 'dshPrereleaseTitle'],
+    ] as const) {
+      const row = document.querySelector(`[data-settings-row="${marker}"]`) as HTMLElement;
+      const labelText = row.querySelector('.adl-settings-row__label-text') as HTMLElement;
+      const children = [...labelText.children];
+      expect(children[0]?.querySelector('.adl-icon-button--info'), marker).not.toBeNull();
+      expect(children[1]?.textContent, marker).toBe(titleKey);
+    }
+  });
+
+  it('块级刷新驱动整卡重载', async () => {
+    useAppStore.setState({ sourceStatus: makeStatus() });
+    seedDshBridge();
+    renderSettings();
+    await waitFor(() => expect(fetchDshSettingsSnapshot).toHaveBeenCalledTimes(1));
+    const header = document.querySelector('.adl-dsh-settings__header') as HTMLElement;
+    fireEvent.click(within(header).getByRole('button', { name: 'settingsRefreshAria' }));
+    await waitFor(() => expect(fetchDshSettingsSnapshot).toHaveBeenCalledTimes(2));
+  });
+
   it('未安装任何版本时读数区显示「未安装」，不渲染缺失横幅（旧 DSH 单卡无此行）', async () => {
     useAppStore.setState({
       sourceStatus: {

@@ -50,6 +50,6 @@ export interface EnvBridge {
   uninstall: (dep: string, version?: string) => Promise<IpcResult<{ started: boolean }>>;
   selectSource: (dep: string, mode: EnvSourceMode) => Promise<IpcResult<boolean>>;
   setCustomPath: (dep: string, path: string) => Promise<IpcResult<boolean>>;
-  /** 重检请求已受理（`{started:true}`）；结果经后续状态刷新/轮询读取。 */
-  recheck: (dep?: string) => Promise<IpcResult<{ started: boolean }>>;
+  /** 重检指定依赖（缺省 = 全量），返回合并后的环境状态。 */
+  recheck: (deps?: string[]) => Promise<IpcResult<EnvStatus>>;
 }

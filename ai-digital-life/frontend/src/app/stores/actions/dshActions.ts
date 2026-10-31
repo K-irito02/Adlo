@@ -488,17 +488,18 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
      * @param silent 后台同步（设置页挂载拉取）传 true：不碰错误卡片（既不记新的，
      * 也不清用户主动操作留下的旧卡。事项 11 Phase 4 A1-L2）。
      * 旧 UI 挂载零调用，进组重复弹窗是回归；fail-open 表单 + 主动操作各自报错已足够。
+     * @param force 显式刷新代理设置时传 true：后端清空 5s 代理健康缓存并立即重探。
      * @reads 无
      * @writes dshSlice.sourceStatus
      * @see httpBridge.ts → dsh.getSourceStatus (/dsh/source-status)
      */
-    fetchSourceStatus: async (silent = false): Promise<boolean> => {
+    fetchSourceStatus: async (silent = false, force = false): Promise<boolean> => {
       if (!silent) {
         clearError(get, SCOPE);
       }
       let result: Awaited<ReturnType<typeof window.digitalLife.dsh.getSourceStatus>>;
       try {
-        result = await window.digitalLife.dsh.getSourceStatus();
+        result = await window.digitalLife.dsh.getSourceStatus(force ? true : undefined);
       } catch (e) {
         // 桥本身抛异常（缺失/崩溃）：按失败处理，silent 下不记卡（收尾 F2）。
         if (!silent) {

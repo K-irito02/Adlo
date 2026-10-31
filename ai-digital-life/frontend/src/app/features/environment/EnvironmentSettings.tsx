@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
@@ -13,6 +13,7 @@ import {
 } from '@components/settings/actionFlash';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import { SettingsRefreshButton } from '@components/settings/SettingsRefreshButton';
 import { ConfirmDialog } from '@components/ConfirmDialog';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
 import {
@@ -196,6 +197,50 @@ export function EnvironmentSettings() {
   const [installConfirmDep, setInstallConfirmDep] = useState<string | null>(null);
   const [groupResetOpen, setGroupResetOpen] = useState(false);
   const [groupResetBusy, setGroupResetBusy] = useState(false);
+  // 行级 / 块级刷新的在途标记：只驱动对应的图标，不消费全局 envBusy。
+  const [refreshingRows, setRefreshingRows] = useState<Record<string, boolean>>({});
+  const [refreshingBlocks, setRefreshingBlocks] = useState<Record<string, boolean>>({});
+  // 同一时刻只跑一次重检：两个块「独立」指互不影响，不指并发探测。
+  const refreshingRef = useRef(false);
+
+  /**
+   * 按 dep 集合刷新（块级传块标题 key，行级传 null）。
+   * 后端只探测传入的依赖；「基础依赖」与「系统组件」因此互不联动。
+   */
+  const refreshDeps = useCallback(
+    async (blockKey: string | null, deps: string[]) => {
+      if (deps.length === 0 || refreshingRef.current) {
+        return;
+      }
+      refreshingRef.current = true;
+      setRefreshingRows((prev) => {
+        const next = { ...prev };
+        deps.forEach((dep) => {
+          next[dep] = true;
+        });
+        return next;
+      });
+      if (blockKey !== null) {
+        setRefreshingBlocks((prev) => ({ ...prev, [blockKey]: true }));
+      }
+      try {
+        await actions.recheckEnv(deps);
+      } finally {
+        setRefreshingRows((prev) => {
+          const next = { ...prev };
+          deps.forEach((dep) => {
+            delete next[dep];
+          });
+          return next;
+        });
+        if (blockKey !== null) {
+          setRefreshingBlocks((prev) => ({ ...prev, [blockKey]: false }));
+        }
+        refreshingRef.current = false;
+      }
+    },
+    [actions],
+  );
   // 细粒度操作态（事项 1/1c）：聚合条「重新检测 / 复制全部」与空态重试各锁自身，
   // 不再消费全局 envBusy，避免无关联行变灰与禁用。store 的 envBusy 仍保留供
   // 轮询与向导读取，此处仅不再用它做全组 disabled 门控。
@@ -524,7 +569,17 @@ export function EnvironmentSettings() {
             <Fragment key={titleKey}>
               <div className="adl-dsh-settings__header adl-dsh-settings__header--section">
                 <SettingsHintButton content={blockHint(titleKey)} />
-                <SettingsHeader title={t[titleKey]} />
+                <SettingsHeader
+                  title={t[titleKey]}
+                  action={
+                    <SettingsRefreshButton
+                      block
+                      label={t[titleKey]}
+                      spinning={refreshingBlocks[titleKey] === true}
+                      onRefresh={() => void refreshDeps(titleKey, deps)}
+                    />
+                  }
+                />
               </div>
               <div className="adl-settings-card">
                 {deps.map((dep) => (
@@ -536,6 +591,10 @@ export function EnvironmentSettings() {
                     busy={false}
                     isTauri={isTauri}
                     actions={rowActions}
+                    refresh={{
+                      spinning: refreshingRows[dep] === true,
+                      onRefresh: () => void refreshDeps(null, [dep]),
+                    }}
                   />
                 ))}
               </div>

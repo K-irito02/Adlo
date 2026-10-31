@@ -23,7 +23,8 @@ vi.mock('../../hooks/useAppActions', () => {
 });
 
 const mockT = new Proxy({} as Record<string, string>, {
-  get: (_, key) => (typeof key === 'string' ? key : ''),
+  get: (_, key) =>
+    key === 'settingsRefreshAria' ? 'refresh:{target}' : typeof key === 'string' ? key : '',
 }) as unknown as CopyDict;
 
 function TestProvider({ children }: { children: React.ReactNode }) {
@@ -833,5 +834,72 @@ describe('NetworkSettings', () => {
       await Promise.resolve();
     });
     expect(saveSourceConfig).not.toHaveBeenCalled();
+  });
+
+  it('自动检测时显示行级刷新按钮', () => {
+    useAppStore.setState({
+      sourceStatus: makeStatus({ source_mode: 'auto', npm_registry: NPMJS_URL }),
+    });
+    renderSettings();
+    expect(screen.getByRole('button', { name: 'refresh:dshSettingsSource' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'refresh:dshSettingsProxyMode' })).toBeTruthy();
+  });
+
+  it('手动来源 / 手动代理不显示行级刷新按钮', () => {
+    useAppStore.setState({
+      sourceStatus: makeStatus({
+        source_mode: 'manual',
+        npm_registry: NPMJS_URL,
+        proxy: { mode: 'manual', http_proxy: 'http://proxy:1', https_proxy: null, no_proxy: null },
+      }),
+    });
+    renderSettings();
+    expect(screen.queryByRole('button', { name: 'refresh:dshSettingsSource' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'refresh:dshSettingsProxyMode' })).toBeNull();
+  });
+
+  it('下载源刷新：重新检测并写回（与切到自动检测同一动作）', async () => {
+    useAppStore.setState({
+      sourceStatus: makeStatus({ source_mode: 'auto', npm_registry: NPMMIRROR_URL }),
+    });
+    renderSettings();
+    // 等挂载时的静默实测落定后再清计数，避免把首屏检测算进来。
+    await waitFor(() => expect(testSource).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(saveSourceConfig).toHaveBeenCalled());
+    testSource.mockClear();
+    saveSourceConfig.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'refresh:dshSettingsSource' }));
+    await waitFor(() => expect(testSource).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(saveSourceConfig).toHaveBeenCalled());
+  });
+
+  it('代理刷新：强制重探系统代理（force=true）', async () => {
+    useAppStore.setState({
+      sourceStatus: makeStatus({ source_mode: 'manual', npm_registry: NPMJS_URL }),
+    });
+    renderSettings();
+    fetchSourceStatus.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'refresh:dshSettingsProxyMode' }));
+    await waitFor(() => expect(fetchSourceStatus).toHaveBeenCalledWith(true, true));
+  });
+
+  it('自定义代理的直连名单按行翻页（单行输入 + 上下箭头）', () => {
+    useAppStore.setState({
+      sourceStatus: makeStatus({
+        source_mode: 'manual',
+        npm_registry: NPMJS_URL,
+        proxy: {
+          mode: 'manual',
+          http_proxy: null,
+          https_proxy: null,
+          no_proxy: 'localhost\n127.0.0.1',
+        },
+      }),
+    });
+    renderSettings();
+    const input = screen.getByLabelText('dshSettingsProxyNoProxy') as HTMLInputElement;
+    expect(input.value).toBe('localhost');
+    fireEvent.click(screen.getByRole('button', { name: 'dshSettingsNoProxyNext' }));
+    expect(input.value).toBe('127.0.0.1');
   });
 });

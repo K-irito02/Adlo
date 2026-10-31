@@ -158,7 +158,7 @@ export const mockDsh: DshBridge = {
   reinstall: async () => {
     return { ok: true, data: status.currentSelected ?? MOCK_VERSION };
   },
-  getSourceStatus: async () => ({
+  getSourceStatus: async (_force?: boolean) => ({
     ok: true,
     data: cloneSourceStatus(),
   }),

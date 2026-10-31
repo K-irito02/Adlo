@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react';
-import { useCallback, useState } from 'react';
+import type { ReactNode, Ref } from 'react';
+import { useCallback, useImperativeHandle, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import type { SettingsRowRefreshState } from '@components/settings/SettingsRefreshButton';
 import type {
   HarnessVersionBridge,
   HarnessVersionResult,
@@ -21,11 +22,7 @@ import { ChannelRow, ChannelSizer, type HarnessChannelTask } from './sub-compone
 import { ResetSourceRow } from './sub-components/ResetSourceRow';
 import { SourceRow, type HarnessSourceOption } from './sub-components/SourceCard';
 import { UpdateRow } from './sub-components/UpdateRow';
-import {
-  CurrentVersionRow,
-  FallbackReadout,
-  type HarnessRowRefresh,
-} from './sub-components/VersionStatusRows';
+import { CurrentVersionRow, FallbackReadout } from './sub-components/VersionStatusRows';
 
 export interface HarnessVersionSlotContext<TSource> {
   /** 有任一版本操作进行中。 */
@@ -83,9 +80,16 @@ export interface HarnessVersionSlots<TSource> {
   footer?: HarnessVersionSlot<TSource>;
 }
 
+/** 块级刷新句柄：设置组标题右侧的「刷新全部」按钮通过它驱动整卡重载。 */
+export interface HarnessVersionCardHandle {
+  /** 重读整卡快照（来源 + 版本状态 + 目录）；与行级刷新共用同一条 `load`。 */
+  refreshAll: () => Promise<void>;
+}
+
 export interface HarnessVersionCardProps<TSource = unknown> {
   bridge: HarnessVersionBridge<TSource>;
   slots?: HarnessVersionSlots<TSource>;
+  ref?: Ref<HarnessVersionCardHandle>;
 }
 
 function renderSlot<TSource>(
@@ -109,9 +113,12 @@ function renderSlot<TSource>(
 export function HarnessVersionCard<TSource = unknown>({
   bridge,
   slots = {},
+  ref,
 }: HarnessVersionCardProps<TSource>) {
   const { t } = useTCopy();
   const data = useHarnessVersionData(bridge);
+  // 块级刷新：宿主只拿到「重读整卡」这一个动作；忙碌态由宿主自己维护。
+  useImperativeHandle(ref, () => ({ refreshAll: data.refresh }), [data.refresh]);
   const actions = useHarnessVersionActions({
     bridge,
     run: data.run,
@@ -130,32 +137,40 @@ export function HarnessVersionCard<TSource = unknown>({
   const stableEffective = pickEffective(stableInfos, menu.stableChoice, currentVersion);
   const prereleaseEffective = pickEffective(prereleaseInfos, menu.prereleaseChoice, currentVersion);
 
-  // 分腿刷新在途的行键（`current`/`check`/`stable`/`prerelease`；null = 空闲）。
+  // 分腿刷新在途的行键（`source`/`current`/`stable`/`prerelease`）。
   // 后端只有整快照重载口（`load` 三腿并发），分腿只是视觉口径：
   // 按钮转圈 + 该行控件区扫光，不展示中途值。
-  const [refreshing, setRefreshing] = useState<string | null>(null);
-  // 任一分腿刷新在途：行内变更按钮禁用，保证读数一致（DSH 无刷新按钮，恒 false）。
-  const refreshBusy = refreshing !== null;
+  //
+  // 多个行可以同时点：请求按顺序串行（避免并发拉多份 packument），
+  // 每行的转圈各自独立；不再用「任一行刷新」去禁用其它行的按钮（用户要求不联动）。
+  const [refreshing, setRefreshing] = useState<Set<string>>(() => new Set());
+  const refreshingRef = useRef<Set<string>>(new Set());
+  const refreshChainRef = useRef<Promise<void>>(Promise.resolve());
   // data 整对象每渲染更新身份：解构出稳定的 refresh 回调，避免按钮 props 无谓抖动。
   const { refresh: reloadSnapshot, disabled: cardDisabled } = data;
   const runRefresh = useCallback(
-    async (leg: string) => {
-      if (!bridge.available || cardDisabled || refreshing !== null) {
+    (leg: string) => {
+      if (!bridge.available || cardDisabled || refreshingRef.current.has(leg)) {
         return;
       }
-      setRefreshing(leg);
-      try {
-        await reloadSnapshot();
-      } finally {
-        setRefreshing(null);
-      }
+      refreshingRef.current.add(leg);
+      setRefreshing(new Set(refreshingRef.current));
+      const run = refreshChainRef.current.then(() => reloadSnapshot());
+      refreshChainRef.current = run.catch(() => undefined);
+      void run.finally(() => {
+        refreshingRef.current.delete(leg);
+        setRefreshing(new Set(refreshingRef.current));
+      });
     },
-    [bridge.available, cardDisabled, reloadSnapshot, refreshing],
+    [bridge.available, cardDisabled, reloadSnapshot],
   );
-  const showRefresh = bridge.capabilities?.refreshRows === true;
-  const refreshFor = (leg: string, label: string): HarnessRowRefresh | undefined =>
-    showRefresh
-      ? { label, spinning: refreshing === leg, onRefresh: () => void runRefresh(leg) }
+  const refreshRows = bridge.capabilities?.refreshRows;
+  const refreshFor = (
+    leg: 'source' | 'current' | 'stable' | 'prerelease',
+    label: string,
+  ): SettingsRowRefreshState | undefined =>
+    refreshRows?.[leg] === true
+      ? { label, spinning: refreshing.has(leg), onRefresh: () => runRefresh(leg) }
       : undefined;
 
   // 检查更新发现的新版本提示：标题下方一组中性徽章（「新」+ 通道 + 版本号）。
@@ -295,13 +310,12 @@ export function HarnessVersionCard<TSource = unknown>({
         channel === 'stable' ? t.harnessVersionStableEmpty : t.harnessVersionPrereleaseEmpty
       }
       disabled={data.disabled}
-      // 任一分腿刷新在途时行内变更按钮禁用（读数一致性；DSH 无刷新按钮恒为 null，无影响）。
-      refreshBusy={refreshBusy}
+      // 每行刷新只影响本行：其它行的按钮保持可用（用户要求不联动）。
       refresh={refreshFor(
         channel,
         channel === 'stable' ? t.harnessVersionStable : t.harnessVersionPrerelease,
       )}
-      spinning={refreshing === channel}
+      spinning={refreshing.has(channel)}
       menuOpen={menu.openChannel === channel}
       menuGeometry={menu.menuGeometry}
       menuPanelRef={menu.menuPanelRef}
@@ -337,6 +351,7 @@ export function HarnessVersionCard<TSource = unknown>({
           hint={slots.sourceHint ?? t.harnessVersionSourceHint}
           desc={slots.descSource}
           disabled={data.disabled}
+          refresh={refreshFor('source', t.harnessVersionSourceTitle)}
           note={renderSlot(slots.sourceNote, slotContext)}
           onChange={(mode: HarnessVersionSourceMode) => actions.handleSourceChange(mode)}
         />
@@ -346,7 +361,7 @@ export function HarnessVersionCard<TSource = unknown>({
           desc={slots.descCurrent}
           disabled={data.disabled}
           refresh={refreshFor('current', t.harnessVersionCurrent)}
-          spinning={refreshing === 'current'}
+          spinning={refreshing.has('current')}
           uninstallWarn={
             actions.uninstallArmed !== null ? bridge.labels?.uninstallCurrentHint : undefined
           }
@@ -366,8 +381,6 @@ export function HarnessVersionCard<TSource = unknown>({
               desc={slots.descCheck}
               updateNote={updateNote}
               disabled={data.disabled}
-              refreshBusy={refreshBusy}
-              refresh={refreshFor('check', t.harnessVersionUpdate)}
               onInstall={() => void data.run(runUpdateAction, t.harnessVersionUpdated, 'update')}
               onCheck={() => void data.run(runUpdateAction, null)}
             />

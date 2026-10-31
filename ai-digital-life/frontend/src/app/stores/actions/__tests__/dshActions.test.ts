@@ -45,7 +45,7 @@ interface DshTestStore {
   setDshVersionSourcePending: (mode: string | null) => void;
   setDshVersionSourceDeferred: (deferred: boolean) => void;
   saveSourceConfig: (config: unknown, silent?: boolean) => Promise<boolean>;
-  fetchSourceStatus: (silent?: boolean) => Promise<boolean>;
+  fetchSourceStatus: (silent?: boolean, force?: boolean) => Promise<boolean>;
   applyPendingVersionSource: () => Promise<boolean>;
   showToast: (message: string, type?: string) => string;
 }

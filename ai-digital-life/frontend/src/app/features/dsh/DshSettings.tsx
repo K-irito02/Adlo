@@ -1,8 +1,13 @@
+import { useCallback, useRef, useState } from 'react';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import { SettingsRefreshButton } from '@components/settings/SettingsRefreshButton';
 import { ConfirmDialog } from '@components/ConfirmDialog';
-import { HarnessVersionCard } from '@features/harness/HarnessVersionCard';
+import {
+  HarnessVersionCard,
+  type HarnessVersionCardHandle,
+} from '@features/harness/HarnessVersionCard';
 import { DshVersionReadout } from './DshVersionReadout';
 import { DshOfficialLinksCard } from './sub-components/DshOfficialLinksCard';
 import { DshSourceSummaryCard } from './sub-components/DshSourceSummaryCard';
@@ -32,6 +37,18 @@ export function DshSettings() {
     groupReset,
   } = useDshSettings();
 
+  const cardRef = useRef<HarnessVersionCardHandle>(null);
+  const [refreshingAll, setRefreshingAll] = useState(false);
+  const handleRefreshAll = useCallback(() => {
+    if (refreshingAll) {
+      return;
+    }
+    setRefreshingAll(true);
+    void (cardRef.current?.refreshAll() ?? Promise.resolve()).finally(() => {
+      setRefreshingAll(false);
+    });
+  }, [refreshingAll]);
+
   return (
     <div className="adl-settings-section adl-dsh-settings">
       <div
@@ -39,9 +56,20 @@ export function DshSettings() {
         data-settings-anchor={anchorFor('dsh', 'version')}
       >
         <SettingsHintButton content={t.dshVersionManagementHint} />
-        <SettingsHeader title={t.dshVersionManagement} />
+        <SettingsHeader
+          title={t.dshVersionManagement}
+          action={
+            <SettingsRefreshButton
+              block
+              label={t.dshVersionManagement}
+              spinning={refreshingAll}
+              onRefresh={handleRefreshAll}
+            />
+          }
+        />
       </div>
       <HarnessVersionCard
+        ref={cardRef}
         bridge={bridge}
         slots={{
           // 块头复用 DSH 组原有块头（锚点 + 问号 + 版本管理标题）。

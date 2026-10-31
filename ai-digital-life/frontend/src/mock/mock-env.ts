@@ -77,6 +77,6 @@ export function createMockEnv(): EnvBridge {
     uninstall: async (_dep: string, _version?: string) => ({ ok: true, data: { started: true } }),
     selectSource: async (_dep: string, _mode) => ({ ok: true, data: true }),
     setCustomPath: async (_dep: string, _path: string) => ({ ok: true, data: true }),
-    recheck: async (_dep?: string) => ({ ok: true, data: { started: true } }),
+    recheck: async (_deps?: string[]) => ({ ok: true, data: cloneStatus() }),
   };
 }

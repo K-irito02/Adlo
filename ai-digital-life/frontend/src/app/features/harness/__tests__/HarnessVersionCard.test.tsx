@@ -1062,20 +1062,29 @@ describe('HarnessVersionCard layout adjustments', () => {
     expect(options.filter((o) => o.textContent?.includes('1.0.0'))).toHaveLength(1);
   });
 
-  it('uses the git-visualization arc icon for every row refresh button', async () => {
-    const bridge = makeBridge({ capabilities: { refreshRows: true } });
+  it('uses the git-visualization arc icon for every configured row refresh button', async () => {
+    const bridge = makeBridge({
+      capabilities: {
+        refreshRows: { source: true, current: true, stable: true, prerelease: true },
+      },
+    });
     renderCard(bridge);
     await waitFor(() => expect(bridge.load).toHaveBeenCalled());
 
     const rows = [
+      document.querySelector('[data-settings-row="harnessVersionSourceTitle"]') as HTMLElement,
       document.querySelector('[data-settings-row="harnessVersionCurrent"]') as HTMLElement,
-      document.querySelector('[data-settings-row="harnessVersionUpdate"]') as HTMLElement,
       channelRow('stable'),
       channelRow('prerelease'),
     ];
     for (const row of rows) {
-      const button = within(row).getByRole('button', { name: /harnessVersionRefreshRow/ });
+      const button = within(row).getByRole('button', { name: /settingsRefreshAria/ });
       expect(button.querySelector('svg path')?.getAttribute('d')).toBe(REFRESH_ARC_PATH);
     }
+    // 检查更新行不再提供行级刷新（由行内检查按钮 / 块级刷新承担）。
+    const updateRow = document.querySelector(
+      '[data-settings-row="harnessVersionUpdate"]',
+    ) as HTMLElement;
+    expect(within(updateRow).queryByRole('button', { name: /settingsRefreshAria/ })).toBeNull();
   });
 });

@@ -6,10 +6,12 @@ import { useAppActions } from '@hooks/useAppActions';
 import { executeNetworkResetPlan, NPMJS_URL } from '@shared/settings-reset/networkReset';
 import { NPMMIRROR_URL, pickFastestSource } from './sourceAutoDetect';
 import { describeDetectFailure, describeProbeFailure, usableProxy } from './probeError';
+import { NoProxyField } from './NoProxyField';
 import { AutoResolvedNote } from '@components/settings/AutoResolvedNote';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { StaticResetSpacer } from '../../components/settings/StaticResetSpacer';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import { SettingsRowRefresh } from '@components/settings/SettingsRefreshButton';
 import { SettingsSelect } from '../../components/settings/SettingsSelect';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { IconResetDefaults } from '../../icons';
@@ -61,6 +63,9 @@ export function NetworkSettings() {
   const [noProxy, setNoProxy] = useState('');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  // 行级刷新：下载源走重新检测并写回，代理走重新读取解析结果。
+  const [sourceRefreshBusy, setSourceRefreshBusy] = useState(false);
+  const [proxyRefreshBusy, setProxyRefreshBusy] = useState(false);
 
   const [sourceResetOpen, setSourceResetOpen] = useState(false);
   const [proxyResetOpen, setProxyResetOpen] = useState(false);
@@ -260,6 +265,24 @@ export function NetworkSettings() {
     },
     [actions, showToast, t, persist],
   );
+
+  /** 下载源行刷新：重新实测并写回（与切到「自动检测」同一动作，非静默）。 */
+  const handleSourceRefresh = useCallback(() => {
+    if (sourceRefreshBusy) {
+      return;
+    }
+    setSourceRefreshBusy(true);
+    void runAutoDetect(false).finally(() => setSourceRefreshBusy(false));
+  }, [runAutoDetect, sourceRefreshBusy]);
+
+  /** 代理行刷新：重新读取解析结果（后端重新探测系统代理/回退状态）。 */
+  const handleProxyRefresh = useCallback(() => {
+    if (proxyRefreshBusy) {
+      return;
+    }
+    setProxyRefreshBusy(true);
+    void actions.fetchSourceStatus(true, true).finally(() => setProxyRefreshBusy(false));
+  }, [actions, proxyRefreshBusy]);
 
   // 源状态缺失时自行静默拉取：网络组可能先于 DSH 组挂载（或 DSH 快照失败），
   // 不能假设 sourceStatus 一定由别处供给；失败保持 null，表单继续 fail-open。
@@ -566,6 +589,16 @@ export function NetworkSettings() {
     [markDirty, scheduleSave],
   );
 
+  /** 直连名单：单行翻页组件回调；写回仍是换行分隔的字符串。 */
+  const handleNoProxyChange = useCallback(
+    (next: string) => {
+      markDirty('noProxy');
+      setNoProxy(next);
+      scheduleSave();
+    },
+    [markDirty, scheduleSave],
+  );
+
   const handleTest = useCallback(async () => {
     if (testing) {
       return;
@@ -711,6 +744,17 @@ export function NetworkSettings() {
             <div className="adl-settings-row__label-text">
               <SettingsHintButton content={t.dshSettingsSourceHint} />
               <span>{t.dshSettingsSource}</span>
+              <SettingsRowRefresh
+                refresh={
+                  sourceType === 'auto'
+                    ? {
+                        label: t.dshSettingsSource,
+                        spinning: sourceRefreshBusy,
+                        onRefresh: handleSourceRefresh,
+                      }
+                    : undefined
+                }
+              />
             </div>
             <small>{t.dshSettingsSourceDesc}</small>
             {sourceResolvedNote ? <AutoResolvedNote>{sourceResolvedNote}</AutoResolvedNote> : null}
@@ -763,12 +807,27 @@ export function NetworkSettings() {
         </button>
         <SettingsHeader title={t.dshSettingsProxy} />
       </div>
-      <div className="adl-settings-card">
+      <div
+        className={`adl-settings-card${
+          proxyMode === 'manual' ? ' adl-network-settings__proxy-card--manual' : ''
+        }`}
+      >
         <div className="adl-settings-row" data-settings-row={t.dshSettingsProxyMode}>
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
               <SettingsHintButton content={t.dshSettingsProxyHint} />
               <span>{t.dshSettingsProxyMode}</span>
+              <SettingsRowRefresh
+                refresh={
+                  proxyMode === 'auto'
+                    ? {
+                        label: t.dshSettingsProxyMode,
+                        spinning: proxyRefreshBusy,
+                        onRefresh: handleProxyRefresh,
+                      }
+                    : undefined
+                }
+              />
             </div>
             <small>{t.dshSettingsProxyDesc}</small>
             {proxyResolvedNote ? <AutoResolvedNote>{proxyResolvedNote}</AutoResolvedNote> : null}
@@ -789,6 +848,7 @@ export function NetworkSettings() {
                   key: 'http',
                   dirtyField: 'httpProxy' as const,
                   label: t.dshSettingsProxyHttp,
+                  desc: t.dshSettingsProxyHttpDesc,
                   value: httpProxy,
                   placeholder: t.dshSettingsProxyPlaceholder,
                   setter: setHttpProxy,
@@ -797,6 +857,7 @@ export function NetworkSettings() {
                   key: 'https',
                   dirtyField: 'httpsProxy' as const,
                   label: t.dshSettingsProxyHttps,
+                  desc: t.dshSettingsProxyHttpsDesc,
                   value: httpsProxy,
                   placeholder: t.dshSettingsProxyPlaceholder,
                   setter: setHttpsProxy,
@@ -805,6 +866,7 @@ export function NetworkSettings() {
                   key: 'no',
                   dirtyField: 'noProxy' as const,
                   label: t.dshSettingsProxyNoProxy,
+                  desc: t.dshSettingsProxyNoProxyDesc,
                   value: noProxy,
                   placeholder: t.dshSettingsProxyNoProxyPlaceholder,
                   setter: setNoProxy,
@@ -816,16 +878,21 @@ export function NetworkSettings() {
                   <div className="adl-settings-row__label-text">
                     <span>{field.label}</span>
                   </div>
+                  <small>{field.desc}</small>
                 </div>
-                <div className="adl-settings-row__control">
-                  <input
-                    type="text"
-                    className="adl-settings-input"
-                    aria-label={field.label}
-                    placeholder={field.placeholder}
-                    value={field.value}
-                    onChange={handleProxyField(field.dirtyField, field.setter)}
-                  />
+                <div className="adl-settings-row__control adl-network-proxy-field-control">
+                  {field.key === 'no' ? (
+                    <NoProxyField value={noProxy} onChange={handleNoProxyChange} />
+                  ) : (
+                    <input
+                      type="text"
+                      className="adl-settings-input"
+                      aria-label={field.label}
+                      placeholder={field.placeholder}
+                      value={field.value}
+                      onChange={handleProxyField(field.dirtyField, field.setter)}
+                    />
+                  )}
                 </div>
               </div>
             ))
