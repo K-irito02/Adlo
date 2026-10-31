@@ -22,6 +22,7 @@
     "scripts:format:check": "node frontend/node_modules/prettier/bin/prettier.cjs --check \"scripts/**/*.mjs\" \"frontend/dev/**/*.mjs\" \"frontend/vite.config.ts\" \"frontend/scripts/check-vite-config.mjs\"",
     "scripts:format": "node frontend/node_modules/prettier/bin/prettier.cjs --write \"scripts/**/*.mjs\" \"frontend/dev/**/*.mjs\" \"frontend/vite.config.ts\" \"frontend/scripts/check-vite-config.mjs\"",
     "stage:sidecar": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-stage-sidecar.ps1 -Profile debug",
+    "cargo:build": "pnpm run stage:sidecar && cargo build --workspace",
     "cargo:check": "pnpm run stage:sidecar && cargo check --workspace",
     "cargo:clippy": "pnpm run stage:sidecar && cargo clippy --workspace --all-targets -- -D warnings",
     "cargo:test": "pnpm run stage:sidecar && cargo test --workspace",

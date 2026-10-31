@@ -139,7 +139,7 @@ Test-Path -LiteralPath "ai-digital-life/.codegraph"  # 9 CodeGraph 索引是否�
 ```powershell
 git -C "$ROOT" worktree add "$WT_ROOT/<branch>" -b <branch> <base>   # <base> 默认 main
 git -C "$WT_ROOT/<branch>" status --porcelain                        # 必须为空
-cd "$WT_ROOT/<branch>/ai-digital-life" && pnpm install && pnpm run setup:worktree && cargo check --workspace
+cd "$WT_ROOT/<branch>/ai-digital-life" && pnpm install && pnpm run setup:worktree && pnpm run cargo:check
 ```
 
 - `setup:worktree`：启用仓库级 git hooks（`core.hooksPath=.githooks`）并为**当前工作树**建 CodeGraph 索引（`ai-digital-life/.codegraph/`，已 gitignore，各工作树独立、不跟随分支切换自动更新；重建直接删目录后重跑）。
@@ -201,8 +201,8 @@ git -C "$WT" diff --stat "$OLD..<new-branch>" -- `  # 6 依赖是否变化
 | 风险 | 检查 | 处置 |
 |------|------|------|
 | 依赖变了没重装 | 第 6 步含 `pnpm-lock.yaml` | `pnpm install` |
-| 依赖变化引发大面积重编 | 第 6 步含 `Cargo.lock` / `Cargo.toml` | 正常现象，重跑 `cargo check` |
-| **跑了 stale 可执行文件** | 是否直接运行 `target/debug/*.exe` | 禁止；先 `cargo build` 或 `pnpm run dev:tauri` |
+| 依赖变化引发大面积重编 | 第 6 步含 `Cargo.lock` / `Cargo.toml` | 正常现象，重跑 `pnpm run cargo:check` |
+| **跑了 stale 可执行文件** | 是否直接运行 `target/debug/*.exe` | 禁止；先 `pnpm run cargo:build` 或 `pnpm run dev:tauri` |
 | 旧分支未跟踪残留 | `git -C "$WT" clean -nd`（干跑，不含 ignored） | 列给用户，由用户决定 |
 | 旧分支 stash 债 | `git -C "$WT" stash list` | 记入注册表 `notes` |
 | CodeGraph 索引仍是旧分支 | `ai-digital-life/.codegraph` 存在且刚切过分支 | 删掉该目录后重跑 `pnpm --dir ai-digital-life run setup:worktree`（索引不自动跟随） |
@@ -332,8 +332,9 @@ Remove-Item -LiteralPath "\\?\$WT_ROOT\<name>" -Recurse -Force                  
 | 被要求在现有工作树上直接开新分支 | 分支固定绑定，无批准不得变更 | 走 §3.1 新建，或走 §3.3 特批 | 自行 `switch -c` / `switch <other>` |
 | `index.lock exists` | 并发 git 操作 / 上次中断残留 | 先等待 3–5 秒重试；仍存在则报告用户 | 删 `.git/index.lock` |
 | `switch` 报本地改动会被覆盖 | 工作区脏 | 提交或 stash 后再切 | `--discard-changes` |
-| 构建很快通过但行为是旧的 | stale 产物 | 先 `cargo build` 再运行，核对 `git log -1` | 跑旧 exe 下结论 |
-| 切换后编译量巨大 | lock / profile / 工具链变化 | 正常，重跑 `cargo check` | 删 `Cargo.lock` |
+| 构建很快通过但行为是旧的 | stale 产物 | 先 `pnpm run cargo:build` 再运行，核对 `git log -1` | 跑旧 exe 下结论 |
+| 切换后编译量巨大 | lock / profile / 工具链变化 | 正常，重跑 `pnpm run cargo:check` | 删 `Cargo.lock` |
+| `cargo build` 报 `resource path binaries\adl-server-... doesn't exist` | 干净工作树未 stage sidecar（裸 cargo 不触发 Tauri 钩子） | 先 `pnpm run stage:sidecar`，或改用 `pnpm run cargo:build` | 手搓空文件冒充 sidecar |
 | `database is locked` / 配置被覆盖 | 第二个 Tauri 实例 | 关掉多余实例 | 删 AppData 里的 DB |
 | 端口被占用 | 他人 dev server | 未显式指定时启动器自动顺延；显式 `ADL_PORT` 被占则报错并按提示换端口 | 杀陌生进程 |
 | 改了代码但窗口毫无变化 | 端口串台：窗口的 devUrl 指向**另一个工作树**的 dev server（历史隐患：vite 静默顺延 + 裸 HTTP 探活被对方满足） | 核对 `[adl-run] url=` 与端口归属；现行 `strictPort` + 实例令牌已使其硬失败而非静默 | 重装依赖 / 怀疑 HMR |

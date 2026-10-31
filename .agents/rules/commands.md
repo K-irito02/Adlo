@@ -65,7 +65,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `pnpm --dir frontend run lint` | 前端 Lint 检查（修复用 `lint:fix`） |
 | `pnpm --dir frontend run format:check` | 前端格式检查（修复用 `format`） |
 | `pnpm --dir frontend run check:i18n` | 前端 i18n 覆盖检查（CI 门禁） |
-| `cargo test --workspace` | Rust 全量测试 |
+| `pnpm run cargo:test` | Rust 全量测试（内部先 `stage:sidecar`；裸 `cargo test --workspace` 需先 staging） |
 | `cargo test -p <crate>` | Rust 指定 crate 测试 |
 | `cargo test <test_name>` | Rust 模糊匹配测试名称 |
 | `pnpm run e2e:build` | 构建桌面 E2E 调试产物（内部先 `stage:sidecar`；`--features e2e`，**不要**换 release 构建） |
@@ -147,11 +147,17 @@ $env:LIB = "$msvc\lib\x64;$sdk\Lib\$sdkv\um\x64;$sdk\Lib\$sdkv\ucrt\x64"
 
 | 命令 | 用途 |
 |------|------|
-| `cargo check --workspace` | 编译检查（无二进制输出） |
-| `cargo fmt --all -- --check` | Rust 格式检查（修复用 `cargo fmt --all`） |
-| `cargo test --workspace` | 运行所有 Rust 测试 |
-| `cargo build --workspace` | 完整编译（首次/新增依赖时较慢） |
-| `cargo clippy --workspace --all-targets -- -D warnings` | Lint 检查 |
+| `pnpm run cargo:check` | 编译检查（无二进制输出；内部先 `stage:sidecar`） |
+| `cargo fmt --all -- --check` | Rust 格式检查（修复用 `cargo fmt --all`；不触发生成物，无需 staging） |
+| `pnpm run cargo:test` | 运行所有 Rust 测试（内部先 `stage:sidecar`） |
+| `pnpm run cargo:build` | 完整编译（内部先 `stage:sidecar`） |
+| `pnpm run cargo:clippy` | Lint 检查（内部先 `stage:sidecar`） |
+
+> **工作区级 cargo 命令前置条件**：`src-tauri` 含 `bundle.externalBin`，tauri-build 构建脚本会在每次构建时校验
+> `src-tauri/binaries/adl-server-<triple>.exe`，缺失即 `resource path ... doesn't exist` 并直接失败。
+> 裸 `cargo build` / `cargo check --workspace` / `cargo test --workspace` / `cargo clippy --workspace`
+> **不会**触发 staging 钩子，干净工作树首次执行前必须先 `pnpm run stage:sidecar`；直接用上表的 `pnpm run cargo:*`
+> 可免记该步骤（详见 [ai-digital-life/CONTRIBUTING.md](../../ai-digital-life/CONTRIBUTING.md)）。
 
 ## ⚠️ Node.js 环境变量
 

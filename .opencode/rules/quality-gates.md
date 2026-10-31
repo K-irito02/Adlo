@@ -29,10 +29,10 @@ alwaysApply: false
 | 前端 i18n 覆盖 | `pnpm --dir frontend run check:i18n` |
 | 前端测试 | `pnpm --dir frontend run test` |
 | Rust 格式 | `cargo fmt --all -- --check`（检查模式；修复用 `cargo fmt --all`） |
-| Rust Lint | `cargo clippy --workspace --all-targets -- -D warnings` |
-| Rust 编译 | `cargo check --workspace` |
-| Rust 测试 | `cargo test --workspace` |
-| **重构验证** | `pnpm --dir frontend run typecheck` + `pnpm --dir frontend run test` + `cargo check --workspace` + `cargo test --workspace` |
+| Rust Lint | `pnpm run cargo:clippy`（= `stage:sidecar` + `cargo clippy --workspace --all-targets -- -D warnings`） |
+| Rust 编译 | `pnpm run cargo:check`（= `stage:sidecar` + `cargo check --workspace`） |
+| Rust 测试 | `pnpm run cargo:test`（= `stage:sidecar` + `cargo test --workspace`） |
+| **重构验证** | `pnpm --dir frontend run typecheck` + `pnpm --dir frontend run test` + `pnpm run cargo:check` + `pnpm run cargo:test` |
 | **双端一致性验证** | **分别在 Tauri 桌面和浏览器模式下验证功能一致** |
 
 > 双端一致性验证项详情见 [desktop-ui-verification.md](./desktop-ui-verification.md) 和 [tauri-shell.md](./tauri-shell.md)。
