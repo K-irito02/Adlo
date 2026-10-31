@@ -283,7 +283,12 @@ describe('ClipboardItemViewer', () => {
     expect(pre().style.overflowWrap).toBe('normal');
   });
 
+  // 两轮 clear+type+Enter 共 10 次逐键输入；`userEvent` 默认在每次按键之间插入真实
+  // `setTimeout(0)`，全量跑（432 文件并行）时被 CPU 争抢放大，曾击穿 5s 默认超时
+  // （2026-10-31 `check:all`，单跑 3/3 通过）。`delay: null` 去掉逐键等待消除病因，
+  // 显式上限只作并行环境的兜底。
   it('edits the zoom percentage on double click, accepting a percent sign and clamping', async () => {
+    const user = userEvent.setup({ delay: null });
     renderViewer(makeItem());
     const readout = screen.getByRole('button', { name: '重置字号' });
     fireEvent.doubleClick(readout);
@@ -293,19 +298,19 @@ describe('ClipboardItemViewer', () => {
     }) as HTMLInputElement;
     expect(input.value).toBe('100');
     // `120%` 与 `120` 等价
-    await userEvent.clear(input);
-    await userEvent.type(input, '120%');
-    await userEvent.keyboard('{Enter}');
+    await user.clear(input);
+    await user.type(input, '120%');
+    await user.keyboard('{Enter}');
     expect(screen.getByRole('button', { name: '重置字号' }).textContent).toBe('120%');
 
     // 越界值钳制到上界而非丢弃
     fireEvent.doubleClick(screen.getByRole('button', { name: '重置字号' }));
     const clamped = screen.getByRole('textbox', { name: '缩放百分比，直接输入数值' });
-    await userEvent.clear(clamped);
-    await userEvent.type(clamped, '9999');
-    await userEvent.keyboard('{Enter}');
+    await user.clear(clamped);
+    await user.type(clamped, '9999');
+    await user.keyboard('{Enter}');
     expect(screen.getByRole('button', { name: '重置字号' }).textContent).toBe('400%');
-  });
+  }, 15_000);
 
   it('cancels the zoom edit on Escape without closing the viewer or reverting the text', async () => {
     const onClose = renderViewer(makeItem());
