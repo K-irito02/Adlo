@@ -62,3 +62,5 @@ references/bklit-ui/
 .codegraph/
 # Playwright CLI output (may contain credentials)
 .playwright-cli/
+# Python bytecode from skill scripts (regenerable, tied to interpreter version)
+__pycache__/
