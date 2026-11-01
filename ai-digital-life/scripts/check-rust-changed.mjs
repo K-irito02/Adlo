@@ -23,6 +23,14 @@ import { fileURLToPath } from "node:url";
 const implRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cargo = process.platform === "win32" ? "cargo.exe" : "cargo";
 
+// pre-push 钩子会注入 GIT_DIR / GIT_WORK_TREE 等相对路径变量；从
+// `ai-digital-life/` 子目录调用 git 时它们会解析失败（ls-files 直接报错）。
+// 与 check-changed / check-source-hygiene 保持同一清理口径。
+const cleanGitEnv = { ...process.env };
+for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_PREFIX"]) {
+  delete cleanGitEnv[key];
+}
+
 /** 该路径变更是否需要跑 Rust lint。 */
 export function isRustPath(file) {
   if (!file.startsWith("ai-digital-life/")) {
@@ -89,7 +97,7 @@ export function parseArgs(argv) {
 }
 
 function git(args, { optional = false } = {}) {
-  const result = spawnSync("git", args, { cwd: implRoot, encoding: "utf8" });
+  const result = spawnSync("git", args, { cwd: implRoot, encoding: "utf8", env: cleanGitEnv });
   if (result.status !== 0) {
     if (optional) {
       return null;
