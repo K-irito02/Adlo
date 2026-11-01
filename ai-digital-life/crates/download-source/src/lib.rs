@@ -262,17 +262,15 @@ pub async fn build_http_client_with_timeout(
 }
 
 /// NO_PROXY/直连名单匹配：`*` 全匹配；条目支持精确 host 与 `.suffix` 子域后缀。
-/// 分隔符兼容历史逗号与设置面板的「每行一个」（换行）写法。
+/// 条目分隔符只有换行：设置面板的「每行一个」是唯一存储格式，逗号不是分隔符。
 fn no_proxy_matches(no_proxy: &str, host: &str) -> bool {
-    no_proxy.split([',', '\n', '\r']).map(str::trim).filter(|entry| !entry.is_empty()).any(
-        |entry| {
-            if entry == "*" {
-                return true;
-            }
-            let entry = entry.trim_start_matches('.').to_ascii_lowercase();
-            host == entry || host.ends_with(&format!(".{entry}"))
-        },
-    )
+    no_proxy.split(['\n', '\r']).map(str::trim).filter(|entry| !entry.is_empty()).any(|entry| {
+        if entry == "*" {
+            return true;
+        }
+        let entry = entry.trim_start_matches('.').to_ascii_lowercase();
+        host == entry || host.ends_with(&format!(".{entry}"))
+    })
 }
 
 /// 导出给外部子进程（npm 等）的 `NO_PROXY`：统一为逗号分隔。
@@ -281,7 +279,7 @@ fn no_proxy_matches(no_proxy: &str, host: &str) -> bool {
 /// 直接透传换行值会被当成一个条目而整体失效。所有「导出给外部工具」的消费端
 /// 都必须复用本函数，避免再次出现两套分隔符。
 pub fn no_proxy_env_value(raw: &str) -> String {
-    raw.split([',', '\n', '\r'])
+    raw.split(['\n', '\r'])
         .map(str::trim)
         .filter(|entry| !entry.is_empty())
         .collect::<Vec<_>>()
@@ -350,18 +348,28 @@ fn windows_proxy_settings() -> Option<(String, Option<String>)> {
 }
 
 /// 注册表 `ProxyOverride` → NO_PROXY 口径（`;` 分隔、去掉 `*.`，与 hyper-util 一致）。
+/// 转成内部唯一格式：换行分隔。
 fn proxy_override_to_no_proxy(raw: &str) -> String {
     raw.split(';')
         .map(str::trim)
         .filter(|entry| !entry.is_empty())
         .collect::<Vec<_>>()
-        .join(",")
+        .join("\n")
         .replace("*.", "")
+}
+
+/// 外部 `NO_PROXY`（操作系统/父进程）是逗号或分号分隔，转成内部换行格式。
+fn normalize_external_no_proxy(raw: &str) -> String {
+    raw.split([',', ';', '\n', '\r'])
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Auto 模式下的直连名单：env `NO_PROXY` 非空优先，否则用注册表 `ProxyOverride`。
 fn auto_no_proxy() -> String {
-    env_trimmed("NO_PROXY").unwrap_or_else(|| {
+    env_trimmed("NO_PROXY").map(|raw| normalize_external_no_proxy(&raw)).unwrap_or_else(|| {
         windows_proxy_settings()
             .and_then(|(_, override_list)| override_list)
             .map(|raw| proxy_override_to_no_proxy(&raw))
@@ -735,7 +743,7 @@ mod tests {
                 "mode": "manual",
                 "http_proxy": "http://proxy:8080",
                 "https_proxy": "http://proxy:8443",
-                "no_proxy": "localhost,127.0.0.1"
+                "no_proxy": "localhost\n127.0.0.1"
             },
             "prefer_offline": false
         }"#;
@@ -900,7 +908,7 @@ mod tests {
                 mode: ProxyMode::Manual,
                 http_proxy: Some("http://proxy.internal:8080".into()),
                 https_proxy: Some("http://secure.internal:8443".into()),
-                no_proxy: Some("localhost,.internal".into()),
+                no_proxy: Some("localhost\n.internal".into()),
             },
             ..Default::default()
         };
@@ -929,23 +937,32 @@ mod tests {
     }
 
     /// NO_PROXY 条目按「精确 host / 子域后缀」匹配，不做子串误伤。
-    /// 分隔符同时支持逗号与换行（设置面板「每行一个」）。
+    /// 条目分隔符只有换行；逗号不是分隔符（未发布过旧格式，不做兼容）。
     #[test]
     fn no_proxy_matching_is_exact_or_suffix() {
-        assert!(no_proxy_matches("localhost,127.0.0.1", "localhost"));
+        assert!(no_proxy_matches("localhost\n127.0.0.1", "localhost"));
         assert!(no_proxy_matches("localhost\n127.0.0.1", "127.0.0.1"));
         assert!(no_proxy_matches(".internal", "api.internal"));
         assert!(no_proxy_matches("*", "anything.example"));
         assert!(!no_proxy_matches("10.0.0.1", "110.0.0.10"));
         assert!(!no_proxy_matches("internal", "notinternal.example"));
+        // 逗号属于条目内容，不会被拆开。
+        assert!(!no_proxy_matches("localhost,127.0.0.1", "127.0.0.1"));
     }
 
     /// 导出给外部子进程时必须统一成逗号分隔（npm 只认逗号）。
     #[test]
     fn no_proxy_env_value_normalizes_newlines() {
         assert_eq!(no_proxy_env_value("localhost\n127.0.0.1"), "localhost,127.0.0.1");
-        assert_eq!(no_proxy_env_value(" a ,\r\n b \n"), "a,b");
-        assert_eq!(no_proxy_env_value("\n,\r\n"), "");
+        assert_eq!(no_proxy_env_value(" a \r\n b \n"), "a,b");
+        assert_eq!(no_proxy_env_value("\n\r\n"), "");
+    }
+
+    /// 外部 NO_PROXY（OS/父进程）是逗号或分号分隔，进入内部前统一为换行。
+    #[test]
+    fn external_no_proxy_normalizes_commas_and_semicolons() {
+        assert_eq!(normalize_external_no_proxy("a,b; c\n"), "a\nb\nc");
+        assert_eq!(normalize_external_no_proxy(" , ; "), "");
     }
 
     /// 显式刷新（force）与保存配置都会清空健康缓存，绕开 5s 冷却。
@@ -1031,12 +1048,12 @@ mod tests {
         assert_eq!(normalize_proxy_url("http://"), None);
     }
 
-    /// 注册表 `ProxyOverride` → NO_PROXY：`;` 分隔、去掉 `*.`、丢弃空项。
+    /// 注册表 `ProxyOverride` → NO_PROXY：`;` 分隔、去掉 `*.`、丢弃空项，输出换行格式。
     #[test]
     fn proxy_override_is_converted_to_no_proxy_syntax() {
         assert_eq!(
             proxy_override_to_no_proxy("localhost;127.0.0.1;*.internal; ;*.example.com"),
-            "localhost,127.0.0.1,internal,example.com"
+            "localhost\n127.0.0.1\ninternal\nexample.com"
         );
         assert_eq!(proxy_override_to_no_proxy(""), "");
     }

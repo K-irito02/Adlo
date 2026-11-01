@@ -13,10 +13,10 @@ import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { IconChevronDown, IconChevronUp, IconClose, IconExpandVertical } from '@icons';
 
-/** 直连名单条目：兼容历史逗号分隔与设置面板的换行分隔。 */
+/** 直连名单条目：唯一分隔符是换行（CR / LF / CRLF），逗号属于条目内容而非分隔符。 */
 function splitEntries(value: string): string[] {
   return value
-    .split(/[\n,]/)
+    .split(/[\r\n]/)
     .map((entry) => entry.trim())
     .filter(Boolean);
 }

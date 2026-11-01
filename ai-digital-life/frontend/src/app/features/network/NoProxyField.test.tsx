@@ -98,14 +98,26 @@ describe('NoProxyField', () => {
     expect(document.activeElement).toBe(expand);
   });
 
-  it('兼容历史逗号分隔：展开后按行显示', async () => {
+  it('逗号不是分隔符：整行作为一个条目原样保留', async () => {
     renderField('localhost,127.0.0.1');
+    const input = screen.getByRole('textbox', {
+      name: 'dshSettingsProxyNoProxy',
+    }) as HTMLInputElement;
+    expect(input.value).toBe('localhost,127.0.0.1');
+    expect(visibleCount()).toBe('1/1');
+    expect(screen.queryByRole('button', { name: 'dshSettingsNoProxyNext' })).toBeNull();
+
     fireEvent.click(screen.getByRole('button', { name: 'dshSettingsNoProxyExpand' }));
     const dialog = await screen.findByRole('dialog');
     const editor = within(dialog).getByRole('textbox', {
       name: 'dshSettingsProxyNoProxy',
     }) as HTMLTextAreaElement;
-    expect(editor.value).toBe('localhost\n127.0.0.1');
+    expect(editor.value).toBe('localhost,127.0.0.1');
+  });
+
+  it('CR / LF / CRLF 都按换行分隔', () => {
+    renderField('a\rb\r\nc\nd');
+    expect(visibleCount()).toBe('1/4');
   });
 
   it('展开弹层：多行编辑、条目计数、自动保存提示与图标关闭', async () => {

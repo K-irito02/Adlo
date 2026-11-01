@@ -160,10 +160,10 @@ styles `.adl-settings-row__refresh` / `.adl-settings-refresh` in
 Source of truth: `frontend/src/app/features/network/NoProxyField.tsx`;
 styles `.adl-network-no-proxy*` in `frontend/src/styles/components/settings.css`.
 
-- A multi-value list is stored newline-separated. The inline field shows **one entry at a time** with an `n/total` counter and up/down chevrons; both appear only on field hover / `:focus-within` (always visible on touch).
+- A multi-value list is stored and matched **newline-separated; newline is the only separator**. The inline field shows **one entry at a time** with an `n/total` counter and up/down chevrons; both appear only on field hover / `:focus-within` (always visible on touch).
 - The expand button is absolutely positioned in the card's right padding gutter, **not** in the control row, so the sibling inputs keep the same width and right edge (no reserved space inside the row). In the narrow container stage (≤460px) the control column reserves the 28px gutter with `padding-right`, because the card padding shrinks to 16px / 12px.
 - The popover edits the whole list in a textarea with the **native vertical scrollbar** (no `RevealScrollbar`). Its title bar is draggable and clamped inside the settings content area; it deliberately does **not** follow the anchor on scroll (dragging and follow would fight), it only re-clamps on scroll / resize. The footer states that changes save automatically; close is an icon button (no text button).
-- Legacy comma-separated values are split for display. Inline edits are written back newline-separated; the popover textarea passes the typed text through unchanged (the backend matcher accepts both separators).
+- A comma is ordinary entry content, not a separator; there is no legacy comma format to support (the product has no released versions). Inline edits are written back newline-separated; the popover textarea passes the typed text through unchanged. Export to external tools (npm) converts newlines to the comma format those tools require.
 
 ## Navigation item
 
