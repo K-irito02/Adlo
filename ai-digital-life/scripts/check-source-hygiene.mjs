@@ -3,15 +3,24 @@
  *
  * 背景：2026-10-25 有 3 处注释被脚本批量替换写成字面量 `\n`（PowerShell 单引号串），hygiene-allow
  * 静态门禁全绿，只有人工审查发现。这里把该失败模式变成确定性检查。
+ *
+ * 2026-11-01 扩展：批量编辑还会留下 U+FFFD / BOM / 常见 mojibake；未发布阶段也可能
+ * 误加「兼容历史」代码。三类都走同一套「只查变更文件」的 tripwire。 // compat-allow: doc
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const CHECK_EXTENSIONS = new Set([".rs", ".ts", ".tsx", ".mjs", ".css"]);
+const SOURCE_EXTENSIONS = new Set([".rs", ".ts", ".tsx", ".mjs", ".css"]);
+const CHECK_EXTENSIONS = new Set([...SOURCE_EXTENSIONS, ".md"]);
 const COMMENT_PREFIX = /^\s*(\/\/|\/\*|\*)/;
 const ALLOW_MARKER = "hygiene-allow";
+const COMPAT_ALLOW_MARKER = "compat-allow";
+// 兼容历史|历史格式|旧格式|数据格式兼容|旧版本迁移|legacy (data )?(format|compat)  // compat-allow: pattern list
+const COMPAT_PATTERN =
+  /兼容历史|历史(?:数据)?格式|旧(?:数据)?格式|数据格式兼容|旧版本迁移|legacy (?:data )?(?:format|compat)/i; // compat-allow: detector pattern
+const MOJIBAKE_MARKERS = ["\u951f\u65a4\u62f7", "\u70eb\u70eb\u70eb", "\u5c6f\u5c6f\u5c6f"];
 
 /** 返回注释行里含字面量 `\n` 的行（1-based 行号）。纯函数，供单测。hygiene-allow */
 export function findLiteralEscapedNewlines(text) {
@@ -28,6 +37,67 @@ export function findLiteralEscapedNewlines(text) {
     hits.push({ line: index + 1, text: line.trim() });
   });
   return hits;
+}
+
+/** U+FFFD 替换字符通常意味着一次失败的编码转换/批量写入。 */
+export function findReplacementChars(text) {
+  const hits = [];
+  text.split(/\r?\n/).forEach((line, index) => {
+    if (!line.includes("\uFFFD")) {
+      return;
+    }
+    if (line.includes(ALLOW_MARKER)) {
+      return;
+    }
+    hits.push({ line: index + 1, text: line.trim() });
+  });
+  return hits;
+}
+
+/** 文件头 UTF-8 BOM；仓库统一无 BOM，防止 shell 写入带回 BOM。 */
+export function hasBom(text) {
+  return text.charCodeAt(0) === 0xfeff;
+}
+
+/** 常见中文 mojibake 序列（GBK/UTF-8 错配或未初始化内存）。 */
+export function findMojibake(text) {
+  const hits = [];
+  text.split(/\r?\n/).forEach((line, index) => {
+    if (line.includes(ALLOW_MARKER)) {
+      return;
+    }
+    if (MOJIBAKE_MARKERS.some((marker) => line.includes(marker))) {
+      hits.push({ line: index + 1, text: line.trim() });
+    }
+  });
+  return hits;
+}
+
+/**
+ * 未发布阶段禁止的数据格式兼容/旧版本代码。只做文本 tripwire： // compat-allow: doc
+ * 外部协议（OS `NO_PROXY`、npm 逗号格式等）用 `compat-allow: <理由>` 显式豁免。
+ */
+export function findLegacyCompatibility(text) {
+  const hits = [];
+  text.split(/\r?\n/).forEach((line, index) => {
+    if (line.includes(COMPAT_ALLOW_MARKER)) {
+      return;
+    }
+    if (COMPAT_PATTERN.test(line)) {
+      hits.push({ line: index + 1, text: line.trim() });
+    }
+  });
+  return hits;
+}
+
+/** 兼容检查只覆盖产品源码与当前设计/架构文档；规则文本与历史计划不追溯。 */
+export function isCompatibilityScope(relative) {
+  return (
+    relative.startsWith("ai-digital-life/") ||
+    relative === "GLOSSARY.md" ||
+    relative.startsWith("docs/design-system/") ||
+    relative.startsWith("docs/architecture/")
+  );
 }
 
 /**
@@ -101,18 +171,35 @@ function main() {
     } catch {
       continue;
     }
-    for (const hit of findLiteralEscapedNewlines(text)) {
-      offenders.push(`${relative}:${hit.line}  ${hit.text.slice(0, 160)}`);
+    const extension = path.extname(relative);
+    if (SOURCE_EXTENSIONS.has(extension)) {
+      for (const hit of findLiteralEscapedNewlines(text)) {
+        offenders.push(`[literal \\n] ${relative}:${hit.line}  ${hit.text.slice(0, 160)}`);
+      }
+    }
+    for (const hit of findReplacementChars(text)) {
+      offenders.push(`[U+FFFD] ${relative}:${hit.line}  ${hit.text.slice(0, 160)}`);
+    }
+    for (const hit of findMojibake(text)) {
+      offenders.push(`[mojibake] ${relative}:${hit.line}  ${hit.text.slice(0, 160)}`);
+    }
+    if (hasBom(text)) {
+      offenders.push(`[BOM] ${relative}:1  UTF-8 BOM (write UTF-8 without BOM)`);
+    }
+    if (isCompatibilityScope(relative)) {
+      for (const hit of findLegacyCompatibility(text)) {
+        offenders.push(`[legacy-compat] ${relative}:${hit.line}  ${hit.text.slice(0, 160)}`);
+      }
     }
   }
 
   if (offenders.length > 0) {
-    console.error('[hygiene] literal "\\n" inside comments (likely a broken bulk edit):');
+    console.error("[hygiene] changed files contain silent-edit hazards:");
     for (const entry of offenders) {
       console.error(`  ${entry}`);
     }
     console.error(
-      '[hygiene] rewrite the comment with real newlines (or add "hygiene-allow" if intentional).',
+      '[hygiene] use edit/write (not shell -replace/Set-Content/sed). Add "hygiene-allow" for an intentional literal/encoding sample, or "compat-allow: <reason>" only for a real external format. The unreleased product must not carry data-format compatibility code.',
     );
     process.exit(1);
   }

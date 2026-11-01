@@ -937,7 +937,7 @@ mod tests {
     }
 
     /// NO_PROXY 条目按「精确 host / 子域后缀」匹配，不做子串误伤。
-    /// 条目分隔符只有换行；逗号不是分隔符（未发布过旧格式，不做兼容）。
+    /// 条目分隔符只有换行；逗号不是分隔符（未发布过任何版本，不存在历史数据需要兼容）。
     #[test]
     fn no_proxy_matching_is_exact_or_suffix() {
         assert!(no_proxy_matches("localhost\n127.0.0.1", "localhost"));

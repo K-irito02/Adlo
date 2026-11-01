@@ -7,6 +7,7 @@ import {
   isRustPath,
   parseArgs as parseRustArgs,
   shouldStageSidecar,
+  testArgs,
 } from "./check-rust-changed.mjs";
 import { parseArgs as parseServeArgs } from "./serve-adl-server.mjs";
 
@@ -118,20 +119,38 @@ test("shouldStageSidecar only when clippy compiles the shell", () => {
   assert.equal(shouldStageSidecar([]), false);
 });
 
-test("check-rust parses --all/--skip-fmt/--base", () => {
+test("check-rust parses --all/--skip-fmt/--skip-test/--base", () => {
   assert.deepEqual(parseRustArgs([]), {
     base: null,
     all: false,
     skipFmt: false,
+    skipTest: false,
     help: false,
   });
-  assert.deepEqual(parseRustArgs(["--all", "--skip-fmt", "--base", "HEAD~2"]), {
+  assert.deepEqual(parseRustArgs(["--all", "--skip-fmt", "--skip-test", "--base", "HEAD~2"]), {
     base: "HEAD~2",
     all: true,
     skipFmt: true,
+    skipTest: true,
     help: false,
   });
   assert.throws(() => parseRustArgs(["--base"]), /missing value/);
+});
+
+test("check-rust scopes affected-crate unit tests", () => {
+  assert.deepEqual(testArgs(["ai-digital-life/crates/download-source/src/lib.rs"]), [
+    "test",
+    "-p",
+    "adl-download-source",
+    "--lib",
+  ]);
+  assert.deepEqual(testArgs(["ai-digital-life/Cargo.lock"]), [
+    "test",
+    "--workspace",
+    "--exclude",
+    "ai-digital-life",
+    "--lib",
+  ]);
 });
 
 test("serve-adl-server parses flags and validates the port", () => {

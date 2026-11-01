@@ -14,3 +14,12 @@ test("check:all still runs the cargo gates", () => {
     assert.match(pkg.scripts["check:all"], new RegExp(gate));
   }
 });
+
+test("daily check:changed wires affected Rust tests and accepts --base", () => {
+  const text = readFileSync(
+    new URL("../frontend/scripts/check-changed.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(text, /check-rust-changed\.mjs/);
+  assert.match(text, /--base/);
+});

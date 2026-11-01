@@ -17,7 +17,7 @@ description: 启动 AI Digital Life 的三种运行模式（浏览器预览、Ta
 
 模式参数别名：`app`、`external` 均等价于 `tauri`。
 
-所有命令从 `ai-digital-life/` 目录执行（仓库根目录：`E:\AI-DIGITAL-LIFE\SourceWorkspace`）。
+所有命令从**当前工作树**的 `ai-digital-life/` 目录执行；先在仓库根用 `git rev-parse --show-toplevel` 确认位置，不要使用其它工作树或主工作树的路径。
 
 ## 端口选择
 
@@ -46,7 +46,7 @@ description: 启动 AI Digital Life 的三种运行模式（浏览器预览、Ta
 
 | 错误 | 修正 |
 |------|------|
-| 从错误路径运行（如其他项目目录） | 切换到 `E:\AI-DIGITAL-LIFE\SourceWorkspace\ai-digital-life` 后执行 |
+| 从错误路径运行（如其他项目目录） | 切换到当前工作树的 `ai-digital-life/` 后执行 |
 | 使用 `npm run` 而非 `pnpm run` | 本项目使用 pnpm 作为包管理器 |
 | 直接调用 `cargo tauri dev` | 使用包装脚本，以便端口被正确探测和共享 |
 | 用反引号包裹 URL | 以纯文本输出，使 IDE 可点击 |

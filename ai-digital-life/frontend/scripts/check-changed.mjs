@@ -6,9 +6,40 @@
  *   其余用 `vitest related` 精确挑选受影响用例
  *
  * 全量门禁（check:full / cargo test --workspace / 发布打包）必须先获得用户批准。
+ *
+ * 用法：node scripts/check-changed.mjs [--base <ref>]
+ * 修复循环可传 `--base HEAD` 只查本轮改动；最终提交前省略，按 upstream 全量受影响范围跑一次。
  */
 import { spawnSync } from 'node:child_process';
 import { i18nTestScopes } from './i18n-test-scope.mjs';
+import { isRustPath } from '../../scripts/check-rust-changed.mjs';
+
+const options = parseArgs(process.argv.slice(2));
+
+function parseArgs(argv) {
+  const parsed = { base: null, help: false };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--help' || arg === '-h') {
+      parsed.help = true;
+    } else if (arg === '--base') {
+      const value = argv[i + 1];
+      if (value === undefined) {
+        throw new Error('missing value for --base');
+      }
+      parsed.base = value;
+      i += 1;
+    } else {
+      throw new Error(`unknown argument: ${arg}`);
+    }
+  }
+  return parsed;
+}
+
+if (options.help) {
+  console.log('usage: node scripts/check-changed.mjs [--base <ref>]');
+  process.exit(0);
+}
 
 const cwd = process.cwd();
 const MAX_COMMAND_LENGTH = 6000;
@@ -60,7 +91,11 @@ const repoRoot = capture('git', ['rev-parse', '--show-toplevel'], { env: cleanGi
 );
 const git = (args) => capture('git', ['-C', repoRoot, ...args], { env: cleanGitEnv });
 
-function resolveBase() {
+function resolveBase(explicit) {
+  if (explicit) {
+    git(['rev-parse', '--verify', explicit]);
+    return { base: explicit, fallback: null };
+  }
   try {
     return {
       base: git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']).trim(),
@@ -79,7 +114,7 @@ function resolveBase() {
 const frontendDir = cwd.replace(/\\/g, '/');
 const prefix = frontendDir.startsWith(repoRoot) ? `${frontendDir.slice(repoRoot.length + 1)}/` : '';
 
-const { base, fallback } = resolveBase();
+const { base, fallback } = resolveBase(options.base);
 if (fallback === 'HEAD') {
   console.warn(
     '[check:changed] WARNING: no upstream and no origin/main; base=HEAD makes the affected scope empty — gates may be vacuous.',
@@ -87,10 +122,11 @@ if (fallback === 'HEAD') {
 }
 const changedSinceBase = git(['diff', '--name-only', '--diff-filter=ACMR', base]).split(/\r?\n/);
 const untracked = git(['ls-files', '--others', '--exclude-standard', '--full-name']).split(/\r?\n/);
-const changed = [...new Set([...changedSinceBase, ...untracked])]
-  .filter(Boolean)
+const repoChanged = [...new Set([...changedSinceBase, ...untracked])].filter(Boolean);
+const changed = repoChanged
   .filter((file) => file.startsWith(prefix))
   .map((file) => file.slice(prefix.length));
+const rustChanged = repoChanged.some((file) => isRustPath(file));
 
 const lintable = changed.filter((f) => /\.(ts|tsx|js|jsx)$/.test(f));
 const prettierable = changed.filter((f) => /\.(ts|tsx|js|jsx|mjs|css|json|md)$/.test(f));
@@ -122,6 +158,16 @@ run('dead code (changed files only)', 'node scripts/check-dead-code.mjs');
 
 run('typecheck', 'npx tsc --noEmit');
 run('typecheck (dev tooling)', 'npx tsc --noEmit -p dev/tsconfig.json');
+
+if (process.env.ADL_SKIP_RUST === '1') {
+  console.log('[check:changed] rust skipped (ADL_SKIP_RUST=1)');
+} else if (rustChanged) {
+  const baseArg = options.base ? ` --base ${quote(options.base)}` : '';
+  run('rust (affected crates)', `node ../scripts/check-rust-changed.mjs${baseArg}`);
+} else {
+  console.log('[check:changed] rust skipped (no Rust changes)');
+}
+
 run('i18n coverage', 'npx tsx scripts/check-i18n-coverage.ts');
 run('glossary', 'npx tsx scripts/check-glossary.ts');
 run('generated artifacts', 'node scripts/generate-md-theme-vars.mjs');

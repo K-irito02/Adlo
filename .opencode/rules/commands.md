@@ -65,6 +65,8 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `pnpm --dir frontend run lint` | 前端 Lint 检查（修复用 `lint:fix`） |
 | `pnpm --dir frontend run format:check` | 前端格式检查（修复用 `format`） |
 | `pnpm --dir frontend run check:i18n` | 前端 i18n 覆盖检查（CI 门禁） |
+| `pnpm --dir frontend run check:changed` | 受影响范围门禁（前端 + 自动带 Rust 受影响 crate 的 fmt/clippy/test） |
+| `pnpm --dir frontend run check:changed -- --base HEAD` | 修复循环只查本轮改动；最终提交前去掉 `--base` |
 | `pnpm run cargo:test` | Rust 全量测试（内部先 `stage:sidecar`；裸 `cargo test --workspace` 需先 staging） |
 | `cargo test -p <crate>` | Rust 指定 crate 测试 |
 | `cargo test -p <crate> <test_name>` | Rust 按名称过滤测试（限定 crate，避免编译壳层） |

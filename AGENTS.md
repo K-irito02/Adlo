@@ -44,6 +44,11 @@
 
 调试工具详情（日志收起器、复制按钮、自动写入等）见 [ai-digital-life/AGENTS.md#调试工具](./ai-digital-life/AGENTS.md#调试工具)，排查规范见 [dev-rules.md](.agents/rules/dev-rules.md#问题排查规范)。
 
+## 工具选择（Agent）
+
+- **内容检索一律用 `grep` 工具**；禁止 PowerShell `Select-String`（CJK 输出乱码）与带引号的 `git grep`（PowerShell 转义会报 `fatal: unable to resolve revision`）。文件名/扩展名检索用 `glob` 工具或 `git ls-files`。
+- **批量修改源码/文档一律用 `edit`/`write`**；禁止 shell 内联 `-replace`/`Add-Content`/here-string/`sed`（会破坏 CJK、写入字面量 `\n`、静默失效，见 [shell-encoding.md](.agents/rules/shell-encoding.md)）。
+
 ## 磁盘空间
 
 第三方依赖 `debug=1`（自己 crate 白名单保留 `debug=2` 可断点调试）。
@@ -75,8 +80,7 @@
 - 未发布产品的开发阶段禁止添加/保留数据格式兼容或旧版本迁移代码（产品发布后需添加时须先与用户确认）
 - 禁止「向后兼容」重导出或类似仅为旧导入路径保留的兼容层
 - 未经用户允许禁止擅自使用蓝色（含 `var(--accent)` 系）作为特殊提示警醒色、填充色等；此类场景一律使用白/灰/黑中性色（明度/纯度自行设计，须兼顾亮暗主题可见性），需其它颜色时先与用户确认（规范见 `.agents/rules/hint-color-usage.md`）
-- 从仓库根递归扫描或全仓无路径限定的检索（`references/`、`node_modules/`、`target/` 会让枚举超时）。**内容检索一律用 `grep` 工具**；禁止 PowerShell `Select-String`（CJK 输出乱码）与带引号的 `git grep`（PowerShell 转义会报 `fatal: unable to resolve revision`）。文件名/扩展名检索用 `glob` 工具或 `git ls-files`
-- 用 shell 内联命令对源码/文档做批量文本修改（`-replace`/`Add-Content`/here-string/`sed`，不限是否含中文；会破坏 CJK、写入字面量 `\n`、静默失效，见 [shell-encoding.md](.agents/rules/shell-encoding.md)）
+- 违反上方「工具选择（Agent）」小节（PowerShell `Select-String`、shell 内联批量改写源码/文档）
 - 并行开发时两个会话共用同一工作树目录、共享 `CARGO_TARGET_DIR`、或在分支工作树写 `.workbuddy/memory`（见技能 [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md)）
 
 ## 双端一致性
@@ -135,6 +139,9 @@ Issue 与 spec 存放在 GitHub Issues（`K-irito02/Kora`），使用 `gh` CLI�
 
 - [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md) — 实现工作区治理（技术栈、功能清单、Stores 架构）
 - [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md) — 并行分支开发技能（唯一真源；工作树/槽位、开工自检、复用与保留策略）
+- [commands.md](.agents/rules/commands.md) — 常用命令速查（开发服务器从当前工作树的 `ai-digital-life/` 执行）
+- [run-project-surfaces](.agents/skills/run-project-surfaces/SKILL.md) — browser / tauri / both 启动、端口与停止
+- [root-cause-to-close](.agents/skills/root-cause-to-close/SKILL.md) — P0–P6 收尾、P4 审查与文档同步流程
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 未来想法
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — 贡献指南
 - [GLOSSARY.md](./GLOSSARY.md) — 领域术语表（规范用词与 `_Avoid_` 同义项）

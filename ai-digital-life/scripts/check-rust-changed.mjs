@@ -63,7 +63,7 @@ export function packageNameOf(dir) {
 }
 
 export function parseArgs(argv) {
-  const options = { base: null, all: false, skipFmt: false, help: false };
+  const options = { base: null, all: false, skipFmt: false, skipTest: false, help: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--help" || arg === "-h") {
@@ -72,6 +72,8 @@ export function parseArgs(argv) {
       options.all = true;
     } else if (arg === "--skip-fmt") {
       options.skipFmt = true;
+    } else if (arg === "--skip-test") {
+      options.skipTest = true;
     } else if (arg === "--base") {
       const value = argv[i + 1];
       if (value === undefined) {
@@ -161,6 +163,29 @@ export function clippyArgs(files) {
   return args;
 }
 
+/**
+ * 受影响 crate 的单元测试参数。默认只跑 `--lib`（快、稳），
+ * 变更的集成测试目前仍由开发者按需 `cargo test -p <crate> --tests` 覆盖。
+ */
+export function testArgs(files) {
+  const workspaceLevel = files.some((file) => WORKSPACE_LEVEL_FILES.has(file));
+  const dirs = affectedCrateDirs(files);
+  const shellChanged = shouldStageSidecar(files);
+  const args = ["test"];
+  if (workspaceLevel || dirs.length === 0) {
+    args.push("--workspace");
+    if (!shellChanged) {
+      args.push("--exclude", "ai-digital-life");
+    }
+  } else {
+    for (const pkg of dirs.map(packageNameOf)) {
+      args.push("-p", pkg);
+    }
+  }
+  args.push("--lib");
+  return args;
+}
+
 function main() {
   let options;
   try {
@@ -170,14 +195,18 @@ function main() {
     process.exit(1);
   }
   if (options.help) {
-    console.log("usage: node scripts/check-rust-changed.mjs [--base <ref>] [--all] [--skip-fmt]");
+    console.log(
+      "usage: node scripts/check-rust-changed.mjs [--base <ref>] [--all] [--skip-fmt] [--skip-test]",
+    );
     return;
   }
 
   const base = resolveBase(options.base);
-  const files = git(["diff", "--name-only", `${base}..HEAD`])
-    .split(/\r?\n/)
-    .filter(Boolean);
+  // 用 `git diff <base>`（工作树 vs base）而不是 `<base>..HEAD`：
+  // 否则未提交的 Rust 改动会被漏掉，日常 `check:changed` 里形同虚设。
+  const tracked = git(["diff", "--name-only", base]).split(/\r?\n/);
+  const untracked = git(["ls-files", "--others", "--exclude-standard"]).split(/\r?\n/);
+  const files = [...new Set([...tracked, ...untracked])].filter(Boolean);
   const rustFiles = files.filter(isRustPath);
   console.log(`[check-rust] base=${base} changed=${files.length} rust=${rustFiles.length > 0}`);
 
@@ -221,6 +250,10 @@ function main() {
       );
     }
     run(cargo, args, `cargo ${args.join(" ")}`);
+    if (!options.skipTest) {
+      const test = testArgs(rustFiles);
+      run(cargo, test, `cargo ${test.join(" ")}`);
+    }
   } else {
     console.log("[check-rust] clippy skipped (no Rust changes in this push)");
   }

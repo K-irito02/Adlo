@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { findLiteralEscapedNewlines } from "./check-source-hygiene.mjs";
+import {
+  findLegacyCompatibility,
+  findLiteralEscapedNewlines,
+  findMojibake,
+  findReplacementChars,
+  hasBom,
+  isCompatibilityScope,
+} from "./check-source-hygiene.mjs";
 
 test("flags literal backslash-n inside comment lines", () => {
   const text = [
@@ -39,4 +46,44 @@ test("ignores backtick inline-code examples inside comments", () => {
 test("still flags a literal outside inline code on the same line", () => {
   const hits = findLiteralEscapedNewlines("// 真事故 \\n 后面还有 `.a` 示例");
   assert.equal(hits.length, 1);
+});
+
+test("flags U+FFFD replacement characters and allows explicit samples", () => {
+  const bad = `ok\n坏\uFFFD字`; // hygiene-allow: sample
+  assert.deepEqual(
+    findReplacementChars(bad).map((hit) => hit.line),
+    [2],
+  );
+  assert.deepEqual(findReplacementChars(`// hygiene-allow: \uFFFD`), []);
+});
+
+test("detects a UTF-8 BOM", () => {
+  assert.equal(hasBom("\uFEFF# heading"), true);
+  assert.equal(hasBom("# heading"), false);
+  assert.equal(hasBom(""), false);
+});
+
+test("flags common CJK mojibake markers", () => {
+  assert.deepEqual(
+    findMojibake(`ok\n\u951f\u65a4\u62f7`).map((hit) => hit.line),
+    [2],
+  );
+  assert.deepEqual(findMojibake(`// hygiene-allow: \u70eb\u70eb\u70eb`), []);
+});
+
+test("flags unreleased compatibility wording and honors compat-allow", () => {
+  assert.equal(findLegacyCompatibility("// 兼容历史逗号分隔").length, 1); // compat-allow: test fixture
+  assert.deepEqual(
+    findLegacyCompatibility("// compat-allow: OS NO_PROXY uses commas"), // compat-allow: test fixture
+    [],
+  );
+  assert.equal(findLegacyCompatibility("// legacy format support").length, 1); // compat-allow: test fixture
+});
+
+test("compatibility scope excludes historical plans but covers product sources", () => {
+  assert.equal(isCompatibilityScope("ai-digital-life/crates/x/src/lib.rs"), true);
+  assert.equal(isCompatibilityScope("GLOSSARY.md"), true);
+  assert.equal(isCompatibilityScope("docs/design-system/components/components.md"), true);
+  assert.equal(isCompatibilityScope("docs/plans/2026-01-old.md"), false);
+  assert.equal(isCompatibilityScope(".workbuddy/memory/old.md"), false);
 });
