@@ -49,6 +49,8 @@ interface ChannelRowProps {
   fixedWidth: number | null;
   /** 本行展示版本在途的任务（`shownTask.version === effective` 时行内展示）。 */
   task: HarnessChannelTask | null;
+  /** 版本号显示格式化（只影响可见文本；aria-label/安装仍用原始值）。 */
+  formatVersion: (version: string) => string;
   /** 本行刷新（目录腿）：标题右侧悬停显现；缺省不渲染。 */
   refresh?: SettingsRowRefreshState;
   /** 控件区扫光态（本腿刷新在途且已有旧值）。 */
@@ -86,6 +88,7 @@ export function ChannelRow({
   refresh,
   spinning,
   uninstallArmed,
+  formatVersion,
   onToggle,
   onPick,
   onInstall,
@@ -140,6 +143,7 @@ export function ChannelRow({
   }
 
   const version = effective;
+  const displayVersion = formatVersion(version);
   const hit = infos.find((info) => info.version === version) ?? null;
   const time = hit ? formatPublishedAt(hit.publishedAt, locale) : '';
   const isCurrent = version === current;
@@ -162,7 +166,7 @@ export function ChannelRow({
           aria-haspopup="listbox"
           aria-label={version}
           title={[
-            version,
+            displayVersion,
             isCurrent
               ? t.harnessVersionCurrentBadge
               : isInstalled
@@ -173,7 +177,7 @@ export function ChannelRow({
             .join(' · ')}
         >
           <span className="adl-harness-version__version-picker-label">
-            <span className="adl-harness-version__version-picker-version">{version}</span>
+            <span className="adl-harness-version__version-picker-version">{displayVersion}</span>
             {/* 与菜单卡片同一口径：当前版本 > 已装版本，单徽章互斥。 */}
             {isCurrent ? (
               <span className="adl-harness-version__version-menu-item-installed adl-harness-version__version-menu-item-current">
@@ -271,6 +275,7 @@ export function ChannelRow({
                 disabled={disabled}
                 geometry={menuGeometry}
                 panelRef={menuPanelRef}
+                formatVersion={formatVersion}
                 onPick={(picked) => onPick(channel, picked)}
               />,
               document.body,
@@ -292,6 +297,7 @@ interface ChannelMenuProps {
   disabled: boolean;
   geometry: HarnessMenuGeometry;
   panelRef: RefObject<HTMLDivElement | null>;
+  formatVersion: (version: string) => string;
   onPick: (version: string) => void;
 }
 
@@ -305,6 +311,7 @@ function ChannelMenu({
   disabled,
   geometry,
   panelRef,
+  formatVersion,
   onPick,
 }: ChannelMenuProps) {
   const { t, locale } = useTCopy();
@@ -351,7 +358,9 @@ function ChannelMenu({
                 onClick={() => onPick(v)}
                 disabled={disabled}
               >
-                <span className="adl-harness-version__version-menu-item-version">{v}</span>
+                <span className="adl-harness-version__version-menu-item-version">
+                  {formatVersion(v)}
+                </span>
                 {time ? (
                   <span className="adl-harness-version__version-menu-item-time">{time}</span>
                 ) : null}

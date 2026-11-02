@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { CopyDict } from '@i18n';
 import type { OpencodeBridge, OpencodeSourceStatus } from '@shared/ipc/opencode';
 import type { DshSourceConfig, DshTestResult } from '@shared/ipc/dsh';
-import { createOpencodeVersionBridge, resetOpencodeSnapshotCache } from '../opencodeVersionBridge';
+import {
+  createOpencodeVersionBridge,
+  peekOpencodeSource,
+  resetOpencodeSnapshotCache,
+} from '../opencodeVersionBridge';
 
 beforeEach(() => {
   resetOpencodeSnapshotCache();
@@ -95,6 +99,15 @@ describe('opencodeVersionBridge', () => {
       stable: 'opencodeStable',
       prerelease: 'opencodePrerelease',
     });
+    expect(adapter.formatVersion?.('0.0.0-beta-202608110357')).toBe('beta-202608110357');
+    expect(adapter.formatVersion?.('1.19.5')).toBe('1.19.5');
+  });
+
+  it('exposes the cached source status for group remounts', async () => {
+    const { adapter } = makeBridge();
+    expect(peekOpencodeSource()).toBeNull();
+    await adapter.load();
+    expect(peekOpencodeSource()?.config.npm_registry).toBe('https://registry.npmjs.org');
   });
 
   it('optimises the auto source before installing and never in manual mode', async () => {

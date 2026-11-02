@@ -116,6 +116,8 @@ export const dshEn = {
   dshSourceSummaryMode: ' ({mode})',
   dshSourceSummaryManual: 'Manual',
   dshSourceSummaryUnknown: '—',
+  dshSourceSummaryLoading: 'Reading download source',
+  dshSourceSummaryUnavailable: 'Could not read the download source',
   dshSourceSummaryGoModify: 'Change',
   dshSourceSummaryHint:
     'The download address currently in use.\n· Read-only; change it in the Network group\n· Auto detect picks the faster reachable source',

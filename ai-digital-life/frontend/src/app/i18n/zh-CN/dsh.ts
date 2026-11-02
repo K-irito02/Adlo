@@ -108,6 +108,8 @@ export const dshZh = {
   dshSourceSummaryMode: '「{mode}」',
   dshSourceSummaryManual: '手动选择',
   dshSourceSummaryUnknown: '—',
+  dshSourceSummaryLoading: '读取下载源中',
+  dshSourceSummaryUnavailable: '读取下载源失败',
   dshSourceSummaryGoModify: '前往修改',
   dshSourceSummaryHint:
     '当前实际在用的下载地址。\n· 只读显示，去网络那一组修改\n· 自动检测会在官方和镜像之间选更快能连通的一个',

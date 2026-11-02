@@ -36,11 +36,14 @@ export function pickEffective<T extends { version: string }>(
 }
 
 /** 分区最长版本号（测量尺用）。 */
-export function longestVersionOf(infos: { version: string }[]): string | null {
-  return infos.reduce<string | null>(
-    (acc, info) => (acc == null || info.version.length > acc.length ? info.version : acc),
-    null,
-  );
+export function longestVersionOf(
+  infos: { version: string }[],
+  format: (version: string) => string = (version) => version,
+): string | null {
+  return infos.reduce<string | null>((acc, info) => {
+    const label = format(info.version);
+    return acc == null || label.length > acc.length ? label : acc;
+  }, null);
 }
 
 /** 两处实测取最大（任一缺席则取另一方，都缺席为 null）。 */
@@ -111,10 +114,13 @@ export function useHarnessVersionChannelMenu({
         Math.min(Math.ceil(el.scrollWidth) + 8, window.innerWidth - 2 * VIEWPORT_MARGIN),
       );
     };
-    const next = {
+    const measured = {
       stable: maxWidth(measure(stableSizerRef), measure(stablePickerSizerRef)),
       prerelease: maxWidth(measure(prereleaseSizerRef), measure(prereleasePickerSizerRef)),
     };
+    // 两个通道的下拉框/菜单保持同一水平宽度：取两者实测最大值。
+    const common = maxWidth(measured.stable, measured.prerelease);
+    const next = { stable: common, prerelease: common };
     // 相等时复用旧引用，避免无意义重渲染。
     setMenuWidths((prev) =>
       prev.stable === next.stable && prev.prerelease === next.prerelease ? prev : next,

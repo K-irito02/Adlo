@@ -87,6 +87,14 @@
   font-size: var(--text-xs);
 }
 
+/* OpenCode「当前下载源」摘要的模式文字：settings.css 的
+   `.adl-settings-row__label-text span` 优先级更高，必须用组级复合选择器压回中性灰。 */
+.adl-opencode-settings .adl-settings-row__label-text .adl-harness-version__readout-sub {
+  color: var(--text-muted);
+  font-weight: var(--font-normal);
+  flex: 0 0 auto;
+}
+
 .adl-harness-version__readout-value {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -101,6 +109,24 @@
 /* 当前版本读数加载态：圆弧胶囊 + 水平波浪扫过，中性灰，
    不引入强调色；亮暗主题均可见（固定 rgba，不依赖主题变量对比度）。 */
 .adl-harness-version__readout-loading {
+  display: inline-block;
+  width: 148px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-muted);
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(128, 128, 128, 0.4) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: adl-harness-skeleton-wave 2.6s ease-in-out infinite;
+}
+
+/* 「当前下载源」摘要加载态：与版本读数骨架同视觉，但使用独立类名，
+   避免设置页测试/其它查询把摘要骨架误判成版本读数骨架。 */
+.adl-source-summary__loading {
   display: inline-block;
   width: 148px;
   height: 20px;

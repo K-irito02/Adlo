@@ -17,6 +17,7 @@ import { useHarnessBlockRefresh } from '@features/harness/hooks/useHarnessBlockR
 import type { OpencodeBridge, OpencodeSourceStatus } from '@shared/ipc/opencode';
 import {
   createOpencodeVersionBridge,
+  peekOpencodeSource,
   prefetchOpencodeSnapshot,
   resetOpencodeSnapshotCache,
 } from './opencodeVersionBridge';
@@ -99,6 +100,9 @@ export function OpencodeSettings() {
   const opencodeGroupResetPending = useAppStore((s) => s.opencodeGroupResetPending);
   const consumeOpencodeGroupReset = useAppStore((s) => s.consumeOpencodeGroupReset);
   const setOpencodeBlocksAtDefault = useAppStore((s) => s.setOpencodeBlocksAtDefault);
+  const [summarySource, setSummarySource] = useState<OpencodeSourceStatus | null>(() =>
+    peekOpencodeSource(),
+  );
 
   const bridge = useMemo(
     () =>
@@ -116,6 +120,7 @@ export function OpencodeSettings() {
           if (!source) {
             return;
           }
+          setSummarySource(source);
           setOpencodeBlocksAtDefault(
             source.versionSource.mode === 'auto' && source.terminalInjection === true,
           );
@@ -280,7 +285,7 @@ export function OpencodeSettings() {
           footer: <OpencodeOfficialLinksCard />,
         }}
       />
-      <OpencodeSourceSummaryCard />
+      <OpencodeSourceSummaryCard source={summarySource} />
 
       <ConfirmDialog
         open={groupResetOpen}

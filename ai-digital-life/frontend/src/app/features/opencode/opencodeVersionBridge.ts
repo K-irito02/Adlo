@@ -115,6 +115,11 @@ export function prefetchOpencodeSnapshot(): Promise<void> {
 export function resetOpencodeSnapshotCache(): void {
   cachedSnapshot = null;
 }
+
+/** 组间切换复用：上次快照里的 OpenCode source-status（避免每次进组都闪扫光骨架）。 */
+export function peekOpencodeSource(): OpencodeSourceStatus | null {
+  return cachedSnapshot?.sourceExtra ?? null;
+}
 export function createOpencodeVersionBridge(
   deps: OpencodeVersionBridgeDeps,
 ): HarnessVersionBridge<OpencodeSourceStatus> {
@@ -178,6 +183,9 @@ export function createOpencodeVersionBridge(
   return {
     toolName,
     available,
+    // 预发布版本显示为 `beta-xxxx`，不展示 semver 的 `0.0.0-` 前缀；安装仍用原始版本。
+    formatVersion: (version: string) =>
+      version.startsWith('0.0.0-') ? version.slice('0.0.0-'.length) : version,
     capabilities: {
       uninstallConfirm: false,
       sourceModeChange: 'immediate',

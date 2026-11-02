@@ -125,6 +125,11 @@ export interface HarnessVersionBridge<TSource = unknown> {
   toolName: string;
   /** 底层桥是否可用；false 时卡片所有操作保持禁用。 */
   available: boolean;
+  /**
+   * 版本号显示格式化（可选）：只影响下拉框/菜单里的可见文本，
+   * 安装、选择、卸载仍使用原始版本。OpenCode 预发布版会去掉 `0.0.0-`。
+   */
+  formatVersion?: (version: string) => string;
   capabilities?: HarnessVersionCapabilities;
   labels?: HarnessVersionLabels;
   /** 首屏/操作完成后重新读取版本状态。 */

@@ -187,6 +187,7 @@ export function HarnessVersionCard<TSource = unknown>({
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
 
   const refreshRows = bridge.capabilities?.refreshRows;
+  const formatVersion = bridge.formatVersion ?? ((version: string) => version);
   const refreshFor = (
     leg: 'source' | 'current' | 'stable' | 'prerelease',
     label: string,
@@ -344,6 +345,7 @@ export function HarnessVersionCard<TSource = unknown>({
       fixedWidth={channel === 'stable' ? menu.menuWidths.stable : menu.menuWidths.prerelease}
       task={channelTask(channel === 'stable' ? stableEffective : prereleaseEffective)}
       uninstallArmed={actions.uninstallArmed}
+      formatVersion={formatVersion}
       onToggle={menu.toggleChannelMenu}
       onPick={menu.pickChannelVersion}
       onInstall={actions.installVersion}
@@ -421,8 +423,8 @@ export function HarnessVersionCard<TSource = unknown>({
           尺子 `position:absolute + visibility:hidden`，不依赖卡片容器即可实测；
           放卡内时，无页脚槽的形态（OpenCode）末行收边失效、多出一条分隔线。 */}
       <ChannelSizer
-        longestStable={longestVersionOf(stableInfos)}
-        longestPrerelease={longestVersionOf(prereleaseInfos)}
+        longestStable={longestVersionOf(stableInfos, formatVersion)}
+        longestPrerelease={longestVersionOf(prereleaseInfos, formatVersion)}
         refs={menu.sizerRefs}
       />
 

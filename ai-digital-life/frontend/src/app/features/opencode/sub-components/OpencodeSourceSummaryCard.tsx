@@ -1,27 +1,43 @@
+import { useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import type { OpencodeSourceStatus } from '@shared/ipc/opencode';
 
-/** 当前下载源独立沉底卡（只读 + 前往网络组修改，与 DSH 源卡同构）。 */
-export function OpencodeSourceSummaryCard() {
+/**
+ * 当前下载源独立沉底卡（OpenCode 自己的 source-status，不读取 DSH 的全局状态）。
+ * 来源状态未到时画中性扫光/失败文案，不渲染「— 「—」」这种占位读数。
+ */
+const SOURCE_SUMMARY_TIMEOUT_MS = 3000;
+
+export function OpencodeSourceSummaryCard({ source }: { source: OpencodeSourceStatus | null }) {
   const { t } = useTCopy();
-  const sourceStatus = useAppStore((s) => s.sourceStatus);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
+  const [timedOut, setTimedOut] = useState(false);
 
-  const summaryLabel = formatT(t, 'dshSourceSummary', {
-    title: t.opencodeSourceSummaryTitle,
-    registry: sourceStatus?.config.npm_registry ?? t.dshSourceSummaryUnknown,
-  });
-  const summaryMode = formatT(t, 'dshSourceSummaryMode', {
-    mode:
-      sourceStatus?.config.source_mode === 'auto'
-        ? t.dshSettingsSourceAuto
-        : sourceStatus?.config.source_mode === 'manual'
-          ? t.dshSourceSummaryManual
-          : t.dshSourceSummaryUnknown,
-  });
+  useEffect(() => {
+    if (source !== null) {
+      setTimedOut(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setTimedOut(true), SOURCE_SUMMARY_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [source]);
+
+  const summaryLabel = source
+    ? formatT(t, 'dshSourceSummary', {
+        title: t.opencodeSourceSummaryTitle,
+        registry: source.config.npm_registry,
+      })
+    : '';
+  const summaryMode = source
+    ? formatT(t, 'dshSourceSummaryMode', {
+        mode:
+          source.config.source_mode === 'auto' ? t.dshSettingsSourceAuto : t.dshSourceSummaryManual,
+      })
+    : '';
 
   return (
     <div
@@ -33,8 +49,24 @@ export function OpencodeSourceSummaryCard() {
         <div className="adl-settings-row__label">
           <div className="adl-settings-row__label-text">
             <SettingsHintButton content={t.opencodeSourceSummaryHint} />
-            <span>{summaryLabel}</span>
-            <span className="adl-harness-version__readout-sub">{summaryMode}</span>
+            {source === null ? (
+              timedOut ? (
+                <span className="adl-harness-version__readout-sub">
+                  {t.dshSourceSummaryUnavailable}
+                </span>
+              ) : (
+                <span
+                  className="adl-source-summary__loading"
+                  role="status"
+                  aria-label={t.dshSourceSummaryLoading}
+                />
+              )
+            ) : (
+              <>
+                <span>{summaryLabel}</span>
+                <span className="adl-harness-version__readout-sub">{summaryMode}</span>
+              </>
+            )}
           </div>
         </div>
         <div className="adl-settings-row__control">
