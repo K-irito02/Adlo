@@ -457,6 +457,7 @@ pub async fn install_for(
         InstallChannel::PlatformTarball => {
             let (platform, arch) = spec::current_platform_arch();
             let input = crate::install_opencode::PlatformInstallInput {
+                spec,
                 root,
                 data_dir,
                 version,

@@ -14,6 +14,8 @@ use crate::spec;
 
 /// 一次平台包安装的输入。
 pub struct PlatformInstallInput<'a> {
+    /// 版本描述符（1.x `OPENCODE` / 2.x `OPENCODE_V2`），决定平台包前缀与 marker。
+    pub spec: &'a spec::HarnessSpec,
     /// harness 版本目录（`installed/` 与 `selected.txt` 的父目录）。
     pub root: &'a Path,
     /// 数据根（读下载源/代理配置）。
@@ -37,9 +39,13 @@ fn nonce() -> u128 {
         .unwrap_or_default()
 }
 
-/// npm 平台包 tarball 地址（仅未加 scope 的包，OpenCode 全部满足）。
+/// npm 平台包 tarball 地址。
+///
+/// scoped 包的 tarball 文件名不带 scope：`@opencode/cli-windows-x64` →
+/// `.../@opencode/cli-windows-x64/-/cli-windows-x64-<version>.tgz`。
 pub fn platform_tarball_url(registry: &str, package: &str, version: &str) -> String {
-    format!("{}/{package}/-/{package}-{version}.tgz", registry.trim_end_matches('/'))
+    let filename = package.rsplit('/').next().unwrap_or(package);
+    format!("{}/{package}/-/{filename}-{version}.tgz", registry.trim_end_matches('/'))
 }
 
 fn percent(done: u64, total: u64) -> Option<u8> {
@@ -218,7 +224,12 @@ async fn install_inner(
         .await
         .map_err(|e| AppError::Io(format!("create {}: {e}", installed.display())))?;
     let tgz = installed.join(format!(".tmp-{version}-{}.tgz", nonce()));
-    let candidates = spec::opencode_platform_packages(input.platform, input.arch, input.avx2);
+    let candidates = spec::opencode_platform_packages_with_prefix(
+        input.spec.platform_prefix,
+        input.platform,
+        input.arch,
+        input.avx2,
+    );
     let mut last_error: Option<AppError> = None;
     for package in candidates {
         if task.is_cancelled() {
@@ -229,7 +240,7 @@ async fn install_inner(
         match try_candidate(input, &package, &client, &registry, &tgz, task).await {
             Ok(()) => {
                 let _ = tokio::fs::remove_file(&tgz).await;
-                if !crate::is_version_installed_for(&spec::OPENCODE, input.root, version) {
+                if !crate::is_version_installed_for(input.spec, input.root, version) {
                     return Err(AppError::Io(format!("installed {version} is incomplete")));
                 }
                 if input.select {
@@ -280,6 +291,22 @@ mod tests {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
 
+    #[test]
+    fn scoped_tarball_url_drops_scope_from_filename() {
+        assert_eq!(
+            platform_tarball_url(
+                "https://registry.npmjs.org",
+                "@opencode/cli-windows-x64",
+                "2.2.5"
+            ),
+            "https://registry.npmjs.org/@opencode/cli-windows-x64/-/cli-windows-x64-2.2.5.tgz"
+        );
+        assert_eq!(
+            platform_tarball_url("https://registry.npmjs.org", "opencode-windows-x64", "1.19.5"),
+            "https://registry.npmjs.org/opencode-windows-x64/-/opencode-windows-x64-1.19.5.tgz"
+        );
+    }
+
     fn nanos() -> u128 {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -313,6 +340,62 @@ mod tests {
             builder.finish().expect("finish tar");
         }
         gz.finish().expect("finish gzip")
+    }
+
+    #[tokio::test]
+    async fn installs_scoped_opencode_v2_package_from_a_local_registry() {
+        let dir = temp_dir("e2e-install-v2");
+        let data = dir.join("data");
+        let root = dir.join("versions");
+        std::fs::create_dir_all(data.join("config")).expect("config dir");
+        let body = tgz_bytes(&[("package/bin/opencode.exe", b"fake-opencode-v2")]);
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let served = body.clone();
+        let (tx, rx) = tokio::sync::oneshot::channel::<String>();
+        tokio::spawn(async move {
+            if let Ok((mut sock, _)) = listener.accept().await {
+                let mut buf = [0u8; 2048];
+                let n = sock.read(&mut buf).await.unwrap_or(0);
+                let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_string());
+                let header = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nContent-Type: application/octet-stream\r\nConnection: close\r\n\r\n",
+                    served.len()
+                );
+                let _ = sock.write_all(header.as_bytes()).await;
+                let _ = sock.write_all(&served).await;
+                let _ = sock.shutdown().await;
+            }
+        });
+        std::fs::write(
+            data.join("config").join("download-sources.json"),
+            format!(
+                "{{\"npm_registry\":\"http://{addr}\",\"source_mode\":\"manual\",\"proxy\":{{\"mode\":\"none\"}}}}"
+            ),
+        )
+        .expect("write config");
+
+        let task = ProgressTask::new();
+        task.begin("opencode-install", "2.0.0");
+        let input = PlatformInstallInput {
+            spec: &spec::OPENCODE_V2,
+            root: &root,
+            data_dir: &data,
+            version: "2.0.0",
+            select: true,
+            platform: "windows",
+            arch: "x64",
+            avx2: true,
+            verify: false,
+        };
+        install(input, &task).await.expect("install");
+        assert!(crate::is_version_installed_for(&spec::OPENCODE_V2, &root, "2.0.0"));
+        let request = rx.await.expect("request line");
+        assert!(
+            request.contains("/@opencode/cli-windows-x64/-/cli-windows-x64-2.0.0.tgz"),
+            "unexpected scoped tarball request: {request}"
+        );
     }
 
     #[tokio::test]
@@ -350,6 +433,7 @@ mod tests {
         let task = ProgressTask::new();
         task.begin("opencode-install", "1.0.0");
         let input = PlatformInstallInput {
+            spec: &spec::OPENCODE,
             root: &root,
             data_dir: &data,
             version: "1.0.0",

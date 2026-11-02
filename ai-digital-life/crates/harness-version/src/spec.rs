@@ -53,6 +53,9 @@ pub struct HarnessSpec {
     pub id: HarnessId,
     /// npm 包名（Npm 通道）或平台包名前缀（PlatformTarball 通道，实际包名按平台拼）。
     pub package: &'static str,
+    /// 平台包前缀（PlatformTarball 通道）：`opencode` → `opencode-windows-x64`；
+    /// `@opencode/cli` → `@opencode/cli-windows-x64`。Npm 通道留空。
+    pub platform_prefix: &'static str,
     pub channel: InstallChannel,
     /// `installed/<version>/` 下的可执行 marker（相对路径）。
     pub marker_rel: &'static str,
@@ -65,6 +68,7 @@ pub struct HarnessSpec {
 pub const DSH: HarnessSpec = HarnessSpec {
     id: HarnessId::Dsh,
     package: "@deepseek-ai/dsh",
+    platform_prefix: "",
     channel: InstallChannel::Npm,
     marker_rel: "node_modules/@deepseek-ai/dsh/lib/bin.js",
     system_bin: "dsh",
@@ -87,6 +91,25 @@ pub const OPENCODE_BIN_REL: &str = if cfg!(windows) { "bin/opencode.exe" } else 
 pub const OPENCODE: HarnessSpec = HarnessSpec {
     id: HarnessId::OpenCode,
     package: "opencode-ai",
+    platform_prefix: "opencode",
+    channel: InstallChannel::PlatformTarball,
+    marker_rel: OPENCODE_BIN_REL,
+    system_bin: "opencode",
+    catalog: CatalogPolicy {
+        stable_limit: Some(50),
+        prerelease_limit: Some(50),
+        prerelease_prefix: Some("beta-"),
+        prerelease_tags: &["beta"],
+    },
+};
+
+/// OpenCode 2.x：独立 npm 包 `@opencode/cli`（2.0 major 起），平台包为
+/// `@opencode/cli-<platform>-<arch>[-baseline]`；入口与 1.x 相同（`bin/opencode*`）。
+/// 版本目录、选中与卸载与 1.x 共用，因此 `id` 仍为 `OpenCode`。
+pub const OPENCODE_V2: HarnessSpec = HarnessSpec {
+    id: HarnessId::OpenCode,
+    package: "@opencode/cli",
+    platform_prefix: "@opencode/cli",
     channel: InstallChannel::PlatformTarball,
     marker_rel: OPENCODE_BIN_REL,
     system_bin: "opencode",
@@ -103,7 +126,17 @@ pub const OPENCODE: HarnessSpec = HarnessSpec {
 /// 与上游 `opencode-ai/postinstall.mjs` 同口径：x64 若检测不到 AVX2，先试
 /// `-baseline` 包，再回退普通包；arm64 只有普通包。
 pub fn opencode_platform_packages(platform: &str, arch: &str, avx2: bool) -> Vec<String> {
-    let base = format!("opencode-{platform}-{arch}");
+    opencode_platform_packages_with_prefix("opencode", platform, arch, avx2)
+}
+
+/// 同 [`opencode_platform_packages`]，但允许指定 npm scope/前缀（1.x `opencode`，2.x `@opencode/cli`）。
+pub fn opencode_platform_packages_with_prefix(
+    prefix: &str,
+    platform: &str,
+    arch: &str,
+    avx2: bool,
+) -> Vec<String> {
+    let base = format!("{prefix}-{platform}-{arch}");
     if arch != "x64" {
         return vec![base];
     }
@@ -158,10 +191,28 @@ mod tests {
         assert_eq!(OPENCODE.id.key(), "opencode");
         assert_eq!(OPENCODE.channel, InstallChannel::PlatformTarball);
         assert_eq!(OPENCODE.package, "opencode-ai");
+        assert_eq!(OPENCODE.platform_prefix, "opencode");
         assert_eq!(OPENCODE.catalog.stable_limit, Some(50));
         assert_eq!(OPENCODE.catalog.prerelease_limit, Some(50));
         assert_eq!(OPENCODE.catalog.prerelease_prefix, Some("beta-"));
         assert_eq!(OPENCODE.catalog.prerelease_tags, &["beta"]);
+    }
+
+    #[test]
+    fn opencode_v2_uses_the_scoped_cli_package() {
+        assert_eq!(OPENCODE_V2.id.key(), "opencode");
+        assert_eq!(OPENCODE_V2.channel, InstallChannel::PlatformTarball);
+        assert_eq!(OPENCODE_V2.package, "@opencode/cli");
+        assert_eq!(OPENCODE_V2.platform_prefix, "@opencode/cli");
+        assert_eq!(OPENCODE_V2.marker_rel, OPENCODE_BIN_REL);
+    }
+
+    #[test]
+    fn scoped_platform_prefixes_keep_the_scope() {
+        assert_eq!(
+            opencode_platform_packages_with_prefix("@opencode/cli", "windows", "x64", true),
+            vec!["@opencode/cli-windows-x64", "@opencode/cli-windows-x64-baseline"]
+        );
     }
 
     #[test]

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { compareOpencodeSemver, mockOpencode, parseOpencodePackument } from '../mock-opencode';
+import {
+  compareOpencodeSemver,
+  mergeOpencodeCatalogs,
+  mockOpencode,
+  parseOpencodePackument,
+} from '../mock-opencode';
 
 describe('mockOpencode', () => {
   it(
@@ -84,8 +89,37 @@ describe('parseOpencodePackument', () => {
   });
 });
 
-describe('compareOpencodeSemver', () => {
-  it('orders stable above same-core prerelease and beta by timestamp', () => {
+describe('mergeOpencodeCatalogs', () => {
+  it('merges 1.x and 2.x, keeps semver order and dedupes', () => {
+    const merged = mergeOpencodeCatalogs([
+      {
+        stable: [
+          { version: '1.19.5', publishedAt: null },
+          { version: '1.19.4', publishedAt: null },
+        ],
+        prerelease: [{ version: '0.0.0-beta-202608110357', publishedAt: null }],
+        latestStable: '1.19.5',
+        latestPrerelease: '0.0.0-beta-202608110357',
+      },
+      {
+        stable: [
+          { version: '2.2.5', publishedAt: null },
+          { version: '2.0.0', publishedAt: null },
+          { version: '1.19.5', publishedAt: null },
+        ],
+        prerelease: [{ version: '0.0.0-beta-19507', publishedAt: null }],
+        latestStable: '2.2.5',
+        latestPrerelease: '0.0.0-beta-19507',
+      },
+    ]);
+    expect(merged.stable.map((hit) => hit.version)).toEqual(['2.2.5', '2.0.0', '1.19.5', '1.19.4']);
+    expect(merged.latestStable).toBe('2.2.5');
+    expect(merged.prerelease).toHaveLength(2);
+    expect(merged.latestPrerelease).toBe('0.0.0-beta-202608110357');
+  });
+});
+
+describe('compareOpencodeSemver', () => {  it('orders stable above same-core prerelease and beta by timestamp', () => {
     expect(compareOpencodeSemver('1.19.5', '1.19.5')).toBe(0);
     expect(compareOpencodeSemver('1.19.4', '1.19.5')).toBeLessThan(0);
     expect(compareOpencodeSemver('0.0.0-beta-202608110326', '0.0.0-beta-202608110357')).toBeLessThan(0);

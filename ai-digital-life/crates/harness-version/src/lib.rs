@@ -285,6 +285,57 @@ pub async fn fetch_catalog(data_dir: &Path) -> Result<VersionCatalog, AppError> 
     fetch_catalog_for(&spec::DSH, data_dir).await
 }
 
+/// 合并多条包线的版本目录（OpenCode 1.x `opencode-ai` + 2.x `@opencode/cli`）。
+///
+/// 单条腿失败时保留其它腿的结果；全部失败才返回错误。合并后按 semver 降序去重，
+/// latest 取各自桶内的最高版本。
+pub async fn fetch_catalog_for_lines(
+    specs: &[&spec::HarnessSpec],
+    data_dir: &Path,
+) -> Result<VersionCatalog, AppError> {
+    let mut merged = VersionCatalog {
+        stable: Vec::new(),
+        prerelease: Vec::new(),
+        latest_stable: None,
+        latest_prerelease: None,
+    };
+    let mut first_error: Option<AppError> = None;
+    for spec in specs {
+        match fetch_catalog_for(spec, data_dir).await {
+            Ok(catalog) => merge_catalog(&mut merged, catalog),
+            Err(e) => {
+                if first_error.is_none() {
+                    first_error = Some(e);
+                }
+            },
+        }
+    }
+    if merged.stable.is_empty() && merged.prerelease.is_empty() {
+        if let Some(e) = first_error {
+            return Err(e);
+        }
+    }
+    Ok(merged)
+}
+
+fn merge_catalog(into: &mut VersionCatalog, other: VersionCatalog) {
+    into.stable.extend(other.stable);
+    into.prerelease.extend(other.prerelease);
+    let by_version = |a: &VersionInfo, b: &VersionInfo| {
+        let va = semver::Version::parse(&a.version)
+            .unwrap_or_else(|_| semver::Version::parse("0.0.0").expect("0.0.0 parses"));
+        let vb = semver::Version::parse(&b.version)
+            .unwrap_or_else(|_| semver::Version::parse("0.0.0").expect("0.0.0 parses"));
+        vb.cmp(&va)
+    };
+    into.stable.sort_by(by_version);
+    into.stable.dedup_by(|a, b| a.version == b.version);
+    into.prerelease.sort_by(by_version);
+    into.prerelease.dedup_by(|a, b| a.version == b.version);
+    into.latest_stable = into.stable.first().map(|info| info.version.clone());
+    into.latest_prerelease = into.prerelease.first().map(|info| info.version.clone());
+}
+
 /// 同 [`fetch_catalog`]，按任意 harness 描述符查询并按该描述符的限量策略截断。
 pub async fn fetch_catalog_for(
     spec: &spec::HarnessSpec,
@@ -421,16 +472,23 @@ pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionS
     get_version_status_for(&spec::DSH, root, data_dir).await
 }
 
-/// 同 [`get_version_status`]，按任意 harness 描述符查询。
-pub async fn get_version_status_for(
-    spec: &spec::HarnessSpec,
+/// 同 [`get_version_status_for`]，但合并多条包线（OpenCode 1.x + 2.x）。
+pub async fn get_version_status_for_lines(
+    specs: &[&spec::HarnessSpec],
     root: &Path,
     data_dir: &Path,
 ) -> Result<VersionStatus, AppError> {
-    let current_selected = read_selected_for(spec, root)?;
-    let installed = list_installed_for(spec, root)?;
-    let dist_latest = latest_available_for(spec, data_dir).await.ok().flatten();
-    match fetch_catalog_for(spec, data_dir).await {
+    let primary =
+        specs.first().copied().ok_or_else(|| AppError::InvalidInput("no harness spec".into()))?;
+    let current_selected = read_selected_for(primary, root)?;
+    let installed = list_installed_for(primary, root)?;
+    let mut dist_latest: Option<String> = None;
+    for spec in specs {
+        if let Ok(Some(version)) = latest_available_for(spec, data_dir).await {
+            dist_latest = max_semver(dist_latest, Some(version));
+        }
+    }
+    match fetch_catalog_for_lines(specs, data_dir).await {
         Ok(catalog) => {
             let latest = resolve_stable_latest(&catalog, dist_latest.as_deref());
             let has_update = semver_is_newer(current_selected.as_deref(), latest.as_deref());
@@ -441,7 +499,7 @@ pub async fn get_version_status_for(
                 has_update,
                 ?pre,
                 has_prerelease_update = has_pre,
-                "harness-version: version status resolved"
+                "harness-version: version status resolved (merged lines)"
             );
             Ok(VersionStatus {
                 current_selected,
@@ -454,10 +512,9 @@ pub async fn get_version_status_for(
             })
         },
         Err(e) => {
-            tracing::debug!(error = %e, "harness-version: catalog unavailable");
+            tracing::debug!(error = %e, "harness-version: merged catalog unavailable");
             match dist_latest {
                 Some(latest) => {
-                    // 降级口径（旧逻辑）：tokens 比较，忽略 pre 后缀。
                     let has_update = match &current_selected {
                         Some(cur) => latest_is_newer(&ver_tokens(cur), &ver_tokens(&latest)),
                         None => true,
@@ -476,6 +533,27 @@ pub async fn get_version_status_for(
             }
         },
     }
+}
+
+fn max_semver(a: Option<String>, b: Option<String>) -> Option<String> {
+    match (a, b) {
+        (None, other) | (other, None) => other,
+        (Some(a), Some(b)) => {
+            let (Ok(va), Ok(vb)) = (semver::Version::parse(&a), semver::Version::parse(&b)) else {
+                return Some(a);
+            };
+            Some(if vb > va { b } else { a })
+        },
+    }
+}
+
+/// 同 [`get_version_status`]，按任意 harness 描述符查询。
+pub async fn get_version_status_for(
+    spec: &spec::HarnessSpec,
+    root: &Path,
+    data_dir: &Path,
+) -> Result<VersionStatus, AppError> {
+    get_version_status_for_lines(&[spec], root, data_dir).await
 }
 
 /// 升级：安装最新正式版并选中。
@@ -1300,6 +1378,107 @@ mod tests {
         server.abort();
         let _ = std::fs::remove_dir_all(&root);
         let _ = std::fs::remove_dir_all(&data_dir);
+    }
+
+    #[test]
+    fn merge_catalog_orders_both_package_lines_and_dedupes() {
+        let mut merged = VersionCatalog {
+            stable: Vec::new(),
+            prerelease: Vec::new(),
+            latest_stable: None,
+            latest_prerelease: None,
+        };
+        merge_catalog(
+            &mut merged,
+            VersionCatalog {
+                stable: vec![VersionInfo { version: "1.19.5".into(), published_at: None }],
+                prerelease: vec![VersionInfo {
+                    version: "0.0.0-beta-202608110357".into(),
+                    published_at: None,
+                }],
+                latest_stable: Some("1.19.5".into()),
+                latest_prerelease: Some("0.0.0-beta-202608110357".into()),
+            },
+        );
+        merge_catalog(
+            &mut merged,
+            VersionCatalog {
+                stable: vec![
+                    VersionInfo { version: "2.2.5".into(), published_at: None },
+                    VersionInfo { version: "2.0.0".into(), published_at: None },
+                    VersionInfo { version: "1.19.5".into(), published_at: None },
+                ],
+                prerelease: vec![VersionInfo {
+                    version: "0.0.0-beta-19507".into(),
+                    published_at: None,
+                }],
+                latest_stable: Some("2.2.5".into()),
+                latest_prerelease: Some("0.0.0-beta-19507".into()),
+            },
+        );
+        let versions: Vec<&str> = merged.stable.iter().map(|i| i.version.as_str()).collect();
+        assert_eq!(versions, vec!["2.2.5", "2.0.0", "1.19.5"]);
+        assert_eq!(merged.latest_stable.as_deref(), Some("2.2.5"));
+        assert_eq!(merged.prerelease.len(), 2);
+        assert_eq!(merged.latest_prerelease.as_deref(), Some("0.0.0-beta-202608110357"));
+    }
+
+    #[tokio::test]
+    async fn fetch_catalog_for_lines_merges_v1_and_v2_packages() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind stub");
+        let port = listener.local_addr().expect("addr").port();
+        let server = tokio::spawn(async move {
+            for _ in 0..2 {
+                let Ok((mut socket, _)) = listener.accept().await else { break };
+                let mut buf = vec![0u8; 4096];
+                let n = socket.read(&mut buf).await.unwrap_or(0);
+                let first = String::from_utf8_lossy(&buf[..n])
+                    .lines()
+                    .next()
+                    .unwrap_or_default()
+                    .to_string();
+                let body = if first.contains("/@opencode/cli") {
+                    r#"{"versions":{"2.2.5":{},"2.0.0":{}},"time":{},"dist-tags":{"latest":"2.2.5","beta":"0.0.0-beta-19507"}}"#
+                } else {
+                    r#"{"versions":{"1.19.5":{}},"time":{},"dist-tags":{"latest":"1.19.5","beta":"0.0.0-beta-202608110357"}}"#
+                };
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                socket.write_all(resp.as_bytes()).await.ok();
+            }
+        });
+        let data_dir = fresh_root("status_lines_merge_data");
+        std::fs::create_dir_all(data_dir.join("config")).expect("mkdir config");
+        std::fs::write(
+            data_dir.join("config").join("download-sources.json"),
+            format!(
+                r#"{{"npm_registry": "http://127.0.0.1:{port}", "proxy": {{"mode": "none", "http_proxy": null, "https_proxy": null, "no_proxy": null}}}}"#
+            ),
+        )
+        .expect("write config");
+        let catalog = fetch_catalog_for_lines(&[&spec::OPENCODE, &spec::OPENCODE_V2], &data_dir)
+            .await
+            .expect("merged catalog");
+        assert_eq!(
+            catalog.stable.iter().map(|i| i.version.as_str()).collect::<Vec<_>>(),
+            vec!["2.2.5", "2.0.0", "1.19.5"]
+        );
+        assert_eq!(catalog.latest_stable.as_deref(), Some("2.2.5"));
+        server.abort();
+        let _ = std::fs::remove_dir_all(&data_dir);
+    }
+
+    #[test]
+    fn max_semver_picks_the_higher_version() {
+        assert_eq!(
+            max_semver(Some("1.19.5".into()), Some("2.2.5".into())).as_deref(),
+            Some("2.2.5")
+        );
+        assert_eq!(max_semver(None, Some("1.19.5".into())).as_deref(), Some("1.19.5"));
+        assert_eq!(max_semver(Some("2.2.5".into()), None).as_deref(), Some("2.2.5"));
     }
 
     #[test]

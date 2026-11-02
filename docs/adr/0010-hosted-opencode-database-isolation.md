@@ -18,10 +18,16 @@ OpenCode CLI 与 OpenCode Desktop 共用全局数据目录 `~/.local/share/openc
 PATH 外，还为新终端会话注入：
 
 ```
-OPENCODE_DB = <数据根>/harnesses/opencode/managed/opencode.db
+OPENCODE_DB = <数据根>/harnesses/opencode/managed/v<major>/opencode.db
 ```
 
 - 只在托管版本实际生效时注入；来源为系统安装、未安装或关闭注入时清空该变量。
+- 按 major（1.x / 2.x）分目录：两个 major 的数据库 schema 不兼容，跨 major 切换不迁移历史。
+- 2.x 额外隔离 `XDG_DATA_HOME` / `XDG_STATE_HOME`，并由 PATH 中的 `opencode` 包装脚本强制
+  `--standalone`：2.x CLI 默认连接后台 service，且桌面版也通过 state 目录发现同一个 service；
+  包装后托管 CLI 只运行自己的私人 server，不接管桌面版服务。
+- 同时注入 `OPENCODE_DISABLE_AUTOUPDATE=1`，阻止 TUI 内 `/update` 原地替换托管二进制；
+  版本升级统一走应用设置（见 ADR-0011）。
 - 用户已在环境中显式设置 `OPENCODE_DB` 时保留用户值（`env_add` 阶段跳过同名键）。
 - 不写系统/用户环境变量，只影响新会话；已打开的终端保持原环境。
 - 托管数据库目录由服务端在刷新注入时创建（SQLite 不会自动创建父目录）。

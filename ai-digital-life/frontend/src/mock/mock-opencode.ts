@@ -9,6 +9,8 @@ import type {
 } from '../shared/ipc/dsh';
 
 const MOCK_VERSION = '1.19.5';
+const MOCK_V2_VERSION = '2.2.5';
+const MOCK_V2_OLDER = '2.0.0';
 const MOCK_BETA = '0.0.0-beta-202608110357';
 
 /**
@@ -17,19 +19,21 @@ const MOCK_BETA = '0.0.0-beta-202608110357';
  */
 const FALLBACK_CATALOG: DshVersionCatalog = {
   stable: [
+    { version: MOCK_V2_VERSION, publishedAt: '2026-11-01T00:00:00.000Z' },
+    { version: MOCK_V2_OLDER, publishedAt: '2026-10-20T00:00:00.000Z' },
     { version: MOCK_VERSION, publishedAt: '2026-10-28T06:17:11.100Z' },
     { version: '1.19.4', publishedAt: '2026-10-27T10:00:00.000Z' },
   ],
   prerelease: [{ version: MOCK_BETA, publishedAt: '2026-08-11T03:57:00.000Z' }],
-  latestStable: MOCK_VERSION,
+  latestStable: MOCK_V2_VERSION,
   latestPrerelease: MOCK_BETA,
 };
 
 const status: DshVersionStatus = {
   currentSelected: MOCK_VERSION,
   installed: [MOCK_VERSION],
-  latestAvailable: MOCK_VERSION,
-  hasUpdate: false,
+  latestAvailable: MOCK_V2_VERSION,
+  hasUpdate: true,
   prereleaseAvailable: MOCK_BETA,
   hasPrereleaseUpdate: true,
   prereleaseUnknown: false,
@@ -204,6 +208,39 @@ export function parseOpencodePackument(json: unknown): DshVersionCatalog | null 
   };
 }
 
+/**
+ * 合并 1.x `opencode-ai` 与 2.x `@opencode/cli` 的目录（与 Rust
+ * `fetch_catalog_for_lines` 同口径）：按 semver 降序去重，latest 取桶首。
+ */
+export function mergeOpencodeCatalogs(
+  catalogs: DshVersionCatalog[],
+): DshVersionCatalog {
+  const stable = catalogs
+    .flatMap((catalog) => catalog.stable)
+    .sort((a, b) => compareOpencodeSemver(b.version, a.version));
+  const prerelease = catalogs
+    .flatMap((catalog) => catalog.prerelease)
+    .sort((a, b) => compareOpencodeSemver(b.version, a.version));
+  const dedupe = <T extends { version: string }>(items: T[]): T[] => {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (seen.has(item.version)) {
+        return false;
+      }
+      seen.add(item.version);
+      return true;
+    });
+  };
+  const stableKept = dedupe(stable);
+  const prereleaseKept = dedupe(prerelease);
+  return {
+    stable: stableKept,
+    prerelease: prereleaseKept,
+    latestStable: stableKept[0]?.version ?? null,
+    latestPrerelease: prereleaseKept[0]?.version ?? null,
+  };
+}
+
 let liveCache: { at: number; catalog: DshVersionCatalog } | null = null;
 let liveInflight: Promise<DshVersionCatalog | null> | null = null;
 
@@ -231,16 +268,26 @@ async function fetchLiveCatalog(): Promise<DshVersionCatalog | null> {
   liveInflight = (async () => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), LIVE_TIMEOUT_MS);
-    try {
-      const resp = await fetch(`${registryBase()}/opencode-ai`, {
-        signal: controller.signal,
-      });
-      if (!resp.ok) {
+    const fetchPackument = async (packageName: string): Promise<DshVersionCatalog | null> => {
+      try {
+        const resp = await fetch(`${registryBase()}/${packageName}`, {
+          signal: controller.signal,
+        });
+        if (!resp.ok) {
+          return null;
+        }
+        return parseOpencodePackument(await resp.json());
+      } catch {
         return null;
       }
-      return parseOpencodePackument(await resp.json());
-    } catch {
-      return null;
+    };
+    try {
+      const [v1, v2] = await Promise.all([
+        fetchPackument('opencode-ai'),
+        fetchPackument('@opencode/cli'),
+      ]);
+      const catalogs = [v1, v2].filter((catalog): catalog is DshVersionCatalog => catalog !== null);
+      return catalogs.length > 0 ? mergeOpencodeCatalogs(catalogs) : null;
     } finally {
       clearTimeout(timer);
     }
