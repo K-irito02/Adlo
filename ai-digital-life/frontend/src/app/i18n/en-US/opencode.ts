@@ -48,10 +48,10 @@ export const opencodeEn = {
     'The download address actually in use.\n· Read-only; change it in the Network group\n· Automatic picks the faster reachable registry',
   opencodeSourceSummaryGoModify: 'Change',
   opencodeTerminalNote:
-    'Available in new terminal sessions after install; already-open terminals must be reopened.',
+    'Available in new terminal sessions after install; the managed build uses its own session database (it does not read your local OpenCode database), and already-open terminals must be reopened.',
   opencodeTerminalInjection: 'Auto-enable in new terminal windows',
   opencodeTerminalInjectionHint:
-    'When on, new terminal sessions prepend the host-managed directory to PATH so opencode works directly; when off, new sessions are left alone. Only new sessions are affected; open terminals keep their old PATH.',
+    'When on, new terminal sessions prepend the host-managed directory to PATH and point it at an isolated session database (so it cannot conflict with your own OpenCode install or a newer version); when off, new sessions are left alone. Only new sessions are affected; open terminals keep their old PATH. You may need to run opencode auth login once.',
   opencodeTerminalInjectionSaved: 'Terminal availability saved',
   harnessWizardTitle: 'Install harnesses',
   harnessWizardDesc:

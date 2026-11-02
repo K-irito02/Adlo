@@ -1,0 +1,49 @@
+# 宿主托管 OpenCode CLI 使用独立会话数据库
+
+**状态**: 已接受（2026-11-02）
+
+## 背景
+
+OpenCode CLI 与 OpenCode Desktop 共用全局数据目录 `~/.local/share/opencode/`，默认数据库为
+`opencode.db`。两者的版本线不同：npm `opencode-ai` 当前 latest 为 1.19.5，而 OpenCode Desktop
+2.2.5 自带更新的 CLI 与数据库 schema（使用 `session_v2`，没有 `session` 表）。
+
+应用内托管的 1.19.5 在启动时只接受两种数据库：空库，或包含 `session` 表的旧库；否则直接抛
+`Database is not empty and has no session table`。因此当用户本机已有更高版本的 OpenCode Desktop 时，
+托管 CLI 无法启动（`--version` 仍正常，因为不打开数据库）。
+
+## 决策
+
+当 OpenCode 的版本来源解析为**宿主托管**、且「新终端窗口自动启用」开启时，除把托管目录前置到
+PATH 外，还为新终端会话注入：
+
+```
+OPENCODE_DB = <数据根>/harnesses/opencode/managed/opencode.db
+```
+
+- 只在托管版本实际生效时注入；来源为系统安装、未安装或关闭注入时清空该变量。
+- 用户已在环境中显式设置 `OPENCODE_DB` 时保留用户值（`env_add` 阶段跳过同名键）。
+- 不写系统/用户环境变量，只影响新会话；已打开的终端保持原环境。
+- 托管数据库目录由服务端在刷新注入时创建（SQLite 不会自动创建父目录）。
+
+## 理由
+
+- 直接消除跨产品/跨版本的数据库 schema 冲突，托管版本必定能启动。
+- 不读写用户的 `~/.local/share/opencode/opencode.db`，不会破坏 OpenCode Desktop 的会话或认证数据。
+- 与本项目既有的「托管版本不污染用户机器」原则一致（见 ADR-0005）。
+
+## 影响
+
+- 托管版本与 OpenCode Desktop 不共享会话数据库；托管版本的会话独立保存。
+- 登录凭据：1.19.5 使用 `<数据根>/opencode/auth.json`（与桌面版存放在其数据库中的认证不同），
+  首次使用可能需要在终端里执行 `opencode auth login`。
+- 托管数据库跨托管版本共享；若未来托管版本升级迁移了 schema，再回退到更旧的托管版本仍可能不兼容。
+  真出现时再评估 per-version 数据库或版本回退守卫。
+
+## Considered Options
+
+- **不隔离，只检测并提示**：用户仍无法使用托管版本，`opencode` 启动失败；不解决核心诉求。
+- **接入 OpenCode Desktop 的 2.2.5 CLI**：可共享现有登录/会话，但依赖桌面版私有目录布局，
+  且需要 `opencode` 名称 shim，属于新功能，本次不做。
+- **隔离整个 `XDG_DATA_HOME`**：范围更大，会同时隔离日志/快照/凭据，且改变用户更多预期；
+  当前冲突只在数据库 schema，`OPENCODE_DB` 是最小充分措施。

@@ -3,6 +3,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { useAppStore } from '@stores/slicedStore';
 import { clampTerminalFontSize } from '@stores/slices/terminalSliceTypes';
+import { shouldFitTerminal } from './terminalFitGuard';
 
 /** 当前生效字号：store 值经统一钳制（与写侧/读侧同口径）。 */
 export function readTerminalFontSize(): number {
@@ -67,10 +68,18 @@ export class TerminalXtermPool {
     if (existing) {
       if (existing.hostEl.parentElement !== container) {
         container.appendChild(existing.hostEl);
-        try {
-          existing.fitAddon.fit();
-        } catch {
-          // 容器尚未布局（隐藏/零尺寸），消费侧 XtermTerminal 的 ResizeObserver 会重 fit
+        if (
+          shouldFitTerminal({
+            hidden: document.hidden,
+            width: existing.hostEl.clientWidth,
+            height: existing.hostEl.clientHeight,
+          })
+        ) {
+          try {
+            existing.fitAddon.fit();
+          } catch {
+            // 容器尚未布局（隐藏/零尺寸），消费侧 XtermTerminal 的 ResizeObserver 会重 fit
+          }
         }
       }
       return existing;
@@ -128,6 +137,15 @@ export class TerminalXtermPool {
     this.pool.set(sessionId, entry);
 
     requestAnimationFrame(() => {
+      if (
+        !shouldFitTerminal({
+          hidden: document.hidden,
+          width: hostEl.clientWidth,
+          height: hostEl.clientHeight,
+        })
+      ) {
+        return;
+      }
       try {
         fitAddon.fit();
       } catch {
@@ -167,10 +185,18 @@ export class TerminalXtermPool {
       // 只有 fit()（隐藏容器量不到尺寸）是预期内失败，才静默并交由挂载侧
       // ResizeObserver 在可见时重 fit。
       entry.terminal.options.fontSize = effective;
-      try {
-        entry.fitAddon.fit();
-      } catch {
-        // 容器未布局：挂载侧 ResizeObserver 会重 fit
+      if (
+        shouldFitTerminal({
+          hidden: document.hidden,
+          width: entry.hostEl.clientWidth,
+          height: entry.hostEl.clientHeight,
+        })
+      ) {
+        try {
+          entry.fitAddon.fit();
+        } catch {
+          // 容器未布局：挂载侧 ResizeObserver 会重 fit
+        }
       }
     }
   }

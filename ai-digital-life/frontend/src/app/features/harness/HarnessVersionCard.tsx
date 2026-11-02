@@ -389,7 +389,11 @@ export function HarnessVersionCard<TSource = unknown>({
           }
         >
           {renderSlot(slots.runtimeReadout, slotContext) ?? (
-            <FallbackReadout current={data.current} failed={data.snapshot?.failed === true} />
+            <FallbackReadout
+              current={data.current}
+              failed={data.snapshot?.failed === true}
+              busy={data.busy}
+            />
           )}
         </CurrentVersionRow>
         {data.manageVisible ? (

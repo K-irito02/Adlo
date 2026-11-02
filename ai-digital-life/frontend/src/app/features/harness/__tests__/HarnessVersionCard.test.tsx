@@ -281,9 +281,12 @@ describe('HarnessVersionCard', () => {
       within(channelRow('stable')).getByRole('button', { name: 'harnessVersionInstall' }),
     );
 
-    // 在途：通道选择器与更新按钮禁用，只有取消可点。
+    // 在途：版本来源下拉框、通道选择器与更新按钮禁用，只有取消可点。
+    expect(screen.getByRole('button', { name: 'harnessVersionSourceTitle' })).toBeDisabled();
     expect(within(channelRow('stable')).getByRole('button', { name: '1.1.0' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'harnessVersionUpdateAction' })).toBeDisabled();
+    // 当前版本读数与 DSH 同口径：busy 时显示中性扫光胶囊，不展示中途值。
+    expect(document.querySelector('.adl-harness-version__readout-loading')).not.toBeNull();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(800);
@@ -296,11 +299,15 @@ describe('HarnessVersionCard', () => {
     fireEvent.click(cancel);
     expect(bridge.cancel).toHaveBeenCalledTimes(1);
 
+    vi.useRealTimers();
     await act(async () => {
       resolveInstall(OK);
       await Promise.resolve();
       await Promise.resolve();
     });
+    await waitFor(() =>
+      expect(document.querySelector('.adl-harness-version__readout-loading')).toBeNull(),
+    );
   });
 
   it('renders the not-installed readout when nothing is installed', async () => {

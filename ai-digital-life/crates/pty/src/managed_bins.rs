@@ -10,10 +10,25 @@ use std::sync::RwLock;
 
 static MANAGED_BIN_DIRS: RwLock<Vec<PathBuf>> = RwLock::new(Vec::new());
 
+/// 托管 CLI 需要额外注入到新终端会话的环境变量（例如 OpenCode 的独立数据库）。
+/// 与 PATH 注入同生命周期：来源解析为系统安装或关闭注入时清空。
+static MANAGED_ENV: RwLock<Vec<(OsString, OsString)>> = RwLock::new(Vec::new());
+
 /// 覆盖当前登记目录（空 vec 即关闭注入）。
 pub fn set_managed_bin_dirs(dirs: Vec<PathBuf>) {
     let mut guard = MANAGED_BIN_DIRS.write().unwrap_or_else(|e| e.into_inner());
     *guard = dirs;
+}
+
+/// 覆盖当前托管环境变量（空 vec 即关闭注入）。
+pub fn set_managed_env(env: Vec<(OsString, OsString)>) {
+    let mut guard = MANAGED_ENV.write().unwrap_or_else(|e| e.into_inner());
+    *guard = env;
+}
+
+/// 当前登记的托管环境变量（调试/测试用）。
+pub fn managed_env() -> Vec<(OsString, OsString)> {
+    MANAGED_ENV.read().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
 /// 当前登记的目录（调试/测试用）。
@@ -63,5 +78,15 @@ mod tests {
         assert!(text.contains("/usr/bin"));
         set_managed_bin_dirs(Vec::new());
         assert!(terminal_path(Some(&inherited)).is_none());
+    }
+
+    #[test]
+    fn managed_env_round_trips_and_can_be_cleared() {
+        let key = OsString::from("OPENCODE_DB");
+        let value = OsString::from("/tmp/managed/opencode.db");
+        set_managed_env(vec![(key.clone(), value.clone())]);
+        assert_eq!(managed_env(), vec![(key, value)]);
+        set_managed_env(Vec::new());
+        assert!(managed_env().is_empty());
     }
 }

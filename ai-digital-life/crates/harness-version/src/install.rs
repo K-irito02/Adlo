@@ -648,10 +648,21 @@ async fn remove_dir_with_progress(dir: &Path, task: &ProgressTask) {
     task.update(ProgressPhase::Removing, Some(100), total, total, false);
 }
 
-/// 卸载指定版本：删除 `installed/<version>/`。
+/// 卸载指定版本（DSH）：删除 `installed/<version>/`。
 ///
 /// 内置预置版本也是普通已装版本，走同一条路径（来源记录由调用方清除）。
 pub async fn uninstall(root: &Path, version: &str, task: &ProgressTask) -> Result<(), AppError> {
+    uninstall_for(&spec::DSH, root, version, task).await
+}
+
+/// 按任意描述符卸载指定版本：marker 因 harness 而异，重选最高版本也必须
+/// 按同一描述符枚举，不能沿用 DSH 的 `installed/<v>/node_modules/...`。
+pub async fn uninstall_for(
+    spec: &HarnessSpec,
+    root: &Path,
+    version: &str,
+    task: &ProgressTask,
+) -> Result<(), AppError> {
     let version = version.trim();
     tracing::debug!(%version, "dsh uninstall: request");
     // 版本号会拼进安装目录并被 rename/remove_dir_all 使用：先按 semver 拒绝
@@ -698,7 +709,7 @@ pub async fn uninstall(root: &Path, version: &str, task: &ProgressTask) -> Resul
     }
 
     if was_selected {
-        let next = crate::highest_installed(root)?;
+        let next = crate::highest_installed_for(spec, root)?;
         tracing::debug!(%version, next = ?next, "dsh uninstall: was selected, reselecting");
         let body = next.map(|v| format!("{v}\n")).unwrap_or_default();
         tokio::fs::write(selected_file(root), body)

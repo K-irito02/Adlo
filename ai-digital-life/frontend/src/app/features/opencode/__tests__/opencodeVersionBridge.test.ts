@@ -106,7 +106,8 @@ describe('opencodeVersionBridge', () => {
     const { raw, adapter } = makeBridge({}, { testSource, saveSourceConfig });
 
     await adapter.load();
-    await adapter.install('1.4.0');
+    const installed = await adapter.install('1.4.0');
+    expect(installed).toMatchObject({ ok: true, message: 'harnessVersionInstalledVersion' });
     expect(testSource).toHaveBeenCalledTimes(2);
     expect(saveSourceConfig).toHaveBeenCalledWith(
       { source_mode: 'auto', npm_registry: 'https://registry.npmmirror.com' },
@@ -262,7 +263,7 @@ describe('opencodeVersionBridge', () => {
     await expect(offline.install('1.0.0')).resolves.toMatchObject({ ok: false });
   });
 
-  it('owns the four OpenCode stage labels (never "downloading", no counts)', () => {
+  it('mirrors the DSH stage labels (download when total is unknown, no counts)', () => {
     const { adapter } = makeBridge();
     const base = {
       kind: 'dsh-install' as const,
@@ -277,10 +278,16 @@ describe('opencodeVersionBridge', () => {
       'harnessVersionPhasePreparing',
     );
     expect(adapter.taskStageText?.({ ...base, phase: 'installing', total: 0 })).toBe(
+      'harnessVersionPhaseDownloading',
+    );
+    expect(adapter.taskStageText?.({ ...base, phase: 'installing' })).toBe(
       'harnessVersionPhaseInstalling',
     );
     expect(adapter.taskStageText?.({ ...base, phase: 'removing' })).toBe(
       'harnessVersionPhaseRemoving',
+    );
+    expect(adapter.taskStageText?.({ ...base, phase: 'removing', total: 0 })).toBe(
+      'harnessVersionPhasePreparing',
     );
     expect(adapter.taskStageText?.({ ...base, phase: 'finalizing' })).toBe(
       'harnessVersionPhaseFinalizing',

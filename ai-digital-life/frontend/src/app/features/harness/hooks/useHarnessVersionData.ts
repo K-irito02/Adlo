@@ -158,8 +158,10 @@ export function useHarnessVersionData<TSource>(bridge: HarnessVersionBridge<TSou
         bridge.notify(t.harnessVersionOpFailed, 'error');
       } finally {
         clearTask();
-        setBusy(false);
+        // 先刷新再降 busy：刷新期间读数保持扫光、任务行沿用上次阶段（收尾中），
+        // 避免「安装成功 → 短暂显示未安装 → 徽章才出现」的闪变（与 DSH 重启长尾同口径）。
         await refresh();
+        setBusy(false);
       }
     },
     [bridge, clearTask, refresh, t],

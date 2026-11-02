@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { terminalXtermPool } from '@features/terminal/terminalXtermPool';
+import { shouldFitTerminal } from '@features/terminal/terminalFitGuard';
 import '@xterm/xterm/css/xterm.css';
 
 export interface XtermTerminalHandle {
@@ -92,14 +93,27 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
       // 自身容器尺寸变化时重新 fit 并把尺寸上报给 PTY。
       // 覆盖：面板缩放、主题切换、容器尺寸变化。
       // 去抖 120ms：连续拖拽不会把 ConPTY 打成整屏重绘风暴（ConPTY 每次 resize 都会重发整屏）。
+      //
+      // 最小化/面板隐藏时容器会塌缩到极小（实测 23×6）：此时 fit 会把 xterm 收缩并
+      // 重排缓冲区，恢复后历史记录丢失。用 shouldFitTerminal 跳过隐藏/零尺寸状态，
+      // 恢复可见后由 ResizeObserver 与 visibilitychange 重新 fit 到真实尺寸。
       let resizeTimer: ReturnType<typeof setTimeout> | null = null;
-      const observer = new ResizeObserver(() => {
+      const scheduleFit = () => {
         if (resizeTimer) {
           clearTimeout(resizeTimer);
         }
         resizeTimer = setTimeout(() => {
           resizeTimer = null;
           if (!entry.hostEl.isConnected) {
+            return;
+          }
+          if (
+            !shouldFitTerminal({
+              hidden: document.hidden,
+              width: container.clientWidth,
+              height: container.clientHeight,
+            })
+          ) {
             return;
           }
           try {
@@ -112,7 +126,15 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
             onResizeRef.current?.(dims.cols, dims.rows);
           }
         }, 120);
-      });
+      };
+      const observer = new ResizeObserver(scheduleFit);
+      const onVisibilityChange = () => {
+        if (!document.hidden) {
+          scheduleFit();
+        }
+      };
+      document.addEventListener('visibilitychange', onVisibilityChange);
+      window.addEventListener('focus', scheduleFit);
       observer.observe(container);
 
       return () => {
@@ -120,6 +142,8 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
           clearTimeout(resizeTimer);
         }
         observer.disconnect();
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+        window.removeEventListener('focus', scheduleFit);
         disposable.dispose();
         // 不释放 pool entry — 保留 xterm 实例和 buffer，切换标签时不丢失内容。
         // pool entry 仅在标签关闭时由 handleCloseTab 释放。

@@ -33,6 +33,12 @@ fn terminal_env(program: &str) -> HashMap<OsString, OsString> {
     if let Some(path) = crate::managed_bins::terminal_path(path_value.as_ref()) {
         env.insert(path_key, path);
     }
+    // 托管 CLI 的数据隔离变量（如 OpenCode 的 OPENCODE_DB）：用户已显式设置时尊重用户值。
+    for (key, value) in crate::managed_bins::managed_env() {
+        if std::env::var_os(&key).is_none() {
+            env.insert(key, value);
+        }
+    }
     let injected = crate::shell_resolver::shell_integration_env(program);
     if !injected.is_empty() {
         tracing::debug!(
@@ -189,5 +195,22 @@ impl PtySession for RustPtySessionImpl {
             Some(c) => c.kill().map_err(std::io::Error::other),
             None => Ok(()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::terminal_env;
+    use std::ffi::OsString;
+
+    #[test]
+    fn terminal_env_injects_registered_managed_env() {
+        let key = OsString::from("ADL_TEST_MANAGED_ENV");
+        let value = OsString::from("/tmp/adl-managed.db");
+        crate::managed_bins::set_managed_env(vec![(key.clone(), value.clone())]);
+        let env = terminal_env("pwsh");
+        assert_eq!(env.get(&key), Some(&value));
+        crate::managed_bins::set_managed_env(Vec::new());
+        assert!(!terminal_env("pwsh").contains_key(&key));
     }
 }

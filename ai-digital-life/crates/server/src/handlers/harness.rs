@@ -3,7 +3,8 @@
 //! 版本内核在 `adl_harness_version`：本模块只负责把 `opencode` 描述符、版本目录、
 //! 版本任务与来源偏好接到 HTTP 上。DSH 的运行态（端口/标签/auth）不在此处。
 
-use std::path::PathBuf;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -22,7 +23,27 @@ fn root(state: &ServerState) -> PathBuf {
     state.storage.paths().harness_versions_dir(HARNESS_KEY)
 }
 
-/// 按当前「版本来源 + 已装版本」刷新终端 PATH 注入目录。
+/// 托管 OpenCode 的数据隔离变量：只在宿主托管 + 注入开启时使用独立数据库。
+///
+/// 用户本机可能装着更高版本的 OpenCode（例如 OpenCode Desktop），它与 CLI 共用
+/// `~/.local/share/opencode/opencode.db`，但 schema 不兼容（新库无 `session` 表）；
+/// 托管版本直接打开会报 `Database is not empty and has no session table`。
+/// 用 `OPENCODE_DB` 把托管版本的会话数据库放到应用数据目录，避免互相破坏。
+fn managed_terminal_env(
+    harness_root: &Path,
+    effective: hv::EffectiveSource,
+    selected: Option<&str>,
+    injection_enabled: bool,
+) -> Vec<(OsString, OsString)> {
+    if !injection_enabled || effective != hv::EffectiveSource::Host || selected.is_none() {
+        return Vec::new();
+    }
+    let base = harness_root.parent().unwrap_or(harness_root);
+    let db = base.join("managed").join("opencode.db");
+    vec![(OsString::from("OPENCODE_DB"), db.into_os_string())]
+}
+
+/// 按当前「版本来源 + 已装版本」刷新终端 PATH 与数据隔离注入。
 ///
 /// 只有解析为宿主托管且该版本完整安装时才注入；system / 未安装 → 清空。
 /// 在启动与每次版本变更/来源切换后调用（新会话生效）。
@@ -34,13 +55,13 @@ pub fn refresh_managed_bins(state: &ServerState) {
     let mode = config
         .map(|c| c.opencode_version_source)
         .unwrap_or(adl_download_source::VersionSourceMode::Auto);
-    let selected = hv::read_selected(&harness_root).ok().flatten();
+    let selected = hv::read_selected_for(&spec::OPENCODE, &harness_root).ok().flatten();
     let installed = selected
         .as_deref()
         .is_some_and(|v| hv::is_version_installed_for(&spec::OPENCODE, &harness_root, v));
     let has_system = hv::detect_system_bin(&spec::OPENCODE).is_some();
     let effective = hv::resolve_effective_source(mode, false, installed, has_system);
-    let dirs = match (&effective, selected) {
+    let dirs = match (&effective, selected.as_deref()) {
         (hv::EffectiveSource::Host, Some(version)) if injection_enabled => {
             vec![adl_pty::managed_bins::bin_dir_for(
                 &harness_root.join("installed").join(version),
@@ -49,7 +70,17 @@ pub fn refresh_managed_bins(state: &ServerState) {
         },
         _ => Vec::new(),
     };
+    let env =
+        managed_terminal_env(&harness_root, effective, selected.as_deref(), injection_enabled);
+    // SQLite 不会自动创建父目录；先建好托管数据库目录（失败时注入仍会带上路径，
+    // 由用户侧报错暴露，不静默改写为共享 DB）。
+    if let Some((_, value)) = env.first() {
+        if let Some(parent) = Path::new(value).parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+    }
     adl_pty::managed_bins::set_managed_bin_dirs(dirs);
+    adl_pty::managed_bins::set_managed_env(env);
 }
 
 #[derive(Deserialize)]
@@ -170,10 +201,14 @@ pub async fn uninstall(
         return ipc::to_response(Err(e));
     }
     let _guard = state.opencode_version_lock.lock().await;
-    let result =
-        hv::uninstall_with_task(&root(&state), &input.version, &state.opencode_version_task)
-            .await
-            .map(|()| serde_json::json!(true));
+    let result = hv::uninstall_for(
+        &spec::OPENCODE,
+        &root(&state),
+        &input.version,
+        &state.opencode_version_task,
+    )
+    .await
+    .map(|()| serde_json::json!(true));
     state.opencode_version_task.finish();
     refresh_managed_bins(&state);
     ipc::to_response(result)
@@ -182,7 +217,7 @@ pub async fn uninstall(
 /// `POST /opencode/reinstall`
 pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
     let harness_root = root(&state);
-    let selected = match hv::read_selected(&harness_root) {
+    let selected = match hv::read_selected_for(&spec::OPENCODE, &harness_root) {
         Ok(Some(v)) => v,
         Ok(None) => {
             return ipc::to_response(Err(AppError::NotFound("no selected version".into())));
@@ -234,7 +269,7 @@ fn source_status_inner(state: &ServerState) -> Result<serde_json::Value, AppErro
             "version": info.version,
         })
     });
-    let host_version = hv::read_selected(&harness_root)?
+    let host_version = hv::read_selected_for(&spec::OPENCODE, &harness_root)?
         .filter(|v| hv::is_version_installed_for(&spec::OPENCODE, &harness_root, v));
     let mode = config.opencode_version_source;
     let has_system = system.is_some();
@@ -307,4 +342,33 @@ pub async fn save_terminal_injection(
     })();
     refresh_managed_bins(&state);
     ipc::to_response(result.map(|()| serde_json::json!(true)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use adl_harness_version::EffectiveSource;
+
+    #[test]
+    fn managed_env_isolates_opencode_db_only_for_host_source() {
+        let harness_root = Path::new("data/harnesses/opencode/versions");
+        let expected = Path::new("data/harnesses/opencode/managed").join("opencode.db");
+
+        let env = managed_terminal_env(harness_root, EffectiveSource::Host, Some("1.19.5"), true);
+        assert_eq!(env.len(), 1);
+        assert_eq!(env[0].0, OsString::from("OPENCODE_DB"));
+        assert_eq!(Path::new(&env[0].1), expected);
+
+        for (effective, selected, enabled) in [
+            (EffectiveSource::System, Some("1.19.5"), true),
+            (EffectiveSource::None, Some("1.19.5"), true),
+            (EffectiveSource::Host, None, true),
+            (EffectiveSource::Host, Some("1.19.5"), false),
+        ] {
+            assert!(
+                managed_terminal_env(harness_root, effective, selected, enabled).is_empty(),
+                "unexpected env for {effective:?} selected={selected:?} enabled={enabled}"
+            );
+        }
+    }
 }

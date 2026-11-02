@@ -1,5 +1,6 @@
 import type { DshSourceConfig, DshTestResult, IpcResult } from '@shared/ipc/dsh';
 import type { CopyDict } from '@i18n/types';
+import { formatT } from '@i18n/formatT';
 import type { OpencodeBridge, OpencodeSourceStatus } from '@shared/ipc/opencode';
 import { detectFastestSource } from '@features/network/sourceAutoDetect';
 import type {
@@ -144,13 +145,20 @@ export function createOpencodeVersionBridge(
         await saveSourceConfig({ source_mode: 'auto', npm_registry: winner }, true);
       }
     }
-    return toResult(await bridge.installVersion(trimmed, true));
+    const result = await bridge.installVersion(trimmed, true);
+    if (!result.ok) {
+      return toResult(result);
+    }
+    return {
+      ok: true,
+      message: formatT(t, 'harnessVersionInstalledVersion', { version: trimmed }),
+    };
   };
 
   const saveSourceMode = (mode: HarnessVersionSourceMode) =>
     call((raw) => raw.saveVersionSource(mode));
 
-  /** OpenCode 的阶段文案：四态固定，不把未知总量说成「下载中」。 */
+  /** OpenCode 的阶段文案：与 DSH 同口径（总量未知时按下载/准备，不伪造进度）。 */
   const taskStageText = (task: HarnessVersionTask | null): string => {
     if (!task) {
       return t.harnessVersionPhaseFinalizing;
@@ -159,9 +167,9 @@ export function createOpencodeVersionBridge(
       case 'preparing':
         return t.harnessVersionPhasePreparing;
       case 'installing':
-        return t.harnessVersionPhaseInstalling;
+        return task.total > 0 ? t.harnessVersionPhaseInstalling : t.harnessVersionPhaseDownloading;
       case 'removing':
-        return t.harnessVersionPhaseRemoving;
+        return task.total > 0 ? t.harnessVersionPhaseRemoving : t.harnessVersionPhasePreparing;
       default:
         return t.harnessVersionPhaseFinalizing;
     }

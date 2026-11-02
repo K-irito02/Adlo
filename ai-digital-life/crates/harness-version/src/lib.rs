@@ -121,35 +121,45 @@ pub fn is_host_version_installed(root: &Path, version: &str) -> bool {
     dsh_versions(root).is_installed(version)
 }
 
-/// 读取当前选中的版本号。
+/// 读取当前选中的版本号（DSH）。
 pub fn read_selected(root: &Path) -> Result<Option<String>, AppError> {
-    dsh_versions(root).read_selected()
+    read_selected_for(&spec::DSH, root)
 }
 
-pub(crate) fn list_installed(root: &Path) -> Result<Vec<String>, AppError> {
+/// 按任意描述符读取当前选中版本：仅当 `selected.txt` 指向的版本已按该
+/// harness 的 marker 完整安装时才算选中（不同 harness 的 `installed/<v>/`
+/// 布局不同，不能共用 DSH 的 marker）。
+pub fn read_selected_for(
+    spec: &spec::HarnessSpec,
+    root: &Path,
+) -> Result<Option<String>, AppError> {
+    HostedVersions::open(root, "", spec.marker_rel).read_selected()
+}
+
+/// 按任意描述符枚举已完整安装的版本。
+pub(crate) fn list_installed_for(
+    spec: &spec::HarnessSpec,
+    root: &Path,
+) -> Result<Vec<String>, AppError> {
     // 枚举收敛至 hosted（已按 semver 合法 + marker 完整过滤），排序口径保留
     // dsh 原语义：semver 降序（hosted 只保证集合正确，不保证顺序）。
-    let mut versions = dsh_versions(root).installed_versions();
-    versions.sort_by(|a, b| {
-        let na = semver::Version::parse(a)
-            .unwrap_or_else(|_| semver::Version::parse("0.0.0").expect("0.0.0 parses"));
-        let nb = semver::Version::parse(b)
-            .unwrap_or_else(|_| semver::Version::parse("0.0.0").expect("0.0.0 parses"));
-        nb.cmp(&na)
-    });
+    let mut versions = HostedVersions::open(root, "", spec.marker_rel).installed_versions();
+    versions.sort_by_key(|version| std::cmp::Reverse(semver_key(version)));
     Ok(versions)
 }
 
-/// 已装版本中的最高语义版本（不依赖 `list_installed` 的排序方向，
+/// 已装版本中的最高语义版本（不依赖 `list_installed_for` 的排序方向，
 /// 调用方不得用 `.next()` 隐含假设顺序）。
-pub(crate) fn highest_installed(root: &Path) -> Result<Option<String>, AppError> {
-    Ok(list_installed(root)?.into_iter().max_by(|a, b| {
-        let na = semver::Version::parse(a)
-            .unwrap_or_else(|_| semver::Version::parse("0.0.0").expect("0.0.0 parses"));
-        let nb = semver::Version::parse(b)
-            .unwrap_or_else(|_| semver::Version::parse("0.0.0").expect("0.0.0 parses"));
-        na.cmp(&nb)
-    }))
+pub(crate) fn highest_installed_for(
+    spec: &spec::HarnessSpec,
+    root: &Path,
+) -> Result<Option<String>, AppError> {
+    Ok(list_installed_for(spec, root)?.into_iter().max_by_key(|version| semver_key(version)))
+}
+
+fn semver_key(version: &str) -> semver::Version {
+    semver::Version::parse(version)
+        .unwrap_or_else(|_| semver::Version::parse("0.0.0").expect("0.0.0 parses"))
 }
 
 /// 把版本字符串拆成主/次/补丁数值段；忽略 `-` 之后的 pre-release 后缀。
@@ -417,8 +427,8 @@ pub async fn get_version_status_for(
     root: &Path,
     data_dir: &Path,
 ) -> Result<VersionStatus, AppError> {
-    let current_selected = read_selected(root)?;
-    let installed = list_installed(root)?;
+    let current_selected = read_selected_for(spec, root)?;
+    let installed = list_installed_for(spec, root)?;
     let dist_latest = latest_available_for(spec, data_dir).await.ok().flatten();
     match fetch_catalog_for(spec, data_dir).await {
         Ok(catalog) => {
@@ -574,9 +584,19 @@ pub async fn uninstall_with_task(
     version: &str,
     task: &ProgressTask,
 ) -> Result<(), AppError> {
-    tracing::debug!(%version, "harness-version::uninstall: delegating to kernel");
-    install::uninstall(root, version, task).await?;
-    Ok(())
+    uninstall_for(&spec::DSH, root, version, task).await
+}
+
+/// 按任意描述符卸载版本：删除 `installed/<version>/`；若恰好是当前选中版本，
+/// 自动改选该 harness 剩余最高已装版本，没有剩余则清空 selected。
+pub async fn uninstall_for(
+    spec: &spec::HarnessSpec,
+    root: &Path,
+    version: &str,
+    task: &ProgressTask,
+) -> Result<(), AppError> {
+    tracing::debug!(%version, harness = spec.id.key(), "harness-version::uninstall: delegating to kernel");
+    install::uninstall_for(spec, root, version, task).await
 }
 
 /// 重装：真重新安装当前选中版本，保持选中状态。
@@ -599,8 +619,8 @@ pub async fn reinstall_for(
     data_dir: &Path,
     task: &ProgressTask,
 ) -> Result<String, AppError> {
-    let selected =
-        read_selected(root)?.ok_or_else(|| AppError::NotFound("no selected version".into()))?;
+    let selected = read_selected_for(spec, root)?
+        .ok_or_else(|| AppError::NotFound("no selected version".into()))?;
     tracing::debug!(version = %selected, harness = spec.id.key(), "harness-version::reinstall: reinstalling selected");
     install::install_for(spec, root, data_dir, &selected, task, true).await
 }
@@ -920,7 +940,7 @@ mod tests {
     #[test]
     fn list_installed_missing_dir_returns_empty() {
         let root = fresh_root("empty_list");
-        let versions = list_installed(&root).expect("no error on missing dir");
+        let versions = list_installed_for(&spec::DSH, &root).expect("no error on missing dir");
         assert!(versions.is_empty());
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -1221,6 +1241,63 @@ mod tests {
         .expect("write config");
         let err = get_version_status(&root, &data_dir).await.expect_err("both fetches fail");
         assert!(matches!(err, AppError::Network(_)));
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(&data_dir);
+    }
+
+    /// OpenCode 的已装目录布局与 DSH 不同（marker 为 `bin/opencode.exe`）：
+    /// 状态查询必须按 harness 描述符判定已装/选中，否则安装成功也会显示成未安装。
+    #[tokio::test]
+    async fn opencode_status_lists_installed_and_selected_by_opencode_marker() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind stub");
+        let port = listener.local_addr().expect("addr").port();
+        let server = tokio::spawn(async move {
+            for _ in 0..2 {
+                let Ok((mut socket, _)) = listener.accept().await else { break };
+                let mut buf = vec![0u8; 4096];
+                let n = socket.read(&mut buf).await.unwrap_or(0);
+                let first = String::from_utf8_lossy(&buf[..n])
+                    .lines()
+                    .next()
+                    .unwrap_or_default()
+                    .to_string();
+                let body = if first.contains("/latest") {
+                    r#"{"version":"1.19.5"}"#
+                } else {
+                    r#"{"versions":{"1.19.5":{}},"time":{"1.19.5":"2026-01-01T00:00:00.000Z"},"dist-tags":{"latest":"1.19.5"}}"#
+                };
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                socket.write_all(resp.as_bytes()).await.ok();
+            }
+        });
+        let root = fresh_root("status_opencode_marker");
+        let version_dir = root.join("installed").join("1.19.5").join("bin");
+        std::fs::create_dir_all(&version_dir).expect("mkdir installed version");
+        std::fs::write(version_dir.join("opencode.exe"), b"fake-opencode").expect("write marker");
+        std::fs::write(root.join("selected.txt"), "1.19.5\n").expect("write selected");
+        let data_dir = fresh_root("status_opencode_marker_data");
+        std::fs::create_dir_all(data_dir.join("config")).expect("mkdir config");
+        std::fs::write(
+            data_dir.join("config").join("download-sources.json"),
+            format!(
+                r#"{{"npm_registry": "http://127.0.0.1:{port}", "proxy": {{"mode": "none", "http_proxy": null, "https_proxy": null, "no_proxy": null}}}}"#
+            ),
+        )
+        .expect("write config");
+
+        let status = get_version_status_for(&spec::OPENCODE, &root, &data_dir)
+            .await
+            .expect("status should resolve");
+        assert_eq!(status.installed, vec!["1.19.5".to_string()]);
+        assert_eq!(status.current_selected.as_deref(), Some("1.19.5"));
+        assert_eq!(status.latest_available.as_deref(), Some("1.19.5"));
+        assert!(!status.has_update);
+
+        server.abort();
         let _ = std::fs::remove_dir_all(&root);
         let _ = std::fs::remove_dir_all(&data_dir);
     }

@@ -47,10 +47,11 @@ export const opencodeZh = {
   opencodeSourceSummaryHint:
     '当前实际在用的下载地址。\n· 只读显示，去网络那一组修改\n· 自动检测会在官方和镜像之间选更快能连通的一个',
   opencodeSourceSummaryGoModify: '前往修改',
-  opencodeTerminalNote: '安装后新开终端会话即可直接使用；已打开的终端需要重开。',
+  opencodeTerminalNote:
+    '安装后新开终端会话即可直接使用；托管版本使用独立会话数据库（不读取你本机 OpenCode 的数据库），已打开的终端需要重开。',
   opencodeTerminalInjection: '新终端窗口自动启用',
   opencodeTerminalInjectionHint:
-    '打开后，新建的终端会话会自动把宿主托管的目录放到 PATH 最前面，可直接输入 opencode 使用；关闭后新会话不再注入。只影响新会话，已打开的终端保持不变。',
+    '打开后，新建的终端会话会自动把宿主托管的目录放到 PATH 最前面，并为其指定独立的会话数据库（避免与你自己的 OpenCode 安装/更高版本冲突）；关闭后新会话不再注入。只影响新会话，已打开的终端保持不变。首次使用可能需要在终端里执行 opencode auth login。',
   opencodeTerminalInjectionSaved: '终端可用性已保存',
   harnessWizardTitle: '安装 harness',
   harnessWizardDesc:

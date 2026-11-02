@@ -74,11 +74,22 @@ export function CurrentVersionRow({
 interface FallbackReadoutProps {
   current: string | null;
   failed: boolean;
+  /** 版本操作在途：与 DSH 读数一致，改为中性扫光胶囊，不展示中途值。 */
+  busy?: boolean;
 }
 
 /** 无运行态插槽时的通用读数：只显示版本号；只有完全没有读数时才展示失败文案。 */
-export function FallbackReadout({ current, failed }: FallbackReadoutProps) {
+export function FallbackReadout({ current, failed, busy = false }: FallbackReadoutProps) {
   const { t } = useTCopy();
+  if (busy) {
+    return (
+      <span
+        className="adl-harness-version__readout-loading"
+        role="status"
+        aria-label={t.harnessVersionLoading}
+      />
+    );
+  }
   if (failed && current === null) {
     return (
       <span className="adl-harness-version__readout-value is-empty">
