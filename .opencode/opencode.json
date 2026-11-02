@@ -3,9 +3,13 @@
   "skills": ["./.agents/skills"],
   "permissions": [
     { "action": "shell", "resource": "*Select-String*", "effect": "deny" },
-    { "action": "shell", "resource": "*-replace *", "effect": "deny" },
+    { "action": "shell", "resource": "*-replace*", "effect": "deny" },
     { "action": "shell", "resource": "*Add-Content*", "effect": "deny" },
-    { "action": "shell", "resource": "*Out-File*", "effect": "deny" }
+    { "action": "shell", "resource": "*Set-Content*", "effect": "deny" },
+    { "action": "shell", "resource": "*Out-File*", "effect": "deny" },
+    { "action": "shell", "resource": "*WriteAllText*", "effect": "deny" },
+    { "action": "shell", "resource": "*WriteAllLines*", "effect": "deny" },
+    { "action": "shell", "resource": "*sed -i*", "effect": "deny" }
   ],
   "mcp": {
     "servers": {
