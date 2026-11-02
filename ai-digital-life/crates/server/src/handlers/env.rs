@@ -742,7 +742,10 @@ fn spawn_node_install(state: &ServerState, version: String, dist_base: String) {
         };
         let cfg =
             node::InstallConfig { data_dir: &root, dist_base: &dist_base, download: &download };
-        let _ = node::install(&version, &cfg, &task_state.env_task).await;
+        if node::install(&version, &cfg, &task_state.env_task).await.is_ok() {
+            // 新版本写入 selected.txt 后，宿主目录要立刻进 PATH（新终端/dsh 下一次拉起生效）。
+            crate::env_path::refresh(&root);
+        }
     });
 }
 
@@ -773,7 +776,10 @@ fn spawn_git_install(
             mingit_asset: &asset,
             download: &download,
         };
-        let _ = git::install(&version, &cfg, &task_state.env_task).await;
+        if git::install(&version, &cfg, &task_state.env_task).await.is_ok() {
+            // 同 node：宿主 MinGit 的 `cmd/` 立刻进入 PATH。
+            crate::env_path::refresh(&root);
+        }
     });
 }
 
@@ -867,6 +873,8 @@ fn spawn_uninstall(state: &ServerState, dep: &'static str, version: String) {
             Ok(Ok(())) => {
                 tracing::info!(dep, version = %log_version, "env: uninstall succeeded");
                 task_state.env_task.finish();
+                // 选中版可能回退到另一已装版本，或无版本可选中 → PATH 必须同步收缩。
+                crate::env_path::refresh(&task_state.storage.paths().root);
             },
             Ok(Err(e)) => {
                 tracing::warn!(
@@ -924,6 +932,9 @@ async fn select_source_inner(
     adl_env::config::save(&root, &config)?;
     // 立即失效状态缓存：前端保存后马上取 status，不能返回旧 mode/effective。
     cache_clear(&state.env_status_cache).await;
+    // 来源切换会改变注入集合（宿主副本 / 指定路径的父目录）：refresh 先摘旧目录
+    // 再按新配置加新目录，避免宿主版继续抢占系统命令或指定路径不生效。
+    crate::env_path::refresh(&root);
     Ok(serde_json::json!(true))
 }
 
@@ -980,6 +991,9 @@ async fn set_custom_path_inner(
     )?;
     adl_env::config::save(&root, &config)?;
     cache_clear(&state.env_status_cache).await;
+    // 指定路径会改变注入集合：system/custom/auto 回退都取该可执行文件的父目录。
+    // 刷新一次，让新终端与下一次 dsh/git 拉起使用新路径。
+    crate::env_path::refresh(&root);
     Ok(serde_json::json!(true))
 }
 

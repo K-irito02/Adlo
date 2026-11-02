@@ -1,5 +1,5 @@
 ---
-description: Unified four-step recipe for ad-server HTTP handlers with blocking I/O isolation and IpcResult wrapping
+description: Unified four-step recipe for adl-server HTTP handlers with blocking I/O isolation and IpcResult wrapping
 globs: ai-digital-life/crates/server/**/*.rs
 alwaysApply: false
 ---
@@ -8,7 +8,7 @@ alwaysApply: false
 
 ### 规则描述
 
-所有 ad-server HTTP handler 必须遵循统一的四步配方：
+所有 adl-server HTTP handler 必须遵循统一的四步配方：
 
 1. **State 提取**：`State(state): State<ServerState>` 获取服务端状态
 2. **Body 解析**：`ipc::json_body(body)` 解析请求体

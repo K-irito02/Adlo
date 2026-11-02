@@ -124,6 +124,15 @@ function EnvDepPill({ dep, section }: { dep: string; section: EnvDependencyState
   );
 }
 
+/** 与行内胶囊相同的状态文案（诊断报告复用，保证界面与复制内容口径一致）。 */
+export function envDepStatusLabel(
+  t: ReturnType<typeof useTCopy>['t'],
+  dep: string,
+  section: EnvDependencyState,
+): string {
+  return depPill(t, dep, section).text;
+}
+
 function taskPhaseText(t: ReturnType<typeof useTCopy>['t'], phase: EnvTask['phase']): string {
   switch (phase) {
     case 'preparing':
@@ -134,6 +143,20 @@ function taskPhaseText(t: ReturnType<typeof useTCopy>['t'], phase: EnvTask['phas
       return t.environmentTaskPhaseRemoving;
     case 'finalizing':
       return t.environmentTaskPhaseFinalizing;
+  }
+}
+
+/** 「来源」展示名：状态行、安装阻断提示共用，避免两处口径漂移。 */
+export function sourceLabelFor(t: ReturnType<typeof useTCopy>['t'], mode: EnvSourceMode): string {
+  switch (mode) {
+    case 'auto':
+      return t.environmentSourceAuto;
+    case 'system':
+      return t.environmentSourceSystem;
+    case 'custom':
+      return t.environmentSourceCustom;
+    case 'host':
+      return t.environmentSourceHost;
   }
 }
 
@@ -218,7 +241,25 @@ export function EnvDepRow({
   // 等变更动作置灰，因此桌面模式提示只挂在可安装行（node/git）且只描述
   // 这类动作，不能暗示整行不可用。
   const installGated = browserGated && (dep === 'node' || dep === 'git');
-  const descText = installGated ? `${depDesc} ${t.environmentInstallDesktopOnlyHint}` : depDesc;
+  // 宿主安装只在 auto/host 下才会成为 effective。system/custom 是用户的显式选择
+  // （ADR-0007 不静默降级），此时显示安装按钮会造成「装成功但界面毫无变化」。
+  const installBlockedBySource =
+    !browserGated &&
+    section !== null &&
+    INSTALLABLE_DEPS.has(dep) &&
+    !isEnvDepReady(section) &&
+    (section.mode === 'system' || section.mode === 'custom');
+  const descText = [
+    depDesc,
+    installGated ? t.environmentInstallDesktopOnlyHint : null,
+    installBlockedBySource
+      ? formatT(t, 'environmentInstallSourceHint', {
+          source: sourceLabelFor(t, section.mode),
+        })
+      : null,
+  ]
+    .filter((part): part is string => part !== null)
+    .join(' ');
 
   // 来源下拉：node/git 四项（含指定路径）；bash 无宿主来源，三项（自动/系统/指定路径）；
   // 其余只读行不展示下拉（showControlColumn 为 false），此处仅为类型完备保留三项。
@@ -296,11 +337,12 @@ export function EnvDepRow({
     !(firstUninstallDep === 'git' && status.git.installedVersion !== status.git.baselineVersion)
       ? firstUninstallDep
       : null;
-  // 安装按钮仅 node/git、未就绪、无进行中任务且在线时出现：
-  // 把缺失/过低的依赖一键装成宿主内置版本（装完自动生效）。
+  // 安装按钮仅 node/git、来源允许宿主生效（auto/host）、未就绪、无进行中任务且
+  // 在线时出现：把缺失/过低的依赖一键装成宿主内置版本（装完自动生效）。
   const showInstall =
     section !== null &&
     INSTALLABLE_DEPS.has(dep) &&
+    (section.mode === 'auto' || section.mode === 'host') &&
     !isEnvDepReady(section) &&
     taskForDep === null &&
     !offline;
@@ -391,15 +433,13 @@ export function EnvDepRow({
       if (section.path !== null) {
         parts.push(`${t.environmentFieldPath} ${section.path}`);
       }
-      const sourceLabel =
-        section.mode === 'auto'
-          ? t.environmentSourceAuto
-          : section.mode === 'system'
-            ? t.environmentSourceSystem
-            : section.mode === 'custom'
-              ? t.environmentSourceCustom
-              : t.environmentSourceHost;
-      parts.push(`${t.environmentFieldSource} ${sourceLabel}`);
+      const sourceLabel = sourceLabelFor(t, section.mode);
+      // 可操作依赖（node/git/bash）的 auto 来源已由下拉框与上方 AutoResolvedNote
+      // 双重表达，状态行再写「来源 自动检测」只是重复；显式来源（system/host/custom）
+      // 仍保留来源段。只读依赖没有下拉，来源段继续保留。
+      if (!OPERABLE_DEP_SET.has(dep) || section.mode !== 'auto') {
+        parts.push(`${t.environmentFieldSource} ${sourceLabel}`);
+      }
       // ' · ' 连接为标点拼接（照抄旧 DSH 版本组件的版本行标题拼接先例）。
       return <small>{parts.join(' · ')}</small>;
     }

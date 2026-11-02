@@ -227,7 +227,7 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
     expect(body).not.toBeNull();
     expect(body).toContain('font-size: var(--text-sm)');
     expect(body).toContain('font-weight: var(--font-medium)');
-    expect(body).toContain('color: var(--text-primary)');
+    expect(body).toContain('color: var(--adl-row-label-color, var(--text-primary))');
   });
 
   it('paints storage radio/checkbox with monochrome text-primary, not accent blue', () => {

@@ -49,6 +49,8 @@ agent_created: true
 
 每次进入一个工作树环境第一件事。任一项不通过 → 停止并报告，禁止自行“修环境”。
 
+> **顺序：先快照，后探索。** 在输出 `[ENV]` 并经 §3 选定工作树之前，只允许列目录/文件清单、读 `AGENTS.md`/技能/配置；不得读取业务源码。选定后所有读取、编辑与命令一律以该工作树的绝对路径为准。
+
 ```powershell
 $ROOT = "E:/AI-DIGITAL-LIFE/SourceWorkspace"
 $WT_ROOT = "$ROOT-worktrees"
@@ -237,7 +239,7 @@ git -C "$WT" diff --stat "$OLD..<new-branch>" -- `  # 6 依赖是否变化
 |----|------|------|
 | `target/` | 每工作树独立 | 禁止共享 `CARGO_TARGET_DIR`：共享后 exe 路径相同，dev 脚本（`killProcessesByName` 按绝对路径过滤）会跨工作树互杀，且构建退化为串行 |
 | `node_modules/` | 每工作树独立，pnpm store 全局共享 | lock 变了才重装 |
-| 运行数据 | dev 脚本按工作树派生 identifier（`com.ai-digital-life.app.<工作树目录名>`，可用 `ADL_INSTANCE_ID` 覆盖），数据根、WebView2 profile、locator、凭证回退目录、浏览器模式 ad-server 数据都随之隔离（`<worktree>/ai-digital-life/target/adl-instance/`） | 隔离只覆盖 `pnpm dev*` 入口；直接跑 `target/debug/*.exe` 或主工作树仍共 `%APPDATA%\com.ai-digital-life.app`；OS 密钥环条目按 service 名存系统凭据管理器，仍跨工作树共享 |
+| 运行数据 | dev 脚本按工作树派生 identifier（`com.ai-digital-life.app.<工作树目录名>`，可用 `ADL_INSTANCE_ID` 覆盖），数据根、WebView2 profile、locator、凭证回退目录、浏览器模式 adl-server 数据都随之隔离（`<worktree>/ai-digital-life/target/adl-instance/`） | 隔离只覆盖 `pnpm dev*` 入口；直接跑 `target/debug/*.exe` 或主工作树仍共 `%APPDATA%\com.ai-digital-life.app`；OS 密钥环条目按 service 名存系统凭据管理器，仍跨工作树共享 |
 | 前端端口 | 每个工作树自动取**稳定端口**：主工作树 5173、`slot-N` → 5173+N；被占则顺延到下一个空闲端口。`ADL_PORT` / `PORT` 可显式覆盖，但**必须空闲**（占用即硬失败）。窗口只加载本工作树的 vite（`strictPort` + 实例令牌 `GET /__adl_dev_instance__` 校验）。`dev:tauri` / `dev:browser` / `dev:preview` 同一规则；裸 `pnpm frontend:dev` 不经过启动器，`strictPort` 下占用即失败（并行请走 `dev:browser`） | 无需手工固定端口；一个窗口"改了没变化"时先核对 `[adl-run] url=` 与本工作树的端口 |
 | 内置 Rust server | 绑定 `127.0.0.1:0` | 无固定端口冲突 |
 | 实例定位 | `pnpm run dev:status` 扫描 5173..5182，打印端口 / 实例令牌前缀 / PID | 与启动行 `[adl-run] … token=xxxxxxxx` 对号；「窗口连的是谁」先跑它再怀疑代码 |

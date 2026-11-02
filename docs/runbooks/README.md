@@ -44,20 +44,24 @@ runbook 与设置组文案不得声称「Bash 随宿主 Git 一起安装」。
 
 ## 复制载荷
 
-「复制给助手」输出 JSON，完整形状为
-`{ dep, statusJson, baseline, runbook, dataDir, copyContext }`：
+「复制给助手」输出一份 **Markdown 诊断单**（不是 JSON 外套 JSON），正文顺序：
 
-- `statusJson: string` — 单依赖行（`dep = "all"` 时为整包 `EnvStatus`）的 JSON 文本。
-- `baseline: string | null` — 该依赖的基线版本；版本无关项（`bash` / `net` / `model`）
-  与 `all` 聚合为 `null`（wire 上是空串，载荷归一为 `null`）。
-- `runbook: string | null` — 该依赖对应的 runbook 全文。
-- `dataDir: string` — 环境检测使用的数据根（`EnvStatus.dataDir`），助手可据此定位
-  `env-hosted/`、配置与日志。
-- `copyContext: { source, bridge, locale, copiedAt }` — 复制来源与环境元信息。
+1. **给你的任务** — 分类、修复步骤、验证方式、禁止删除个人文件/关闭安全软件等约束。
+2. **应用与运行环境** — 应用版本、运行模式（Tauri/浏览器）、界面语言、生成时间、UA、数据根。
+3. **问题项** — 未就绪项优先；模型凭据只作为引导行，不参与就绪计数。
+4. **原始检测数据** — 一个 ```` ```json ```` 代码块，字段为
+   `{ dep, label, baseline, dataDir, status, context }`；`status` 是真实对象（单依赖为对应段，
+   `all` 为整包 `EnvStatus`，`net` 为 `netprobe`，`model` 为合成的
+   `{ ciTokenConfigured, dshReady }`），`context` 含应用版本/模式/语言/时间/UA。
+5. **应用内置排障手册** — runbook 原文去掉 YAML frontmatter，标题整体降两级后内联。
+6. **期望回复格式** — 诊断结论 → 修复步骤 → 验证方式。
+
+- `baseline: string | null` — 该依赖的基线版本。`bash` / `adlserver` 的 wire 是空串，载荷归一为 `null`；
+  `net` / `model` 没有 `baselineVersion` 字段，载荷固定 `null`；`all` 聚合为 `null`。
 - 依赖映射：`node → env-node`、`git / bash → env-git-bash`、`webview2 → env-webview2`、
   `adlserver → env-adlserver`、`net → env-net-download`、`model → env-model-credential`。
 - `dep = "all"` 时只拼接**未就绪项**的 runbook（Git 与 Bash 共用一份时只出现一次）；
-  所有可检测项都就绪时为 `null`。模型行没有可检测就绪信号，不参与 `all` 聚合。
+  网络未连通会收录 `env-net-download`；模型行没有可检测就绪信号，不参与 `all` 聚合。
 
 ## 内容红线
 

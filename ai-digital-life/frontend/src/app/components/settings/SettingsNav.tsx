@@ -75,6 +75,7 @@ export function SettingsNav({
               <button
                 type="button"
                 className={`adl-settings-nav__item${activeGroup === group.id ? ' is-active' : ''}`}
+                data-testid={`settings-nav-${group.id}`}
                 aria-current={activeGroup === group.id ? 'page' : undefined}
                 onClick={() => onSelectGroup(group.id)}
                 onFocus={() => onPreheatGroup?.(group.id)}

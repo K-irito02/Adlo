@@ -13,12 +13,8 @@ import {
   type EnvDepKey,
   type EnvDepRowActions,
 } from './EnvDepRow';
-import {
-  ENV_READY_TOTAL,
-  countEnvReadyDeps,
-  copyTextToClipboard,
-  depPayload,
-} from './EnvironmentSettings';
+import { ENV_READY_TOTAL, countEnvReadyDeps, copyTextToClipboard } from './EnvironmentSettings';
+import { buildAgentDiagnostic } from './diagnostic';
 import { envDepLabel } from './depLabels';
 
 export type EnvWizardStep = 'welcome' | 'detecting' | 'items' | 'done';
@@ -47,6 +43,7 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
   const status = useAppStore((s) => s.envStatus);
   const envBusy = useAppStore((s) => s.envBusy);
   const isTauri = useAppStore((s) => s.isTauri);
+  const appInfo = useAppStore((s) => s.appInfo);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
   const setEnvWizardDone = useAppStore((s) => s.setEnvWizardDone);
   const setEnvWizardSkippedAt = useAppStore((s) => s.setEnvWizardSkippedAt);
@@ -102,20 +99,19 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
       if (status === null) {
         return false;
       }
-      const payload = {
-        ...depPayload(dep, status),
-        copyContext: {
-          source: 'environment-wizard',
-          bridge: isTauri ? 'tauri' : 'browser',
-          locale,
-          copiedAt: new Date().toISOString(),
-        },
-      };
-      const ok = await copyTextToClipboard(JSON.stringify(payload));
+      const text = buildAgentDiagnostic(dep, status, {
+        t,
+        appVersion: appInfo?.version ?? '',
+        bridge: isTauri ? 'tauri' : 'browser',
+        locale,
+        copiedAt: new Date().toISOString(),
+        userAgent: typeof navigator === 'undefined' ? '' : navigator.userAgent,
+      });
+      const ok = await copyTextToClipboard(text);
       showToast(ok ? t.copySuccessClipboard : t.operationFailed, ok ? 'success' : 'error');
       return ok;
     },
-    [status, isTauri, locale, showToast, t],
+    [status, appInfo, isTauri, locale, showToast, t],
   );
 
   const rowActions: EnvDepRowActions = {
@@ -247,7 +243,12 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
         <div className="adl-confirm-dialog__footer">
           {step === 'welcome' ? (
             <>
-              <button type="button" className="adl-btn adl-btn--secondary" onClick={handleSkip}>
+              <button
+                type="button"
+                className="adl-btn adl-btn--secondary"
+                data-testid="env-wizard-skip"
+                onClick={handleSkip}
+              >
                 {t.environmentWizardSkip}
               </button>
               <button type="button" className="adl-btn" onClick={() => setStep('detecting')}>
@@ -256,13 +257,23 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
             </>
           ) : null}
           {step === 'detecting' ? (
-            <button type="button" className="adl-btn adl-btn--secondary" onClick={handleSkip}>
+            <button
+              type="button"
+              className="adl-btn adl-btn--secondary"
+              data-testid="env-wizard-skip"
+              onClick={handleSkip}
+            >
               {t.environmentWizardSkip}
             </button>
           ) : null}
           {step === 'items' ? (
             <>
-              <button type="button" className="adl-btn adl-btn--secondary" onClick={handleSkip}>
+              <button
+                type="button"
+                className="adl-btn adl-btn--secondary"
+                data-testid="env-wizard-skip"
+                onClick={handleSkip}
+              >
                 {t.environmentWizardSkip}
               </button>
               <button

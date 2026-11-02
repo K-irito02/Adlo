@@ -114,6 +114,17 @@ function fixture(): EnvStatus {
 
 const writeText = vi.fn();
 
+function clipboardReport(): string {
+  return writeText.mock.calls[0]?.[0] as string;
+}
+
+/** 报告里的 JSON 代码块（机器可读部分），正文其余内容是 Markdown。 */
+function parseReportJson(text: string): Record<string, unknown> {
+  const match = /```json\n([\s\S]*?)\n```/.exec(text);
+  expect(match, 'diagnostic report must contain a json block').not.toBeNull();
+  return JSON.parse(match?.[1] ?? '') as Record<string, unknown>;
+}
+
 function seedStore(patch: Record<string, unknown> = {}) {
   useAppStore.setState({
     envStatus: null,
@@ -226,6 +237,40 @@ describe('EnvironmentSettings', () => {
     expect(bash.querySelector('.adl-icon-button--info')).not.toBeNull();
   });
 
+  it('自动检测行不再在路径行尾重复「来源 自动检测」，显式来源仍保留', async () => {
+    const { container } = await renderWithRows();
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    const git = container.querySelector('[data-testid="env-dep-git"]') as HTMLElement;
+    const bash = container.querySelector('[data-testid="env-dep-bash"]') as HTMLElement;
+    // auto：下拉已显示「自动检测」，上方还有 AutoResolvedNote，状态行不得再重复。
+    expect(node.textContent).not.toContain('environmentFieldSource environmentSourceAuto');
+    expect(git.textContent).not.toContain('environmentFieldSource environmentSourceAuto');
+    // 显式 system 来源仍保留来源段（只有 auto 属于重复信息）。
+    expect(bash.textContent).toContain('environmentFieldSource environmentSourceSystem');
+  });
+
+  it('bash 自动检测同样不重复来源；只读行（webview2）仍保留来源段', async () => {
+    const autoStatus = fixture();
+    autoStatus.bash = depState({
+      mode: 'auto',
+      effective: 'system',
+      installedVersion: null,
+      baselineVersion: '',
+      meetsBaseline: true,
+      path: 'C:/Program Files/Git/bin/bash.exe',
+    });
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: autoStatus });
+      return true;
+    });
+    seedStore({ envStatus: autoStatus });
+    const { container } = await renderWithRows();
+    const bash = container.querySelector('[data-testid="env-dep-bash"]') as HTMLElement;
+    const webview2 = container.querySelector('[data-testid="env-dep-webview2"]') as HTMLElement;
+    expect(bash.textContent).not.toContain('environmentFieldSource environmentSourceAuto');
+    expect(webview2.textContent).toContain('environmentFieldSource environmentSourceAuto');
+  });
+
   it('指定路径选中时输入框与下拉同一行（左侧无灰色文案），切走隐藏但保留路径', async () => {
     const customStatus = {
       ...fixture(),
@@ -262,25 +307,30 @@ describe('EnvironmentSettings', () => {
     expect(within(container as HTMLElement).queryByText('environmentDepModel')).toBeNull();
   });
 
-  it('复制按钮把诊断 JSON 写剪贴板（payload 含 dep 与 statusJson）', async () => {
+  it('复制按钮把诊断报告写剪贴板（Markdown + 可解析 JSON 块）', async () => {
     const { container } = await renderWithRows();
     const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
     fireEvent.click(within(node).getByRole('button', { name: 'environmentCopyForAgentNote' }));
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledTimes(1);
     });
-    const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
+    const text = clipboardReport();
+    // 人类可读部分：标题、任务、上下文、问题项、runbook。
+    expect(text.startsWith('# environmentDiagnosticTitle')).toBe(true);
+    expect(text).toContain('environmentDiagnosticTask');
+    expect(text).toContain('environmentDiagnosticAppVersion');
+    expect(text).toContain('environmentDiagnosticItem');
+    expect(text).toContain('environmentDiagnosticRaw');
+    expect(text).toContain('#### 症状');
+    expect(text).toContain('#### 检测命令');
+    // 旧载荷的「JSON 套 JSON」不得复活。
+    expect(text).not.toContain('statusJson');
+    const payload = parseReportJson(text);
     expect(payload.dep).toBe('node');
-    expect(typeof payload.statusJson).toBe('string');
-    const section = JSON.parse(payload.statusJson as string) as { baselineVersion: string };
-    expect(section.baselineVersion).toBe('22.0.0');
+    expect((payload.status as { baselineVersion: string }).baselineVersion).toBe('22.0.0');
     expect(payload.baseline).toBe('22.0.0');
     expect(payload.dataDir).toBe('C:/data-root');
-    expect(payload.copyContext).toBeTruthy();
-    // Phase 3：载荷附带匹配 runbook 全文（未就绪项必须有可执行指引）。
-    expect(typeof payload.runbook).toBe('string');
-    expect(payload.runbook as string).toContain('## 症状');
-    expect(payload.runbook as string).toContain('## 检测命令');
+    expect((payload.context as { bridge: string }).bridge).toBe('tauri');
   });
 
   it('来源切换调用 selectEnvSource', async () => {
@@ -304,6 +354,69 @@ describe('EnvironmentSettings', () => {
     await waitFor(() => {
       expect(installEnvDep).toHaveBeenCalledWith('node');
     });
+  });
+
+  it('来源钉成 system 时不显示安装按钮，并说明安装不会生效', async () => {
+    const systemStatus = fixture();
+    systemStatus.node = depState({
+      mode: 'system',
+      effective: 'none',
+      installedVersion: null,
+      baselineVersion: '22.0.0',
+      meetsBaseline: false,
+      path: null,
+    });
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: systemStatus });
+      return true;
+    });
+    seedStore({ envStatus: systemStatus });
+    const { container } = await renderWithRows();
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    expect(within(node).queryByRole('button', { name: 'environmentInstall' })).toBeNull();
+    expect(node.textContent).toContain('environmentInstallSourceHint');
+  });
+
+  it('来源钉成 custom 时同样隐藏安装按钮，并说明安装不会生效', async () => {
+    const customStatus = fixture();
+    customStatus.node = depState({
+      mode: 'custom',
+      effective: 'none',
+      installedVersion: null,
+      baselineVersion: '22.0.0',
+      meetsBaseline: false,
+      path: null,
+      customPath: '',
+    });
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: customStatus });
+      return true;
+    });
+    seedStore({ envStatus: customStatus });
+    const { container } = await renderWithRows();
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    expect(within(node).queryByRole('button', { name: 'environmentInstall' })).toBeNull();
+    expect(node.textContent).toContain('environmentInstallSourceHint');
+  });
+
+  it('来源为 auto/host 且未就绪时仍显示安装按钮', async () => {
+    const hostStatus = fixture();
+    hostStatus.node = depState({
+      mode: 'host',
+      effective: 'none',
+      installedVersion: null,
+      baselineVersion: '22.0.0',
+      meetsBaseline: false,
+      path: null,
+    });
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: hostStatus });
+      return true;
+    });
+    seedStore({ envStatus: hostStatus });
+    const { container } = await renderWithRows();
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    expect(within(node).getByRole('button', { name: 'environmentInstall' })).not.toBeNull();
   });
 
   it('卸载/重装按钮只在宿主来源且已安装的行出现', async () => {
@@ -500,7 +613,7 @@ describe('EnvironmentSettings', () => {
     });
   });
 
-  it('聚合条重测调 recheckEnv，复制全部写整包 JSON', async () => {
+  it('聚合条重测调 recheckEnv，复制全部写全量诊断报告', async () => {
     await renderWithRows();
     fireEvent.click(screen.getByRole('button', { name: 'environmentRecheck' }));
     await waitFor(() => {
@@ -510,22 +623,20 @@ describe('EnvironmentSettings', () => {
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledTimes(1);
     });
-    const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
+    const text = clipboardReport();
+    const payload = parseReportJson(text);
     expect(payload.dep).toBe('all');
-    expect(typeof payload.statusJson).toBe('string');
     expect(payload.dataDir).toBe('C:/data-root');
     // fixture 里 node 未就绪 → 全量载荷只带未就绪项 runbook。
-    expect(typeof payload.runbook).toBe('string');
-    const runbook = payload.runbook as string;
-    expect(runbook).toContain('## 症状');
-    expect(runbook).toContain('Node.js');
+    expect(text).toContain('#### 症状');
+    expect(text).toContain('Node.js');
     // 就绪项（git/bash/webview2/adlserver/net）的 runbook 不得混入。
-    expect(runbook).not.toContain('（env-git-bash）');
-    expect(runbook).not.toContain('（env-webview2）');
-    expect(runbook).not.toContain('（env-adlserver）');
-    expect(runbook).not.toContain('（env-net-download）');
+    expect(text).not.toContain('（env-git-bash）');
+    expect(text).not.toContain('（env-webview2）');
+    expect(text).not.toContain('（env-adlserver）');
+    expect(text).not.toContain('（env-net-download）');
     // 模型行无可检测就绪信号，不参与 all 聚合。
-    expect(runbook).not.toContain('（env-model-credential）');
+    expect(text).not.toContain('（env-model-credential）');
   });
 
   it('全量载荷：Git 与 Bash 同时未就绪时共用 runbook 只出现一次', async () => {
@@ -562,17 +673,16 @@ describe('EnvironmentSettings', () => {
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledTimes(1);
     });
-    const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
-    const runbook = payload.runbook as string;
-    expect(runbook).toContain('（env-git-bash）');
+    const text = clipboardReport();
+    expect(text).toContain('（env-git-bash）');
     // git 与 bash 共用一份 → 全文只出现一次。
-    expect(runbook.split('（env-git-bash）')).toHaveLength(2);
+    expect(text.split('（env-git-bash）')).toHaveLength(2);
     // 就绪的 node 不入载荷；模型行不参与 all 聚合。
-    expect(runbook).not.toContain('（env-node）');
-    expect(runbook).not.toContain('（env-model-credential）');
+    expect(text).not.toContain('（env-node）');
+    expect(text).not.toContain('（env-model-credential）');
   });
 
-  it('全量载荷：所有可检测项就绪时 runbook 为 null', async () => {
+  it('全量载荷：所有可检测项就绪时不附操作指引', async () => {
     const ready = fixture();
     ready.node = depState({
       mode: 'auto',
@@ -592,13 +702,15 @@ describe('EnvironmentSettings', () => {
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledTimes(1);
     });
-    const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
+    const text = clipboardReport();
+    const payload = parseReportJson(text);
     expect(payload.dep).toBe('all');
     // bash/adlserver 的真实 wire 是 null 版本 + 空基线；健康时全部就绪 → 无操作指引。
-    const status = JSON.parse(payload.statusJson as string) as EnvStatus;
+    const status = payload.status as EnvStatus;
     expect(status.bash.installedVersion).toBeNull();
     expect(status.adlserver.installedVersion).toBeNull();
-    expect(payload.runbook).toBeNull();
+    expect(text).toContain('environmentDiagnosticAllReady');
+    expect(text).not.toContain('（env-node）');
   });
 
   it('全量载荷：bash/adlserver 未就绪时收录各自 runbook', async () => {
@@ -637,10 +749,9 @@ describe('EnvironmentSettings', () => {
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledTimes(1);
     });
-    const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
-    const runbook = payload.runbook as string;
-    expect(runbook).toContain('（env-git-bash）');
-    expect(runbook).toContain('（env-adlserver）');
+    const text = clipboardReport();
+    expect(text).toContain('（env-git-bash）');
+    expect(text).toContain('（env-adlserver）');
   });
 
   it('版本无关依赖的载荷 baseline 为 null（wire 空串）', async () => {
@@ -664,7 +775,7 @@ describe('EnvironmentSettings', () => {
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledTimes(1);
     });
-    const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
+    const payload = parseReportJson(clipboardReport());
     expect(payload.baseline).toBeNull();
   });
 
@@ -795,10 +906,18 @@ describe('EnvironmentSettings', () => {
     const customFixture = {
       ...fixture(),
       node: depState({
-        mode: 'custom',
+        mode: 'auto',
         effective: 'none',
         installedVersion: null,
         baselineVersion: '22.0.0',
+        meetsBaseline: false,
+        path: null,
+      }),
+      bash: depState({
+        mode: 'custom',
+        effective: 'none',
+        installedVersion: null,
+        baselineVersion: '',
         meetsBaseline: false,
         path: null,
         customPath: '',
@@ -821,11 +940,12 @@ describe('EnvironmentSettings', () => {
     ).toBe(true);
     expect(node.textContent).toContain('environmentInstallDesktopOnlyHint');
     // 本地配置（来源选择 + 指定路径输入）在浏览器模式仍可用（R1-07/R1-14）。
-    expect((within(node).getByLabelText('environmentSwitch') as HTMLButtonElement).disabled).toBe(
+    const bash = container.querySelector('[data-testid="env-dep-bash"]') as HTMLElement;
+    expect((within(bash).getByLabelText('environmentSwitch') as HTMLButtonElement).disabled).toBe(
       false,
     );
     expect(
-      (within(node).getByLabelText('environmentCustomPathLabel') as HTMLInputElement).disabled,
+      (within(bash).getByLabelText('environmentCustomPathLabel') as HTMLInputElement).disabled,
     ).toBe(false);
     const git = container.querySelector('[data-testid="env-dep-git"]') as HTMLElement;
     expect(

@@ -73,14 +73,14 @@ function preferHttpWhenReachable<T extends object>(
           const key = `connected:${baseUrl}`;
           if (!adServerConnected.has(key)) {
             adServerConnected.add(key);
-            console.log(`[adl-bridge] using ad-server at ${baseUrl}`);
+            console.log(`[adl-bridge] using adl-server at ${baseUrl}`);
           }
         } else {
           const key = `${String(prop)}:${baseUrl}`;
           if (!fallbackWarned.has(key)) {
             fallbackWarned.add(key);
             console.warn(
-              `[adl-bridge] ad-server at ${baseUrl} is not reachable — "${String(
+              `[adl-bridge] adl-server at ${baseUrl} is not reachable — "${String(
                 prop,
               )}" falls back to the preview/mock implementation.`,
             );

@@ -15,6 +15,7 @@ async fn main() {
 
     let mut port: u16 = 0;
     let mut data_dir = std::env::temp_dir();
+    let mut print_env = false;
     let mut args = argv.iter();
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -30,6 +31,9 @@ async fn main() {
                     data_dir = PathBuf::from(path);
                 }
             },
+            // 诊断用：初始化（含启动期 PATH 刷新）后打印进程 PATH 与注入目录，立即退出。
+            // 供 `env_path_cli` 集成测试与 Agent 排查“安装成功但不可用”使用。
+            "--print-env" => print_env = true,
             _ => {},
         }
     }
@@ -56,6 +60,18 @@ async fn main() {
             std::process::exit(1);
         },
     };
+
+    if print_env {
+        let root = state.storage.paths().root.clone();
+        let dirs = adl_env::path_env::path_dirs(&root).unwrap_or_default();
+        let payload = serde_json::json!({
+            "path": std::env::var_os("PATH").unwrap_or_default().to_string_lossy().to_string(),
+            "pathDirs": dirs.iter().map(|dir| dir.to_string_lossy().to_string()).collect::<Vec<_>>(),
+        });
+        println!("ADL_ENV_JSON={payload}");
+        std::io::stdout().flush().ok();
+        std::process::exit(0);
+    }
 
     let bound = serve(state, port).await;
     println!("AD_SERVER_PORT={bound}");

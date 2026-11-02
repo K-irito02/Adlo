@@ -100,19 +100,19 @@ node e2e/run-e2e.mjs --spec specs/smoke.spec.ts --logLevel debug
 
 - 只用 `data-testid` / class / `aria-*`，**不要用本地化文案**（切语言就全挂）。不确定时先在组件源码里搜真实 `data-testid`，不要猜。
 - 不写 `sleep`：用 `browser.waitUntil` 等条件（元素可点、`aria-*` 变化、遮罩退场）。
-- 启动前置：先关环境向导（`[data-testid="env-wizard"]`），再用 `elementFromPoint` 等启动遮罩退场（遮罩至少 3.5s）。
+- 启动前置：依次关环境向导（`[data-testid="env-wizard"]`）和随后串行出现的 harness 向导（`[data-testid="harness-wizard"]`）；两者都是全屏 overlay，只关一个会让原生点击等不到标题栏。再用 `elementFromPoint` 等启动遮罩退场（遮罩至少 3.5s）。
 - 各用例共享同一个应用实例：不依赖执行顺序，自己准备前置状态。
 - 截图写 `e2e/artifacts/`（已 gitignore），不要写进 `specs/`。
 - mock 只对 `browser.tauri.execute` 通道有效（见 §6）；不要为测试改生产代码。
 
-**前置**：`smoke.spec.ts` 里的 `dismissEnvWizard` / `waitForTitlebarClickable` 目前是文件内私有函数。第二个 spec 要用时，先把这两个函数移到 `e2e/specs/helpers.ts` 并 export，再让两个 spec 都从 `./helpers` import（e2e 是独立包，别跨包引前端源码）。下面的示例假定已完成这一步。
+**前置**：`smoke.spec.ts` 里的 `dismissSetupWizards` / `waitForTitlebarClickable` 目前是文件内私有函数。第二个 spec 要用时，先把这两个函数移到 `e2e/specs/helpers.ts` 并 export，再让两个 spec 都从 `./helpers` import（e2e 是独立包，别跨包引前端源码）。下面的示例假定已完成这一步。
 
 ```ts
 import { $, browser, expect } from '@wdio/globals';
-import { dismissEnvWizard, waitForTitlebarClickable } from './helpers';
+import { dismissSetupWizards, waitForTitlebarClickable } from './helpers';
 
 describe('标题栏面板开关', () => {
-  beforeEach(dismissEnvWizard);
+  beforeEach(dismissSetupWizards);
 
   it('点击后 aria-pressed 翻转', async () => {
     await waitForTitlebarClickable();
@@ -142,6 +142,7 @@ describe('标题栏面板开关', () => {
 | 日志被注入脚本全文刷屏 | 默认 `logLevel: 'info'` | 保持 `warn`，排查时临时 `--logLevel debug` |
 | session 显示 `msedge 156` | WebView2 的 UA | 忽略，不代表真在 Edge 里跑 |
 | `--spec` 报找不到文件 | 路径相对 `e2e/`，不是仓库根 | 用 `specs/xxx.spec.ts` |
+| `titlebar toggle never became clickable (startup overlay still on top?)` | 只关了环境向导；随后出现的 harness 向导也是全屏 `adl-confirm-overlay`，盖住标题栏 | 先点 `env-wizard-skip`，再点 `harness-wizard-skip`（`dismissSetupWizards` 已覆盖两者） |
 
 ## 7. 排障顺序
 

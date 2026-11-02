@@ -321,7 +321,7 @@ crates/adl-logging/            # 统一日志 crate
 浏览器模式语义为**失败即失败**：`app` 域不再回退 mock，`getInfo` 失败即以错误卡呈现。
 
 排查：看 `debug-logs-browser*.txt`。
-- 出现 `[adl-bridge] using ad-server at http://127.0.0.1:<端口>` → 已连上后端 ✅
+- 出现 `[adl-bridge] using adl-server at http://127.0.0.1:<端口>` → 已连上后端 ✅
 - 出现 `… at http://127.0.0.1:61234 is not reachable` → 常见原因之一：该页面来自**未注入 `VITE_ADL_SERVER_URL` 的 Vite 实例**（如浏览器打开的是上次遗留的 5173，而不是脚本本次打印的地址）
 
 ### Q: 用 `Y` 中断后，右下角不断弹出"网络错误"卡片

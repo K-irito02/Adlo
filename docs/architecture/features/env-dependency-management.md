@@ -66,13 +66,25 @@
 ## 前端表面
 
 - **设置面板「网络」组**（`features/network/`）：源/代理/测试连接，自 DSH 组搬迁，行为不变。
-- **设置面板「环境」组**（`features/environment/`）：7 依赖行（状态/来源/路径/版本/基线徽标）、顶部聚合条、
-  「复制给 agent」（JSON 载荷含 `statusJson` / `baseline` / `runbook` / `dataDir` / `copyContext`）、卸载/重装
+- **设置面板「环境」组**（`features/environment/`）：5 依赖行（基础 3 + 系统 2；向导另含 net/model 引导行）、顶部聚合条、
+  「复制给 agent」（Markdown 诊断单：上下文 + 未就绪项优先的状态明细 + JSON 代码块 + runbook + 回复格式）、卸载/重装
   （仅 host 来源；git 重装仅限基线版）。行级刷新覆盖 node/git/bash/webview2/adlserver；「基础依赖」与
   「系统组件」两个块各自带「刷新」块按钮，只重检本块 deps。
 - **首启环境向导**：四步引导，可跳过（记录跳过状态并显示续接横幅），设置面板可重新进入。
 - **runbook**：唯一真源 `features/environment/runbooks/`（`?raw` 内联，前端与桌面同源），
-  `docs/runbooks/README.md` 仅作索引；固定五段：症状 / 检查命令 / 安装步骤 / 验证步骤 / 回滚。
+  `docs/runbooks/README.md` 仅作索引；固定五段：症状 / 检测命令 / 安装步骤 / 装后回填 / 回滚。
+
+## 依赖目录注入（进程级 PATH）
+
+- **生效范围**：只改 `adl-server` 进程的 PATH；新终端会话、`spawn_node_direct("node")`（dsh 宿主拉起）与内部 `git` 子进程继承；既有 PTY 不回溯。
+- **注入集合**（`adl_env::path_env::path_dirs`）：
+  - node/git `host`：宿主选中版本的 bin（node 版本目录；git `<版本>/cmd`）。
+  - node/git `system`/`custom`：已保存指定路径的父目录；未填则无注入（系统 PATH 已可用）。
+  - node/git `auto`：宿主优先，其次指定路径（与 `resolve()`/ADR-0007 一致）。
+  - bash：只有指定路径时注入其父目录；无宿主副本。
+- **刷新时机**：启动、install 成功、uninstall 成功、select-source、set-custom-path；`env_path` 用 `APPLIED` 记录上一轮目录，切换来源时先摘除再加新目录；`join_paths` 失败保留原 PATH 并告警，不记为已应用。
+- **限制**：内置 bash 终端的 shell 选择器仍优先固定 Git for Windows / WSL 路径，指定路径主要影响通过 PATH 解析的 bash；指定路径以“文件存在”为准，若随后损坏不会自动回退。
+- **就绪口径**：环境组聚合、诊断单标题与「全部可检测项已就绪」只统计 5 个版本依赖 + 网络连通（可检测项）；模型凭据为引导项，不参与计数。决策见 [ADR-0012](../../adr/0012-env-dependency-path-injection.md)。
 
 ## 打包与 staging
 

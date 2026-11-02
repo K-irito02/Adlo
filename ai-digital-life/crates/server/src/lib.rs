@@ -1,4 +1,5 @@
 pub mod engine;
+pub(crate) mod env_path;
 pub mod git_vis_cache;
 pub mod handlers;
 pub mod ipc;

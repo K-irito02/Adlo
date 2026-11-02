@@ -180,7 +180,12 @@ export function HarnessSetupWizard({ onClose }: { onClose: () => void }) {
           <p className="adl-confirm-dialog__message">{t.harnessWizardNonBlocking}</p>
         </div>
         <div className="adl-confirm-dialog__actions">
-          <button type="button" className="adl-dsh-settings__action-btn" onClick={markDone}>
+          <button
+            type="button"
+            className="adl-dsh-settings__action-btn"
+            data-testid="harness-wizard-skip"
+            onClick={markDone}
+          >
             {t.harnessWizardSkip}
           </button>
         </div>

@@ -136,6 +136,24 @@ style `.adl-settings-row__label small.adl-settings-auto-note` in
 - Specificity trap: the generic `.adl-settings-row__label small` rule is 0-1-1, so the class must be scoped as `.adl-settings-row__label small.adl-settings-auto-note`; a bare class selector renders grey in the light theme.
 - Data comes from the server (`proxyEffective` and similar), not from draft form state: gate the note on the **persisted** mode so a just-changed draft can never display the previous resolution.
 
+## Status pill（设置项状态胶囊）
+
+Source of truth: `.adl-settings-status` in `frontend/src/styles/components/settings.css`;
+tokens `--status-badge-*` in `frontend/src/styles/themes.css`; guards in
+`frontend/src/styles/settings-status-badge.test.ts`.
+
+- Two layers: `.adl-settings-status--compact`（行标题内的 10px 胶囊）使用专用 `--status-badge-*`
+  与 1px inset 描边；非 compact 的句级状态块（存储迁移失败、后端离线等）继续用 `--pastel-*`，
+  不加描边，避免高饱和色块压过正文。
+- 紧凑色板按亮/暗两套定义；文字对比 ≥4.5，底色与 `--surface-raised` 卡片对比 ≥1.25（旧 pastel
+  仅 1.11–1.15，用户反馈“糊在卡片里”）。改色必须同时跑 `settings-status-badge.test.ts`。
+- **特异性陷阱**：通用 `.adl-settings-row__label > .adl-settings-row__label-text span` 是 0-2-1，
+  会压过徽章 tone 色（0-2-0）。不要给通用规则加 `:not(.adl-settings-status)`（会升到 0-3-1，
+  并压掉 DSH/OpenCode 为 0-2-1 写的 0-3-0 摘要提示）。正确做法是保持通用规则原样，把 color 改为
+  `var(--adl-row-label-color, var(--text-primary))`；紧凑徽章的 tone 规则（0-2-0）只设背景与
+  `--adl-row-label-color: var(--status-badge-*-fg)`。不需要四类选择器，也不会抬高通用规则特异性。
+- 不要把 `--status-badge-*` 用于长文本状态块；它的饱和度只为 10px 胶囊设计。
+
 ## Row refresh（行级刷新·悬停显现）
 
 Source of truth: `frontend/src/app/components/settings/SettingsRefreshButton.tsx`;

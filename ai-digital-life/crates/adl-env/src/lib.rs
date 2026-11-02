@@ -19,6 +19,10 @@ pub mod config;
 /// Baseline version pins (`env-baseline.json` resource, Task 11).
 pub mod baseline;
 
+/// Source-aware PATH contribution: hosted copies + custom-path parents
+/// (server prepends these to its own PATH).
+pub mod path_env;
+
 /// Well-known environment dependency keys, in canonical order.
 pub const ENV_DEPS: [&str; 6] = ["node", "git", "bash", "webview2", "adlserver", "netprobe"];
 

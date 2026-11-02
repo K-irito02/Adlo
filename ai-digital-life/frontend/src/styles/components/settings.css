@@ -4,7 +4,7 @@
    - Card sections: 1px hairline border, 8px radius, generous padding
    - Serif only on section titles (scoped --font-serif, shared .adl-settings-title--serif)
    - Cards render instantly on group switch (no enter animation)
-   - Pastel status via themed --pastel-* tokens
+   - Compact status pills use --status-badge-*; other pastel status blocks keep --pastel-*
    - Radius scale: nav items 0 (edge-flush) / header search + reset-all + keybinds search sm(2px) / cards lg(8px)
    ========================================================================== */
 
@@ -284,7 +284,9 @@
 }
 
 /* 省略号落在 flex 子项（span/label）上：text-overflow 对 inline-flex 容器
-   本身无效，且子项默认 min-width:auto 不收缩（dsh-settings.test 记录过同型教训）。 */
+   本身无效，且子项默认 min-width:auto 不收缩（dsh-settings.test 记录过同型教训）。
+   状态徽章通过 --adl-row-label-color 提供 tone 色；本规则保持原 0-2-1 特异性，
+   不抬高去压 DSH/OpenCode 的 0-3-0 摘要规则。 */
 .adl-settings-row__label > .adl-settings-row__label-text span,
 .adl-settings-row__label > .adl-settings-row__label-text label {
   min-width: 0;
@@ -292,7 +294,7 @@
   text-overflow: ellipsis;
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
-  color: var(--text-primary);
+  color: var(--adl-row-label-color, var(--text-primary));
 }
 
 .adl-settings-row__label small {
@@ -353,6 +355,8 @@
   line-height: var(--leading-snug);
 }
 
+/* 长文本状态块（存储迁移失败 / 待迁移 / 后端离线）沿用 pastel 大色块，
+   为小胶囊调的高饱和色板只作用于 --compact，避免句级文案被过度强调。 */
 .adl-settings-status--success {
   background: var(--pastel-success-bg);
   color: var(--pastel-success-fg);
@@ -384,12 +388,38 @@
 
 /* 副标题右侧状态徽章紧凑版（环境组用户要求明显变小）：徽章盒与内部文字整体缩小。
    注意特异性：`.adl-settings-row__label .adl-settings-status`（0-2-0）会覆盖
-   行高与上边距，紧凑版用三类选择器（0-3-0，恰为上限）复写，否则视觉无变化。 */
+   行高与上边距，紧凑版用三类选择器（0-3-0，恰为上限）复写，否则视觉无变化。
+   1px 内描边用当前文字色（tone fg）薄化：不改变盒尺寸，只补轮廓；10px 胶囊
+   在亮/暗卡片上都靠它保持可辨识的边界。 */
 .adl-settings-status--compact {
   padding: 0 6px;
   font-size: 10px;
   line-height: 1.5;
   letter-spacing: 0;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+}
+
+/* 紧凑徽章专用高对比色板（亮色加深底、暗色提亮底；通用 pastel 保持不变）。
+   文字色通过 --adl-row-label-color 交给通用 span 规则解析：通用规则保持 0-2-1 原特异性，
+   不抬高去和 DSH/OpenCode 的 0-3-0 摘要规则打架。 */
+.adl-settings-status--compact.adl-settings-status--success {
+  background: var(--status-badge-success-bg);
+  --adl-row-label-color: var(--status-badge-success-fg);
+}
+
+.adl-settings-status--compact.adl-settings-status--info {
+  background: var(--status-badge-info-bg);
+  --adl-row-label-color: var(--status-badge-info-fg);
+}
+
+.adl-settings-status--compact.adl-settings-status--warning {
+  background: var(--status-badge-warning-bg);
+  --adl-row-label-color: var(--status-badge-warning-fg);
+}
+
+.adl-settings-status--compact.adl-settings-status--danger {
+  background: var(--status-badge-danger-bg);
+  --adl-row-label-color: var(--status-badge-danger-fg);
 }
 
 .adl-settings-row__label .adl-settings-row__label-text .adl-settings-status--compact {
@@ -402,6 +432,7 @@
   vertical-align: 1px;
 }
 
+/* 非紧凑徽章的 tone 色（保持原 pastel 契约；长文本块仍走上方基础规则）。 */
 .adl-settings-row__label .adl-settings-status--success {
   color: var(--pastel-success-fg);
 }

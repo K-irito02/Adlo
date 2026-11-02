@@ -68,6 +68,7 @@
 - `toolchain-lint/` — ESLint/Prettier/Clippy/rustfmt 门禁与工具链（6）
 - `opencode-phase2-audit/` — 参考实现对照与 Phase 2 审计修复（6）
 - 根目录 — [frontend-render-pitfalls-2026-10-18.md](./code-quality/frontend-render-pitfalls-2026-10-18.md)（`dangerouslySetInnerHTML` 内联字面量导致每次渲染重写 DOM / 变量驱动主题换肤 / 诊断纪律）
+- 根目录 — [settings-badge-and-env-path-2026-11-03.md](./code-quality/settings-badge-and-env-path-2026-11-03.md)（状态胶囊 CSS 特异性 / 环境依赖 PATH 注入 / 诊断载荷 JSON 套 JSON）
 
 ### Multi-workspace
 

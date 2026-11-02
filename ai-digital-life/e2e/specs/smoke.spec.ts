@@ -11,18 +11,43 @@ const APP_TITLE = 'AI Digital Life';
  * First run of a fresh instance shows the environment wizard on top of the shell.
  * Dismiss it by the wizard's testid, never by localized text.
  */
-async function dismissEnvWizard(): Promise<void> {
-  const wizard = await $('[data-testid="env-wizard"]');
-  if (!(await wizard.isExisting())) {
+async function dismissSetupWizards(): Promise<void> {
+  const envWizard = await $('[data-testid="env-wizard"]');
+  if (await envWizard.isExisting()) {
+    const skip = await envWizard.$('[data-testid="env-wizard-skip"]');
+    if (await skip.isExisting()) {
+      await skip.click();
+    }
+    await browser.waitUntil(async () => !(await envWizard.isExisting()), {
+      timeout: 10_000,
+      timeoutMsg: 'environment wizard stayed open after clicking skip',
+    });
+  }
+
+  // 环境向导之后还会串行出现 harness 向导；它的全屏 overlay 会盖住标题栏，
+  // 原生点击用例必须先把它关掉（否则 waitForTitlebarClickable 永远等不到）。
+  const harnessDone = await browser.execute(() =>
+    localStorage.getItem('adl.harnessWizardDone'),
+  );
+  if (harnessDone) {
     return;
   }
-  const skip = await wizard.$('.adl-btn--secondary');
-  if (await skip.isExisting()) {
-    await skip.click();
+  const harnessWizard = await $('[data-testid="harness-wizard"]');
+  try {
+    await browser.waitUntil(async () => await harnessWizard.isExisting(), {
+      timeout: 2_000,
+      interval: 100,
+    });
+  } catch {
+    return;
   }
-  await browser.waitUntil(async () => !(await wizard.isExisting()), {
+  const harnessSkip = await harnessWizard.$('[data-testid="harness-wizard-skip"]');
+  if (await harnessSkip.isExisting()) {
+    await harnessSkip.click();
+  }
+  await browser.waitUntil(async () => !(await harnessWizard.isExisting()), {
     timeout: 10_000,
-    timeoutMsg: 'environment wizard stayed open after clicking skip',
+    timeoutMsg: 'harness wizard stayed open after clicking skip',
   });
 }
 
@@ -58,7 +83,7 @@ async function waitForTitlebarClickable(): Promise<void> {
 
 describe('AI Digital Life desktop shell', () => {
   beforeEach(async () => {
-    await dismissEnvWizard();
+    await dismissSetupWizards();
   });
 
   it('boots the Tauri shell', async () => {
@@ -67,7 +92,7 @@ describe('AI Digital Life desktop shell', () => {
       timeoutMsg: 'window title never became the app title',
     });
 
-    await dismissEnvWizard();
+    await dismissSetupWizards();
     await $('.adl-shell').waitForDisplayed({ timeout: 60_000 });
 
     const shellFlavor = await browser.execute(() => document.documentElement.dataset.shell);
@@ -95,7 +120,7 @@ describe('AI Digital Life desktop shell', () => {
   });
 
   it('toggles a panel through a native click and reports window geometry', async () => {
-    await dismissEnvWizard();
+    await dismissSetupWizards();
     await waitForTitlebarClickable();
 
     const toggle = await $('.adl-iconstrip__button--paneltoggle');
@@ -135,5 +160,65 @@ describe('AI Digital Life desktop shell', () => {
     expect(mocked.data.appName).toBe('Mocked App');
 
     await browser.tauri.restoreAllMocks();
+  });
+
+  it('renders compact status pills with the tone color, not the generic label color', async () => {
+    await dismissSetupWizards();
+    await $('.adl-shell').waitForDisplayed({ timeout: 60_000 });
+
+    // 用 DOM click 而不是原生点击：本用例验的是 CSS 级联，不依赖启动遮罩的命中测试。
+    await $('[id$="-settings-tab"]').waitForExist({ timeout: 15_000 });
+    const opened = await browser.execute(() => {
+      const tab = document.querySelector<HTMLElement>('[id$="-settings-tab"]');
+      if (!tab) {
+        return false;
+      }
+      tab.click();
+      return true;
+    });
+    expect(opened).toBe(true);
+
+    await $('[data-testid="settings-nav-environment"]').waitForExist({ timeout: 15_000 });
+    const envOpened = await browser.execute(() => {
+      const nav = document.querySelector<HTMLElement>('[data-testid="settings-nav-environment"]');
+      if (!nav) {
+        return false;
+      }
+      nav.click();
+      return true;
+    });
+    expect(envOpened).toBe(true);
+
+    await $('[data-testid="env-dep-node"]').waitForDisplayed({ timeout: 15_000 });
+
+    type PillProbe =
+      | { ok: true; color: string; background: string; tone: string; labelColor: string | null }
+      | { ok: false; reason: string };
+
+    // 真实 WebView 的级联结果；CSS 文本断言（`settings-status-badge.test.ts`）测不到这里。
+    const result = (await browser.execute(() => {
+      const pill = document.querySelector<HTMLElement>(
+        '[data-testid="env-dep-node"] .adl-settings-status--compact',
+      );
+      if (!pill) {
+        return { ok: false, reason: 'no compact pill' };
+      }
+      const label = pill.closest('.adl-settings-row__label-text');
+      const style = getComputedStyle(pill);
+      return {
+        ok: true,
+        color: style.color,
+        background: style.backgroundColor,
+        tone: style.getPropertyValue('--adl-row-label-color').trim(),
+        labelColor: label ? getComputedStyle(label).color : null,
+      };
+    })) as PillProbe;
+
+    if (!result.ok) {
+      throw new Error(result.reason);
+    }
+    expect(result.tone).not.toBe('');
+    expect(result.color).not.toBe(result.labelColor);
+    expect(result.background).not.toBe('rgba(0, 0, 0, 0)');
   });
 });

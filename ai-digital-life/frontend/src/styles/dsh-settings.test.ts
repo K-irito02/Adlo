@@ -141,7 +141,10 @@ describe('dsh settings source summary styles', () => {
     expect(mode).toContain('flex: 0 0 auto');
     // 对照组：主文字色规则仍在（解释为什么必须复合选择器）。
     // 用选择器分组 helper 精确比对（不依赖 span/label 的书写顺序或格式）。
-    const primaryGroups = selectorGroupsWith(settingsCss, 'color: var(--text-primary)');
+    const primaryGroups = selectorGroupsWith(
+      settingsCss,
+      'color: var(--adl-row-label-color, var(--text-primary))',
+    );
     expect(
       primaryGroups.some((group) =>
         groupHasSelector(group, '.adl-settings-row__label > .adl-settings-row__label-text span'),

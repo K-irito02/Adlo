@@ -227,6 +227,9 @@ pub async fn init_server_state(
         workspace_watcher: Arc::new(StdMutex::new(None)),
     };
     // 启动时按当前来源刷新终端 PATH 注入（只影响之后新建的会话）。
+    // 先应用 env 依赖目录（宿主副本 / 指定路径；dsh 拉起与内部 git 都走 PATH），
+    // 再应用 harness CLI。
+    crate::env_path::refresh(&state.storage.paths().root);
     crate::handlers::harness::refresh_managed_bins(&state);
     // 启动时只报告崩溃可能留下的 `*.old-<nonce>` 完整旧副本（env 版本目录，
     // dsh 的 `installed/<v>/node_modules/@deepseek-ai` 下一层），不删除：

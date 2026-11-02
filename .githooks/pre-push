@@ -14,6 +14,8 @@ ROOT="$(git rev-parse --show-toplevel)"
 ( cd "$ROOT/ai-digital-life" && pnpm run e2e:typecheck )
 # Rust affected scope: fmt always; clippy + affected-crate unit tests when Rust files changed.
 ( cd "$ROOT/ai-digital-life" && node ./scripts/check-rust-changed.mjs )
+# PATH injection regression: real adl-server process + temp data dir (never mutates the test env).
+( cd "$ROOT/ai-digital-life" && cargo test -p adl-server --test env_path_cli )
 cd "$ROOT/ai-digital-life/frontend"
 if [ "$ADL_PREPUSH_FULL" = "1" ]; then
   echo "[pre-push] FULL gate (user-approved): check:full"

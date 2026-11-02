@@ -151,7 +151,7 @@ frontend/src/
     ├── preview-patch.ts         # 补丁（mock 代理）
     ├── preview-storage.ts       # 存储层 re-export
     ├── preview-browser-audio.ts # 浏览器标签音频指示
-    ├── preview-reachability.ts  # ad-server 可达性检测
+    ├── preview-reachability.ts  # adl-server 可达性检测
     └── preview-api.ts           # 已迁移至 shared/ipc/preview-api.ts
 ```
 

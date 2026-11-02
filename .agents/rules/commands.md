@@ -50,8 +50,8 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 - `--log-level` 控制 stdout；**文件层下限恒为 `debug`**（可调高到 trace，不会低于 debug）
 - 启动自证行：`[ADL-LOG] logger ready level=… prefix=…` / `[ADL-CLI] … (session override, not persisted)`
 - 日志文件按进程分离：shell → `terminal-logs*.txt`，adl-server → `adl-server-logs*.txt`
-- 浏览器模式（`dev:browser`，无 ad-server）下 `--log-level` / `--terminal-log-mode` 无后端可作用；需完整后端日志请用 `dev:preview` / `dev:tauri` / `dev:both`
-- ad-server 不可达时 `app` 域**失败即失败**（不再回退 mock，以错误卡呈现）；若页面日志出现兜底地址 `127.0.0.1:61234`，说明该页面来自**未注入 `VITE_ADL_SERVER_URL` 的 Vite 实例**（请打开启动脚本打印的那个地址）
+- 浏览器模式（`dev:browser`，无 adl-server）下 `--log-level` / `--terminal-log-mode` 无后端可作用；需完整后端日志请用 `dev:preview` / `dev:tauri` / `dev:both`
+- adl-server 不可达时 `app` 域**失败即失败**（不再回退 mock，以错误卡呈现）；若页面日志出现兜底地址 `127.0.0.1:61234`，说明该页面来自**未注入 `VITE_ADL_SERVER_URL` 的 Vite 实例**（请打开启动脚本打印的那个地址）
 
 ## 测试命令
 
@@ -70,6 +70,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `pnpm run cargo:test` | Rust 全量测试（内部先 `stage:sidecar`；裸 `cargo test --workspace` 需先 staging） |
 | `cargo test -p <crate>` | Rust 指定 crate 测试 |
 | `cargo test -p <crate> <test_name>` | Rust 按名称过滤测试（限定 crate，避免编译壳层） |
+| `target/debug/adl-server --print-env --data-dir <临时目录>` | 初始化环境依赖 PATH 后打印 `ADL_ENV_JSON={path,pathDirs}` 并退出（诊断 PATH 注入） |
 | `pnpm run e2e:build` | 构建桌面 E2E 调试产物（内部先 `stage:sidecar`；`--features e2e`，**不要**换 release 构建） |
 | `pnpm run e2e` | 桌面 E2E 全量冒烟（真实 Tauri 窗口，整轮 ~15s） |
 | `pnpm run e2e:typecheck` | e2e 包 TypeScript 检查（pre-push 自动执行） |

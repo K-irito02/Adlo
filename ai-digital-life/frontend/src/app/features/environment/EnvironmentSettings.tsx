@@ -24,8 +24,8 @@ import {
   type EnvDepRowActions,
 } from './EnvDepRow';
 import { getCachedEnvStatus, isWellFormedEnvStatus, setCachedEnvStatus } from './envStatusCache';
-import { RUNBOOKS, type RunbookKey } from './runbooks';
 import { envDepLabel } from './depLabels';
+import { buildAgentDiagnostic } from './diagnostic';
 import type { EnvSourceMode, EnvStatus } from '../../../shared/ipc/env';
 
 /**
@@ -52,95 +52,6 @@ export function countEnvReadyDeps(status: EnvStatus): number {
   return (['node', 'git', 'bash', 'webview2', 'adlserver'] as const).filter((dep) =>
     isEnvDepReady(status[dep]),
   ).length;
-}
-
-/** 依赖 → runbook 映射（git/bash 共用同一份）。 */
-const DEP_RUNBOOK: Record<EnvDepKey, RunbookKey> = {
-  node: 'env-node',
-  git: 'env-git-bash',
-  bash: 'env-git-bash',
-  webview2: 'env-webview2',
-  adlserver: 'env-adlserver',
-  net: 'env-net-download',
-  model: 'env-model-credential',
-};
-
-/**
- * 全量载荷参与聚合的依赖：与 ENV_READY_TOTAL 同口径（5 个版本依赖）。
- * 下载连通归网络组、模型引导归 dsh 侧，均不参与本组全量载荷。
- */
-const ALL_RUNBOOK_DEPS = ['node', 'git', 'bash', 'webview2', 'adlserver'] as const;
-
-function isDepReady(status: EnvStatus, dep: (typeof ALL_RUNBOOK_DEPS)[number]): boolean {
-  return isEnvDepReady(status[dep]);
-}
-
-/** `all` 载荷只带未就绪项 runbook；全部就绪返回 null（此时不应声称有操作指引）。 */
-function allRunbooks(status: EnvStatus): string | null {
-  const keys: RunbookKey[] = [];
-  for (const dep of ALL_RUNBOOK_DEPS) {
-    if (isDepReady(status, dep)) {
-      continue;
-    }
-    const key = DEP_RUNBOOK[dep];
-    if (!keys.includes(key)) {
-      keys.push(key);
-    }
-  }
-  return keys.length === 0 ? null : keys.map((key) => RUNBOOKS[key]).join('\n\n---\n\n');
-}
-
-export interface EnvDepPayload {
-  dep: string;
-  statusJson: string;
-  baseline: string | null;
-  /** 匹配的 runbook 全文；`all` 未就绪项为空时 null。 */
-  runbook: string | null;
-  /** 环境检测数据根（`EnvStatus.dataDir`），供助手定位 hosted 安装与日志。 */
-  dataDir: string;
-}
-
-export function depPayload(dep: EnvDepKey | 'all', status: EnvStatus): EnvDepPayload {
-  const runbook = dep === 'all' ? allRunbooks(status) : RUNBOOKS[DEP_RUNBOOK[dep]];
-  if (dep === 'all') {
-    return {
-      dep,
-      statusJson: JSON.stringify(status),
-      baseline: null,
-      runbook,
-      dataDir: status.dataDir,
-    };
-  }
-  if (dep === 'net') {
-    return {
-      dep,
-      statusJson: JSON.stringify(status.netprobe),
-      baseline: null,
-      runbook,
-      dataDir: status.dataDir,
-    };
-  }
-  if (dep === 'model') {
-    return {
-      dep,
-      statusJson: JSON.stringify({
-        ciTokenConfigured: status.netprobe.ciTokenConfigured,
-        dshReady: status.dshReady,
-      }),
-      baseline: null,
-      runbook,
-      dataDir: status.dataDir,
-    };
-  }
-  const section = status[dep];
-  return {
-    dep,
-    statusJson: JSON.stringify(section),
-    // bash/adlserver 无版本基线（wire 为空串）：载荷按“无基线”输出 null。
-    baseline: section.baselineVersion === '' ? null : section.baselineVersion,
-    runbook,
-    dataDir: status.dataDir,
-  };
 }
 
 function writeTextFallback(text: string): boolean {
@@ -183,6 +94,7 @@ export function EnvironmentSettings() {
   const { t, locale } = useTCopy();
   const actions = useAppActions();
   const isTauri = useAppStore((s) => s.isTauri);
+  const appInfo = useAppStore((s) => s.appInfo);
   const showToast = useAppStore((s) => s.showToast);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
   const envWizardSkippedAt = useAppStore((s) => s.envWizardSkippedAt);
@@ -326,22 +238,21 @@ export function EnvironmentSettings() {
       if (status === null) {
         return false;
       }
-      // 载荷契约：{ dep, statusJson, baseline, runbook, copyContext }，
-      // runbook 为对应依赖（`all` 时为未就绪项）的操作指引全文。
-      const payload = {
-        ...depPayload(dep, status),
-        copyContext: {
-          source: 'environment-settings',
-          bridge: isTauri ? 'tauri' : 'browser',
-          locale,
-          copiedAt: new Date().toISOString(),
-        },
-      };
-      const ok = await copyTextToClipboard(JSON.stringify(payload));
+      // 诊断单：Markdown 正文 + 其中一段 JSON 代码块。旧实现是 JSON 里套 JSON
+      // 字符串（statusJson），外部智能体读到的是一堆转义；现在人类可读、机器可解析。
+      const text = buildAgentDiagnostic(dep, status, {
+        t,
+        appVersion: appInfo?.version ?? '',
+        bridge: isTauri ? 'tauri' : 'browser',
+        locale,
+        copiedAt: new Date().toISOString(),
+        userAgent: typeof navigator === 'undefined' ? '' : navigator.userAgent,
+      });
+      const ok = await copyTextToClipboard(text);
       showToast(ok ? t.copySuccessClipboard : t.operationFailed, ok ? 'success' : 'error');
       return ok;
     },
-    [status, isTauri, locale, showToast, t],
+    [status, appInfo, isTauri, locale, showToast, t],
   );
 
   const handleRecheck = useCallback(() => {

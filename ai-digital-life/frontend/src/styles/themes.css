@@ -131,6 +131,19 @@ html:not(.no-transition) [data-theme] {
   --pastel-neutral-bg: #f0efec;
   --pastel-neutral-fg: #5c5c5c;
 
+  /* === Settings status badge (compact pill) ===
+     专用一套而非复用 pastel：pastel 为大色块（搜索高亮/录音态）设计，
+     用作 10px 胶囊时与卡片底色几乎无分离（旧 pastel 按 --surface-raised 计仅 1.11–1.15）。
+     亮色加深底色并压暗文字；文字对比 6.5–7.2，底/卡对比 1.41–1.52（卡片底色 --surface-raised）。 */
+  --status-badge-success-bg: #c2e0c5;
+  --status-badge-success-fg: #1f4a25;
+  --status-badge-info-bg: #c2dcf2;
+  --status-badge-info-fg: #0d4670;
+  --status-badge-warning-bg: #efd894;
+  --status-badge-warning-fg: #624200;
+  --status-badge-danger-bg: #f3c7c9;
+  --status-badge-danger-fg: #781b19;
+
   /* === Focus & Interaction === */
   --focus-ring: rgba(37, 99, 235, 0.28);
   --focus-ring-width: 3px;
@@ -374,6 +387,18 @@ html:not(.no-transition) [data-theme] {
   --pastel-danger-fg: #c98888;
   --pastel-neutral-bg: #242424;
   --pastel-neutral-fg: #9a9a9a;
+
+  /* === Settings status badge (compact pill, dark) ===
+     旧值（#1a2b1c 等）比卡片 #1c1c1c 更暗，整块糊在一起；此处提亮底色并提亮文字，
+     文字对比 7.2–7.6，底/卡对比 1.38–1.73。 */
+  --status-badge-success-bg: #2c4a33;
+  --status-badge-success-fg: #c3e6c5;
+  --status-badge-info-bg: #234257;
+  --status-badge-info-fg: #c2def4;
+  --status-badge-warning-bg: #4a3d1c;
+  --status-badge-warning-fg: #f2d17c;
+  --status-badge-danger-bg: #4d2b2d;
+  --status-badge-danger-fg: #f5bcbc;
 
   /* === Window Controls (dark) === */
   --window-close-hover: rgb(232, 17, 35);

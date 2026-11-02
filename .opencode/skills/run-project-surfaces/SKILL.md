@@ -38,7 +38,7 @@ description: 启动 AI Digital Life 的三种运行模式（浏览器预览、Ta
 
 - 优先采用用户明确要求的模式；除非用户明确要求或验证需要，否则不要同时启动两个界面。
 - 将输出中 `[adl-run]` 显示的本地 URL **以纯文本**形式报告给用户，不要用反引号包裹，以便 IDE 内置浏览器点击打开。
-- 启动后**不要**使用 agent-browser 或其他工具去打开该 URL，由用户自行点击。
+- 启动后**不要替用户**打开该 URL/占用 Review 面板，由用户自行点击；若 P3/P4 需要真实渲染证据（如 CSS `getComputedStyle`），可以自行打开验证，结束后关闭会话并按 P6 清理截图/产物。
 - 若 Trae IDE 内置浏览器功能因本地环境问题不可用，明确告知用户，并保持本地预览服务器继续运行。
 - 验证 Tauri 桌面模式时，确认 Tauri 进程确实在运行（可通过 `[adl-run]` 日志输出确认），不要仅凭命令退出就认为启动成功。
 
@@ -50,26 +50,26 @@ description: 启动 AI Digital Life 的三种运行模式（浏览器预览、Ta
 | 使用 `npm run` 而非 `pnpm run` | 本项目使用 pnpm 作为包管理器 |
 | 直接调用 `cargo tauri dev` | 使用包装脚本，以便端口被正确探测和共享 |
 | 用反引号包裹 URL | 以纯文本输出，使 IDE 可点击 |
-| 启动后用 agent-browser 打开 URL | 不要这样做，由用户自己点击纯文本 URL |
+| 启动后用 agent-browser 打开 URL | 不要替用户打开；P3/P4 的自动化验证可以打开，结束后关闭并清理产物 |
 | Tauri 模式下 Rust 工具链不可用 | 先设置 PATH：`$env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"` |
 | 仅凭命令退出就认为桌面模式已启动 | 验证 `[adl-run]` 日志确认 Tauri 进程实际运行 |
-| Tauri 窗口空白、标题栏拖拽失效 | 参见下方「ad-server 二进制缺失排查」 |
+| Tauri 窗口空白、标题栏拖拽失效 | 参见下方「adl-server 二进制缺失排查」 |
 
-## 故障排查：ad-server 二进制缺失（桌面窗口空白）
+## 故障排查：adl-server 二进制缺失（桌面窗口空白）
 
 ### 症状
 
 Tauri 桌面窗口启动后界面完全空白（仅剩一个空壳容器），且标题栏无法用鼠标拖拽移动窗口。终端日志出现：
 
 ```
-[adl-shell] ad-server binary not found; desktop runs system-only (business over HTTP unavailable). Build it with `cargo build -p ad-server`.
+[adl-shell] adl-server binary not found; desktop runs system-only (business over HTTP unavailable). Build it with `cargo build -p adl-server`.
 ```
 
 ### 根因
 
-`target/<profile>/ad-server.exe`（浏览器/桌面共用业务引擎二进制）不存在。常见诱因：
+`target/<profile>/adl-server.exe`（浏览器/桌面共用业务引擎二进制）不存在。常见诱因：
 
-- 近期执行过 `cargo clean` / `cargo prune` / `clean-target.ps1 -Full`，清掉了全部构建产物（含 `ad-server.exe`）。
+- 近期执行过 `cargo clean` / `cargo prune` / `clean-target.ps1 -Full`，清掉了全部构建产物（含 `adl-server.exe`）。
 - 首次全量构建尚未完成该二进制。
 
 桌面壳启动时 `AdServerHandle::spawn` 找不到二进制 → 进入 system-only 模式（`base_url: None`）。前端 `main.tsx` 回退到默认地址 `http://127.0.0.1:61234` 创建 httpBridge，而该端口无服务监听 → 所有业务 HTTP 调用 `Failed to fetch` → `bootstrap()` 中途抛异常，`appInfo` 永不写入 store → i18n `t` 永不加载 → 渲染停在 `!t` 空白壳分支，TitleBar 未渲染故无拖拽区。
@@ -79,15 +79,15 @@ Tauri 桌面窗口启动后界面完全空白（仅剩一个空壳容器），�
 ### 修复
 
 ```powershell
-cargo build -p ad-server
+cargo build -p adl-server
 ```
 
 然后重启应用。这是 `cargo clean` 的预期副作用，**不是应用代码回归**，无需改动任何源码。
 
 ### 预防
 
-- 磁盘清理用 `cargo prune`（`cargo clean` 别名）后，若需继续桌面开发，先重建 `ad-server` 再启动。
-- 启动后确认日志中出现 `[adl-shell] spawning ad-server: ... --port 0` 与 `[adl-shell] ad-server bound at http://127.0.0.1:<port>`，说明引擎已就绪；仅出现 not-found 警告即为二进制缺失。
+- 磁盘清理用 `cargo prune`（`cargo clean` 别名）后，若需继续桌面开发，先重建 `adl-server` 再启动。
+- 启动后确认日志中出现 `[adl-shell] spawning adl-server: ... --port 0` 与 `[adl-shell] adl-server bound at http://127.0.0.1:<port>`，说明引擎已就绪；仅出现 not-found 警告即为二进制缺失。
 
 ## Agent 后台启动（无交互终端时）
 
