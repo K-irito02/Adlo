@@ -250,6 +250,11 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+/* 右侧只有单个按钮/开关的行：控件与左侧标题+说明整体垂直居中。 */
+.adl-settings-row--center {
+  align-items: center;
+}
+
 .adl-settings-row:first-child {
   padding-top: 0;
 }
@@ -1711,7 +1716,7 @@
 
 .adl-network-no-proxy__expand:hover:not(:disabled),
 .adl-network-no-proxy__expand.is-open {
-  background: var(--surface-hover);
+  background: transparent;
   color: var(--text-primary);
 }
 

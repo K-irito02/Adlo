@@ -89,7 +89,7 @@ afterEach(() => {
 });
 
 describe('ToolPathsBlock', () => {
-  it('renders six rows under the tool-paths anchor with real paths', () => {
+  it('renders seven rows under the tool-paths anchor with real paths', () => {
     seedStatuses();
     const { container } = renderBlock();
     expect(container.querySelector('[data-settings-anchor="storage:toolPaths"]')).not.toBeNull();
@@ -100,11 +100,14 @@ describe('ToolPathsBlock', () => {
       'environmentDepWebview2',
       'environmentDepAdlserver',
       'settingsDsh',
+      'settingsOpencode',
     ]) {
       expect(container.querySelector(`[data-settings-row="${marker}"]`), marker).not.toBeNull();
     }
     expect(screen.getByText('C:/hosted/node/node.exe')).not.toBeNull();
-    expect(screen.getByText('C:/tools/dsh.exe')).not.toBeNull();
+    expect(screen.getByText('C:/data/harnesses/dsh/versions/installed/0.2.0')).not.toBeNull();
+    const opencodeRow = container.querySelector('[data-settings-row="settingsOpencode"]');
+    expect(opencodeRow?.textContent).toContain('storageToolPathsUnknown');
   });
 
   it('falls back path → version → detected → unknown (webview2 version-only case)', () => {
@@ -120,30 +123,48 @@ describe('ToolPathsBlock', () => {
     expect(gitRow?.textContent).toContain('storageToolPathsUnknown');
   });
 
-  it('dsh row falls back to the storage category path, then unknown', () => {
+  it('dsh row shows unknown before source status, and no-version when loaded without selection', () => {
     seedStatuses({}, null);
     const { unmount } = renderBlock();
-    expect(screen.getByText('C:/data/harnesses')).not.toBeNull();
+    const dshNull = document.querySelector('[data-settings-row="settingsDsh"]');
+    expect(dshNull?.textContent).toContain('storageToolPathsUnknown');
     unmount();
     cleanup();
-    seedStatuses({}, null);
-    const { container } = render(
-      <TCopyProvider t={mockT} locale="en-US">
-        <ToolPathsBlock categories={[]} />
-      </TCopyProvider>,
+    seedStatuses(
+      {},
+      {
+        system: null,
+        running: null,
+        versionSource: {
+          mode: 'auto',
+          effective: 'none',
+          resolvedByMode: { auto: 'none', host: 'none', system: 'none' },
+          hostVersion: null,
+        },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'manual',
+          version_source: 'auto',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
     );
-    const dshRow = container.querySelector('[data-settings-row="settingsDsh"]');
-    expect(dshRow?.textContent).toContain('storageToolPathsUnknown');
+    renderBlock();
+    const dshNone = document.querySelector('[data-settings-row="settingsDsh"]');
+    expect(dshNone?.textContent).toContain('storageToolPathsNoVersion');
   });
 
   it('go-to buttons jump to the owning group', () => {
     seedStatuses();
     renderBlock();
     const buttons = screen.getAllByRole('button', { name: 'storageToolPathsGoTo' });
-    expect(buttons.length).toBe(6);
+    expect(buttons.length).toBe(7);
     fireEvent.click(buttons[0]);
     expect(useAppStore.getState().activeSettingsGroup).toBe('environment');
     fireEvent.click(buttons[5]);
     expect(useAppStore.getState().activeSettingsGroup).toBe('dsh');
+    fireEvent.click(buttons[6]);
+    expect(useAppStore.getState().activeSettingsGroup).toBe('opencode');
   });
 });

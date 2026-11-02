@@ -147,9 +147,10 @@ export const settingsZh = {
   storageImmutableWorkspaceCacheName: '工作区级缓存',
   storageToolPathsTitle: '外部工具路径',
   storageToolPathsHint:
-    'DSH 与环境组中各工具当前实际使用的路径，只读索引。修改请前往各自设置组（环境 / DSH），此处不直接迁移。',
+    'DSH / OpenCode CLI 与环境组中各工具当前实际使用的路径，只读索引。修改请前往各自设置组（环境 / DSH / OpenCode CLI），此处不直接迁移。',
   storageToolPathsGoTo: '前往管理',
   storageToolPathsUnknown: '未知（尚未检测）',
+  storageToolPathsNoVersion: '未使用任何版本',
   storageRestartRequired: '已保存。请重启应用以完成迁移。',
   storageRestartUnavailableInBrowser: '浏览器模式无法重启应用，此变更将在下次启动时生效。',
   storageBrowserDownloadTitle: '浏览器下载路径',

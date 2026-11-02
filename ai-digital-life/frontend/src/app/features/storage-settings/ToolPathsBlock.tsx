@@ -1,13 +1,21 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { SettingsHintButton } from '../../components/settings/SettingsHintButton';
 import { getCachedEnvStatus } from '../environment/envStatusCache';
+import { peekOpencodeSource } from '../opencode/opencodeVersionBridge';
 import type { EnvDependencyState } from '../../../shared/ipc/env';
+import type { OpencodeSourceStatus } from '../../../shared/ipc/opencode';
 import type { StorageCategoryStatus } from '@shared/ipc/storage';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
+
+/** 拼接展示路径：沿用基准路径的分隔符，去重首尾分隔符。 */
+function joinPath(base: string, ...parts: string[]): string {
+  const sep = base.includes('\\') ? '\\' : '/';
+  return [base.replace(/[\\/]+$/, ''), ...parts].join(sep);
+}
 
 /**
  * 「外部工具路径」独立块（方案 B，事项 3/3b）：
@@ -25,8 +33,11 @@ export function ToolPathsBlock({ categories }: { categories: StorageCategoryStat
   const envStatus = useAppStore((s) => s.envStatus) ?? getCachedEnvStatus();
   const sourceStatus = useAppStore((s) => s.sourceStatus);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
+  const [opencodeSource, setOpencodeSource] = useState<OpencodeSourceStatus | null>(() =>
+    peekOpencodeSource(),
+  );
 
-  // 后台静默同步（不碰 envBusy / 错误卡）：从未进过环境/DSH 组时也补齐路径。
+  // 后台静默同步（不碰 envBusy / 错误卡）：从未进过环境/DSH/OpenCode 组时也补齐路径。
   useEffect(() => {
     if (useAppStore.getState().envStatus === null) {
       void actions.fetchEnvStatus(true);
@@ -35,6 +46,30 @@ export function ToolPathsBlock({ categories }: { categories: StorageCategoryStat
       void actions.fetchSourceStatus(true);
     }
   }, [actions]);
+
+  useEffect(() => {
+    if (opencodeSource) {
+      return;
+    }
+    const bridge = typeof window !== 'undefined' ? window.digitalLife?.opencode : undefined;
+    if (!bridge) {
+      return;
+    }
+    let alive = true;
+    void bridge
+      .getSourceStatus()
+      .then((result) => {
+        if (alive && result.ok) {
+          setOpencodeSource(result.data);
+        }
+      })
+      .catch(() => {
+        // 只读索引失败保持 unknown，不影响其它行。
+      });
+    return () => {
+      alive = false;
+    };
+  }, [opencodeSource]);
 
   /** 环境依赖展示值：路径 → 版本 → 已检测 → 未知（与环境组同口径）。 */
   const displayFor = (section: EnvDependencyState | null | undefined): string => {
@@ -50,9 +85,48 @@ export function ToolPathsBlock({ categories }: { categories: StorageCategoryStat
     return t.storageToolPathsUnknown;
   };
 
-  const dshStoragePath = categories.find((c) => c.key === 'harnesses')?.path ?? null;
+  const harnessesPath = categories.find((c) => c.key === 'harnesses')?.path ?? null;
+  const dshDisplay = (() => {
+    if (!sourceStatus) {
+      return t.storageToolPathsUnknown;
+    }
+    if (sourceStatus.versionSource?.effective === 'system' && sourceStatus.system?.path) {
+      return sourceStatus.system.path;
+    }
+    const selected = sourceStatus.versionSource?.hostVersion;
+    if (harnessesPath && selected) {
+      return joinPath(harnessesPath, 'dsh', 'versions', 'installed', selected);
+    }
+    if (selected) {
+      return sourceStatus.system?.path ?? t.storageToolPathsUnknown;
+    }
+    if (sourceStatus.versionSource?.effective === 'running') {
+      return t.storageToolPathsUnknown;
+    }
+    return t.storageToolPathsNoVersion;
+  })();
+  const opencodeDisplay = (() => {
+    if (!opencodeSource) {
+      return t.storageToolPathsUnknown;
+    }
+    if (opencodeSource.versionSource?.effective === 'system' && opencodeSource.system?.path) {
+      return opencodeSource.system.path;
+    }
+    const selected = opencodeSource.versionSource?.hostVersion;
+    if (harnessesPath && selected) {
+      return joinPath(harnessesPath, 'opencode', 'versions', 'installed', selected);
+    }
+    if (selected) {
+      return opencodeSource.system?.path ?? t.storageToolPathsUnknown;
+    }
+    return t.storageToolPathsNoVersion;
+  })();
 
-  const rows: { name: string; display: string; goTo: 'environment' | 'dsh' }[] = [
+  const rows: {
+    name: string;
+    display: string;
+    goTo: 'environment' | 'dsh' | 'opencode';
+  }[] = [
     { name: t.environmentDepNode, display: displayFor(envStatus?.node), goTo: 'environment' },
     { name: t.environmentDepGit, display: displayFor(envStatus?.git), goTo: 'environment' },
     { name: t.environmentDepBash, display: displayFor(envStatus?.bash), goTo: 'environment' },
@@ -68,8 +142,13 @@ export function ToolPathsBlock({ categories }: { categories: StorageCategoryStat
     },
     {
       name: t.settingsDsh,
-      display: sourceStatus?.system?.path ?? dshStoragePath ?? t.storageToolPathsUnknown,
+      display: dshDisplay,
       goTo: 'dsh',
+    },
+    {
+      name: t.settingsOpencode,
+      display: opencodeDisplay,
+      goTo: 'opencode',
     },
   ];
 
@@ -86,7 +165,7 @@ export function ToolPathsBlock({ categories }: { categories: StorageCategoryStat
       <div className="adl-settings-card" data-testid="tool-paths-card">
         {rows.map((row) => (
           <div
-            className="adl-settings-row"
+            className="adl-settings-row adl-settings-row--center"
             key={row.name}
             data-settings-row={row.name}
             data-testid="tool-paths-item"

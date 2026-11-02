@@ -160,9 +160,10 @@ export const settingsEn = {
   storageImmutableWorkspaceCacheName: 'Workspace-level cache',
   storageToolPathsTitle: 'External tool paths',
   storageToolPathsHint:
-    'Read-only index of the real paths currently used by DSH and environment tools. Edit them in their own groups (Environment / DSH); nothing is migrated here.',
+    'Read-only index of the real paths currently used by DSH / OpenCode CLI and environment tools. Edit them in their own groups (Environment / DSH / OpenCode CLI); nothing is migrated here.',
   storageToolPathsGoTo: 'Manage',
   storageToolPathsUnknown: 'Unknown (not detected yet)',
+  storageToolPathsNoVersion: 'No version in use',
   storageRestartRequired: 'Saved. Restart the app to complete the migration.',
   storageRestartUnavailableInBrowser:
     'The browser mode cannot restart the app; this change will apply on next launch.',
