@@ -107,7 +107,6 @@ export const dshZh = {
   dshSourceSummary: '{title}：{registry}',
   dshSourceSummaryMode: '「{mode}」',
   dshSourceSummaryManual: '手动选择',
-  dshSourceSummaryUnknown: '—',
   dshSourceSummaryLoading: '读取下载源中',
   dshSourceSummaryUnavailable: '读取下载源失败',
   dshSourceSummaryGoModify: '前往修改',

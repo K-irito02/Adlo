@@ -14,7 +14,7 @@ import { harnessVersionEn } from '../../i18n/en-US/harnessVersion';
 import { settingsZh } from '../../i18n/zh-CN/settings';
 import { useAppStore } from '../../stores/slicedStore';
 import { OpencodeSettings } from './OpencodeSettings';
-import { resetOpencodeSnapshotCache } from './opencodeVersionBridge';
+import { resetOpencodeSnapshotCache, createOpencodeVersionBridge } from './opencodeVersionBridge';
 
 vi.mock('@features/preview/openByMethod', () => ({
   openUrlByMethod: vi.fn(),
@@ -343,5 +343,41 @@ describe('opencode version card layout adjustments', () => {
     const row = document.querySelector('[data-settings-row="新终端窗口自动启用"]') as HTMLElement;
     expect(row).not.toBeNull();
     expect(row.className).toContain('adl-harness-version__row--center');
+  });
+});
+
+describe('opencode source summary session cache', () => {
+  it('seeds the summary from the cached source before the bridge load resolves', async () => {
+    const source = makeSource();
+    // 先填充会话缓存（模拟用户之前进过 OpenCode 组）。
+    const warm = createOpencodeVersionBridge({
+      bridge: {
+        getVersionStatus: async () => ok(makeStatus()),
+        getVersionCatalog: async () =>
+          ok({ stable: [], prerelease: [], latestStable: null, latestPrerelease: null }),
+        getSourceStatus: async () => ok(source),
+      } as never,
+      toolName: 'OpenCode CLI',
+      t,
+      testSource: async () => null,
+      saveSourceConfig: async () => true,
+      notify: () => {},
+    });
+    await warm.load();
+
+    // 本次挂载的 bridge 永不 resolve：摘要只能来自 peek 缓存。
+    const bridge = installBridge(source, makeStatus());
+    bridge.getVersionStatus = vi.fn(() => new Promise(() => {}));
+    bridge.getVersionCatalog = vi.fn(() => new Promise(() => {}));
+    bridge.getSourceStatus = vi.fn(() => new Promise(() => {}));
+    render(
+      <TestProvider>
+        <OpencodeSettings />
+      </TestProvider>,
+    );
+
+    const card = await screen.findByTestId('opencode-source-summary-card');
+    expect(within(card).getByText(/registry\.npmjs\.org/)).toBeInTheDocument();
+    expect(within(card).queryByText(dshZh.dshSourceSummaryUnavailable)).toBeNull();
   });
 });

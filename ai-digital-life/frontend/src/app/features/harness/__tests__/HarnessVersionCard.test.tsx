@@ -286,7 +286,11 @@ describe('HarnessVersionCard', () => {
     expect(within(channelRow('stable')).getByRole('button', { name: '1.1.0' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'harnessVersionUpdateAction' })).toBeDisabled();
     // 当前版本读数与 DSH 同口径：busy 时显示中性扫光胶囊，不展示中途值。
-    expect(document.querySelector('.adl-harness-version__readout-loading')).not.toBeNull();
+    // 断言收窄到当前版本行：同名类也被行内刷新覆盖层使用，全局查询会假阳性。
+    const currentRow = document.querySelector(
+      '[data-settings-row="harnessVersionCurrent"]',
+    ) as HTMLElement;
+    expect(currentRow.querySelector('.adl-harness-version__readout-loading')).not.toBeNull();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(800);
@@ -306,7 +310,7 @@ describe('HarnessVersionCard', () => {
       await Promise.resolve();
     });
     await waitFor(() =>
-      expect(document.querySelector('.adl-harness-version__readout-loading')).toBeNull(),
+      expect(currentRow.querySelector('.adl-harness-version__readout-loading')).toBeNull(),
     );
   });
 
@@ -1072,6 +1076,62 @@ describe('HarnessVersionCard layout adjustments', () => {
     openChannelMenu('stable', '1.2.3+build-7');
     const options = within(screen.getByRole('listbox')).getAllByRole('option');
     expect(options.filter((o) => o.textContent?.includes('1.0.0'))).toHaveLength(1);
+  });
+
+  it('formats visible prerelease versions but installs the raw version', async () => {
+    const formatVersion = (version: string) => version.replace(/^0\.0\.0-/, '');
+    const bridge = makeBridge({
+      formatVersion,
+      initial: snapshot({
+        status: status({
+          currentSelected: '0.0.0-beta-202601010000',
+          installed: ['0.0.0-beta-202601010000'],
+          latestAvailable: null,
+          hasUpdate: false,
+          hasPrereleaseUpdate: true,
+          prereleaseAvailable: '0.0.0-beta-202602020000',
+        }),
+        catalog: {
+          stable: [],
+          prerelease: [
+            { version: '0.0.0-beta-202601010000', publishedAt: null },
+            { version: '0.0.0-beta-202602020000', publishedAt: null },
+          ],
+          latestStable: null,
+          latestPrerelease: '0.0.0-beta-202602020000',
+        },
+      }),
+    });
+    renderCard(bridge);
+    await waitFor(() => expect(bridge.load).toHaveBeenCalled());
+
+    // 当前版本读数与「检查更新」徽章都走格式化。
+    const currentRow = document.querySelector(
+      '[data-settings-row="harnessVersionCurrent"]',
+    ) as HTMLElement;
+    expect(within(currentRow).getByText('beta-202601010000')).toBeInTheDocument();
+    expect(document.querySelector('.adl-harness-version__update-badge-version')?.textContent).toBe(
+      'beta-202602020000',
+    );
+    // 选择器可见文本也是格式化值（aria-label 仍是原始版本）。
+    expect(
+      channelRow('prerelease').querySelector('.adl-harness-version__version-picker-version')
+        ?.textContent,
+    ).toBe('beta-202601010000');
+    expect(
+      within(channelRow('prerelease')).getByRole('button', { name: '0.0.0-beta-202601010000' }),
+    ).toBeInTheDocument();
+
+    // 菜单里不得残留 `0.0.0-` 前缀；安装参数仍是完整版本。
+    openChannelMenu('prerelease', '0.0.0-beta-202601010000');
+    const optionTexts = screen.getAllByRole('option').map((o) => o.textContent ?? '');
+    expect(optionTexts.some((text) => text.includes('0.0.0-'))).toBe(false);
+    expect(optionTexts.some((text) => text.includes('beta-202602020000'))).toBe(true);
+    pickChannelVersion('beta-202602020000');
+    fireEvent.click(
+      within(channelRow('prerelease')).getByRole('button', { name: 'harnessVersionInstall' }),
+    );
+    expect(bridge.install).toHaveBeenCalledWith('0.0.0-beta-202602020000');
   });
 
   it('uses the git-visualization arc icon for every configured row refresh button', async () => {

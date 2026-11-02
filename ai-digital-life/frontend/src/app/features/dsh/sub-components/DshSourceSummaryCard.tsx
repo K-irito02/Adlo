@@ -1,31 +1,20 @@
-import { useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import { useSourceSummaryGrace } from '@hooks/useSourceSummaryGrace';
 
 /**
  * 当前下载源独立沉底卡（只读 + 前往网络组修改）。
  *
  * 来源状态未到时画中性扫光/失败文案，不渲染「— 「—」」这种占位读数。
  */
-const SOURCE_SUMMARY_TIMEOUT_MS = 3000;
-
 export function DshSourceSummaryCard() {
   const { t } = useTCopy();
   const sourceStatus = useAppStore((s) => s.sourceStatus);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
-  const [timedOut, setTimedOut] = useState(false);
-
-  useEffect(() => {
-    if (sourceStatus !== null) {
-      setTimedOut(false);
-      return;
-    }
-    const timer = window.setTimeout(() => setTimedOut(true), SOURCE_SUMMARY_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
-  }, [sourceStatus]);
+  const timedOut = useSourceSummaryGrace(sourceStatus !== null);
 
   const summaryLabel = sourceStatus
     ? formatT(t, 'dshSourceSummary', {

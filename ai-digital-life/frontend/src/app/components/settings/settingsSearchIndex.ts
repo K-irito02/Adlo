@@ -156,6 +156,7 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
       { labelKey: 'environmentDepWebview2' },
       { labelKey: 'environmentDepAdlserver' },
       { labelKey: 'settingsDsh' },
+      { labelKey: 'settingsOpencode' },
     ],
   },
   {

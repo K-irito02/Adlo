@@ -125,6 +125,14 @@ pub fn extract_binary_from_tgz(tgz: &Path, bin_rel: &str, dest: &Path) -> Result
             .map_err(|e| AppError::Io(format!("create {}: {e}", dest.display())))?;
         let written = std::io::copy(&mut entry, &mut out)
             .map_err(|e| AppError::Io(format!("extract {}: {e}", dest.display())))?;
+        // tar entry 的 mode 不随 `io::copy` 落盘：macOS/Linux 上解出的二进制会是
+        // 0644，随后 `verify_binary` 执行即 EACCES。显式补上可执行位。
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(dest, std::fs::Permissions::from_mode(0o755))
+                .map_err(|e| AppError::Io(format!("chmod {}: {e}", dest.display())))?;
+        }
         return Ok(written);
     }
     Err(AppError::NotFound(format!("{} not found in {}", wanted, tgz.display())))
@@ -165,10 +173,10 @@ async fn try_candidate(
     tokio::fs::create_dir_all(&staging)
         .await
         .map_err(|e| AppError::Io(format!("create {}: {e}", staging.display())))?;
-    let dest = staging.join(spec::OPENCODE_BIN_REL);
+    let dest = staging.join(input.spec.marker_rel);
     let extract_tgz = tgz.to_path_buf();
     let extract_dest = dest.clone();
-    let bin_rel = spec::OPENCODE_BIN_REL.to_string();
+    let bin_rel = input.spec.marker_rel.to_string();
     let written = match tokio::task::spawn_blocking(move || {
         extract_binary_from_tgz(&extract_tgz, &bin_rel, &extract_dest)
     })
@@ -193,6 +201,14 @@ async fn try_candidate(
             let _ = tokio::fs::remove_dir_all(&staging).await;
             return Err(e);
         }
+    }
+    // 包线标记写进 staging：随版本目录一起原子换位（见 install.rs 同处注释）。
+    if let Err(e) =
+        tokio::fs::write(staging.join(crate::LINE_MARKER), format!("{}\n", input.spec.package))
+            .await
+    {
+        let _ = tokio::fs::remove_dir_all(&staging).await;
+        return Err(AppError::Io(format!("write package line: {e}")));
     }
     let final_dir = crate::installed_dir(input.root).join(input.version);
     let swap_staging = staging.clone();
@@ -391,11 +407,18 @@ mod tests {
         };
         install(input, &task).await.expect("install");
         assert!(crate::is_version_installed_for(&spec::OPENCODE_V2, &root, "2.0.0"));
+        assert_eq!(
+            std::fs::read_to_string(crate::line_marker_path(&root, "2.0.0"))
+                .expect("package line marker")
+                .trim(),
+            "@opencode/cli"
+        );
         let request = rx.await.expect("request line");
         assert!(
             request.contains("/@opencode/cli-windows-x64/-/cli-windows-x64-2.0.0.tgz"),
             "unexpected scoped tarball request: {request}"
         );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]
@@ -452,6 +475,12 @@ mod tests {
         assert_eq!(
             std::fs::read(root.join("installed/1.0.0/bin/opencode.exe")).expect("marker"),
             b"fake-opencode"
+        );
+        assert_eq!(
+            std::fs::read_to_string(crate::line_marker_path(&root, "1.0.0"))
+                .expect("package line marker")
+                .trim(),
+            "opencode-ai"
         );
         let _ = std::fs::remove_dir_all(&dir);
     }

@@ -337,7 +337,6 @@ describe('i18n en-US namespace keys', () => {
       'dshSourceSummary',
       'dshSourceSummaryMode',
       'dshSourceSummaryManual',
-      'dshSourceSummaryUnknown',
       'dshSourceSummaryGoModify',
       'dshVersionCancelFailed',
       'dshSwitchedOnly',

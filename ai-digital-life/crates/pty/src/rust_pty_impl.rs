@@ -19,7 +19,8 @@ use crate::traits::{PtySession, PtyStatus, PtySystem};
 /// 2. 壳层集成（`shell_integration_env`）：cmd / bash 通过环境变量注入 OSC 9;9
 ///    当前目录上报（PowerShell 走启动参数），供重启后恢复「上次所在目录」。
 ///
-/// 仅使用 `env_add`（与继承环境合并），不覆盖用户已有环境。
+/// 与继承环境合并。`LANG` 与托管强制键（`XDG_*`、`OPENCODE_DISABLE_AUTOUPDATE`）覆盖
+/// 用户值；其余托管变量（如 `OPENCODE_DB`）尊重用户已设的非空值，空值视为未设置。
 fn terminal_env(program: &str) -> HashMap<OsString, OsString> {
     let mut env = HashMap::new();
     env.insert(OsString::from("LANG"), OsString::from("en_US.UTF-8"));
@@ -30,12 +31,20 @@ fn terminal_env(program: &str) -> HashMap<OsString, OsString> {
         Some((k, v)) => (k, Some(v)),
         None => (OsString::from("PATH"), None),
     };
-    if let Some(path) = crate::managed_bins::terminal_path(path_value.as_ref()) {
+    // 一次快照同时取 PATH 与环境变量：避免两次加锁读到切换前后的不同状态。
+    let managed = crate::managed_bins::managed_state();
+    if let Some(path) = crate::managed_bins::terminal_path_from(&managed.dirs, path_value.as_ref())
+    {
         env.insert(path_key, path);
     }
-    // 托管 CLI 的数据隔离变量（如 OpenCode 的 OPENCODE_DB）：用户已显式设置时尊重用户值。
-    for (key, value) in crate::managed_bins::managed_env() {
-        if std::env::var_os(&key).is_none() {
+    // 托管 CLI 的数据隔离变量（如 OpenCode 的 OPENCODE_DB）：用户已显式设置时尊重用户值；
+    // 空值（`KEY=`）按未设置处理，否则托管 CLI 会拿到空路径直接失败。
+    // 例外：XDG_* 与 OPENCODE_DISABLE_AUTOUPDATE 属强制托管策略，必须覆盖用户值。
+    for (key, value) in managed.env {
+        let forced = crate::managed_bins::is_forced_managed_key(&key);
+        if forced
+            || !crate::managed_bins::user_value_blocks_injection(std::env::var_os(&key).as_ref())
+        {
             env.insert(key, value);
         }
     }
@@ -205,12 +214,13 @@ mod tests {
 
     #[test]
     fn terminal_env_injects_registered_managed_env() {
+        let _guard = crate::managed_bins::test_guard();
         let key = OsString::from("ADL_TEST_MANAGED_ENV");
         let value = OsString::from("/tmp/adl-managed.db");
-        crate::managed_bins::set_managed_env(vec![(key.clone(), value.clone())]);
+        crate::managed_bins::set_managed_state(Vec::new(), vec![(key.clone(), value.clone())]);
         let env = terminal_env("pwsh");
         assert_eq!(env.get(&key), Some(&value));
-        crate::managed_bins::set_managed_env(Vec::new());
+        crate::managed_bins::set_managed_state(Vec::new(), Vec::new());
         assert!(!terminal_env("pwsh").contains_key(&key));
     }
 }

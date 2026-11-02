@@ -1,8 +1,9 @@
 //! Harness 描述符：把「工具差异」集中成数据，通用内核只读描述符。
 //!
-//! 两个 harness 的差异只有五处：npm 包名、安装通道、版本目录里的可执行 marker、
-//! 系统安装探测用的可执行名、版本目录的限量策略。其余（版本目录、选中、回退、
-//! 卸载、安装任务、来源解析）由本 crate 的通用内核承担。
+//! 差异集中在六处：npm 包名、平台包前缀、安装通道、版本目录里的可执行 marker、
+//! 系统安装探测用的可执行名、版本目录的限量策略。同一个 harness 可以有多条包线
+//! （OpenCode 1.x `opencode-ai` / 2.x `@opencode/cli`，共享 `HarnessId::OpenCode`）。
+//! 其余（版本目录、选中、回退、卸载、安装任务、来源解析）由本 crate 的通用内核承担。
 
 use serde::{Deserialize, Serialize};
 
@@ -51,7 +52,11 @@ pub struct CatalogPolicy {
 #[derive(Debug, Clone, Copy)]
 pub struct HarnessSpec {
     pub id: HarnessId,
-    /// npm 包名（Npm 通道）或平台包名前缀（PlatformTarball 通道，实际包名按平台拼）。
+    /// catalog / `latest` / 版本存在性查询用的 npm 包名。
+    ///
+    /// Npm 通道直接安装该包；PlatformTarball 通道只查它的 packument，平台包名由
+    /// [`Self::platform_prefix`] 拼（两者通常不同：`opencode-ai` vs `opencode`、
+    /// `@opencode/cli` vs `@opencode/cli`）。
     pub package: &'static str,
     /// 平台包前缀（PlatformTarball 通道）：`opencode` → `opencode-windows-x64`；
     /// `@opencode/cli` → `@opencode/cli-windows-x64`。Npm 通道留空。
@@ -125,11 +130,6 @@ pub const OPENCODE_V2: HarnessSpec = HarnessSpec {
 ///
 /// 与上游 `opencode-ai/postinstall.mjs` 同口径：x64 若检测不到 AVX2，先试
 /// `-baseline` 包，再回退普通包；arm64 只有普通包。
-pub fn opencode_platform_packages(platform: &str, arch: &str, avx2: bool) -> Vec<String> {
-    opencode_platform_packages_with_prefix("opencode", platform, arch, avx2)
-}
-
-/// 同 [`opencode_platform_packages`]，但允许指定 npm scope/前缀（1.x `opencode`，2.x `@opencode/cli`）。
 pub fn opencode_platform_packages_with_prefix(
     prefix: &str,
     platform: &str,
@@ -164,12 +164,6 @@ pub fn current_platform_arch() -> (&'static str, &'static str) {
 /// 当前 CPU 是否支持 AVX2（等价于上游 `IsProcessorFeaturePresent(40)`）。
 pub fn current_avx2() -> bool {
     cfg!(target_arch = "x86_64") && std::is_x86_feature_detected!("avx2")
-}
-
-/// 当前机器的 OpenCode 平台包候选（`current_platform_arch` + `current_avx2`）。
-pub fn opencode_platform_packages_for_current() -> Vec<String> {
-    let (platform, arch) = current_platform_arch();
-    opencode_platform_packages(platform, arch, current_avx2())
 }
 
 #[cfg(test)]
@@ -218,7 +212,7 @@ mod tests {
     #[test]
     fn x64_without_avx2_tries_the_baseline_package_first() {
         assert_eq!(
-            opencode_platform_packages("windows", "x64", false),
+            opencode_platform_packages_with_prefix("opencode", "windows", "x64", false),
             vec!["opencode-windows-x64-baseline", "opencode-windows-x64"]
         );
     }
@@ -226,7 +220,7 @@ mod tests {
     #[test]
     fn x64_with_avx2_prefers_the_regular_package() {
         assert_eq!(
-            opencode_platform_packages("windows", "x64", true),
+            opencode_platform_packages_with_prefix("opencode", "windows", "x64", true),
             vec!["opencode-windows-x64", "opencode-windows-x64-baseline"]
         );
     }
@@ -234,13 +228,8 @@ mod tests {
     #[test]
     fn arm64_has_a_single_candidate() {
         assert_eq!(
-            opencode_platform_packages("windows", "arm64", false),
+            opencode_platform_packages_with_prefix("opencode", "windows", "arm64", false),
             vec!["opencode-windows-arm64"]
         );
-    }
-
-    #[test]
-    fn current_platform_candidates_are_non_empty() {
-        assert!(!opencode_platform_packages_for_current().is_empty());
     }
 }

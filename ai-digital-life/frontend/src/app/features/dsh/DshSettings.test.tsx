@@ -72,7 +72,6 @@ const READOUT_KEYS = new Set([
   'dshSourceSummaryTitle',
   'dshSourceSummaryMode',
   'dshSourceSummaryManual',
-  'dshSourceSummaryUnknown',
   'dshSourceSummaryGoModify',
   'dshSettingsSourceAuto',
   'dshVersionUnknown',

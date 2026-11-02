@@ -107,13 +107,7 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
           if (!entry.hostEl.isConnected) {
             return;
           }
-          if (
-            !shouldFitTerminal({
-              hidden: document.hidden,
-              width: container.clientWidth,
-              height: container.clientHeight,
-            })
-          ) {
+          if (!shouldFitTerminal(container)) {
             return;
           }
           try {

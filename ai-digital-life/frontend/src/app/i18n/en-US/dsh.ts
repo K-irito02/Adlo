@@ -115,7 +115,6 @@ export const dshEn = {
   // 复制/屏读时不加空格会得到 `...npmjs.org(Auto Detect)`。中文用「」自带分隔，无需空格。
   dshSourceSummaryMode: ' ({mode})',
   dshSourceSummaryManual: 'Manual',
-  dshSourceSummaryUnknown: '—',
   dshSourceSummaryLoading: 'Reading download source',
   dshSourceSummaryUnavailable: 'Could not read the download source',
   dshSourceSummaryGoModify: 'Change',

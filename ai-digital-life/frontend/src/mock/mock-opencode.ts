@@ -250,9 +250,10 @@ function registryBase(): string {
 }
 
 /**
- * 直查上游 packument（`GET {registry}/opencode-ai`，与 Rust `fetch_catalog_for`
- * 同一数据源，尊重下载源镜像配置）。失败/超时/无 fetch 环境一律返回 null，
- * 调用方回退离线快照，不得把网络故障变成设置页报错。
+ * 并行查询两条包线的 packument（`GET {registry}/opencode-ai` 与
+ * `GET {registry}/@opencode/cli`），按 semver 合并（对应 Rust
+ * `fetch_catalog_for_lines`）。尊重下载源镜像配置；失败/超时/无 fetch 环境一律返回
+ * null，调用方回退离线快照，不得把网络故障变成设置页报错。
  */
 async function fetchLiveCatalog(): Promise<DshVersionCatalog | null> {
   const now = Date.now();
@@ -397,7 +398,7 @@ export const mockOpencode: OpencodeBridge = {
     syncEffective();
     return ok(trimmed);
   },
-  update: () => ok(MOCK_VERSION),
+  update: () => ok(status.latestAvailable ?? MOCK_V2_VERSION),
   revert: (version: string) => {
     if (!status.installed.includes(version)) {
       return fail(`version ${version} not installed`);

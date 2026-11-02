@@ -1716,7 +1716,6 @@
 
 .adl-network-no-proxy__expand:hover:not(:disabled),
 .adl-network-no-proxy__expand.is-open {
-  background: transparent;
   color: var(--text-primary);
 }
 

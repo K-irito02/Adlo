@@ -44,6 +44,8 @@ function makeBridge(
     testSource?: (url: string, silent?: boolean) => Promise<DshTestResult | null>;
     saveSourceConfig?: (config: DshSourceConfig, silent?: boolean) => Promise<boolean>;
     notify?: (message: string, tone: string) => void;
+    onSource?: (source: OpencodeSourceStatus | null) => void;
+    t?: CopyDict;
   } = {},
 ) {
   const raw = {
@@ -76,10 +78,11 @@ function makeBridge(
   const adapter = createOpencodeVersionBridge({
     bridge: raw,
     toolName: 'OpenCode CLI',
-    t: mockT,
+    t: deps.t ?? mockT,
     testSource: deps.testSource ?? (async () => null),
     saveSourceConfig: deps.saveSourceConfig ?? (async () => true),
     notify: deps.notify ?? (() => {}),
+    onSource: deps.onSource,
   });
   return { raw, adapter };
 }
@@ -274,6 +277,66 @@ describe('opencodeVersionBridge', () => {
     });
     expect(offline.available).toBe(false);
     await expect(offline.install('1.0.0')).resolves.toMatchObject({ ok: false });
+  });
+
+  it('reports the snapshot source through onSnapshot (null when the leg failed)', async () => {
+    const onSource = vi.fn();
+    const { adapter } = makeBridge({}, { onSource });
+    const snapshot = await adapter.load();
+    adapter.onSnapshot?.(snapshot);
+    expect(onSource).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({ npm_registry: 'https://registry.npmjs.org' }),
+      }),
+    );
+
+    adapter.onSnapshot?.({
+      status: null,
+      catalog: null,
+      source: null,
+      sourceExtra: null,
+      failed: true,
+    });
+    expect(onSource).toHaveBeenLastCalledWith(null);
+  });
+
+  it('formats prerelease versions in install and check-update toasts but sends the raw version', async () => {
+    const notify = vi.fn();
+    const t = new Proxy({} as Record<string, string>, {
+      get: (_, key) =>
+        key === 'harnessVersionInstalledVersion'
+          ? 'installed {version}'
+          : key === 'opencodeCheckUpdatePrerelease'
+            ? 'prerelease {version}'
+            : typeof key === 'string'
+              ? key
+              : '',
+    }) as unknown as CopyDict;
+    const { raw, adapter } = makeBridge(
+      {
+        getVersionStatus: vi.fn(async () =>
+          ok({
+            currentSelected: '1.0.0',
+            installed: ['1.0.0'],
+            latestAvailable: null,
+            hasUpdate: false,
+            prereleaseAvailable: '0.0.0-beta-202608110357',
+            hasPrereleaseUpdate: true,
+            prereleaseUnknown: false,
+          }),
+        ),
+      },
+      { notify, t },
+    );
+
+    await expect(adapter.install('0.0.0-beta-202608110357')).resolves.toMatchObject({
+      ok: true,
+      message: 'installed beta-202608110357',
+    });
+    expect(raw.installVersion).toHaveBeenCalledWith('0.0.0-beta-202608110357', true);
+
+    await adapter.checkUpdate?.();
+    expect(notify).toHaveBeenCalledWith('prerelease beta-202608110357', 'success');
   });
 
   it('mirrors the DSH stage labels (download when total is unknown, no counts)', () => {

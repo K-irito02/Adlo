@@ -88,6 +88,7 @@ export function useHarnessVersionData<TSource>(bridge: HarnessVersionBridge<TSou
           return;
         }
         applySnapshot(next);
+        bridge.onSnapshot?.(next);
         if (options?.notifyFailure && next.failed === true) {
           bridge.notify(t.harnessVersionLoadFailed, 'error');
         }
@@ -160,8 +161,12 @@ export function useHarnessVersionData<TSource>(bridge: HarnessVersionBridge<TSou
         clearTask();
         // 先刷新再降 busy：刷新期间读数保持扫光、任务行沿用上次阶段（收尾中），
         // 避免「安装成功 → 短暂显示未安装 → 徽章才出现」的闪变（与 DSH 重启长尾同口径）。
-        await refresh();
-        setBusy(false);
+        // 内层 finally 兜底：refresh 的 notify 抛错时也必须释放忙碌态，否则整卡永久禁用。
+        try {
+          await refresh();
+        } finally {
+          setBusy(false);
+        }
       }
     },
     [bridge, clearTask, refresh, t],

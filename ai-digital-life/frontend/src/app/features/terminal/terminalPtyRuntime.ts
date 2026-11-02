@@ -401,17 +401,13 @@ export class TerminalPtyRuntime {
         }
         if (pane.sessionId && this.liveSessionIds.has(pane.sessionId)) {
           // PTY 存活：pool entry 已有完整 buffer，只需 fit 和 focus。
-          // 窗口最小化/面板隐藏时跳过 fit：容器会塌缩到极小，fit 会重排/丢失历史。
+          // 窗口最小化/面板隐藏时跳过 fit（容器会塌缩到极小，fit 会重排/丢失历史），
+          // 但焦点仍要交给终端：fit 门控不该影响键盘焦点归属。
           const pooled = terminalXtermPool.get(pane.sessionId);
-          if (
-            pooled &&
-            shouldFitTerminal({
-              hidden: document.hidden,
-              width: pooled.hostEl.clientWidth,
-              height: pooled.hostEl.clientHeight,
-            })
-          ) {
-            pooled.fitAddon.fit();
+          if (pooled) {
+            if (shouldFitTerminal(pooled.hostEl)) {
+              pooled.fitAddon.fit();
+            }
             pooled.terminal.focus();
           }
           return;

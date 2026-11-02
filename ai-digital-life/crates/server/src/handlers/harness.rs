@@ -25,21 +25,112 @@ fn root(state: &ServerState) -> PathBuf {
 
 const OPENCODE_LINES: &[&spec::HarnessSpec] = &[&spec::OPENCODE, &spec::OPENCODE_V2];
 
-/// 按版本号选择包线：2.x 走 `@opencode/cli`，其余走 `opencode-ai`。
-fn spec_for_version(version: &str) -> &'static spec::HarnessSpec {
+/// 该描述符是否 2.x 包线（`@opencode/cli`）。
+fn is_v2_line(spec: &spec::HarnessSpec) -> bool {
+    spec.package == spec::OPENCODE_V2.package
+}
+
+/// 按版本号选择包线：优先读安装时写入的 `.adl-package` 标记。
+///
+/// 预发布版本无法按 major 反推：1.x 与 2.x 的 beta 都是 `0.0.0-beta-*`（major 0），
+/// 只看 major 会把 2.x beta 路由到 1.x 包并报「未发布」。没有标记的旧安装回退到
+/// major 规则（2.x 正式版 major >= 2，其余按 1.x），与历史行为一致。
+fn spec_for_version(root: &Path, version: &str) -> &'static spec::HarnessSpec {
+    if let Some(spec) =
+        hv::read_line_for(root, version).filter(|spec| spec.id == spec::HarnessId::OpenCode)
+    {
+        return spec;
+    }
     match semver::Version::parse(version) {
         Ok(v) if v.major >= 2 => &spec::OPENCODE_V2,
+        Ok(v) if !v.pre.is_empty() => {
+            // 所有预发布安装都会写 `.adl-package`；走到这里说明标记丢失/损坏。
+            // 预发布无法从 major 区分包线，回退 1.x 是唯一安全默认，但必须留痕。
+            tracing::warn!(%version, "opencode: missing package line marker for prerelease");
+            &spec::OPENCODE
+        },
         _ => &spec::OPENCODE,
     }
 }
 
-/// 2.x CLI 的 `opencode` 包装脚本：强制 `--standalone`，避免连接桌面版的 background service。
-fn opencode_shim_script(exe: &Path) -> String {
-    if cfg!(windows) {
-        format!("@echo off\r\n\"{}\" --standalone %*\r\n", exe.display())
-    } else {
-        format!("#!/bin/sh\nexec \"{}\" --standalone \"$@\"\n", exe.display())
+/// 安装**尚未落盘**的版本时确定包线：没有 `.adl-package` 标记，只能探测 registry。
+///
+/// 预发布（major 0）先查 `@opencode/cli`，命中走 2.x；明确 404 才回退 1.x。
+/// 探测本身失败（超时/5xx/代理）必须上抛为网络错误，不能当成「2.x 没有此版本」，
+/// 否则用户会看到误导性的「未发布」。
+async fn spec_for_new_install(
+    data_dir: &Path,
+    root: &Path,
+    version: &str,
+) -> Result<&'static spec::HarnessSpec, AppError> {
+    if let Some(spec) =
+        hv::read_line_for(root, version).filter(|spec| spec.id == spec::HarnessId::OpenCode)
+    {
+        return Ok(spec);
     }
+    match semver::Version::parse(version) {
+        Ok(v) if v.major >= 2 => Ok(&spec::OPENCODE_V2),
+        Ok(v) if v.major == 0 => {
+            match hv::version_exists(&spec::OPENCODE_V2, data_dir, version).await {
+                Ok(true) => Ok(&spec::OPENCODE_V2),
+                Ok(false) => Ok(&spec::OPENCODE),
+                Err(e) => {
+                    tracing::warn!(
+                        %version,
+                        package = spec::OPENCODE_V2.package,
+                        error = %e,
+                        "opencode: package line probe failed"
+                    );
+                    Err(e)
+                },
+            }
+        },
+        _ => Ok(&spec::OPENCODE),
+    }
+}
+
+/// shim 目录（`<harnesses>/opencode/managed/shim`）到版本可执行文件的相对路径。
+///
+/// 用相对路径而不是绝对路径：cmd.exe 按控制台代码页读取 `.cmd`，数据根含非 ASCII
+/// （CJK 用户名 / 自定义存储根）时绝对路径会被解码成乱码；脚本本身只含 ASCII 版本号。
+fn opencode_shim_target(version: &str, marker_rel: &str) -> String {
+    format!("../../versions/installed/{version}/{}", marker_rel.replace('\\', "/"))
+}
+
+/// Windows 的 `opencode.cmd`：强制 `--standalone`。
+fn opencode_shim_cmd(version: &str, marker_rel: &str) -> String {
+    let target = opencode_shim_target(version, marker_rel).replace('/', "\\");
+    format!("@echo off\r\n\"%~dp0{target}\" --standalone %*\r\n")
+}
+
+/// POSIX 的 `opencode`（unix 直接用；Windows 上供 Git Bash 命中，因为 bash 不解析 `.cmd`）。
+fn opencode_shim_sh(version: &str, marker_rel: &str) -> String {
+    format!(
+        "#!/bin/sh\nexec \"$(dirname \"$0\")/{}\" --standalone \"$@\"\n",
+        opencode_shim_target(version, marker_rel)
+    )
+}
+
+/// 写入 2.x 包装脚本。
+///
+/// Windows 同时写 `.cmd`（cmd/PowerShell 命中）与无扩展名 sh 脚本（Git Bash 不解析
+/// `.cmd`，只写 `.cmd` 时 bash 会落到 bin 目录里的裸 exe，绕过 `--standalone`）。
+fn write_shims(shim_dir: &Path, version: &str, marker_rel: &str) -> bool {
+    let written = if cfg!(windows) {
+        std::fs::write(shim_dir.join("opencode.cmd"), opencode_shim_cmd(version, marker_rel))
+            .is_ok()
+            && std::fs::write(shim_dir.join("opencode"), opencode_shim_sh(version, marker_rel))
+                .is_ok()
+    } else {
+        std::fs::write(shim_dir.join("opencode"), opencode_shim_sh(version, marker_rel)).is_ok()
+    };
+    #[cfg(unix)]
+    let written = written && {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(shim_dir.join("opencode"), std::fs::Permissions::from_mode(0o755))
+            .is_ok()
+    };
+    written
 }
 
 /// 托管 OpenCode 的数据隔离变量：只在宿主托管 + 注入开启时使用独立数据库。
@@ -48,29 +139,27 @@ fn opencode_shim_script(exe: &Path) -> String {
 /// `~/.local/share/opencode/opencode.db`，但 schema 不兼容（新库无 `session` 表）；
 /// 托管版本直接打开会报 `Database is not empty and has no session table`。
 /// 用 `OPENCODE_DB` 把托管版本的会话数据库放到应用数据目录，避免互相破坏；
-/// 1.x/2.x 的 schema 不兼容，按 major 再分目录。
+/// 1.x/2.x 的 schema 不兼容，按**包线**（而不是 semver major）分目录：预发布版本
+/// 的 major 恒为 0，按 major 会把两条线塞进同一个库。
 fn managed_terminal_env(
     harness_root: &Path,
+    line: &spec::HarnessSpec,
     effective: hv::EffectiveSource,
-    selected: Option<&str>,
     injection_enabled: bool,
 ) -> Vec<(OsString, OsString)> {
-    let Some(version) = selected else {
-        return Vec::new();
-    };
     if !injection_enabled || effective != hv::EffectiveSource::Host {
         return Vec::new();
     }
-    let major = semver::Version::parse(version).map(|v| v.major).unwrap_or(1);
+    let line_dir = if is_v2_line(line) { "v2" } else { "v1" };
     let base = harness_root.parent().unwrap_or(harness_root);
-    let managed = base.join("managed").join(format!("v{major}"));
+    let managed = base.join("managed").join(line_dir);
     let db = managed.join("opencode.db");
     let mut env = vec![
         (OsString::from("OPENCODE_DB"), db.into_os_string()),
         // 应用负责版本管理：阻止 TUI 内 /update 原地替换二进制。
         (OsString::from("OPENCODE_DISABLE_AUTOUPDATE"), OsString::from("1")),
     ];
-    if major >= 2 {
+    if is_v2_line(line) {
         // 2.x 默认连接后台 service（桌面版也共用同一个 service.json 发现）。
         // 隔离 XDG state/data，确保托管 CLI 启动自己的 service，不接管桌面版服务。
         env.push((OsString::from("XDG_DATA_HOME"), managed.join("data").into_os_string()));
@@ -92,69 +181,65 @@ pub fn refresh_managed_bins(state: &ServerState) {
         .map(|c| c.opencode_version_source)
         .unwrap_or(adl_download_source::VersionSourceMode::Auto);
     let selected = hv::read_selected_for(&spec::OPENCODE, &harness_root).ok().flatten();
+    let line = selected.as_deref().map(|version| spec_for_version(&harness_root, version));
     let installed = selected
         .as_deref()
         .is_some_and(|v| hv::is_version_installed_for(&spec::OPENCODE, &harness_root, v));
     let has_system = hv::detect_system_bin(&spec::OPENCODE).is_some();
     let effective = hv::resolve_effective_source(mode, false, installed, has_system);
-    let mut dirs = match (&effective, selected.as_deref()) {
-        (hv::EffectiveSource::Host, Some(version)) if injection_enabled => {
-            vec![adl_pty::managed_bins::bin_dir_for(
-                &harness_root.join("installed").join(version),
-                spec::OPENCODE.marker_rel,
-            )]
+    let active = match (&effective, selected.as_deref(), line) {
+        (hv::EffectiveSource::Host, Some(version), Some(line)) if injection_enabled => {
+            Some((version, line))
         },
-        _ => Vec::new(),
+        _ => None,
     };
-    // 2.x CLI 默认连接 background service（桌面版共用 service 发现）；用包装脚本强制
-    // `--standalone`，让托管版本只运行自己的私人 server。脚本目录必须排在 bin 目录之前
-    // （Windows 按 PATH 目录顺序查找，同目录内 .exe 优先于 .cmd）。
-    if let (hv::EffectiveSource::Host, Some(version)) = (&effective, selected.as_deref()) {
-        if injection_enabled
-            && semver::Version::parse(version).map(|v| v.major >= 2).unwrap_or(false)
-        {
+    let mut dirs = Vec::new();
+    if let Some((version, line)) = active {
+        dirs.push(adl_pty::managed_bins::bin_dir_for(
+            &harness_root.join("installed").join(version),
+            line.marker_rel,
+        ));
+        // 2.x CLI 默认连接 background service（桌面版共用 service 发现）；用包装脚本强制
+        // `--standalone`，让托管版本只运行自己的私人 server。脚本目录必须排在 bin 目录之前
+        // （Windows 按 PATH 目录顺序查找，同目录内 .exe 优先于 .cmd）。
+        if is_v2_line(line) {
             let shim_dir = harness_root
                 .parent()
                 .unwrap_or(harness_root.as_path())
                 .join("managed")
                 .join("shim");
-            let exe = harness_root.join("installed").join(version).join(spec::OPENCODE_BIN_REL);
-            let shim_name = if cfg!(windows) { "opencode.cmd" } else { "opencode" };
-            let shim_path = shim_dir.join(shim_name);
             let written = std::fs::create_dir_all(&shim_dir).is_ok()
-                && std::fs::write(&shim_path, opencode_shim_script(&exe)).is_ok();
+                && write_shims(&shim_dir, version, line.marker_rel);
             if written {
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    let _ = std::fs::set_permissions(
-                        &shim_path,
-                        std::fs::Permissions::from_mode(0o755),
-                    );
-                }
                 dirs.insert(0, shim_dir);
             } else {
-                tracing::warn!(path = %shim_path.display(), "opencode: failed to write 2.x shim");
+                tracing::warn!(path = %shim_dir.display(), "opencode: failed to write 2.x shim");
             }
         }
     }
-    let env =
-        managed_terminal_env(&harness_root, effective, selected.as_deref(), injection_enabled);
+    let env = active
+        .map(|(_, line)| managed_terminal_env(&harness_root, line, effective, injection_enabled))
+        .unwrap_or_default();
     // SQLite/XDG 不会自动创建目录；先建好托管数据目录（失败时注入仍会带上路径，
-    // 由用户侧报错暴露，不静默改写为共享目录）。
+    // 由用户侧报错暴露，但必须留痕，否则只剩「打不开数据库」无从排查）。
     for (key, value) in &env {
         let key = key.to_string_lossy();
         let path = Path::new(value);
-        if key == "OPENCODE_DB" {
-            if let Some(parent) = path.parent() {
-                let _ = std::fs::create_dir_all(parent);
-            }
-        } else if key.starts_with("XDG_") {
-            let _ = std::fs::create_dir_all(path);
+        if key != "OPENCODE_DB" && !key.starts_with("XDG_") {
+            continue;
+        }
+        let target = if key == "OPENCODE_DB" { path.parent() } else { Some(path) };
+        let Some(target) = target else { continue };
+        if let Err(e) = std::fs::create_dir_all(target) {
+            tracing::warn!(
+                %key,
+                path = %target.display(),
+                error = %e,
+                "opencode: failed to create managed data dir"
+            );
         }
     }
-    adl_pty::managed_bins::set_managed_bin_dirs(dirs);
-    adl_pty::managed_bins::set_managed_env(env);
+    adl_pty::managed_bins::set_managed_state(dirs, env);
 }
 
 #[derive(Deserialize)]
@@ -205,7 +290,11 @@ pub async fn install_version(
     let version = input.version.trim().to_string();
     let select = input.select.unwrap_or(true);
     let harness_root = root(&state);
-    let install_spec = spec_for_version(&version);
+    let install_spec =
+        match spec_for_new_install(&state.storage.paths().root, &harness_root, &version).await {
+            Ok(spec) => spec,
+            Err(e) => return ipc::to_response(Err(e)),
+        };
     let kind = if hv::is_version_installed_for(install_spec, &harness_root, &version) {
         "opencode-reinstall"
     } else {
@@ -231,19 +320,32 @@ pub async fn install_version(
 }
 
 /// `POST /opencode/update`
+///
+/// 目标版本取**合并包线**的最新正式版（与状态徽章同源）；再按目标版本所属包线
+/// 安装，避免「已选 1.x 时更新只装 1.x、徽章却显示 2.x」的不一致。
 pub async fn update(State(state): State<ServerState>) -> impl IntoResponse {
     let harness_root = root(&state);
-    let selected = hv::read_selected_for(&spec::OPENCODE, &harness_root).ok().flatten();
-    let update_spec = selected.as_deref().map(spec_for_version).unwrap_or(&spec::OPENCODE);
-    if let Err(e) = try_begin(&state, "opencode-update", "latest") {
+    let data_dir = state.storage.paths().root.clone();
+    let target =
+        match hv::get_version_status_for_lines(OPENCODE_LINES, &harness_root, &data_dir).await {
+            Ok(status) => status.latest_available,
+            Err(e) => return ipc::to_response(Err(e)),
+        };
+    let Some(target) = target else {
+        return ipc::to_response(Err(AppError::NotFound("no release published upstream".into())));
+    };
+    let update_spec = spec_for_version(&harness_root, &target);
+    if let Err(e) = try_begin(&state, "opencode-update", &target) {
         return ipc::to_response(Err(e));
     }
     let _guard = state.opencode_version_lock.lock().await;
-    let result = hv::update_for(
+    let result = hv::install_version_with_task_for(
         update_spec,
         &harness_root,
-        &state.storage.paths().root,
+        &data_dir,
+        &target,
         &state.opencode_version_task,
+        true,
     )
     .await
     .map(|v| serde_json::json!(v));
@@ -261,9 +363,13 @@ pub async fn revert(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
-    let result = hv::revert_for(spec_for_version(&input.version), &root(&state), &input.version)
-        .await
-        .map(|v| serde_json::json!(v));
+    let result = hv::revert_for(
+        spec_for_version(&root(&state), &input.version),
+        &root(&state),
+        &input.version,
+    )
+    .await
+    .map(|v| serde_json::json!(v));
     refresh_managed_bins(&state);
     ipc::to_response(result)
 }
@@ -282,7 +388,7 @@ pub async fn uninstall(
     }
     let _guard = state.opencode_version_lock.lock().await;
     let result = hv::uninstall_for(
-        spec_for_version(&input.version),
+        spec_for_version(&root(&state), &input.version),
         &root(&state),
         &input.version,
         &state.opencode_version_task,
@@ -309,7 +415,7 @@ pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
     }
     let _guard = state.opencode_version_lock.lock().await;
     let result = hv::reinstall_for(
-        spec_for_version(&selected),
+        spec_for_version(&harness_root, &selected),
         &harness_root,
         &state.storage.paths().root,
         &state.opencode_version_task,
@@ -429,34 +535,151 @@ mod tests {
     use super::*;
     use adl_harness_version::EffectiveSource;
 
-    #[test]
-    fn opencode_shim_forces_standalone() {
-        let script = opencode_shim_script(Path::new("C:/data/opencode/2.2.5/bin/opencode.exe"));
-        assert!(script.contains("--standalone"));
-        assert!(script.contains("C:/data/opencode/2.2.5/bin/opencode.exe"));
+    fn temp_root(tag: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("adl-harness-handler-{}-{tag}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("installed")).expect("create temp root");
+        dir
+    }
+
+    fn write_line(root: &Path, version: &str, package: &str) {
+        let dir = root.join("installed").join(version);
+        std::fs::create_dir_all(&dir).expect("create version dir");
+        std::fs::write(dir.join(".adl-package"), format!("{package}\n"))
+            .expect("write line marker");
+    }
+
+    fn opencode_bin_marker() -> &'static str {
+        if cfg!(windows) { "bin/opencode.exe" } else { "bin/opencode" }
     }
 
     #[test]
-    fn spec_for_version_routes_major_two_to_the_scoped_package() {
-        assert_eq!(spec_for_version("1.19.5").package, "opencode-ai");
-        assert_eq!(spec_for_version("2.0.0").package, "@opencode/cli");
-        assert_eq!(spec_for_version("2.2.5").package, "@opencode/cli");
-        assert_eq!(spec_for_version("not-a-version").package, "opencode-ai");
+    fn opencode_shims_force_standalone_with_relative_targets() {
+        let marker = opencode_bin_marker();
+        // 锁定相对深度（不通过被测 helper 自证）：shim 在 managed/shim，版本在 versions/installed。
+        assert_eq!(
+            opencode_shim_target("2.2.5", marker),
+            format!("../../versions/installed/2.2.5/{marker}")
+        );
+        let target = opencode_shim_target("2.2.5", marker);
+        assert_eq!(
+            opencode_shim_cmd("2.2.5", marker),
+            format!("@echo off\r\n\"%~dp0{}\" --standalone %*\r\n", target.replace('/', "\\"))
+        );
+        assert_eq!(
+            opencode_shim_sh("2.2.5", marker),
+            format!("#!/bin/sh\nexec \"$(dirname \"$0\")/{target}\" --standalone \"$@\"\n")
+        );
     }
 
     #[test]
-    fn managed_env_isolates_opencode_db_only_for_host_source() {
+    fn write_shims_persists_both_entry_points_on_windows() {
+        let dir = temp_root("shims");
+        let marker = opencode_bin_marker();
+        assert!(write_shims(&dir, "2.2.5", marker));
+        assert!(dir.join("opencode").is_file());
+        #[cfg(windows)]
+        {
+            assert!(dir.join("opencode.cmd").is_file());
+            assert_eq!(
+                std::fs::read_to_string(dir.join("opencode.cmd")).expect("cmd shim"),
+                opencode_shim_cmd("2.2.5", marker)
+            );
+        }
+        assert_eq!(
+            std::fs::read_to_string(dir.join("opencode")).expect("sh shim"),
+            opencode_shim_sh("2.2.5", marker)
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    async fn probe_against(status: &'static str, body: &'static str) -> Result<String, String> {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let tag = NEXT.fetch_add(1, Ordering::Relaxed);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let port = listener.local_addr().expect("addr").port();
+        let server = tokio::spawn(async move {
+            if let Ok((mut socket, _)) = listener.accept().await {
+                let mut buf = [0u8; 2048];
+                let _ = socket.read(&mut buf).await;
+                let resp = format!(
+                    "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = socket.write_all(resp.as_bytes()).await;
+            }
+        });
+        let data = temp_root(&format!("probe-data-{tag}"));
+        let root = temp_root(&format!("probe-root-{tag}"));
+        std::fs::create_dir_all(data.join("config")).expect("config dir");
+        std::fs::write(
+            data.join("config").join("download-sources.json"),
+            format!(
+                "{{\"npm_registry\":\"http://127.0.0.1:{port}\",\"source_mode\":\"manual\",\"proxy\":{{\"mode\":\"none\"}}}}"
+            ),
+        )
+        .expect("write config");
+        let result = spec_for_new_install(&data, &root, "0.0.0-beta-19507")
+            .await
+            .map(|spec| spec.package.to_string())
+            .map_err(|e| e.to_string());
+        server.abort();
+        let _ = std::fs::remove_dir_all(&data);
+        let _ = std::fs::remove_dir_all(&root);
+        result
+    }
+
+    #[tokio::test]
+    async fn prerelease_probe_prefers_v2_when_published() {
+        assert_eq!(probe_against("200 OK", "{}").await.expect("probe"), "@opencode/cli");
+    }
+
+    #[tokio::test]
+    async fn prerelease_probe_falls_back_to_v1_on_404() {
+        assert_eq!(probe_against("404 Not Found", "").await.expect("probe"), "opencode-ai");
+    }
+
+    #[tokio::test]
+    async fn prerelease_probe_surfaces_network_errors() {
+        let err = probe_against("500 Internal Server Error", "").await;
+        assert!(err.is_err(), "probe should not swallow 5xx");
+    }
+
+    #[test]
+    fn spec_for_version_prefers_the_installed_package_line() {
+        let root = temp_root("spec-line");
+        // 2.x 预发布（major 0）只能靠安装标记区分，不能按 major 猜成 1.x。
+        write_line(&root, "0.0.0-beta-19507", "@opencode/cli");
+        assert_eq!(spec_for_version(&root, "0.0.0-beta-19507").package, "@opencode/cli");
+        // 1.x 预发布同样 major 0，标记为 opencode-ai 时仍走 1.x。
+        write_line(&root, "0.0.0-beta-202608110357", "opencode-ai");
+        assert_eq!(spec_for_version(&root, "0.0.0-beta-202608110357").package, "opencode-ai");
+        // 没有标记的旧安装回退到 major 规则。
+        assert_eq!(spec_for_version(&root, "1.19.5").package, "opencode-ai");
+        assert_eq!(spec_for_version(&root, "2.0.0").package, "@opencode/cli");
+        assert_eq!(spec_for_version(&root, "2.2.5").package, "@opencode/cli");
+        assert_eq!(spec_for_version(&root, "not-a-version").package, "opencode-ai");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn managed_env_isolates_opencode_db_by_package_line() {
         let harness_root = Path::new("data/harnesses/opencode/versions");
         let expected = Path::new("data/harnesses/opencode/managed/v1").join("opencode.db");
 
-        let env = managed_terminal_env(harness_root, EffectiveSource::Host, Some("1.19.5"), true);
+        let env = managed_terminal_env(harness_root, &spec::OPENCODE, EffectiveSource::Host, true);
         assert_eq!(env.len(), 2);
         assert_eq!(env[0].0, OsString::from("OPENCODE_DB"));
         assert_eq!(Path::new(&env[0].1), expected);
         assert_eq!(env[1].0, OsString::from("OPENCODE_DISABLE_AUTOUPDATE"));
         assert_eq!(env[1].1, OsString::from("1"));
 
-        let v2 = managed_terminal_env(harness_root, EffectiveSource::Host, Some("2.2.5"), true);
+        // 2.x 预发布 major = 0：仍必须落 managed/v2，不能与 1.x 共库。
+        let v2 =
+            managed_terminal_env(harness_root, &spec::OPENCODE_V2, EffectiveSource::Host, true);
         assert_eq!(v2.len(), 4);
         assert_eq!(
             Path::new(&v2[0].1),
@@ -476,15 +699,14 @@ mod tests {
             Path::new("data/harnesses/opencode/managed/v2").join("state")
         );
 
-        for (effective, selected, enabled) in [
-            (EffectiveSource::System, Some("1.19.5"), true),
-            (EffectiveSource::None, Some("1.19.5"), true),
-            (EffectiveSource::Host, None, true),
-            (EffectiveSource::Host, Some("1.19.5"), false),
+        for (effective, enabled) in [
+            (EffectiveSource::System, true),
+            (EffectiveSource::None, true),
+            (EffectiveSource::Host, false),
         ] {
             assert!(
-                managed_terminal_env(harness_root, effective, selected, enabled).is_empty(),
-                "unexpected env for {effective:?} selected={selected:?} enabled={enabled}"
+                managed_terminal_env(harness_root, &spec::OPENCODE, effective, enabled).is_empty(),
+                "unexpected env for {effective:?} enabled={enabled}"
             );
         }
     }

@@ -87,10 +87,10 @@ DSH 与 OpenCode CLI 共用一张版本卡片 `features/harness/HarnessVersionCa
 dsh 基于 npm 发布，启动方式为 `npx @deepseek-ai/dsh@<version> --profile web --no-open`。在应用中作为**普通浏览器标签**承载于中心的多标签宿主（`location='center'` + `isDsh`），面板↔中心为同一原生 WebView 的位置移动；关闭 dsh 标签即彻底退出进程（`dsh.close(false)`），不跨重启持久化。
 
 ### Harness 版本管理 (Harness Version)
-dsh 与 OpenCode CLI 共用的版本内核，位于 `crates/harness-version/`：版本目录、选中/回退/卸载、安装任务、来源解析与目录限量由通用层承担，工具差异集中在 `spec.rs` 的 `HarnessSpec` 描述符（DSH = npm 通道；OpenCode = 平台包 tarball 通道）。DSH 的运行态（端口/标签/auth）仍在 `crates/server/src/handlers/dsh.rs`。
+dsh 与 OpenCode CLI 共用的版本内核，位于 `crates/harness-version/`：版本目录、选中/回退/卸载、安装任务、来源解析与目录限量由通用层承担，工具差异集中在 `spec.rs` 的 `HarnessSpec` 描述符（DSH = npm 通道；OpenCode = 平台包 tarball 通道，含 1.x `opencode-ai` 与 2.x `@opencode/cli` 两条包线）。DSH 的运行态（端口/标签/auth）仍在 `crates/server/src/handlers/dsh.rs`。
 
 ### OpenCode CLI
-以命令行形式运行的 harness。版本安装到 `<data_dir>/harnesses/opencode/versions/<version>/bin/opencode.exe`（直接下载 npm 平台包，不经 node）；版本来源解析为宿主托管时，新建终端会把该 `bin` 目录前置到会话 PATH（见 ADR-0005），不写系统/用户环境变量。
+以命令行形式运行的 harness。版本安装到 `<harnesses>/opencode/versions/installed/<version>/bin/opencode.exe`（直接下载 npm 平台包，不经 node）；每个版本目录内的 `.adl-package` 记录所属包线（1.x / 2.x 的预发布版本号无法从 major 区分）。版本来源解析为宿主托管时，新建终端会把该 `bin` 目录前置到会话 PATH，并额外注入托管数据库/XDG 变量与 2.x 的 `--standalone` shim（见 ADR-0005、ADR-0010、ADR-0011），不写系统/用户环境变量。
 
 ### Harness 获取 (Provisioning)
 安装包不预置任何 harness 版本。首启环境向导完成后弹一次独立的 harness 向导（DSH / OpenCode 两张卡，可跳过），用户点击安装后按下载源配置拉取；失败不阻塞应用，可随时在对应设置组重试。

@@ -1,30 +1,19 @@
-import { useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import { useSourceSummaryGrace } from '@hooks/useSourceSummaryGrace';
 import type { OpencodeSourceStatus } from '@shared/ipc/opencode';
 
 /**
  * 当前下载源独立沉底卡（OpenCode 自己的 source-status，不读取 DSH 的全局状态）。
  * 来源状态未到时画中性扫光/失败文案，不渲染「— 「—」」这种占位读数。
  */
-const SOURCE_SUMMARY_TIMEOUT_MS = 3000;
-
 export function OpencodeSourceSummaryCard({ source }: { source: OpencodeSourceStatus | null }) {
   const { t } = useTCopy();
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
-  const [timedOut, setTimedOut] = useState(false);
-
-  useEffect(() => {
-    if (source !== null) {
-      setTimedOut(false);
-      return;
-    }
-    const timer = window.setTimeout(() => setTimedOut(true), SOURCE_SUMMARY_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
-  }, [source]);
+  const timedOut = useSourceSummaryGrace(source !== null);
 
   const summaryLabel = source
     ? formatT(t, 'dshSourceSummary', {

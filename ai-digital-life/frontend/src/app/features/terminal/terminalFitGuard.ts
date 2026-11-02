@@ -2,32 +2,39 @@
  * 终端 fit 的前置门控：
  * - 文档隐藏（窗口最小化 / WebView 不可见）时不 fit，避免把 xterm 收缩到
  *   极小尺寸（实测最小化时容器量出 23×6），恢复后 xterm 重排会丢历史；
+ * - 窗口失焦时不 fit：WebView2 最小化时 `document.hidden` 不一定变 true，
+ *   失焦是更可靠的信号（实测 23×6 出现在焦点移出之后）；
  * - 容器尺寸为 0（面板隐藏 / 未布局）时不 fit。
  *
- * 恢复可见后由 ResizeObserver / visibilitychange 重新 fit 到真实尺寸。
+ * 恢复可见/回焦后由 ResizeObserver、`visibilitychange` 与窗口 `focus` 监听重新
+ * fit 到真实尺寸。
  */
-export interface TerminalFitInput {
-  hidden: boolean;
-  width: number;
-  height: number;
-}
 
-/**
- * 窗口焦点态：最小化会让窗口失焦，但 WebView2 的 `document.hidden` 不一定会变 true
- *（实测最小化时仍量出 23×6）。失焦期间不 fit，恢复焦点后再补 fit。
- * 用模块级单例避免每个终端实例各挂一份 listener。
- */
 let windowFocused = true;
 
+/** 仅测试用：模拟窗口焦点态（生产由下方 window 监听维护）。 */
 export function setWindowFocused(focused: boolean): void {
   windowFocused = focused;
 }
 
+const onWindowBlur = () => setWindowFocused(false);
+const onWindowFocus = () => setWindowFocused(true);
+
 if (typeof window !== 'undefined') {
-  window.addEventListener('blur', () => setWindowFocused(false));
-  window.addEventListener('focus', () => setWindowFocused(true));
+  window.addEventListener('blur', onWindowBlur);
+  window.addEventListener('focus', onWindowFocus);
 }
 
-export function shouldFitTerminal({ hidden, width, height }: TerminalFitInput): boolean {
-  return windowFocused && !hidden && width > 0 && height > 0;
+// HMR 每次重新执行模块都会再挂一对监听：旧闭包写的是旧模块实例的变量，
+// dev 期会累积。热替换时解绑，让新实例重新注册。
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    window.removeEventListener('blur', onWindowBlur);
+    window.removeEventListener('focus', onWindowFocus);
+  });
+}
+
+/** 当前容器是否适合 fit：窗口聚焦、文档可见、宽高均大于 0。 */
+export function shouldFitTerminal(el: HTMLElement): boolean {
+  return windowFocused && !document.hidden && el.clientWidth > 0 && el.clientHeight > 0;
 }

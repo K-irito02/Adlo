@@ -38,4 +38,17 @@ describe('harness version note color (user-approved dimmed blue)', () => {
     expect(body).not.toBeNull();
     expect(body).toContain('color: var(--harness-note-fg)');
   });
+
+  it('keeps the opencode source-summary mode muted with a compound selector', () => {
+    // 失败模式是静默的：规则被删或被更特异的 `.adl-settings-row__label-text span`
+    // 压掉时，DOM 文案不变、组件测试仍全绿，所以这里直接锁 CSS 体。
+    const body = ruleBody(
+      harnessCss,
+      '.adl-opencode-settings .adl-settings-row__label-text .adl-harness-version__readout-sub',
+    );
+    expect(body).not.toBeNull();
+    expect(body).toContain('color: var(--text-muted)');
+    expect(body).toContain('font-weight: var(--font-normal)');
+    expect(body).toContain('flex: 0 0 auto');
+  });
 });

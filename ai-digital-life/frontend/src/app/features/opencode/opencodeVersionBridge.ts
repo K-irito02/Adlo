@@ -128,6 +128,10 @@ export function createOpencodeVersionBridge(
 
   const available = Boolean(bridge);
 
+  /** 显示用版本：预发布去掉 semver 的 `0.0.0-` 前缀；安装/选择仍用原始版本。 */
+  const formatVersion = (version: string) =>
+    version.startsWith('0.0.0-') ? version.slice('0.0.0-'.length) : version;
+
   const call = async (
     action: ((raw: OpencodeBridge) => Promise<IpcResult<unknown>>) | null,
   ): Promise<HarnessVersionResult> => {
@@ -156,7 +160,7 @@ export function createOpencodeVersionBridge(
     }
     return {
       ok: true,
-      message: formatT(t, 'harnessVersionInstalledVersion', { version: trimmed }),
+      message: formatT(t, 'harnessVersionInstalledVersion', { version: formatVersion(trimmed) }),
     };
   };
 
@@ -184,8 +188,7 @@ export function createOpencodeVersionBridge(
     toolName,
     available,
     // 预发布版本显示为 `beta-xxxx`，不展示 semver 的 `0.0.0-` 前缀；安装仍用原始版本。
-    formatVersion: (version: string) =>
-      version.startsWith('0.0.0-') ? version.slice('0.0.0-'.length) : version,
+    formatVersion,
     capabilities: {
       uninstallConfirm: false,
       sourceModeChange: 'immediate',
@@ -215,7 +218,6 @@ export function createOpencodeVersionBridge(
       if (source.ok) {
         lastSource = source.data;
         writePersistedMode(source.data.versionSource.mode);
-        onSource?.(source.data);
       }
       const snapshot = {
         status: status.ok ? status.data : null,
@@ -232,6 +234,10 @@ export function createOpencodeVersionBridge(
       return snapshot;
     },
     peekSnapshot: () => cachedSnapshot,
+    // 宿主派生态跟随「最后发起」的快照；source 腿失败时传 null，摘要卡可如实进入失败态。
+    onSnapshot: (snapshot) => {
+      onSource?.(snapshot.sourceExtra ?? null);
+    },
     peekSourceMode: () => cachedSnapshot?.source?.mode ?? readPersistedMode(),
     /**
      * 只检查更新（「检查更新」行）：查询 + 提示，不安装。结果文案三态
@@ -264,7 +270,10 @@ export function createOpencodeVersionBridge(
         if (!next.latestAvailable) {
           if (next.hasPrereleaseUpdate && next.prereleaseAvailable) {
             notify(
-              t.opencodeCheckUpdatePrerelease.replace('{version}', next.prereleaseAvailable),
+              t.opencodeCheckUpdatePrerelease.replace(
+                '{version}',
+                formatVersion(next.prereleaseAvailable),
+              ),
               'success',
             );
           } else {
@@ -273,7 +282,10 @@ export function createOpencodeVersionBridge(
           return { ok: true };
         }
         if (next.hasUpdate) {
-          notify(t.opencodeCheckUpdateFound.replace('{version}', next.latestAvailable), 'success');
+          notify(
+            t.opencodeCheckUpdateFound.replace('{version}', formatVersion(next.latestAvailable)),
+            'success',
+          );
         } else {
           notify(t.harnessVersionNoUpdate, 'success');
         }

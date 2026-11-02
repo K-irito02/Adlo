@@ -213,10 +213,12 @@ export function HarnessVersionCard<TSource = unknown>({
     );
     const badges: ReactNode[] = [];
     if (st.hasUpdate && st.latestAvailable) {
-      badges.push(badge('stable', t.harnessVersionStableBadge, st.latestAvailable));
+      badges.push(badge('stable', t.harnessVersionStableBadge, formatVersion(st.latestAvailable)));
     }
     if (st.hasPrereleaseUpdate && st.prereleaseAvailable) {
-      badges.push(badge('prerelease', t.harnessVersionPrereleaseBadge, st.prereleaseAvailable));
+      badges.push(
+        badge('prerelease', t.harnessVersionPrereleaseBadge, formatVersion(st.prereleaseAvailable)),
+      );
     }
     return badges.length > 0 ? (
       <div className="adl-harness-version__update-badges" role="status" aria-live="polite">
@@ -392,7 +394,7 @@ export function HarnessVersionCard<TSource = unknown>({
         >
           {renderSlot(slots.runtimeReadout, slotContext) ?? (
             <FallbackReadout
-              current={data.current}
+              current={data.current === null ? null : formatVersion(data.current)}
               failed={data.snapshot?.failed === true}
               busy={data.busy}
             />

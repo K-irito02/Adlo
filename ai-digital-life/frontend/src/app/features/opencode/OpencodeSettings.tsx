@@ -116,11 +116,12 @@ export function OpencodeSettings() {
           showToast(message, tone);
         },
         onSource: (source) => {
-          // 聚合信号（供侧边栏行禁用判定；来源未知时保持启用 fail-open）。
+          // 摘要卡数据源：失败时清空，进入骨架→超时失败态（不保留上一次的「当前」）。
+          setSummarySource(source);
           if (!source) {
             return;
           }
-          setSummarySource(source);
+          // 聚合信号（供侧边栏行禁用判定；来源未知时保持启用 fail-open）。
           setOpencodeBlocksAtDefault(
             source.versionSource.mode === 'auto' && source.terminalInjection === true,
           );

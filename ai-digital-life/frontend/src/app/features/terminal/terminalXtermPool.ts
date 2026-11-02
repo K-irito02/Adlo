@@ -68,17 +68,11 @@ export class TerminalXtermPool {
     if (existing) {
       if (existing.hostEl.parentElement !== container) {
         container.appendChild(existing.hostEl);
-        if (
-          shouldFitTerminal({
-            hidden: document.hidden,
-            width: existing.hostEl.clientWidth,
-            height: existing.hostEl.clientHeight,
-          })
-        ) {
+        if (shouldFitTerminal(existing.hostEl)) {
           try {
             existing.fitAddon.fit();
           } catch {
-            // 容器尚未布局（隐藏/零尺寸），消费侧 XtermTerminal 的 ResizeObserver 会重 fit
+            // 实例已释放或尺寸不可测；消费侧 XtermTerminal 的 ResizeObserver 会重 fit
           }
         }
       }
@@ -137,13 +131,7 @@ export class TerminalXtermPool {
     this.pool.set(sessionId, entry);
 
     requestAnimationFrame(() => {
-      if (
-        !shouldFitTerminal({
-          hidden: document.hidden,
-          width: hostEl.clientWidth,
-          height: hostEl.clientHeight,
-        })
-      ) {
+      if (!shouldFitTerminal(hostEl)) {
         return;
       }
       try {
@@ -174,28 +162,21 @@ export class TerminalXtermPool {
   }
 
   /**
-   * 全量套用新字号（菜单增大/减小字号）：逐实例设值 + 重 fit 上报由各
-   * XtermTerminal 的 ResizeObserver/fit 链路自然收敛，此处直接 fit 保证即时生效。
+   * 全量套用新字号（菜单增大/减小字号）：逐实例设值；可见且已布局时立即 fit，
+   * 否则交由挂载侧 ResizeObserver / 回焦补 fit 收敛。
    * 入口即钳制取整，与读侧 `readTerminalFontSize` 同口径（非法回退默认）。
    */
   setFontSize(size: number): void {
     const effective = clampTerminalFontSize(size);
     for (const entry of this.pool.values()) {
       // 赋值在 try 之外：options 写入失败是真缺陷，应直接抛出而不是吞掉；
-      // 只有 fit()（隐藏容器量不到尺寸）是预期内失败，才静默并交由挂载侧
-      // ResizeObserver 在可见时重 fit。
+      // 只有 fit() 本身失败（实例已释放 / 尺寸不可测）才静默。
       entry.terminal.options.fontSize = effective;
-      if (
-        shouldFitTerminal({
-          hidden: document.hidden,
-          width: entry.hostEl.clientWidth,
-          height: entry.hostEl.clientHeight,
-        })
-      ) {
+      if (shouldFitTerminal(entry.hostEl)) {
         try {
           entry.fitAddon.fit();
         } catch {
-          // 容器未布局：挂载侧 ResizeObserver 会重 fit
+          // 实例已释放：挂载侧会在可见时重新 fit
         }
       }
     }

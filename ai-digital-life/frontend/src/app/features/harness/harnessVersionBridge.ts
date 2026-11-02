@@ -126,14 +126,20 @@ export interface HarnessVersionBridge<TSource = unknown> {
   /** 底层桥是否可用；false 时卡片所有操作保持禁用。 */
   available: boolean;
   /**
-   * 版本号显示格式化（可选）：只影响下拉框/菜单里的可见文本，
-   * 安装、选择、卸载仍使用原始版本。OpenCode 预发布版会去掉 `0.0.0-`。
+   * 版本号显示格式化（可选）：适用于所有面向用户的版本读数（当前版本、
+   * 检查更新徽章、下拉框/菜单、提示 toast）；安装、选择、卸载与 aria-label
+   * 仍使用原始版本。OpenCode 预发布版会去掉 `0.0.0-`。
    */
   formatVersion?: (version: string) => string;
   capabilities?: HarnessVersionCapabilities;
   labels?: HarnessVersionLabels;
   /** 首屏/操作完成后重新读取版本状态。 */
   load: () => Promise<HarnessVersionSnapshot<TSource>>;
+  /**
+   * 快照写回后的回调（已过「最后发起」序号守卫）。适配器用它同步宿主侧派生态，
+   * 避免先发后到的旧快照覆盖较新的状态。
+   */
+  onSnapshot?: (snapshot: HarnessVersionSnapshot<TSource>) => void;
   /**
    * 会话级快照种子（stale-while-revalidate）：切组重挂时首帧即瞬显上次快照，
    * 后台仍走 `load` 静默再验证。缺省（冷启动）返回 null，卡片画骨架。

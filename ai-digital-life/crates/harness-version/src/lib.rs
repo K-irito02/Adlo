@@ -53,7 +53,8 @@ pub struct VersionStatus {
     pub latest_available: Option<String>,
     /// 是否有更新的正式版（统一走 semver 比较，不再用忽略 pre 后缀的 tokens 口径）。
     pub has_update: bool,
-    /// 最新预发布版本（registry `next` 标签，缺失时回退为 semver 最大的预发布号）。
+    /// 最新预发布版本（按描述符的预发布标签取值，缺失时回退为 semver 最大的预发布号；
+    /// 多包线时取各腿该值的较新者）。
     /// `None` 表示官方暂无预发布或查询失败（见 `prerelease_unknown` 区分）。
     pub prerelease_available: Option<String>,
     /// 当前选中版本是否有更新的预发布可尝试（尝鲜通道提示用）。
@@ -89,6 +90,30 @@ pub(crate) fn selected_file(root: &Path) -> PathBuf {
 
 pub(crate) fn installed_dir(root: &Path) -> PathBuf {
     root.join("installed")
+}
+
+/// 版本所属包线的落盘标记（位于 `installed/<version>/` 内，内容为 npm 包名）。
+///
+/// 预发布版本号无法从 major 反推包线：1.x 与 2.x 的 beta 都是 `0.0.0-beta-*`。
+/// 安装时把包名写进版本目录，后续安装/卸载/终端注入/数据库隔离按它路由；
+/// 旧版本没有该标记时由调用方回退到「major >= 2 → 2.x」规则。
+pub(crate) const LINE_MARKER: &str = ".adl-package";
+
+/// 本 crate 已知的全部包线（读标记时按 npm 包名反查）。
+fn all_specs() -> [&'static spec::HarnessSpec; 3] {
+    [&spec::DSH, &spec::OPENCODE, &spec::OPENCODE_V2]
+}
+
+/// `installed/<version>/.adl-package` 的路径（无论是否已写入）。
+pub fn line_marker_path(root: &Path, version: &str) -> PathBuf {
+    installed_dir(root).join(version).join(LINE_MARKER)
+}
+
+/// 读取版本所属包线；没有标记或包名未知时返回 None（调用方回退到版本号规则）。
+pub fn read_line_for(root: &Path, version: &str) -> Option<&'static spec::HarnessSpec> {
+    let raw = std::fs::read_to_string(line_marker_path(root, version)).ok()?;
+    let package = raw.trim();
+    all_specs().into_iter().find(|spec| spec.package == package)
 }
 
 /// dsh 真安装的 bin.js 相对版本目录路径（`installed/<version>/` 下的 marker）。
@@ -287,12 +312,27 @@ pub async fn fetch_catalog(data_dir: &Path) -> Result<VersionCatalog, AppError> 
 
 /// 合并多条包线的版本目录（OpenCode 1.x `opencode-ai` + 2.x `@opencode/cli`）。
 ///
-/// 单条腿失败时保留其它腿的结果；全部失败才返回错误。合并后按 semver 降序去重，
-/// latest 取各自桶内的最高版本。
+/// 单条腿失败时保留其它腿的结果（并记 warn）；全部失败才返回错误。
+/// 单条腿直接返回该腿的原始目录，保留 `dist-tags` 对 `latest`/预发布的指向；
+/// 多条腿合并后按 semver 降序去重，latest 取各腿 `latest` 的较新者。
 pub async fn fetch_catalog_for_lines(
     specs: &[&spec::HarnessSpec],
     data_dir: &Path,
 ) -> Result<VersionCatalog, AppError> {
+    Ok(fetch_catalog_for_lines_with_status(specs, data_dir).await?.0)
+}
+
+/// 同 [`fetch_catalog_for_lines`]，并返回「所有腿都成功」标记。
+///
+/// 部分失败时目录只含成功腿；调用方需要该标记来判断 latest/预发布是否完整
+/// （否则会把「2.x 镜像失败」误显示成「已是最新」）。
+pub async fn fetch_catalog_for_lines_with_status(
+    specs: &[&spec::HarnessSpec],
+    data_dir: &Path,
+) -> Result<(VersionCatalog, bool), AppError> {
+    if let [single] = specs {
+        return fetch_catalog_for(single, data_dir).await.map(|catalog| (catalog, true));
+    }
     let mut merged = VersionCatalog {
         stable: Vec::new(),
         prerelease: Vec::new(),
@@ -300,10 +340,18 @@ pub async fn fetch_catalog_for_lines(
         latest_prerelease: None,
     };
     let mut first_error: Option<AppError> = None;
+    let mut complete = true;
     for spec in specs {
         match fetch_catalog_for(spec, data_dir).await {
             Ok(catalog) => merge_catalog(&mut merged, catalog),
             Err(e) => {
+                complete = false;
+                tracing::warn!(
+                    harness = spec.id.key(),
+                    package = spec.package,
+                    error = %e,
+                    "harness-version: one package line unavailable, keeping the others"
+                );
                 if first_error.is_none() {
                     first_error = Some(e);
                 }
@@ -315,9 +363,14 @@ pub async fn fetch_catalog_for_lines(
             return Err(e);
         }
     }
-    Ok(merged)
+    Ok((merged, complete))
 }
 
+/// 把一条腿的目录并入合并结果。
+///
+/// 桶按 semver 降序去重；`latest_*` 必须保留该腿 `dist-tags` 的指向（目录端点语义），
+/// 不能退化为桶首。注意：跨包线的预发布标识不在同一命名空间（1.x `beta-<时间戳>` /
+/// 2.x `beta-<构建序号>`），`max_semver` 在这里只表示「字符串较新」，没有跨线语义。
 fn merge_catalog(into: &mut VersionCatalog, other: VersionCatalog) {
     into.stable.extend(other.stable);
     into.prerelease.extend(other.prerelease);
@@ -332,8 +385,8 @@ fn merge_catalog(into: &mut VersionCatalog, other: VersionCatalog) {
     into.stable.dedup_by(|a, b| a.version == b.version);
     into.prerelease.sort_by(by_version);
     into.prerelease.dedup_by(|a, b| a.version == b.version);
-    into.latest_stable = into.stable.first().map(|info| info.version.clone());
-    into.latest_prerelease = into.prerelease.first().map(|info| info.version.clone());
+    into.latest_stable = max_semver(into.latest_stable.take(), other.latest_stable);
+    into.latest_prerelease = max_semver(into.latest_prerelease.take(), other.latest_prerelease);
 }
 
 /// 同 [`fetch_catalog`]，按任意 harness 描述符查询并按该描述符的限量策略截断。
@@ -473,6 +526,9 @@ pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionS
 }
 
 /// 同 [`get_version_status_for`]，但合并多条包线（OpenCode 1.x + 2.x）。
+///
+/// 所有描述符必须属于同一 harness 且共用同一 `marker_rel`：已装/选中状态只按
+/// 首个描述符的 marker 计算（各包线安装到同一个 `installed/<version>/`，布局一致）。
 pub async fn get_version_status_for_lines(
     specs: &[&spec::HarnessSpec],
     root: &Path,
@@ -480,25 +536,47 @@ pub async fn get_version_status_for_lines(
 ) -> Result<VersionStatus, AppError> {
     let primary =
         specs.first().copied().ok_or_else(|| AppError::InvalidInput("no harness spec".into()))?;
+    debug_assert!(
+        specs.iter().all(|s| s.id == primary.id && s.marker_rel == primary.marker_rel),
+        "get_version_status_for_lines requires specs sharing one harness marker"
+    );
     let current_selected = read_selected_for(primary, root)?;
     let installed = list_installed_for(primary, root)?;
     let mut dist_latest: Option<String> = None;
     for spec in specs {
-        if let Ok(Some(version)) = latest_available_for(spec, data_dir).await {
-            dist_latest = max_semver(dist_latest, Some(version));
+        match latest_available_for(spec, data_dir).await {
+            Ok(Some(version)) => dist_latest = max_semver(dist_latest, Some(version)),
+            Ok(None) => {},
+            Err(e) => tracing::warn!(
+                harness = spec.id.key(),
+                package = spec.package,
+                error = %e,
+                "harness-version: latest tag unavailable"
+            ),
         }
     }
-    match fetch_catalog_for_lines(specs, data_dir).await {
-        Ok(catalog) => {
-            let latest = resolve_stable_latest(&catalog, dist_latest.as_deref());
+    match fetch_catalog_for_lines_with_status(specs, data_dir).await {
+        Ok((catalog, complete)) => {
+            // 部分腿失败时目录只含成功腿：latest 取「目录值」与「各腿 dist-tag」
+            // 的较新者，避免把「2.x 镜像失败」误报成「已是最新」。dist-tag 可能指向
+            // rc（parse_catalog 会拒绝把它当稳定版），这里同样只接受无 pre 后缀的值。
+            let mut latest = resolve_stable_latest(&catalog, dist_latest.as_deref());
+            if !complete {
+                let dist_stable = dist_latest.filter(|version| {
+                    semver::Version::parse(version).map(|v| v.pre.is_empty()).unwrap_or(false)
+                });
+                latest = max_semver(latest, dist_stable);
+            }
             let has_update = semver_is_newer(current_selected.as_deref(), latest.as_deref());
             let pre = catalog.latest_prerelease.clone();
-            let has_pre = semver_is_newer(current_selected.as_deref(), pre.as_deref());
+            // 预发布目录不完整时不能断言「没有更新」。
+            let has_pre = complete && semver_is_newer(current_selected.as_deref(), pre.as_deref());
             tracing::debug!(
                 ?latest,
                 has_update,
                 ?pre,
                 has_prerelease_update = has_pre,
+                complete,
                 "harness-version: version status resolved (merged lines)"
             );
             Ok(VersionStatus {
@@ -508,7 +586,7 @@ pub async fn get_version_status_for_lines(
                 has_update,
                 prerelease_available: pre,
                 has_prerelease_update: has_pre,
-                prerelease_unknown: false,
+                prerelease_unknown: !complete,
             })
         },
         Err(e) => {
@@ -1421,6 +1499,149 @@ mod tests {
         assert_eq!(merged.latest_stable.as_deref(), Some("2.2.5"));
         assert_eq!(merged.prerelease.len(), 2);
         assert_eq!(merged.latest_prerelease.as_deref(), Some("0.0.0-beta-202608110357"));
+    }
+
+    #[tokio::test]
+    async fn single_line_catalog_keeps_the_dist_tag_prerelease() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind stub");
+        let port = listener.local_addr().expect("addr").port();
+        let server = tokio::spawn(async move {
+            let Ok((mut socket, _)) = listener.accept().await else { return };
+            let mut buf = vec![0u8; 4096];
+            let _ = socket.read(&mut buf).await;
+            // beta 标签指向的版本不是桶首（桶首是 beta-2026…）：必须保留标签语义。
+            let body = r#"{"versions":{"0.0.0-beta-202608110357":{},"0.0.0-beta-19507":{}},"time":{},"dist-tags":{"beta":"0.0.0-beta-19507"}}"#;
+            let resp = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            let _ = socket.write_all(resp.as_bytes()).await;
+        });
+        let data_dir = fresh_root("status_lines_single_data");
+        std::fs::create_dir_all(data_dir.join("config")).expect("mkdir config");
+        std::fs::write(
+            data_dir.join("config").join("download-sources.json"),
+            format!(
+                r#"{{"npm_registry": "http://127.0.0.1:{port}", "proxy": {{"mode": "none", "http_proxy": null, "https_proxy": null, "no_proxy": null}}}}"#
+            ),
+        )
+        .expect("write config");
+        let catalog =
+            fetch_catalog_for_lines(&[&spec::OPENCODE], &data_dir).await.expect("single catalog");
+        assert_eq!(catalog.latest_prerelease.as_deref(), Some("0.0.0-beta-19507"));
+        server.abort();
+        let _ = std::fs::remove_dir_all(&data_dir);
+    }
+
+    #[tokio::test]
+    async fn one_failed_line_keeps_the_other_catalog() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind stub");
+        let port = listener.local_addr().expect("addr").port();
+        let server = tokio::spawn(async move {
+            for _ in 0..2 {
+                let Ok((mut socket, _)) = listener.accept().await else { break };
+                let mut buf = vec![0u8; 4096];
+                let n = socket.read(&mut buf).await.unwrap_or(0);
+                let first = String::from_utf8_lossy(&buf[..n])
+                    .lines()
+                    .next()
+                    .unwrap_or_default()
+                    .to_string();
+                let resp = if first.contains("/@opencode/cli") {
+                    "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\nconnection: close\r\n\r\n"
+                        .to_string()
+                } else {
+                    let body =
+                        r#"{"versions":{"1.19.5":{}},"time":{},"dist-tags":{"latest":"1.19.5"}}"#;
+                    format!(
+                        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                        body.len()
+                    )
+                };
+                let _ = socket.write_all(resp.as_bytes()).await;
+            }
+        });
+        let data_dir = fresh_root("status_lines_partial_data");
+        std::fs::create_dir_all(data_dir.join("config")).expect("mkdir config");
+        std::fs::write(
+            data_dir.join("config").join("download-sources.json"),
+            format!(
+                r#"{{"npm_registry": "http://127.0.0.1:{port}", "proxy": {{"mode": "none", "http_proxy": null, "https_proxy": null, "no_proxy": null}}}}"#
+            ),
+        )
+        .expect("write config");
+        let catalog = fetch_catalog_for_lines(&[&spec::OPENCODE, &spec::OPENCODE_V2], &data_dir)
+            .await
+            .expect("partial catalog");
+        assert_eq!(
+            catalog.stable.iter().map(|i| i.version.as_str()).collect::<Vec<_>>(),
+            vec!["1.19.5"]
+        );
+        assert_eq!(catalog.latest_stable.as_deref(), Some("1.19.5"));
+        server.abort();
+        let _ = std::fs::remove_dir_all(&data_dir);
+    }
+
+    #[tokio::test]
+    async fn partial_catalog_failure_keeps_the_dist_tag_latest_from_the_failed_line() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind stub");
+        let port = listener.local_addr().expect("addr").port();
+        let server = tokio::spawn(async move {
+            for _ in 0..4 {
+                let Ok((mut socket, _)) = listener.accept().await else { break };
+                let mut buf = vec![0u8; 4096];
+                let n = socket.read(&mut buf).await.unwrap_or(0);
+                let first = String::from_utf8_lossy(&buf[..n])
+                    .lines()
+                    .next()
+                    .unwrap_or_default()
+                    .to_string();
+                let is_v2 = first.contains("/@opencode/cli");
+                let is_latest = first.contains("/latest");
+                let resp = if is_latest {
+                    let body =
+                        if is_v2 { r#"{"version":"2.2.5"}"# } else { r#"{"version":"1.19.5"}"# };
+                    format!(
+                        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                        body.len()
+                    )
+                } else if is_v2 {
+                    "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 0\r\nconnection: close\r\n\r\n"
+                        .to_string()
+                } else {
+                    let body =
+                        r#"{"versions":{"1.19.5":{}},"time":{},"dist-tags":{"latest":"1.19.5"}}"#;
+                    format!(
+                        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                        body.len()
+                    )
+                };
+                let _ = socket.write_all(resp.as_bytes()).await;
+            }
+        });
+        let data_dir = fresh_root("status_lines_partial_tag_data");
+        let root = fresh_root("status_lines_partial_tag_root");
+        std::fs::create_dir_all(data_dir.join("config")).expect("mkdir config");
+        std::fs::write(
+            data_dir.join("config").join("download-sources.json"),
+            format!(
+                r#"{{"npm_registry": "http://127.0.0.1:{port}", "proxy": {{"mode": "none", "http_proxy": null, "https_proxy": null, "no_proxy": null}}}}"#
+            ),
+        )
+        .expect("write config");
+        let status =
+            get_version_status_for_lines(&[&spec::OPENCODE, &spec::OPENCODE_V2], &root, &data_dir)
+                .await
+                .expect("status");
+        assert_eq!(status.latest_available.as_deref(), Some("2.2.5"));
+        assert!(status.has_update);
+        assert!(status.prerelease_unknown);
+        server.abort();
+        let _ = std::fs::remove_dir_all(&data_dir);
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[tokio::test]
