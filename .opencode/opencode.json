@@ -1,6 +1,12 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "skills": ["./.agents/skills"],
+  "permissions": [
+    { "action": "shell", "resource": "*Select-String*", "effect": "deny" },
+    { "action": "shell", "resource": "*-replace *", "effect": "deny" },
+    { "action": "shell", "resource": "*Add-Content*", "effect": "deny" },
+    { "action": "shell", "resource": "*Out-File*", "effect": "deny" }
+  ],
   "mcp": {
     "servers": {
       "codegraph": {

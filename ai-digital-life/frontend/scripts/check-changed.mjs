@@ -169,6 +169,7 @@ if (process.env.ADL_SKIP_RUST === '1') {
 }
 
 run('i18n coverage', 'npx tsx scripts/check-i18n-coverage.ts');
+run('i18n orphan regressions', 'npx tsx scripts/check-i18n-orphans.ts --changed');
 run('glossary', 'npx tsx scripts/check-glossary.ts');
 run('generated artifacts', 'node scripts/generate-md-theme-vars.mjs');
 run(

@@ -1,16 +1,18 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, basename } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { zhCN } from '../src/app/i18n/zh-CN/index';
 import { enUS } from '../src/app/i18n/en-US/index';
 
 /**
  * 按需运行的孤儿 i18n 键审计（`pnpm run check:i18n:orphans`）。
- * 刻意不接入 `check:static` / pre-commit：`check-dead-code` 只查变更内新增键
- * （避免 400+ 条历史债基线），本脚本负责全量兜底，由人按需运行、逐条人工确认。
+ * 刻意不接入 `check:static` / pre-commit 的全量模式：全量有 400+ 历史债需要人工确认。
+ * `--changed` 是差异感知的回归检查：只找「本次 diff 删掉了生产引用、当前只剩测试/零引用」
+ * 的键（pre-commit 与 check:changed 使用），不会追讨历史债。
  *
  * 口径：键在 `src/**` 代码文件（除字典定义目录）中零引用 → Tier A（删除候选）；
  * 仅被测试文件引用 → Tier B（测试脚手架/退役清单引用，需人工判定）。
- * 局限：动态访问（`t[key]`、模板拼接、Object.keys 遍历）扫不到，报 Tier A 时
+ * 局限：动态访问（`t[key]`、模板拼接、`Object.keys` 遍历）扫不到，报 Tier A 时
  * 必须先 grep 确认不是动态引用再删键。
  */
 
@@ -101,6 +103,78 @@ for (const key of [...allKeys].sort()) {
   } else if ([...refs].every(isTestFile)) {
     tierB.push(key);
   }
+}
+
+const changedOnly = process.argv.includes('--changed');
+const repoRoot = (() => {
+  const result = spawnSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' });
+  return result.status === 0 ? (result.stdout ?? '').trim() : '';
+})();
+
+function git(args: string[]): string {
+  const env = { ...process.env };
+  for (const key of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_PREFIX']) {
+    delete env[key];
+  }
+  const result = spawnSync('git', ['-C', repoRoot, ...args], { encoding: 'utf8', env });
+  return result.status === 0 ? (result.stdout ?? '').trim() : '';
+}
+
+function resolveBase(): string {
+  for (const ref of ['origin/main', 'origin/HEAD']) {
+    if (!git(['rev-parse', '--verify', ref])) {
+      continue;
+    }
+    const mergeBase = git(['merge-base', ref, 'HEAD']);
+    if (mergeBase) {
+      return mergeBase;
+    }
+  }
+  return git(['rev-parse', 'HEAD']) || 'HEAD';
+}
+
+if (changedOnly) {
+  // 只找「本次 diff 删掉生产引用、当前却没有任何非测试消费方」的键，避免全量历史债。
+  const base = resolveBase();
+  const diff = git(['diff', '-U0', base, '--', 'ai-digital-life/frontend/src']);
+  const removedRefs = new Set<string>();
+  let currentFile = '';
+  for (const line of diff.split(/\r?\n/)) {
+    if (line.startsWith('+++ b/')) {
+      currentFile = line.slice('+++ b/'.length);
+      continue;
+    }
+    if (!line.startsWith('-') || line.startsWith('---')) {
+      continue;
+    }
+    if (isTestFile(currentFile)) {
+      continue;
+    }
+    const text = line.slice(1);
+    for (const match of text.matchAll(/t\.([A-Za-z_$][\w$]*)/g)) {
+      removedRefs.add(match[1]);
+    }
+    for (const match of text.matchAll(/['"]([A-Za-z_$][\w$]*)['"]/g)) {
+      removedRefs.add(match[1]);
+    }
+  }
+  const regressions = [...removedRefs]
+    .filter((key) => allKeys.has(key))
+    .filter((key) => tierA.includes(key) || tierB.includes(key))
+    .sort();
+  if (regressions.length > 0) {
+    console.log(
+      `❌ i18n 孤儿键回归（本次删除了生产引用、当前只剩测试/零引用，共 ${regressions.length} 个）：`,
+    );
+    for (const key of regressions) {
+      console.log(`  - ${key}  ← ${[...(filesByKey.get(key) ?? [])].join(', ') || 'no refs'}`);
+    }
+    process.exit(1);
+  }
+  console.log(
+    `✅ 无 i18n 孤儿键回归（base=${base.slice(0, 10)}，检查 ${removedRefs.size} 个被删引用）`,
+  );
+  process.exit(0);
 }
 
 if (tierA.length > 0) {

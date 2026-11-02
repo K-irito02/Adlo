@@ -137,16 +137,53 @@ function main() {
     `${files.join("\n")}\n`,
     "utf8",
   );
-  fs.writeFileSync(
-    path.join(outDir, `commits-rev${rev}.txt`),
-    `${git(["log", "--oneline", `${base}..HEAD`])}\n`,
-    "utf8",
-  );
+  const commits = git(["log", "--oneline", `${base}..HEAD`]);
+  fs.writeFileSync(path.join(outDir, `commits-rev${rev}.txt`), `${commits}\n`, "utf8");
+
+  const groups = new Map();
+  for (const file of files) {
+    const group = file.startsWith("ai-digital-life/crates/")
+      ? "backend (crates)"
+      : file.startsWith("ai-digital-life/frontend/")
+        ? "frontend"
+        : file.startsWith("docs/") || file === "CONTEXT.md" || file === "GLOSSARY.md"
+          ? "docs"
+          : "other";
+    groups.set(group, [...(groups.get(group) ?? []), file]);
+  }
+  const groupLines = [...groups.entries()]
+    .map(([group, entries]) =>
+      [`### ${group} (${entries.length})`, ...entries.map((file) => `- ${file}`)].join("\n"),
+    )
+    .join("\n\n");
+  const manifest = [
+    `# Review manifest — rev${rev}`,
+    "",
+    `- base: \`${base}\``,
+    `- commits: ${commits ? commits.split("\n").length : 0}`,
+    `- files: ${files.length}`,
+    "",
+    "## 快照命名",
+    "",
+    `仓库相对路径中的 \`/\` 和 \`.\` 换成 \`_\`，后缀 \`-rev${rev}.diff\`。只看本轮 rev，不要复用旧快照。`,
+    "",
+    "## 子代理共享简报",
+    "",
+    "`.agents/skills/root-cause-to-close/references/review-brief.md`（规约、气味基线、强制检查项、报告契约）。",
+    "",
+    "## 文件分组",
+    "",
+    groupLines,
+    "",
+  ].join("\n");
+  const manifestPath = path.join(outDir, `manifest-rev${rev}.md`);
+  fs.writeFileSync(manifestPath, manifest, "utf8");
 
   console.log(
     `[review-snapshot] base=${base} rev=${rev} files=${files.length} intent-to-add=${intended}`,
   );
   console.log(`[review-snapshot] out=${path.relative(repoRoot, outDir) || "."}`);
+  console.log(`[review-snapshot] manifest=${path.relative(repoRoot, manifestPath)}`);
   for (const file of files) {
     console.log(`  ${safeSnapshotName(file)}-rev${rev}.diff`);
   }

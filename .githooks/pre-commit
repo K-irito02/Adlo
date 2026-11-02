@@ -47,6 +47,7 @@ fi
 
 # 4) 仓库不变量（秒级）：i18n 对等、术语表、死代码、vite 配置冒烟、dev tooling 单测
 ( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:i18n )
+( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:i18n:orphans:changed )
 ( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:glossary )
 ( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:dead-code )
 ( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:vite-config )

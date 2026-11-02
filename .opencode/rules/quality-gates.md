@@ -27,6 +27,7 @@ alwaysApply: false
 | 前端类型 | `pnpm --dir frontend run typecheck` |
 | 前端类型（dev 工具链） | `pnpm --dir frontend run typecheck:dev` |
 | 前端 i18n 覆盖 | `pnpm --dir frontend run check:i18n` |
+| 前端 i18n 孤儿回归（差异感知） | `pnpm --dir frontend run check:i18n:orphans:changed`（pre-commit 与 `check:changed` 已自动执行） |
 | 前端测试 | `pnpm --dir frontend run test` |
 | Rust 格式 | `cargo fmt --all -- --check`（检查模式；修复用 `cargo fmt --all`） |
 | Rust Lint | `pnpm run cargo:clippy`（= `stage:sidecar` + `cargo clippy --workspace --all-targets -- -D warnings`） |

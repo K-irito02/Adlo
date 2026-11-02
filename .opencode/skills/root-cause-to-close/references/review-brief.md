@@ -1,0 +1,82 @@
+# 审查子代理共享简报（R1 / R2）
+
+派发审查子代理时，先让它读本文件，再只给「本轮范围 / 要验证的上轮项 / 报告路径」。不要把本文件内容重复粘进每个提示词。
+
+## 1. 快照与只读约束
+
+- 仓库根：`E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/slot-1`（以实际工作树为准；由主代理在提示词里给出）。
+- 快照目录：`.review-diffs/`；本轮清单：`manifest-rev<N>.md`（由 `review-snapshot.mjs` 生成）。
+- 快照文件命名：仓库相对路径中的 `/` 和 `.` 换成 `_`，后缀 `-rev<N>.diff`。
+- **只看本轮 rev**，不要复用旧快照、不要看增量 diff。
+- 子代理禁止运行 `git diff/log/show`，禁止修改源码/配置；只允许写自己的报告文件。
+- 需要上下文时读取工作区源码（绝对路径）。
+
+## 2. 规约来源（先读再判断）
+
+- 仓库根 `AGENTS.md`、`ai-digital-life/AGENTS.md`
+- `.agents/rules/`（按范围选读）：`dev-rules.md`、`mandatory-testing.md`、`quality-gates.md`、`phase-boundary.md`、`hint-color-usage.md`、`rust-patterns.md`、`shell-encoding.md`
+- `docs/development/project-engineering-constraints.md`
+- `docs/design-system/`（UI 变更）
+- `GLOSSARY.md`、`CONTEXT.md`
+- 需求真源：进度文件 `docs/root-cause-to-close/YYYY-MM/progress-*.md` + 相关 ADR。
+
+仓库明文规约优先于下面的气味基线。基线只做启发式判断。
+
+## 3. 气味基线（Fowler ch.3，启发式，非硬性违规）
+
+- **Mysterious Name**：名称不揭示用途 → 重命名。
+- **Duplicated Code**：同一逻辑形状出现在多个 hunk/文件 → 提取共享。
+- **Feature Envy**：方法过度访问别的对象数据 → 移到数据所在处。
+- **Data Clumps**：多个字段/参数总是结伴出现 → 合成一个类型。
+- **Primitive Obsession**：原始类型/字符串承担领域概念 → 建小类型。
+- **Repeated Switches**：同一类型上的 switch/if 级联反复出现 → 多态或共享映射。
+- **Shotgun Surgery**：一个逻辑变更要散改多文件 → 聚合。
+- **Divergent Change**：一个文件因多个不相关原因被改 → 拆分。
+- **Speculative Generality**：为不存在的需求加抽象/参数/钩子 → 删除。
+- **Message Chains**：长链 `a.b().c().d()` → 隐藏在一层方法后。
+- **Middle Man**：只做转发的类/函数 → 去掉，直接调用。
+- **Refused Bequest**：子类忽略/覆盖大部分继承 → 改用组合。
+
+## 4. 本仓库专项检查
+
+- 未发布产品：禁止数据格式兼容 / 旧版本迁移分支、兼容注释、双格式解析器；外部格式（OS `NO_PROXY`、npm 包名）属外部契约。
+- `Option<T>` / `T | null`：区分 `None`、空值、真实值，并有测试。
+- 双端一致：Tauri 与浏览器 mock 行为一致；新增 IPC 同步四端桥接。
+- i18n：不得硬编码展示文本；语言切换必须有稳定 fallback。
+- 颜色：不得擅自用蓝色（`--accent` 系）作提示/填充色。
+- 分层：低层 crate 不依赖高层；WebView 不直接触达系统能力。
+- 未发布阶段：不要保留「仅为旧导入路径」的兼容层或无调用方的 `pub` 包装。
+
+## 5. 每轮必查的强制项（R1/R2 通用）
+
+1. **测试有效性**：对每个修复项问「删掉该修复，测试会变红吗？」不能变红的用例不算回归保护。
+2. **持久化元数据原子性**：新增/修改落盘元数据（标记、指针、选中记录）是否与它描述的内容同一次原子落位？失败路径会不会留下半成品且被后续静默错用？
+3. **多来源/多腿部分失败**：一条来源失败而其它成功时，是否被当成完整结果？`latest/available` 是否会误报「已是最新」？预发布/未知标记是否如实。
+4. **文档与报告一致性**：进度文件中的「零问题/已完成」是否与最新一轮报告逐条一致；不要把手工验证写成自动化测试。
+5. **领域术语**：ADR/CONTEXT 新引入的领域术语是否登记 `GLOSSARY.md`（P5/R2 必查）。
+6. **Rust 导出**：新增 `pub` 是否真有跨 crate 消费方？lib 内部辅助默认 `pub(crate)`；仅测试调用的包装应删除或降级。
+
+## 6. 报告契约
+
+写入主代理指定的 `.review-diffs/<scope>-rev<N>-report.md`，包含：
+
+```
+## 范围
+## 上轮问题关闭情况（逐条：已关闭 / 未关闭 + 理由）
+## 新增发现
+### F1 [severity: critical|high|medium|low] [category: 正确性|设计|副作用|安全|预存|优化|死代码|日志|文档]
+- 位置：file:line
+- 描述：
+- 证据：
+- 建议修复：
+## 结论
+- 需修复项：N（critical/high/medium/low 各 N）；N=0 写「本轮零问题」
+```
+
+「需修复」= critical/high/medium，或会改变行为/事实的 low（错误注释、失效引用、错误文案）。纯风格、可选优化、已记录理由的保留项不算。
+
+返回消息只给：报告路径 + ≤5 行摘要 + 「需修复项：N」。
+
+## 7. 不修理由
+
+误报、过期快照、用户特殊设计、合理边界校验可以「不修」，但必须：写清验证过程与理由；由主代理转写进进度文件；下一轮派发时把理由粘给子代理，允许其异议。
