@@ -47,15 +47,13 @@ pub fn parse_mode(mode: &str) -> Result<adl_env::SourceMode, AppError> {
     }
 }
 
-/// `host` mode requires a hosted provider. `bash` (hosted Git is MinGit, which
-/// ships no bash), `webview2`/`adlserver`/`netprobe` have no hosted install
-/// root, so selecting `host` is a machine-coded 4xx (`no-hosted-source`)
-/// rather than a silently ineffective preference.
+/// `host` mode requires a hosted provider. `webview2`/`adlserver`/`netprobe`
+/// have no hosted install root, so selecting `host` is a machine-coded 4xx
+/// (`no-hosted-source`) rather than a silently ineffective preference.
+/// `bash` is hosted through the PortableGit package.
 /// `custom` mode requires custom-path support (`node`/`git`/`bash` only).
 pub fn validate_hosted_source(dep: &str, mode: adl_env::SourceMode) -> Result<(), AppError> {
-    if mode == adl_env::SourceMode::Host
-        && matches!(dep, "bash" | "webview2" | "adlserver" | "netprobe")
-    {
+    if mode == adl_env::SourceMode::Host && matches!(dep, "webview2" | "adlserver" | "netprobe") {
         return Err(AppError::InvalidInput("no-hosted-source".into()));
     }
     if mode == adl_env::SourceMode::Custom && matches!(dep, "webview2" | "adlserver" | "netprobe") {
@@ -65,10 +63,10 @@ pub fn validate_hosted_source(dep: &str, mode: adl_env::SourceMode) -> Result<()
 }
 
 /// Whitelist deps that own a hosted install root for uninstall: `node|git`.
-/// `bash` has no hosted install (the hosted Git asset is MinGit, which does not
-/// ship bash); `webview2`/`adlserver`/`netprobe` are not managed through
-/// hosted version dirs. Machine codes (not prose) so the frontend can branch
-/// on them.
+/// `bash` is provided by the PortableGit package and follows Git
+/// (`bash-follows-git`); `webview2`/`adlserver`/`netprobe` are not managed
+/// through hosted version dirs. Machine codes (not prose) so the frontend can
+/// branch on them.
 pub fn validate_uninstall(dep: &str) -> Result<&'static str, AppError> {
     let dep = parse_dep(dep)?;
     match dep {
@@ -388,7 +386,7 @@ fn collect_states(
     DetectedStates {
         node: node_state(root, sources, &baseline.node.stable),
         git: git_state(root, sources, baseline),
-        bash: bash_state(sources),
+        bash: bash_state(root, sources),
         webview2: webview2_state(sources, &baseline.webview2.minimum),
         adlserver: adlserver_state(sources, exe_dir),
     }
@@ -523,13 +521,14 @@ fn git_state(
     }
 }
 
-fn bash_state(sources: &adl_env::config::EnvSourcesConfig) -> DependencyState {
-    bash_state_from_candidates(sources, bash::detect())
+fn bash_state(root: &Path, sources: &adl_env::config::EnvSourcesConfig) -> DependencyState {
+    bash_state_from_candidates(root, sources, bash::detect())
 }
 
 /// Candidate-ranking half of [`bash_state`] (pure w.r.t. real machine probes so
 /// tests can inject a fake detected candidate).
 fn bash_state_from_candidates(
+    root: &Path,
     sources: &adl_env::config::EnvSourcesConfig,
     mut candidates: Vec<bash::BashCandidate>,
 ) -> DependencyState {
@@ -557,17 +556,21 @@ fn bash_state_from_candidates(
             );
         }
     }
-    // 宿主 Git 资产是 MinGit，不含 `bash.exe`：Bash 只有系统侧来源，host 侧恒不可用。
+    // PortableGit 提供宿主 bash（`bin/bash.exe`）；host 侧不再是恒不可用。
+    let host = bash::detect_hosted(root);
+    let host_available = host.is_some();
     let sys_available = !candidates.is_empty();
-    let effective = resolve(mode, sys_available, None).effective;
+    let effective =
+        resolve(mode, sys_available, host_available.then(|| "hosted".to_string())).effective;
     let pick = match effective {
-        EffectiveSource::Host => None,
+        EffectiveSource::Host => host,
         EffectiveSource::System | EffectiveSource::None => candidates.into_iter().next(),
     };
     let (path, origin) = match pick {
         Some(c) => (
             Some(c.path),
             match c.kind {
+                bash::BashKind::Hosted => Origin::Bundled,
                 bash::BashKind::Manual => Origin::Manual,
                 _ => Origin::Path,
             },
@@ -714,10 +717,9 @@ async fn install_inner(
             webview2::install()?;
             Ok(started_payload())
         },
-        // bash 无宿主托管版本（宿主 Git 是 MinGit，不含 bash）：引导系统来源。
+        // bash 随宿主 PortableGit 提供：单独安装没有意义，引导去装 Git。
         "bash" => Err(AppError::InvalidInput(
-            "bash is not host-installed; use system Git for Windows / WSL / MSYS2 and set the path"
-                .into(),
+            "bash is provided by the hosted PortableGit package; install git instead".into(),
         )),
         _ => Err(AppError::InvalidInput(format!("{dep} cannot be installed"))),
     }
@@ -749,7 +751,7 @@ fn spawn_node_install(state: &ServerState, version: String, dist_base: String) {
     });
 }
 
-/// 后台执行 MinGit 宿主托管安装（tag+asset 逐字透传 baseline；语义同上）。
+/// 后台执行 PortableGit 宿主托管安装（tag+asset 逐字透传 baseline；语义同上）。
 fn spawn_git_install(
     state: &ServerState,
     version: String,
@@ -771,13 +773,13 @@ fn spawn_git_install(
         };
         let cfg = git::InstallConfig {
             data_dir: &root,
-            mingit_base: &base,
-            mingit_tag: &tag,
-            mingit_asset: &asset,
+            git_base: &base,
+            git_tag: &tag,
+            git_asset: &asset,
             download: &download,
         };
         if git::install(&version, &cfg, &task_state.env_task).await.is_ok() {
-            // 同 node：宿主 MinGit 的 `cmd/` 立刻进入 PATH。
+            // 同 node：宿主 PortableGit 的 `cmd/` 与 `bin/` 立刻进入 PATH。
             crate::env_path::refresh(&root);
         }
     });
@@ -1140,7 +1142,7 @@ async fn probe_deps(
             let state = match dep {
                 "node" => node_state(&root, &sources, &baseline.node.stable),
                 "git" => git_state(&root, &sources, &baseline),
-                "bash" => bash_state(&sources),
+                "bash" => bash_state(&root, &sources),
                 "webview2" => webview2_state(&sources, &baseline.webview2.minimum),
                 "adlserver" => adlserver_state(&sources, &exe_dir),
                 _ => continue,
@@ -1189,7 +1191,7 @@ mod tests {
         try_begin_env_task, uninstall_inner, uninstall_kind, validate_hosted_source,
         validate_uninstall,
     };
-    use adl_env::providers::{bash, node};
+    use adl_env::providers::{bash, git, node};
     use adl_env::{DependencyState, EffectiveSource, Origin, SourceMode};
     use adl_errors::AppError;
 
@@ -1262,11 +1264,11 @@ mod tests {
         assert!(matches!(err, AppError::InvalidInput(_)), "unexpected error: {err}");
     }
 
-    /// `host` 仅对拥有托管安装根的两类依赖有效；bash 已无托管来源（MinGit
-    /// 不含 bash），与 webview2/adlserver/netprobe 一样返回机器码 4xx。
+    /// `host` 仅对拥有托管安装根的依赖有效；webview2/adlserver/netprobe
+    /// 返回机器码 4xx。bash 由 PortableGit 托管，允许 `host`。
     #[test]
     fn select_source_rejects_host_for_deps_without_hosted_provider() {
-        for dep in ["bash", "webview2", "adlserver", "netprobe"] {
+        for dep in ["webview2", "adlserver", "netprobe"] {
             let err = validate_hosted_source(dep, SourceMode::Host).expect_err("no hosted source");
             assert!(
                 matches!(err, AppError::InvalidInput(ref m) if m == "no-hosted-source"),
@@ -1277,7 +1279,7 @@ mod tests {
             assert!(validate_hosted_source(dep, SourceMode::Auto).is_ok());
             assert!(validate_hosted_source(dep, SourceMode::System).is_ok());
         }
-        for dep in ["node", "git"] {
+        for dep in ["node", "git", "bash"] {
             assert!(validate_hosted_source(dep, SourceMode::Host).is_ok());
         }
     }
@@ -1296,18 +1298,43 @@ mod tests {
         assert_eq!(config.webview2.mode, SourceMode::Auto);
     }
 
-    /// bash 的 `host` 同样被拒且不落盘（hosted bash 已随 MinGit 移除）。
+    /// bash 的 `host` 合法并落盘（宿主 PortableGit 提供 bash）。
     #[tokio::test]
-    async fn select_source_inner_rejects_bash_host_without_persisting() {
+    async fn select_source_inner_accepts_bash_host_and_persists() {
         let state = crate::test_util::test_server_state();
         let input = SelectInput { dep: "bash".into(), mode: "host".into() };
-        let err = select_source_inner(&state, input).await.expect_err("no hosted source");
-        assert!(
-            matches!(err, AppError::InvalidInput(ref m) if m == "no-hosted-source"),
-            "unexpected error: {err}"
-        );
+        select_source_inner(&state, input).await.unwrap();
         let config = adl_env::config::load(&state.storage.paths().root).unwrap();
-        assert_eq!(config.bash.mode, SourceMode::Auto);
+        assert_eq!(config.bash.mode, SourceMode::Host);
+    }
+
+    /// 宿主 PortableGit 里的 `bin/bash.exe` 让 bash 的 host 来源真正生效。
+    #[test]
+    fn bash_host_mode_uses_portable_git_bash() {
+        let dir = std::env::temp_dir().join(format!(
+            "adl-server-env-bash-hosted-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let hv = adl_hosted::HostedVersions::open(&dir, git::HOSTED_NAME, git::MARKER_REL);
+        hv.mark_installed("2.56.0").expect("git marker");
+        hv.write_selected("2.56.0").expect("select git");
+        let bash_path = git::host_bash_path(&dir, "2.56.0");
+        std::fs::create_dir_all(bash_path.parent().expect("bash parent")).expect("bash dir");
+        std::fs::write(&bash_path, "").expect("bash marker");
+
+        let mut sources = adl_env::config::EnvSourcesConfig::default();
+        sources.bash.mode = SourceMode::Host;
+        let state = super::bash_state(&dir, &sources);
+        assert_eq!(state.effective, EffectiveSource::Host);
+        assert_eq!(state.origin, Origin::Bundled);
+        assert_eq!(state.path, Some(bash_path.to_string_lossy().into_owned()));
+        assert!(state.meets_baseline);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// select-source 合法写入落盘（test state 用临时目录，不污染真实数据）。
@@ -1699,7 +1726,7 @@ mod tests {
             kind: bash::BashKind::GitBundled,
             path: "C:/Program Files/Git/bin/bash.exe".into(),
         };
-        let state = bash_state_from_candidates(&sources, vec![detected]);
+        let state = bash_state_from_candidates(&dir, &sources, vec![detected]);
         assert_eq!(state.effective, EffectiveSource::System);
         assert_eq!(state.origin, Origin::Manual);
         assert_eq!(state.path, Some(manual));

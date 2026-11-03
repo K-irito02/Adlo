@@ -32,7 +32,8 @@ export const harnessVersionZh = {
   harnessVersionReinstallAction: '重装',
   harnessVersionReinstalled: '已重装',
   harnessVersionSourceTitle: '版本来源',
-  harnessVersionSourceHint: '自动优先使用应用内托管版本；系统安装只检测不管理。',
+  harnessVersionSourceHint:
+    '自动优先使用应用内托管版本；系统安装只检测不管理。首次运行准备时：本机已有则直接使用系统安装；没有则安装宿主托管，正式版优先，无正式版退最新预发布版。',
   harnessVersionSourceAuto: '自动',
   harnessVersionSourceSystem: '系统安装',
   harnessVersionSourceHost: '宿主托管',

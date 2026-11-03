@@ -5,7 +5,7 @@ export const environmentEn = {
   environmentTitleHint:
     'All external tools the app needs, in one place.\n· Each item is auto-detected; install with one click when missing\n· Copy diagnostics to any assistant when something looks wrong\n· Auto detect is easiest; use a custom path only when you know exactly where it is',
   environmentBlockRuntimeHint:
-    'The three common base tools.\n· Auto detect prefers what is already installed\n· Switch sources in the dropdown when needed; custom path means you tell the app where to look\n· Copy diagnostics to explain version, path and issues at once',
+    'The three common base tools.\n· Node.js / Git / Bash are always installed host-managed: extracted into the app data directory, injected into app-spawned terminals only, never modifying the system environment\n· The hosted Git build is PortableGit, which includes Bash; install Bash from the Git row\n· Use the dropdown to switch sources: Auto is easiest, System uses your install, Host uses the app-managed copy, Custom points at a path you choose\n· DSH / OpenCode CLI use a system install when present; otherwise install host-managed and manage them in their own groups\n· Copy diagnostics to explain versions, paths and failures to an agent',
   environmentBlockSystemHint:
     'Built-in system capabilities, read-only.\n· Nothing to install by hand and no source switching\n· Versions are managed by the system, so there is no install button\n· Copy diagnostics when something looks wrong',
   environmentBlockRuntime: 'Core dependencies',
@@ -31,10 +31,6 @@ export const environmentEn = {
   environmentCopyForAgent: 'Copy for agent',
   environmentGoToSettings: 'Open settings',
   environmentWebview2DownloadPage: 'WebView2 download page',
-  environmentDshCredentialNote: 'Where dsh credentials live',
-  environmentWizardWelcome: 'Welcome',
-  environmentWizardDetecting: 'Detecting…',
-  environmentWizardSkip: 'Skip',
   environmentWizardEnter: 'Enter app',
   environmentWizardResumeBanner: 'Skipped {count} items last time',
   environmentWizardResume: 'Resume wizard',
@@ -55,9 +51,9 @@ export const environmentEn = {
   environmentDepNodeHint:
     'Base runtime for the assistant and tools.\n· Auto detect prefers the host-managed copy, then your system install\n· The install button on the right installs the host-managed version when missing or too old; confirm once and it takes effect automatically\n· It only shows when an install is actually needed: hidden when ready, hidden when offline\n· Use a custom path when you have your own version',
   environmentDepGitHint:
-    'Version control tool.\n· The host-managed copy is minimal and has no shell\n· The install button on the right installs the host-managed version when missing or too old; confirm once and it takes effect automatically\n· It only shows when an install is actually needed: hidden when ready, hidden when offline\n· Use your full system install or a custom path for the shell',
+    'Version control tool.\n· The host-managed copy is PortableGit, which includes Git and Bash\n· The install button on the right installs the host-managed version when missing or too old; confirm once and it takes effect automatically\n· It only shows when an install is actually needed: hidden when ready, hidden when offline\n· The hosted build already includes Bash; you can also switch to a system install or a custom path',
   environmentDepBashHint:
-    'Shell for terminals and scripts.\n· Not host-managed; use your system version or a custom path\n· Auto detect recognizes common system installs',
+    'Shell for terminals and scripts.\n· The host-managed PortableGit includes Bash and installs it with Git\n· Auto detect prefers the hosted bash, then system Git / WSL / MSYS2\n· To install it, use the Git row; you can also switch to a system install or a custom path',
   environmentDepWebview2Hint:
     'System component for showing web content on desktop.\n· Managed by the system installer; read-only here\n· Copy diagnostics when embedded pages fail to open',
   environmentDepAdlserverHint:
@@ -67,9 +63,9 @@ export const environmentEn = {
   environmentDepModelHint:
     'Where model credentials live.\n· Credentials are entered on the assistant side; this only shows whether the store works',
   environmentDepNodeDesc: 'JavaScript runtime required by dsh and the toolchain',
-  environmentDepGitDesc: 'Version control; the hosted build is MinGit (one-click install, no Bash)',
+  environmentDepGitDesc: 'Version control; the hosted build is PortableGit (includes Bash)',
   environmentDepBashDesc:
-    'Shell for terminals and scripts (not provided by the host; use system Git / WSL / MSYS2 or a custom path)',
+    'Shell for terminals and scripts, provided by the hosted Git (PortableGit)',
   environmentDepWebview2Desc:
     'System runtime for embedded web views on desktop (installed via bootstrapper)',
   environmentDepAdlserverDesc: 'Local backend service bundled with the app (no source switching)',
@@ -133,4 +129,46 @@ export const environmentEn = {
   environmentDiagnosticRegistry: 'Download registry',
   environmentDiagnosticRegistryReachable: 'Reachable ({ms}ms)',
   environmentDiagnosticCiToken: 'CI credential',
+  firstRunTitleRunning: 'Preparing your environment and harness',
+  firstRunTitleDone: 'Ready',
+  firstRunTitleFailed: 'Ready, with {n} item(s) to review',
+  firstRunGuideTitle: 'Manage these in the matching group under Settings (right panel)',
+  firstRunStart: 'Get started',
+  firstRunRetry: 'Try again',
+  firstRunRetryCount: 'Retry {n}/3',
+  firstRunRetriesExhausted: '3 retries used',
+  firstRunSummaryAllReady: 'All ready',
+  firstRunSummaryFailed: '{ready} ready, {failed} failed',
+  firstRunSystemNote: 'System install',
+  firstRunHostedNote: 'Host-managed',
+  firstRunBashBundled: 'Included with Git',
+  firstRunBashMissing: 'The hosted Git package has no bash',
+  firstRunBridgeUnavailable: 'Not available in this runtime',
+  firstRunInstallNotReady: 'The install task ended, but the dependency is still not ready',
+  firstRunInstallTimeout: 'Install timed out',
+  firstRunNoOfficialVersion: 'Official version list unavailable',
+  firstRunFailedItems: '{n} item(s) did not finish',
+  firstRunFailureHint: 'Try again, or copy the diagnostic report to an external agent.',
+  firstRunUseSystem: 'Use the system install this time',
+  firstRunCopySuccess: 'Diagnostic report copied',
+  firstRunCopyFailed: 'Copy failed',
+  firstRunPreview: 'Preview report',
+  firstRunCopy: 'Copy',
+  firstRunClose: 'Close',
+  firstRunDetecting: 'Detecting',
+  firstRunWaiting: 'Waiting',
+  firstRunFailed: 'Failed',
+  firstRunRerun: 'Run first-time setup again',
+  firstRunGo: 'Open',
+  firstRunPath: 'Settings › {group}',
+  firstRunFooterNote: 'Host-managed; switch sources anytime in Settings',
+  firstRunReportTitle: 'AI Digital Life · First-run setup diagnostic report',
+  firstRunReportTask:
+    'You are a Windows desktop troubleshooting assistant. Below is the full record of a first-run setup. Find the root cause and give an executable fix: classify the failure, then list ordered steps with verification; use PowerShell commands. Do not suggest deleting user data or disabling security software; ask only for the minimum missing information.',
+  firstRunReportItems: 'Provisioning items',
+  firstRunReportAttempts: 'Attempts',
+  firstRunReportEnv: 'Environment dependency details',
+  firstRunReportNoEnv: 'Environment status is unavailable (bridge not ready).',
+  firstRunReportNoFailures: 'No failures in this run.',
+  firstRunReportSize: '{kb} KB · includes failures, attempts, download source, proxy and runbooks',
 } as const;

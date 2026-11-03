@@ -9,7 +9,7 @@ export const opencodeZh = {
   opencodeSourceTitle: '版本来源',
   opencodeSourceDesc: '选择 OpenCode CLI 版本的来源',
   opencodeSourceHint:
-    '决定优先使用哪一个 OpenCode CLI 版本。自动检测的优先级：本应用装好的版本（宿主托管）→ 你电脑上安装的版本（系统安装）。\n· 下拉框始终显示你的选择（自动检测／系统安装／宿主托管）；它下方那行蓝色小字是自动检测实际解析到的来源，方便你确认。\n· 下方的“检查更新、正式版本、预发布版本”是否显示，代表本应用当前是否能管理版本：显示即可在这里安装、切换或卸载；只有“系统安装”实际生效时才隐藏（此时版本由你自己维护）。',
+    '决定优先使用哪一个 OpenCode CLI 版本。自动检测的优先级：本应用装好的版本（宿主托管）→ 你电脑上安装的版本（系统安装）。\n· 下拉框始终显示你的选择（自动检测／系统安装／宿主托管）；它下方那行蓝色小字是自动检测实际解析到的来源，方便你确认。\n· 下方的“检查更新、正式版本、预发布版本”是否显示，代表本应用当前是否能管理版本：显示即可在这里安装、切换或卸载；只有“系统安装”实际生效时才隐藏（此时版本由你自己维护）。\n· 首次运行准备时：本机已有则直接使用系统安装；没有则安装宿主托管，正式版优先，无正式版退最新预发布版。',
   opencodeSourceAuto: '自动检测',
   opencodeSourceSystem: '系统安装',
   opencodeSourceHost: '宿主托管',
@@ -53,18 +53,6 @@ export const opencodeZh = {
   opencodeTerminalInjectionHint:
     '打开后，新建的终端会话会自动把宿主托管的目录放到 PATH 最前面，并为其指定独立的会话数据库（避免与你自己的 OpenCode 安装/更高版本冲突）；关闭后新会话不再注入。只影响新会话，已打开的终端保持不变。首次使用可能需要在终端里执行 opencode auth login。',
   opencodeTerminalInjectionSaved: '终端可用性已保存',
-  harnessWizardTitle: '安装 harness',
-  harnessWizardDesc:
-    '应用可以托管 DSH 与 OpenCode CLI 的版本；现在安装，或稍后在对应设置组里安装。',
   harnessWizardDsh: 'DSH（Web 形态）',
   harnessWizardOpencode: 'OpenCode CLI',
-  harnessWizardInstalled: '已安装',
-  harnessWizardMissing: '未安装',
-  harnessWizardInstall: '安装',
-  harnessWizardInstalling: '安装中…',
-  harnessWizardSkip: '稍后再说',
-  harnessWizardFailed: '安装失败，可稍后重试',
-  harnessWizardNodeHint: 'DSH 需要先安装 Node.js（在「环境」设置组中安装）。',
-  harnessWizardNonBlocking: '安装失败不会影响应用使用；随时可以在设置组里重试。',
-  harnessWizardDetecting: '正在检测已安装的 harness…',
 };

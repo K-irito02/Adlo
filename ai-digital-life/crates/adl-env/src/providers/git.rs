@@ -1,8 +1,10 @@
-//! `git` provider: system detect + MinGit hosted install (Task 9).
+//! `git` provider: system detect + PortableGit hosted install.
 //!
-//! MinGit only (`{base}/{tag}/{asset}` verbatim tag+asset) — no third-party
-//! binaries. Reuses Task 8's shared [`super::fetch_and_stage`] zip/swap
-//! pipeline (`marker_rel = "cmd/git.exe"`).
+//! PortableGit only (`{base}/{tag}/{asset}` verbatim tag+asset) — no
+//! third-party binaries. Unlike MinGit, PortableGit ships `bin/bash.exe`, so
+//! the same hosted package backs both the Git and Bash rows. Downloads the
+//! official 7-Zip SFX and extracts it with [`super::fetch_and_stage_sfx`]
+//! (`marker_rel = "cmd/git.exe"`).
 
 use std::path::{Path, PathBuf};
 
@@ -17,10 +19,12 @@ use crate::UninstallOutcome;
 /// `HostedVersions` name: the install dir is the version dir itself
 /// (`<data_dir>/env-hosted/git/installed/<v>/cmd/git.exe`).
 pub const HOSTED_NAME: &str = "env-hosted/git";
-/// Marker inside each installed version dir (MinGit ships files at the root).
+/// Marker inside each installed version dir (PortableGit ships files at the root).
 pub const MARKER_REL: &str = "cmd/git.exe";
-/// Official MinGit base (baseline default when no mirror is configured).
-pub const OFFICIAL_MINGIT_BASE: &str = "https://github.com/git-for-windows/git/releases/download";
+/// Marker for the bash that ships inside the same PortableGit version dir.
+pub const BASH_MARKER_REL: &str = "bin/bash.exe";
+/// Official PortableGit base (baseline default when no mirror is configured).
+pub const OFFICIAL_GIT_BASE: &str = "https://github.com/git-for-windows/git/releases/download";
 
 /// System-side detection outcome.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,28 +48,26 @@ pub struct Installed {
 }
 
 /// Inputs for [`install`]: `version` travels as its own arg (Task 8 shape
-/// `install(version, registry_cfg, reporter)`); the data root, MinGit base and
-/// registry/proxy config ride together here for Task 11 callers. `mingit_tag`
-/// / `mingit_asset` are passed through verbatim (Task 11 baseline supplies
-/// both; no derivation from `version`).
+/// `install(version, registry_cfg, reporter)`); the data root, PortableGit base
+/// and registry/proxy config ride together here for Task 11 callers.
+/// `git_tag` / `git_asset` are passed through verbatim (Task 11 baseline
+/// supplies both; no derivation from `version`).
 #[derive(Debug, Clone, Copy)]
 pub struct InstallConfig<'a> {
     pub data_dir: &'a Path,
-    pub mingit_base: &'a str,
-    pub mingit_tag: &'a str,
-    pub mingit_asset: &'a str,
+    pub git_base: &'a str,
+    pub git_tag: &'a str,
+    pub git_asset: &'a str,
     pub download: &'a DownloadSourceConfig,
 }
 
-/// Official MinGit URL: `{base}/{tag}/{asset}`, where `tag` includes the
-/// leading `v` (e.g. `"v2.56.0.windows.3"`) and `asset` is the full file name
-/// (e.g. `"MinGit-2.56.0.3-64-bit.zip"`).
-/// Example: `mingit_url("https://github.com/git-for-windows/git/releases/download",
-/// "v2.56.0.windows.3", "MinGit-2.56.0.3-64-bit.zip")`.
+/// Official PortableGit URL: `{base}/{tag}/{asset}`, where `tag` includes the
+/// leading `v` (e.g. `"v2.56.0.windows.4"`) and `asset` is the full file name
+/// (e.g. `"PortableGit-2.56.0.4-64-bit.7z.exe"`).
 /// Tag+asset are caller-supplied verbatim: the short semver does NOT
 /// determine the asset name (`.windows.N` build-number handling is ambiguous:
 /// N==1 omitted, N>1 appended).
-pub fn mingit_url(base: &str, tag: &str, asset: &str) -> String {
+pub fn portable_git_url(base: &str, tag: &str, asset: &str) -> String {
     format!("{base}/{tag}/{asset}")
 }
 
@@ -112,6 +114,22 @@ fn hosted(data_dir: &Path) -> HostedVersions {
 /// check; the offline-tested half of the hosted-git launch path).
 pub fn host_bin_path(data_dir: &Path, version: &str) -> PathBuf {
     hosted(data_dir).installed_marker(version)
+}
+
+/// Absolute path of the hosted `bin/bash.exe` for `version` (no existence
+/// check; PortableGit ships it next to `cmd/git.exe`).
+pub fn host_bash_path(data_dir: &Path, version: &str) -> PathBuf {
+    adl_hosted::HostedVersions::open(data_dir, HOSTED_NAME, BASH_MARKER_REL)
+        .installed_marker(version)
+}
+
+/// Selected PortableGit version when that version actually contains
+/// `bin/bash.exe`; `None` when Git is not installed or the asset lacks bash.
+pub fn host_bash_version(data_dir: &Path) -> Option<String> {
+    adl_hosted::HostedVersions::open(data_dir, HOSTED_NAME, BASH_MARKER_REL)
+        .read_selected()
+        .ok()
+        .flatten()
 }
 
 /// Validate a fetched staging dir and adopt it: marker `cmd/git.exe` check →
@@ -180,9 +198,9 @@ pub fn uninstall(data_dir: &Path, version: &str) -> Result<UninstallOutcome, App
     Ok(UninstallOutcome { removed: version.to_string(), selected })
 }
 
-/// Download the MinGit zip (via the shared registry/proxy-aware client),
-/// extract, and adopt. Failure records the error on `reporter` and leaves the
-/// task open for progress polling; success finishes it.
+/// Download the PortableGit 7-Zip SFX (via the shared registry/proxy-aware
+/// client), extract, and adopt. Failure records the error on `reporter` and
+/// leaves the task open for progress polling; success finishes it.
 pub async fn install(
     version: &str,
     cfg: &InstallConfig<'_>,
@@ -192,13 +210,13 @@ pub async fn install(
         return Err(AppError::InvalidInput(format!("bad git version {version}")));
     }
     reporter.begin_with("env-git-install", &format!("git {version}"), false);
-    let base = if cfg.mingit_base.is_empty() { OFFICIAL_MINGIT_BASE } else { cfg.mingit_base };
-    let url = mingit_url(base, cfg.mingit_tag, cfg.mingit_asset);
+    let base = if cfg.git_base.is_empty() { OFFICIAL_GIT_BASE } else { cfg.git_base };
+    let url = portable_git_url(base, cfg.git_tag, cfg.git_asset);
     reporter.update(ProgressPhase::Installing, Some(10), 0, 100, false);
     let client = adl_download_source::build_http_client(cfg.download).await.inspect_err(|e| {
         reporter.set_error(&e.to_string());
     })?;
-    let staging = match super::fetch_and_stage(&client, &url, MARKER_REL).await {
+    let staging = match super::fetch_and_stage_sfx(&client, &url, MARKER_REL).await {
         Ok(staging) => staging,
         Err(e) => {
             reporter.set_error(&e.to_string());

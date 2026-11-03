@@ -68,11 +68,11 @@ pub fn load(data_dir: &Path) -> Result<EnvSourcesConfig, AppError> {
 
 /// Deps with no hosted install root: a persisted `host` mode can only resolve
 /// to `none`, so it is reset to `auto` on load (with a warning naming the dep).
-/// Likewise, `custom` on deps without custom-path support (`webview2`/
-/// `adlserver`/`netprobe`) is reset to `auto`.
+/// `bash` is no longer hostless: PortableGit ships `bin/bash.exe` and backs the
+/// hosted bash source. Likewise, `custom` on deps without custom-path support
+/// (`webview2`/`adlserver`/`netprobe`) is reset to `auto`.
 fn normalize_hostless(config: &mut EnvSourcesConfig, path: &Path) {
     let slots = [
-        ("bash", &mut config.bash),
         ("webview2", &mut config.webview2),
         ("adlserver", &mut config.adlserver),
         ("netprobe", &mut config.netprobe),
@@ -262,8 +262,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
-    /// 持久化的 `host` 对无托管来源的依赖无效：加载时归一为 `auto`，
-    /// 拥有托管来源的 node/git 保持原值。
+    /// 持久化的 `host` 对无托管来源的依赖无效：加载时归一为 `auto`。
+    /// node/git/bash 都有托管来源（bash 来自 PortableGit），保持原值。
     #[test]
     fn load_normalizes_host_mode_for_deps_without_hosted_source() {
         let tmp = temp_dir("normalize_host");
@@ -284,7 +284,7 @@ mod tests {
         let cfg = load(&tmp).expect("load");
         assert_eq!(cfg.node.mode, SourceMode::Host);
         assert_eq!(cfg.git.mode, SourceMode::Host);
-        assert_eq!(cfg.bash.mode, SourceMode::Auto);
+        assert_eq!(cfg.bash.mode, SourceMode::Host);
         assert_eq!(cfg.webview2.mode, SourceMode::Auto);
         assert_eq!(cfg.adlserver.mode, SourceMode::Auto);
         assert_eq!(cfg.netprobe.mode, SourceMode::Auto);

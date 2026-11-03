@@ -9,7 +9,7 @@ export const opencodeEn = {
   opencodeSourceTitle: 'Version source',
   opencodeSourceDesc: 'Choose which OpenCode CLI build to use',
   opencodeSourceHint:
-    'Decides which OpenCode CLI build takes effect. Automatic resolves in this order: a version this app installed (host-managed) → a version installed on your computer (system install).\n· The dropdown always shows your choice (Automatic / System install / Host-managed); the blue line under it tells you which source automatic actually resolved to.\n· Whether the "Check for updates", "Stable" and "Prerelease" rows appear tells you whether this app can manage versions: visible means you can install, switch or uninstall here; hidden only when the system install is actually in effect (you maintain that copy yourself).',
+    'Decides which OpenCode CLI build takes effect. Automatic resolves in this order: a version this app installed (host-managed) → a version installed on your computer (system install).\n· The dropdown always shows your choice (Automatic / System install / Host-managed); the blue line under it tells you which source automatic actually resolved to.\n· Whether the "Check for updates", "Stable" and "Prerelease" rows appear tells you whether this app can manage versions: visible means you can install, switch or uninstall here; hidden only when the system install is actually in effect (you maintain that copy yourself).\n· First-run setup uses a system install when present; otherwise it installs the host-managed build, preferring the latest stable release and falling back to the latest prerelease.',
   opencodeSourceAuto: 'Automatic',
   opencodeSourceSystem: 'System install',
   opencodeSourceHost: 'Host-managed',
@@ -53,19 +53,6 @@ export const opencodeEn = {
   opencodeTerminalInjectionHint:
     'When on, new terminal sessions prepend the host-managed directory to PATH and point it at an isolated session database (so it cannot conflict with your own OpenCode install or a newer version); when off, new sessions are left alone. Only new sessions are affected; open terminals keep their old PATH. You may need to run opencode auth login once.',
   opencodeTerminalInjectionSaved: 'Terminal availability saved',
-  harnessWizardTitle: 'Install harnesses',
-  harnessWizardDesc:
-    'The app can manage DSH and OpenCode CLI versions. Install now, or later from their settings groups.',
   harnessWizardDsh: 'DSH (web app)',
   harnessWizardOpencode: 'OpenCode CLI',
-  harnessWizardInstalled: 'Installed',
-  harnessWizardMissing: 'Not installed',
-  harnessWizardInstall: 'Install',
-  harnessWizardInstalling: 'Installing…',
-  harnessWizardSkip: 'Later',
-  harnessWizardFailed: 'Install failed; you can retry later',
-  harnessWizardNodeHint: 'DSH needs Node.js first (install it in the Environment settings group).',
-  harnessWizardNonBlocking:
-    'A failed install never blocks the app; retry anytime from the settings group.',
-  harnessWizardDetecting: 'Detecting installed harnesses…',
 };

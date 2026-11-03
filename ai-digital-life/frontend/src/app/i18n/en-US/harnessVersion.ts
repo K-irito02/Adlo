@@ -34,7 +34,7 @@ export const harnessVersionEn = {
   harnessVersionReinstalled: 'Reinstalled',
   harnessVersionSourceTitle: 'Version source',
   harnessVersionSourceHint:
-    'Automatic prefers the app-managed version; a system install is detected but never managed.',
+    'Automatic prefers the app-managed version; a system install is detected but never managed. First-run setup uses a system install when present; otherwise it installs the host-managed build, preferring the latest stable release and falling back to the latest prerelease.',
   harnessVersionSourceAuto: 'Automatic',
   harnessVersionSourceSystem: 'System install',
   harnessVersionSourceHost: 'Host-managed',

@@ -82,7 +82,7 @@ pub struct ServerState {
     pub opencode_version_task: adl_hosted::ProgressTask,
     /// 串行化 OpenCode 版本目录变更。
     pub opencode_version_lock: Arc<AsyncMutex<()>>,
-    /// 串行化 env 依赖安装（node/git MinGit），避免并发写入同一宿主目录。
+    /// 串行化 env 依赖安装（node/git PortableGit），避免并发写入同一宿主目录。
     /// 与 `dsh_version_lock` 同模式：`InstallLock::new()` 一次构造出共享 Arc。
     pub env_install_lock: Arc<AsyncMutex<()>>,
     /// 串行化 `env-sources.json` 的读取-修改-写入（select-source /

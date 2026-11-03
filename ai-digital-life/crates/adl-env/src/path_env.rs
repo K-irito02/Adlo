@@ -8,15 +8,15 @@
 //! its own PATH so terminals and child processes inherit them.
 //!
 //! - Hosted copies: `<data>/env-hosted/<dep>/installed/<v>` (node: version dir,
-//!   git: version dir `cmd/`).
+//!   git: version dir `cmd/`, bash: the same PortableGit version dir `bin/`).
 //! - Custom paths: the parent directory of the validated executable, so
 //!   `system` / `custom` / `auto` fallback modes actually use the file the user
 //!   picked instead of only reporting it in the status snapshot.
 //!
-//! `bash` caveat: this only adds the custom executable's parent to PATH. The
-//! built-in bash terminal's shell picker (`shell_resolver`) still prefers its
-//! fixed Git for Windows / WSL paths, so a custom MSYS2 bash affects shells that
-//! resolve `bash` through PATH, not that picker.
+//! `bash`: the hosted PortableGit `bin/` is injected too. The built-in bash
+//! terminal's shell picker (`shell_resolver`) prefers a PATH-resolved `bash`
+//! first (the server prepends these dirs), then falls back to its fixed Git for
+//! Windows / WSL paths.
 //!
 //! `system` mode without a custom path contributes nothing: the system copy is
 //! already on PATH, and injecting a hosted copy would silently downgrade the
@@ -28,7 +28,7 @@ use adl_errors::AppError;
 
 use crate::SourceMode;
 use crate::config;
-use crate::providers::{git, node};
+use crate::providers::{bash, git, node};
 
 /// Directories the current source preferences should prepend to PATH.
 ///
@@ -46,6 +46,13 @@ pub fn path_dirs(root: &Path) -> Result<Vec<PathBuf>, AppError> {
             node::MARKER_REL,
         ),
         (sources.git.mode, sources.git.custom_path.as_deref(), git::HOSTED_NAME, git::MARKER_REL),
+        // bash 的宿主副本来自同一个 PortableGit 版本目录：`bin/bash.exe`。
+        (
+            sources.bash.mode,
+            sources.bash.custom_path.as_deref(),
+            git::HOSTED_NAME,
+            bash::HOSTED_MARKER_REL,
+        ),
     ] {
         let host_dir = selected_bin_dir(root, name, marker);
         let custom_dir = custom_path.and_then(exe_bin_dir);
@@ -60,12 +67,6 @@ pub fn path_dirs(root: &Path) -> Result<Vec<PathBuf>, AppError> {
         if let Some(dir) = chosen {
             push_unique(&mut dirs, dir);
         }
-    }
-
-    // bash 无宿主副本：只接管用户填的指定路径。系统 bash 由 shell_resolver 按固定
-    // Git for Windows / WSL 路径解析（默认 Git 只把 cmd 加进 PATH），不靠本模块注入。
-    if let Some(dir) = sources.bash.custom_path.as_deref().and_then(exe_bin_dir) {
-        push_unique(&mut dirs, dir);
     }
 
     Ok(dirs)
@@ -249,6 +250,22 @@ mod tests {
             Some(bash.clone()),
         );
         assert_eq!(path_dirs(&root).expect("dirs"), vec![bash.parent().unwrap().to_path_buf()]);
+    }
+
+    #[test]
+    fn auto_contributes_hosted_bash_bin_dir() {
+        let root = temp_root("bash-hosted");
+        install_fake(&root, git::HOSTED_NAME, git::MARKER_REL, "2.56.0");
+        let bash = root.join("env-hosted/git/installed/2.56.0/bin/bash.exe");
+        std::fs::create_dir_all(bash.parent().expect("bash parent")).expect("bash dir");
+        std::fs::write(&bash, b"x").expect("bash marker");
+        write_sources(&root, (SourceMode::Auto, None), (SourceMode::Auto, None), None);
+
+        let dirs = path_dirs(&root).expect("dirs");
+        assert!(
+            dirs.iter().any(|d| d == bash.parent().expect("bash parent")),
+            "hosted bash bin dir missing: {dirs:?}"
+        );
     }
 
     #[test]

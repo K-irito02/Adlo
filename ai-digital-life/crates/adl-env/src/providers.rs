@@ -19,12 +19,13 @@ use adl_errors::AppError;
 /// client (built via `adl_download_source::build_http_client` — never build a
 /// second client here), extract it into a fresh staging dir, unwrap a single
 /// top-level folder when the marker is not at the root (node dist ships
-/// `node-v<V>-win-x64/`; MinGit ships files at the root — both converge to
+/// `node-v<V>-win-x64/`; PortableGit ships files at the root — both converge to
 /// `marker_rel` at the staging root), validate `marker_rel`, and return the
 /// staging dir for the caller to [`adl_hosted::swap_into_place`].
 ///
 /// Marker missing (or bad zip / HTTP error) → staging is removed and `Err`.
-/// Task 9 reuses this for MinGit (`marker_rel = "cmd/git.exe"`).
+/// Git uses the SFX path ([`fetch_and_stage_sfx`]) because PortableGit ships
+/// as a 7-Zip self-extracting archive.
 ///
 /// Zip extraction runs on `spawn_blocking` so a large archive never stalls the
 /// async runtime (JoinError propagates as `AppError::Io`).
@@ -83,6 +84,95 @@ pub async fn fetch_and_stage(
         ));
     }
     Ok(staging)
+}
+
+/// Download a 7-Zip self-extracting archive (Git for Windows PortableGit
+/// `PortableGit-*.7z.exe`), run its silent extract switches into a fresh
+/// staging dir, validate `marker_rel`, and return the staging dir.
+///
+/// The archive is a PE executable: the caller must only pass a trusted URL
+/// (the bundled baseline pins the official Git for Windows release). The
+/// extractor runs on `spawn_blocking` and is hidden on Windows.
+pub async fn fetch_and_stage_sfx(
+    client: &reqwest::Client,
+    url: &str,
+    marker_rel: &str,
+) -> Result<PathBuf, AppError> {
+    let staging = std::env::temp_dir().join(format!("adl-env-staging-{}", nonce()));
+    std::fs::create_dir_all(&staging)
+        .map_err(|e| AppError::Io(format!("create {}: {e}", staging.display())))?;
+
+    let resp = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| abort(&staging, AppError::Network(format!("download {url}: {e}"))))?;
+    if !resp.status().is_success() {
+        return Err(abort(
+            &staging,
+            AppError::Network(format!("download {url}: HTTP {}", resp.status())),
+        ));
+    }
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| abort(&staging, AppError::Network(format!("read {url}: {e}"))))?;
+
+    // 7z SFX 必须落成文件才能执行；放在 staging 旁边，避免污染最终目录。
+    let archive = std::env::temp_dir().join(format!("adl-env-sfx-{}.7z.exe", nonce()));
+    std::fs::write(&archive, &bytes)
+        .map_err(|e| abort(&staging, AppError::Io(format!("write {}: {e}", archive.display()))))?;
+
+    let staging_for_run = staging.clone();
+    let archive_for_run = archive.clone();
+    let marker_owned = marker_rel.to_string();
+    let url_owned = url.to_string();
+    let extracted = tokio::task::spawn_blocking(move || -> Result<(), AppError> {
+        let output = sfx_command(&archive_for_run, &staging_for_run)
+            .output()
+            .map_err(|e| AppError::Io(format!("run 7z sfx from {url_owned}: {e}")))?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(AppError::InvalidInput(format!(
+                "7z sfx from {url_owned} exited with {}: {}",
+                output.status,
+                stderr.trim()
+            )));
+        }
+        unwrap_single_top_dir(&staging_for_run, &marker_owned);
+        Ok(())
+    })
+    .await;
+    let _ = std::fs::remove_file(&archive);
+    match extracted {
+        Ok(Ok(())) => {},
+        Ok(Err(e)) => return Err(abort(&staging, e)),
+        Err(e) => {
+            return Err(abort(&staging, AppError::Io(format!("7z sfx extract task failed: {e}"))));
+        },
+    }
+
+    if !staging.join(marker_rel).is_file() {
+        return Err(abort(
+            &staging,
+            AppError::InvalidInput(format!("marker {marker_rel} missing after extracting {url}")),
+        ));
+    }
+    Ok(staging)
+}
+
+/// Build the silent 7-Zip SFX extraction command (`-y -o<dir>`), suppressing the
+/// console window on Windows.
+fn sfx_command(archive: &Path, staging: &Path) -> std::process::Command {
+    let mut cmd = std::process::Command::new(archive);
+    cmd.arg("-y").arg(format!("-o{}", staging.display()));
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd
 }
 
 /// If `marker_rel` is not at the `staging` root but lives one level down
@@ -173,15 +263,25 @@ mod tests {
     }
 
     #[test]
-    fn git_mingit_url_uses_verbatim_tag_and_asset() {
+    fn git_portable_url_uses_verbatim_tag_and_asset() {
         assert_eq!(
-            git::mingit_url(
-                git::OFFICIAL_MINGIT_BASE,
-                "v2.56.0.windows.3",
-                "MinGit-2.56.0.3-64-bit.zip"
+            git::portable_git_url(
+                git::OFFICIAL_GIT_BASE,
+                "v2.56.0.windows.4",
+                "PortableGit-2.56.0.4-64-bit.7z.exe"
             ),
-            "https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.3/MinGit-2.56.0.3-64-bit.zip"
+            "https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.4/PortableGit-2.56.0.4-64-bit.7z.exe"
         );
+    }
+
+    #[test]
+    fn sfx_command_uses_silent_output_switch() {
+        let cmd = super::sfx_command(
+            std::path::Path::new("PortableGit.7z.exe"),
+            std::path::Path::new("C:/tmp/stage"),
+        );
+        let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
+        assert_eq!(args, vec!["-y".to_string(), "-oC:/tmp/stage".to_string()]);
     }
 
     #[test]

@@ -17,21 +17,11 @@ const RightPanel = lazy(() =>
   import('./regions/RightPanel').then((m) => ({ default: m.RightPanel })),
 );
 import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
-import { EnvWizard } from './features/environment/EnvWizard';
-import { HARNESS_WIZARD_DONE_KEY, HarnessSetupWizard } from './features/harness/HarnessSetupWizard';
+import { FirstRunProvisioningWizard } from './features/environment/FirstRunProvisioningWizard';
 import { ToastContainer } from './components/Toast';
 import { ToastRegion } from './components/ToastRegion';
 import { ConflictModal } from './components/ConflictModal';
 import { StartupOverlayWrapper } from './components/StartupOverlayWrapper';
-
-/** harness 向导的一次性完成标记（localStorage；隐私模式读取失败按已完成处理）。 */
-function readHarnessWizardDone(): boolean {
-  try {
-    return localStorage.getItem(HARNESS_WIZARD_DONE_KEY) === '1';
-  } catch {
-    return true;
-  }
-}
 
 export function App() {
   const errorToasts = useAppStore((state) => state.errorToasts);
@@ -196,7 +186,6 @@ export function App() {
   const envWizardRequestId = useAppStore((s) => s.envWizardRequestId);
   const [envWizardResolved, setEnvWizardResolved] = useState(false);
   const [showEnvWizard, setShowEnvWizard] = useState(false);
-  const [harnessWizardClosed, setHarnessWizardClosed] = useState(false);
   useEffect(() => {
     void (async () => {
       await applyPendingVersionSource();
@@ -340,14 +329,7 @@ export function App() {
         {activeNotification && (
           <ConflictModal notification={activeNotification} onDismiss={dismissPopup} />
         )}
-        {showEnvWizard && <EnvWizard onClose={() => setShowEnvWizard(false)} />}
-        {!showEnvWizard &&
-        envWizardResolved &&
-        envWizardDone &&
-        !harnessWizardClosed &&
-        !readHarnessWizardDone() ? (
-          <HarnessSetupWizard onClose={() => setHarnessWizardClosed(true)} />
-        ) : null}
+        {showEnvWizard && <FirstRunProvisioningWizard onClose={() => setShowEnvWizard(false)} />}
       </TCopyProvider>
       <StartupOverlayWrapper visible={!overlayHidden} />
     </ErrorBoundary>

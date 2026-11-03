@@ -1,8 +1,8 @@
-//! `bash` provider: system-side detection (Task 9).
+//! `bash` provider: system-side detection + hosted PortableGit bash.
 //!
-//! The hosted Git asset is **MinGit**, which does not ship `bash.exe`, so
-//! there is no hosted bash source. Candidates come from the full system Git
-//! for Windows install, WSL, MSYS2, or an explicit manual path.
+//! The hosted Git asset is **PortableGit**, which ships `bin/bash.exe`; that
+//! copy is the hosted bash source. System candidates remain the full Git for
+//! Windows install, WSL, MSYS2, or an explicit manual path.
 //!
 //! No `adl-pty` dependency: the fixed-path probes are re-implemented here as
 //! pure path constructors plus the pure ranking function
@@ -16,12 +16,17 @@ use serde::{Deserialize, Serialize};
 /// Bash source, in priority order (highest first).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BashKind {
+    /// `bin/bash.exe` inside the hosted PortableGit version dir.
+    Hosted,
     GitBundled,
     Wsl,
     Msys2,
     /// Caller-supplied (Task 11 set-custom-path), not produced by `detect()`.
     Manual,
 }
+
+/// Marker inside the hosted PortableGit version dir.
+pub const HOSTED_MARKER_REL: &str = "bin/bash.exe";
 
 /// One usable bash with its source.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -67,6 +72,27 @@ pub fn msys2_candidates() -> [PathBuf; 2] {
     [PathBuf::from("C:/msys64/usr/bin/bash.exe"), PathBuf::from("C:/tools/msys64/usr/bin/bash.exe")]
 }
 
+/// Selected PortableGit version when that version actually contains
+/// `bin/bash.exe`; `None` when Git is not installed or the asset lacks bash.
+pub fn host_version(data_dir: &Path) -> Option<String> {
+    crate::providers::git::host_bash_version(data_dir)
+}
+
+/// Absolute path of the hosted `bin/bash.exe` for `version` (no existence check).
+pub fn host_bin_path(data_dir: &Path, version: &str) -> PathBuf {
+    crate::providers::git::host_bash_path(data_dir, version)
+}
+
+/// Hosted bash candidate when PortableGit is installed with bash.
+pub fn detect_hosted(data_dir: &Path) -> Option<BashCandidate> {
+    let version = host_version(data_dir)?;
+    let path = host_bin_path(data_dir, &version);
+    path.is_file().then(|| BashCandidate {
+        kind: BashKind::Hosted,
+        path: path.to_string_lossy().into_owned(),
+    })
+}
+
 /// Detect usable bashes on this machine: probe the fixed paths (`Git`-bundled,
 /// MSYS2) and `PATH` (`bash`, `wsl`), build a snapshot, and rank it.
 pub fn detect() -> Vec<BashCandidate> {
@@ -98,8 +124,53 @@ fn where_first(prog: &str) -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BashKind, EnvSnapshot, candidates_from_snapshot};
-    use std::path::PathBuf;
+    use super::{BashKind, EnvSnapshot, candidates_from_snapshot, detect_hosted, host_bin_path};
+    use std::path::{Path, PathBuf};
+
+    fn temp_root(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "adl_env_bash_{tag}_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp root");
+        dir
+    }
+
+    fn install_portable_git(root: &Path, version: &str, with_bash: bool) {
+        let hv = adl_hosted::HostedVersions::open(
+            root,
+            crate::providers::git::HOSTED_NAME,
+            crate::providers::git::MARKER_REL,
+        );
+        hv.mark_installed(version).expect("git marker");
+        hv.write_selected(version).expect("select git");
+        if with_bash {
+            let bash = host_bin_path(root, version);
+            std::fs::create_dir_all(bash.parent().expect("bash parent")).expect("bash dir");
+            std::fs::write(&bash, b"x").expect("bash marker");
+        }
+    }
+
+    #[test]
+    fn hosted_bash_is_detected_from_portable_git() {
+        let root = temp_root("hosted");
+        install_portable_git(&root, "2.56.0", true);
+        let candidate = detect_hosted(&root).expect("hosted bash");
+        assert_eq!(candidate.kind, BashKind::Hosted);
+        assert_eq!(candidate.path, host_bin_path(&root, "2.56.0").to_string_lossy());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn hosted_bash_is_absent_without_the_marker() {
+        let root = temp_root("hosted-missing");
+        install_portable_git(&root, "2.56.0", false);
+        assert!(detect_hosted(&root).is_none());
+        let _ = std::fs::remove_dir_all(&root);
+    }
 
     #[test]
     fn ranking_prefers_system_git_over_wsl_and_msys2() {

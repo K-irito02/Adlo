@@ -85,8 +85,8 @@ mod tests {
         "node": { "stable": "24.22.1", "dist_base": "https://nodejs.org/dist" },
         "git": {
             "stable": "2.56.0",
-            "tag": "v2.56.0.windows.2",
-            "asset": "MinGit-2.56.0.2-64-bit.zip",
+            "tag": "v2.56.0.windows.4",
+            "asset": "PortableGit-2.56.0.4-64-bit.7z.exe",
             "base": "https://github.com/git-for-windows/git/releases/download"
         },
         "webview2": { "minimum": "140.0.0.0" }
@@ -108,12 +108,12 @@ mod tests {
         let path = write_sample(&tmp);
         let base = load_from(&path).unwrap();
         assert_eq!(base.node.stable, "24.22.1");
-        assert_eq!(base.git.tag, "v2.56.0.windows.2");
-        assert_eq!(base.git.asset, "MinGit-2.56.0.2-64-bit.zip");
+        assert_eq!(base.git.tag, "v2.56.0.windows.4");
+        assert_eq!(base.git.asset, "PortableGit-2.56.0.4-64-bit.7z.exe");
         assert_eq!(base.webview2.minimum, "140.0.0.0");
         // tag+asset 逐字透传：不得由 short semver 推导。
         assert!(base.git.tag.starts_with('v'));
-        assert_ne!(base.git.asset, format!("MinGit-{}.zip", base.git.stable));
+        assert_ne!(base.git.asset, format!("PortableGit-{}.7z.exe", base.git.stable));
         let _ = std::fs::remove_dir_all(&tmp);
     }
 

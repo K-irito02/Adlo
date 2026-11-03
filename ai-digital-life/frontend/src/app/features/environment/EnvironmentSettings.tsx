@@ -371,6 +371,13 @@ export function EnvironmentSettings() {
       >
         <SettingsHintButton content={t.environmentTitleHint} />
         <SettingsHeader title={t.settingsEnvironment} />
+        <button
+          type="button"
+          className="adl-dsh-settings__action-btn"
+          onClick={() => requestEnvWizard()}
+        >
+          {t.firstRunRerun}
+        </button>
       </div>
       {status === null ? (
         <div className="adl-settings-card">

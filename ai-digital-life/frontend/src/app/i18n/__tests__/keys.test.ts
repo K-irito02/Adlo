@@ -559,11 +559,7 @@ describe('i18n en-US namespace keys', () => {
       'environmentGoToSettings',
       // 引导
       'environmentWebview2DownloadPage',
-      'environmentDshCredentialNote',
-      // wizard 四键
-      'environmentWizardWelcome',
-      'environmentWizardDetecting',
-      'environmentWizardSkip',
+      // wizard 进入键（首启统一向导的其余文案在 firstRun* 域）
       'environmentWizardEnter',
       // wizard resume 横幅（Task 8：跳过记账后仍有未就绪项时置顶）
       'environmentWizardResumeBanner',

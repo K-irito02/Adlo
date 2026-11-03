@@ -180,11 +180,54 @@ pub fn is_shell_available(shell: ShellKind) -> bool {
     system_candidates(shell).iter().any(|p| p.exists())
 }
 
+/// PATH lookup (`where`) for a shell executable; first hit only.
+fn where_first(prog: &str) -> Option<PathBuf> {
+    let out = std::process::Command::new("where").arg(prog).output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let line = String::from_utf8_lossy(&out.stdout).lines().next()?.trim().to_string();
+    if line.is_empty() { None } else { Some(PathBuf::from(line)) }
+}
+
+/// PATH-resolved bash, except the WSL launcher in `System32` (not a real bash;
+/// the fixed candidates handle WSL through `wsl.exe`).
+fn bash_path_candidate(path: Option<PathBuf>) -> Option<PathBuf> {
+    let path = path?;
+    let name = path.file_name()?.to_str()?;
+    if !name.eq_ignore_ascii_case("bash.exe") {
+        return None;
+    }
+    let parent = path.parent()?.file_name()?.to_str()?;
+    if parent.eq_ignore_ascii_case("System32") {
+        return None;
+    }
+    Some(path)
+}
+
 pub struct ShellResolver;
 
 impl ShellResolver {
     pub fn resolve(shell: &str) -> Result<ShellResolution, ShellNotFound> {
         let kind = ShellKind::from_name(shell).ok_or_else(|| ShellNotFound::unknown(shell))?;
+
+        // Level 0 (bash only): PATH first. The server prepends the hosted
+        // PortableGit `bin/` when the source preference is host/auto, so the
+        // hosted bash wins over a system Git/WSL install.
+        if kind == ShellKind::Bash {
+            if let Some(candidate) = bash_path_candidate(where_first("bash")) {
+                let args = shell_args_for(&candidate);
+                tracing::debug!(
+                    program = %candidate.to_string_lossy(),
+                    "Shell resolved to PATH bash (hosted or custom)"
+                );
+                return Ok(ShellResolution {
+                    kind,
+                    program: candidate.to_string_lossy().to_string(),
+                    args,
+                });
+            }
+        }
 
         // Level 1: Well-known system paths
         for candidate in system_candidates(kind) {
@@ -334,6 +377,16 @@ mod tests {
     const POWERSHELL: &str = "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
     const BASH: &str = "C:\\Program Files\\Git\\bin\\bash.exe";
     const WSL: &str = "C:\\Windows\\System32\\wsl.exe";
+
+    #[test]
+    fn path_bash_prefers_hosted_but_skips_wsl_launcher() {
+        let hosted = PathBuf::from(
+            "C:/Users/u/AppData/Roaming/com.ai-digital-life.app/env-hosted/git/installed/2.56.0/bin/bash.exe",
+        );
+        assert_eq!(bash_path_candidate(Some(hosted.clone())), Some(hosted));
+        assert_eq!(bash_path_candidate(Some(PathBuf::from("C:/Windows/System32/bash.exe"))), None);
+        assert_eq!(bash_path_candidate(None), None);
+    }
 
     #[test]
     fn from_program_recognizes_known_shells() {

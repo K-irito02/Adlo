@@ -5,8 +5,8 @@
   },
   "git": {
     "stable": "2.56.0",
-    "tag": "v2.56.0.windows.2",
-    "asset": "MinGit-2.56.0.2-64-bit.zip",
+    "tag": "v2.56.0.windows.4",
+    "asset": "PortableGit-2.56.0.4-64-bit.7z.exe",
     "base": "https://github.com/git-for-windows/git/releases/download"
   },
   "webview2": {
