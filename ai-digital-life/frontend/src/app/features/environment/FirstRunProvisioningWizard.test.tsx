@@ -12,7 +12,10 @@ vi.mock('@features/preview/openByMethod', () => ({
 }));
 
 vi.mock('@hooks/useAppActions', () => ({
-  useAppActions: () => ({ selectEnvSource: vi.fn() }),
+  useAppActions: () => ({
+    selectEnvSource: vi.fn(),
+    recheckEnv: vi.fn(async () => true),
+  }),
 }));
 
 const mockT = new Proxy({} as Record<string, string>, {
@@ -166,7 +169,11 @@ function installBridge(
     getVersionTask: vi.fn(async () => ({ ok: true, data: { task: null } })),
   };
   (window as unknown as { digitalLife: unknown }).digitalLife = {
-    env: { getStatus: envGetStatus, install: envInstall },
+    env: {
+      getStatus: envGetStatus,
+      install: envInstall,
+      selectSource: vi.fn(async () => ({ ok: true, data: true })),
+    },
     dsh,
     opencode,
   };

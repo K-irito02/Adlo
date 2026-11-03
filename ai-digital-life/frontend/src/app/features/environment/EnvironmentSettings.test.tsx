@@ -5,6 +5,7 @@ import type { CopyDict } from '@i18n';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
 import { copyTextToClipboard, EnvironmentSettings } from './EnvironmentSettings';
+import { buildAgentDiagnostic } from './diagnostic';
 import { resetEnvSettingsCache } from './envStatusCache';
 import type { EnvDependencyState, EnvStatus } from '../../../shared/ipc/env';
 import { openUrlByMethod } from '@features/preview/openByMethod';
@@ -682,7 +683,7 @@ describe('EnvironmentSettings', () => {
     expect(text).not.toContain('（env-model-credential）');
   });
 
-  it('全量载荷：所有可检测项就绪时不附操作指引', async () => {
+  it('全量载荷：所有可检测项就绪时不附操作指引，且隐藏复制入口', async () => {
     const ready = fixture();
     ready.node = depState({
       mode: 'auto',
@@ -698,11 +699,17 @@ describe('EnvironmentSettings', () => {
     });
     seedStore({ envStatus: ready });
     await renderWithRows();
-    fireEvent.click(screen.getByRole('button', { name: 'environmentCopyAllForAgent' }));
-    await waitFor(() => {
-      expect(writeText).toHaveBeenCalledTimes(1);
+    // 5/5 就绪时聚合条不再显示「复制全部给智能体诊断」。
+    expect(screen.queryByRole('button', { name: 'environmentCopyAllForAgent' })).toBeNull();
+    // 载荷本身仍可直接生成：全就绪 → 不附 runbook。
+    const text = buildAgentDiagnostic('all', ready, {
+      t: mockT,
+      appVersion: '0.1.0',
+      bridge: 'tauri',
+      locale: 'zh-CN',
+      copiedAt: '2026-01-01T00:00:00.000Z',
+      userAgent: 'test',
     });
-    const text = clipboardReport();
     const payload = parseReportJson(text);
     expect(payload.dep).toBe('all');
     // bash/adlserver 的真实 wire 是 null 版本 + 空基线；健康时全部就绪 → 无操作指引。

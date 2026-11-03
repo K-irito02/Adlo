@@ -53,6 +53,6 @@ export const opencodeZh = {
   opencodeTerminalInjectionHint:
     '打开后，新建的终端会话会自动把宿主托管的目录放到 PATH 最前面，并为其指定独立的会话数据库（避免与你自己的 OpenCode 安装/更高版本冲突）；关闭后新会话不再注入。只影响新会话，已打开的终端保持不变。首次使用可能需要在终端里执行 opencode auth login。',
   opencodeTerminalInjectionSaved: '终端可用性已保存',
-  harnessWizardDsh: 'DSH（Web 形态）',
+  harnessWizardDsh: 'DSH「Web 形态」',
   harnessWizardOpencode: 'OpenCode CLI',
 };

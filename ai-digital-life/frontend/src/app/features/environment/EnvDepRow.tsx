@@ -261,27 +261,21 @@ export function EnvDepRow({
     .filter((part): part is string => part !== null)
     .join(' ');
 
-  // 来源下拉：node/git 四项（含指定路径）；bash 无宿主来源，三项（自动/系统/指定路径）；
+  // 来源下拉：node/git/bash 四项（含指定路径，bash 的宿主来源来自 PortableGit）；
   // 其余只读行不展示下拉（showControlColumn 为 false），此处仅为类型完备保留三项。
   const sourceOptions =
-    dep === 'node' || dep === 'git'
+    dep === 'node' || dep === 'git' || dep === 'bash'
       ? [
           { value: 'auto', label: t.environmentSourceAuto },
           { value: 'system', label: t.environmentSourceSystem },
           { value: 'host', label: t.environmentSourceHost },
           { value: 'custom', label: t.environmentSourceCustom },
         ]
-      : dep === 'bash'
-        ? [
-            { value: 'auto', label: t.environmentSourceAuto },
-            { value: 'system', label: t.environmentSourceSystem },
-            { value: 'custom', label: t.environmentSourceCustom },
-          ]
-        : [
-            { value: 'auto', label: t.environmentSourceAuto },
-            { value: 'system', label: t.environmentSourceSystem },
-            { value: 'host', label: t.environmentSourceHost },
-          ];
+      : [
+          { value: 'auto', label: t.environmentSourceAuto },
+          { value: 'system', label: t.environmentSourceSystem },
+          { value: 'host', label: t.environmentSourceHost },
+        ];
 
   // 指定路径输入：值 = 草稿 ?? 服务端 customPath；失焦且变化才调桥，
   // 失败回滚草稿（服务端已校验，前端只透传错误，action 侧 toast）。

@@ -129,7 +129,7 @@ export const environmentEn = {
   environmentDiagnosticRegistry: 'Download registry',
   environmentDiagnosticRegistryReachable: 'Reachable ({ms}ms)',
   environmentDiagnosticCiToken: 'CI credential',
-  firstRunTitleRunning: 'Preparing your environment and harness',
+  firstRunTitleRunning: 'Preparing environment and harness',
   firstRunTitleDone: 'Ready',
   firstRunTitleFailed: 'Ready, with {n} item(s) to review',
   firstRunGuideTitle: 'Manage these in the matching group under Settings (right panel)',
@@ -159,6 +159,9 @@ export const environmentEn = {
   firstRunWaiting: 'Waiting',
   firstRunFailed: 'Failed',
   firstRunRerun: 'Run first-time setup again',
+  firstRunRerunConfirmTitle: 'Run first-time setup again?',
+  firstRunRerunConfirmMessage:
+    'All 5 dependencies will be checked again: ready items are skipped, missing or unready items are reinstalled. Installed host-managed versions are kept, and the system environment is not modified.',
   firstRunGo: 'Open',
   firstRunPath: 'Settings › {group}',
   firstRunFooterNote: 'Host-managed; switch sources anytime in Settings',

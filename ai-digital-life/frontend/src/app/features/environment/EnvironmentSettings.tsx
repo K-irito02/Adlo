@@ -107,6 +107,7 @@ export function EnvironmentSettings() {
   const status = storeStatus ?? cachedStatus;
 
   const [installConfirmDep, setInstallConfirmDep] = useState<string | null>(null);
+  const [rerunConfirmOpen, setRerunConfirmOpen] = useState(false);
   const [groupResetOpen, setGroupResetOpen] = useState(false);
   const [groupResetBusy, setGroupResetBusy] = useState(false);
   // 行级 / 块级刷新的在途标记：只驱动对应的图标，不消费全局 envBusy。
@@ -371,13 +372,13 @@ export function EnvironmentSettings() {
       >
         <SettingsHintButton content={t.environmentTitleHint} />
         <SettingsHeader title={t.settingsEnvironment} />
-        <button
-          type="button"
-          className="adl-dsh-settings__action-btn"
-          onClick={() => requestEnvWizard()}
-        >
-          {t.firstRunRerun}
-        </button>
+        <SettingsRefreshButton
+          block
+          label={t.firstRunRerun}
+          title={t.firstRunRerun}
+          spinning={false}
+          onRefresh={() => setRerunConfirmOpen(true)}
+        />
       </div>
       {status === null ? (
         <div className="adl-settings-card">
@@ -452,28 +453,32 @@ export function EnvironmentSettings() {
                       total: ENV_READY_TOTAL,
                     })}
                   </span>
-                  {/* 方案 A：点与链接同条件渲染，status 为 null（聚合条不显示）时自然无点 */}
-                  <span aria-hidden="true">{' · '}</span>
-                  <button
-                    type="button"
-                    className={`adl-settings-link${copyAllPhase ? ' adl-btn-loading' : ''}`}
-                    data-settings-row={t.environmentCopyAllForAgent}
-                    disabled={copyAllPhase !== null}
-                    aria-busy={copyAllPhase === 'loading'}
-                    onClick={handleCopyAll}
-                  >
-                    <span className={copyAllPhase ? 'adl-btn-loading__text' : undefined}>
-                      {t.environmentCopyAllForAgent}
-                    </span>
-                    {copyAllPhase ? (
-                      <span
-                        className={`adl-btn-loading__spinner${copyAllPhase === 'loading' ? '' : ` adl-btn-loading__spinner--${copyAllPhase}`}`}
-                        aria-hidden="true"
+                  {/* 全部就绪后不再显示复制入口；未就绪时点与链接同条件渲染。 */}
+                  {readyCount < ENV_READY_TOTAL ? (
+                    <>
+                      <span aria-hidden="true">{' · '}</span>
+                      <button
+                        type="button"
+                        className={`adl-settings-link${copyAllPhase ? ' adl-btn-loading' : ''}`}
+                        data-settings-row={t.environmentCopyAllForAgent}
+                        disabled={copyAllPhase !== null}
+                        aria-busy={copyAllPhase === 'loading'}
+                        onClick={handleCopyAll}
                       >
-                        <FlashIcon phase={copyAllPhase} />
-                      </span>
-                    ) : null}
-                  </button>
+                        <span className={copyAllPhase ? 'adl-btn-loading__text' : undefined}>
+                          {t.environmentCopyAllForAgent}
+                        </span>
+                        {copyAllPhase ? (
+                          <span
+                            className={`adl-btn-loading__spinner${copyAllPhase === 'loading' ? '' : ` adl-btn-loading__spinner--${copyAllPhase}`}`}
+                            aria-hidden="true"
+                          >
+                            <FlashIcon phase={copyAllPhase} />
+                          </span>
+                        ) : null}
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
               <div className="adl-settings-row__control adl-settings-row__control--inline">
@@ -559,6 +564,18 @@ export function EnvironmentSettings() {
         cancelLabel={t.cancel}
         onConfirm={handleGroupConfirm}
         onCancel={handleGroupCancel}
+      />
+      <ConfirmDialog
+        open={rerunConfirmOpen}
+        title={t.firstRunRerunConfirmTitle}
+        message={t.firstRunRerunConfirmMessage}
+        confirmLabel={t.confirm}
+        cancelLabel={t.cancel}
+        onConfirm={() => {
+          setRerunConfirmOpen(false);
+          requestEnvWizard();
+        }}
+        onCancel={() => setRerunConfirmOpen(false)}
       />
     </div>
   );

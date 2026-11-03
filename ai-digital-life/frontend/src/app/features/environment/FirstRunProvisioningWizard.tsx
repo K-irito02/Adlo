@@ -6,6 +6,10 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { buildAgentDiagnostic } from './diagnostic';
 import { copyTextToClipboard } from './EnvironmentSettings';
+import {
+  prefetchOpencodeSnapshot,
+  resetOpencodeSnapshotCache,
+} from '@features/opencode/opencodeVersionBridge';
 import type { EnvStatus } from '../../../shared/ipc/env';
 import './firstRunProvisioning.css';
 
@@ -403,11 +407,28 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
     [dshBridge, opencodeBridge, patchItem, t],
   );
 
-  const finish = useCallback(() => {
+  const finish = useCallback(async () => {
     setPhase('done');
     setActiveId(null);
     setEnvWizardDone(true);
-  }, [setEnvWizardDone]);
+
+    // Q2：Node/Git/Bash 的来源偏好钉到宿主托管；用户主动选过系统兜底的项
+    // （system=true）不覆盖。随后刷新 env store 与两个 harness 组，避免设置
+    // 面板停留在安装前的旧快照（用户实测：切组后才变成宿主托管）。
+    const env = typeof window !== 'undefined' ? window.digitalLife?.env : undefined;
+    if (env) {
+      const runtimeDone = (['node', 'git', 'bash'] as const).filter((id) => {
+        const item = itemsRef.current.find((candidate) => candidate.id === id);
+        return item?.status === 'done' && !item.system;
+      });
+      await Promise.all(runtimeDone.map((id) => env.selectSource(id, 'host').catch(() => null)));
+    }
+    await actions.recheckEnv().catch(() => false);
+    // DSH 组用 source+version+catalog 原子快照；OpenCode 组用模块级快照缓存。
+    void useAppStore.getState().fetchDshSettingsSnapshot(true);
+    resetOpencodeSnapshotCache();
+    void prefetchOpencodeSnapshot();
+  }, [actions, setEnvWizardDone]);
 
   const runProvisioning = useCallback(
     async (mode: 'initial' | 'retry') => {
@@ -420,7 +441,7 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
         mode === 'initial' ? item.status !== 'done' : item.status === 'error',
       );
       if (pending.length === 0) {
-        finish();
+        await finish();
         return;
       }
 
@@ -488,7 +509,7 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
       if (runId !== runIdRef.current) {
         return;
       }
-      finish();
+      await finish();
     },
     [
       dshBridge,

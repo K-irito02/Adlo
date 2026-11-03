@@ -124,7 +124,7 @@ export const environmentZh = {
   environmentDiagnosticRegistry: '下载源',
   environmentDiagnosticRegistryReachable: '连通（延迟 {ms}ms）',
   environmentDiagnosticCiToken: 'CI 凭据',
-  firstRunTitleRunning: '正在准备相关环境与 harness',
+  firstRunTitleRunning: '正在准备环境与 harness',
   firstRunTitleDone: '准备完成',
   firstRunTitleFailed: '准备完成，有 {n} 项需要处理',
   firstRunGuideTitle: '可前往 右侧面板-设置面板 下对应设置组中查看与管理',
@@ -154,6 +154,9 @@ export const environmentZh = {
   firstRunWaiting: '等待',
   firstRunFailed: '失败',
   firstRunRerun: '重新运行首次准备',
+  firstRunRerunConfirmTitle: '重新运行首次准备？',
+  firstRunRerunConfirmMessage:
+    '将重新检测 5 项依赖：已就绪的项会跳过，缺失或未就绪的项会重新安装。已安装的宿主版本不会删除，也不会修改系统环境。',
   firstRunGo: '前往',
   firstRunPath: '设置 › {group}',
   firstRunFooterNote: '宿主托管，可随时在设置中切换',

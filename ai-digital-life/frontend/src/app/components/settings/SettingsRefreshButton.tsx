@@ -13,6 +13,11 @@ export interface SettingsRowRefreshState {
 
 interface SettingsRefreshButtonProps {
   label: string;
+  /**
+   * 覆盖默认的「刷新」title/aria-label。用于同一图标承担不同动作的场景
+   * （环境组的「重新运行首次准备」）。
+   */
+  title?: string;
   spinning: boolean;
   disabled?: boolean;
   /** 块标题右侧的刷新全部按钮：尺寸略大。 */
@@ -29,6 +34,7 @@ interface SettingsRefreshButtonProps {
  */
 export function SettingsRefreshButton({
   label,
+  title,
   spinning,
   disabled,
   block = false,
@@ -39,8 +45,8 @@ export function SettingsRefreshButton({
     <button
       type="button"
       className={`adl-settings-refresh${block ? ' adl-settings-refresh--block' : ''}`}
-      title={t.refresh}
-      aria-label={formatT(t, 'settingsRefreshAria', { target: label })}
+      title={title ?? t.refresh}
+      aria-label={title ?? formatT(t, 'settingsRefreshAria', { target: label })}
       aria-busy={spinning}
       aria-disabled={disabled === true || spinning}
       disabled={disabled === true}

@@ -53,6 +53,6 @@ export const opencodeEn = {
   opencodeTerminalInjectionHint:
     'When on, new terminal sessions prepend the host-managed directory to PATH and point it at an isolated session database (so it cannot conflict with your own OpenCode install or a newer version); when off, new sessions are left alone. Only new sessions are affected; open terminals keep their old PATH. You may need to run opencode auth login once.',
   opencodeTerminalInjectionSaved: 'Terminal availability saved',
-  harnessWizardDsh: 'DSH (web app)',
+  harnessWizardDsh: 'DSH "Web app"',
   harnessWizardOpencode: 'OpenCode CLI',
 };
