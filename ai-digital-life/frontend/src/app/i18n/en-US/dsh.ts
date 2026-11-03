@@ -100,7 +100,7 @@ export const dshEn = {
     'Will apply next launch; the current source is still in use this session.',
   dshSystemMissing: 'No system install found; cannot switch to system install.',
   dshSystemManagedNote:
-    'The source is “System install”; this app never modifies your system copy. Switch to “Host-managed” to install or uninstall versions here.',
+    'The “Version source” is “System install”; this app never modifies your system copy. Switch to “Host-managed” to install or uninstall versions here.',
   dshNoSourceHostNote:
     'No assistant version is available under “Host-managed”, so the assistant cannot start. Install or pick a version below, or switch “Version source” back to a source that has one.',
   dshNoSourceAutoNote:

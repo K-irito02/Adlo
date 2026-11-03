@@ -109,8 +109,9 @@ export interface HarnessVersionCapabilities {
     prerelease?: boolean;
   };
   /**
-   * 适配器拥有来源就绪/托管语义：只有 `source.ready === true` 且非系统托管时
-   * 才渲染管理行（DSH）。缺省按 `source.managed` 判定。
+   * 适配器拥有「来源就绪 / 管理项显隐」语义：只有 `source.ready === true` 且
+   * `source.managed !== false` 时才渲染管理项（DSH）。缺省按 `source.managed` 判定。
+   * `managed === false` 覆盖「系统托管」与「待切换来源为系统安装」两种状态。
    */
   sourceManaged?: boolean;
 }

@@ -14,7 +14,7 @@ export const opencodeZh = {
   opencodeSourceSystem: '系统安装',
   opencodeSourceHost: '宿主托管',
   opencodeSystemManagedNote:
-    '当前来源为“系统安装”，本应用不会修改系统安装的版本；需要在这里安装或卸载版本时，请切换到“宿主托管”。',
+    '“版本来源”是“系统安装”，本应用不会修改系统安装的版本；需要在这里安装或卸载版本时，请切换到“宿主托管”。',
   opencodeNoSourceHostNote:
     '“宿主托管”下没有可用的版本，新终端会话将无法使用 opencode 命令。请在下面安装一个版本，或把“版本来源”切换回有版本的来源。',
   opencodeNoSourceAutoNote:

@@ -95,7 +95,7 @@ export const dshZh = {
   dshVersionSourceDeferredNote: '已设为下次启动生效，本次仍使用当前来源。',
   dshSystemMissing: '未检测到系统安装，无法切换到系统安装。',
   dshSystemManagedNote:
-    '当前来源为“系统安装”，本应用不会修改系统安装的版本；需要在这里安装或卸载时，请切换到“宿主托管”。',
+    '“版本来源”是“系统安装”，本应用不会修改系统安装的版本；需要在这里安装或卸载时，请切换到“宿主托管”。',
   dshNoSourceHostNote:
     '“宿主托管”下没有可用的助手版本，助手将无法拉起。请在下面安装或选择一个版本，或把“版本来源”切换回有版本的来源。',
   dshNoSourceAutoNote: '没有任何可用的助手版本，助手将无法拉起。请在下方安装一个版本。',
