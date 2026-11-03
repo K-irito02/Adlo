@@ -19,6 +19,10 @@ Node.js / PortableGit 的宿主安装会在官方源失败后回退 npmmirror。
 - **测试要覆盖决策点**：本地 `127.0.0.1` TCP stub 返回固定 zip，分别断言正确哈希
   `Ok`、错误哈希 `Err`；SFX 错误哈希必须在执行前失败。只测 `sha256_hex` 纯函数
   不算回归保护。
+- **SFX 窗口用 `SW_HIDE` 隐藏**：`CREATE_NO_WINDOW` 只隐藏控制台，管不了 SFX 的
+  GUI 进度窗；Windows 下用 `CreateProcessW` + `STARTF_USESHOWWINDOW` +
+  `wShowWindow=0`。不要用 `-gm2`：官方 Git for Windows SFX 会忽略它，并可能以
+  退出码 0 静默解压出 0 个文件。
 
 ## 相关文件
 

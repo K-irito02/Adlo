@@ -218,15 +218,11 @@ pub async fn fetch_and_stage_sfx(
     let marker_owned = marker_rel.to_string();
     let url_owned = url.to_string();
     let extracted = tokio::task::spawn_blocking(move || -> Result<(), AppError> {
-        let output = sfx_command(&archive_for_run, &staging_for_run)
-            .output()
+        let code = run_sfx(&archive_for_run, &staging_for_run)
             .map_err(|e| AppError::Io(format!("run 7z sfx from {url_owned}: {e}")))?;
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
+        if code != 0 {
             return Err(AppError::InvalidInput(format!(
-                "7z sfx from {url_owned} exited with {}: {}",
-                output.status,
-                stderr.trim()
+                "7z sfx from {url_owned} exited with code {code}"
             )));
         }
         unwrap_single_top_dir(&staging_for_run, &marker_owned);
@@ -251,18 +247,124 @@ pub async fn fetch_and_stage_sfx(
     Ok(staging)
 }
 
-/// Build the silent 7-Zip SFX extraction command (`-y -o<dir>`), suppressing the
-/// console window on Windows.
-fn sfx_command(archive: &Path, staging: &Path) -> std::process::Command {
-    let mut cmd = std::process::Command::new(archive);
-    cmd.arg("-y").arg(format!("-o{}", staging.display()));
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
+/// Silent 7-Zip SFX extraction arguments. Never add `-gm2`: the official
+/// Git for Windows SFX ignores it and can exit 0 without extracting anything.
+fn sfx_args(staging: &Path) -> Vec<String> {
+    vec!["-y".to_string(), format!("-o{}", staging.display())]
+}
+
+/// Run the SFX with its GUI window hidden (`STARTF_USESHOWWINDOW` + `SW_HIDE`)
+/// and return its exit code. `CREATE_NO_WINDOW` alone only hides consoles, not
+/// the SFX's own progress dialog.
+#[cfg(windows)]
+fn run_sfx(archive: &Path, staging: &Path) -> Result<u32, AppError> {
+    use std::os::windows::ffi::OsStrExt;
+
+    use windows::Win32::Foundation::{CloseHandle, WAIT_OBJECT_0};
+    use windows::Win32::System::Threading::{
+        CREATE_NO_WINDOW, CreateProcessW, GetExitCodeProcess, INFINITE, PROCESS_INFORMATION,
+        WaitForSingleObject,
+    };
+    use windows::core::{PCWSTR, PWSTR};
+
+    let exe: Vec<u16> = archive.as_os_str().encode_wide().chain(Some(0)).collect();
+    let mut command_line: Vec<u16> = format!(
+        "{} {}",
+        quote_windows_arg(&archive.to_string_lossy()),
+        sfx_args(staging).iter().map(|arg| quote_windows_arg(arg)).collect::<Vec<_>>().join(" ")
+    )
+    .encode_utf16()
+    .chain(Some(0))
+    .collect();
+    let startup = hidden_startup_info();
+    let mut process = PROCESS_INFORMATION::default();
+    unsafe {
+        CreateProcessW(
+            PCWSTR(exe.as_ptr()),
+            Some(PWSTR(command_line.as_mut_ptr())),
+            None,
+            None,
+            false,
+            CREATE_NO_WINDOW,
+            None,
+            PCWSTR::null(),
+            &startup,
+            &mut process,
+        )
+        .map_err(|e| AppError::Io(format!("launch 7z sfx {}: {e}", archive.display())))?;
+        let wait = WaitForSingleObject(process.hProcess, INFINITE);
+        let mut code = 0u32;
+        let _ = GetExitCodeProcess(process.hProcess, &mut code);
+        let _ = CloseHandle(process.hProcess);
+        let _ = CloseHandle(process.hThread);
+        if wait != WAIT_OBJECT_0 {
+            return Err(AppError::Io(format!(
+                "wait for 7z sfx {} failed: {wait:?}",
+                archive.display()
+            )));
+        }
+        Ok(code)
     }
-    cmd
+}
+
+#[cfg(windows)]
+fn hidden_startup_info() -> windows::Win32::System::Threading::STARTUPINFOW {
+    use windows::Win32::System::Threading::{STARTF_USESHOWWINDOW, STARTUPINFOW};
+
+    STARTUPINFOW {
+        cb: std::mem::size_of::<STARTUPINFOW>() as u32,
+        dwFlags: STARTF_USESHOWWINDOW,
+        wShowWindow: 0, // SW_HIDE
+        ..Default::default()
+    }
+}
+
+/// Windows command-line quoting for `CreateProcessW` (spaces/quotes).
+fn quote_windows_arg(arg: &str) -> String {
+    if !arg.chars().any(|c| c == ' ' || c == '\t' || c == '"') {
+        return arg.to_string();
+    }
+    let mut out = String::with_capacity(arg.len() + 2);
+    out.push('"');
+    let mut backslashes = 0;
+    for ch in arg.chars() {
+        match ch {
+            '\\' => {
+                backslashes += 1;
+                out.push('\\');
+            },
+            '"' => {
+                out.push_str(&"\\".repeat(backslashes + 1));
+                out.push('"');
+                backslashes = 0;
+            },
+            _ => {
+                backslashes = 0;
+                out.push(ch);
+            },
+        }
+    }
+    out.push_str(&"\\".repeat(backslashes));
+    out.push('"');
+    out
+}
+
+#[cfg(not(windows))]
+fn run_sfx(archive: &Path, staging: &Path) -> Result<u32, AppError> {
+    let output = std::process::Command::new(archive)
+        .args(sfx_args(staging))
+        .output()
+        .map_err(|e| AppError::Io(format!("run 7z sfx {}: {e}", archive.display())))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(AppError::InvalidInput(format!(
+            "7z sfx {} exited with {}: {}",
+            archive.display(),
+            output.status,
+            stderr.trim()
+        )));
+    }
+    Ok(0)
 }
 
 /// If `marker_rel` is not at the `staging` root but lives one level down
@@ -378,13 +480,31 @@ mod tests {
     }
 
     #[test]
-    fn sfx_command_uses_silent_output_switch() {
-        let cmd = super::sfx_command(
-            std::path::Path::new("PortableGit.7z.exe"),
-            std::path::Path::new("C:/tmp/stage"),
-        );
-        let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
+    fn sfx_args_use_silent_output_and_never_gm2() {
+        let args = super::sfx_args(std::path::Path::new("C:/tmp/stage"));
         assert_eq!(args, vec!["-y".to_string(), "-oC:/tmp/stage".to_string()]);
+        assert!(!args.iter().any(|arg| arg.contains("-gm2")));
+    }
+
+    #[test]
+    fn windows_arg_quoting_handles_spaces_and_quotes() {
+        assert_eq!(super::quote_windows_arg("plain"), "plain");
+        assert_eq!(super::quote_windows_arg(r"C:\Program Files\Git"), r#""C:\Program Files\Git""#);
+        assert_eq!(super::quote_windows_arg(r#"a"b"#), r#""a\"b""#);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn sfx_startup_info_hides_the_window() {
+        use windows::Win32::System::Threading::STARTF_USESHOWWINDOW;
+
+        let info = super::hidden_startup_info();
+        assert_eq!(info.dwFlags, STARTF_USESHOWWINDOW);
+        assert_eq!(info.wShowWindow, 0);
+        assert_eq!(
+            info.cb as usize,
+            std::mem::size_of::<windows::Win32::System::Threading::STARTUPINFOW>()
+        );
     }
 
     #[test]

@@ -19,7 +19,7 @@
 - **基线**（`src-tauri/resources/env-baseline.json`，随包资源）：node stable/dist 源、git stable/tag/asset/base、
   webview2 minimum，以及 node/git 资产的 `sha256` 钉死哈希；用于 `meetsBaseline` 判定、安装版本选择与下载完整性校验。
 - **宿主托管来源（host source）**：应用自行下载并安装在数据目录下的副本；系统来源可为 PATH / 注册表 / 随包 / 手填路径（`origin`）。
-- **下载完整性**：Git PortableGit 在执行 SFX 前用 GitHub release `digest`（或 baseline 钉死哈希）校验；Node zip 在解压前校验，钉死版本用钉死哈希，其它版本先取官方 `SHASUMS256.txt`、官方不可达才退同源清单（此时镜像仍可能同时替换 zip 与清单，属残余风险，校验失败即中止）。
+- **下载完整性**：Git PortableGit 在执行 SFX 前用 GitHub release `digest`（或 baseline 钉死哈希）校验；Node zip 在解压前校验，钉死版本用钉死哈希，其它版本先取官方 `SHASUMS256.txt`、官方不可达才退同源清单（此时镜像仍可能同时替换 zip 与清单，属残余风险，校验失败即中止）。SFX 以隐藏窗口启动（`STARTF_USESHOWWINDOW` + `SW_HIDE`），失败仍通过任务错误/诊断单上报。
 
 ## Providers
 

@@ -114,6 +114,7 @@ dependencies = [
  "sha2",
  "tokio",
  "tracing",
+ "windows 0.61.3",
  "zip",
 ]
 
