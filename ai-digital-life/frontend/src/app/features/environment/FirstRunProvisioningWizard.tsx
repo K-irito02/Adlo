@@ -240,11 +240,6 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
         patchItem(id, { status: 'error', error: t.firstRunBridgeUnavailable });
         return false;
       }
-      // 与设置组同口径：浏览器预览只检测 + 引导，原生安装需要桌面模式。
-      if (!isTauri) {
-        patchItem(id, { status: 'error', error: t.environmentInstallDesktopOnlyHint });
-        return false;
-      }
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
         if (!mountedRef.current) {
           return false;
@@ -294,7 +289,7 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
       patchItem(id, { status: 'error' });
       return false;
     },
-    [envBridge, isTauri, patchItem, t, waitEnvTask],
+    [envBridge, patchItem, t, waitEnvTask],
   );
 
   const verifyBash = useCallback(async (): Promise<boolean> => {
@@ -335,10 +330,6 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
       const bridge = id === 'dsh' ? dshBridge : opencodeBridge;
       if (!bridge) {
         patchItem(id, { status: 'error', error: t.firstRunBridgeUnavailable });
-        return false;
-      }
-      if (!isTauri) {
-        patchItem(id, { status: 'error', error: t.environmentInstallDesktopOnlyHint });
         return false;
       }
       const source = await bridge.getSourceStatus();
@@ -409,7 +400,7 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
       patchItem(id, { status: 'error' });
       return false;
     },
-    [dshBridge, isTauri, opencodeBridge, patchItem, t],
+    [dshBridge, opencodeBridge, patchItem, t],
   );
 
   const finish = useCallback(() => {
