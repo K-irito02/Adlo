@@ -215,7 +215,8 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
         return item.note;
       }
       if (item.status === 'error') {
-        return t.firstRunRetriesExhausted;
+        // 未进入安装循环（桥接不可用、无可用版本等）时没有尝试过，不能谎报重试耗尽。
+        return item.attempt > 0 ? t.firstRunRetriesExhausted : t.firstRunFailed;
       }
       if (item.status === 'retrying') {
         return formatT(t, 'firstRunRetryCount', { n: item.retries });
@@ -371,30 +372,24 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
         patchItem(id, { status: 'error', error: t.firstRunBridgeUnavailable });
         return false;
       }
+      // 来源状态是本地事实（系统安装探测 + 宿主选中版本），断网也能用：
+      // 已装好就不该因为查不到在线目录而报失败。
       const source = await bridge.getSourceStatus();
       if (source.ok && source.data.system) {
         patchItem(id, { status: 'done', system: true, note: t.firstRunSystemNote });
         return true;
       }
-      const status = await bridge.getVersionStatus();
-      if (
-        status.ok &&
-        (status.data.installed.length > 0 ||
-          (source.ok && source.data.versionSource.hostVersion !== null))
-      ) {
+      if (source.ok && source.data.versionSource.hostVersion !== null) {
         patchItem(id, { status: 'done', note: t.firstRunHostedNote });
         return true;
       }
-      const catalog = await bridge.getVersionCatalog();
-      if (!catalog.ok) {
-        patchItem(id, { status: 'error', error: catalog.error.message });
-        return false;
+      const status = await bridge.getVersionStatus();
+      if (status.ok && status.data.installed.length > 0) {
+        patchItem(id, { status: 'done', note: t.firstRunHostedNote });
+        return true;
       }
-      const version = catalog.data.latestStable ?? catalog.data.latestPrerelease;
-      if (!version) {
-        patchItem(id, { status: 'error', error: t.firstRunNoOfficialVersion });
-        return false;
-      }
+      // 没有可用版本才需要在线目录；目录查询失败同样计入尝试次数并退避重试，
+      // 避免「0/4 次尝试却显示已用尽重试」的误导。
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
         if (!mountedRef.current) {
           return false;
@@ -406,6 +401,32 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
           retries: attempt - 1,
           error: null,
         });
+        const catalog = await bridge.getVersionCatalog();
+        if (!catalog.ok) {
+          patchItem(id, {
+            status: 'retrying',
+            error: catalog.error.message,
+            history: [
+              ...(itemsRef.current.find((i) => i.id === id)?.history ?? []),
+              `${attempt}/4: ${catalog.error.message}`,
+            ],
+          });
+          if (attempt < MAX_ATTEMPTS) {
+            await sleep(BACKOFF_MS[attempt - 1]);
+          }
+          continue;
+        }
+        const version = catalog.data.latestStable ?? catalog.data.latestPrerelease;
+        if (!version) {
+          // 目录查得到但没有可装版本：重试无意义，如实显示「失败」而非重试耗尽。
+          patchItem(id, {
+            status: 'error',
+            error: t.firstRunNoOfficialVersion,
+            attempt: 0,
+            retries: 0,
+          });
+          return false;
+        }
         const poll = window.setInterval(() => {
           void bridge.getVersionTask().then((task) => {
             if (task.ok && task.data.task) {
@@ -508,22 +529,20 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
       if (runId !== runIdRef.current) {
         return;
       }
+      // 已装版本优先看本地来源状态（system / hostVersion），不依赖在线目录：
+      // 断网时 getVersionStatus 可能整体失败，但本地已装的版本依然可用。
       if (dshSource?.ok && dshSource.data.system) {
         patchItem('dsh', { status: 'done', system: true, note: t.firstRunSystemNote });
-      } else if (
-        dshStatus?.ok &&
-        (dshStatus.data.installed.length > 0 ||
-          (dshSource?.ok && dshSource.data.versionSource.hostVersion !== null))
-      ) {
+      } else if (dshSource?.ok && dshSource.data.versionSource.hostVersion !== null) {
+        patchItem('dsh', { status: 'done', note: t.firstRunHostedNote });
+      } else if (dshStatus?.ok && dshStatus.data.installed.length > 0) {
         patchItem('dsh', { status: 'done', note: t.firstRunHostedNote });
       }
       if (ocSource?.ok && ocSource.data.system) {
         patchItem('opencode', { status: 'done', system: true, note: t.firstRunSystemNote });
-      } else if (
-        ocStatus?.ok &&
-        (ocStatus.data.installed.length > 0 ||
-          (ocSource?.ok && ocSource.data.versionSource.hostVersion !== null))
-      ) {
+      } else if (ocSource?.ok && ocSource.data.versionSource.hostVersion !== null) {
+        patchItem('opencode', { status: 'done', note: t.firstRunHostedNote });
+      } else if (ocStatus?.ok && ocStatus.data.installed.length > 0) {
         patchItem('opencode', { status: 'done', note: t.firstRunHostedNote });
       }
 

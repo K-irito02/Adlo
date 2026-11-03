@@ -112,6 +112,27 @@ function harnessSource(system: boolean) {
   };
 }
 
+function harnessSourceHost() {
+  return {
+    ok: true as const,
+    data: {
+      system: null,
+      versionSource: {
+        mode: 'auto' as const,
+        effective: 'host' as const,
+        resolvedByMode: {
+          auto: 'host' as const,
+          system: 'system' as const,
+          host: 'host' as const,
+        },
+        hostVersion: '1.0.0',
+      },
+      config: { version_source: 'auto' as const, source_mode: 'auto' as const, npm_registry: '' },
+      terminalInjection: true,
+    },
+  };
+}
+
 function harnessStatus() {
   return {
     ok: true as const,
@@ -252,5 +273,38 @@ describe('FirstRunProvisioningWizard', () => {
       timeout: 8000,
     });
     expect(envInstall).toHaveBeenCalledWith('node');
+  });
+
+  it('keeps installed hosted harnesses ready when the network status/catalog fail', async () => {
+    const envGetStatus = vi.fn(async () => ({ ok: true, data: envFixture(true) }));
+    const envInstall = vi.fn(async () => ({ ok: true, data: { started: true } }));
+    const { dsh, opencode } = installBridge(envGetStatus, envInstall);
+    const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
+    // 断网：在线目录与版本状态都失败，但本地已装（hostVersion）仍应判定就绪。
+    for (const bridge of [dsh, opencode]) {
+      asMock(bridge.getSourceStatus).mockResolvedValue(harnessSourceHost());
+      asMock(bridge.getVersionStatus).mockResolvedValue({
+        ok: false,
+        error: { message: 'offline' },
+      });
+      asMock(bridge.getVersionCatalog).mockResolvedValue({
+        ok: false,
+        error: { message: 'offline' },
+      });
+    }
+
+    render(
+      <TestProvider>
+        <FirstRunProvisioningWizard onClose={vi.fn()} />
+      </TestProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('firstRunTitleDone')).toBeTruthy(), {
+      timeout: 8000,
+    });
+    expect(screen.getAllByText('firstRunSummaryAllReady').length).toBeGreaterThan(0);
+    // 已装版本直接判定就绪，不进入安装流程（OpenCode 的目录预取不属于安装）。
+    expect(dsh.installVersion).not.toHaveBeenCalled();
+    expect(opencode.installVersion).not.toHaveBeenCalled();
   });
 });

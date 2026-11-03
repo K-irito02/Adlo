@@ -390,11 +390,12 @@
   color: var(--text-primary);
 }
 
-/* 复制成功时在文字左侧短暂出现灰色对勾（Toast 被模糊层遮住，不够明显）。 */
+/* 复制成功时在文字左侧短暂出现灰色对勾（Toast 被模糊层遮住，不够明显）。
+   图标绝对定位、不占布局：文字区域位置固定，不会为图标让位而整体右移。 */
 .adl-fr-copy-link {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
   text-decoration: none;
 }
 
@@ -405,19 +406,23 @@
 }
 
 .adl-fr-copy-check {
-  flex: 0 0 auto;
+  position: absolute;
+  right: calc(100% + 4px);
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--text-muted);
+  pointer-events: none;
   animation: adl-fr-copy-check-in 160ms ease-out;
 }
 
 @keyframes adl-fr-copy-check-in {
   from {
     opacity: 0;
-    transform: scale(0.7);
+    transform: translateY(-50%) scale(0.7);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(-50%) scale(1);
   }
 }
 
