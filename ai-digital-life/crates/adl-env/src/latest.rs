@@ -63,11 +63,11 @@ pub fn parse_node_index(body: &str) -> Option<String> {
         let Ok(version) = raw.trim_start_matches('v').parse::<semver::Version>() else {
             continue;
         };
-        if best_any.as_ref().map_or(true, |best| version > *best) {
+        if best_any.as_ref().is_none_or(|best| version > *best) {
             best_any = Some(version.clone());
         }
         let is_lts = release.get("lts").is_some_and(|value| value != &Value::Bool(false));
-        if is_lts && best_lts.as_ref().map_or(true, |best| version > *best) {
+        if is_lts && best_lts.as_ref().is_none_or(|best| version > *best) {
             best_lts = Some(version);
         }
     }
