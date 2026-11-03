@@ -124,7 +124,7 @@ export const environmentZh = {
   environmentDiagnosticRegistry: '下载源',
   environmentDiagnosticRegistryReachable: '连通（延迟 {ms}ms）',
   environmentDiagnosticCiToken: 'CI 凭据',
-  firstRunTitleRunning: '正在准备环境与 harness',
+  firstRunTitleRunning: '首次运行准备',
   firstRunTitleDone: '准备完成',
   firstRunTitleFailed: '准备完成，有 {n} 项需要处理',
   firstRunGuideTitle: '可前往 右侧面板-设置面板 下对应设置组中查看与管理',

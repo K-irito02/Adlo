@@ -129,7 +129,7 @@ export const environmentEn = {
   environmentDiagnosticRegistry: 'Download registry',
   environmentDiagnosticRegistryReachable: 'Reachable ({ms}ms)',
   environmentDiagnosticCiToken: 'CI credential',
-  firstRunTitleRunning: 'Preparing environment and harness',
+  firstRunTitleRunning: 'First-run setup',
   firstRunTitleDone: 'Ready',
   firstRunTitleFailed: 'Ready, with {n} item(s) to review',
   firstRunGuideTitle: 'Manage these in the matching group under Settings (right panel)',
