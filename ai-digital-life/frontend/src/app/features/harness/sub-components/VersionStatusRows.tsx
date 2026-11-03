@@ -76,10 +76,20 @@ interface FallbackReadoutProps {
   failed: boolean;
   /** 版本操作在途：与 DSH 读数一致，改为中性扫光胶囊，不展示中途值。 */
   busy?: boolean;
+  /**
+   * 当前来源解析为「无」（如钉住系统安装但本机没有副本）：`current` 只是宿主的
+   * 选中记录，并不在生效，必须显示「未安装」而不是它。
+   */
+  unavailable?: boolean;
 }
 
 /** 无运行态插槽时的通用读数：只显示版本号；只有完全没有读数时才展示失败文案。 */
-export function FallbackReadout({ current, failed, busy = false }: FallbackReadoutProps) {
+export function FallbackReadout({
+  current,
+  failed,
+  busy = false,
+  unavailable = false,
+}: FallbackReadoutProps) {
   const { t } = useTCopy();
   if (busy) {
     return (
@@ -94,6 +104,13 @@ export function FallbackReadout({ current, failed, busy = false }: FallbackReado
     return (
       <span className="adl-harness-version__readout-value is-empty">
         {t.harnessVersionLoadFailed}
+      </span>
+    );
+  }
+  if (unavailable) {
+    return (
+      <span className="adl-harness-version__readout-value is-empty">
+        {t.harnessVersionNotInstalled}
       </span>
     );
   }

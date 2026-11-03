@@ -100,17 +100,19 @@ export function useDshSettings() {
   // 应用自启的托管版本仍按偏好来源显示宿主托管/系统安装。
   const effectiveSource = versionSource?.effective ?? null;
   const runningSource = sourceStatus?.running?.source ?? null;
-  // 显隐：配置为系统 / 偏好解析落在系统 → 视为系统托管。
+  // 显隐：配置为系统 / 偏好解析落在系统 → 视为「版本交给系统维护」（说明文案用）。
   // 注意：这里**不**包含「待切换为系统」（pending）—— 下次启动才生效时，现在实际
   // 用的仍是原来源，蓝色状态行与系统托管说明不能提前声称已是系统安装。
-  const systemManaged = mode === 'system' || resolvedSource === 'system';
+  // 与卡片隐藏「当前版本」行的 `systemManaged`（系统安装真实生效）刻意分开命名，
+  // 后者允许「钉住系统但本机没有副本」仍显示当前版本行。
+  const systemPinned = mode === 'system' || resolvedSource === 'system';
 
   return {
     t,
     bridge,
     sourceStatus,
     deferredSource,
-    systemManaged,
+    systemPinned,
     resolvedSource,
     effectiveSource,
     runningSource,

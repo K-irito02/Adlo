@@ -31,9 +31,18 @@ export interface HarnessVersionSourceStatus {
   ready?: boolean;
   /**
    * 宿主是否管理版本（安装/切换/卸载/更新等管理项是否可用）。
-   * 缺省按 true；DSH 在「系统安装」生效时置 false，卡片隐藏管理行。
+   * 缺省按 true；DSH 在「系统安装」偏好生效（含待切换）时置 false，卡片隐藏管理行。
    */
   managed?: boolean;
+  /**
+   * 「系统安装」是否真实在生效（偏好解析落在系统安装，且本机确有系统安装）。
+   *
+   * 与 `managed` 刻意分开：`managed === false` 还包含「待切换为系统安装（下次启动生效，
+   * 本次仍用原来源）」与「钉住系统安装但本机已没有副本（解析为无）」两种情况，两者
+   * 当前版本行都必须保留（后者读数显示「未安装」）。只有该字段为 true 时卡片才隐藏
+   * 「当前版本」。
+   */
+  systemManaged?: boolean;
 }
 
 /** 一次版本变更操作的结果；`cancelled` 让卡片以警告而非错误提示收尾。 */

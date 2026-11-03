@@ -29,7 +29,7 @@ export function DshSettings() {
     t,
     bridge,
     deferredSource,
-    systemManaged,
+    systemPinned,
     resolvedSource,
     effectiveSource,
     runningSource,
@@ -90,7 +90,7 @@ export function DshSettings() {
           descPrerelease: t.dshPrereleaseDesc,
           sourceNote: (
             <DshVersionSourceNote
-              systemManaged={systemManaged}
+              systemPinned={systemPinned}
               deferredSource={deferredSource}
               resolvedSource={resolvedSource}
               effectiveSource={effectiveSource}

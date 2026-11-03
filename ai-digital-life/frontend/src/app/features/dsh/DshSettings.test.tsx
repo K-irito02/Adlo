@@ -322,8 +322,8 @@ describe('DshSettings', () => {
     });
     // DSH 固定单卡（无手动版本行 / 已安装独立卡）：双通道行随管理行一起隐藏。
     expect(root?.querySelector('[data-settings-row="dshOfficialStable"]')).toBeNull();
-    // 当前版本行与系统安装读数仍可见。
-    expect(root?.querySelector('[data-settings-row="harnessVersionCurrent"]')).not.toBeNull();
+    // 当前版本行同样隐藏：它读的是宿主选中版本，系统安装生效时会冒充在用版本。
+    expect(root?.querySelector('[data-settings-row="harnessVersionCurrent"]')).toBeNull();
     expect(screen.getByText('dshSystemManagedNote')).not.toBeNull();
   });
 
@@ -678,6 +678,33 @@ describe('DshSettings', () => {
     await waitFor(() => expect(document.querySelector('[data-settings-auto-note]')).not.toBeNull());
     expect(screen.queryByText('dshSystemManagedNote')).toBeNull();
     expect(screen.getByText('dshVersionSourceDeferredNote')).not.toBeNull();
+    // 本次会话仍在用原来源：「当前版本」读数必须保留（不能因 managed=false 提前隐藏）。
+    expect(document.querySelector('[data-settings-row="harnessVersionCurrent"]')).not.toBeNull();
+  });
+
+  it('钉住系统安装但本机已无系统副本：当前版本行保留（显示未安装）', async () => {
+    const status = makeStatus();
+    useAppStore.setState({
+      sourceStatus: {
+        ...status,
+        system: null,
+        versionSource: {
+          mode: 'system',
+          effective: 'none',
+          resolvedByMode: { auto: 'none', host: 'none', system: 'none' },
+          hostVersion: null,
+        },
+      },
+      versionStatus: makeVersionStatus({ currentSelected: null, installed: [] }),
+    });
+    renderSettings();
+    await waitFor(() =>
+      expect(document.querySelector('[data-settings-row="harnessVersionCurrent"]')).not.toBeNull(),
+    );
+    // 解析结果不是系统安装，不能冒充「系统安装生效」。
+    expect(document.querySelector('.adl-harness-version__readout')?.textContent).toBe(
+      'dshCurrentVersionNone',
+    );
   });
 
   it('无可用来源时管理项保持可见，并保留「宿主托管无版本」提示', async () => {
@@ -702,7 +729,7 @@ describe('DshSettings', () => {
     expect(screen.queryByText('dshSystemManagedNote')).toBeNull();
   });
 
-  it('运行态插槽：系统安装只显示版本号（安装路径不再重复展示）', async () => {
+  it('系统安装生效时当前版本行隐藏（宿主选中版本不再冒充在用版本）', async () => {
     const status = makeStatus();
     useAppStore.setState({
       sourceStatus: {
@@ -718,9 +745,11 @@ describe('DshSettings', () => {
       versionStatus: makeVersionStatus({ currentSelected: null, installed: [] }),
     });
     renderSettingsWithSummary();
-    const readout = document.querySelector('.adl-harness-version__readout');
-    expect(readout).not.toBeNull();
-    expect(readout?.textContent).toBe('0.9.0');
+    await waitFor(() =>
+      expect(document.querySelector('[data-settings-row="harnessVersionCurrent"]')).toBeNull(),
+    );
+    // 读数容器随行走：卡内不再出现任何版本读数。
+    expect(document.querySelector('.adl-harness-version__readout')).toBeNull();
   });
 
   it('运行态插槽：无可用版本时显示「未安装」', async () => {

@@ -9,12 +9,12 @@ export const opencodeEn = {
   opencodeSourceTitle: 'Version source',
   opencodeSourceDesc: 'Choose which OpenCode CLI build to use',
   opencodeSourceHint:
-    'Decides which OpenCode CLI build takes effect. Automatic resolves in this order: a version this app installed (host-managed) → a version installed on your computer (system install).\n· The dropdown always shows your choice (Automatic / System install / Host-managed); the blue line under it tells you which source automatic actually resolved to.\n· Whether the "Check for updates", "Stable" and "Prerelease" rows appear tells you whether this app can manage versions: visible means you can install, switch or uninstall here; hidden only when the system install is actually in effect (you maintain that copy yourself).\n· First-run setup uses a system install when present; otherwise it installs the host-managed build, preferring the latest stable release and falling back to the latest prerelease.',
+    'Decides which OpenCode CLI build takes effect. Automatic resolves in this order: a version this app installed (host-managed) → a version installed on your computer (system install).\n· The dropdown always shows your choice (Automatic / System install / Host-managed); the blue line under it tells you which source automatic actually resolved to.\n· Whether the "Check for updates", "Stable" and "Prerelease" rows appear tells you whether this app can manage versions: visible means you can install, switch or uninstall here; hidden when the system install is actually in effect or the source is pinned to "System install". The "Current version" and "Auto-enable in new terminal windows" rows are hidden only when the system install is actually in effect.\n· First-run setup uses a system install when present; otherwise it installs the host-managed build, preferring the latest stable release and falling back to the latest prerelease.',
   opencodeSourceAuto: 'Automatic',
   opencodeSourceSystem: 'System install',
   opencodeSourceHost: 'Host-managed',
   opencodeSystemManagedNote:
-    'The version in use is your own system install; the app never modifies it.\n· To install, switch or uninstall here, set "Version source" to "Host-managed".',
+    'The source is "System install"; this app never modifies your system copy. Switch to "Host-managed" to install or uninstall versions here.',
   opencodeNoSourceHostNote:
     'No usable version under "Host-managed"; new terminal sessions will not have the opencode command. Install a version below or switch "Version source" back to a source that has one.',
   opencodeNoSourceAutoNote:

@@ -57,6 +57,9 @@ export function DshVersionReadout({ busy }: { busy: boolean }) {
       case 'running':
         return runningReadout(sourceStatus?.running);
       case 'system': {
+        // 卡片在「系统安装真实生效」（快照里的 systemManaged）时会隐藏整行，但本组件
+        // 直接读 store，存在「store 已更新、卡片快照尚未重载」的窗口，此时这里仍会渲染；
+        // 作为独立导出的读数组件，直接渲染时也必须如实报系统版本。
         const systemVersion = sourceStatus?.system?.version ?? null;
         return systemVersion
           ? { text: systemVersion, empty: false }

@@ -233,6 +233,59 @@ describe('FirstRunProvisioningWizard', () => {
     delete (window as unknown as { digitalLife?: unknown }).digitalLife;
   });
 
+  it('首帧不渲染完成页脚（避免卡片先长后缩的闪烁）', () => {
+    // 桥接永不返回：挂载后一直停在 running。首帧若误判为终态就会先画出「开始」页脚，
+    // 下一帧再收起，整卡高度抖动（用户实测 313 → 248）。
+    //
+    // 断言必须看「曾经插入/移除过什么」：effect 在 act 内会先于断言执行，直接查 DOM
+    // 只能看到收敛后的结果，抓不到首帧的那一次提交。
+    const pending = vi.fn(() => new Promise<never>(() => {}));
+    installBridge(
+      pending,
+      vi.fn(async () => ({ ok: true, data: { started: true } })),
+    );
+    const everFooter = new Set<Element>();
+    const trackFooter = (node: Node | null) => {
+      if (
+        node instanceof Element &&
+        (node.matches('.adl-fr-foot') || node.querySelector('.adl-fr-foot'))
+      ) {
+        everFooter.add(node);
+      }
+    };
+    const scan = (records: MutationRecord[]) => {
+      for (const record of records) {
+        for (const node of Array.from(record.addedNodes)) {
+          trackFooter(node);
+        }
+        // 被移除的节点是「曾经渲染过」的铁证：React 会先把子树建好再整体插入，
+        // 添加记录可见时子树可能已被下一帧收走，只能从移除记录里认出来。
+        for (const node of Array.from(record.removedNodes)) {
+          trackFooter(node);
+        }
+      }
+    };
+    const observer = new MutationObserver(scan);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    try {
+      render(
+        <TestProvider>
+          <FirstRunProvisioningWizard onClose={vi.fn()} />
+        </TestProvider>,
+      );
+    } finally {
+      // disconnect 会清空「尚未投递」的记录队列：先把它们取出来扫描再断开，
+      // 这样测试不依赖观察者回调在什么时机投递。
+      scan(observer.takeRecords());
+      observer.disconnect();
+    }
+
+    expect(everFooter.size).toBe(0);
+    expect(document.querySelector('.adl-fr-foot')).toBeNull();
+    expect(document.querySelector('.adl-fr-title')?.textContent).toBe('firstRunTitleRunning');
+  });
+
   it('detects ready items, has no skip, and finishes with the guide', async () => {
     const envGetStatus = vi.fn(async () => ({ ok: true, data: envFixture(true) }));
     const envInstall = vi.fn(async () => ({ ok: true, data: { started: true } }));

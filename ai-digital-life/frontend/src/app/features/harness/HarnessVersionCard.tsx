@@ -32,6 +32,11 @@ export interface HarnessVersionSlotContext<TSource> {
   source: HarnessVersionSourceStatus | null;
   /** 工具专属来源数据（适配器提供）。 */
   sourceExtra: TSource | null;
+  /**
+   * 系统安装真实在生效（卡片据此隐藏了「当前版本」行）。插槽里与版本管理相关的
+   * 控件（如 OpenCode 的终端注入开关）应据同一事实隐藏，避免各算一套判据。
+   */
+  systemManaged: boolean;
   /** 走卡片的忙碌/反馈/刷新流程执行一个工具专属操作。 */
   run: (
     action: () => Promise<HarnessVersionResult>,
@@ -277,6 +282,7 @@ export function HarnessVersionCard<TSource = unknown>({
     disabled: data.disabled,
     source: data.source,
     sourceExtra: data.sourceExtra,
+    systemManaged: data.systemManaged,
     run: data.run,
   };
 
@@ -382,24 +388,27 @@ export function HarnessVersionCard<TSource = unknown>({
           onChange={(mode: HarnessVersionSourceMode) => actions.handleSourceChange(mode)}
         />
         {renderSlot(slots.sourceFooter, slotContext)}
-        <CurrentVersionRow
-          hint={slots.currentHint}
-          desc={slots.descCurrent}
-          disabled={data.disabled}
-          refresh={refreshFor('current', t.harnessVersionCurrent)}
-          spinning={refreshing.has('current')}
-          uninstallWarn={
-            actions.uninstallArmed !== null ? bridge.labels?.uninstallCurrentHint : undefined
-          }
-        >
-          {renderSlot(slots.runtimeReadout, slotContext) ?? (
-            <FallbackReadout
-              current={data.current === null ? null : formatVersion(data.current)}
-              failed={data.snapshot?.failed === true}
-              busy={data.busy}
-            />
-          )}
-        </CurrentVersionRow>
+        {data.systemManaged ? null : (
+          <CurrentVersionRow
+            hint={slots.currentHint}
+            desc={slots.descCurrent}
+            disabled={data.disabled}
+            refresh={refreshFor('current', t.harnessVersionCurrent)}
+            spinning={refreshing.has('current')}
+            uninstallWarn={
+              actions.uninstallArmed !== null ? bridge.labels?.uninstallCurrentHint : undefined
+            }
+          >
+            {renderSlot(slots.runtimeReadout, slotContext) ?? (
+              <FallbackReadout
+                current={data.current === null ? null : formatVersion(data.current)}
+                failed={data.snapshot?.failed === true}
+                busy={data.busy}
+                unavailable={data.currentUnavailable}
+              />
+            )}
+          </CurrentVersionRow>
+        )}
         {data.manageVisible ? (
           <>
             <UpdateRow

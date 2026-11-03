@@ -249,11 +249,34 @@ describe('opencodeVersionBridge', () => {
     expect(snapshot.source).toMatchObject({
       mode: 'auto',
       ready: true,
+      systemManaged: false,
     });
     expect(snapshot.sourceExtra).toMatchObject({
       terminalInjection: true,
       config: { npm_registry: 'https://registry.npmjs.org' },
     });
+  });
+
+  it('flags system-managed only when the preference actually resolves to the system install', async () => {
+    const { adapter } = makeBridge({
+      getSourceStatus: vi.fn(async () =>
+        ok(
+          sourceStatus({
+            system: null,
+            versionSource: {
+              mode: 'system',
+              effective: 'none',
+              resolvedByMode: { auto: 'none', host: 'none', system: 'none' },
+              hostVersion: null,
+            },
+          }),
+        ),
+      ),
+    });
+    const snapshot = await adapter.load();
+
+    // 钉住 system 但本机没有系统副本：管理行仍隐藏，但当前版本行要保留。
+    expect(snapshot.source).toMatchObject({ managed: false, systemManaged: false });
   });
 
   it('maps an IPC error to a result and treats an offline bridge as unavailable', async () => {

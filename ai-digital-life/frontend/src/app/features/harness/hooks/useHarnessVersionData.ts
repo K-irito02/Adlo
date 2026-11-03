@@ -203,6 +203,28 @@ export function useHarnessVersionData<TSource>(bridge: HarnessVersionBridge<TSou
   const manageVisible = bridge.capabilities?.sourceManaged
     ? source?.ready === true && source.managed !== false
     : source?.managed !== false;
+  /**
+   * 系统安装真实在生效（适配器显式给出）：此时没有任何可管理的版本，
+   * 「当前版本」行也一并隐藏 —— 它读的是宿主的选中版本（系统安装生效时
+   * `currentSelected` 仍是宿主值，运行中甚至会退化成「版本未知」），留着就是
+   * 显示一个不是正在用的版本。
+   *
+   * 不能用 `managed === false` 反推：那还包含「下次启动生效」（本次仍在用原来源）
+   * 与「钉住系统但本机没有副本」（解析为无，读数按「未安装」处理）两种情形。
+   * 未就绪时无法判断是否系统托管，先保留该行；解析为系统安装时会在落定后隐藏
+   *（冷启动骨架同理）。
+   */
+  const systemManaged = source?.systemManaged === true;
+  /**
+   * 偏好钉住系统安装、但本机没有系统副本（解析为无）：行要保留（见上），但宿主
+   * 选中版本并不在生效，读数必须显示「未安装」，不能拿它冒充当前版本。
+   * 只在适配器显式给了 `systemManaged: false` 时成立，未提供该字段的适配器不受影响。
+   */
+  const currentUnavailable =
+    source !== null &&
+    source.ready !== false &&
+    source.mode === 'system' &&
+    source.systemManaged === false;
 
   return {
     snapshot,
@@ -219,6 +241,8 @@ export function useHarnessVersionData<TSource>(bridge: HarnessVersionBridge<TSou
     channelUnknown,
     disabled,
     manageVisible,
+    systemManaged,
+    currentUnavailable,
     shownTask: task.shownTask,
     hasLiveTask: task.hasLiveTask,
     stageText: task.stageText,

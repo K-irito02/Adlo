@@ -145,7 +145,10 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
   const showToast = useAppStore((s) => s.showToast);
 
   const [items, setItems] = useState<ItemState[]>(initialItems);
-  const [phase, setPhase] = useState<'detecting' | 'running' | 'done'>('detecting');
+  // 初值取 `running`：挂载 effect 立刻开始准备，`detecting` 从来没有独立视觉
+  // （标题在非 done 时恒为 `firstRunTitleRunning`）。真正的首帧防护在页脚：
+  // 终态必须显式判 `phase === 'done'`（见下方 footer 注释）；初值只是让两态模型成立。
+  const [phase, setPhase] = useState<'running' | 'done'>('running');
   const [activeId, setActiveId] = useState<ItemId | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportText, setReportText] = useState('');
@@ -742,65 +745,60 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
     </div>
   );
 
+  // 诊断单入口：运行中失败与完成态失败两处页脚共用，避免两份拷贝各自漂移。
+  const copyPreviewActions = (
+    <div className="adl-fr-foot__left">
+      <button
+        type="button"
+        className="adl-fr-link adl-fr-copy-link"
+        onClick={() => void copyReport()}
+      >
+        {copyFlash ? <IconCheck size={12} decorative className="adl-fr-copy-check" /> : null}
+        <span>{t.environmentCopyForAgentNote}</span>
+      </button>
+      <button type="button" className="adl-fr-link" onClick={() => void openReport()}>
+        {t.firstRunPreview}
+      </button>
+    </div>
+  );
+
+  // 页脚二分：完成态（phase === 'done'）才渲染开始/重试；未结束时只有已出现失败项
+  // 才出现诊断单入口。终态必须以 `phase === 'done'` 显式判定——用「非 running」当
+  // 终态会把完成页脚画到任何新增的瞬时态上（首帧闪烁的根因：曾用 `detecting` 初值，
+  // 首帧画出完成页脚、次帧收起，实测高度 313 → 248、整卡上下各跳 32px）。
   const footer =
-    phase === 'running' ? (
+    phase === 'done' ? (
       failed.length > 0 ? (
         <div className="adl-fr-foot">
-          <div className="adl-fr-foot__left">
+          {copyPreviewActions}
+          <div className="adl-fr-foot__right">
+            <button type="button" className="adl-fr-btn adl-fr-btn--secondary" onClick={close}>
+              {t.environmentWizardEnter}
+            </button>
             <button
               type="button"
-              className="adl-fr-link adl-fr-copy-link"
-              onClick={() => void copyReport()}
+              className="adl-fr-btn adl-fr-btn--primary"
+              onClick={() => void runProvisioning('retry')}
             >
-              {copyFlash ? <IconCheck size={12} decorative className="adl-fr-copy-check" /> : null}
-              <span>{t.environmentCopyForAgentNote}</span>
-            </button>
-            <button type="button" className="adl-fr-link" onClick={() => void openReport()}>
-              {t.firstRunPreview}
+              {t.firstRunRetry}
             </button>
           </div>
         </div>
-      ) : null
+      ) : (
+        <div className="adl-fr-foot">
+          <div className="adl-fr-foot__left">
+            <span className="adl-fr-foot__note">{t.firstRunFooterNote}</span>
+          </div>
+          <div className="adl-fr-foot__right">
+            <button type="button" className="adl-fr-btn adl-fr-btn--primary" onClick={close}>
+              {t.firstRunStart}
+            </button>
+          </div>
+        </div>
+      )
     ) : failed.length > 0 ? (
-      <div className="adl-fr-foot">
-        <div className="adl-fr-foot__left">
-          <button
-            type="button"
-            className="adl-fr-link adl-fr-copy-link"
-            onClick={() => void copyReport()}
-          >
-            {copyFlash ? <IconCheck size={12} decorative className="adl-fr-copy-check" /> : null}
-            <span>{t.environmentCopyForAgentNote}</span>
-          </button>
-          <button type="button" className="adl-fr-link" onClick={() => void openReport()}>
-            {t.firstRunPreview}
-          </button>
-        </div>
-        <div className="adl-fr-foot__right">
-          <button type="button" className="adl-fr-btn adl-fr-btn--secondary" onClick={close}>
-            {t.environmentWizardEnter}
-          </button>
-          <button
-            type="button"
-            className="adl-fr-btn adl-fr-btn--primary"
-            onClick={() => void runProvisioning('retry')}
-          >
-            {t.firstRunRetry}
-          </button>
-        </div>
-      </div>
-    ) : (
-      <div className="adl-fr-foot">
-        <div className="adl-fr-foot__left">
-          <span className="adl-fr-foot__note">{t.firstRunFooterNote}</span>
-        </div>
-        <div className="adl-fr-foot__right">
-          <button type="button" className="adl-fr-btn adl-fr-btn--primary" onClick={close}>
-            {t.firstRunStart}
-          </button>
-        </div>
-      </div>
-    );
+      <div className="adl-fr-foot">{copyPreviewActions}</div>
+    ) : null;
 
   const doneBlock =
     phase === 'done' ? (

@@ -287,6 +287,7 @@ describe('dshVersionBridge', () => {
       mode: 'auto',
       ready: true,
       managed: true,
+      systemManaged: false,
     });
   });
 
@@ -305,7 +306,40 @@ describe('dshVersionBridge', () => {
     const bridge = makeBridge(makeActions());
 
     const snapshot = await bridge.load();
-    expect(snapshot.source).toMatchObject({ mode: 'system', managed: false });
+    expect(snapshot.source).toMatchObject({
+      mode: 'system',
+      managed: false,
+      systemManaged: true,
+    });
+  });
+
+  it('keeps the current-version row while a system switch is only pending', async () => {
+    useAppStore.setState({
+      sourceStatus: sourceStatus(), // auto → host：本次会话仍在用宿主版本
+      dshVersionSourcePending: 'system',
+    });
+    const bridge = makeBridge(makeActions());
+
+    const snapshot = await bridge.load();
+    // 管理行按 pending 隐藏，但系统安装并未生效：当前版本行必须保留。
+    expect(snapshot.source).toMatchObject({ managed: false, systemManaged: false });
+  });
+
+  it('does not treat a missing system install as system-managed', async () => {
+    useAppStore.setState({
+      sourceStatus: sourceStatus({
+        versionSource: {
+          mode: 'system',
+          effective: 'none',
+          resolvedByMode: { auto: 'none', host: 'none', system: 'none' },
+          hostVersion: null,
+        },
+      }),
+    });
+    const bridge = makeBridge(makeActions());
+
+    const snapshot = await bridge.load();
+    expect(snapshot.source).toMatchObject({ managed: false, systemManaged: false });
   });
 
   it('returns the task fetched from the store', async () => {

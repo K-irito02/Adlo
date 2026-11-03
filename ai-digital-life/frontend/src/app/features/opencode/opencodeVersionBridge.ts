@@ -34,8 +34,11 @@ function toSourceStatus(source: OpencodeSourceStatus): HarnessVersionSourceStatu
   const resolved = source.versionSource.resolvedByMode?.[mode] ?? null;
   return {
     mode,
-    // 系统安装生效时隐藏管理项（与 DSH `managed` 语义一致）。
+    // 系统安装生效时隐藏管理项（与 DSH `managed` 语义一致；含「钉住 system」的偏好）。
     managed: !(mode === 'system' || resolved === 'system'),
+    // 只有偏好解析真的落在系统安装才算「系统生效」（OpenCode 无 pending/运行态），
+    // 用于隐藏「当前版本」行：钉住 system 但本机没有副本时不隐藏。
+    systemManaged: resolved === 'system',
     ready: true,
   };
 }

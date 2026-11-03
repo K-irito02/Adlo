@@ -168,22 +168,20 @@ describe('OpencodeSettings DSH parity (generic card slots)', () => {
     expect(await screen.findByText('当前实际使用：宿主托管')).toBeTruthy();
   });
 
-  it('自动检测无任何版本时仍显示来源「宿主托管」，缺失由下方提示说明', async () => {
+  it('自动检测无任何版本时不显示蓝色来源行，缺失由下方提示说明', async () => {
     installBridge(makeSource('auto', 'none'), makeStatus({ currentSelected: null, installed: [] }));
     render(
       <TestProvider>
         <OpencodeSettings />
       </TestProvider>,
     );
-    // 蓝色行只表达「来源」，不表达「有没有可用版本」。
-    expect(await screen.findByText('当前实际使用：宿主托管')).toBeTruthy();
-    expect(screen.queryByText(/无可用版本/)).toBeNull();
-    // 版本缺失信息由来源行提示承担（画面上方的蓝色说明），且不再建议切换到宿主托管。
-    expect(screen.getByText(/请在下方安装一个版本/)).toBeTruthy();
+    await screen.findByText(/请在下方安装一个版本/);
+    // 蓝色行只表达「来源」，不表达「有没有可用版本」；解析为 none 时它无话可说，不占位。
+    expect(screen.queryByText(/当前实际使用/)).toBeNull();
     expect(screen.queryByText(/可切换到/)).toBeNull();
   });
 
-  it('系统安装时隐藏检查更新/正式版/预发布版并显示托管说明', async () => {
+  it('系统安装时隐藏当前版本/检查更新/正式版/预发布版与终端开关，并显示托管说明', async () => {
     const source = makeSource('system', 'system');
     source.system = { path: '/usr/local/bin/opencode', version: null };
     installBridge(source, makeStatus());
@@ -192,9 +190,33 @@ describe('OpencodeSettings DSH parity (generic card slots)', () => {
         <OpencodeSettings />
       </TestProvider>,
     );
-    await screen.findByText('当前版本');
+    await screen.findByText('版本来源');
+    expect(screen.queryByText('当前版本')).toBeNull();
     expect(screen.queryByText('检查更新')).toBeNull();
-    expect(screen.getByText(/本应用不会修改它/)).toBeTruthy();
+    expect(screen.queryByText('正式版本')).toBeNull();
+    expect(screen.queryByText('预发布版本')).toBeNull();
+    // 系统安装的 CLI 本来就在 PATH 上，宿主侧注入开关同样隐藏。
+    expect(screen.queryByRole('switch', { name: '新终端窗口自动启用' })).toBeNull();
+    expect(screen.getByText(/本应用不会修改系统安装的版本/)).toBeTruthy();
+  });
+
+  it('钉住系统安装但本机无副本：保留当前版本行并显示「未安装」，不冒充宿主选中版本', async () => {
+    const source = makeSource('system', 'none');
+    source.system = null;
+    source.versionSource.resolvedByMode = { auto: 'none', host: 'host', system: 'none' };
+    installBridge(source, makeStatus({ currentSelected: '1.19.5', installed: ['1.19.5'] }));
+    render(
+      <TestProvider>
+        <OpencodeSettings />
+      </TestProvider>,
+    );
+    await screen.findByText('版本来源');
+    // 当前版本行保留（本次不是系统安装真实生效），但读数必须是「未安装」。
+    const currentRow = document.querySelector('[data-settings-row="当前版本"]');
+    expect(currentRow).not.toBeNull();
+    expect(document.querySelector('.adl-harness-version__readout')?.textContent).toBe('未安装');
+    // 管理行仍按「钉住系统安装」隐藏。
+    expect(screen.queryByText('检查更新')).toBeNull();
   });
 
   it('有新版本时在检查更新行显示「新」徽章', async () => {

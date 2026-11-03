@@ -129,9 +129,9 @@ style `.adl-settings-row__label small.adl-settings-auto-note` in
 <AutoResolvedNote>{formatT(t, 'settingsAutoResolved', { value })}</AutoResolvedNote>
 ```
 
-- A `select` shows the user's preference (`自动检测` / Automatic); the note under the label states what that preference **actually resolves to** (host-managed / system install / external running, proxy endpoint, registry).
-- Render only while the mode is `auto` **and** the resolved value is known; never render it in explicit modes.
-- The note reports **source**, not availability: "当前实际使用：宿主托管" stays even when nothing is installed yet — availability belongs to the status pill and the warning line below.
+- A `select` shows the user's preference (`自动检测` / Automatic); the note under the label states the source **actually in use** — the preference-resolution result when it can be determined, `Running` only when the source is unknown — or the proxy endpoint / registry.
+- Render whenever the note adds information the dropdown does not: always in `auto` mode (once a source is known), and in explicit modes only when the in-use source differs from the dropdown (for example a pinned mode whose running instance comes from another source). Never render it when it would repeat the dropdown choice, nor when the resolution is `none` and nothing is running.
+- The note reports **source**, not availability: it never asserts that a version is installed. Availability belongs to the status pill and the warning line below; when nothing is resolvable and no instance is running, the note is not shown at all.
 - Colour uses the same dark-blue mix as the harness note (`color-mix(in srgb, var(--accent) 72%, var(--text-secondary))`; dark theme 62% mixed with `--text-muted`). This is the approved exception to the neutral hint rule: it describes state, not a warning.
 - Specificity trap: the generic `.adl-settings-row__label small` rule is 0-1-1, so the class must be scoped as `.adl-settings-row__label small.adl-settings-auto-note`; a bare class selector renders grey in the light theme.
 - Data comes from the server (`proxyEffective` and similar), not from draft form state: gate the note on the **persisted** mode so a just-changed draft can never display the previous resolution.

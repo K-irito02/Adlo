@@ -4,7 +4,11 @@ import { AutoResolvedNote } from '@components/settings/AutoResolvedNote';
 import type { DshVersionSourceMode } from '@shared/ipc/dsh';
 
 interface OpencodeVersionSourceNoteProps {
-  systemManaged: boolean;
+  /**
+   * 版本交给系统安装维护（偏好为系统安装、或偏好解析落在系统安装），用于显示托管
+   * 说明。也覆盖「钉住系统但本机没有副本」——此时没有版本在用，说明按来源口径陈述。
+   */
+  systemPinned: boolean;
   resolvedSource: 'host' | 'system' | 'none' | null;
   mode: DshVersionSourceMode;
 }
@@ -14,7 +18,7 @@ interface OpencodeVersionSourceNoteProps {
  * （系统托管 / 无可用来源，旧 OpenCode 行内警告口径）。
  */
 export function OpencodeVersionSourceNote({
-  systemManaged,
+  systemPinned,
   resolvedSource,
   mode,
 }: OpencodeVersionSourceNoteProps) {
@@ -22,18 +26,19 @@ export function OpencodeVersionSourceNote({
   return (
     <>
       {/* 自动检测的背后真实状态：下拉仍是「自动检测」，这里只说明实际使用的**来源**
-          （宿主托管 / 系统安装）；已安装/未安装由「当前版本」读数表达。 */}
-      {mode === 'auto' && resolvedSource ? (
+          （宿主托管 / 系统安装）；非系统托管时已安装/未安装由「当前版本」读数表达。
+          偏好解析为 `none` 时不占位：没有可用版本由下方专用警告说明，不在这里重复。 */}
+      {mode === 'auto' && (resolvedSource === 'system' || resolvedSource === 'host') ? (
         <AutoResolvedNote>
           {formatT(t, 'settingsAutoResolved', {
             value: resolvedSource === 'system' ? t.opencodeSourceSystem : t.opencodeSourceHost,
           })}
         </AutoResolvedNote>
       ) : null}
-      {systemManaged ? (
+      {systemPinned ? (
         <small className="adl-harness-version__row-warn">{t.opencodeSystemManagedNote}</small>
       ) : null}
-      {!systemManaged && resolvedSource === 'none' ? (
+      {!systemPinned && resolvedSource === 'none' ? (
         <small className="adl-harness-version__row-warn">
           {mode === 'host' ? t.opencodeNoSourceHostNote : t.opencodeNoSourceAutoNote}
         </small>

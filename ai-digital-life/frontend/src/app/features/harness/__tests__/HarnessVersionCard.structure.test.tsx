@@ -301,6 +301,54 @@ describe('HarnessVersionCard old-DSH structure', () => {
     expect(container.querySelector('[data-settings-row="harnessVersionInstalled"]')).toBeNull();
     expect(container.querySelectorAll('.adl-settings-card')).toHaveLength(1);
   });
+
+  it('系统安装生效时连「当前版本」行一起隐藏（宿主选中版本不冒充在用版本）', async () => {
+    const bridge = dshBridge({
+      initial: snapshot({
+        source: { mode: 'system', ready: true, managed: false, systemManaged: true },
+      }),
+    });
+    const { container } = renderDshCard(bridge);
+    await screen.findByRole('button', { name: 'harnessVersionSourceTitle' });
+
+    const card = mainCard(container);
+    // 来源行（含托管说明）+ 官方链接，其余全部隐藏：没有可管理的版本。
+    expect(rowMarkers(card)).toEqual(['harnessVersionSourceTitle', 'dshOfficialLinksLabel']);
+    expect(card.querySelector('.adl-harness-version__readout')).toBeNull();
+  });
+
+  it('来源未就绪时只隐藏管理行，保留当前版本行（避免首帧跳动）', async () => {
+    const bridge = dshBridge({
+      initial: snapshot({ source: { mode: 'auto', ready: false, managed: false } }),
+    });
+    const { container } = renderDshCard(bridge);
+    await screen.findByRole('button', { name: 'harnessVersionSourceTitle' });
+
+    const card = mainCard(container);
+    expect(rowMarkers(card)).toEqual([
+      'harnessVersionSourceTitle',
+      'harnessVersionCurrent',
+      'dshOfficialLinksLabel',
+    ]);
+  });
+
+  it('仅「非托管」不足以隐藏当前版本行（下次启动生效 / 系统副本缺失）', async () => {
+    const bridge = dshBridge({
+      initial: snapshot({
+        // managed=false 但 systemManaged 未置位：本次会话仍在用原来源。
+        source: { mode: 'auto', ready: true, managed: false, systemManaged: false },
+      }),
+    });
+    const { container } = renderDshCard(bridge);
+    await screen.findByRole('button', { name: 'harnessVersionSourceTitle' });
+
+    const card = mainCard(container);
+    expect(rowMarkers(card)).toEqual([
+      'harnessVersionSourceTitle',
+      'harnessVersionCurrent',
+      'dshOfficialLinksLabel',
+    ]);
+  });
 });
 
 describe('DshVersionReadout old-DSH readout structure', () => {

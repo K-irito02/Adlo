@@ -103,6 +103,9 @@ export function createDshVersionBridge(
             // 首帧 `resolvedByMode` 未到时管理项保持隐藏（迁移前 sourceReady）。
             ready: versionSource?.resolvedByMode != null,
             managed: dshManageVisible(source, st.dshVersionSourcePending),
+            // 只有偏好解析真的落在系统安装才算「系统生效」：pending='system'（下次启动生效）
+            // 与「钉住 system 但本机已无系统副本」（resolved='none'）都不算，当前版本行要保留。
+            systemManaged: versionSource?.resolvedByMode?.[mode] === 'system',
           }
         : null,
       sourceExtra: source,

@@ -86,6 +86,19 @@ function TerminalInjectionRows({
 }
 
 /**
+ * 解析 OpenCode 的来源偏好（来源行说明小字使用）。
+ *
+ * `resolvedByMode[mode]` 是忽略运行态的偏好解析；`systemPinned` 只用于「系统托管」
+ * 说明文案（偏好为系统安装或解析落在系统安装都算用户把版本交给系统维护）。
+ * 行级显隐（当前版本行 / 终端开关）不读这里，统一用卡片派生的 `systemManaged`。
+ */
+function resolveOpencodeSource(source: OpencodeSourceStatus | null) {
+  const mode = source?.versionSource.mode ?? 'auto';
+  const resolved = source?.versionSource.resolvedByMode?.[mode] ?? null;
+  return { mode, resolved, systemPinned: mode === 'system' || resolved === 'system' };
+}
+
+/**
  * 「OpenCode CLI」设置组：通用版本卡片 + OpenCode 专属插槽。
  *
  * 与 DSH 组共享同一套后端版本内核（`adl_harness_version`），但没有运行态
@@ -255,12 +268,10 @@ export function OpencodeSettings() {
           sourceHint: t.opencodeSourceHint,
           descSource: t.opencodeSourceDesc,
           sourceNote: ({ sourceExtra }) => {
-            const mode = sourceExtra?.versionSource.mode ?? 'auto';
-            const resolved = sourceExtra?.versionSource.resolvedByMode?.[mode] ?? null;
-            const systemManaged = mode === 'system' || resolved === 'system';
+            const { mode, resolved, systemPinned } = resolveOpencodeSource(sourceExtra);
             return (
               <OpencodeVersionSourceNote
-                systemManaged={systemManaged}
+                systemPinned={systemPinned}
                 resolvedSource={resolved}
                 mode={mode}
               />
@@ -274,14 +285,22 @@ export function OpencodeSettings() {
           descStable: t.opencodeStableDesc,
           prereleaseHint: t.opencodePrereleaseHint,
           descPrerelease: t.opencodePrereleaseDesc,
-          sourceFooter: ({ sourceExtra, disabled, run }) => (
-            <TerminalInjectionRows
-              bridge={rawBridge}
-              source={sourceExtra}
-              disabled={disabled}
-              run={run}
-            />
-          ),
+          sourceFooter: ({ systemManaged, sourceExtra, disabled, run }) => {
+            // 系统安装生效时版本由用户自行维护，宿主侧没有可注入的 CLI，
+            // 「新终端窗口自动启用」一并隐藏（系统版本本来就在 PATH 上）。
+            // 判据直接用卡片派生的 systemManaged，避免与卡片的隐行规则各写一套。
+            if (systemManaged) {
+              return null;
+            }
+            return (
+              <TerminalInjectionRows
+                bridge={rawBridge}
+                source={sourceExtra}
+                disabled={disabled}
+                run={run}
+              />
+            );
+          },
           // 官方版本信息行：卡片渲染为卡内末行。
           footer: <OpencodeOfficialLinksCard />,
         }}
