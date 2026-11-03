@@ -1360,7 +1360,7 @@ mod tests {
             matches!(err, AppError::InvalidInput(ref m) if m == "no-hosted-source"),
             "unexpected error: {err}"
         );
-        let config = adl_env::config::load(&state.storage.paths().root).unwrap();
+        let config = adl_env::config::load(&state.storage.paths().root).expect("load env config");
         assert_eq!(config.webview2.mode, SourceMode::Auto);
     }
 
@@ -1369,8 +1369,8 @@ mod tests {
     async fn select_source_inner_accepts_bash_host_and_persists() {
         let state = crate::test_util::test_server_state();
         let input = SelectInput { dep: "bash".into(), mode: "host".into() };
-        select_source_inner(&state, input).await.unwrap();
-        let config = adl_env::config::load(&state.storage.paths().root).unwrap();
+        select_source_inner(&state, input).await.expect("select source");
+        let config = adl_env::config::load(&state.storage.paths().root).expect("load env config");
         assert_eq!(config.bash.mode, SourceMode::Host);
     }
 
@@ -1408,8 +1408,8 @@ mod tests {
     async fn select_source_inner_persists_mode() {
         let state = crate::test_util::test_server_state();
         let input = SelectInput { dep: "node".into(), mode: "host".into() };
-        select_source_inner(&state, input).await.unwrap();
-        let config = adl_env::config::load(&state.storage.paths().root).unwrap();
+        select_source_inner(&state, input).await.expect("select source");
+        let config = adl_env::config::load(&state.storage.paths().root).expect("load env config");
         assert_eq!(config.node.mode, SourceMode::Host);
     }
 
@@ -1420,7 +1420,7 @@ mod tests {
         let state = crate::test_util::test_server_state();
         cache_put(&state.env_status_cache, serde_json::json!({ "stale": true })).await;
         let input = SelectInput { dep: "node".into(), mode: "system".into() };
-        select_source_inner(&state, input).await.unwrap();
+        select_source_inner(&state, input).await.expect("select source");
         assert!(
             cache_get(&state.env_status_cache, STATUS_CACHE_TTL).await.is_none(),
             "select-source must invalidate the status cache"

@@ -1,9 +1,10 @@
 //! `git` provider: system detect + PortableGit hosted install.
 //!
-//! PortableGit only (`{base}/{tag}/{asset}` verbatim tag+asset) — no
-//! third-party binaries. Unlike MinGit, PortableGit ships `bin/bash.exe`, so
-//! the same hosted package backs both the Git and Bash rows. Downloads the
-//! official 7-Zip SFX and extracts it with [`super::fetch_and_stage_sfx`]
+//! PortableGit only (`{base}/{tag}/{asset}` verbatim tag+asset), from the
+//! official Git for Windows release or the npmmirror mirror of the same
+//! asset. Unlike MinGit, PortableGit ships `bin/bash.exe`, so the same hosted
+//! package backs both the Git and Bash rows. Downloads the 7-Zip SFX and
+//! extracts it with [`super::fetch_and_stage_sfx`]
 //! (`marker_rel = "cmd/git.exe"`).
 
 use std::path::{Path, PathBuf};

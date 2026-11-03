@@ -93,7 +93,7 @@ dsh 与 OpenCode CLI 共用的版本内核，位于 `crates/harness-version/`：
 以命令行形式运行的 harness。版本安装到 `<harnesses>/opencode/versions/installed/<version>/bin/opencode.exe`（直接下载 npm 平台包，不经 node）；每个版本目录内的 `.adl-package` 记录所属包线（1.x / 2.x 的预发布版本号无法从 major 区分）。版本来源解析为宿主托管时，新建终端会把该 `bin` 目录前置到会话 PATH，并额外注入托管数据库/XDG 变量与 2.x 的 `--standalone` shim（见 ADR-0005、ADR-0010、ADR-0011），不写系统/用户环境变量。
 
 ### Harness 获取 (Provisioning)
-安装包不预置任何 harness 版本。首启环境向导完成后弹一次独立的 harness 向导（DSH / OpenCode 两张卡，可跳过），用户点击安装后按下载源配置拉取；失败不阻塞应用，可随时在对应设置组重试。
+安装包不预置任何 harness 版本。首启环境准备把 DSH 与 OpenCode CLI 作为任务清单中的两项：本机已有（系统或宿主）直接就绪；否则按下载源拉取最新正式版，无正式版退最新预发布版。失败不阻塞应用，可随时在对应设置组重试。
 
 ### Download Source
 可配置的下载源系统，位于 `crates/download-source/`。支持 npm 仓库地址、镜像源（如 npmmirror）、代理设置与「自动检测选源」（仅 `source_mode=auto` 时生效，手动选择后不再自动覆盖）。配置文件为 `<data_dir>/config/download-sources.json`。
@@ -114,8 +114,8 @@ dsh 与 OpenCode CLI 共用的版本内核，位于 `crates/harness-version/`：
 ### runbook
 面向人/agent 的可执行修复手册，按依赖各一份（Node、Git/Bash、WebView2、adl-server、网络下载、模型凭据）。唯一真源为 `ai-digital-life/frontend/src/app/features/environment/runbooks/`（前端 `?raw` 内联），`docs/runbooks/README.md` 仅为索引。固定五段：症状 / 检测命令 / 安装步骤 / 装后回填 / 回滚。
 
-### 首启环境向导 (First-run Env Wizard)
-首次启动时引导用户检查并补齐环境依赖的四步向导；可跳过（记录跳过状态并显示续接横幅），设置面板「环境」组可随时重新进入。环境向导完成或跳过后，另有一次独立的 harness 向导（见「Harness 获取」）。
+### 首启环境准备 (First-Run Provisioning)
+首次启动时按固定顺序检查并补齐五项：Node.js / Git / Bash / DSH「Web 形态」/ OpenCode CLI，不可跳过。每项首次 + 3 次重试，失败跳过并继续；Node/Git/Bash 始终安装宿主托管，DSH/OpenCode 优先使用已有系统/宿主版本。结束后可「再次尝试」失败项，有失败项时环境组显示续接横幅，也可用环境组刷新图标重新运行。
 
 ---
 

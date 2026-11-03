@@ -967,7 +967,7 @@ describe('EnvironmentSettings', () => {
     expect(git.textContent).toContain('environmentInstallDesktopOnlyHint');
   });
 
-  it('resume 横幅：skippedAt + 未就绪 → 显示 N 项，继续向导通过 nonce 重新请求', async () => {
+  it('resume 横幅：skippedAt + 未就绪 → 显示 N 项，继续准备通过 nonce 重新请求', async () => {
     // fixture：node 缺失 + 其余就绪 + 注册表通 = 1 项未就绪。
     const hybridT = new Proxy({} as Record<string, string>, {
       get: (_, key) =>
@@ -980,13 +980,13 @@ describe('EnvironmentSettings', () => {
         <EnvironmentSettings />
       </TCopyProvider>,
     );
-    expect(await screen.findByText('上次跳过了 1 项')).not.toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: '继续向导' }));
+    expect(await screen.findByText('上次仍有 1 项未完成')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '继续准备' }));
     expect(useAppStore.getState().envWizardDone).toBe(false);
     expect(useAppStore.getState().envWizardRequestId).toBe(before + 1);
   });
 
-  it('resume 横幅：done 已为 false 时继续向导仍自增 nonce（避免 no-op 死按钮）', async () => {
+  it('resume 横幅：done 已为 false 时继续准备仍自增 nonce（避免 no-op 死按钮）', async () => {
     const hybridT = new Proxy({} as Record<string, string>, {
       get: (_, key) =>
         typeof key === 'string' ? ((environmentZh as Record<string, string>)[key] ?? key) : '',
@@ -998,8 +998,8 @@ describe('EnvironmentSettings', () => {
         <EnvironmentSettings />
       </TCopyProvider>,
     );
-    expect(await screen.findByText('上次跳过了 1 项')).not.toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: '继续向导' }));
+    expect(await screen.findByText('上次仍有 1 项未完成')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '继续准备' }));
     expect(useAppStore.getState().envWizardDone).toBe(false);
     expect(useAppStore.getState().envWizardRequestId).toBe(before + 1);
   });

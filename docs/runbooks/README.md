@@ -36,11 +36,12 @@
 4. `装后回填`
 5. `回滚`
 
-## Bash 来源（MinGit 不含 Bash）
+## Bash 来源（PortableGit 含 Bash）
 
-宿主内置的 Git 资产是 **MinGit**，不含 `bash.exe`。Bash 只能来自：系统完整
-Git for Windows（`<Git>\bin\bash.exe`）、WSL、MSYS2，或用户在设置组手动填写的路径。
-runbook 与设置组文案不得声称「Bash 随宿主 Git 一起安装」。
+宿主内置的 Git 资产是 **PortableGit**，自带 `bin/bash.exe`，所以 Git 的宿主副本
+同时提供 Bash。Bash 也可来自：系统完整 Git for Windows（`<Git>\bin\bash.exe`）、
+WSL、MSYS2，或用户在设置组手动填写的路径。宿主 Git 安装失败时 Bash 会连带不可用，
+这是预期行为。
 
 ## 复制载荷
 

@@ -91,9 +91,11 @@ pub async fn fetch_and_stage(
 /// `PortableGit-*.7z.exe`), run its silent extract switches into a fresh
 /// staging dir, validate `marker_rel`, and return the staging dir.
 ///
-/// The archive is a PE executable: the caller must only pass a trusted URL
-/// (the bundled baseline pins the official Git for Windows release). The
-/// extractor runs on `spawn_blocking` and is hidden on Windows.
+/// The archive is a PE executable: the caller must only pass a URL from the
+/// official Git for Windows release or the configured npmmirror mirror (the
+/// same asset path). No checksum is verified here; see [`git::download_urls`]
+/// for the allowlist. The extractor runs on `spawn_blocking` and is hidden on
+/// Windows.
 pub async fn fetch_and_stage_sfx(
     client: &reqwest::Client,
     url: &str,

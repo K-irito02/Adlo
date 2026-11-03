@@ -13,7 +13,7 @@ vi.mock('@features/preview/openByMethod', () => ({
 
 vi.mock('@hooks/useAppActions', () => ({
   useAppActions: () => ({
-    selectEnvSource: vi.fn(),
+    selectEnvSource: vi.fn(async () => true),
     recheckEnv: vi.fn(async () => true),
   }),
 }));
@@ -272,6 +272,37 @@ describe('FirstRunProvisioningWizard', () => {
     await waitFor(() => expect(screen.getByText('firstRunTitleDone')).toBeTruthy(), {
       timeout: 8000,
     });
+    expect(envInstall).toHaveBeenCalledWith('node');
+  });
+
+  it('still installs hosted Node when a system copy meets the baseline', async () => {
+    const systemReady = envFixture(true);
+    systemReady.node = depState({
+      mode: 'auto',
+      effective: 'system',
+      installedVersion: '26.0.0',
+      baselineVersion: '24.22.1',
+      meetsBaseline: true,
+      path: 'D:/nodejs/node.exe',
+    });
+    let calls = 0;
+    const envGetStatus = vi.fn(async () => {
+      calls += 1;
+      return { ok: true, data: calls === 1 ? systemReady : envFixture(true) };
+    });
+    const envInstall = vi.fn(async () => ({ ok: true, data: { started: true } }));
+    installBridge(envGetStatus, envInstall);
+
+    render(
+      <TestProvider>
+        <FirstRunProvisioningWizard onClose={vi.fn()} />
+      </TestProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('firstRunTitleDone')).toBeTruthy(), {
+      timeout: 8000,
+    });
+    // 首启必须装宿主托管，不能因为系统版本达标就跳过。
     expect(envInstall).toHaveBeenCalledWith('node');
   });
 

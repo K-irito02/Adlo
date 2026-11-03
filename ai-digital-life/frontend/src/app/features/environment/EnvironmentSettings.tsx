@@ -414,9 +414,9 @@ export function EnvironmentSettings() {
       ) : (
         <>
           {/*
-           * 首启向导 resume 横幅（Task 8）：跳过记账后仍有未就绪项时置顶，
-           * “继续向导”把 envWizardDone 置回 false，App 侧 effect 重新打开向导
-           *（向导关闭恒写 done=true，故此处不直接碰 skippedAt，横幅随修复消失）。
+           * 首启准备续接横幅：上次运行有失败项且环境仍未就绪时置顶，
+           * “继续准备”把 envWizardDone 置回 false，App 侧 effect 重新打开向导
+           *（向导结束恒写 done=true；全部就绪后 skippedAt 会被清空，横幅随之消失）。
            */}
           {envWizardSkippedAt !== null && unmetCount > 0 ? (
             <div className="adl-settings-card" data-testid="env-wizard-resume">

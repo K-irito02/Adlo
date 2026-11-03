@@ -307,7 +307,7 @@ _Avoid_: 版本线, 版本通道（那是正式/预发布的分轨）, 分支, �
 _Avoid_: 版本目录, 官方目录, 目录, catalog
 
 **下载源优选 (Download Source Selection)**:
-下载源设为官方或自动时，应用探测官方与镜像的连通性与延迟，选择最快可达者作为本次下载源；用户显式指定下载源时不优选。
+二进制资产（Node.js / Git）按候选顺序尝试：用户配置源或官方源优先，失败回退 npmmirror；当 npm 源为 npmmirror 时镜像优先。npm 版本目录的自动选源（`source_mode=auto`）仍按连通性与延迟实测决定。
 _Avoid_: 自动选源, 智能选源, 镜像测速
 
 **已安装版本 (Installed Version)**:

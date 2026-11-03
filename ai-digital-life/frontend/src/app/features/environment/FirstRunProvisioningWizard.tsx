@@ -73,7 +73,14 @@ function initialItems(): ItemState[] {
 }
 
 const TICK = (
-  <svg viewBox="0 0 256 256" width="11" height="11" fill="none" aria-hidden="true">
+  <svg
+    viewBox="0 0 256 256"
+    width="11"
+    height="11"
+    fill="none"
+    aria-hidden="true"
+    focusable="false"
+  >
     <polyline
       points="216 72 104 184 48 128"
       stroke="currentColor"
@@ -85,7 +92,14 @@ const TICK = (
 );
 
 const CROSS = (
-  <svg viewBox="0 0 256 256" width="10" height="10" fill="none" aria-hidden="true">
+  <svg
+    viewBox="0 0 256 256"
+    width="10"
+    height="10"
+    fill="none"
+    aria-hidden="true"
+    focusable="false"
+  >
     <path
       d="M200 56 56 200 M56 56l144 144"
       stroke="currentColor"
@@ -127,6 +141,7 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
   const isTauri = useAppStore((s) => s.isTauri);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
   const setEnvWizardDone = useAppStore((s) => s.setEnvWizardDone);
+  const setEnvWizardSkippedAt = useAppStore((s) => s.setEnvWizardSkippedAt);
   const showToast = useAppStore((s) => s.showToast);
 
   const [items, setItems] = useState<ItemState[]>(initialItems);
@@ -182,8 +197,16 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
       if (!error) {
         return t.firstRunErrorGeneric;
       }
-      // 短错误（如「宿主 Git 包未包含 bash」）直接展示；长 URL/堆栈留给诊断单。
-      if (error.length <= 48 && !/https?:\/\//i.test(error)) {
+      // 向导自己写入的本地化短句直接展示；后端原文（英文/URL）只做分类映射，
+      // 完整内容留在「预览诊断单」，避免界面混入非 i18n 文本。
+      const known = [
+        t.firstRunBashMissing,
+        t.firstRunBridgeUnavailable,
+        t.firstRunInstallNotReady,
+        t.firstRunInstallTimeout,
+        t.firstRunNoOfficialVersion,
+      ];
+      if (known.includes(error)) {
         return error;
       }
       if (/decoding response body/i.test(error)) {
@@ -194,9 +217,6 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
       }
       if (/HTTP \d{3}/i.test(error)) {
         return t.firstRunErrorHttp;
-      }
-      if (/SHA256|checksum/i.test(error)) {
-        return t.firstRunErrorChecksum;
       }
       if (/disk|space|空间/i.test(error)) {
         return t.firstRunErrorDisk;
@@ -262,7 +282,8 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
         }
         empty += 1;
         const section = result.data[dep];
-        if (section.effective !== 'none' && section.meetsBaseline) {
+        // 首启只认宿主托管：系统版本即使达标也不算本次安装完成。
+        if (section.effective === 'host' && section.meetsBaseline) {
           return { ok: true };
         }
         if (empty >= 4) {
@@ -358,7 +379,7 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
       }
       if (attempt < MAX_ATTEMPTS) {
         patchItem('bash', { status: 'retrying' });
-        await sleep(500);
+        await sleep(BACKOFF_MS[attempt - 1]);
       }
     }
     patchItem('bash', { status: 'error', error: t.firstRunBashMissing });
@@ -467,6 +488,10 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
     setPhase('done');
     setActiveId(null);
     setEnvWizardDone(true);
+    // 有失败项就记一次「跳过」，让环境组的续接横幅可以提醒补装；全部就绪则清掉。
+    setEnvWizardSkippedAt(
+      itemsRef.current.some((item) => item.status === 'error') ? Date.now() : null,
+    );
 
     // Q2：Node/Git/Bash 的来源偏好钉到宿主托管；用户主动选过系统兜底的项
     // （system=true）不覆盖。随后刷新 env store 与两个 harness 组，避免设置
@@ -484,7 +509,7 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
     void useAppStore.getState().fetchDshSettingsSnapshot(true);
     resetOpencodeSnapshotCache();
     void prefetchOpencodeSnapshot();
-  }, [actions, setEnvWizardDone]);
+  }, [actions, setEnvWizardDone, setEnvWizardSkippedAt]);
 
   const runProvisioning = useCallback(
     async (mode: 'initial' | 'retry') => {
@@ -510,7 +535,9 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
         if (env.ok) {
           for (const id of ['node', 'git'] as const) {
             const section = env.data[id];
-            if (section.effective !== 'none' && section.meetsBaseline) {
+            // 首启始终安装宿主托管：系统安装即使达标也不能跳过（否则 finish()
+            // 会把来源钉成 host，却没有宿主副本，反而把可用环境判成缺失）。
+            if (section.effective === 'host' && section.meetsBaseline) {
               patchItem(id, { status: 'done', note: t.firstRunHostedNote });
             }
           }
@@ -620,18 +647,27 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
   );
 
   const applySystemFallback = useCallback(
-    (id: ItemId) => {
-      if (id === 'node' || id === 'git' || id === 'bash') {
-        void actions.selectEnvSource(id, 'system');
+    async (id: ItemId) => {
+      if (id !== 'node' && id !== 'git' && id !== 'bash') {
+        return;
       }
-      patchItem(id, {
-        status: 'done',
-        system: true,
-        note: t.firstRunSystemNote,
-        error: null,
-      });
+      patchItem(id, { status: 'detecting', error: null });
+      const switched = await actions.selectEnvSource(id, 'system').catch(() => false);
+      const status = envBridge ? await envBridge.getStatus() : null;
+      const section = status?.ok ? status.data[id] : null;
+      if (switched && section?.effective === 'system' && section.meetsBaseline) {
+        patchItem(id, {
+          status: 'done',
+          system: true,
+          note: t.firstRunSystemNote,
+          error: null,
+        });
+        return;
+      }
+      // 系统副本不达标/切换失败时如实报错，不再无条件标成就绪。
+      patchItem(id, { status: 'error', error: t.firstRunSystemUnavailable });
     },
-    [actions, patchItem, t],
+    [actions, envBridge, patchItem, t],
   );
 
   const buildReport = useCallback(async (): Promise<string> => {
@@ -816,7 +852,7 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
                   <button
                     type="button"
                     className="adl-fr-link"
-                    onClick={() => applySystemFallback(item.id)}
+                    onClick={() => void applySystemFallback(item.id)}
                   >
                     {t.firstRunUseSystem}
                   </button>
