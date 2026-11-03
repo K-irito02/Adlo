@@ -19,6 +19,9 @@ pub mod config;
 /// Baseline version pins (`env-baseline.json` resource, Task 11).
 pub mod baseline;
 
+/// Runtime resolution of the latest stable Node / Git versions.
+pub mod latest;
+
 /// Source-aware PATH contribution: hosted copies + custom-path parents
 /// (server prepends these to its own PATH).
 pub mod path_env;

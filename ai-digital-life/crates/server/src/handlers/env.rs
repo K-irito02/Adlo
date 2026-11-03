@@ -682,9 +682,15 @@ async fn install_inner(
         .and_then(|p| p.parent().map(Path::to_path_buf))
         .unwrap_or_default();
     let baseline = adl_env::baseline::load(&exe_dir)?;
+    let root = state.storage.paths().root.clone();
+    let requested_version = input.version;
     match dep {
         "node" => {
-            let version = input.version.unwrap_or_else(|| baseline.node.stable.clone());
+            // 首启/设置组未指定版本时解析官方最新 LTS；失败回退 bundled baseline。
+            let version = match requested_version {
+                Some(version) => version,
+                None => resolve_latest_node(&root, &baseline).await,
+            };
             version
                 .parse::<semver::Version>()
                 .map_err(|_| AppError::InvalidInput(format!("bad node version {version}")))?;
@@ -693,23 +699,14 @@ async fn install_inner(
             Ok(started_payload())
         },
         "git" => {
-            let version = input.version.unwrap_or_else(|| baseline.git.stable.clone());
-            // tag+asset 逐字来自 baseline，short semver 推不出 asset 名——
-            // 非 baseline 版本拒绝（不得猜 `.windows.N` 后缀）。
-            if version != baseline.git.stable {
-                return Err(AppError::InvalidInput(format!(
-                    "only the baseline git version {} can be installed",
-                    baseline.git.stable
-                )));
-            }
+            // 未指定版本 → 解析官方最新 PortableGit；显式版本只接受最新或 baseline
+            // （tag+asset 逐字来自解析结果/baseline，short semver 推不出 asset 名）。
+            let (version, base, tag, asset) = match requested_version {
+                Some(version) => resolve_requested_git(&root, &baseline, version).await?,
+                None => resolve_latest_git(&root, &baseline).await,
+            };
             try_begin_env_task(state, "env-git-install", &format!("git {version}"))?;
-            spawn_git_install(
-                state,
-                version.clone(),
-                baseline.git.base.clone(),
-                baseline.git.tag.clone(),
-                baseline.git.asset.clone(),
-            );
+            spawn_git_install(state, version, base, tag, asset);
             Ok(started_payload())
         },
         // WebView2 由安装器管理：provider 直接返回机器码引导错误（4xx）。
@@ -723,6 +720,75 @@ async fn install_inner(
         )),
         _ => Err(AppError::InvalidInput(format!("{dep} cannot be installed"))),
     }
+}
+
+/// Resolve the latest Node LTS; any network/config/parse failure falls back to
+/// the bundled baseline so first-run still works offline.
+async fn resolve_latest_node(root: &Path, baseline: &adl_env::baseline::EnvBaseline) -> String {
+    let Ok(config) = adl_download_source::load(root) else {
+        return baseline.node.stable.clone();
+    };
+    let Ok(client) = adl_download_source::build_http_client(&config).await else {
+        return baseline.node.stable.clone();
+    };
+    match adl_env::latest::resolve_node_stable(&client, &baseline.node.dist_base).await {
+        Ok(version) => version,
+        Err(error) => {
+            tracing::warn!(%error, "env: latest Node resolve failed; using baseline");
+            baseline.node.stable.clone()
+        },
+    }
+}
+
+/// Resolve the latest PortableGit; any failure falls back to the baseline tuple.
+async fn resolve_latest_git(
+    root: &Path,
+    baseline: &adl_env::baseline::EnvBaseline,
+) -> (String, String, String, String) {
+    let Ok(config) = adl_download_source::load(root) else {
+        return baseline_git_tuple(baseline);
+    };
+    let Ok(client) = adl_download_source::build_http_client(&config).await else {
+        return baseline_git_tuple(baseline);
+    };
+    match adl_env::latest::resolve_git_portable(&client).await {
+        Ok(latest) => (latest.version, latest.base, latest.tag, latest.asset),
+        Err(error) => {
+            tracing::warn!(%error, "env: latest Git resolve failed; using baseline");
+            baseline_git_tuple(baseline)
+        },
+    }
+}
+
+/// Explicit Git version: accept the resolved latest or the baseline; anything
+/// else is a 4xx because we cannot derive its tag/asset safely.
+async fn resolve_requested_git(
+    root: &Path,
+    baseline: &adl_env::baseline::EnvBaseline,
+    requested: String,
+) -> Result<(String, String, String, String), AppError> {
+    if requested == baseline.git.stable {
+        return Ok(baseline_git_tuple(baseline));
+    }
+    let latest = resolve_latest_git(root, baseline).await;
+    if requested == latest.0 {
+        return Ok(latest);
+    }
+    Err(AppError::InvalidInput(format!(
+        "only the latest git version {} or the baseline {} can be installed",
+        latest.0, baseline.git.stable
+    )))
+}
+
+fn baseline_git_tuple(
+    baseline: &adl_env::baseline::EnvBaseline,
+) -> (String, String, String, String) {
+    (
+        baseline.git.stable.clone(),
+        baseline.git.base.clone(),
+        baseline.git.tag.clone(),
+        baseline.git.asset.clone(),
+    )
 }
 
 /// 后台执行 node 宿主托管安装（`env_install_lock` 下串行；进度经 `env_task`
