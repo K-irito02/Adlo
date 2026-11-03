@@ -186,7 +186,27 @@ pub async fn build_http_client_with_timeout(
     config: &DownloadSourceConfig,
     timeout: Duration,
 ) -> Result<reqwest::Client, AppError> {
+    build_client(config, timeout, false).await
+}
+
+/// Binary assets (Node zip / PortableGit SFX) are already compressed; ask for
+/// identity encoding so a proxy/CDN cannot hand us a body that fails gzip/br
+/// decoding. Large files also get a 5-minute transfer timeout.
+pub async fn build_binary_http_client(
+    config: &DownloadSourceConfig,
+) -> Result<reqwest::Client, AppError> {
+    build_client(config, Duration::from_secs(300), true).await
+}
+
+async fn build_client(
+    config: &DownloadSourceConfig,
+    timeout: Duration,
+    disable_compression: bool,
+) -> Result<reqwest::Client, AppError> {
     let mut builder = reqwest::Client::builder();
+    if disable_compression {
+        builder = builder.no_gzip();
+    }
 
     match config.proxy.mode {
         ProxyMode::None => {

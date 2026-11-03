@@ -21,6 +21,8 @@ pub const HOSTED_NAME: &str = "env-hosted/node";
 pub const MARKER_REL: &str = "node.exe";
 /// Official distribution base (baseline default when no mirror is configured).
 pub const OFFICIAL_DIST_BASE: &str = "https://nodejs.org/dist";
+/// npmmirror Node mirror (same `{base}/v{V}/node-v{V}-win-x64.zip` layout).
+pub const MIRROR_DIST_BASE: &str = "https://npmmirror.com/mirrors/node";
 
 /// System-side detection outcome.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -56,6 +58,29 @@ pub struct InstallConfig<'a> {
 /// Official portable-zip URL: `{base}/v{version}/node-v{version}-win-x64.zip`.
 pub fn node_dist_url(base: &str, version: &str) -> String {
     format!("{base}/v{version}/node-v{version}-win-x64.zip")
+}
+
+fn push_unique(urls: &mut Vec<String>, url: String) {
+    if !urls.contains(&url) {
+        urls.push(url);
+    }
+}
+
+/// Candidate URLs: configured/official first, then the npmmirror mirror. When
+/// the user's npm registry is npmmirror, try the mirror first (their network
+/// already prefers it).
+pub fn download_urls(base: &str, version: &str, prefer_mirror: bool) -> Vec<String> {
+    let primary = if base.is_empty() { OFFICIAL_DIST_BASE } else { base };
+    let official = node_dist_url(OFFICIAL_DIST_BASE, version);
+    let mirror = node_dist_url(MIRROR_DIST_BASE, version);
+    let mut urls = Vec::new();
+    if prefer_mirror {
+        push_unique(&mut urls, mirror.clone());
+    }
+    push_unique(&mut urls, node_dist_url(primary, version));
+    push_unique(&mut urls, mirror);
+    push_unique(&mut urls, official);
+    urls
 }
 
 /// Parse `node --version` output (`v22.14.0` plus trailing newline);
@@ -180,17 +205,37 @@ pub async fn install(
     }
     reporter.begin_with("env-node-install", &format!("node {version}"), false);
     let base = if cfg.dist_base.is_empty() { OFFICIAL_DIST_BASE } else { cfg.dist_base };
-    let url = node_dist_url(base, version);
-    reporter.update(ProgressPhase::Installing, Some(10), 0, 100, false);
-    let client = adl_download_source::build_http_client(cfg.download).await.inspect_err(|e| {
-        reporter.set_error(&e.to_string());
-    })?;
-    let staging = match super::fetch_and_stage(&client, &url, MARKER_REL).await {
-        Ok(staging) => staging,
-        Err(e) => {
+    // 大文件用 identity 编码 + 5 分钟超时；官方/镜像按候选顺序尝试。
+    let client =
+        adl_download_source::build_binary_http_client(cfg.download).await.inspect_err(|e| {
             reporter.set_error(&e.to_string());
-            return Err(e);
-        },
+        })?;
+    let urls = download_urls(base, version, cfg.download.npm_registry.contains("npmmirror.com"));
+    let mut staging = None;
+    let mut errors = Vec::new();
+    for url in &urls {
+        if reporter.is_cancelled() {
+            let err = AppError::Cancelled("node install cancelled".to_string());
+            reporter.set_error(&err.to_string());
+            return Err(err);
+        }
+        reporter.update(ProgressPhase::Installing, Some(10), 0, 100, false);
+        match super::fetch_and_stage(&client, url, MARKER_REL).await {
+            Ok(staged) => {
+                staging = Some(staged);
+                break;
+            },
+            Err(e) => {
+                tracing::warn!(url = %url, error = %e, "node: download source failed; trying next");
+                errors.push(format!("{url}: {e}"));
+            },
+        }
+    }
+    let Some(staging) = staging else {
+        let err =
+            AppError::Network(format!("all node download sources failed: {}", errors.join(" | ")));
+        reporter.set_error(&err.to_string());
+        return Err(err);
     };
     if reporter.is_cancelled() {
         let _ = std::fs::remove_dir_all(&staging);
@@ -225,8 +270,39 @@ pub async fn install(
 
 #[cfg(test)]
 mod tests {
-    use super::{HOSTED_NAME, MARKER_REL, adopt_staging, host_bin_path, node_dist_url, uninstall};
     use std::path::{Path, PathBuf};
+
+    use super::{
+        HOSTED_NAME, MARKER_REL, MIRROR_DIST_BASE, OFFICIAL_DIST_BASE, adopt_staging,
+        download_urls, host_bin_path, node_dist_url, uninstall,
+    };
+
+    #[test]
+    fn download_urls_falls_back_to_the_mirror() {
+        let urls = download_urls(OFFICIAL_DIST_BASE, "26.13.0", false);
+        assert_eq!(
+            urls,
+            vec![
+                "https://nodejs.org/dist/v26.13.0/node-v26.13.0-win-x64.zip".to_string(),
+                "https://npmmirror.com/mirrors/node/v26.13.0/node-v26.13.0-win-x64.zip".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn download_urls_prefers_the_mirror_for_npmmirror_users() {
+        let urls = download_urls(OFFICIAL_DIST_BASE, "26.13.0", true);
+        assert_eq!(
+            urls[0],
+            "https://npmmirror.com/mirrors/node/v26.13.0/node-v26.13.0-win-x64.zip"
+        );
+        assert!(
+            urls.contains(
+                &"https://nodejs.org/dist/v26.13.0/node-v26.13.0-win-x64.zip".to_string()
+            )
+        );
+        assert_eq!(MIRROR_DIST_BASE, "https://npmmirror.com/mirrors/node");
+    }
 
     fn nanos() -> u128 {
         std::time::SystemTime::now()

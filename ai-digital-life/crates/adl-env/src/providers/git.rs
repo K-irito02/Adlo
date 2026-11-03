@@ -25,6 +25,8 @@ pub const MARKER_REL: &str = "cmd/git.exe";
 pub const BASH_MARKER_REL: &str = "bin/bash.exe";
 /// Official PortableGit base (baseline default when no mirror is configured).
 pub const OFFICIAL_GIT_BASE: &str = "https://github.com/git-for-windows/git/releases/download";
+/// npmmirror Git for Windows mirror (same `{base}/{tag}/{asset}` layout).
+pub const MIRROR_GIT_BASE: &str = "https://npmmirror.com/mirrors/git-for-windows";
 
 /// System-side detection outcome.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -69,6 +71,28 @@ pub struct InstallConfig<'a> {
 /// N==1 omitted, N>1 appended).
 pub fn portable_git_url(base: &str, tag: &str, asset: &str) -> String {
     format!("{base}/{tag}/{asset}")
+}
+
+fn push_unique(urls: &mut Vec<String>, url: String) {
+    if !urls.contains(&url) {
+        urls.push(url);
+    }
+}
+
+/// Candidate URLs: configured/official first, then the npmmirror mirror. When
+/// the user's npm registry is npmmirror, try the mirror first.
+pub fn download_urls(base: &str, tag: &str, asset: &str, prefer_mirror: bool) -> Vec<String> {
+    let primary = if base.is_empty() { OFFICIAL_GIT_BASE } else { base };
+    let official = portable_git_url(OFFICIAL_GIT_BASE, tag, asset);
+    let mirror = portable_git_url(MIRROR_GIT_BASE, tag, asset);
+    let mut urls = Vec::new();
+    if prefer_mirror {
+        push_unique(&mut urls, mirror.clone());
+    }
+    push_unique(&mut urls, portable_git_url(primary, tag, asset));
+    push_unique(&mut urls, mirror);
+    push_unique(&mut urls, official);
+    urls
 }
 
 /// Parse `git --version` output (`git version 2.47.1.windows.1` plus trailing
@@ -211,17 +235,42 @@ pub async fn install(
     }
     reporter.begin_with("env-git-install", &format!("git {version}"), false);
     let base = if cfg.git_base.is_empty() { OFFICIAL_GIT_BASE } else { cfg.git_base };
-    let url = portable_git_url(base, cfg.git_tag, cfg.git_asset);
-    reporter.update(ProgressPhase::Installing, Some(10), 0, 100, false);
-    let client = adl_download_source::build_http_client(cfg.download).await.inspect_err(|e| {
-        reporter.set_error(&e.to_string());
-    })?;
-    let staging = match super::fetch_and_stage_sfx(&client, &url, MARKER_REL).await {
-        Ok(staging) => staging,
-        Err(e) => {
+    // 大文件用 identity 编码 + 5 分钟超时；官方/镜像按候选顺序尝试。
+    let client =
+        adl_download_source::build_binary_http_client(cfg.download).await.inspect_err(|e| {
             reporter.set_error(&e.to_string());
-            return Err(e);
-        },
+        })?;
+    let urls = download_urls(
+        base,
+        cfg.git_tag,
+        cfg.git_asset,
+        cfg.download.npm_registry.contains("npmmirror.com"),
+    );
+    let mut staging = None;
+    let mut errors = Vec::new();
+    for url in &urls {
+        if reporter.is_cancelled() {
+            let err = AppError::Cancelled("git install cancelled".to_string());
+            reporter.set_error(&err.to_string());
+            return Err(err);
+        }
+        reporter.update(ProgressPhase::Installing, Some(10), 0, 100, false);
+        match super::fetch_and_stage_sfx(&client, url, MARKER_REL).await {
+            Ok(staged) => {
+                staging = Some(staged);
+                break;
+            },
+            Err(e) => {
+                tracing::warn!(url = %url, error = %e, "git: download source failed; trying next");
+                errors.push(format!("{url}: {e}"));
+            },
+        }
+    }
+    let Some(staging) = staging else {
+        let err =
+            AppError::Network(format!("all git download sources failed: {}", errors.join(" | ")));
+        reporter.set_error(&err.to_string());
+        return Err(err);
     };
     if reporter.is_cancelled() {
         let _ = std::fs::remove_dir_all(&staging);
@@ -256,8 +305,30 @@ pub async fn install(
 
 #[cfg(test)]
 mod tests {
-    use super::{HOSTED_NAME, MARKER_REL, adopt_staging, uninstall};
     use std::path::{Path, PathBuf};
+
+    use super::{
+        HOSTED_NAME, MARKER_REL, MIRROR_GIT_BASE, OFFICIAL_GIT_BASE, adopt_staging, download_urls,
+        uninstall,
+    };
+
+    #[test]
+    fn download_urls_falls_back_to_the_mirror() {
+        let urls = download_urls(
+            OFFICIAL_GIT_BASE,
+            "v2.56.0.windows.4",
+            "PortableGit-2.56.0.4-64-bit.7z.exe",
+            false,
+        );
+        assert_eq!(
+            urls,
+            vec![
+                "https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.4/PortableGit-2.56.0.4-64-bit.7z.exe".to_string(),
+                "https://npmmirror.com/mirrors/git-for-windows/v2.56.0.windows.4/PortableGit-2.56.0.4-64-bit.7z.exe".to_string(),
+            ]
+        );
+        assert_eq!(MIRROR_GIT_BASE, "https://npmmirror.com/mirrors/git-for-windows");
+    }
 
     fn nanos() -> u128 {
         std::time::SystemTime::now()

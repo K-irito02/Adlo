@@ -10,6 +10,7 @@ import {
   prefetchOpencodeSnapshot,
   resetOpencodeSnapshotCache,
 } from '@features/opencode/opencodeVersionBridge';
+import { IconCheck } from '@icons';
 import type { EnvStatus } from '../../../shared/ipc/env';
 import './firstRunProvisioning.css';
 
@@ -133,6 +134,8 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
   const [activeId, setActiveId] = useState<ItemId | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportText, setReportText] = useState('');
+  const [copyFlash, setCopyFlash] = useState(false);
+  const copyFlashTimer = useRef<number | null>(null);
 
   const itemsRef = useRef<ItemState[]>(items);
   const runIdRef = useRef(0);
@@ -170,6 +173,38 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
         case 'opencode':
           return t.harnessWizardOpencode;
       }
+    },
+    [t],
+  );
+
+  const shortError = useCallback(
+    (error: string | null): string => {
+      if (!error) {
+        return t.firstRunErrorGeneric;
+      }
+      // 短错误（如「宿主 Git 包未包含 bash」）直接展示；长 URL/堆栈留给诊断单。
+      if (error.length <= 48 && !/https?:\/\//i.test(error)) {
+        return error;
+      }
+      if (/decoding response body/i.test(error)) {
+        return t.firstRunErrorDecode;
+      }
+      if (/timeout|timed out/i.test(error)) {
+        return t.firstRunErrorTimeout;
+      }
+      if (/HTTP \d{3}/i.test(error)) {
+        return t.firstRunErrorHttp;
+      }
+      if (/SHA256|checksum/i.test(error)) {
+        return t.firstRunErrorChecksum;
+      }
+      if (/disk|space|空间/i.test(error)) {
+        return t.firstRunErrorDisk;
+      }
+      if (/network/i.test(error)) {
+        return t.firstRunErrorNetwork;
+      }
+      return t.firstRunErrorGeneric;
     },
     [t],
   );
@@ -533,6 +568,9 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
     return () => {
       mountedRef.current = false;
       runIdRef.current += 1;
+      if (copyFlashTimer.current !== null) {
+        window.clearTimeout(copyFlashTimer.current);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -634,6 +672,16 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
     const text = await buildReport();
     const ok = await copyTextToClipboard(text);
     showToast(ok ? t.firstRunCopySuccess : t.firstRunCopyFailed, ok ? 'success' : 'error');
+    if (ok) {
+      setCopyFlash(true);
+      if (copyFlashTimer.current !== null) {
+        window.clearTimeout(copyFlashTimer.current);
+      }
+      copyFlashTimer.current = window.setTimeout(() => {
+        setCopyFlash(false);
+        copyFlashTimer.current = null;
+      }, 1500);
+    }
   }, [buildReport, showToast, t]);
 
   const guideRow = (
@@ -657,8 +705,13 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
       failed.length > 0 ? (
         <div className="adl-fr-foot">
           <div className="adl-fr-foot__left">
-            <button type="button" className="adl-fr-link" onClick={() => void copyReport()}>
-              {t.environmentCopyForAgentNote}
+            <button
+              type="button"
+              className="adl-fr-link adl-fr-copy-link"
+              onClick={() => void copyReport()}
+            >
+              {copyFlash ? <IconCheck size={12} decorative className="adl-fr-copy-check" /> : null}
+              <span>{t.environmentCopyForAgentNote}</span>
             </button>
             <button type="button" className="adl-fr-link" onClick={() => void openReport()}>
               {t.firstRunPreview}
@@ -669,8 +722,13 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
     ) : failed.length > 0 ? (
       <div className="adl-fr-foot">
         <div className="adl-fr-foot__left">
-          <button type="button" className="adl-fr-link" onClick={() => void copyReport()}>
-            {t.environmentCopyForAgentNote}
+          <button
+            type="button"
+            className="adl-fr-link adl-fr-copy-link"
+            onClick={() => void copyReport()}
+          >
+            {copyFlash ? <IconCheck size={12} decorative className="adl-fr-copy-check" /> : null}
+            <span>{t.environmentCopyForAgentNote}</span>
           </button>
           <button type="button" className="adl-fr-link" onClick={() => void openReport()}>
             {t.firstRunPreview}
@@ -734,7 +792,7 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
             {failed.map((item) => (
               <div className="adl-fr-fail__row" key={item.id}>
                 <span className="adl-fr-fail__name">{labelFor(item.id)}</span>
-                <span className="adl-fr-fail__err">{item.error ?? t.firstRunFailed}</span>
+                <span className="adl-fr-fail__err">{shortError(item.error)}</span>
                 {item.id === 'node' || item.id === 'git' || item.id === 'bash' ? (
                   <button
                     type="button"

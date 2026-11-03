@@ -43,16 +43,17 @@ pub async fn fetch_and_stage(
         .send()
         .await
         .map_err(|e| abort(&staging, AppError::Network(format!("download {url}: {e}"))))?;
+    let meta = response_meta(&resp);
     if !resp.status().is_success() {
         return Err(abort(
             &staging,
-            AppError::Network(format!("download {url}: HTTP {}", resp.status())),
+            AppError::Network(format!("download {url}: HTTP {} ({meta})", resp.status())),
         ));
     }
     let bytes = resp
         .bytes()
         .await
-        .map_err(|e| abort(&staging, AppError::Network(format!("read {url}: {e}"))))?;
+        .map_err(|e| abort(&staging, AppError::Network(format!("read {url} ({meta}): {e}"))))?;
 
     // zip 解压是阻塞 CPU+IO（几十 MB 归档可达数秒）：搬到 blocking 池。
     let staging_for_zip = staging.clone();
@@ -107,16 +108,17 @@ pub async fn fetch_and_stage_sfx(
         .send()
         .await
         .map_err(|e| abort(&staging, AppError::Network(format!("download {url}: {e}"))))?;
+    let meta = response_meta(&resp);
     if !resp.status().is_success() {
         return Err(abort(
             &staging,
-            AppError::Network(format!("download {url}: HTTP {}", resp.status())),
+            AppError::Network(format!("download {url}: HTTP {} ({meta})", resp.status())),
         ));
     }
     let bytes = resp
         .bytes()
         .await
-        .map_err(|e| abort(&staging, AppError::Network(format!("read {url}: {e}"))))?;
+        .map_err(|e| abort(&staging, AppError::Network(format!("read {url} ({meta}): {e}"))))?;
 
     // 7z SFX 必须落成文件才能执行；放在 staging 旁边，避免污染最终目录。
     let archive = std::env::temp_dir().join(format!("adl-env-sfx-{}.7z.exe", nonce()));
@@ -210,6 +212,19 @@ fn unwrap_single_top_dir(staging: &Path, marker_rel: &str) {
 fn abort(staging: &Path, err: AppError) -> AppError {
     let _ = std::fs::remove_dir_all(staging);
     err
+}
+
+/// Response header summary for diagnostics (never the body).
+fn response_meta(resp: &reqwest::Response) -> String {
+    let header = |name: reqwest::header::HeaderName| {
+        resp.headers().get(name).and_then(|value| value.to_str().ok()).unwrap_or("-")
+    };
+    format!(
+        "content-encoding={}, content-length={}, content-type={}",
+        header(reqwest::header::CONTENT_ENCODING),
+        header(reqwest::header::CONTENT_LENGTH),
+        header(reqwest::header::CONTENT_TYPE),
+    )
 }
 
 fn nonce() -> u128 {
