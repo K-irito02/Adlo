@@ -466,12 +466,19 @@ pub fn detect_system_bin(spec: &spec::HarnessSpec) -> Option<SystemHarnessInfo> 
     if path.is_empty() {
         return None;
     }
-    let version = std::process::Command::new(&path)
-        .arg("--version")
-        .output()
-        .ok()
-        .filter(|o| o.status.success())
-        .and_then(|o| parse_version_token(&String::from_utf8_lossy(&o.stdout)));
+    // npm-installed system binaries are shims without an extension on Windows;
+    // spawning them directly fails with 193, so try the `.cmd` fallback (same
+    // rule as `detect_system_dsh`).
+    let mut version = None;
+    for candidate in system_probe_candidates(Path::new(&path)) {
+        let output = std::process::Command::new(&candidate).arg("--version").output().ok();
+        if let Some(o) = output.filter(|o| o.status.success()) {
+            if let Some(parsed) = parse_version_token(&String::from_utf8_lossy(&o.stdout)) {
+                version = Some(parsed);
+                break;
+            }
+        }
+    }
     Some(SystemHarnessInfo { path: PathBuf::from(path), version })
 }
 
