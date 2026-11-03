@@ -695,18 +695,26 @@ async fn install_inner(
                 .parse::<semver::Version>()
                 .map_err(|_| AppError::InvalidInput(format!("bad node version {version}")))?;
             try_begin_env_task(state, "env-node-install", &format!("node {version}"))?;
-            spawn_node_install(state, version.clone(), baseline.node.dist_base.clone());
+            // 只有 bundled baseline 版本才带基线哈希；其它版本必须现取 SHASUMS256.txt。
+            let fallback_sha256 =
+                (version == baseline.node.stable).then(|| baseline.node.sha256.clone());
+            spawn_node_install(
+                state,
+                version.clone(),
+                baseline.node.dist_base.clone(),
+                fallback_sha256,
+            );
             Ok(started_payload())
         },
         "git" => {
             // 未指定版本 → 解析官方最新 PortableGit；显式版本只接受最新或 baseline
             // （tag+asset 逐字来自解析结果/baseline，short semver 推不出 asset 名）。
-            let (version, base, tag, asset) = match requested_version {
+            let (version, base, tag, asset, sha256) = match requested_version {
                 Some(version) => resolve_requested_git(&root, &baseline, version).await?,
                 None => resolve_latest_git(&root, &baseline).await,
             };
             try_begin_env_task(state, "env-git-install", &format!("git {version}"))?;
-            spawn_git_install(state, version, base, tag, asset);
+            spawn_git_install(state, version, base, tag, asset, sha256);
             Ok(started_payload())
         },
         // WebView2 由安装器管理：provider 直接返回机器码引导错误（4xx）。
@@ -740,11 +748,14 @@ async fn resolve_latest_node(root: &Path, baseline: &adl_env::baseline::EnvBasel
     }
 }
 
+/// Git install tuple: version, base, tag, asset, SHA-256.
+type GitInstallSpec = (String, String, String, String, Option<String>);
+
 /// Resolve the latest PortableGit; any failure falls back to the baseline tuple.
 async fn resolve_latest_git(
     root: &Path,
     baseline: &adl_env::baseline::EnvBaseline,
-) -> (String, String, String, String) {
+) -> GitInstallSpec {
     let Ok(config) = adl_download_source::load(root) else {
         return baseline_git_tuple(baseline);
     };
@@ -752,7 +763,14 @@ async fn resolve_latest_git(
         return baseline_git_tuple(baseline);
     };
     match adl_env::latest::resolve_git_portable(&client).await {
-        Ok(latest) => (latest.version, latest.base, latest.tag, latest.asset),
+        // 没有 digest 的 release 无法校验，回退到带固定哈希的 baseline。
+        Ok(latest) if latest.sha256.is_some() => {
+            (latest.version, latest.base, latest.tag, latest.asset, latest.sha256)
+        },
+        Ok(latest) => {
+            tracing::warn!(version = %latest.version, "env: latest Git release has no digest; using baseline");
+            baseline_git_tuple(baseline)
+        },
         Err(error) => {
             tracing::warn!(%error, "env: latest Git resolve failed; using baseline");
             baseline_git_tuple(baseline)
@@ -766,7 +784,7 @@ async fn resolve_requested_git(
     root: &Path,
     baseline: &adl_env::baseline::EnvBaseline,
     requested: String,
-) -> Result<(String, String, String, String), AppError> {
+) -> Result<GitInstallSpec, AppError> {
     if requested == baseline.git.stable {
         return Ok(baseline_git_tuple(baseline));
     }
@@ -780,14 +798,13 @@ async fn resolve_requested_git(
     )))
 }
 
-fn baseline_git_tuple(
-    baseline: &adl_env::baseline::EnvBaseline,
-) -> (String, String, String, String) {
+fn baseline_git_tuple(baseline: &adl_env::baseline::EnvBaseline) -> GitInstallSpec {
     (
         baseline.git.stable.clone(),
         baseline.git.base.clone(),
         baseline.git.tag.clone(),
         baseline.git.asset.clone(),
+        Some(baseline.git.sha256.clone()),
     )
 }
 
@@ -795,7 +812,12 @@ fn baseline_git_tuple(
 /// 由 `GET /env/status` 的 `task` 节轮询）。
 /// 成功由 provider `finish()` 清快照；失败留 error 快照供轮询，
 /// 下次 install 经 `try_begin_env_task` 回收。
-fn spawn_node_install(state: &ServerState, version: String, dist_base: String) {
+fn spawn_node_install(
+    state: &ServerState,
+    version: String,
+    dist_base: String,
+    sha256: Option<String>,
+) {
     let task_state = state.clone();
     tokio::spawn(async move {
         let _lock = task_state.env_install_lock.clone().lock_owned().await;
@@ -808,8 +830,12 @@ fn spawn_node_install(state: &ServerState, version: String, dist_base: String) {
                 return;
             },
         };
-        let cfg =
-            node::InstallConfig { data_dir: &root, dist_base: &dist_base, download: &download };
+        let cfg = node::InstallConfig {
+            data_dir: &root,
+            dist_base: &dist_base,
+            download: &download,
+            sha256: sha256.as_deref(),
+        };
         if node::install(&version, &cfg, &task_state.env_task).await.is_ok() {
             // 新版本写入 selected.txt 后，宿主目录要立刻进 PATH（新终端/dsh 下一次拉起生效）。
             crate::env_path::refresh(&root);
@@ -824,6 +850,7 @@ fn spawn_git_install(
     base: String,
     tag: String,
     asset: String,
+    sha256: Option<String>,
 ) {
     let task_state = state.clone();
     tokio::spawn(async move {
@@ -843,6 +870,7 @@ fn spawn_git_install(
             git_tag: &tag,
             git_asset: &asset,
             download: &download,
+            sha256: sha256.as_deref(),
         };
         if git::install(&version, &cfg, &task_state.env_task).await.is_ok() {
             // 同 node：宿主 PortableGit 的 `cmd/` 与 `bin/` 立刻进入 PATH。

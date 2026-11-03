@@ -14,6 +14,86 @@ pub mod webview2;
 use std::path::{Path, PathBuf};
 
 use adl_errors::AppError;
+use sha2::{Digest, Sha256};
+
+/// Shared candidate ordering for binary assets: mirror first when the user's
+/// npm registry is npmmirror, then the configured/official URL, then both
+/// fallbacks. Duplicates are removed.
+pub(crate) fn candidate_urls(
+    primary: String,
+    mirror: String,
+    official: String,
+    prefer_mirror: bool,
+) -> Vec<String> {
+    let mut urls = Vec::new();
+    let mut push = |url: String| {
+        if !urls.contains(&url) {
+            urls.push(url);
+        }
+    };
+    if prefer_mirror {
+        push(mirror.clone());
+    }
+    push(primary);
+    push(mirror);
+    push(official);
+    urls
+}
+
+/// Whether `value` is a 64-character hex SHA-256 digest.
+pub(crate) fn is_sha256_hex(value: &str) -> bool {
+    value.len() == 64 && value.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// Lowercase hex SHA-256 of the downloaded bytes.
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    digest.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+/// Parse a Node `SHASUMS256.txt` body (`<hex>  <filename>`) for `asset`.
+pub(crate) fn parse_sha256_manifest(body: &str, asset: &str) -> Option<String> {
+    for line in body.lines() {
+        let mut parts = line.split_whitespace();
+        let Some(hash) = parts.next() else {
+            continue;
+        };
+        let Some(name) = parts.next() else {
+            continue;
+        };
+        let name = name.trim_start_matches('*');
+        if name == asset && hash.len() == 64 && hash.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Some(hash.to_ascii_lowercase());
+        }
+    }
+    None
+}
+
+/// Fetch a checksum manifest and return the hash for `asset`.
+pub(crate) async fn fetch_sha256_manifest(
+    client: &reqwest::Client,
+    url: &str,
+    asset: &str,
+) -> Result<String, AppError> {
+    let resp =
+        client.get(url).send().await.map_err(|e| AppError::Network(format!("fetch {url}: {e}")))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Network(format!("fetch {url}: HTTP {}", resp.status())));
+    }
+    let body = resp.text().await.map_err(|e| AppError::Network(format!("read {url}: {e}")))?;
+    parse_sha256_manifest(&body, asset)
+        .ok_or_else(|| AppError::Network(format!("{asset} not found in {url}")))
+}
+
+fn verify_sha256(url: &str, bytes: &[u8], expected: &str) -> Result<(), AppError> {
+    let actual = sha256_hex(bytes);
+    if actual.eq_ignore_ascii_case(expected) {
+        return Ok(());
+    }
+    Err(AppError::InvalidInput(format!(
+        "checksum mismatch for {url}: expected {expected}, got {actual}"
+    )))
+}
 
 /// Download a zip from `url` with the caller-supplied registry/proxy-aware
 /// client (built via `adl_download_source::build_http_client` — never build a
@@ -23,9 +103,11 @@ use adl_errors::AppError;
 /// `marker_rel` at the staging root), validate `marker_rel`, and return the
 /// staging dir for the caller to [`adl_hosted::swap_into_place`].
 ///
-/// Marker missing (or bad zip / HTTP error) → staging is removed and `Err`.
-/// Git uses the SFX path ([`fetch_and_stage_sfx`]) because PortableGit ships
-/// as a 7-Zip self-extracting archive.
+/// Marker missing, bad zip, HTTP error, or a SHA-256 mismatch against
+/// `expected_sha256` → staging is removed and `Err`. The digest is checked
+/// before extraction, so no unverified bytes are ever unpacked. Git uses the
+/// SFX path ([`fetch_and_stage_sfx`]) because PortableGit ships as a 7-Zip
+/// self-extracting archive.
 ///
 /// Zip extraction runs on `spawn_blocking` so a large archive never stalls the
 /// async runtime (JoinError propagates as `AppError::Io`).
@@ -33,6 +115,7 @@ pub async fn fetch_and_stage(
     client: &reqwest::Client,
     url: &str,
     marker_rel: &str,
+    expected_sha256: &str,
 ) -> Result<PathBuf, AppError> {
     let staging = std::env::temp_dir().join(format!("adl-env-staging-{}", nonce()));
     std::fs::create_dir_all(&staging)
@@ -54,6 +137,7 @@ pub async fn fetch_and_stage(
         .bytes()
         .await
         .map_err(|e| abort(&staging, AppError::Network(format!("read {url} ({meta}): {e}"))))?;
+    verify_sha256(url, &bytes, expected_sha256).map_err(|e| abort(&staging, e))?;
 
     // zip 解压是阻塞 CPU+IO（几十 MB 归档可达数秒）：搬到 blocking 池。
     let staging_for_zip = staging.clone();
@@ -93,13 +177,14 @@ pub async fn fetch_and_stage(
 ///
 /// The archive is a PE executable: the caller must only pass a URL from the
 /// official Git for Windows release or the configured npmmirror mirror (the
-/// same asset path). No checksum is verified here; see [`git::download_urls`]
-/// for the allowlist. The extractor runs on `spawn_blocking` and is hidden on
-/// Windows.
+/// same asset path), and must pass the expected SHA-256 from the GitHub
+/// release API (or the pinned baseline) so a mirror cannot swap the payload.
+/// The extractor runs on `spawn_blocking` and is hidden on Windows.
 pub async fn fetch_and_stage_sfx(
     client: &reqwest::Client,
     url: &str,
     marker_rel: &str,
+    expected_sha256: &str,
 ) -> Result<PathBuf, AppError> {
     let staging = std::env::temp_dir().join(format!("adl-env-staging-{}", nonce()));
     std::fs::create_dir_all(&staging)
@@ -121,6 +206,7 @@ pub async fn fetch_and_stage_sfx(
         .bytes()
         .await
         .map_err(|e| abort(&staging, AppError::Network(format!("read {url} ({meta}): {e}"))))?;
+    verify_sha256(url, &bytes, expected_sha256).map_err(|e| abort(&staging, e))?;
 
     // 7z SFX 必须落成文件才能执行；放在 staging 旁边，避免污染最终目录。
     let archive = std::env::temp_dir().join(format!("adl-env-sfx-{}.7z.exe", nonce()));
@@ -305,5 +391,140 @@ mod tests {
     fn git_version_parses() {
         assert_eq!(git::parse_version("git version 2.47.1.windows.1"), Some("2.47.1".into()));
         assert_eq!(git::parse_version("not git"), None);
+    }
+
+    #[test]
+    fn sha256_hex_matches_known_digest() {
+        assert_eq!(
+            super::sha256_hex(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    #[test]
+    fn sha256_manifest_picks_the_matching_asset() {
+        let body = "\
+d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5  node-v24.22.1-win-x64.zip
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  node-v24.22.1-win-x86.zip
+";
+        assert_eq!(
+            super::parse_sha256_manifest(body, "node-v24.22.1-win-x64.zip").as_deref(),
+            Some("d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5")
+        );
+        assert!(super::parse_sha256_manifest(body, "missing.zip").is_none());
+    }
+
+    #[test]
+    fn verify_sha256_rejects_a_mismatch() {
+        let err = super::verify_sha256(
+            "https://example/asset.zip",
+            b"payload",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        )
+        .expect_err("mismatch must fail");
+        assert!(err.to_string().contains("checksum mismatch"), "{err}");
+    }
+
+    #[test]
+    fn candidate_urls_are_unique_and_mirror_first_when_preferred() {
+        let primary = "https://configured/asset";
+        let mirror = "https://mirror/asset";
+        let official = "https://official/asset";
+        assert_eq!(
+            super::candidate_urls(primary.into(), mirror.into(), official.into(), true),
+            vec![mirror, primary, official]
+        );
+        assert_eq!(
+            super::candidate_urls(primary.into(), mirror.into(), official.into(), false),
+            vec![primary, mirror, official]
+        );
+    }
+
+    #[test]
+    fn is_sha256_hex_requires_64_hex_chars() {
+        assert!(super::is_sha256_hex(
+            "d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5"
+        ));
+        assert!(!super::is_sha256_hex(""));
+        assert!(!super::is_sha256_hex("xyz"));
+        assert!(!super::is_sha256_hex(
+            "d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa"
+        ));
+    }
+
+    fn sample_zip() -> Vec<u8> {
+        use std::io::Write;
+        let mut buffer = std::io::Cursor::new(Vec::new());
+        {
+            let mut writer = zip::ZipWriter::new(&mut buffer);
+            writer
+                .start_file("node.exe", zip::write::SimpleFileOptions::default())
+                .expect("start zip entry");
+            writer.write_all(b"fake node").expect("write zip entry");
+            writer.finish().expect("finish zip");
+        }
+        buffer.into_inner()
+    }
+
+    async fn spawn_http_stub(body: Vec<u8>) -> String {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind stub");
+        let addr = listener.local_addr().expect("stub addr");
+        tokio::spawn(async move {
+            if let Ok((mut socket, _)) = listener.accept().await {
+                let mut request = [0u8; 2048];
+                let _ = socket.read(&mut request).await;
+                let header = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+                let _ = socket.write_all(header.as_bytes()).await;
+                let _ = socket.write_all(&body).await;
+            }
+        });
+        format!("http://{addr}/node-v24.22.1-win-x64.zip")
+    }
+
+    #[tokio::test]
+    async fn fetch_and_stage_accepts_the_matching_checksum() {
+        let zip = sample_zip();
+        let expected = super::sha256_hex(&zip);
+        let url = spawn_http_stub(zip).await;
+        let client = reqwest::Client::builder().no_proxy().build().expect("client");
+        let staging = super::fetch_and_stage(&client, &url, "node.exe", &expected)
+            .await
+            .expect("verified staging");
+        assert!(staging.join("node.exe").is_file());
+        let _ = std::fs::remove_dir_all(&staging);
+    }
+
+    #[tokio::test]
+    async fn fetch_and_stage_rejects_a_checksum_mismatch() {
+        let url = spawn_http_stub(sample_zip()).await;
+        let client = reqwest::Client::builder().no_proxy().build().expect("client");
+        let err = super::fetch_and_stage(
+            &client,
+            &url,
+            "node.exe",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        )
+        .await
+        .expect_err("mismatch must fail");
+        assert!(err.to_string().contains("checksum mismatch"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn fetch_and_stage_sfx_rejects_before_executing() {
+        let url = spawn_http_stub(b"not a real sfx".to_vec()).await;
+        let client = reqwest::Client::builder().no_proxy().build().expect("client");
+        let err = super::fetch_and_stage_sfx(
+            &client,
+            &url,
+            "cmd/git.exe",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        )
+        .await
+        .expect_err("mismatch must fail");
+        assert!(err.to_string().contains("checksum mismatch"), "{err}");
     }
 }

@@ -18,6 +18,9 @@ pub const ENV_BASELINE_FILE: &str = "env-baseline.json";
 pub struct NodeBaseline {
     pub stable: String,
     pub dist_base: String,
+    /// SHA-256 of `node-v{stable}-win-x64.zip` (authoritative for the pinned
+    /// version; mirrors cannot replace it).
+    pub sha256: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -26,6 +29,9 @@ pub struct GitBaseline {
     pub tag: String,
     pub asset: String,
     pub base: String,
+    /// SHA-256 of the pinned PortableGit asset (authoritative when the GitHub
+    /// release API is unreachable).
+    pub sha256: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -45,8 +51,18 @@ pub struct EnvBaseline {
 pub fn load_from(path: &Path) -> Result<EnvBaseline, AppError> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| AppError::Io(format!("Failed to read {}: {e}", path.display())))?;
-    serde_json::from_str(&content)
-        .map_err(|e| AppError::Config(format!("Failed to parse env baseline: {e}")))
+    let baseline: EnvBaseline = serde_json::from_str(&content)
+        .map_err(|e| AppError::Config(format!("Failed to parse env baseline: {e}")))?;
+    for (name, hash) in
+        [("node", baseline.node.sha256.as_str()), ("git", baseline.git.sha256.as_str())]
+    {
+        if !crate::providers::is_sha256_hex(hash) {
+            return Err(AppError::Config(format!(
+                "env baseline {name}.sha256 is not a 64-character hex digest"
+            )));
+        }
+    }
+    Ok(baseline)
 }
 
 /// Where to look for the bundled baseline at runtime, in order:
@@ -82,12 +98,17 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     const SAMPLE: &str = r#"{
-        "node": { "stable": "24.22.1", "dist_base": "https://nodejs.org/dist" },
+        "node": {
+            "stable": "24.22.1",
+            "dist_base": "https://nodejs.org/dist",
+            "sha256": "d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5"
+        },
         "git": {
             "stable": "2.56.0",
             "tag": "v2.56.0.windows.4",
             "asset": "PortableGit-2.56.0.4-64-bit.7z.exe",
-            "base": "https://github.com/git-for-windows/git/releases/download"
+            "base": "https://github.com/git-for-windows/git/releases/download",
+            "sha256": "b1f3e52216e2ed6882d1bebfd4d3fdf319bec40d2edbbf9fd26ec4fd3fce7ed1"
         },
         "webview2": { "minimum": "140.0.0.0" }
     }"#;

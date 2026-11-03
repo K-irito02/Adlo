@@ -174,6 +174,28 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
     [commit],
   );
 
+  /** 记录一次失败尝试（统一 history 格式），并进入 retrying。 */
+  const recordAttemptFailure = useCallback(
+    (id: ItemId, attempt: number, error: string) => {
+      patchItem(id, {
+        status: 'retrying',
+        error,
+        history: [
+          ...(itemsRef.current.find((item) => item.id === id)?.history ?? []),
+          `${attempt}/${MAX_ATTEMPTS}: ${error}`,
+        ],
+      });
+    },
+    [patchItem],
+  );
+
+  /** 第 1–3 次失败后的 1s/3s/8s 退避；第 4 次不再等待。 */
+  const backoff = useCallback(async (attempt: number) => {
+    if (attempt < MAX_ATTEMPTS) {
+      await sleep(BACKOFF_MS[attempt - 1]);
+    }
+  }, []);
+
   const labelFor = useCallback(
     (id: ItemId): string => {
       switch (id) {
@@ -314,15 +336,7 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
         });
         const started = await envBridge.install(id);
         if (!started.ok) {
-          const error = started.error.message;
-          patchItem(id, {
-            status: 'retrying',
-            error,
-            history: [
-              ...(itemsRef.current.find((i) => i.id === id)?.history ?? []),
-              `${attempt}/4: ${error}`,
-            ],
-          });
+          recordAttemptFailure(id, attempt, started.error.message);
         } else {
           const result = await waitEnvTask(id);
           if (result.ok) {
@@ -334,23 +348,14 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
             });
             return true;
           }
-          patchItem(id, {
-            status: 'retrying',
-            error: result.error ?? null,
-            history: [
-              ...(itemsRef.current.find((i) => i.id === id)?.history ?? []),
-              `${attempt}/4: ${result.error ?? t.firstRunInstallNotReady}`,
-            ],
-          });
+          recordAttemptFailure(id, attempt, result.error ?? t.firstRunInstallNotReady);
         }
-        if (attempt < MAX_ATTEMPTS) {
-          await sleep(BACKOFF_MS[attempt - 1]);
-        }
+        await backoff(attempt);
       }
       patchItem(id, { status: 'error' });
       return false;
     },
-    [envBridge, patchItem, t, waitEnvTask],
+    [backoff, envBridge, patchItem, recordAttemptFailure, t, waitEnvTask],
   );
 
   const verifyBash = useCallback(async (): Promise<boolean> => {
@@ -379,12 +384,12 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
       }
       if (attempt < MAX_ATTEMPTS) {
         patchItem('bash', { status: 'retrying' });
-        await sleep(BACKOFF_MS[attempt - 1]);
       }
+      await backoff(attempt);
     }
     patchItem('bash', { status: 'error', error: t.firstRunBashMissing });
     return false;
-  }, [envBridge, patchItem, t]);
+  }, [backoff, envBridge, patchItem, t]);
 
   const installHarnessItem = useCallback(
     async (id: 'dsh' | 'opencode'): Promise<boolean> => {
@@ -424,17 +429,8 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
         });
         const catalog = await bridge.getVersionCatalog();
         if (!catalog.ok) {
-          patchItem(id, {
-            status: 'retrying',
-            error: catalog.error.message,
-            history: [
-              ...(itemsRef.current.find((i) => i.id === id)?.history ?? []),
-              `${attempt}/4: ${catalog.error.message}`,
-            ],
-          });
-          if (attempt < MAX_ATTEMPTS) {
-            await sleep(BACKOFF_MS[attempt - 1]);
-          }
+          recordAttemptFailure(id, attempt, catalog.error.message);
+          await backoff(attempt);
           continue;
         }
         const version = catalog.data.latestStable ?? catalog.data.latestPrerelease;
@@ -466,22 +462,13 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
           });
           return true;
         }
-        patchItem(id, {
-          status: 'retrying',
-          error: result.error.message,
-          history: [
-            ...(itemsRef.current.find((i) => i.id === id)?.history ?? []),
-            `${attempt}/4: ${result.error.message}`,
-          ],
-        });
-        if (attempt < MAX_ATTEMPTS) {
-          await sleep(BACKOFF_MS[attempt - 1]);
-        }
+        recordAttemptFailure(id, attempt, result.error.message);
+        await backoff(attempt);
       }
       patchItem(id, { status: 'error' });
       return false;
     },
-    [dshBridge, opencodeBridge, patchItem, t],
+    [backoff, dshBridge, opencodeBridge, patchItem, recordAttemptFailure, t],
   );
 
   const finish = useCallback(async () => {

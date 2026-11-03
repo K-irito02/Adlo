@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, cleanup, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, cleanup, screen, waitFor } from '@testing-library/react';
 import type { CopyDict } from '@i18n';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
@@ -105,6 +105,27 @@ function harnessSource(system: boolean) {
           host: 'host' as const,
         },
         hostVersion: system ? null : '1.0.0',
+      },
+      config: { version_source: 'auto' as const, source_mode: 'auto' as const, npm_registry: '' },
+      terminalInjection: true,
+    },
+  };
+}
+
+function harnessSourceNone() {
+  return {
+    ok: true as const,
+    data: {
+      system: null,
+      versionSource: {
+        mode: 'auto' as const,
+        effective: 'none' as const,
+        resolvedByMode: {
+          auto: 'none' as const,
+          system: 'system' as const,
+          host: 'none' as const,
+        },
+        hostVersion: null,
       },
       config: { version_source: 'auto' as const, source_mode: 'auto' as const, npm_registry: '' },
       terminalInjection: true,
@@ -337,5 +358,242 @@ describe('FirstRunProvisioningWizard', () => {
     // 已装版本直接判定就绪，不进入安装流程（OpenCode 的目录预取不属于安装）。
     expect(dsh.installVersion).not.toHaveBeenCalled();
     expect(opencode.installVersion).not.toHaveBeenCalled();
+  });
+
+  it('retries a failing install four times and records every attempt', async () => {
+    vi.useFakeTimers();
+    try {
+      const envGetStatus = vi.fn(async () => ({ ok: true, data: envFixture(false) }));
+      const envInstall = vi.fn(async () => ({ ok: false, error: { message: 'boom' } }));
+      installBridge(envGetStatus, envInstall);
+      render(
+        <TestProvider>
+          <FirstRunProvisioningWizard onClose={vi.fn()} />
+        </TestProvider>,
+      );
+
+      // 1s/3s/8s 退避逐步断言：过早/过晚都失败，且第 4 次失败后不再等待。
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(envInstall).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('firstRunRetryCount')).toBeTruthy();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(499);
+      });
+      expect(envInstall).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(envInstall).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2_999);
+      });
+      expect(envInstall).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(envInstall).toHaveBeenCalledTimes(3);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(7_999);
+      });
+      expect(envInstall).toHaveBeenCalledTimes(3);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(envInstall).toHaveBeenCalledTimes(4);
+      // 第 4 次失败后不再退避：finish 必须立即发生，而不是再等 8s。
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(screen.getByText('firstRunTitleFailed')).toBeTruthy();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(8_000);
+      });
+      expect(envInstall).toHaveBeenCalledTimes(4);
+      fireEvent.click(screen.getAllByText('firstRunPreview')[0]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      const report = document.querySelector('.adl-fr-report__body')?.textContent ?? '';
+      expect(report).toContain('1/4: boom');
+      expect(report).toContain('4/4: boom');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('retries the harness catalog four times before failing', async () => {
+    vi.useFakeTimers();
+    try {
+      const envGetStatus = vi.fn(async () => ({ ok: true, data: envFixture(true) }));
+      const envInstall = vi.fn(async () => ({ ok: true, data: { started: true } }));
+      const { dsh, opencode } = installBridge(envGetStatus, envInstall);
+      const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
+      asMock(dsh.getSourceStatus).mockResolvedValue(harnessSourceNone());
+      asMock(dsh.getVersionStatus).mockResolvedValue(harnessStatus());
+      asMock(dsh.getVersionCatalog).mockResolvedValue({
+        ok: false,
+        error: { message: 'offline' },
+      });
+      asMock(opencode.getSourceStatus).mockResolvedValue(harnessSource(true));
+
+      render(
+        <TestProvider>
+          <FirstRunProvisioningWizard onClose={vi.fn()} />
+        </TestProvider>,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(999);
+      });
+      expect(dsh.getVersionCatalog).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(dsh.getVersionCatalog).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2_999);
+      });
+      expect(dsh.getVersionCatalog).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(dsh.getVersionCatalog).toHaveBeenCalledTimes(3);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(7_999);
+      });
+      expect(dsh.getVersionCatalog).toHaveBeenCalledTimes(3);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(dsh.getVersionCatalog).toHaveBeenCalledTimes(4);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(dsh.installVersion).not.toHaveBeenCalled();
+      expect(screen.getByText('firstRunTitleFailed')).toBeTruthy();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(8_000);
+      });
+      expect(dsh.getVersionCatalog).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('retries a failing harness install four times and records history', async () => {
+    vi.useFakeTimers();
+    try {
+      const envGetStatus = vi.fn(async () => ({ ok: true, data: envFixture(true) }));
+      const envInstall = vi.fn(async () => ({ ok: true, data: { started: true } }));
+      const { dsh, opencode } = installBridge(envGetStatus, envInstall);
+      const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
+      asMock(dsh.getSourceStatus).mockResolvedValue(harnessSourceNone());
+      asMock(dsh.getVersionStatus).mockResolvedValue(harnessStatus());
+      asMock(dsh.getVersionCatalog).mockResolvedValue(harnessCatalog());
+      asMock(dsh.installVersion).mockResolvedValue({ ok: false, error: { message: 'boom' } });
+      asMock(opencode.getSourceStatus).mockResolvedValue(harnessSource(true));
+
+      render(
+        <TestProvider>
+          <FirstRunProvisioningWizard onClose={vi.fn()} />
+        </TestProvider>,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(999);
+      });
+      expect(dsh.installVersion).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(dsh.installVersion).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2_999);
+      });
+      expect(dsh.installVersion).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(dsh.installVersion).toHaveBeenCalledTimes(3);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(7_999);
+      });
+      expect(dsh.installVersion).toHaveBeenCalledTimes(3);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(dsh.installVersion).toHaveBeenCalledTimes(4);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(screen.getByText('firstRunTitleFailed')).toBeTruthy();
+      fireEvent.click(screen.getAllByText('firstRunPreview')[0]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      const report = document.querySelector('.adl-fr-report__body')?.textContent ?? '';
+      expect(report).toContain('1/4: boom');
+      expect(report).toContain('4/4: boom');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('fails Bash after four verification attempts when hosted Git has no bash', async () => {
+    vi.useFakeTimers();
+    try {
+      const status = envFixture(true);
+      status.bash = depState({
+        effective: 'none',
+        path: null,
+        installedVersion: null,
+        baselineVersion: '',
+        meetsBaseline: false,
+      });
+      const envGetStatus = vi.fn(async () => ({ ok: true, data: status }));
+      const envInstall = vi.fn(async () => ({ ok: true, data: { started: true } }));
+      installBridge(envGetStatus, envInstall);
+
+      render(
+        <TestProvider>
+          <FirstRunProvisioningWizard onClose={vi.fn()} />
+        </TestProvider>,
+      );
+      // 初始检测(1) + verifyBash 第 1 次(2)，之后按 1s/3s/8s 退避。
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(999);
+      });
+      expect(envGetStatus).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(envGetStatus).toHaveBeenCalledTimes(3);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2_999);
+      });
+      expect(envGetStatus).toHaveBeenCalledTimes(3);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(envGetStatus).toHaveBeenCalledTimes(4);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(7_999);
+      });
+      expect(envGetStatus).toHaveBeenCalledTimes(4);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(envGetStatus).toHaveBeenCalledTimes(5);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(screen.getByText('firstRunTitleFailed')).toBeTruthy();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(8_000);
+      });
+      expect(envGetStatus).toHaveBeenCalledTimes(5);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

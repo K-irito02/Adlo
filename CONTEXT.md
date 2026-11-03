@@ -109,7 +109,7 @@ dsh 与 OpenCode CLI 共用的版本内核，位于 `crates/harness-version/`：
 依赖的一种来源类型：由应用自己下载并安装到数据目录的副本（区别于系统已安装版本）。实际来源由 `auto`（宿主优先）/`system`/`host` 三种偏好解析，强制来源缺失时返回 `none` 而不静默降级。宿主版本由 `crates/adl-hosted/` 托管。
 
 ### env-baseline.json
-环境依赖的最低/稳定版本基线资源（`ai-digital-life/src-tauri/resources/env-baseline.json`，随包发布）。记录 node stable 与 dist 源、git stable/tag/asset/base、webview2 minimum；用于判定 `meetsBaseline` 与安装版本。
+环境依赖的最低/稳定版本基线资源（`ai-digital-life/src-tauri/resources/env-baseline.json`，随包发布）。记录 node stable 与 dist 源、git stable/tag/asset/base、webview2 minimum，以及 node/git 各自资产的 `sha256` 钉死哈希（安装前完整性校验；钉死版本不可被镜像替换）；用于判定 `meetsBaseline` 与安装版本。
 
 ### runbook
 面向人/agent 的可执行修复手册，按依赖各一份（Node、Git/Bash、WebView2、adl-server、网络下载、模型凭据）。唯一真源为 `ai-digital-life/frontend/src/app/features/environment/runbooks/`（前端 `?raw` 内联），`docs/runbooks/README.md` 仅为索引。固定五段：症状 / 检测命令 / 安装步骤 / 装后回填 / 回滚。

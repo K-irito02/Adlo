@@ -1,13 +1,15 @@
 {
   "node": {
     "stable": "24.22.1",
-    "dist_base": "https://nodejs.org/dist"
+    "dist_base": "https://nodejs.org/dist",
+    "sha256": "d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5"
   },
   "git": {
     "stable": "2.56.0",
     "tag": "v2.56.0.windows.4",
     "asset": "PortableGit-2.56.0.4-64-bit.7z.exe",
-    "base": "https://github.com/git-for-windows/git/releases/download"
+    "base": "https://github.com/git-for-windows/git/releases/download",
+    "sha256": "b1f3e52216e2ed6882d1bebfd4d3fdf319bec40d2edbbf9fd26ec4fd3fce7ed1"
   },
   "webview2": {
     "minimum": "140.0.0.0"

@@ -5,6 +5,7 @@
 //! no third-party binaries.
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use adl_download_source::DownloadSourceConfig;
 use adl_errors::AppError;
@@ -53,6 +54,10 @@ pub struct InstallConfig<'a> {
     pub data_dir: &'a Path,
     pub dist_base: &'a str,
     pub download: &'a DownloadSourceConfig,
+    /// Pinned baseline hash. When present it is the authoritative checksum for
+    /// the bundled version (no manifest can override it); `None` means the
+    /// caller must fetch `SHASUMS256.txt`.
+    pub sha256: Option<&'a str>,
 }
 
 /// Official portable-zip URL: `{base}/v{version}/node-v{version}-win-x64.zip`.
@@ -60,27 +65,46 @@ pub fn node_dist_url(base: &str, version: &str) -> String {
     format!("{base}/v{version}/node-v{version}-win-x64.zip")
 }
 
-fn push_unique(urls: &mut Vec<String>, url: String) {
-    if !urls.contains(&url) {
-        urls.push(url);
-    }
-}
-
 /// Candidate URLs: configured/official first, then the npmmirror mirror. When
 /// the user's npm registry is npmmirror, try the mirror first (their network
 /// already prefers it).
 pub fn download_urls(base: &str, version: &str, prefer_mirror: bool) -> Vec<String> {
     let primary = if base.is_empty() { OFFICIAL_DIST_BASE } else { base };
-    let official = node_dist_url(OFFICIAL_DIST_BASE, version);
-    let mirror = node_dist_url(MIRROR_DIST_BASE, version);
-    let mut urls = Vec::new();
-    if prefer_mirror {
-        push_unique(&mut urls, mirror.clone());
+    super::candidate_urls(
+        node_dist_url(primary, version),
+        node_dist_url(MIRROR_DIST_BASE, version),
+        node_dist_url(OFFICIAL_DIST_BASE, version),
+        prefer_mirror,
+    )
+}
+
+/// `…/v24.22.1/node-v24.22.1-win-x64.zip` → `…/v24.22.1/SHASUMS256.txt`.
+fn checksum_url(url: &str) -> Option<String> {
+    let (dir, file) = url.rsplit_once('/')?;
+    if dir.is_empty() || file.is_empty() {
+        return None;
     }
-    push_unique(&mut urls, node_dist_url(primary, version));
-    push_unique(&mut urls, mirror);
-    push_unique(&mut urls, official);
-    urls
+    Some(format!("{dir}/SHASUMS256.txt"))
+}
+
+/// Last path segment (`node-v24.22.1-win-x64.zip`).
+fn asset_name(url: &str) -> &str {
+    url.rsplit('/').next().filter(|name| !name.is_empty()).unwrap_or(url)
+}
+
+/// Pinned baseline hash wins over any fetched manifest (authoritative anchor).
+fn pick_checksum(pin: Option<&str>, manifest: Option<String>) -> Option<String> {
+    pin.map(str::to_string).or(manifest)
+}
+
+/// Checksum manifest candidates: official first (authoritative), then the
+/// payload's own origin (best effort when the official host is unreachable).
+fn manifest_urls(official_base: &str, url: &str, version: &str) -> Vec<String> {
+    let official = format!("{official_base}/v{version}/SHASUMS256.txt");
+    match checksum_url(url) {
+        Some(same_origin) if same_origin != official => vec![official, same_origin],
+        _ => vec![official],
+    }
 }
 
 /// Parse `node --version` output (`v22.14.0` plus trailing newline);
@@ -210,6 +234,21 @@ pub async fn install(
         adl_download_source::build_binary_http_client(cfg.download).await.inspect_err(|e| {
             reporter.set_error(&e.to_string());
         })?;
+    // 清单是小文本：用 15s 短超时客户端，避免沿用 300s 的二进制超时。
+    let manifest_client = if cfg.sha256.is_some() {
+        None
+    } else {
+        Some(
+            adl_download_source::build_http_client_with_timeout(
+                cfg.download,
+                Duration::from_secs(15),
+            )
+            .await
+            .inspect_err(|e| {
+                reporter.set_error(&e.to_string());
+            })?,
+        )
+    };
     let urls = download_urls(base, version, cfg.download.npm_registry.contains("npmmirror.com"));
     let mut staging = None;
     let mut errors = Vec::new();
@@ -220,7 +259,46 @@ pub async fn install(
             return Err(err);
         }
         reporter.update(ProgressPhase::Installing, Some(10), 0, 100, false);
-        match super::fetch_and_stage(&client, url, MARKER_REL).await {
+        // 钉死版本用 baseline 哈希作为权威锚点（镜像清单不可信）；其余版本
+        // 先取官方 SHASUMS256.txt，官方不可达才退同源清单。两条路径都必须
+        // 有哈希，绝不无校验解压。
+        let manifest = match manifest_client.as_ref() {
+            None => None,
+            Some(manifest_client) => {
+                let asset = asset_name(url);
+                let mut found = None;
+                let mut last_error = None;
+                for manifest_url in manifest_urls(OFFICIAL_DIST_BASE, url, version) {
+                    match super::fetch_sha256_manifest(manifest_client, &manifest_url, asset).await
+                    {
+                        Ok(hash) => {
+                            found = Some(hash);
+                            break;
+                        },
+                        Err(e) => {
+                            tracing::warn!(url = %manifest_url, error = %e, "node: checksum manifest unavailable");
+                            last_error = Some(e);
+                        },
+                    }
+                }
+                match (found, last_error) {
+                    (Some(hash), _) => Some(hash),
+                    (None, Some(e)) => {
+                        errors.push(e.to_string());
+                        continue;
+                    },
+                    (None, None) => {
+                        errors.push(format!("{url}: no checksum URL"));
+                        continue;
+                    },
+                }
+            },
+        };
+        let Some(expected) = pick_checksum(cfg.sha256, manifest) else {
+            errors.push(format!("{url}: no checksum available"));
+            continue;
+        };
+        match super::fetch_and_stage(&client, url, MARKER_REL, &expected).await {
             Ok(staged) => {
                 staging = Some(staged);
                 break;
@@ -232,8 +310,13 @@ pub async fn install(
         }
     }
     let Some(staging) = staging else {
-        let err =
-            AppError::Network(format!("all node download sources failed: {}", errors.join(" | ")));
+        let detail = format!("all node download sources failed: {}", errors.join(" | "));
+        // 完整性失败不是网络问题：单独归类，避免前端把用户引向代理/换源。
+        let err = if errors.iter().any(|e| e.contains("checksum mismatch")) {
+            AppError::InvalidInput(detail)
+        } else {
+            AppError::Network(detail)
+        };
         reporter.set_error(&err.to_string());
         return Err(err);
     };
@@ -273,15 +356,73 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use super::{
-        HOSTED_NAME, MARKER_REL, MIRROR_DIST_BASE, OFFICIAL_DIST_BASE, adopt_staging,
-        download_urls, host_bin_path, node_dist_url, uninstall,
+        HOSTED_NAME, MARKER_REL, MIRROR_DIST_BASE, OFFICIAL_DIST_BASE, adopt_staging, asset_name,
+        checksum_url, download_urls, host_bin_path, manifest_urls, node_dist_url, pick_checksum,
+        uninstall,
     };
+
+    #[test]
+    fn manifest_urls_try_official_before_the_payload_origin() {
+        assert_eq!(
+            manifest_urls(
+                OFFICIAL_DIST_BASE,
+                "https://npmmirror.com/mirrors/node/v26.13.0/node-v26.13.0-win-x64.zip",
+                "26.13.0"
+            ),
+            vec![
+                "https://nodejs.org/dist/v26.13.0/SHASUMS256.txt".to_string(),
+                "https://npmmirror.com/mirrors/node/v26.13.0/SHASUMS256.txt".to_string(),
+            ]
+        );
+        assert_eq!(
+            manifest_urls(
+                OFFICIAL_DIST_BASE,
+                "https://nodejs.org/dist/v26.13.0/node-v26.13.0-win-x64.zip",
+                "26.13.0"
+            ),
+            vec!["https://nodejs.org/dist/v26.13.0/SHASUMS256.txt".to_string()]
+        );
+    }
+
+    #[test]
+    fn pinned_checksum_wins_over_a_fetched_manifest() {
+        assert_eq!(
+            pick_checksum(Some("pin"), Some("manifest".to_string())).as_deref(),
+            Some("pin")
+        );
+        assert_eq!(pick_checksum(None, Some("manifest".to_string())).as_deref(), Some("manifest"));
+        assert_eq!(pick_checksum(None, None), None);
+    }
+
+    #[test]
+    fn checksum_url_sits_next_to_the_zip() {
+        assert_eq!(
+            checksum_url("https://npmmirror.com/mirrors/node/v24.22.1/node-v24.22.1-win-x64.zip")
+                .as_deref(),
+            Some("https://npmmirror.com/mirrors/node/v24.22.1/SHASUMS256.txt")
+        );
+        assert_eq!(
+            asset_name("https://npmmirror.com/mirrors/node/v24.22.1/node-v24.22.1-win-x64.zip"),
+            "node-v24.22.1-win-x64.zip"
+        );
+    }
 
     #[test]
     fn download_urls_falls_back_to_the_mirror() {
         let urls = download_urls(OFFICIAL_DIST_BASE, "26.13.0", false);
         assert_eq!(
             urls,
+            vec![
+                "https://nodejs.org/dist/v26.13.0/node-v26.13.0-win-x64.zip".to_string(),
+                "https://npmmirror.com/mirrors/node/v26.13.0/node-v26.13.0-win-x64.zip".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn download_urls_with_empty_base_prefers_official() {
+        assert_eq!(
+            download_urls("", "26.13.0", false),
             vec![
                 "https://nodejs.org/dist/v26.13.0/node-v26.13.0-win-x64.zip".to_string(),
                 "https://npmmirror.com/mirrors/node/v26.13.0/node-v26.13.0-win-x64.zip".to_string(),

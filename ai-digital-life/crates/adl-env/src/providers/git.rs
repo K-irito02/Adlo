@@ -62,6 +62,9 @@ pub struct InstallConfig<'a> {
     pub git_tag: &'a str,
     pub git_asset: &'a str,
     pub download: &'a DownloadSourceConfig,
+    /// SHA-256 from the GitHub release API or the pinned baseline. The SFX is
+    /// never executed without it.
+    pub sha256: Option<&'a str>,
 }
 
 /// Official PortableGit URL: `{base}/{tag}/{asset}`, where `tag` includes the
@@ -74,26 +77,16 @@ pub fn portable_git_url(base: &str, tag: &str, asset: &str) -> String {
     format!("{base}/{tag}/{asset}")
 }
 
-fn push_unique(urls: &mut Vec<String>, url: String) {
-    if !urls.contains(&url) {
-        urls.push(url);
-    }
-}
-
 /// Candidate URLs: configured/official first, then the npmmirror mirror. When
 /// the user's npm registry is npmmirror, try the mirror first.
 pub fn download_urls(base: &str, tag: &str, asset: &str, prefer_mirror: bool) -> Vec<String> {
     let primary = if base.is_empty() { OFFICIAL_GIT_BASE } else { base };
-    let official = portable_git_url(OFFICIAL_GIT_BASE, tag, asset);
-    let mirror = portable_git_url(MIRROR_GIT_BASE, tag, asset);
-    let mut urls = Vec::new();
-    if prefer_mirror {
-        push_unique(&mut urls, mirror.clone());
-    }
-    push_unique(&mut urls, portable_git_url(primary, tag, asset));
-    push_unique(&mut urls, mirror);
-    push_unique(&mut urls, official);
-    urls
+    super::candidate_urls(
+        portable_git_url(primary, tag, asset),
+        portable_git_url(MIRROR_GIT_BASE, tag, asset),
+        portable_git_url(OFFICIAL_GIT_BASE, tag, asset),
+        prefer_mirror,
+    )
 }
 
 /// Parse `git --version` output (`git version 2.47.1.windows.1` plus trailing
@@ -241,6 +234,13 @@ pub async fn install(
         adl_download_source::build_binary_http_client(cfg.download).await.inspect_err(|e| {
             reporter.set_error(&e.to_string());
         })?;
+    let Some(expected) = cfg.sha256 else {
+        let err = AppError::InvalidInput(
+            "git checksum unavailable: refusing to run an unverified PortableGit asset".into(),
+        );
+        reporter.set_error(&err.to_string());
+        return Err(err);
+    };
     let urls = download_urls(
         base,
         cfg.git_tag,
@@ -249,6 +249,7 @@ pub async fn install(
     );
     let mut staging = None;
     let mut errors = Vec::new();
+    let mut integrity_failed = false;
     for url in &urls {
         if reporter.is_cancelled() {
             let err = AppError::Cancelled("git install cancelled".to_string());
@@ -256,20 +257,28 @@ pub async fn install(
             return Err(err);
         }
         reporter.update(ProgressPhase::Installing, Some(10), 0, 100, false);
-        match super::fetch_and_stage_sfx(&client, url, MARKER_REL).await {
+        match super::fetch_and_stage_sfx(&client, url, MARKER_REL, expected).await {
             Ok(staged) => {
                 staging = Some(staged);
                 break;
             },
             Err(e) => {
+                if e.to_string().contains("checksum mismatch") {
+                    integrity_failed = true;
+                }
                 tracing::warn!(url = %url, error = %e, "git: download source failed; trying next");
                 errors.push(format!("{url}: {e}"));
             },
         }
     }
     let Some(staging) = staging else {
-        let err =
-            AppError::Network(format!("all git download sources failed: {}", errors.join(" | ")));
+        let detail = format!("all git download sources failed: {}", errors.join(" | "));
+        // 完整性失败不是网络问题（与 node 一致）。
+        let err = if integrity_failed {
+            AppError::InvalidInput(detail)
+        } else {
+            AppError::Network(detail)
+        };
         reporter.set_error(&err.to_string());
         return Err(err);
     };
@@ -312,6 +321,26 @@ mod tests {
         HOSTED_NAME, MARKER_REL, MIRROR_GIT_BASE, OFFICIAL_GIT_BASE, adopt_staging, download_urls,
         uninstall,
     };
+
+    #[tokio::test]
+    async fn install_without_a_checksum_is_refused() {
+        let dir = std::env::temp_dir().join(format!("adl-env-git-nohash-{}", nanos()));
+        std::fs::create_dir_all(&dir).expect("mkdir temp");
+        let download = adl_download_source::DownloadSourceConfig::default();
+        let cfg = super::InstallConfig {
+            data_dir: &dir,
+            git_base: "",
+            git_tag: "v2.56.0.windows.4",
+            git_asset: "PortableGit-2.56.0.4-64-bit.7z.exe",
+            download: &download,
+            sha256: None,
+        };
+        let err = super::install("2.56.0", &cfg, &adl_hosted::ProgressTask::new())
+            .await
+            .expect_err("unverified SFX must be refused");
+        assert!(err.to_string().contains("checksum unavailable"), "{err}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn download_urls_falls_back_to_the_mirror() {
