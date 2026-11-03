@@ -427,13 +427,9 @@ export function EnvDepRow({
       if (section.path !== null) {
         parts.push(`${t.environmentFieldPath} ${section.path}`);
       }
-      const sourceLabel = sourceLabelFor(t, section.mode);
-      // 可操作依赖（node/git/bash）的 auto 来源已由下拉框与上方 AutoResolvedNote
-      // 双重表达，状态行再写「来源 自动检测」只是重复；显式来源（system/host/custom）
-      // 仍保留来源段。只读依赖没有下拉，来源段继续保留。
-      if (!OPERABLE_DEP_SET.has(dep) || section.mode !== 'auto') {
-        parts.push(`${t.environmentFieldSource} ${sourceLabel}`);
-      }
+      // 来源不再写进路径行：可操作依赖（node/git/bash）由右侧下拉框和
+      // AutoResolvedNote 表达；只读依赖（webview2/adl-server）固定自动检测，
+      // 无需在状态行重复。
       // ' · ' 连接为标点拼接（照抄旧 DSH 版本组件的版本行标题拼接先例）。
       return <small>{parts.join(' · ')}</small>;
     }

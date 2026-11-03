@@ -238,19 +238,18 @@ describe('EnvironmentSettings', () => {
     expect(bash.querySelector('.adl-icon-button--info')).not.toBeNull();
   });
 
-  it('自动检测行不再在路径行尾重复「来源 自动检测」，显式来源仍保留', async () => {
+  it('路径行不再显示「来源」段（node/git/bash）', async () => {
     const { container } = await renderWithRows();
     const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
     const git = container.querySelector('[data-testid="env-dep-git"]') as HTMLElement;
     const bash = container.querySelector('[data-testid="env-dep-bash"]') as HTMLElement;
-    // auto：下拉已显示「自动检测」，上方还有 AutoResolvedNote，状态行不得再重复。
-    expect(node.textContent).not.toContain('environmentFieldSource environmentSourceAuto');
-    expect(git.textContent).not.toContain('environmentFieldSource environmentSourceAuto');
-    // 显式 system 来源仍保留来源段（只有 auto 属于重复信息）。
-    expect(bash.textContent).toContain('environmentFieldSource environmentSourceSystem');
+    // 来源已由下拉框与 AutoResolvedNote 表达，状态行不再重复。
+    for (const row of [node, git, bash]) {
+      expect(row.textContent).not.toContain('environmentFieldSource');
+    }
   });
 
-  it('bash 自动检测同样不重复来源；只读行（webview2）仍保留来源段', async () => {
+  it('只读行（webview2/adl-server）也不显示「来源」段', async () => {
     const autoStatus = fixture();
     autoStatus.bash = depState({
       mode: 'auto',
@@ -268,8 +267,10 @@ describe('EnvironmentSettings', () => {
     const { container } = await renderWithRows();
     const bash = container.querySelector('[data-testid="env-dep-bash"]') as HTMLElement;
     const webview2 = container.querySelector('[data-testid="env-dep-webview2"]') as HTMLElement;
-    expect(bash.textContent).not.toContain('environmentFieldSource environmentSourceAuto');
-    expect(webview2.textContent).toContain('environmentFieldSource environmentSourceAuto');
+    const adlserver = container.querySelector('[data-testid="env-dep-adlserver"]') as HTMLElement;
+    expect(bash.textContent).not.toContain('environmentFieldSource');
+    expect(webview2.textContent).not.toContain('environmentFieldSource');
+    expect(adlserver.textContent).not.toContain('environmentFieldSource');
   });
 
   it('指定路径选中时输入框与下拉同一行（左侧无灰色文案），切走隐藏但保留路径', async () => {
