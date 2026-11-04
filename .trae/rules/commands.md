@@ -71,6 +71,8 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `cargo test -p <crate>` | Rust 指定 crate 测试 |
 | `cargo test -p <crate> <test_name>` | Rust 按名称过滤测试（限定 crate，避免编译壳层） |
 | `target/debug/adl-server --print-env --data-dir <临时目录>` | 初始化环境依赖 PATH 后打印 `ADL_ENV_JSON={path,pathDirs}` 并退出（诊断 PATH 注入） |
+| `pnpm --dir adlo run serve:server -- --data-dir <数据根> --port 0` | 用**真实数据根**起 `adl-server`（打印 `url=`），复现 `/env/*`、`/dsh/*` 等接口的线上状态；`Ctrl+C` 退出 |
+| 搬目录 / 改仓库名 | 先关应用与占用该目录的终端、停 codegraph，再按 [改名踩坑记录](../../docs/knowledge-base/toolchain/project-rename-and-hosted-path-detection-2026-11-05.md) 清扫 `target/debug/build/*/output` 里的旧绝对路径 |
 | `pnpm run e2e:build` | 构建桌面 E2E 调试产物（内部先 `stage:sidecar`；`--features e2e`，**不要**换 release 构建） |
 | `pnpm run e2e` | 桌面 E2E 全量冒烟（真实 Tauri 窗口，整轮 ~15s） |
 | `pnpm run e2e:typecheck` | e2e 包 TypeScript 检查（pre-push 自动执行） |

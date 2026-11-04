@@ -52,4 +52,35 @@ describe('replace-term', () => {
     );
     assert.equal(missing.failed, true);
   });
+
+  it('fails when a rule hits fewer than its minHits budget', () => {
+    const full = tmpFile('minhits.txt', '手动路径 手动路径');
+    const short = replaceInFiles([full], [{ from: '手动路径', to: '指定路径', minHits: 3 }]);
+    assert.equal(short.failed, true);
+    assert.equal(short.totals[0], 2);
+    assert.match(short.report.at(-1).reason, /minHits 3/);
+
+    const met = replaceInFiles(
+      [tmpFile('minhits-ok.txt', '手动路径 手动路径')],
+      [{ from: '手动路径', to: '指定路径', minHits: 2 }],
+    );
+    assert.equal(met.failed, false);
+  });
+
+  it('rejects an encoding-corrupted rule instead of silently matching nothing', () => {
+    const full = tmpFile('corrupt.txt', 'AI 数字生命');
+    assert.throws(
+      () => replaceInFiles([full], [{ from: 'AI 鏁板瓧鐢熷懡', to: 'Adlo' }]),
+      /encoding-corrupted/,
+    );
+    assert.throws(() => replaceInFiles([full], [{ from: 'AI 数字生命', to: 'Adlo\uFFFD' }]));
+  });
+
+  it('minHits must be a positive integer', () => {
+    const full = tmpFile('bad-minhits.txt', '手动路径');
+    assert.throws(
+      () => replaceInFiles([full], [{ from: '手动路径', to: '指定路径', minHits: 0 }]),
+      /positive integer/,
+    );
+  });
 });

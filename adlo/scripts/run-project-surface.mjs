@@ -178,6 +178,7 @@ async function main() {
   delete appEnv.PORT;
   delete appEnv.ADL_DEV_TOKEN;
 
+  pruneStaleBuildScriptOutputs();
   ensureFrontendDist();
   const tauri = spawnChecked(cargoCommand, ["tauri", "dev", "--config", tauriConfig], appEnv);
   children.push(tauri);
@@ -210,6 +211,42 @@ function ensureFrontendDist() {
   console.log(
     "[adl-run] frontend/dist was missing (gitignored build artifact); wrote a dev placeholder so tauri generate_context can compile",
   );
+}
+
+/**
+ * 目录整体搬家（改名 / 换工作树位置）后，`target/debug/build/<hash>/output` 里仍存着旧的
+ * 绝对路径；cargo 认为对应单元是最新的，于是 `cargo run` 会去读已经不存在的目录
+ * （2026-11-04 实测：`failed to read ...\<旧目录>\target\debug\build\tauri-…\out\…`）。
+ * 启动前扫一遍，只删除「output 里的目标目录已不存在」的构建脚本产物。
+ */
+function pruneStaleBuildScriptOutputs() {
+  const buildDir = path.join(repoRoot, "target", "debug", "build");
+  if (!fs.existsSync(buildDir)) {
+    return;
+  }
+  let removed = 0;
+  for (const entry of fs.readdirSync(buildDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const outputFile = path.join(buildDir, entry.name, "output");
+    if (!fs.existsSync(outputFile)) {
+      continue;
+    }
+    const text = fs.readFileSync(outputFile, "utf8");
+    const roots = [...text.matchAll(/([A-Za-z]:[\\/][^\s"']*?)[\\/]target[\\/]/g)].map(
+      (match) => match[1],
+    );
+    if (roots.some((root) => !fs.existsSync(root))) {
+      fs.rmSync(path.join(buildDir, entry.name), { recursive: true, force: true });
+      removed += 1;
+    }
+  }
+  if (removed > 0) {
+    console.warn(
+      `[adl-run] removed ${removed} stale build-script output dir(s) -- project directory moved? rebuilding`,
+    );
+  }
 }
 
 function spawnChecked(command, args, envOverrides, cwd = repoRoot) {

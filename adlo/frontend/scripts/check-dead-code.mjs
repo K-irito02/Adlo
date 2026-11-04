@@ -14,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseRenameMap } from './lib/rename-map.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const srcRoot = path.resolve(here, '../src');
@@ -69,20 +70,9 @@ function resolveBase() {
 const base = resolveBase();
 
 /** 改名映射（新路径 → base 里的旧路径）：整仓搬目录后仍能读到 base 版本的同一文件。 */
-const renameMap = new Map();
-const changedPaths = [];
-for (const line of capture('git', ['diff', '--name-status', '-M', base]).split(/\r?\n/)) {
-  const parts = line.trim().split('\t');
-  if (parts.length < 2) continue;
-  const status = parts[0];
-  if (status === 'A' || status === 'M') {
-    changedPaths.push(parts[1]);
-  } else if (status.startsWith('R') || status.startsWith('C')) {
-    const [oldPath, newPath] = [parts[1], parts[2]];
-    renameMap.set(newPath, oldPath);
-    changedPaths.push(newPath);
-  }
-}
+const { renamed: renameMap, changed: changedPaths } = parseRenameMap(
+  capture('git', ['diff', '--name-status', '-M', base]),
+);
 const changed = [
   ...changedPaths,
   ...capture('git', ['ls-files', '--others', '--exclude-standard']).split(/\r?\n/),

@@ -26,9 +26,75 @@ export function replaceInText(text, replacements) {
   return { out, counts, total: counts.reduce((a, b) => a + b, 0) };
 }
 
+/**
+ * 常见 GBK/UTF-8 双重编码残骸：成对出现时几乎不可能是正常中文。
+ * 典型现场：PowerShell 5.1 按系统代码页读取无 BOM 的 UTF-8 脚本，
+ * 把 `AI 数字生命` 变成 `AI 鏁板瓧鐢熷懡`，写进 pairs.json 后规则静默失效。
+ */
+const MOJIBAKE_MARKERS = [
+  '鏁',
+  '鐢',
+  '熷',
+  '懡',
+  '瑕',
+  '绋',
+  '閿',
+  '鏍',
+  '鎵',
+  '璺',
+  '绔',
+  '瀹',
+  '鍔',
+  '鎴',
+  '鐐',
+  '鍙',
+  '鏄',
+  '鐨',
+  '涓',
+  '鏂',
+  '鏃',
+  '浠',
+  '缁',
+  '鏋',
+  '鐩',
+  '鍚',
+  '闂',
+  '锛',
+  '銆',
+  '鍑',
+  '锟',
+];
+
+/** `true` 当字符串含替换字符或成片的 mojibake 残骸（视为已损坏）。 */
+export function looksCorrupted(value) {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  if (value.includes('\uFFFD')) {
+    return true;
+  }
+  return MOJIBAKE_MARKERS.filter((marker) => value.includes(marker)).length >= 2;
+}
+
 export function replaceInFiles(files, replacements, { dryRun = false } = {}) {
   const report = [];
   let failed = false;
+  // 规则级校验：损坏的 `from` 会精确匹配 0 处却让整批仍报 OK。
+  replacements.forEach((rule, index) => {
+    if (!rule.from) {
+      throw new Error('empty "from" is not allowed');
+    }
+    if (looksCorrupted(rule.from) || looksCorrupted(rule.to ?? '')) {
+      throw new Error(
+        `replacement #${index + 1} looks encoding-corrupted: ` +
+          `${JSON.stringify(rule.from)} -> ${JSON.stringify(rule.to)}`,
+      );
+    }
+    if (rule.minHits !== undefined && (!Number.isInteger(rule.minHits) || rule.minHits < 1)) {
+      throw new Error(`replacement #${index + 1}: "minHits" must be a positive integer`);
+    }
+  });
+  const totals = replacements.map(() => 0);
   for (const file of files) {
     const full = path.resolve(file);
     if (!fs.existsSync(full)) {
@@ -37,7 +103,10 @@ export function replaceInFiles(files, replacements, { dryRun = false } = {}) {
       continue;
     }
     const before = fs.readFileSync(full, 'utf8');
-    const { out, total } = replaceInText(before, replacements);
+    const { out, counts, total } = replaceInText(before, replacements);
+    counts.forEach((hits, index) => {
+      totals[index] += hits;
+    });
     if (total === 0) {
       report.push({ file, ok: false, reason: 'zero replacements (typo?)' });
       failed = true;
@@ -46,7 +115,18 @@ export function replaceInFiles(files, replacements, { dryRun = false } = {}) {
     if (!dryRun && out !== before) fs.writeFileSync(full, out, 'utf8');
     report.push({ file, ok: true, total });
   }
-  return { report, failed };
+  // 规则级下限：某条规则整体命中不足（编码/拼写失误）时整批失败。
+  replacements.forEach((rule, index) => {
+    if (rule.minHits !== undefined && totals[index] < rule.minHits) {
+      report.push({
+        file: '(rule)',
+        ok: false,
+        reason: `${JSON.stringify(rule.from)} hit ${totals[index]} < minHits ${rule.minHits}`,
+      });
+      failed = true;
+    }
+  });
+  return { report, failed, totals };
 }
 
 function parseArgs(argv) {
