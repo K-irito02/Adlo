@@ -162,7 +162,8 @@ function main() {
   } catch (error) {
     console.error(`[review-snapshot] ${error.message}`);
     process.exit(1);
-  }  if (options.help) {
+  }
+  if (options.help) {
     console.log("usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>]");
     return;
   }
