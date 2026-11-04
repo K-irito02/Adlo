@@ -16,7 +16,7 @@
 | Rust Lint | `pnpm run cargo:clippy` |
 | 前端 Lint | `cd frontend && npx eslint . && npx tsc --noEmit` |
 | 桌面 E2E | `@wdio/tauri-service`（embedded WebDriver，opt-in；`pnpm run e2e`，**不进** `check:all`，见技能 `desktop-e2e-wdio`） |
-| 门禁 | 唯一真源：[`.agents/rules/quality-gates.md`](../.agents/rules/quality-gates.md)。日常 `pnpm --dir frontend run check:changed`；合并/发布前 `pnpm run check:all`（含前端 `check:full`）。全量必须先获用户批准；hooks 启用：`pnpm --dir ai-digital-life run setup:worktree` |
+| 门禁 | 唯一真源：[`.agents/rules/quality-gates.md`](../.agents/rules/quality-gates.md)。日常 `pnpm --dir frontend run check:changed`；合并/发布前 `pnpm run check:all`（含仓库卫生 `check:repo` 与前端 `check:full`）。全量必须先获用户批准；hooks 启用：`pnpm --dir ai-digital-life run setup:worktree` |
 | 凭据存储 | `crates/credential/`（keyring + 加密文件降级） |
 
 ### 存储路径解析（`adl-kernel::storage`）
@@ -78,7 +78,7 @@ pnpm run e2e         # 必须经 e2e/run-e2e.mjs 包装器
 
 - 包装器负责清理 Windows 硬杀留下的 `adl-server.exe` 孤儿（否则锁二进制、下次构建 `PermissionDenied`）；结果摘要写入 `e2e/artifacts/last-run.json`。
 - 数据目录隔离在 `%APPDATA%\com.ai-digital-life.app.e2e`；生产 `tauri.conf.json` 的 `withGlobalTauri:false` 不变。
-- 套件不进 `check:all`；`pnpm run e2e:typecheck` 由 pre-push 执行。用例规则、已知坑与从零重建见技能 `desktop-e2e-wdio`。
+- 套件不进 `check:all`；`pnpm run e2e:typecheck` 由 `check:repo` 执行（`check:all` 与 pre-push 共用）。用例规则、已知坑与从零重建见技能 `desktop-e2e-wdio`。
 
 ## 设计系统约束
 

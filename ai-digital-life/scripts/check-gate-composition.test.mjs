@@ -23,3 +23,17 @@ test("daily check:changed wires affected Rust tests and accepts --base", () => {
   assert.match(text, /check-rust-changed\.mjs/);
   assert.match(text, /--base/);
 });
+
+test("check:all and pre-push share the repo-level gate (check:repo)", () => {
+  // 曾经的缝隙：check:all 不含 scripts:format:check / e2e:typecheck，合并门禁全绿后
+  // 仍会在 pre-push 被拦下。两处必须引用同一个聚合脚本，否则组合会再次漂移。
+  const repo = pkg.scripts["check:repo"];
+  assert.equal(typeof repo, "string", "package.json 缺少 check:repo");
+  for (const gate of ["test:scripts", "scripts:format:check", "e2e:typecheck"]) {
+    assert.match(repo, new RegExp(gate));
+  }
+  assert.match(pkg.scripts["check:all"], /check:repo/);
+
+  const hook = readFileSync(new URL("../../.githooks/pre-push", import.meta.url), "utf8");
+  assert.match(hook, /pnpm run check:repo/);
+});

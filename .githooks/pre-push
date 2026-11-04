@@ -3,15 +3,12 @@
 # Default: affected-scope gate only (changed-file lint/format + invariants + affected tests).
 # Full gate (whole suite) needs explicit human approval: set ADL_PREPUSH_FULL=1 only after approval.
 set -e
-# Dev tooling unit tests (scripts/*.test.mjs: instance id / dev port policy / token handshake).
-# Runs from the implementation workspace root; fast + no external services.
 ROOT="$(git rev-parse --show-toplevel)"
-( cd "$ROOT/ai-digital-life" && node --test "scripts/*.test.mjs" )
-# Dev tooling syntax + formatting (these files sit outside eslint/tsc scope).
+# Dev tooling syntax (scripts sit outside eslint/tsc scope).
 ( cd "$ROOT/ai-digital-life" && for f in scripts/*.mjs; do node --check "$f"; done )
-( cd "$ROOT/ai-digital-life" && pnpm run scripts:format:check )
-# Desktop E2E TypeScript: its own package/tsconfig, so `check:changed` below does not see it.
-( cd "$ROOT/ai-digital-life" && pnpm run e2e:typecheck )
+# Repo-level hygiene: dev-tooling unit tests + scripts formatting + desktop E2E types.
+# 与 `check:all` 共用同一聚合脚本（check:repo），避免合并门禁与推送门禁各写一套后漂移。
+( cd "$ROOT/ai-digital-life" && pnpm run check:repo )
 # Rust affected scope: fmt always; clippy + affected-crate unit tests when Rust files changed.
 ( cd "$ROOT/ai-digital-life" && node ./scripts/check-rust-changed.mjs )
 # PATH injection regression: real adl-server process + temp data dir (never mutates the test env).
