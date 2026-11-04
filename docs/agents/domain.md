@@ -10,7 +10,7 @@ How the engineering skills should consume this repo's domain documentation when 
 
 If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
 
-`GLOSSARY.md` shape is machine-checked by `pnpm --dir ai-digital-life/frontend check:glossary`: every term needs an `_Avoid_` line, and implementation tokens (paths, file names) or numeric counts are rejected. The same check rejects Markdown emphasis corruption in glossary bodies (`HTTP*PROXY`, `\_Avoid_`) — always wrap environment-variable names in backticks, otherwise Prettier turns bare underscores into emphasis and silently changes the definition.
+`GLOSSARY.md` shape is machine-checked by `pnpm --dir adlo/frontend check:glossary`: every term needs an `_Avoid_` line, and implementation tokens (paths, file names) or numeric counts are rejected. The same check rejects Markdown emphasis corruption in glossary bodies (`HTTP*PROXY`, `\_Avoid_`) — always wrap environment-variable names in backticks, otherwise Prettier turns bare underscores into emphasis and silently changes the definition.
 
 Backticked entries inside an `_Avoid_` line are **enforced**: `check:glossary` fails if they appear in `frontend/src/app/i18n/zh-CN/**` or `docs/operations/ui-manual/**`. Put a `glossary-allow` marker on a line for an intentional exception (for example, quoting a historical UI string). Plain `_Avoid_` entries are advisory only.
 

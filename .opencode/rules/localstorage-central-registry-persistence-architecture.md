@@ -1,6 +1,6 @@
 ---
 description: Central-registry localStorage persistence architecture with single write entry and construction-time hydration
-globs: ai-digital-life/frontend/src/app/stores/**
+globs: adlo/frontend/src/app/stores/**
 alwaysApply: false
 ---
 

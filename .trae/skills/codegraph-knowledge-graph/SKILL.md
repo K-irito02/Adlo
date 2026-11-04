@@ -7,11 +7,11 @@ description: 查询本地 CodeGraph 代码知识图谱以追踪符号、调用�
 
 ## 概述
 
-`ai-digital-life/` 下有 1 份预索引的本地 CodeGraph 图谱（`.codegraph/codegraph.db`，SQLite，100% 本地，原生文件监听自动增量同步），覆盖 Rust + Tauri + TypeScript/TSX，自动排除 `target/`、`node_modules/` 与 `.gitignore` 命中项。
+`adlo/` 下有 1 份预索引的本地 CodeGraph 图谱（`.codegraph/codegraph.db`，SQLite，100% 本地，原生文件监听自动增量同步），覆盖 Rust + Tauri + TypeScript/TSX，自动排除 `target/`、`node_modules/` 与 `.gitignore` 命中项。
 
 | 项目根 | 内容 |
 |--------|------|
-| `ai-digital-life/` | Rust + Tauri + TypeScript 主项目 |
+| `adlo/` | Rust + Tauri + TypeScript 主项目 |
 
 ## 何时使用
 
@@ -36,7 +36,7 @@ OpenCode 通过项目配置 `.opencode/opencode.json` 接入 `codegraph` MCP ser
       "codegraph": {
         "type": "local",
         "command": ["cmd", "/c", "codegraph", "serve", "--mcp"],
-        "cwd": "ai-digital-life"
+        "cwd": "adlo"
       }
     }
   }
@@ -49,8 +49,8 @@ OpenCode 通过项目配置 `.opencode/opencode.json` 接入 `codegraph` MCP ser
 |----|------|
 | `mcp.servers.<name>` | V2 要求；`codegraph install` 打印的 V1 片段（服务器名直接位于 `mcp` 下）在 V2 不生效 |
 | `cmd /c` 前缀 | Windows 上 `codegraph` 只有 `.cmd`/`.ps1` 垫片，Node 的 `spawn` 不走 shell 会 `ENOENT` |
-| `cwd: "ai-digital-life"` | 指向含 `.codegraph/` 的项目根；相对路径按会话工作目录解析，主工作树与各分支工作树各自命中自己那份索引 |
-| 工作目录已在 `ai-digital-life/` | 删掉 `cwd`，否则会解析成 `ai-digital-life/ai-digital-life` 而无法启动 |
+| `cwd: "adlo"` | 指向含 `.codegraph/` 的项目根；相对路径按会话工作目录解析，主工作树与各分支工作树各自命中自己那份索引 |
+| 工作目录已在 `adlo/` | 删掉 `cwd`，否则会解析成 `adlo/adlo` 而无法启动 |
 
 默认只暴露 **1 个** MCP 工具（官方刻意收敛，其余能力是它的子集，列出来反而诱导误选）：
 
@@ -72,7 +72,7 @@ opencode mcp list        # 期望 codegraph  connected
 
 ### 方式二：CLI 命令
 
-在项目根（`ai-digital-life/`）下运行：
+在项目根（`adlo/`）下运行：
 
 ```bash
 codegraph explore "<自然语言问题>"       # 首选，与 codegraph_explore 同输出
@@ -111,5 +111,5 @@ codegraph status                         # 健康状态 / 引擎版本 / 待同�
 - 大规模重构后 `codegraph index` 全量重建（1.6.x 实测约 1.6k 文件 / 7 秒）。
 - **升级版本**：`codegraph upgrade` → `codegraph index` 重建（否则 `status` 一直提示 "Index was built by vX; re-index"）→ 让 MCP 重连。
 - 升级后 `codegraph --version` 仍显示旧版 → `where codegraph` 查 PATH 上是否有旧 npm 前缀的残留安装，删掉旧的那份（两份并存会让旧版一直遮蔽新版）。
-- 索引不入库（`.codegraph/` 已 gitignore），每个工作树各建一份：`pnpm --dir ai-digital-life run setup:worktree`。
+- 索引不入库（`.codegraph/` 已 gitignore），每个工作树各建一份：`pnpm --dir adlo run setup:worktree`。
 - 需要恢复被收敛的 MCP 工具时，可在 MCP 配置里加 `"environment": { "CODEGRAPH_MCP_TOOLS": "explore,node,search,callers,callees,impact,files,status" }`；默认不建议。

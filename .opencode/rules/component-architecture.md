@@ -1,6 +1,6 @@
 ---
 description: React component file size limits, splitting thresholds, and hook extraction rules
-globs: ai-digital-life/frontend/**/*.tsx,ai-digital-life/frontend/**/*.ts
+globs: adlo/frontend/**/*.tsx,adlo/frontend/**/*.ts
 alwaysApply: false
 ---
 

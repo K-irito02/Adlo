@@ -1,6 +1,6 @@
 ---
 description: 跨 IPC 边界 Rust 类型的 serde 双注解约定
-globs: ai-digital-life/crates/**/types/**/*.rs
+globs: adlo/crates/**/types/**/*.rs
 alwaysApply: false
 ---
 

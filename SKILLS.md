@@ -105,13 +105,13 @@
 | 技能目录 | 调用名 | 说明 |
 |----------|--------|------|
 | `codegraph-knowledge-graph` | `codegraph-knowledge-graph` | 查询本地 CodeGraph 代码知识图谱，追踪符号、调用链与变更影响范围；需要理解代码结构、追踪调用关系或评估变更影响时优先使用，替代逐文件 `grep` / 读取。 |
-| `desktop-e2e-wdio` | `desktop-e2e-wdio` | 当需要验证 Tauri 桌面端真实交互（原生点击、窗口/面板、窗口几何、真实 IPC）、运行桌面冒烟、排查 WDIO 的 5s 超时/窗口焦点警告/adl-server 残留，或维护 `ai-digital-life/e2e/` 时使用；用 embedded WebDriver 驱动真实窗口，无需 `tauri-driver`/`msedgedriver`，不进 `check:all`。 |
+| `desktop-e2e-wdio` | `desktop-e2e-wdio` | 当需要验证 Tauri 桌面端真实交互（原生点击、窗口/面板、窗口几何、真实 IPC）、运行桌面冒烟、排查 WDIO 的 5s 超时/窗口焦点警告/adl-server 残留，或维护 `adlo/e2e/` 时使用；用 embedded WebDriver 驱动真实窗口，无需 `tauri-driver`/`msedgedriver`，不进 `check:all`。 |
 | `documentation-organizer` | `documentation-organizer` | 将项目文档整理为清晰、规范的层级结构；用户要求整理文档、清理文档结构、修复散乱文档文件或建立文档约定时调用。 |
 | `governance-audit` | `governance-audit` | 审计并同步治理文档（规则文件、`AGENTS.md`、各级 README、根文档、docs 目录、工程基线）以及三个规则目录与三个技能目录，输出发现并在获批后修复；不用于源码审计。 |
 | `learn` | `learn` | 分析代码库以发现模式、约定与架构决策，并生成项目规则文件；用户要求“从这个项目学习”“提取项目规则”“发现模式”或“自动生成规则”时调用。 |
 | `parallel-branch-development` | `parallel-branch-development` | 多会话 / 多 agent 并行开发本仓库时使用：开工环境自检、新建或复用分支工作树、隔离与保留约定；本技能即唯一真源（全文自包含）。 |
 | `root-cause-to-close` | `root-cause-to-close` | 当 Bug、测试失败、回归、偶发或意外行为需要根因调查与修复时使用（未找到根因前禁止修复）；也用于已完成会话的收尾——结项、审查、文档同步、清理。不适用于新功能或琐碎改动。 |
-| `run-project-surfaces` | `run-project-surfaces` | 启动 AI Digital Life 的三种运行模式（浏览器预览、Tauri 桌面、双端并行），按工作树分配稳定 dev 端口（主工作树 5173、slot-N → 5173+N）并校验实例令牌并统一管理子进程生命周期；用户要求运行、启动或预览应用时使用。 |
+| `run-project-surfaces` | `run-project-surfaces` | 启动 Adlo 的三种运行模式（浏览器预览、Tauri 桌面、双端并行），按工作树分配稳定 dev 端口（主工作树 5173、slot-N → 5173+N）并校验实例令牌并统一管理子进程生命周期；用户要求运行、启动或预览应用时使用。 |
 
 ### 4.4 Matt Pocock 技能（21）
 

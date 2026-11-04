@@ -9,7 +9,7 @@ alwaysApply: true
 
 | 维度 | 说明 |
 |------|------|
-| 项目名称 | AI 数字生命 (AI Digital Life) |
+| 项目名称 | Adlo（中文名：安洛） |
 | 项目类型 | 桌面应用宿主 + 第三方 Agent harness 集成（Agent 对话、模型接入与编排由外部 harness 提供，当前为 deepseek dsh） |
 | 桌面框架 | Rust + Tauri 2.x |
 | 前端框架 | React 19 + Vite + TypeScript |
@@ -22,7 +22,7 @@ alwaysApply: true
 | 目录 | 职责 |
 |------|------|
 | 仓库根目录 | 规划与治理：文档、`AGENTS.md`、`docs/development/`、`CONTRIBUTING.md`、`CONTEXT.md`、`SECURITY.md` |
-| `ai-digital-life/` | 实现工作区：Rust + Tauri 桌面应用 + WebView 前端 |
+| `adlo/` | 实现工作区：Rust + Tauri 桌面应用 + WebView 前端 |
 | `references/` | 外部参考源码（本地拉取的开源项目，供开发参考与复用） |
 
 ## 架构层级
@@ -55,13 +55,13 @@ alwaysApply: true
 
 | 任务类型 | 默认检索位置 |
 |----------|--------------|
-| Rust 后端与 Tauri 命令 | `ai-digital-life/src-tauri/`、`ai-digital-life/crates/` |
-| WebView UI 与样式 | `ai-digital-life/frontend/src/` |
-| 功能模块组件 | `ai-digital-life/frontend/src/app/features/` |
-| 设计 Token / 主题 | `ai-digital-life/frontend/src/design-system/`、`src/styles/` |
+| Rust 后端与 Tauri 命令 | `adlo/src-tauri/`、`adlo/crates/` |
+| WebView UI 与样式 | `adlo/frontend/src/` |
+| 功能模块组件 | `adlo/frontend/src/app/features/` |
+| 设计 Token / 主题 | `adlo/frontend/src/design-system/`、`src/styles/` |
 | 项目形态/路由/治理 | 根目录 `AGENTS.md` |
 | 架构设计 | `docs/architecture/` |
-| 状态管理 / Store 变更 | `ai-digital-life/frontend/src/app/stores/` |
+| 状态管理 / Store 变更 | `adlo/frontend/src/app/stores/` |
 
 ## 相关文件
 

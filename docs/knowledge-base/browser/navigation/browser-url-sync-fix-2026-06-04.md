@@ -15,7 +15,7 @@
 ## 修复方案
 
 ### 修改文件
-- `ai-digital-life/frontend/src/app/features/browser/useBrowserPanel.ts`
+- `adlo/frontend/src/app/features/browser/useBrowserPanel.ts`
 
 ### 具体修改
 
@@ -76,7 +76,7 @@ useEffect(() => {
 
 ## 相关文件
 
-- Rust 后端：[crates/browser/src/lib.rs](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/crates/browser/src/lib.rs)
-- Tauri Bridge：[tauri-bridge.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/tauri-bridge.ts)
-- 修复代码：[useBrowserPanel.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser/useBrowserPanel.ts#L763-L776)
+- Rust 后端：[crates/browser/src/lib.rs](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/crates/browser/src/lib.rs)
+- Tauri Bridge：[tauri-bridge.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/tauri-bridge.ts)
+- 修复代码：[useBrowserPanel.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/features/browser/useBrowserPanel.ts#L763-L776)
 

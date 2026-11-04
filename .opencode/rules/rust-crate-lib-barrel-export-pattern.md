@@ -1,6 +1,6 @@
 ---
 description: Rust crate lib.rs public API barrel export pattern — module declarations followed by centralized pub use re-exports
-globs: ai-digital-life/crates/*/src/lib.rs
+globs: adlo/crates/*/src/lib.rs
 alwaysApply: false
 ---
 

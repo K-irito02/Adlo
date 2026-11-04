@@ -1,6 +1,6 @@
 ---
 description: Rust↔TS 共享类型使用 serde(rename_all = "camelCase") + serde(tag = "type") 的 JSON 序列化规范
-globs: ai-digital-life/crates/types/**/*.rs
+globs: adlo/crates/types/**/*.rs
 alwaysApply: false
 ---
 

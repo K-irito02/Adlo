@@ -1,6 +1,6 @@
 ---
 description: Rust→TypeScript 自动类型生成及 kernel 桶导入规范
-globs: ai-digital-life/crates/**/*.rs,ai-digital-life/frontend/src/kernel/**
+globs: adlo/crates/**/*.rs,adlo/frontend/src/kernel/**
 alwaysApply: false
 ---
 
@@ -8,21 +8,21 @@ alwaysApply: false
 
 ## 规则描述
 
-所有跨 IPC 边界的 Rust 数据类型必须使用 `ts-rs` 自动生成对应的 TypeScript 类型定义，并通过 `@ai-digital-life/kernel` 桶（barrel）模块统一 re-export。杜绝手写重复类型定义，确保 Rust 与 TypeScript 两端类型定义完全一致。
+所有跨 IPC 边界的 Rust 数据类型必须使用 `ts-rs` 自动生成对应的 TypeScript 类型定义，并通过 `@adlo/kernel` 桶（barrel）模块统一 re-export。杜绝手写重复类型定义，确保 Rust 与 TypeScript 两端类型定义完全一致。
 
 ## 实现机制
 
 1. **Rust 端**：在 struct/enum 上添加 `#[derive(TS)]` 和 `#[ts(export, export_to = "...")]` 属性，触发 ts-rs 在编译时生成 `.ts` 文件
 2. **生成物**：写入 `frontend/src/shared/ipc/generated/`（每个类型独立文件，ts-rs v10 按 export_to 路径生成）
-3. **桶导入**：`frontend/src/kernel/index.ts` 通过 `export *` 将所有子模块汇聚为单一包入口 `@ai-digital-life/kernel`
-4. **消费**：bridge 实现层、IPC 接口层统一从 `'@ai-digital-life/kernel'` 导入类型，不直接引用 generated 文件
-5. **UI 层例外（重要）**：`src/app/**` 属于 UI 层，**禁止**从 `@ai-digital-life/kernel`（含其子路径）导入，**即使 type-only 也禁止** —— 由 ESLint `no-restricted-imports`（`frontend/eslint.config.js`，`allowTypeImports: false`）强制。UI 层需用 kernel 派生类型时，**必须在 `frontend/src/shared/ipc/` 增加 re-export**，再从 `@shared/ipc` 消费
+3. **桶导入**：`frontend/src/kernel/index.ts` 通过 `export *` 将所有子模块汇聚为单一包入口 `@adlo/kernel`
+4. **消费**：bridge 实现层、IPC 接口层统一从 `'@adlo/kernel'` 导入类型，不直接引用 generated 文件
+5. **UI 层例外（重要）**：`src/app/**` 属于 UI 层，**禁止**从 `@adlo/kernel`（含其子路径）导入，**即使 type-only 也禁止** —— 由 ESLint `no-restricted-imports`（`frontend/eslint.config.js`，`allowTypeImports: false`）强制。UI 层需用 kernel 派生类型时，**必须在 `frontend/src/shared/ipc/` 增加 re-export**，再从 `@shared/ipc` 消费
 
 ## 层与导入来源对照
 
 | 层 | 路径 | kernel 派生类型的导入来源 |
 |----|------|--------------------------|
-| bridge / IPC / mock / preview | `src/tauri-bridge/**`、`src/mock/**`、`src/preview-bridge/**`、`src/httpBridge*`、`src/shared/**` | `@ai-digital-life/kernel`（直接） |
+| bridge / IPC / mock / preview | `src/tauri-bridge/**`、`src/mock/**`、`src/preview-bridge/**`、`src/httpBridge*`、`src/shared/**` | `@adlo/kernel`（直接） |
 | store / regions / utils / hooks / App | `src/app/stores/**`、`src/app/regions/**`、`src/app/utils/**`、`src/app/hooks/**`、`src/app/App.tsx` | `@shared/ipc`（经 re-export） |
 | 其余 UI 组件 | `src/app/**`（含 `components/`、`features/`） | `@shared/ipc`（经 re-export） |
 
@@ -44,13 +44,13 @@ pub struct ModelResponse {
 
 ```typescript
 // bridge / IPC 层 —— 直接引用 barrel
-import type { ModelResponse } from '@ai-digital-life/kernel';
+import type { ModelResponse } from '@adlo/kernel';
 ```
 
 ```typescript
 // shared/ipc/index.ts —— 为 UI 层补一条 re-export（UI 层无法直接引用 kernel 时的处方）
-export type { IpcError, IpcResult } from '@ai-digital-life/kernel';
-export { toUserMessage } from '@ai-digital-life/kernel';
+export type { IpcError, IpcResult } from '@adlo/kernel';
+export { toUserMessage } from '@adlo/kernel';
 ```
 
 ```typescript
@@ -65,8 +65,8 @@ import type { IpcError } from '@shared/ipc';
 import type { ModelResponse } from '../shared/ipc/generated/ModelResponse';
 
 // BAD: UI 层直接引用 kernel（含 type-only）—— lint 报错
-import type { IpcError } from '@ai-digital-life/kernel';
-import type { IpcResult } from '@ai-digital-life/kernel';
+import type { IpcError } from '@adlo/kernel';
+import type { IpcResult } from '@adlo/kernel';
 
 // BAD: UI 层为绕开 lint 就地手写结构等价的复本（第二份契约面，会随 kernel 演进漂移）
 interface NormalizedIpcError {

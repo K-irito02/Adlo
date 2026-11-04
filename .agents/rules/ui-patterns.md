@@ -20,7 +20,7 @@ alwaysApply: false
 
 ### 确认对话框 → `ConfirmDialog`
 
-- 文件：[ConfirmDialog.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ConfirmDialog.tsx)
+- 文件：[ConfirmDialog.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/ConfirmDialog.tsx)
 - Portal 到 `document.body`，`role="dialog"` + `aria-modal="true"`
 - 遮罩层点击关闭，Escape 关闭
 - 确认按钮自动聚焦；danger 模式用 `adl-btn--danger`
@@ -28,13 +28,13 @@ alwaysApply: false
 
 ### 新建/重命名对话框 → `NewSessionDialog` / `RenameDialog`
 
-- 文件：[NewSessionDialog.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/NewSessionDialog.tsx)、[RenameDialog.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/RenameDialog.tsx)
+- 文件：[NewSessionDialog.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/NewSessionDialog.tsx)、[RenameDialog.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/RenameDialog.tsx)
 - 直角按钮、✕ 关闭按钮、i18n 标题简洁化
 - 参考：[rename-dialog-standardization-2026-06-08.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/rename-dialog-standardization-2026-06-08.md)
 
 ### 模态表单 → `PromptModal`
 
-- 文件：[PromptModal.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/PromptModal.tsx)
+- 文件：[PromptModal.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/PromptModal.tsx)
 
 ### 对话框通用规范
 
@@ -48,7 +48,7 @@ alwaysApply: false
 
 ### 右键菜单 → `ContextMenu`
 
-- 文件：[ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ContextMenu.tsx)
+- 文件：[ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/ContextMenu.tsx)
 - 定位跟随鼠标位置，`mousedown` 外部点击关闭
 - 菜单项支持：disabled、danger（红色）、分隔线（separator）
 - hint 属性触发 "!" 子卡片（详见 §7）
@@ -56,7 +56,7 @@ alwaysApply: false
 
 ### 状态栏下拉菜单 → `.adl-statusbar__menu`
 
-- 文件：[StatusBar.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/StatusBar.tsx)
+- 文件：[StatusBar.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/regions/StatusBar.tsx)
 - 弹出卡片风格：`--surface-raised` 背景 + `--border` 描边 + `--radius-lg` 圆角 + `--shadow-lg` 阴影
 - 选项行：hover 用 `--surface-hover` 背景，**无边框轮廓**
 - 输入框：minimal chrome，hover/focus 浅灰背景
@@ -211,7 +211,7 @@ alwaysApply: false
 
 - 用于"关闭选项卡"等危险操作按钮，常驻隐藏、hover 时显示
 - 常态无背景色，hover 时变红：`color: var(--color-red-500); background: var(--color-red-100)`
-- 文件：[BrowserTreeEntryFlatList.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser-tree/BrowserTreeEntryFlatList.tsx)
+- 文件：[BrowserTreeEntryFlatList.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/features/browser-tree/BrowserTreeEntryFlatList.tsx)
 - 经验：[browser-opened-tabs-enhancement](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/browser/tab-management/browser-opened-tabs-enhancement-2026-06-23.md)
 
 ### 主题切换与 transition（防闪烁）
@@ -261,8 +261,8 @@ alwaysApply: false
 - `line-height` 必须为整数因子（如 1.5），避免子像素定位导致 1px 边框抗锯齿不对称
 
 ### 文档
-- [ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ContextMenu.tsx) → `showHint()`
-- 左侧实现：[BrowserMenuHintItem.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser/BrowserMenuHintItem.tsx)
+- [ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/ContextMenu.tsx) → `showHint()`
+- 左侧实现：[BrowserMenuHintItem.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/features/browser/BrowserMenuHintItem.tsx)
 - 经验：[hint-card-arrow-positioning-fix](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/toast-hint-card/hint-card-arrow-positioning-fix-2026-06-11.md)
 - 子像素边框：[sub-card-border-subpixel-fix](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/sub-card-border-subpixel-fix-2026-07-01.md)
 
@@ -270,7 +270,7 @@ alwaysApply: false
 子卡片与触发元素有间隙时，在触发元素上添加 `::after` 伪元素填满间隙。详见 CSS 实现文件。
 
 ### Dual-Text Label（双文本标签模式）
-标签文本在两种状态间切换时，使用 CSS Grid 叠放两个文本，通过 `opacity` 过渡切换。详见 [BranchSubCard.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx)。
+标签文本在两种状态间切换时，使用 CSS Grid 叠放两个文本，通过 `opacity` 过渡切换。详见 [BranchSubCard.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx)。
 
 ---
 
@@ -278,7 +278,7 @@ alwaysApply: false
 
 ### 虚拟化树
 
-- 文件：[fileTree.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/file-tree/fileTree.tsx)
+- 文件：[fileTree.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/features/file-tree/fileTree.tsx)
 - 扁平 `<li>` 结构 + `useVirtualList` 虚拟化
 - 行高固定 **28px**
 
@@ -314,7 +314,7 @@ alwaysApply: false
 - 参考：
   - `TooltipSimple` 适用于多数按钮提示。
   - 原生 `title` 适用于轻量纯文本提示（无定位/动画需求）。
-- 文件：[Tooltip.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/Tooltip.tsx)
+- 文件：[Tooltip.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/Tooltip.tsx)
 
 ### 视觉规范
 
@@ -363,7 +363,7 @@ alwaysApply: false
 
 ### API
 
-- 文件：[Toast.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/Toast.tsx)
+- 文件：[Toast.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/Toast.tsx)
 - 类型：success（绿色）、warning（橙色）、error（红色）
 
 ### 视觉规范
@@ -392,7 +392,7 @@ alwaysApply: false
 
 ### 持久错误通知（Error Toast）
 
-- 文件：[ErrorToast.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ErrorToast.tsx)、[ToastCard.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ToastCard.tsx)、[ToastRegion.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ToastRegion.tsx)
+- 文件：[ErrorToast.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/ErrorToast.tsx)、[ToastCard.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/ToastCard.tsx)、[ToastRegion.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/ToastRegion.tsx)
 - **与顶部 Toast 区别**：右下角持久渲染，不自动消失，由用户手动关闭/清空；顶部 Toast 自动消失
 - **统一卡片外壳**：ErrorToast 与 FileOpNotice 均复用 `ToastCard` 外壳（tone/icon/title/detail/onDismiss/role/ariaLive 映射）；右下角为**单一固定区域** `ToastRegion`（`.toast-card-region`，portal 到 body），内嵌两个 labeled group（error 组贴边、notice 组在上），避免两个同位固定区域重叠
 - **三级分级**（resolveErrorToastLevel(code, detail) 按 code 语义判定）：
@@ -509,8 +509,8 @@ alwaysApply: false
 
 ### 统一加载行 → `LoadingRow`
 
-- 文件：[LoadingRow.tsx](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/LoadingRow.tsx)
-- CSS：[loading-row.css](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/styles/components/loading-row.css)
+- 文件：[LoadingRow.tsx](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/LoadingRow.tsx)
+- CSS：[loading-row.css](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/styles/components/loading-row.css)
 - 组合：CSS border spinner（14px）+ 文字从左到右扫光闪烁动画
 - 用法：`<LoadingRow variant="row" />`（树条目内联）或 `<LoadingRow variant="center" />`（面板居中）
 - 内置 `role="status"` + `aria-label`
@@ -536,7 +536,7 @@ alwaysApply: false
 
 ### 统一空状态行 → `EmptyRow`
 
-- 文件：[LoadingRow.tsx](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/LoadingRow.tsx)（与 LoadingRow 同文件）
+- 文件：[LoadingRow.tsx](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/LoadingRow.tsx)（与 LoadingRow 同文件）
 - 用法：`<EmptyRow variant="row" message={t.noContent as string} />` 或 `variant="center"`
 - 文字居中对齐（`width: 100%` + `text-align: center`）
 - 内置 `role="status"` + `aria-label={message}`
@@ -694,7 +694,7 @@ z-index:3）在视觉上重叠，导致 Scrollbar 无法 hover/交互。
 | 我要调点击反馈                         | [§4 点击效果](#4-点击效果click--active) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                        |
 | 我要选颜色变量                         | [§5 颜色](#5-颜色color) → [themes.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/foundations/themes.md)                                                                                |
 | 我要做按钮                             | [§6 按钮](#6-按钮button) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                                       |
-| 我要做 "!" 提示                        | [§7 Hint Card](#7--解释子卡片hint-card) → [ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ContextMenu.tsx)                           |
+| 我要做 "!" 提示                        | [§7 Hint Card](#7--解释子卡片hint-card) → [ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/ContextMenu.tsx)                           |
 | 我要做文件树                           | [§8 文件树](#8-文件树file-tree) → [css-architecture.md](./css-architecture.md)                                                                                                                |
 | 我要做 Tooltip                         | [§9 Tooltip](#9-tooltip) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                                       |
 | 我要做 Toast                           | [§10 Toast](#10-toast-通知) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                                    |
@@ -710,7 +710,7 @@ z-index:3）在视觉上重叠，导致 Scrollbar 无法 hover/交互。
 | 我要做无障碍                           | [§20 无障碍](#20-无障碍accessibility) → [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/guidelines/accessibility.md)                                                    |
 | 我要修 resize handle 与 scrollbar 重叠 | [§21 Resize Handle](#21-resize-handle--scrollbar) → [knowledge-base](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/pointer-events/resize-handle-pointer-events-diversion-2026-06-23.md)        |
 | 我要做 hover text-overflow 遮罩        | [§23 Hover 渐变蒙版](#23-hover-渐变蒙版) → [knowledge-base](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/browser/navigation/browser-navigator-4-mode-2026-06-24.md)                                 |
-| 我要做子卡片菜单（分支切换等）         | [§22 子卡片菜单](#22-子卡片菜单sub-card-menu) → [BranchSubCard.tsx](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx) |
+| 我要做子卡片菜单（分支切换等）         | [§22 子卡片菜单](#22-子卡片菜单sub-card-menu) → [BranchSubCard.tsx](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx) |
 | 我要写 CSS                             | [css-architecture.md](./css-architecture.md)                                                                                                                                                  |
 | 我要拆组件                             | [component-architecture.md](./component-architecture.md)                                                                                                                                      |
 | 我要查设计约束                         | [design-system.md](./design-system.md)                                                                                                                                                        |

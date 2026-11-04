@@ -33,14 +33,14 @@
 
 ## 5. UI 与设置面板
 
-- [ ] 功能目录放 `app/features/<domain>/`；组件不直接 import `@ai-digital-life/kernel`（从 `@shared/ipc` 取）。
+- [ ] 功能目录放 `app/features/<domain>/`；组件不直接 import `@adlo/kernel`（从 `@shared/ipc` 取）。
 - [ ] 若进设置面板：`SettingsGroupId`、`settingsGroups.ts`、`SETTINGS_COMPONENTS`、组级重置流程、搜索锚点五处同时接线。
 - [ ] 锚点用 `anchorFor(group, sub)`；新增分组后跑 `settingsSearchAnchors` 与 `SettingsPanel` 测试。
 
 ## 6. 文案
 
 - [ ] `i18n/zh-CN/<domain>.ts` 与 `en-US/<domain>.ts` 成对新增，并在两侧 `index.ts` 展开。
-- [ ] 跑 `pnpm --dir ai-digital-life/frontend run check:i18n`（键必须完全对齐）。
+- [ ] 跑 `pnpm --dir adlo/frontend run check:i18n`（键必须完全对齐）。
 - [ ] 同步更新 `i18n/__tests__/keys.test.ts` 的关键键清单（若该域有关键文案契约）。
 
 ## 7. 测试与契约

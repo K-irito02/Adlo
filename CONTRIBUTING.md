@@ -1,6 +1,6 @@
 # 贡献指南
 
-欢迎贡献 AI 数字生命项目！本指南帮助您了解如何参与项目的开发、修复 Bug、改进文档或提出新功能。
+欢迎贡献 Adlo项目！本指南帮助您了解如何参与项目的开发、修复 Bug、改进文档或提出新功能。
 
 ---
 
@@ -34,7 +34,7 @@
 
 ```powershell
 # 1. 安装依赖（在 pnpm 工作区根目录）
-cd ai-digital-life
+cd adlo
 pnpm install
 
 # 2. 启动开发服务器（浏览器模式，推荐）
@@ -44,7 +44,7 @@ pnpm run dev:browser
 pnpm run dev:both
 ```
 
-> `pnpm dev:tauri` 会在缺失时自动创建 `ai-digital-life/frontend/dist/` 占位页：Tauri 的 `generate_context!` 在编译期就要求该目录存在（dev 实际走 `devUrl`）。release / `tauri build` 由 `beforeBuildCommand` 重新构建前端覆盖占位，无需手工处理。
+> `pnpm dev:tauri` 会在缺失时自动创建 `adlo/frontend/dist/` 占位页：Tauri 的 `generate_context!` 在编译期就要求该目录存在（dev 实际走 `devUrl`）。release / `tauri build` 由 `beforeBuildCommand` 重新构建前端覆盖占位，无需手工处理。
 
 ### 提交前门禁（本地执行）
 
@@ -63,7 +63,7 @@ $env:ADL_PREPUSH_FULL = '1'   # 经批准后的全量推送门禁
 git push
 ```
 
-日常手动验证建议：`pnpm --dir ai-digital-life/frontend run check:changed`；需要跑某组测试用 `vitest run <目录/文件>`。
+日常手动验证建议：`pnpm --dir adlo/frontend run check:changed`；需要跑某组测试用 `vitest run <目录/文件>`。
 
 ### 多会话并行开发
 
@@ -83,7 +83,7 @@ git worktree add "E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/<branch>" -b <bra
 ├── CONTEXT.md           # 架构与实现说明
 ├── SECURITY.md          # 安全策略
 ├── FUTURE-ROADMAP.md    # 远期规划
-├── ai-digital-life/     # 实现工作区（Rust + Tauri + React）
+├── adlo/     # 实现工作区（Rust + Tauri + React）
 ├── references/          # 外部参考源码（本地拉取的开源项目）
 └── docs/                # 架构、设计、知识库
 ```

@@ -1,6 +1,6 @@
 ---
 description: Desktop UI verification workflow - must restart app after UI changes
-globs: ai-digital-life/frontend/**
+globs: adlo/frontend/**
 alwaysApply: false
 ---
 
@@ -47,4 +47,4 @@ alwaysApply: false
 
 - [mandatory-testing.md](./mandatory-testing.md)
 - [design-system.md](./design-system.md)
-- 技能 `desktop-e2e-wdio`（`ai-digital-life/e2e/` 的自动化冒烟）
+- 技能 `desktop-e2e-wdio`（`adlo/e2e/` 的自动化冒烟）

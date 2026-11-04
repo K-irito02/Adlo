@@ -4,14 +4,14 @@
 
 本文件定义 `AI数字生命` 桌面应用的项目级工程规则，适用于：
 
-- `ai-digital-life/` 实现工作区（Rust + Tauri 2.x）中的实现、测试、打包与发布流程
+- `adlo/` 实现工作区（Rust + Tauri 2.x）中的实现、测试、打包与发布流程
 - 仓库根目录中的架构、规范、实施方案
 
-本文件是对 [AGENTS.md](../../AGENTS.md) 中项目治理规则的补充，聚焦产品与工程落地约束。优先级：根 `AGENTS.md`（项目治理）> `ai-digital-life/AGENTS.md`（实现工作区）> `.agents/rules/`（Agent 执行规则）；与规则文件重叠处以规则文件为准。
+本文件是对 [AGENTS.md](../../AGENTS.md) 中项目治理规则的补充，聚焦产品与工程落地约束。优先级：根 `AGENTS.md`（项目治理）> `adlo/AGENTS.md`（实现工作区）> `.agents/rules/`（Agent 执行规则）；与规则文件重叠处以规则文件为准。
 
 ## 技术与阶段基线
 
-当前技术基线见 [ai-digital-life/AGENTS.md](../../ai-digital-life/AGENTS.md#技术栈) 的技术栈表。
+当前技术基线见 [adlo/AGENTS.md](../../adlo/AGENTS.md#技术栈) 的技术栈表。
 
 当前阶段边界：
 
@@ -41,14 +41,14 @@
 | 浏览器预览 | `preview-bridge/`（http 优先，可回退） | adl-server 真实后端 | 快速迭代 + Agent 测试 |
 
 **必须遵守的一致性规则：**
-1. 新增 Tauri Command 时，必须同步实现 `tauri-bridge/`、`preview-bridge/`、`mock-bridge.ts`（+ `mock/`）三端（新增清单见 `ai-digital-life/CONTRIBUTING.md`）
+1. 新增 Tauri Command 时，必须同步实现 `tauri-bridge/`、`preview-bridge/`、`mock-bridge.ts`（+ `mock/`）三端（新增清单见 `adlo/CONTRIBUTING.md`）
 2. UI 组件的条件渲染只允许以下 4 种平台差异：
    - 窗口控制按钮（仅 Tauri）
    - 标题栏拖拽（仅 Tauri）
    - 窗口图标同步（仅 Tauri）
    - 目录选择器（Tauri 原生，浏览器 Preview API）
 3. 所有其他功能必须在两种模式下**功能行为一致**
-4. 使用 `pnpm run dev:both`（在 `ai-digital-life/` 目录执行）同时验证两种模式
+4. 使用 `pnpm run dev:both`（在 `adlo/` 目录执行）同时验证两种模式
 
 **实现策略差异原则：**
 
@@ -291,11 +291,11 @@
 - `light`、`dark`、`system` 在主要页面和高风险对话框上表现一致
 - Windows 主路径正常；其他平台不因路径、字体或主题监听假设而结构性失败
 
-门禁在**本地**执行（本项目无远程 CI），默认按变更范围：前端 `pnpm --dir ai-digital-life/frontend check:changed`（变更文件 lint/format + 类型与跨语言契约不变量 + `vitest related` 受影响用例；无 `src/` 变更则跳过测试）。全量门禁 `check:full`（再加 `test`）与 `cargo test --workspace`、Tauri 发布打包必须在执行前通知用户并获批准。Rust 侧受影响测试用 `cargo test -p <crate>`。
+门禁在**本地**执行（本项目无远程 CI），默认按变更范围：前端 `pnpm --dir adlo/frontend check:changed`（变更文件 lint/format + 类型与跨语言契约不变量 + `vitest related` 受影响用例；无 `src/` 变更则跳过测试）。全量门禁 `check:full`（再加 `test`）与 `cargo test --workspace`、Tauri 发布打包必须在执行前通知用户并获批准。Rust 侧受影响测试用 `cargo test -p <crate>`。
 
 ## 文档与治理同步
 
-以下变化必须同步更新本文件及相关开发文档（同步清单以 `ai-digital-life/CONTRIBUTING.md` Must-Sync 为准：`docs/architecture/*`、CSP/capability 基线、SQLite/恢复策略、Workspace/Retrieval 边界、主题/i18n/真相源、双端三桥、Tauri 新增清单）：
+以下变化必须同步更新本文件及相关开发文档（同步清单以 `adlo/CONTRIBUTING.md` Must-Sync 为准：`docs/architecture/*`、CSP/capability 基线、SQLite/恢复策略、Workspace/Retrieval 边界、主题/i18n/真相源、双端三桥、Tauri 新增清单）：
 
 - 技术基线变化
 - 国际化策略变化

@@ -5,7 +5,7 @@ alwaysApply: true
 
 # 常用命令
 
-## 开发命令（`ai-digital-life/`）
+## 开发命令（`adlo/`）
 
 | 命令 | 用途 |
 |------|------|
@@ -160,9 +160,9 @@ $env:LIB = "$msvc\lib\x64;$sdk\Lib\$sdkv\um\x64;$sdk\Lib\$sdkv\ucrt\x64"
 > `src-tauri/binaries/adl-server-<triple>.exe`，缺失即 `resource path ... doesn't exist` 并直接失败。
 > 裸 `cargo build` / `cargo check --workspace` / `cargo test --workspace` / `cargo clippy --workspace`
 > **不会**触发 staging 钩子，干净工作树首次执行前必须先 `pnpm run stage:sidecar`；按名称过滤的
-> `cargo test <name>` 与 `-p ai-digital-life` 同属会编译壳层的形态。
+> `cargo test <name>` 与 `-p adlo` 同属会编译壳层的形态。
 > 直接用上表的 `pnpm run cargo:build` / `cargo:check` / `cargo:clippy` / `cargo:test` 可免记该步骤
-> （`cargo:fmt` / `cargo:fmt:check` 不编译，不在此列；详见 [ai-digital-life/CONTRIBUTING.md](../../ai-digital-life/CONTRIBUTING.md)）。
+> （`cargo:fmt` / `cargo:fmt:check` 不编译，不在此列；详见 [adlo/CONTRIBUTING.md](../../adlo/CONTRIBUTING.md)）。
 
 ## ⚠️ Node.js 环境变量
 

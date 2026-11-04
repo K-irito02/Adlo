@@ -1,12 +1,12 @@
 # `cargo build` 报 externalBin 缺失：裸 cargo 不触发 sidecar staging
 
 - 日期：2026-10-31
-- 影响面：`ai-digital-life/` 下任何会编译 `src-tauri` 的裸 cargo 命令
+- 影响面：`adlo/` 下任何会编译 `src-tauri` 的裸 cargo 命令
 
 ## 症状
 
 ```
-error: failed to run custom build command for `ai-digital-life`
+error: failed to run custom build command for `adlo`
   resource path `binaries\adl-server-x86_64-pc-windows-msvc.exe` doesn't exist
 ```
 
@@ -35,7 +35,7 @@ error: failed to run custom build command for `ai-digital-life`
 - `commands.md` / `quality-gates.md` / `mandatory-testing.md` / `rust-patterns.md` / `CONTRIBUTING.md`
   统一改为 `pnpm run cargo:*` 或显式标注 staging 前置。
 - pre-push 的 `shouldStageSidecar(files)` 按受影响 crate 判断是否需要 staging
-  （不要从 clippy argv 反推：`--exclude ai-digital-life` 的值也会被 `includes` 命中）。
+  （不要从 clippy argv 反推：`--exclude adlo` 的值也会被 `includes` 命中）。
 
 ## 相关
 

@@ -63,7 +63,7 @@ git status --porcelain                             # 5 是否干净
 git log --oneline -1                               # 6 我在哪个提交
 git rev-list --left-right --count main...HEAD      # 7 相对本地 main 的落后/领先
 git config --get core.hooksPath                    # 8 本地门禁是否启用（期望 .githooks）
-Test-Path -LiteralPath "ai-digital-life/.codegraph"  # 9 CodeGraph 索引是否就绪（每工作树一份）
+Test-Path -LiteralPath "adlo/.codegraph"  # 9 CodeGraph 索引是否就绪（每工作树一份）
 ```
 
 > 本仓在 Windows + PowerShell 7 下执行，命令块均为 PowerShell 语法（`$` 变量、`Test-Path`、`Get-ChildItem`）；不要转写成 bash。
@@ -76,7 +76,7 @@ Test-Path -LiteralPath "ai-digital-life/.codegraph"  # 9 CodeGraph 索引是否�
 | 4 | 当前目录无他人 `status: active` | 有 → 换工作树或等待 |
 | 5 | 空，或改动全部属于本会话 | 来源不明的改动 → 停，禁止清理 |
 | 6/7 | 清楚自己的基线落后多少 | 落后较多 → 先 `merge --ff-only main` |
-| 8 | 输出 `.githooks` | 未启用 → `pnpm --dir ai-digital-life run setup:worktree`（仓库级，一处即可） |
+| 8 | 输出 `.githooks` | 未启用 → `pnpm --dir adlo run setup:worktree`（仓库级，一处即可） |
 | 9 | 目录存在 | 缺失 → 同上（`codegraph init`，索引不入库） |
 
 输出环境快照块（**没有快照视为未开工**）。固定 10 行：一项一行，键用英文冒号对齐（键宽 8、前后各一空格），未知值写 `—`，禁止把多项挤进一行。首行 `[ENV]` 独占一行，保留可 grep 标记：
@@ -104,7 +104,7 @@ Test-Path -LiteralPath "ai-digital-life/.codegraph"  # 9 CodeGraph 索引是否�
   dirty    : 0
   slot     : slot-1 / mode : existing-worktree
   others   : 无
-  instance : E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/target/debug/ai-digital-life.exe（归属主工作树，slot-1 无实例）
+  instance : E:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/target/debug/adlo.exe（归属主工作树，slot-1 无实例）
   hooks    : ok / graph : ok
   registry : settings-version-cleanup.json
 ```
@@ -145,10 +145,10 @@ Test-Path -LiteralPath "ai-digital-life/.codegraph"  # 9 CodeGraph 索引是否�
 ```powershell
 git -C "$ROOT" worktree add "$WT_ROOT/<branch>" -b <branch> <base>   # <base> 默认 main
 git -C "$WT_ROOT/<branch>" status --porcelain                        # 必须为空
-cd "$WT_ROOT/<branch>/ai-digital-life" && pnpm install && pnpm run setup:worktree && pnpm run cargo:check
+cd "$WT_ROOT/<branch>/adlo" && pnpm install && pnpm run setup:worktree && pnpm run cargo:check
 ```
 
-- `setup:worktree`：启用仓库级 git hooks（`core.hooksPath=.githooks`）并为**当前工作树**建 CodeGraph 索引（`ai-digital-life/.codegraph/`，已 gitignore，各工作树独立、不跟随分支切换自动更新；重建直接删目录后重跑）。
+- `setup:worktree`：启用仓库级 git hooks（`core.hooksPath=.githooks`）并为**当前工作树**建 CodeGraph 索引（`adlo/.codegraph/`，已 gitignore，各工作树独立、不跟随分支切换自动更新；重建直接删目录后重跑）。
 
 - **基线默认用本地 `main`，不要用 `origin/main`**：本仓约定永不自动 push，远端可能落后于本地 `main`，从 `origin/main` 起分支会丢掉本地提交。用户指定了其他对齐分支及提交节点时，以用户指定为准。
 - 目录只放 sibling 目录；根 `.gitignore` 里的 `.worktrees/` 是历史遗留，不使用。
@@ -176,7 +176,7 @@ cd "$WT_ROOT/<branch>/ai-digital-life" && pnpm install && pnpm run setup:worktre
 | G4 旧分支已收口 | `git -C "$WT" branch --merged main` | 旧分支在列，或用户明确放弃 |
 
 ```powershell
-Get-Process ai-digital-life -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path
+Get-Process adlo -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path
 ```
 
 任一不通过 → 改走 §3.1 新建，禁止自行 stash / clean / 强切。
@@ -191,8 +191,8 @@ git -C "$WT" fetch origin --prune                     # 3 取远端（仅为同�
 git -C "$WT" switch -c <new-branch> main              # 4 从本地 main 原地建新分支（用户指定了其他基准则用指定基准）
 git -C "$WT" branch --show-current                    # 5 校验分支名
 git -C "$WT" diff --stat "$OLD..<new-branch>" -- `  # 6 依赖是否变化
-  ai-digital-life/Cargo.lock ai-digital-life/pnpm-lock.yaml `
-  ai-digital-life/Cargo.toml ai-digital-life/.cargo/config.toml
+  adlo/Cargo.lock adlo/pnpm-lock.yaml `
+  adlo/Cargo.toml adlo/.cargo/config.toml
 # 7 更新注册表：branch=<new>，history 追加 $OLD，status=active
 ```
 
@@ -211,7 +211,7 @@ git -C "$WT" diff --stat "$OLD..<new-branch>" -- `  # 6 依赖是否变化
 | **跑了 stale 可执行文件** | 是否直接运行 `target/debug/*.exe` | 禁止；先 `pnpm run cargo:build` 或 `pnpm run dev:tauri` |
 | 旧分支未跟踪残留 | `git -C "$WT" clean -nd`（干跑，不含 ignored） | 列给用户，由用户决定 |
 | 旧分支 stash 债 | `git -C "$WT" stash list` | 记入注册表 `notes` |
-| CodeGraph 索引仍是旧分支 | `ai-digital-life/.codegraph` 存在且刚切过分支 | 删掉该目录后重跑 `pnpm --dir ai-digital-life run setup:worktree`（索引不自动跟随） |
+| CodeGraph 索引仍是旧分支 | `adlo/.codegraph` 存在且刚切过分支 | 删掉该目录后重跑 `pnpm --dir adlo run setup:worktree`（索引不自动跟随） |
 
 ---
 
@@ -221,7 +221,7 @@ git -C "$WT" diff --stat "$OLD..<new-branch>" -- `  # 6 依赖是否变化
 
 改动前先在注册表 `contractFiles` 登记，并尽快提交。
 
-| 类别 | 文件（未注明者相对 `ai-digital-life/`） |
+| 类别 | 文件（未注明者相对 `adlo/`） |
 |------|------|
 | 共享类型与 IPC | `frontend/src/shared/**`、`frontend/src/kernel/**`、`frontend/src/tauri-bridge/**`、`frontend/src/preview-bridge/**`、`frontend/src/mock/**`、`frontend/src/httpBridge.ts` |
 | Store | `frontend/src/app/stores/slices/**`、`frontend/src/app/stores/actions/**`、`frontend/src/app/stores/StoreState.ts` |
@@ -229,7 +229,7 @@ git -C "$WT" diff --stat "$OLD..<new-branch>" -- `  # 6 依赖是否变化
 | 依赖与构建 | `Cargo.toml`、`Cargo.lock`、`package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`src-tauri/tauri.conf.json`、`src-tauri/capabilities/**` |
 | 治理 | 仓库根 `AGENTS.md`、`RULES.md`、`SKILLS.md`、`.agents/rules/**`、本技能（`.agents/skills/parallel-branch-development/SKILL.md`，真源） |
 
-可安全并行：`frontend/src/app/features/<feature>/**`、`frontend/src/app/regions/right-panel/panels/**`（同一文件不可并行）、`frontend/src/styles/regions/**`、`ai-digital-life/crates/<单个 crate>/**`、`docs/**`（按文件切）。
+可安全并行：`frontend/src/app/features/<feature>/**`、`frontend/src/app/regions/right-panel/panels/**`（同一文件不可并行）、`frontend/src/styles/regions/**`、`adlo/crates/<单个 crate>/**`、`docs/**`（按文件切）。
 
 新增 i18n key 归属占用 i18n 文件的会话统一收口；未占用者先写无文案实现，把 key 需求记在 `notes`。
 
@@ -239,7 +239,7 @@ git -C "$WT" diff --stat "$OLD..<new-branch>" -- `  # 6 依赖是否变化
 |----|------|------|
 | `target/` | 每工作树独立 | 禁止共享 `CARGO_TARGET_DIR`：共享后 exe 路径相同，dev 脚本（`killProcessesByName` 按绝对路径过滤）会跨工作树互杀，且构建退化为串行 |
 | `node_modules/` | 每工作树独立，pnpm store 全局共享 | lock 变了才重装 |
-| 运行数据 | dev 脚本按工作树派生 identifier（`com.ai-digital-life.app.<工作树目录名>`，可用 `ADL_INSTANCE_ID` 覆盖），数据根、WebView2 profile、locator、凭证回退目录、浏览器模式 adl-server 数据都随之隔离（`<worktree>/ai-digital-life/target/adl-instance/`） | 隔离只覆盖 `pnpm dev*` 入口；直接跑 `target/debug/*.exe` 或主工作树仍共 `%APPDATA%\com.ai-digital-life.app`；OS 密钥环条目按 service 名存系统凭据管理器，仍跨工作树共享 |
+| 运行数据 | dev 脚本按工作树派生 identifier（`com.adlo.app.<工作树目录名>`，可用 `ADL_INSTANCE_ID` 覆盖），数据根、WebView2 profile、locator、凭证回退目录、浏览器模式 adl-server 数据都随之隔离（`<worktree>/adlo/target/adl-instance/`） | 隔离只覆盖 `pnpm dev*` 入口；直接跑 `target/debug/*.exe` 或主工作树仍共 `%APPDATA%\com.adlo.app`；OS 密钥环条目按 service 名存系统凭据管理器，仍跨工作树共享 |
 | 前端端口 | 每个工作树自动取**稳定端口**：主工作树 5173、`slot-N` → 5173+N；被占则顺延到下一个空闲端口。`ADL_PORT` / `PORT` 可显式覆盖，但**必须空闲**（占用即硬失败）。窗口只加载本工作树的 vite（`strictPort` + 实例令牌 `GET /__adl_dev_instance__` 校验）。`dev:tauri` / `dev:browser` / `dev:preview` 同一规则；裸 `pnpm frontend:dev` 不经过启动器，`strictPort` 下占用即失败（并行请走 `dev:browser`） | 无需手工固定端口；一个窗口"改了没变化"时先核对 `[adl-run] url=` 与本工作树的端口 |
 | 内置 Rust server | 绑定 `127.0.0.1:0` | 无固定端口冲突 |
 | 实例定位 | `pnpm run dev:status` 扫描 5173..5182，打印端口 / 实例令牌前缀 / PID | 与启动行 `[adl-run] … token=xxxxxxxx` 对号；「窗口连的是谁」先跑它再怀疑代码 |
@@ -251,7 +251,7 @@ git -C "$WT" diff --stat "$OLD..<new-branch>" -- `  # 6 依赖是否变化
 ### 4.3 验证
 
 ```powershell
-cd "<worktree>/ai-digital-life"
+cd "<worktree>/adlo"
 node --test scripts/instance-id.test.mjs   # 实例隔离逻辑
 pnpm run frontend:typecheck && pnpm run frontend:test
 pnpm run cargo:test
@@ -272,7 +272,7 @@ pnpm run check:all        # 提交前与合并后都跑（含前端 check:full�
 
 ```powershell
 git -C "$ROOT" merge --ff-only <branch>
-pnpm --dir "$ROOT/ai-digital-life" run check:all
+pnpm --dir "$ROOT/adlo" run check:all
 ```
 
 - 永不自动 push（推送由用户执行或明确批准）。
@@ -291,8 +291,8 @@ pnpm --dir "$ROOT/ai-digital-life" run check:all
 保留的目的是保住 `target/` 与 `node_modules/`。只有三种情况清理：用户明确要求；该工作树无 active 会话且 `target` 超 30 GB；目录已 `prunable`。
 
 ```powershell
-powershell -NoProfile -File "$ROOT/ai-digital-life/.cargo/clean-target.ps1"          # 只清当前工作树
-powershell -NoProfile -File "$ROOT/ai-digital-life/.cargo/clean-target.ps1" -WhatIf   # 干跑
+powershell -NoProfile -File "$ROOT/adlo/.cargo/clean-target.ps1"          # 只清当前工作树
+powershell -NoProfile -File "$ROOT/adlo/.cargo/clean-target.ps1" -WhatIf   # 干跑
 git -C "$ROOT" worktree remove "$WT_ROOT/<name>"                                      # 用户批准后
 git -C "$ROOT" worktree prune
 # Windows 长路径（node_modules 深嵌套）致 remove 报 `Filename too long` 时（用户已批准删除）：
@@ -316,7 +316,7 @@ Remove-Item -LiteralPath "\\?\$WT_ROOT\<name>" -Recurse -Force                  
   "branch": "terminal-history",
   "history": ["browser-toolbar-fix"],
   "owner": "agent-session-2026-10-24-1520",
-  "scope": ["ai-digital-life/frontend/src/app/features/terminal/**"],
+  "scope": ["adlo/frontend/src/app/features/terminal/**"],
   "contractFiles": [],
   "startedAt": "2026-10-24T15:20:00+08:00",
   "status": "active",
@@ -397,8 +397,8 @@ git -C "$WT" status --porcelain       # 干净，或已明确告知遗弃内容
 
 | 能力 | 位置 |
 |------|------|
-| 工作树路径公式与增删 | `ai-digital-life/crates/workspace/src/git/git_worktree.rs`（`sibling_worktree_dir`、`ensure_branch_worktree`、`remove_worktree`） |
-| 特批换分支底层（建分支并切换） | `ai-digital-life/crates/workspace/src/git/git_branch.rs`（`create_git_branch`、`switch_git_branch`、`adl-auto-stash`） |
-| 分支子卡片 | `ai-digital-life/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx`、`stores/actions/gitBranchActions.ts` |
+| 工作树路径公式与增删 | `adlo/crates/workspace/src/git/git_worktree.rs`（`sibling_worktree_dir`、`ensure_branch_worktree`、`remove_worktree`） |
+| 特批换分支底层（建分支并切换） | `adlo/crates/workspace/src/git/git_branch.rs`（`create_git_branch`、`switch_git_branch`、`adl-auto-stash`） |
+| 分支子卡片 | `adlo/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx`、`stores/actions/gitBranchActions.ts` |
 | 设计边界（ignored 不跟随、不自动 push） | `docs/superpowers/specs/2026-10-15-git-worktree-design.md` |
-| 磁盘治理 | `ai-digital-life/.cargo/clean-target.ps1`、`ai-digital-life/AGENTS.md#磁盘空间管理` |
+| 磁盘治理 | `adlo/.cargo/clean-target.ps1`、`adlo/AGENTS.md#磁盘空间管理` |

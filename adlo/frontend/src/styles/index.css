@@ -1,0 +1,32 @@
+/* ==========================================================================
+   Adlo - Desktop Renderer Stylesheet
+   --------------------------------------------------------------------------
+   Single import surface. Order matters:
+     1. tokens     - design primitives (CSS custom properties)
+     2. themes     - color schemes × theme modes
+     3. base       - resets, body backdrop, focus, scrollbar
+     4. components - Button / Input / Card / Badge / Modal / Toast / etc.
+     5. utilities  - sr-only, focus helpers, spacing utilities
+   （原 layout.css —— app-shell/page/grid 模板遗留 —— 已删：生产 DOM 0 引用；
+    唯一例外是 design-system/components.ts 的 renderNavItem/renderStatTile
+    输出字符串中含 nav__item/stack/cluster 类名（0 生产导入，仅转导出），
+    如未来挂载需自带样式，勿复活 layout.css）
+   ========================================================================== */
+
+@import './tokens.css';
+@import './themes.css';
+@import './base.css';
+@import './components.css';
+@import './regions/leftbar.css';
+@import './regions/leftbar-clipboard.css';
+@import './regions/system-monitor.css';
+@import './regions/center.css';
+@import './regions/center-entry.css';
+@import './regions/dsh-settings.css';
+@import './regions/harness-version.css';
+@import './regions/environment-settings.css';
+@import './regions/rightpanel.css';
+@import './regions/titlebar.css';
+@import './regions/statusbar.css';
+@import './regions/composer.css';
+@import './utilities.css';

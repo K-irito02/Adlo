@@ -1,6 +1,6 @@
 ---
 description: Rust use statement three-section ordering convention — std → external crates → adl_* internal crates, separated by blank lines
-globs: ai-digital-life/crates/**/*.rs,ai-digital-life/src-tauri/**/*.rs
+globs: adlo/crates/**/*.rs,adlo/src-tauri/**/*.rs
 alwaysApply: false
 ---
 

@@ -21,7 +21,7 @@
 
 ## 修复
 
-- `ai-digital-life/Cargo.toml`：workspace reqwest 特性加 `"socks"`。
+- `adlo/Cargo.toml`：workspace reqwest 特性加 `"socks"`。
   `socks = []` 无新增依赖，`Cargo.lock` 零变更；`socks5h://` 为 reqwest 0.13 原生合法 scheme。
 - 生效条件：重编 ad-server 二进制（重启 dev Tauri 即可）。
 - 注意：不要用“失败回退直连”代替——代理 env 可能是用户有意配置，直连会绕过用户代理策略。

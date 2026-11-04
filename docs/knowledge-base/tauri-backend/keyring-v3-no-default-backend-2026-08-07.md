@@ -45,7 +45,7 @@ Tauri 桌面应用"保存 API 密钥后，重启即丢失"。排查发现密钥�
   若 keychain 可用性在进程内翻转（D-Bus 拉起、钥匙串锁定/解锁），可能写入 keyring 却从加密
   文件读取（或反之），表现为"密钥偶发丢失"（flip-flop）。
 - **修复**：`KEYRING_USABLE: OnceLock<bool>` 在进程首次构造时探测一次并固化后端选择；
-  探测身份用固定 `ai-digital-life-probe`/`availability`（只读、无残留、三平台均映射
+  探测身份用固定 `adlo-probe`/`availability`（只读、无残留、三平台均映射
   `NoEntry` 为可用）。每次构造不再重复阻塞探测。
 - **取舍（已文档化）**：决策只对当前进程有效——跨启动后端漂移仍在（进程 A 探测失败写文件、
   进程 B 探测成功读 keyring 时看不到）。完整根治需读端双后端兜底，列为未来工作。

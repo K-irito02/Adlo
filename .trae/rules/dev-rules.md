@@ -13,9 +13,9 @@ alwaysApply: true
 
 代码变更完成后，**必须自动触发结束验收流程**。流程与命令清单以 [quality-gates.md](./quality-gates.md) 为唯一真源（默认只跑受影响范围；全量需用户批准），分层与修复约束见 [mandatory-testing.md](./mandatory-testing.md)。
 
-- 前端命令一律带目录：`pnpm --dir frontend run check:changed`（在仓库根或 `ai-digital-life/` 执行都有效）。
+- 前端命令一律带目录：`pnpm --dir frontend run check:changed`（在仓库根或 `adlo/` 执行都有效）。
 - 全量/发布门禁（`check:full`、`check:all`、`cargo test --workspace`、`cargo tauri build`）执行前必须通知用户并获批准。
-- 前端格式化配置以 `ai-digital-life/frontend/` 下的 `.prettierrc` / `.prettierignore` 为准（根目录同名文件不生效）。
+- 前端格式化配置以 `adlo/frontend/` 下的 `.prettierrc` / `.prettierignore` 为准（根目录同名文件不生效）。
 
 Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，必须自动执行该流程，**不得跳过**。
 
@@ -100,11 +100,11 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 
 无法定位根因时，不要凭空猜测。按以下优先级执行：
 
-1. **调试日志收起器**（最高优先级）：在代码中添加 `console.log/warn/error/info/debug` 输出调试信息（无需特殊前缀）。应用启动后通过右上角"复制调试日志"按钮查看，或直接查看日志文件（debug 构建均落 `<仓库根>/.adl-logs/`：Tauri 桌面壳 `debug-logs*.txt`、浏览器模式 `debug-logs-browser*.txt`；后端引擎另在 `<仓库根>/ai-digital-life/.adl-logs/adl-server-logs*.txt`）。控制台可执行 `__clearDebugLogs()` 清除旧日志，`__exportDebugLogs()` 手动导出。
+1. **调试日志收起器**（最高优先级）：在代码中添加 `console.log/warn/error/info/debug` 输出调试信息（无需特殊前缀）。应用启动后通过右上角"复制调试日志"按钮查看，或直接查看日志文件（debug 构建均落 `<仓库根>/.adl-logs/`：Tauri 桌面壳 `debug-logs*.txt`、浏览器模式 `debug-logs-browser*.txt`；后端引擎另在 `<仓库根>/adlo/.adl-logs/adl-server-logs*.txt`）。控制台可执行 `__clearDebugLogs()` 清除旧日志，`__exportDebugLogs()` 手动导出。
 2. **复制调试日志**：引导用户通过界面上的"复制调试日志"按钮获取调试信息。
 3. **其他调试手段**：在前述方式不可行时，采用合适的替代调试方案。
 
-详见 [ai-digital-life/AGENTS.md](../../ai-digital-life/AGENTS.md#调试工具)。
+详见 [adlo/AGENTS.md](../../adlo/AGENTS.md#调试工具)。
 
 ## 编码风格规范
 
@@ -148,7 +148,7 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 
 构建产物由 `.cargo/config.toml` 统一治理（第三方依赖 `debug=1`，自有 crate 白名单 `debug=2`）。遵循以下规范：
 
-1. 收尾流程（`root-cause-to-close` P6 清理阶段）执行 `powershell -File "ai-digital-life\.cargo\clean-target.ps1" -WhatIf` 干跑检查
+1. 收尾流程（`root-cause-to-close` P6 清理阶段）执行 `powershell -File "adlo\.cargo\clean-target.ps1" -WhatIf` 干跑检查
 2. 空间阈值触发全量清理：`target/debug` 超 30 GB → 执行 `clean-target.ps1` 全量 `cargo clean`（不按时间窗口判断）
 3. 手动全清使用 `cargo clean`（或 `cargo prune` 别名 = `clean`）
 

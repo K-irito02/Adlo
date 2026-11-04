@@ -53,7 +53,7 @@ The Rust backend provides shared DTOs, SQLite-backed metadata tables, workspace 
 
 ## Run Modes
 
-| 模式 | 命令（在 `ai-digital-life/` 执行） | 后端 |
+| 模式 | 命令（在 `adlo/` 执行） | 后端 |
 |------|-----------------------------------|------|
 | Tauri 桌面 | `pnpm run dev:tauri` | Rust + Tauri WebView2 |
 | 浏览器预览 | `pnpm run dev:browser` | adl-server 真实后端（http 优先，可回退） |
@@ -61,7 +61,7 @@ The Rust backend provides shared DTOs, SQLite-backed metadata tables, workspace 
 
 ## Validation Status
 
-Quality gates see `.agents/rules/quality-gates.md` and `mandatory-testing.md`. They run **locally only** (no remote CI), scoped to the change by default: `pnpm --dir ai-digital-life/frontend check:changed` runs lint/format on changed files, type and contract invariants, and `vitest related` for affected tests. Full gates (`check:full`, `cargo test --workspace`) and Tauri packaging are executed only after explicit user approval.
+Quality gates see `.agents/rules/quality-gates.md` and `mandatory-testing.md`. They run **locally only** (no remote CI), scoped to the change by default: `pnpm --dir adlo/frontend check:changed` runs lint/format on changed files, type and contract invariants, and `vitest related` for affected tests. Full gates (`check:full`, `cargo test --workspace`) and Tauri packaging are executed only after explicit user approval.
 
 Optional desktop smoke: `pnpm run e2e:build` then `pnpm run e2e` (WDIO + embedded WebDriver, real Tauri window, ~15s). It is opt-in, not part of `check:all`, and never replaces human visual verification — see skill `desktop-e2e-wdio`.
 
@@ -76,18 +76,18 @@ Optional desktop smoke: `pnpm run e2e:build` then `pnpm run e2e` (WDIO + embedde
 
 ## Persistence
 
-All application data paths resolve through `adl-kernel::storage` (`StoragePaths`); the pointer file is `<config_dir>/ai-digital-life/storage-locator.json` (overridable via `ADL_STORAGE_LOCATOR_PATH` for dev/test — `locator_dir()` and everything derived from it, e.g. `credentials_dir`, then follows that file's directory so parallel dev instances stay isolated):
+All application data paths resolve through `adl-kernel::storage` (`StoragePaths`); the pointer file is `<config_dir>/adlo/storage-locator.json` (overridable via `ADL_STORAGE_LOCATOR_PATH` for dev/test — `locator_dir()` and everything derived from it, e.g. `credentials_dir`, then follows that file's directory so parallel dev instances stay isolated):
 
 - locator `pendingMigration` executes at next process startup, before any DB/log handle opens (no hot migration); success switches the pointer then cleans owned files only (external files never deleted); failure keeps the old path and records the error without auto-retry
 - settings panel storage group: unified-root vs per-category modes; 10 migratable paths + 1 settings-value path (`downloads_default`) + 6 non-movable items listed with reasons
 - patch snapshot path converged to adl-server `storage.paths().snapshot_dir`
-- debug builds log to `.adl-logs/` (repo root for shell/preview, `ai-digital-life/.adl-logs/` for adl-server); release builds log to `<data_root>/logs/`
+- debug builds log to `.adl-logs/` (repo root for shell/preview, `adlo/.adl-logs/` for adl-server); release builds log to `<data_root>/logs/`
 
 SQLite stores schema version, workspaces, sessions, tasks, approvals, audit records, checkpoints, conversation data, patch sets/hunks/decisions, command execution/validation records, and run activity events. UI preferences (language `system` default with OS-following, theme mode, log level, etc.) persist via the same storage layer with localStorage cache on the frontend.
 
 ## 已实现能力清单（详细）
 
-> 由 `ai-digital-life/AGENTS.md` 迁出（2026-10-25）：AGENTS 常驻代理上下文，清单属于参考材料。
+> 由 `adlo/AGENTS.md` 迁出（2026-10-25）：AGENTS 常驻代理上下文，清单属于参考材料。
 
 - Tauri 桌面壳、SQLite 状态
 - 工作区管理、补丁预览/应用/回滚、快照

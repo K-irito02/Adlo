@@ -1,6 +1,6 @@
 # Design Tokens
 
-Source of truth: 类型真源 [`frontend/src/design-system/tokens.ts`](../../../ai-digital-life/frontend/src/design-system/tokens.ts)（`SpacingToken/ShadowToken/…`），CSS 变量值真源 [`frontend/src/styles/tokens.css`](../../../ai-digital-life/frontend/src/styles/tokens.css)（除行级 Source 另注者外；Hint 节 token 定义于 `themes.css`）。
+Source of truth: 类型真源 [`frontend/src/design-system/tokens.ts`](../../../adlo/frontend/src/design-system/tokens.ts)（`SpacingToken/ShadowToken/…`），CSS 变量值真源 [`frontend/src/styles/tokens.css`](../../../adlo/frontend/src/styles/tokens.css)（除行级 Source 另注者外；Hint 节 token 定义于 `themes.css`）。
 
 Tokens are the only acceptable way to express atomic design decisions in the codebase. Components MUST refer to them via CSS custom properties — `color: #fff` is forbidden, `color: var(--text-on-accent)` is required.
 

@@ -19,7 +19,7 @@ alwaysApply: true
 | 浏览器预览 | Vite dev server | polling HTTP（PTY_POLL_INTERVAL_MS=1000） | `preview-bridge/` |
 | 开发/测试 | - | mock | `mock-bridge.ts` |
 
-双根结构：仓库根目录（规划与治理） + `ai-digital-life/`（实现工作区）。详见 [project-overview.md](./project-overview.md)。
+双根结构：仓库根目录（规划与治理） + `adlo/`（实现工作区）。详见 [project-overview.md](./project-overview.md)。
 
 ## 代码维度
 
@@ -35,7 +35,7 @@ alwaysApply: true
 
 - **SQLite**（rusqlite bundled + `r2d2` 连接池，`EntityTable` 宏，`PRAGMA journal_mode=WAL; foreign_keys=ON`）。核心实体表：`workspaces`/`sessions`/`tasks`/`approvals`/`patch_sets`/`file_patches`/`patch_hunks`/`checkpoints`/`audit_records`/`tool_invocations`/`clipboard_items`/`model_call_audit`/`run_activity_events`/`validation_results` + 站点元数据/剪贴板等。schema 变更必须带迁移脚本（`crates/migration/`）。详见 [rust-patterns.md](./rust-patterns.md)。
 - **本地非结构化**：`localStorage` 持久化走中心登记表（registry）架构（`stores/persisted/`），唯一写盘入口 + 构造期同步水合。详见 [localstorage-central-registry-persistence-architecture.md](./localstorage-central-registry-persistence-architecture.md)。
-- **存储治理**：`adl-kernel::storage` 统一路径解析 + `storage-locator.json` 指针 + 启动期迁移（Plan B）+ 设置面板存储组（Plan C；10 条可迁移路径 + 6 条不可移动项）。详见 `ai-digital-life/AGENTS.md#存储路径解析`。
+- **存储治理**：`adl-kernel::storage` 统一路径解析 + `storage-locator.json` 指针 + 启动期迁移（Plan B）+ 设置面板存储组（Plan C；10 条可迁移路径 + 6 条不可移动项）。详见 `adlo/AGENTS.md#存储路径解析`。
 
 ## 安全维度
 
@@ -56,7 +56,7 @@ alwaysApply: true
 
 - **Tauri invoke**：命令统一登记到 `capabilities/*.json`，返回 `Result<T, AppError>` 结构化错误，用 `ipc()`/`ipc_try()` 包装。详见 [tauri-command-ipc-wrapper-pattern.md](./tauri-command-ipc-wrapper-pattern.md)。
 - **HTTP 服务**：`adl-server`（axum）140+ handler，统一四步配方（State 提取 → body 解析 → `run_blocking` 阻塞 I/O → `ipc::to_response`）。详见 [rust-server-handler-recipe-pattern.md](./rust-server-handler-recipe-pattern.md)。
-- **契约对齐**：跨 IPC 边界 `DigitalLifeBridge` 三端（Tauri/Preview/Mock）一致；共享类型 serde 双注解 + 跨语言类型生成。UI 层（`src/app/**`）**不得直接 import `@ai-digital-life/kernel`**（含 type-only，由 ESLint 强制），需先在 `shared/ipc/` 补 re-export 再从 `@shared/ipc` 消费。详见 [bridge-three-implementation-pattern.md](./bridge-three-implementation-pattern.md)、[serde-default-rename-all-convention.md](./serde-default-rename-all-convention.md)、[ts-rs-type-generation-barrel-import.md](./ts-rs-type-generation-barrel-import.md)。
+- **契约对齐**：跨 IPC 边界 `DigitalLifeBridge` 三端（Tauri/Preview/Mock）一致；共享类型 serde 双注解 + 跨语言类型生成。UI 层（`src/app/**`）**不得直接 import `@adlo/kernel`**（含 type-only，由 ESLint 强制），需先在 `shared/ipc/` 补 re-export 再从 `@shared/ipc` 消费。详见 [bridge-three-implementation-pattern.md](./bridge-three-implementation-pattern.md)、[serde-default-rename-all-convention.md](./serde-default-rename-all-convention.md)、[ts-rs-type-generation-barrel-import.md](./ts-rs-type-generation-barrel-import.md)。
 - **事件通道**（Tauri 模式）：`digital-life://model-stream`、`digital-life://pty-output`、`digital-life://workspace-file-changed`、`digital-life://browser-url-changed`。
 
 ## 性能 · 可维护性维度

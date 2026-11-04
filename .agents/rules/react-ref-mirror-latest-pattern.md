@@ -1,6 +1,6 @@
 ---
 description: React 最新值 Ref 镜像模式——在 effect/事件监听/观察者回调中读取最新 props/state，避免过期闭包与监听器重绑
-globs: ai-digital-life/frontend/**/*.ts,ai-digital-life/frontend/**/*.tsx
+globs: adlo/frontend/**/*.ts,adlo/frontend/**/*.tsx
 alwaysApply: false
 ---
 

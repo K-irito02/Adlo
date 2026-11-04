@@ -1,6 +1,6 @@
 ---
 description: Rust inline #[cfg(test)] unit test organization — all unit tests inlined at end of source files, not in separate tests/ directories
-globs: ai-digital-life/crates/**/*.rs,ai-digital-life/src-tauri/**/*.rs
+globs: adlo/crates/**/*.rs,adlo/src-tauri/**/*.rs
 alwaysApply: false
 ---
 

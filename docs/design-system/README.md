@@ -1,8 +1,8 @@
 # Design System
 
-> 定位：本目录为 AI Digital Life 桌面渲染器的设计系统实现契约（中英双语：canonical design-system reference + implementation contract）。
+> 定位：本目录为 Adlo 桌面渲染器的设计系统实现契约（中英双语：canonical design-system reference + implementation contract）。
 
-This is the canonical design-system reference for the **AI Digital Life** desktop renderer.
+This is the canonical design-system reference for the **Adlo** desktop renderer.
 
 This folder is the **implementation contract**: anything the renderer ships must match the rules below, and any spec change must update both.
 

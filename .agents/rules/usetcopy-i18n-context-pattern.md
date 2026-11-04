@@ -1,6 +1,6 @@
 ---
 description: 前端 i18n 通过 useTCopy() hook + TCopyContext 实现编译期类型安全的国际化
-globs: ai-digital-life/frontend/src/**/*.tsx,ai-digital-life/frontend/src/**/*.ts
+globs: adlo/frontend/src/**/*.tsx,adlo/frontend/src/**/*.ts
 alwaysApply: false
 ---
 

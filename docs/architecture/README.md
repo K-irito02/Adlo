@@ -1,8 +1,8 @@
 # 架构文档
 
-> **定位**：设计决策（记录"应该是什么"）。实现现状以源码为准，实现快照见 `../analysis/ai-digital-life/`。
+> **定位**：设计决策（记录"应该是什么"）。实现现状以源码为准，实现快照见 `../analysis/adlo/`。
 
-本目录包含 AI 数字生命项目的架构设计文档。
+本目录包含 Adlo项目的架构设计文档。
 
 ## 文档索引
 
@@ -35,6 +35,6 @@
 - [设计系统](../design-system/) — UI 设计系统规范
 - [开发规范](../development/) — 工程约束与治理规则
 - [知识沉淀](../knowledge-base/) — 实施过程中的经验教训
-- [ai-digital-life/AGENTS.md](../../ai-digital-life/AGENTS.md) — 实现工作区治理（技术栈、功能清单、Store 架构）
+- [adlo/AGENTS.md](../../adlo/AGENTS.md) — 实现工作区治理（技术栈、功能清单、Store 架构）
 - [phase-boundary.md](../../.agents/rules/phase-boundary.md) — 项目形态与范围边界
 - [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 未来想法（非分阶段规划）

@@ -1,6 +1,6 @@
 ---
 description: Zustand state management patterns, selectors, and store architecture
-globs: ai-digital-life/frontend/**/*.ts,ai-digital-life/frontend/**/*.tsx
+globs: adlo/frontend/**/*.ts,adlo/frontend/**/*.tsx
 alwaysApply: false
 ---
 

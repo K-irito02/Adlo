@@ -1,11 +1,11 @@
 ---
 name: run-project-surfaces
-description: 启动 AI Digital Life 的三种运行模式（浏览器预览、Tauri 桌面、双端并行），按工作树分配稳定 dev 端口（5173+N）并校验实例令牌，统一管理子进程生命周期。当用户要求运行、启动或预览应用时使用。
+description: 启动 Adlo 的三种运行模式（浏览器预览、Tauri 桌面、双端并行），按工作树分配稳定 dev 端口（5173+N）并校验实例令牌，统一管理子进程生命周期。当用户要求运行、启动或预览应用时使用。
 ---
 
 # 启动项目界面
 
-通过 `ai-digital-life/scripts/run-project-surface.mjs` 启动 AI Digital Life，该脚本自动探测空闲端口、启动 Vite 开发服务器，并按需启动 Tauri 桌面应用。
+通过 `adlo/scripts/run-project-surface.mjs` 启动 Adlo，该脚本自动探测空闲端口、启动 Vite 开发服务器，并按需启动 Tauri 桌面应用。
 
 ## 三种模式
 
@@ -17,7 +17,7 @@ description: 启动 AI Digital Life 的三种运行模式（浏览器预览、Ta
 
 模式参数别名：`app`、`external` 均等价于 `tauri`。
 
-所有命令从**当前工作树**的 `ai-digital-life/` 目录执行；先在仓库根用 `git rev-parse --show-toplevel` 确认位置，不要使用其它工作树或主工作树的路径。
+所有命令从**当前工作树**的 `adlo/` 目录执行；先在仓库根用 `git rev-parse --show-toplevel` 确认位置，不要使用其它工作树或主工作树的路径。
 
 ## 端口选择
 
@@ -46,7 +46,7 @@ description: 启动 AI Digital Life 的三种运行模式（浏览器预览、Ta
 
 | 错误 | 修正 |
 |------|------|
-| 从错误路径运行（如其他项目目录） | 切换到当前工作树的 `ai-digital-life/` 后执行 |
+| 从错误路径运行（如其他项目目录） | 切换到当前工作树的 `adlo/` 后执行 |
 | 使用 `npm run` 而非 `pnpm run` | 本项目使用 pnpm 作为包管理器 |
 | 直接调用 `cargo tauri dev` | 使用包装脚本，以便端口被正确探测和共享 |
 | 用反引号包裹 URL | 以纯文本输出，使 IDE 可点击 |
@@ -93,7 +93,7 @@ cargo build -p adl-server
 
 Agent 不能按 `Ctrl+C` 守护进程，用后台方式：
 
-1. `Start-Process <pnpm.cmd> -ArgumentList "run","dev:preview" -WorkingDirectory "<worktree>/ai-digital-life" -RedirectStandardOutput <log> -RedirectStandardError <err> -WindowStyle Hidden`
+1. `Start-Process <pnpm.cmd> -ArgumentList "run","dev:preview" -WorkingDirectory "<worktree>/adlo" -RedirectStandardOutput <log> -RedirectStandardError <err> -WindowStyle Hidden`
 2. 工具可能立即返回 `ChildProcess.kill` —— 这是 harness 断开包装进程，**不是启动失败**；不要重复启动。
 3. 下一次调用轮询 `<log>` 中的 `[adl-run] frontend ready at` / `adl-server bound`，再打开页面或跑 playwright。
 4. 结束用端口定位 PID 后 `Stop-Process`（或 `taskkill /T`），不要按进程名误杀其它槽位。
@@ -102,5 +102,5 @@ Agent 不能按 `Ctrl+C` 守护进程，用后台方式：
 
 ## 相关
 
-- 包装脚本实现：`ai-digital-life/scripts/run-project-surface.mjs`
+- 包装脚本实现：`adlo/scripts/run-project-surface.mjs`
 - 常用命令速查：[commands.md](../../rules/commands.md)

@@ -1,6 +1,6 @@
 # 从零接入 @wdio/tauri-service（本仓配方）
 
-目标验收：`pnpm --dir ai-digital-life/e2e test` → 全绿（基线 `5 passing`）、spec reporter `00:00:05`、0 条窗口警告、无 `adl-server.exe` 残留。
+目标验收：`pnpm --dir adlo/e2e test` → 全绿（基线 `5 passing`）、spec reporter `00:00:05`、0 条窗口警告、无 `adl-server.exe` 残留。
 
 版本：`@wdio/tauri-service` / `tauri-plugin-wdio` / `tauri-plugin-wdio-webdriver` / `@wdio/tauri-plugin` = `1.5.1`；`@wdio/cli` = `9.x`（10.x 与其 webdriverio 9.x 冲突）。
 
@@ -19,13 +19,13 @@
 | `e2e/run-e2e.mjs` | 新 | 运行包装器 + 孤儿清理 |
 | `e2e/specs/smoke.spec.ts` | 新 | 首条冒烟 |
 | `pnpm-workspace.yaml` | 改 | 加入 `e2e` 包、禁用外部驱动下载 |
-| `ai-digital-life/package.json` / `.gitignore` | 改 | `e2e:build` / `e2e` 脚本与忽略项 |
+| `adlo/package.json` / `.gitignore` | 改 | `e2e:build` / `e2e` 脚本与忽略项 |
 
-前置：`pnpm install`；`cargo tauri` 可用。`pnpm run e2e:build` 内部会先 `pnpm run stage:sidecar`（首次检出、`src-tauri/binaries/` 为空或执行过 `cargo clean` 后都无需手动补），再按 e2e 配置构建；直接跑裸 `cargo tauri ...` 时仍需先 stage（`externalBin` 校验，见 `ai-digital-life/CONTRIBUTING.md`）。
+前置：`pnpm install`；`cargo tauri` 可用。`pnpm run e2e:build` 内部会先 `pnpm run stage:sidecar`（首次检出、`src-tauri/binaries/` 为空或执行过 `cargo clean` 后都无需手动补），再按 e2e 配置构建；直接跑裸 `cargo tauri ...` 时仍需先 stage（`externalBin` 校验，见 `adlo/CONTRIBUTING.md`）。
 
 ## 1. Rust：可选依赖 + feature
 
-`ai-digital-life/src-tauri/Cargo.toml`
+`adlo/src-tauri/Cargo.toml`
 
 ```toml
 # Desktop E2E only: embedded WebDriver server + WDIO bridge plugin
@@ -42,7 +42,7 @@ e2e = ["dep:tauri-plugin-wdio-webdriver", "dep:tauri-plugin-wdio"]
 
 ## 2. Rust：环境变量门控注册
 
-`ai-digital-life/src-tauri/src/main.rs`
+`adlo/src-tauri/src/main.rs`
 
 ```rust
 let builder = tauri::Builder::default();
@@ -58,13 +58,13 @@ let builder = if std::env::var_os("TAURI_WEBDRIVER_PORT").is_some() {
 
 ## 3. E2E 专用 Tauri 配置
 
-`ai-digital-life/e2e/tauri.e2e.conf.json`（用 `--config` 叠加在生产配置上）
+`adlo/e2e/tauri.e2e.conf.json`（用 `--config` 叠加在生产配置上）
 
 ```json
 {
   "$schema": "../src-tauri/gen/schemas/desktop-schema.json",
-  "identifier": "com.ai-digital-life.app.e2e",
-  "productName": "AI Digital Life E2E",
+  "identifier": "com.adlo.app.e2e",
+  "productName": "Adlo E2E",
   "build": { "beforeBuildCommand": "pnpm --dir frontend exec vite build --mode e2e" },
   "app": {
     "withGlobalTauri": true,
@@ -80,7 +80,7 @@ let builder = if std::env::var_os("TAURI_WEBDRIVER_PORT").is_some() {
         }
       ]
     },
-    "windows": [{ "label": "main", "title": "AI Digital Life", "width": 1280, "height": 800,
+    "windows": [{ "label": "main", "title": "Adlo", "width": 1280, "height": 800,
       "minWidth": 640, "minHeight": 480, "decorations": false, "shadow": true,
       "resizable": true, "fullscreen": false, "visible": false }]
   }
@@ -89,19 +89,19 @@ let builder = if std::env::var_os("TAURI_WEBDRIVER_PORT").is_some() {
 
 要点：
 
-- identifier 换成独立值 → 数据落 `%APPDATA%\com.ai-digital-life.app.e2e`；包装器的清孤儿过滤依赖这个字符串。
+- identifier 换成独立值 → 数据落 `%APPDATA%\com.adlo.app.e2e`；包装器的清孤儿过滤依赖这个字符串。
 - `beforeBuildCommand` 覆盖生产配置里的 sidecar 构建，只跑 `vite --mode e2e`；前端必须先 `pnpm install`。
 - **生产 `tauri.conf.json` 保持 `withGlobalTauri: false` 不动。**
 
 ## 4. 前端 guest 插件（缺了每条命令 +5s）
 
-`ai-digital-life/frontend/.env.e2e`
+`adlo/frontend/.env.e2e`
 
 ```
 VITE_ADL_E2E=1
 ```
 
-`ai-digital-life/frontend/src/main.tsx`（`boot()` 开头）
+`adlo/frontend/src/main.tsx`（`boot()` 开头）
 
 ```ts
 const isE2E = import.meta.env.VITE_ADL_E2E === '1';
@@ -118,7 +118,7 @@ async function boot(): Promise<void> {
 
 ## 5. workspace / 脚本 / 忽略
 
-`ai-digital-life/pnpm-workspace.yaml`（节选；真源以仓库文件为准，下面两行原有项不能丢）
+`adlo/pnpm-workspace.yaml`（节选；真源以仓库文件为准，下面两行原有项不能丢）
 
 ```yaml
 packages:
@@ -131,7 +131,7 @@ allowBuilds:
   node-pty: true
 ```
 
-`ai-digital-life/package.json`
+`adlo/package.json`
 
 ```json
 "e2e:build": "pnpm run stage:sidecar && cargo tauri build --debug --no-bundle --features e2e --config e2e/tauri.e2e.conf.json",
@@ -139,11 +139,11 @@ allowBuilds:
 "e2e:typecheck": "pnpm --dir e2e run typecheck"
 ```
 
-`ai-digital-life/.gitignore`：`/e2e/node_modules/`、`/e2e/artifacts/`、`/e2e/logs/`
+`adlo/.gitignore`：`/e2e/node_modules/`、`/e2e/artifacts/`、`/e2e/logs/`
 
 ## 6. e2e 包
 
-`e2e/package.json`：`type: module`，脚本 `build:app: pnpm --dir .. run e2e:build`、`typecheck: tsc --noEmit`、`test: node ./run-e2e.mjs`、`test:smoke: node ./run-e2e.mjs --spec specs/smoke.spec.ts`（真源：`ai-digital-life/e2e/package.json`）。
+`e2e/package.json`：`type: module`，脚本 `build:app: pnpm --dir .. run e2e:build`、`typecheck: tsc --noEmit`、`test: node ./run-e2e.mjs`、`test:smoke: node ./run-e2e.mjs --spec specs/smoke.spec.ts`（真源：`adlo/e2e/package.json`）。
 
 ```json
 "devDependencies": {
@@ -160,13 +160,13 @@ allowBuilds:
 }
 ```
 
-`wdio.conf.ts` 关键段（节选，真源：`ai-digital-life/e2e/wdio.conf.ts`）：
+`wdio.conf.ts` 关键段（节选，真源：`adlo/e2e/wdio.conf.ts`）：
 
 ```ts
 import type { TauriCapabilities } from '@wdio/tauri-service';
 
 const appBinary = path.resolve(appRoot, 'target/debug',
-  process.platform === 'win32' ? 'ai-digital-life.exe' : 'ai-digital-life');
+  process.platform === 'win32' ? 'adlo.exe' : 'adlo');
 // WDIO 的 Config['capabilities'] 类型不含 tauri:*；先按服务类型建数组再断言。
 const capabilities: TauriCapabilities[] = [
   { browserName: 'tauri', 'tauri:options': { application: appBinary } },
@@ -201,7 +201,7 @@ export const config: WebdriverIO.Config = {
 };
 ```
 
-`run-e2e.mjs`（Windows 孤儿清理 + 正确解析 wdio 入口；真源：`ai-digital-life/e2e/run-e2e.mjs`）
+`run-e2e.mjs`（Windows 孤儿清理 + 正确解析 wdio 入口；真源：`adlo/e2e/run-e2e.mjs`）
 
 ```js
 import { spawn, spawnSync } from 'node:child_process';
@@ -211,7 +211,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const E2E_IDENTIFIER = 'com.ai-digital-life.app.e2e';
+const E2E_IDENTIFIER = 'com.adlo.app.e2e';
 
 function killSidecars() {
   if (process.platform !== 'win32') return;
@@ -243,7 +243,7 @@ child.on('exit', (code, signal) => {
 
 `specs/smoke.spec.ts` 的断言顺序（对应现有 5 条）：
 
-1. `getTitle() === 'AI Digital Life'` → `.adl-shell` 可见 → `document.documentElement.dataset.shell === 'tauri'`。
+1. `getTitle() === 'Adlo'` → `.adl-shell` 可见 → `document.documentElement.dataset.shell === 'tauri'`。
 2. `browser.executeAsync` 调 `window.digitalLife.app.getInfo()`，校验 `appName` / `version`（真实 IPC）。
 3. 等标题栏按钮可点（`elementFromPoint`）→ 原生 `click()` → 断言 `aria-pressed` 翻转 → `getWindowRect()` → `saveScreenshot('artifacts/shell.png')`。
 4. `browser.tauri.execute(({ core }) => core.invoke('app_get_info'))`。
@@ -253,29 +253,29 @@ child.on('exit', (code, signal) => {
 
 ## 8. 验收与常见偏差
 
-从零复现基线（`ai-digital-life/` 下执行）：
+从零复现基线（`adlo/` 下执行）：
 
 ```powershell
 pnpm install
 pnpm run e2e:typecheck
 Get-NetTCPConnection -LocalPort 4445 -ErrorAction SilentlyContinue   # 有输出 = 端口被占
-Get-Process ai-digital-life -ErrorAction SilentlyContinue            # 有输出 = 桌面实例在跑
+Get-Process adlo -ErrorAction SilentlyContinue            # 有输出 = 桌面实例在跑
 pnpm run e2e:build                                                   # 内部先 stage:sidecar
 pnpm run e2e
 # 结果看 stdout 的 spec reporter（日志文件不含测试结果）
 Get-CimInstance Win32_Process -Filter "Name='adl-server.exe'" |
-  Where-Object { $_.CommandLine -like '*com.ai-digital-life.app.e2e*' } |
+  Where-Object { $_.CommandLine -like '*com.adlo.app.e2e*' } |
   Measure-Object
 ```
 
-期望 `5 passing`、`00:00:05`、0 条 `Could not find window`、0 个 `adl-server.exe` 残留，且 `e2e/artifacts/last-run.json` 记录了本轮计数。状态异常时先删 `%APPDATA%\com.ai-digital-life.app.e2e` 再跑。
+期望 `5 passing`、`00:00:05`、0 条 `Could not find window`、0 个 `adl-server.exe` 残留，且 `e2e/artifacts/last-run.json` 记录了本轮计数。状态异常时先删 `%APPDATA%\com.adlo.app.e2e` 再跑。
 
 | 偏差 | 症状 | 修正 |
 |------|------|------|
 | 用了 release | 构建多花几十分钟 | 保持 `--debug` |
 | 直接 `wdio run` | 跑完侧车残留、下次构建 `PermissionDenied` | 只经 `run-e2e.mjs` |
 | 裸 `cargo tauri` 构建未 stage | tauri-build 报 `externalBin`/sidecar 缺失 | 用 `pnpm run e2e:build`（内置 stage），或先 `pnpm run stage:sidecar` |
-| dev 实例还在跑 | 链接 `ai-digital-life.exe` 时 `PermissionDenied` | 先停掉 `pnpm dev` / `dev:tauri` |
+| dev 实例还在跑 | 链接 `adlo.exe` 时 `PermissionDenied` | 先停掉 `pnpm dev` / `dev:tauri` |
 | 只加 Rust 插件、没装 guest 插件 | 每条命令 5s 超时 | 补 `.env.e2e` + `main.tsx` 动态 import |
 | 改了 e2e 配置但没重建 | 测试仍连旧 identifier/旧前端 | 重跑 `e2e:build`（它会重建 `dist`） |
 | 并行工作树同时跑 | 4445 端口冲突 | 串行跑，或先确认端口空闲 |

@@ -8,17 +8,17 @@ ROOT="$(git rev-parse --show-toplevel)"
 STAGED="$(git diff --cached --name-only --diff-filter=ACMR)"
 
 # 1) staged 前端源码：eslint（plain, no --fix：hook 内不改写文件）
-LINTABLE="$(echo "$STAGED" | grep -E '^ai-digital-life/frontend/.*\.(ts|tsx|js|jsx|mjs|cjs)$' || true)"
+LINTABLE="$(echo "$STAGED" | grep -E '^adlo/frontend/.*\.(ts|tsx|js|jsx|mjs|cjs)$' || true)"
 if [ -n "$LINTABLE" ]; then
-  echo "$LINTABLE" | sed 's|^ai-digital-life/frontend/||' | ( cd "$ROOT/ai-digital-life/frontend" && xargs -d '\n' npx eslint )
+  echo "$LINTABLE" | sed 's|^adlo/frontend/||' | ( cd "$ROOT/adlo/frontend" && xargs -d '\n' -n 40 npx eslint )
 else
   echo "[pre-commit] eslint: no staged frontend sources, skipped"
 fi
 
 # 2) staged 可格式化文件：prettier --write 自动修复后重新暂存（只动暂存文件）
-PREFILES="$(echo "$STAGED" | grep -E '^ai-digital-life/frontend/.*\.(ts|tsx|js|jsx|mjs|cjs|css|json|md)$' || true)"
+PREFILES="$(echo "$STAGED" | grep -E '^adlo/frontend/.*\.(ts|tsx|js|jsx|mjs|cjs|css|json|md)$' || true)"
 if [ -n "$PREFILES" ]; then
-  echo "$PREFILES" | sed 's|^ai-digital-life/frontend/||' | ( cd "$ROOT/ai-digital-life/frontend" && xargs -d '\n' npx prettier --write )
+  echo "$PREFILES" | sed 's|^adlo/frontend/||' | ( cd "$ROOT/adlo/frontend" && xargs -d '\n' -n 40 npx prettier --write )
   # 让「被 hook 规范化」可见：shell 批量改写源码（Set-Content/WriteAllLines/here-string）
   # 最常见的后果就是 CRLF/格式漂移，prettier 会静默抹平，agent 永远学不到教训。
   REFORMATTED="$(echo "$PREFILES" | while IFS= read -r f; do
@@ -38,7 +38,7 @@ else
 fi
 
 # 3) staged 脚本语法（dev tooling 在 eslint/tsc 范围外，pre-push 只在推送时查）
-MJSFILES="$(echo "$STAGED" | grep -E '^ai-digital-life/.*\.mjs$' || true)"
+MJSFILES="$(echo "$STAGED" | grep -E '^adlo/.*\.mjs$' || true)"
 if [ -n "$MJSFILES" ]; then
   echo "$MJSFILES" | xargs -d '\n' -I{} sh -c 'node --check "$1"' _ {}
 else
@@ -46,11 +46,11 @@ else
 fi
 
 # 4) 仓库不变量（秒级）：i18n 对等、术语表、死代码、vite 配置冒烟、dev tooling 单测
-( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:i18n )
-( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:i18n:orphans:changed )
-( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:glossary )
-( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:dead-code )
-( cd "$ROOT/ai-digital-life/frontend" && pnpm run check:vite-config )
-( cd "$ROOT/ai-digital-life" && node --test "scripts/*.test.mjs" )
+( cd "$ROOT/adlo/frontend" && pnpm run check:i18n )
+( cd "$ROOT/adlo/frontend" && pnpm run check:i18n:orphans:changed )
+( cd "$ROOT/adlo/frontend" && pnpm run check:glossary )
+( cd "$ROOT/adlo/frontend" && pnpm run check:dead-code )
+( cd "$ROOT/adlo/frontend" && pnpm run check:vite-config )
+( cd "$ROOT/adlo" && node --test "scripts/*.test.mjs" )
 
 echo "[pre-commit] OK (tsc + vitest stay in check:changed / pre-push)"

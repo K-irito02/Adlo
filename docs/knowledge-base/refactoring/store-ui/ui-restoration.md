@@ -139,13 +139,13 @@ git show <commit-hash> --stat
 ## 相关文件
 
 ### 核心文件
-- `ai-digital-life/frontend/src/app/regions/right-panel/panels/ChangesPanel.tsx`
-- `ai-digital-life/frontend/src/app/regions/right-panel/panels/ChangesToolbar.tsx`
-- `ai-digital-life/frontend/src/app/features/workspace-changes-tree/WorkspaceChangesEntry.tsx`
-- `ai-digital-life/frontend/src/app/features/workspace-changes-tree/MultiWorkspaceChangesTree.tsx`
+- `adlo/frontend/src/app/regions/right-panel/panels/ChangesPanel.tsx`
+- `adlo/frontend/src/app/regions/right-panel/panels/ChangesToolbar.tsx`
+- `adlo/frontend/src/app/features/workspace-changes-tree/WorkspaceChangesEntry.tsx`
+- `adlo/frontend/src/app/features/workspace-changes-tree/MultiWorkspaceChangesTree.tsx`
 
 ### CSS 文件
-- `ai-digital-life/frontend/src/styles/regions/rightpanel/changes-panel.css` - 包含 `.adl-tool-navigator__summary-*` 样式
+- `adlo/frontend/src/styles/regions/rightpanel/changes-panel.css` - 包含 `.adl-tool-navigator__summary-*` 样式
 
 ### Git 版本参考
 - **正确的UI版本**: `4dbe70c61691266e1a8f10f4802eeecb6ed7253b` (2026-05-23)

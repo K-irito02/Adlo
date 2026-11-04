@@ -42,7 +42,7 @@
 ### 5. 桥接层参数修复的陷阱
 
 - `IpcResult` 和 `IpcErrorCode` 的导入方式不同：`IpcResult` 是 `type` 可用 `import type`，`IpcErrorCode` 是 `enum` 需运行时导入
-- `WorkspaceFileChangedEvent` 作为独立类型存在于 `@ai-digital-life/kernel` 包中，需要在 preview-bridge 中单独添加 import
+- `WorkspaceFileChangedEvent` 作为独立类型存在于 `@adlo/kernel` 包中，需要在 preview-bridge 中单独添加 import
 - 最小修复原则：每处仅改 1~2 行，不改变实际行为，只修复类型签名
 
 ### 6. 跨工作包依赖管理

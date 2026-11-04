@@ -62,7 +62,7 @@
 5. **校验方式**：pre-commit 自动执行 `scripts/check-agent-dirs.test.mjs`（三目录逐文件哈希 + 本文件条数/清单）。手动检查：
 
    ```bash
-   node ai-digital-life/scripts/check-agent-dirs.test.mjs
+   node adlo/scripts/check-agent-dirs.test.mjs
    diff -r .agents/rules .opencode/rules
    diff -r .agents/rules .trae/rules
    ```
@@ -88,7 +88,7 @@
 ```yaml
 ---
 description: 前端测试文件必须放置在待测模块同级目录下的 __tests__/ 子目录中
-globs: ai-digital-life/frontend/src/**
+globs: adlo/frontend/src/**
 alwaysApply: false
 ---
 ```
@@ -158,7 +158,7 @@ alwaysApply: false
 | `project-overview.md` | 始终 | 项目总览：双根结构、技术栈、双端架构与真源位置 |
 | `multi-dimensional-architecture-design.md` | 始终 | 多维度架构（代码 / 部署 / 数据 / 安全 / 接口 / 性能）与架构事实的唯一真源 |
 | `phase-boundary.md` | 始终 | 项目形态、范围边界与排除项，防止范围蔓延 |
-| `codebase-map.md` | `ai-digital-life/**` | 代码地图：Cargo 工作区、前端目录、包列表与索引策略 |
+| `codebase-map.md` | `adlo/**` | 代码地图：Cargo 工作区、前端目录、包列表与索引策略 |
 | `dev-rules.md` | 始终 | 代理交互与执行规则：询问卡片、终端命令、代码修改、问题排查、编码风格、并行工作树约束 |
 | `preference-writes.md` | 始终 | 用户显式选择类配置只由用户操作写入，后台 effect/定时器不得静默改写偏好 |
 

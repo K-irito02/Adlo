@@ -1,6 +1,6 @@
 ---
 description: i18n 字典必须按语言包/领域文件拆分组织，每个领域独立文件，通过 barrel 合并
-globs: ai-digital-life/frontend/src/app/i18n/**
+globs: adlo/frontend/src/app/i18n/**
 alwaysApply: false
 ---
 

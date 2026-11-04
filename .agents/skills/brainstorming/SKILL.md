@@ -5,7 +5,7 @@ description: "You MUST use this before any creative work - creating features, bu
 
 # Brainstorming Ideas Into Designs
 
-> **文档路径基准（重要）**：本技能中所有 `docs/...` 路径均以**仓库根目录**（含根 `AGENTS.md` 与 `docs/` 的治理根，即 `ai-digital-life/` 的父目录）为基准。即使当前工作目录位于 `ai-digital-life/` 子工作区，也必须写入根仓库的 `docs/`，禁止在 `ai-digital-life/docs/` 下另建文档目录。
+> **文档路径基准（重要）**：本技能中所有 `docs/...` 路径均以**仓库根目录**（含根 `AGENTS.md` 与 `docs/` 的治理根，即 `adlo/` 的父目录）为基准。即使当前工作目录位于 `adlo/` 子工作区，也必须写入根仓库的 `docs/`，禁止在 `adlo/docs/` 下另建文档目录。
 
 Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
 

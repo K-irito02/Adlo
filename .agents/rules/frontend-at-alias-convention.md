@@ -1,6 +1,6 @@
 ---
 description: 前端 `@` 路径别名导入约定，禁止相对路径深层嵌套
-globs: ai-digital-life/frontend/src/**/*.ts,ai-digital-life/frontend/src/**/*.tsx
+globs: adlo/frontend/src/**/*.ts,adlo/frontend/src/**/*.tsx
 alwaysApply: false
 ---
 

@@ -19,7 +19,7 @@
       "codegraph": {
         "type": "local",
         "command": ["cmd", "/c", "codegraph", "serve", "--mcp"],
-        "cwd": "ai-digital-life"
+        "cwd": "adlo"
       }
     }
   }

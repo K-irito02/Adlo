@@ -1,6 +1,6 @@
 ---
 description: Tests, typecheck, lint, format, migration, and pre-merge quality gates
-globs: ai-digital-life/tests/**,ai-digital-life/frontend/**,ai-digital-life/crates/**,ai-digital-life/src-tauri/**
+globs: adlo/tests/**,adlo/frontend/**,adlo/crates/**,adlo/src-tauri/**
 alwaysApply: false
 ---
 
@@ -50,7 +50,7 @@ alwaysApply: false
 
 > `check:changed` 检测到 Rust 变更时会调用 `scripts/check-rust-changed.mjs`：`cargo fmt --all -- --check` 总是执行，clippy 与受影响 crate 的 `cargo test --lib` 仅在 Rust 变更时执行；`--skip-test` 只用于排查脚本本身。`--base HEAD` 的参数由前端脚本透传，最终提交前必须去掉以恢复 upstream 口径。
 
-**聚合门禁**：`pnpm run check:all`（在 `ai-digital-life/` 执行）= `check:repo`（`test:scripts` + `scripts:format:check` + `e2e:typecheck`）+ Rust fmt/clippy/check/test + 前端 `check:full`（`check:static` + 全量测试）。合并后必须跑它；它是语义冲突的唯一兜底，但不替代日常的受影响范围检查。
+**聚合门禁**：`pnpm run check:all`（在 `adlo/` 执行）= `check:repo`（`test:scripts` + `scripts:format:check` + `e2e:typecheck`）+ Rust fmt/clippy/check/test + 前端 `check:full`（`check:static` + 全量测试）。合并后必须跑它；它是语义冲突的唯一兜底，但不替代日常的受影响范围检查。
 
 > `check:repo` 是合并门禁与 pre-push 的**共用**仓库级聚合（pre-push 直接调用它）。两处不得各写一套——历史上 `check:all` 缺 `scripts:format:check`，导致合并门禁全绿后 push 才失败。`check-gate-composition.test.mjs` 守住这条不变量。
 

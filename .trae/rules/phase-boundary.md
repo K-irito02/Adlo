@@ -18,7 +18,7 @@ alwaysApply: true
 - 存储治理：统一路径解析 + 启动期迁移 + 设置面板存储组
 - 系统能力：剪贴板历史、系统监视器、CI 状态、GitHub 面板、凭据存储、i18n 国际化
 
-功能清单真源见 [ai-digital-life/AGENTS.md](../../ai-digital-life/AGENTS.md)。
+功能清单真源见 [adlo/AGENTS.md](../../adlo/AGENTS.md)。
 
 ## 排除项（本仓库不实现）
 

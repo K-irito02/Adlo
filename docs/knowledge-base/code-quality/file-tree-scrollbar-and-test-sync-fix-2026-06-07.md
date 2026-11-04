@@ -21,7 +21,7 @@
 
 ### 修复 1：FileNavigatorShell 添加 CustomScrollArea
 
-**文件**：[FileNavigatorShell.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/FileNavigatorShell.tsx)
+**文件**：[FileNavigatorShell.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/regions/right-panel/FileNavigatorShell.tsx)
 
 **修改**：
 1. 导入 `CustomScrollArea` 组件
@@ -51,7 +51,7 @@ import { CustomScrollArea } from '../../features/file-tree/CustomScrollArea';
 
 ### 修复 2：ChangesTreePanel 添加 CustomScrollArea
 
-**文件**：[ChangesTreePanel.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/panels/ChangesTreePanel.tsx)
+**文件**：[ChangesTreePanel.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/regions/right-panel/panels/ChangesTreePanel.tsx)
 
 **修改**：
 1. 导入 `CustomScrollArea` 组件
@@ -79,7 +79,7 @@ import { CustomScrollArea } from '../../../features/file-tree/CustomScrollArea';
 
 ### 修复 3：测试文件同步更新
 
-**文件**：[cmPreviewStyling.test.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/cmPreviewStyling.test.ts#L57)
+**文件**：[cmPreviewStyling.test.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/regions/right-panel/cmPreviewStyling.test.ts#L57)
 
 **修改**：
 将测试断言从硬编码字符串改为匹配新的动态模板字符串。
@@ -121,7 +121,7 @@ expect(cmThemeSource).toContain("borderRight: `1px solid ${c.gutterBorder}`");
 
 ## 相关文件
 
-- [FileNavigatorShell.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/FileNavigatorShell.tsx)
-- [ChangesTreePanel.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/panels/ChangesTreePanel.tsx)
-- [cmPreviewStyling.test.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/cmPreviewStyling.test.ts)
-- [CustomScrollArea.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/file-tree/CustomScrollArea.tsx)
+- [FileNavigatorShell.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/regions/right-panel/FileNavigatorShell.tsx)
+- [ChangesTreePanel.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/regions/right-panel/panels/ChangesTreePanel.tsx)
+- [cmPreviewStyling.test.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/regions/right-panel/cmPreviewStyling.test.ts)
+- [CustomScrollArea.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/features/file-tree/CustomScrollArea.tsx)

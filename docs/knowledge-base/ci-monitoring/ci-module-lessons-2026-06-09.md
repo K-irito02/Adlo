@@ -8,7 +8,7 @@
 
 ```rust
 // crates/credential/src/lib.rs
-CredentialStore::new("ai-digital-life", "ci-access-token")
+CredentialStore::new("adlo", "ci-access-token")
     .set_password(token)?;  // 自动降级到加密文件
 ```
 

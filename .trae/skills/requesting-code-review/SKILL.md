@@ -9,7 +9,7 @@ Dispatch a code reviewer subagent to catch issues before they cascade. The revie
 
 **Core principle:** Review early, review often.
 
-> **文档路径基准（重要）**：本技能中所有 `docs/...` 路径均以**仓库根目录**（含根 `AGENTS.md` 与 `docs/` 的治理根，即 `ai-digital-life/` 的父目录）为基准解析；`ai-digital-life/` 子工作区内不另设 `docs/` 文档目录。
+> **文档路径基准（重要）**：本技能中所有 `docs/...` 路径均以**仓库根目录**（含根 `AGENTS.md` 与 `docs/` 的治理根，即 `adlo/` 的父目录）为基准解析；`adlo/` 子工作区内不另设 `docs/` 文档目录。
 
 ## When to Request Review
 

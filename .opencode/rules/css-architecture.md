@@ -1,6 +1,6 @@
 ---
 description: CSS architecture rules, splitting thresholds, dead CSS prevention, and layout stability
-globs: ai-digital-life/frontend/**/*.css
+globs: adlo/frontend/**/*.css
 alwaysApply: false
 ---
 

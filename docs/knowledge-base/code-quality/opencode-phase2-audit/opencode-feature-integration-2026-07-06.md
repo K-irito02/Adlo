@@ -31,7 +31,7 @@ Task 4 后端 Compaction 签名变更后，前端 5 个文件未同步更新（`
 
 ### 4. cargo test 路径问题
 
-仓库根目录的 `Cargo.toml` 是虚拟 workspace manifest，实际 `Cargo.toml` 在 `ai-digital-life/` 子目录。必须使用 `--manifest-path ai-digital-life/Cargo.toml` 或 `cd ai-digital-life` 后执行。
+仓库根目录的 `Cargo.toml` 是虚拟 workspace manifest，实际 `Cargo.toml` 在 `adlo/` 子目录。必须使用 `--manifest-path adlo/Cargo.toml` 或 `cd adlo` 后执行。
 
 ## 相关文件
 

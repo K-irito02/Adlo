@@ -1,6 +1,6 @@
 ---
 description: Codebase map, Cargo workspace, frontend layout, and indexing strategy
-globs: ai-digital-life/**/*
+globs: adlo/**/*
 alwaysApply: false
 ---
 
@@ -9,7 +9,7 @@ alwaysApply: false
 ## 顶层结构
 
 ```
-ai-digital-life/
+adlo/
 ├── Cargo.toml          # Rust workspace 根
 ├── src-tauri/          # Tauri 二进制与 #[tauri::command]
 ├── crates/             # Rust 库 crate（集成测试在各 crate 的 tests/）
@@ -82,7 +82,7 @@ ai-digital-life/
 
 ## Stores 架构（Zustand 切片合并模式）
 
-> 切片与 action 的权威清单以 [ai-digital-life/AGENTS.md](../../ai-digital-life/AGENTS.md) Stores 树为准（32 切片 + 18 action 模块，以 `slicedStore.ts` 实测为准）；此处仅保留目录结构说明，不重复维护逐项清单。
+> 切片与 action 的权威清单以 [adlo/AGENTS.md](../../adlo/AGENTS.md) Stores 树为准（32 切片 + 18 action 模块，以 `slicedStore.ts` 实测为准）；此处仅保留目录结构说明，不重复维护逐项清单。
 
 ```
 app/stores/
@@ -96,7 +96,7 @@ app/stores/
 ├── conversationUtils.ts         # 会话工具函数
 ├── index.ts                     # 模块索引
 │
-├── slices/                      # 32 个切片及其辅助文件（以 slicedStore.ts 实测为准，含 8 浏览器 + 3 GitHub，权威清单见 ai-digital-life/AGENTS.md）
+├── slices/                      # 32 个切片及其辅助文件（以 slicedStore.ts 实测为准，含 8 浏览器 + 3 GitHub，权威清单见 adlo/AGENTS.md）
 │   ├── uiSlice.ts               # UI 状态（侧边栏、工具栏）
 │   ├── workspaceSlice.ts        # 工作区状态
 │   ├── gitSlice.ts              # Git 状态
@@ -116,7 +116,7 @@ app/stores/
 │   ├── browserFoldersSlice.ts   # 浏览器标签文件夹（TabFolderState.tabs: BookmarkTabItem[] = { tabId, url, title }）
 │   └── browserLandingSlice.ts   # 浏览器着陆页（快捷站点、端口、背景）
 │
-├── actions/                     # 18 个跨切片 action 模块（*Actions.ts，+ helpers/类型文件，权威清单见 ai-digital-life/AGENTS.md）
+├── actions/                     # 18 个跨切片 action 模块（*Actions.ts，+ helpers/类型文件，权威清单见 adlo/AGENTS.md）
 │   ├── workspaceActions.ts      # 工作区操作
 │   ├── sessionActions.ts        # 会话操作
 │   ├── editorActions.ts         # 编辑器操作

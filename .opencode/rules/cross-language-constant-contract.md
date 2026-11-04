@@ -1,6 +1,6 @@
 ---
 description: 跨语言常量契约：TS/Rust 双写常量必须两侧钉值测试 + 交叉引用注释，任一侧单独改动即失败
-globs: ai-digital-life/frontend/src/shared/**,ai-digital-life/crates/**/constant*.rs,ai-digital-life/crates/**/config*.rs
+globs: adlo/frontend/src/shared/**,adlo/crates/**/constant*.rs,adlo/crates/**/config*.rs
 alwaysApply: false
 ---
 
@@ -16,7 +16,7 @@ alwaysApply: false
 
 ## 已有实例
 
-- 检索结果分页窗口：`ai-digital-life/frontend/src/shared/ipc/searchWindow.ts` 的 `SEARCH_PAGE_SIZE=200` / `SEARCH_MAX_RESULTS=5000` ↔ `ai-digital-life/crates/workspace/src/search.rs` 的 `MAX_SEARCH_RESULTS` / `MAX_SEARCH_RESULTS_UNLIMITED`。
+- 检索结果分页窗口：`adlo/frontend/src/shared/ipc/searchWindow.ts` 的 `SEARCH_PAGE_SIZE=200` / `SEARCH_MAX_RESULTS=5000` ↔ `adlo/crates/workspace/src/search.rs` 的 `MAX_SEARCH_RESULTS` / `MAX_SEARCH_RESULTS_UNLIMITED`。
   - 前端钉值：`frontend/src/shared/ipc/__tests__/searchWindow.test.ts`（`cross-language window contract`）。
   - 后端钉值：`crates/workspace/src/search.rs`（`search_window_tests::window_is_clamped_to_the_safety_valve`）。
 

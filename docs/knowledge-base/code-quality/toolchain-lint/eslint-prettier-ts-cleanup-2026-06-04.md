@@ -58,31 +58,31 @@ export { FileTree, useFileTree };
 
 ### 6. 多导入路径合并
 
-同一个 package 有多个 import 语句时（如 `@ai-digital-life/kernel`），应合并为单条导入以减少冗余：
+同一个 package 有多个 import 语句时（如 `@adlo/kernel`），应合并为单条导入以减少冗余：
 
 ```typescript
 // ❌ 分开导入
-import type { GitBranchSummary } from '@ai-digital-life/kernel';
-import type { ModelGatewayHealthSnapshot } from '@ai-digital-life/kernel';
+import type { GitBranchSummary } from '@adlo/kernel';
+import type { ModelGatewayHealthSnapshot } from '@adlo/kernel';
 
 // ✅ 合并导入
 import type {
   GitBranchSummary,
   ModelGatewayHealthSnapshot,
-} from '@ai-digital-life/kernel';
+} from '@adlo/kernel';
 ```
 
 ## 四维门禁验证命令
 
 ```bash
 # Rust
-cd ai-digital-life && cargo clippy --workspace --all-targets && cargo fmt --all -- --check
+cd adlo && cargo clippy --workspace --all-targets && cargo fmt --all -- --check
 
 # TypeScript
-cd ai-digital-life/frontend && npx tsc --noEmit
+cd adlo/frontend && npx tsc --noEmit
 
 # ESLint + Prettier（一体化）
-cd ai-digital-life/frontend && npx eslint . && npx prettier --check "src/**/*.{ts,tsx}"
+cd adlo/frontend && npx eslint . && npx prettier --check "src/**/*.{ts,tsx}"
 ```
 
 ## 影响文件统计

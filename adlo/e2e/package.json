@@ -1,0 +1,24 @@
+{
+  "name": "adlo-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build:app": "pnpm --dir .. run e2e:build",
+    "typecheck": "tsc --noEmit",
+    "test": "node ./run-e2e.mjs",
+    "test:smoke": "node ./run-e2e.mjs --spec specs/smoke.spec.ts"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.0.0",
+    "@wdio/cli": "^9.32.0",
+    "@wdio/globals": "^9.31.3",
+    "@wdio/local-runner": "^9.32.0",
+    "@wdio/mocha-framework": "^9.32.0",
+    "@wdio/spec-reporter": "^9.32.0",
+    "@wdio/tauri-service": "^1.5.1",
+    "expect-webdriverio": "^6.0.9",
+    "typescript": "^5.9.0"
+  }
+}

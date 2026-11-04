@@ -1,6 +1,6 @@
 ---
 description: createLazyLoader factory pattern for workspace-ID-scoped lazy data loading with automatic guard and loading state management
-globs: ai-digital-life/frontend/**/*.ts,ai-digital-life/frontend/**/*.tsx
+globs: adlo/frontend/**/*.ts,adlo/frontend/**/*.tsx
 alwaysApply: false
 ---
 

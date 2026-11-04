@@ -1,6 +1,6 @@
 ---
 description: 所有 Tauri 命令必须使用 ipc()/ipc_try() 包装器统一响应格式
-globs: ai-digital-life/src-tauri/**/*.rs
+globs: adlo/src-tauri/**/*.rs
 alwaysApply: false
 ---
 

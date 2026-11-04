@@ -1,12 +1,12 @@
 ---
 name: desktop-e2e-wdio
-description: 当需要验证 Tauri 桌面端真实交互（原生点击、窗口/面板、窗口几何、真实 IPC）、运行桌面冒烟、排查 WDIO 的 5s 超时或窗口焦点警告、处理 adl-server 残留，或维护 ai-digital-life/e2e/ 时使用。用 @wdio/tauri-service 的 embedded WebDriver 驱动真实 Tauri 窗口，不需要 tauri-driver / msedgedriver；桌面-only 改动即使只是确认「没改坏」也优先跑这套冒烟。
+description: 当需要验证 Tauri 桌面端真实交互（原生点击、窗口/面板、窗口几何、真实 IPC）、运行桌面冒烟、排查 WDIO 的 5s 超时或窗口焦点警告、处理 adl-server 残留，或维护 adlo/e2e/ 时使用。用 @wdio/tauri-service 的 embedded WebDriver 驱动真实 Tauri 窗口，不需要 tauri-driver / msedgedriver；桌面-only 改动即使只是确认「没改坏」也优先跑这套冒烟。
 agent_created: true
 ---
 
 # 桌面端 E2E（@wdio/tauri-service）
 
-> 脚手架：`ai-digital-life/e2e/`
+> 脚手架：`adlo/e2e/`
 > 实测数据与成本评估：[wdio-tauri-desktop-e2e-eval-2026-10-28.md](../../../docs/knowledge-base/toolchain/wdio-tauri-desktop-e2e-eval-2026-10-28.md)
 > 从零重建脚手架：[references/wdio-tauri-setup.md](references/wdio-tauri-setup.md)
 
@@ -25,17 +25,17 @@ agent_created: true
 
 ## 2. 快速开始
 
-在 `ai-digital-life/` 下执行。先过一遍前置检查——这些条件缺失时，报错通常长得像无关的构建/链接失败：
+在 `adlo/` 下执行。先过一遍前置检查——这些条件缺失时，报错通常长得像无关的构建/链接失败：
 
 ```powershell
-cd ai-digital-life
+cd adlo
 pnpm install                 # e2e 是独立 workspace 包，不装就没有 wdio bin
 cargo tauri --version        # e2e:build 走 tauri CLI，不是纯 cargo
 Get-NetTCPConnection -LocalPort 4445 -ErrorAction SilentlyContinue   # 有输出 = WebDriver 端口被占，会连到别的实例
-Get-Process ai-digital-life -ErrorAction SilentlyContinue            # 有输出 = 桌面实例在跑，可能锁住 target/debug 的 exe
+Get-Process adlo -ErrorAction SilentlyContinue            # 有输出 = 桌面实例在跑，可能锁住 target/debug 的 exe
 ```
 
-两条探测命令只看**有没有输出行**（PowerShell cmdlet 不设 `$LASTEXITCODE`）。停实例时确认它属于本工作树；不要按 `adl-server` 进程名全杀，会误伤其它工作树。`cargo` / `cargo tauri` 不可用时，先按 `.agents/rules/commands.md` 设置 Rust PATH。若上次异常退出导致状态错乱，先删 `%APPDATA%\com.ai-digital-life.app.e2e`（见 §7 第 5 步）。
+两条探测命令只看**有没有输出行**（PowerShell cmdlet 不设 `$LASTEXITCODE`）。停实例时确认它属于本工作树；不要按 `adl-server` 进程名全杀，会误伤其它工作树。`cargo` / `cargo tauri` 不可用时，先按 `.agents/rules/commands.md` 设置 Rust PATH。若上次异常退出导致状态错乱，先删 `%APPDATA%\com.adlo.app.e2e`（见 §7 第 5 步）。
 
 然后：
 
@@ -56,7 +56,7 @@ pnpm run e2e         # 全量（= pnpm --dir e2e run test = node e2e/run-e2e.mjs
 
    ```powershell
    Get-CimInstance Win32_Process -Filter "Name='adl-server.exe'" |
-     Where-Object { $_.CommandLine -like '*com.ai-digital-life.app.e2e*' } |
+     Where-Object { $_.CommandLine -like '*com.adlo.app.e2e*' } |
      Measure-Object
    ```
 
@@ -67,7 +67,7 @@ pnpm run e2e         # 全量（= pnpm --dir e2e run test = node e2e/run-e2e.mjs
 | 层 | 位置 | 作用与约束 |
 |----|------|-----------|
 | Rust feature | `src-tauri/Cargo.toml` 的 `e2e` + `src-tauri/src/main.rs` | 只有 `--features e2e` 才编译两个 WDIO 插件，且仅当 `TAURI_WEBDRIVER_PORT` 存在时注册。普通 `tauri dev` 与生产构建完全不受影响 |
-| E2E 外壳配置 | `e2e/tauri.e2e.conf.json` | 独立 identifier `com.ai-digital-life.app.e2e`（数据/DB 隔离）、`withGlobalTauri: true`、`e2e-wdio` capability、`vite build --mode e2e` |
+| E2E 外壳配置 | `e2e/tauri.e2e.conf.json` | 独立 identifier `com.adlo.app.e2e`（数据/DB 隔离）、`withGlobalTauri: true`、`e2e-wdio` capability、`vite build --mode e2e` |
 | 前端 guest 插件 | `frontend/src/main.tsx` + `frontend/.env.e2e` | `VITE_ADL_E2E=1` 时动态 `import('@wdio/tauri-plugin')`。生产构建是常量 false，会被 tree-shake |
 | Runner | `e2e/wdio.conf.ts` | embedded provider（端口 4445）、会话开始固定窗口、`logLevel: warn` |
 | 清理包装器 | `e2e/run-e2e.mjs` | 跑前/跑后按 `--data-dir ...app.e2e` 杀孤儿 `adl-server.exe` |
@@ -80,7 +80,7 @@ pnpm run e2e         # 全量（= pnpm --dir e2e run test = node e2e/run-e2e.mjs
 ## 4. 常用变体
 
 ```powershell
-cd ai-digital-life
+cd adlo
 
 # 只跑一个 spec（路径相对 e2e/）
 node e2e/run-e2e.mjs --spec specs/smoke.spec.ts
@@ -152,13 +152,13 @@ describe('标题栏面板开关', () => {
 
    ```powershell
    Get-CimInstance Win32_Process -Filter "Name='adl-server.exe'" |
-     Where-Object { $_.CommandLine -like '*com.ai-digital-life.app.e2e*' } |
+     Where-Object { $_.CommandLine -like '*com.adlo.app.e2e*' } |
      ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
    ```
 
-3. **二进制是否新鲜**：`target/debug/ai-digital-life.exe` 存在，且最近一次由 `pnpm run e2e:build` 产出。`e2e:build` 会自己用 `--mode e2e` 重建 `frontend/dist`，不要手工 build 前端后指望测试用上。
+3. **二进制是否新鲜**：`target/debug/adlo.exe` 存在，且最近一次由 `pnpm run e2e:build` 产出。`e2e:build` 会自己用 `--mode e2e` 重建 `frontend/dist`，不要手工 build 前端后指望测试用上。
 4. **缩小范围**：先 `test:smoke`。失败先看 stdout 的失败栈与 `e2e/artifacts/shell.png`；`e2e/logs/wdio-*.log` 只有后端/服务日志，不包含测试结果。
-5. **状态异常**（旧 schema、向导状态卡住）：删掉 `%APPDATA%\com.ai-digital-life.app.e2e` 再跑，等价于首次启动（环境向导会被用例自动关掉）。
+5. **状态异常**（旧 schema、向导状态卡住）：删掉 `%APPDATA%\com.adlo.app.e2e` 再跑，等价于首次启动（环境向导会被用例自动关掉）。
 6. **仍失败**：对照 `references/wdio-tauri-setup.md` 的六处配置逐项核对。
 
 ## 8. 升级与停用
@@ -167,12 +167,12 @@ describe('标题栏面板开关', () => {
 
 停用/移除（不影响生产）：
 
-1. 删 `ai-digital-life/e2e/`、`frontend/.env.e2e`；
+1. 删 `adlo/e2e/`、`frontend/.env.e2e`；
 2. 去掉 `src-tauri/Cargo.toml` 的两个 optional 依赖与 `e2e` feature，以及 `main.rs` 的 `#[cfg(feature = "e2e")]` 块；
 3. 去掉 `frontend/src/main.tsx` 的 E2E 分支；
-4. 去掉 `ai-digital-life/package.json` 的 `e2e:build` / `e2e`、`pnpm-workspace.yaml` 的 `e2e` 包、`ai-digital-life/.gitignore` 的 e2e 条目。
+4. 去掉 `adlo/package.json` 的 `e2e:build` / `e2e`、`pnpm-workspace.yaml` 的 `e2e` 包、`adlo/.gitignore` 的 e2e 条目。
 
-验证生产无残留：`cargo check -p ai-digital-life` 输出无 `wdio`；`pnpm --dir frontend run build` 后 `dist` 检索 `wdio|__wdio_mocks__` 应为 0 命中。
+验证生产无残留：`cargo check -p adlo` 输出无 `wdio`；`pnpm --dir frontend run build` 后 `dist` 检索 `wdio|__wdio_mocks__` 应为 0 命中。
 
 ## 9. 相关
 

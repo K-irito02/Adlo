@@ -1,24 +1,24 @@
-# AI 数字生命 - 项目治理规则
+# Adlo - 项目治理规则
 
 ## 项目定位
 
-本仓库是 AI 数字生命项目的规划与治理工作区。根目录以文档和架构设计为主，`ai-digital-life/` 是基于 **Rust + Tauri 2.x** 的桌面应用实现工作区。
+本仓库是 Adlo 项目的单一仓库：根目录承载规划与治理（文档、规则、架构设计），`adlo/` 是基于 Rust + Tauri 2.x 的桌面应用实现工作区。
 
 ## 双根结构
 
 | 目录 | 职责 |
 |------|------|
 | 仓库根目录 | 规划与治理：`AGENTS.md`、`docs/`、`CONTRIBUTING.md`、`GLOSSARY.md`、`CONTEXT.md`、`SECURITY.md` |
-| `ai-digital-life/` | 实现工作区：Rust + Tauri 桌面应用 + WebView 前端 |
+| `adlo/` | 实现工作区：Rust + Tauri 桌面应用 + WebView 前端 |
 | `references/` | 外部参考源码（本地拉取的开源项目，供开发参考与复用） |
 
 ## 源码地图与代码知识图谱
 
 | 参考项 | 说明 |
 |------|------|
-| 源码地图 (ADL) | [docs/analysis/ai-digital-life/](./docs/analysis/ai-digital-life/)（本项目的渐进式索引） |
+| 源码地图 (ADL) | [docs/analysis/adlo/](./docs/analysis/adlo/)（本项目的渐进式索引） |
 
-> **代码知识图谱**：`ai-digital-life/` 配置了 [CodeGraph](https://github.com/colbymchenry/codegraph)（MIT 许可）本地知识图谱（实现工作区根 `ai-digital-life/.codegraph/`，SQLite）。MCP 接入见项目配置 [.opencode/opencode.json](./.opencode/opencode.json)（`mcp.servers.codegraph`），默认只暴露 `codegraph_explore` 一个工具；找符号/调用方/影响范围等细分查询走 `codegraph` CLI。查询、检索代码时优先使用图谱，技能说明见 [SKILLS.md](./SKILLS.md) 中的 `codegraph-knowledge-graph`。
+> **代码知识图谱**：`adlo/` 配置了 [CodeGraph](https://github.com/colbymchenry/codegraph)（MIT 许可）本地知识图谱（实现工作区根 `adlo/.codegraph/`，SQLite）。MCP 接入见项目配置 [.opencode/opencode.json](./.opencode/opencode.json)（`mcp.servers.codegraph`），默认只暴露 `codegraph_explore` 一个工具；找符号/调用方/影响范围等细分查询走 `codegraph` CLI。查询、检索代码时优先使用图谱，技能说明见 [SKILLS.md](./SKILLS.md) 中的 `codegraph-knowledge-graph`。
 >
 > 参考代码直接复用需遵守 MIT 许可要求，并在代码注释中标注来源。
 
@@ -26,7 +26,7 @@
 
 当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入与编排能力不由本仓库实现，交由接入的第三方 harness 提供（当前为 DSH 与 OpenCode CLI），本仓库仅负责宿主集成（进程托管、版本管理、宿主渲染、终端可用性）。
 
-技术栈详情与已实现功能清单见 [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)。范围边界与排除项见 [phase-boundary.md](.agents/rules/phase-boundary.md).
+技术栈详情与已实现功能清单见 [adlo/AGENTS.md](./adlo/AGENTS.md)。范围边界与排除项见 [phase-boundary.md](.agents/rules/phase-boundary.md).
 
 ## 并行开发（多会话 / 多 agent）
 
@@ -36,13 +36,13 @@
 
 **开工铁律**：改任何文件前，先在目标目录输出该技能 §2 的 `[ENV]` 快照并经用户选定工作树（§3 二选一）；无快照不得开工。
 
-新工作树先跑 `pnpm --dir ai-digital-life run setup:worktree`：启用仓库级 git hooks（`core.hooksPath=.githooks`）并为该工作树建 CodeGraph 索引（`ai-digital-life/.codegraph/`，不入库、不跨工作树共用）。
+新工作树先跑 `pnpm --dir adlo run setup:worktree`：启用仓库级 git hooks（`core.hooksPath=.githooks`）并为该工作树建 CodeGraph 索引（`adlo/.codegraph/`，不入库、不跨工作树共用）。
 
 ## 问题排查与调试
 
 排查问题时**先定位根本原因**，不要急于添加预防措施/防御性代码/解决方案。无法定位根因时，使用调试日志收起器（最高优先级）、复制调试日志按钮等调试手段，**禁止凭空猜测**。
 
-调试工具详情（日志收起器、复制按钮、自动写入等）见 [ai-digital-life/AGENTS.md#调试工具](./ai-digital-life/AGENTS.md#调试工具)，排查规范见 [dev-rules.md](.agents/rules/dev-rules.md#问题排查规范)。
+调试工具详情（日志收起器、复制按钮、自动写入等）见 [adlo/AGENTS.md#调试工具](./adlo/AGENTS.md#调试工具)，排查规范见 [dev-rules.md](.agents/rules/dev-rules.md#问题排查规范)。
 
 ## 工具选择（Agent）
 
@@ -53,10 +53,10 @@
 
 第三方依赖 `debug=1`（自己 crate 白名单保留 `debug=2` 可断点调试）。
 
-**清理策略（空间阈值触发全量清理，见 [ai-digital-life/AGENTS.md#磁盘空间管理](./ai-digital-life/AGENTS.md#磁盘空间管理)）：**
-- 空间条件：`ai-digital-life/target/debug` 超过 30 GB → 全量清理
+**清理策略（空间阈值触发全量清理，见 [adlo/AGENTS.md#磁盘空间管理](./adlo/AGENTS.md#磁盘空间管理)）：**
+- 空间条件：`adlo/target/debug` 超过 30 GB → 全量清理
 
-超过阈值即运行 `ai-digital-life/.cargo/clean-target.ps1` 执行 `cargo clean` 全量删除（不按时间窗口判断；`-WhatIf` 干跑预览，`-Full` 强制全清）。`cargo prune` 为 `cargo clean` 别名。删除为**永久删除**：直接物理删除构建产物，**不进入回收站/垃圾箱**，无需清空回收站。
+超过阈值即运行 `adlo/.cargo/clean-target.ps1` 执行 `cargo clean` 全量删除（不按时间窗口判断；`-WhatIf` 干跑预览，`-Full` 强制全清）。`cargo prune` 为 `cargo clean` 别名。删除为**永久删除**：直接物理删除构建产物，**不进入回收站/垃圾箱**，无需清空回收站。
 
 ## 禁止项
 
@@ -68,7 +68,7 @@
 - 凭据写入普通配置或日志（必须通过 `crates/credential/` 存储）
 - UI/UX 或功能变更后跳过红绿测试
 - 未获用户批准就执行全量测试 / 全量门禁（`check:full`、`cargo test --workspace`）或发布打包（`cargo tauri build`）；日常只跑受变更影响的测试
-- 以下三类已由自动校验拦截（pre-commit 跑 `ai-digital-life/scripts/*.test.mjs`）：capability 通配权限、e2e 配置泄漏到生产构建、`.agents` 规则/技能未同步到 `.opencode` / `.trae` 镜像——不要用 `--no-verify` 绕过
+- 以下三类已由自动校验拦截（pre-commit 跑 `adlo/scripts/*.test.mjs`）：capability 通配权限、e2e 配置泄漏到生产构建、`.agents` 规则/技能未同步到 `.opencode` / `.trae` 镜像——不要用 `--no-verify` 绕过
 - 功能或显示效果仅在 Tauri 或浏览器单一模式下可用（必须双端一致）
 - WebView URL 变化被动触发 Tauri navigateTab（必须由前端发起操作显式调用，见 `browserpanel.tsx:submitAddress`、`BrowserPanelActionsContext.ts:handleOpenTabFromTree`）
 - 任何 UI 展示文本硬编码（包括但不限于按钮/Tooltip/aria-label/占位符/过滤器标签/相对时间/日期格式/面包屑标签映射），必须使用 i18n key
@@ -137,9 +137,9 @@ Issue 与 spec 存放在 GitHub Issues（`K-irito02/Kora`），使用 `gh` CLI�
 
 ## 相关文档
 
-- [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md) — 实现工作区治理（技术栈、功能清单、Stores 架构）
+- [adlo/AGENTS.md](./adlo/AGENTS.md) — 实现工作区治理（技术栈、功能清单、Stores 架构）
 - [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md) — 并行分支开发技能（唯一真源；工作树/槽位、开工自检、复用与保留策略）
-- [commands.md](.agents/rules/commands.md) — 常用命令速查（开发服务器从当前工作树的 `ai-digital-life/` 执行）
+- [commands.md](.agents/rules/commands.md) — 常用命令速查（开发服务器从当前工作树的 `adlo/` 执行）
 - [run-project-surfaces](.agents/skills/run-project-surfaces/SKILL.md) — browser / tauri / both 启动、端口与停止
 - [root-cause-to-close](.agents/skills/root-cause-to-close/SKILL.md) — P0–P6 收尾、P4 审查与文档同步流程
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 未来想法

@@ -1,6 +1,6 @@
 ---
 description: Tauri Command 函数必须使用 {domain}_{action} 蛇形命名
-globs: ai-digital-life/src-tauri/src/commands/**/*.rs
+globs: adlo/src-tauri/src/commands/**/*.rs
 alwaysApply: false
 ---
 

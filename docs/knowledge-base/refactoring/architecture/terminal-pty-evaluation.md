@@ -2,7 +2,7 @@
 
 ## 1. 概述
 
-本报告对 ai-digital-life 项目中的 `terminal` 和 `pty` 两个 Rust crate 进行了深入分析，评估了它们的代码结构、依赖关系、职责划分以及存在的问题。
+本报告对 adlo 项目中的 `terminal` 和 `pty` 两个 Rust crate 进行了深入分析，评估了它们的代码结构、依赖关系、职责划分以及存在的问题。
 
 ---
 

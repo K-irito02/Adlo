@@ -1,6 +1,6 @@
 ---
 description: Unified four-step recipe for adl-server HTTP handlers with blocking I/O isolation and IpcResult wrapping
-globs: ai-digital-life/crates/server/**/*.rs
+globs: adlo/crates/server/**/*.rs
 alwaysApply: false
 ---
 

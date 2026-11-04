@@ -1,6 +1,6 @@
 # Themes
 
-Source of truth: `[frontend/src/styles/themes.css](../../../ai-digital-life/frontend/src/styles/themes.css)` and `[frontend/src/design-system/theme.ts](../../../ai-digital-life/frontend/src/design-system/theme.ts)`.
+Source of truth: `[frontend/src/styles/themes.css](../../../adlo/frontend/src/styles/themes.css)` and `[frontend/src/design-system/theme.ts](../../../adlo/frontend/src/design-system/theme.ts)`.
 
 The desktop renderer ships **2 appearance modes (light / dark)** plus `system` mode, which is resolved frontend-side via `systemPrefersDark()` (never by the backend, never by direct `window.matchMedia`).
 

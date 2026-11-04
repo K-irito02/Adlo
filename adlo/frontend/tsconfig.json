@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@adlo/kernel": ["./src/kernel/index.ts"],
+      "@app/*": ["src/app/*"],
+      "@app": ["src/app"],
+      "@features/*": ["src/app/features/*"],
+      "@stores/*": ["src/app/stores/*"],
+      "@stores": ["src/app/stores"],
+      "@components/*": ["src/app/components/*"],
+      "@icons": ["src/app/icons"],
+      "@icons/*": ["src/app/icons/*"],
+      "@i18n": ["src/app/i18n"],
+      "@i18n/*": ["src/app/i18n/*"],
+      "@utils": ["src/app/utils"],
+      "@utils/*": ["src/app/utils/*"],
+      "@tauri-bridge": ["src/tauri-bridge"],
+      "@regions": ["src/app/regions"],
+      "@regions/*": ["src/app/regions/*"],
+      "@hooks": ["src/app/hooks"],
+      "@hooks/*": ["src/app/hooks/*"],
+      "@shared": ["src/shared"],
+      "@shared/*": ["src/shared/*"],
+      "@root/*": ["src/*"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}

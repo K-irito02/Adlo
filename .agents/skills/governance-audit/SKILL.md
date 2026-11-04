@@ -39,11 +39,11 @@ description: Audit and sync governance docs (rules, AGENTS.md, READMEs, root doc
 | 类别 | 文件 | 路径 | 深度 |
 |------|------|------|------|
 | 规则文件 | 全部 `*.md` | `.agents/rules/`（真源，同步后仅审计此目录） | 七维全量 |
-| AGENTS.md | 根 / 实现工作区 | `AGENTS.md`、`ai-digital-life/AGENTS.md` | 七维全量 |
-| README.md | 根 / 实现工作区 | `README.md`、`ai-digital-life/README.md` | 七维全量 |
-| 根治理文档（Tier 1） | `CONTEXT.md`、`CONTRIBUTING.md`、`ai-digital-life/CONTRIBUTING.md`、`SECURITY.md`、`FUTURE-ROADMAP.md`、`RULES.md`、`SKILLS.md`、`docs/development/project-engineering-constraints.md` | 见路径 | 七维全量 |
+| AGENTS.md | 根 / 实现工作区 | `AGENTS.md`、`adlo/AGENTS.md` | 七维全量 |
+| README.md | 根 / 实现工作区 | `README.md`、`adlo/README.md` | 七维全量 |
+| 根治理文档（Tier 1） | `CONTEXT.md`、`CONTRIBUTING.md`、`adlo/CONTRIBUTING.md`、`SECURITY.md`、`FUTURE-ROADMAP.md`、`RULES.md`、`SKILLS.md`、`docs/development/project-engineering-constraints.md` | 见路径 | 七维全量 |
 | 内容目录（Tier 2） | 全部 `*.md` | `docs/analysis/`、`docs/architecture/`、`docs/design-system/`、`docs/development/`、`docs/operations/` | 治理一致性（见阶段 2）；不要求 frontmatter |
-| 工程基线（Tier 3） | `.githooks/pre-push`（本地门禁）；Tauri `ai-digital-life/src-tauri/capabilities/*.json`、`ai-digital-life/src-tauri/tauri.conf.json`；构建 `ai-digital-life/.cargo/config.toml`、`ai-digital-life/clippy.toml`、`ai-digital-life/rustfmt.toml`、根 `.editorconfig` | 见路径 | 仅核对被规则引用的关键字段 |
+| 工程基线（Tier 3） | `.githooks/pre-push`（本地门禁）；Tauri `adlo/src-tauri/capabilities/*.json`、`adlo/src-tauri/tauri.conf.json`；构建 `adlo/.cargo/config.toml`、`adlo/clippy.toml`、`adlo/rustfmt.toml`、根 `.editorconfig` | 见路径 | 仅核对被规则引用的关键字段 |
 
 > 其他路径的同名 `AGENTS.md`/`README.md` 不在范围；用户指定路径以用户为准。**默认不纳入**：`docs/` 下未列出的子目录（含 `knowledge-base/`、`plans/`、`specs/`、`superpowers/`、`root-cause-to-close/` 等过程 / 工具产物）与 `references/`，用户点名才纳入。文件数、规则数、技能数等**以运行时统计为准，不写死**。
 
@@ -82,7 +82,7 @@ Tier 1 七维全量；Tier 2 治理一致性；Tier 3 一致性校验。
 
 **Tier 2 检查点**：各目录 `README.md` 定位句与实际内容相符；各级索引登记无遗漏、无多登记；内部相对链接可解析；阶段表述、数字（切片 / action / crate / i18n / 测试计数）、术语与 Tier 1 真源一致；与 rules/AGENTS 重叠处以 rules 为准、另一处交叉引用；同名异体文件互相注体裁差异。
 
-**Tier 3 检查点**：`.githooks/pre-push` 与 `quality-gates.md`/`commands.md`/`ai-digital-life/CONTRIBUTING.md` 登记一致；`capabilities/*.json` 无 `"all"`/`"**"` 通配且新增 Command 已登记；`tauri.conf.json` 显式声明 `app.security.csp` 且 `withGlobalTauri` 关闭；构建基线（`.cargo/config.toml` 白名单 / alias、clippy / rustfmt / editorconfig）与 `ai-digital-life/AGENTS.md` 描述一致。
+**Tier 3 检查点**：`.githooks/pre-push` 与 `quality-gates.md`/`commands.md`/`adlo/CONTRIBUTING.md` 登记一致；`capabilities/*.json` 无 `"all"`/`"**"` 通配且新增 Command 已登记；`tauri.conf.json` 显式声明 `app.security.csp` 且 `withGlobalTauri` 关闭；构建基线（`.cargo/config.toml` 白名单 / alias、clippy / rustfmt / editorconfig）与 `adlo/AGENTS.md` 描述一致。
 
 **典型缺陷模式**：索引缺登记 · 内容错位（复制粘贴）· 目录缺文件 · 数字过时 / 计数不一致 · 断链 · 职责重叠 · 无必要内容（无引用、无读者、空泛过时）。
 

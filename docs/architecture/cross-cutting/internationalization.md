@@ -37,6 +37,6 @@ All UI text types are covered: buttons, tooltips, card content, aria-labels, pla
 
 ## Domain Coverage
 
-22 domains under `frontend/src/app/i18n/{zh-CN,en-US}/` (see [frontend-structure.md](../../analysis/ai-digital-life/features/frontend-structure.md)). Dictionary organization (per-domain files + barrel) see [i18n-dictionary-domain-split-organization.md](../../../.agents/rules/i18n-dictionary-domain-split-organization.md).
+22 domains under `frontend/src/app/i18n/{zh-CN,en-US}/` (see [frontend-structure.md](../../analysis/adlo/features/frontend-structure.md)). Dictionary organization (per-domain files + barrel) see [i18n-dictionary-domain-split-organization.md](../../../.agents/rules/i18n-dictionary-domain-split-organization.md).
 
 Richer formatting/pluralization ideas are unscoped future thoughts (see `FUTURE-ROADMAP.md`), not planned phases.

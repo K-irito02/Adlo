@@ -6,7 +6,7 @@
 
 六份 runbook 的正文位于前端源码目录：
 
-`ai-digital-life/frontend/src/app/features/environment/runbooks/`
+`adlo/frontend/src/app/features/environment/runbooks/`
 
 原因：设置面板「复制给助手」按钮需要把 runbook 全文随诊断载荷一起复制。正文放在前端目录并以
 `?raw` 静态导入（`runbooks/index.ts`），会打进前端包，Tauri 桌面与浏览器模式都能直接取用，
@@ -19,12 +19,12 @@
 
 | 依赖       | 文件                                                                                                                    | 适用场景                           |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| Node.js    | [env-node.md](../../ai-digital-life/frontend/src/app/features/environment/runbooks/env-node.md)                         | 助手起不来、Node 缺失或版本过低    |
-| Git / Bash | [env-git-bash.md](../../ai-digital-life/frontend/src/app/features/environment/runbooks/env-git-bash.md)                 | Git 面板为空、Bash 不可选          |
-| WebView2   | [env-webview2.md](../../ai-digital-life/frontend/src/app/features/environment/runbooks/env-webview2.md)                 | 窗口空白或应用起不来               |
-| adl-server | [env-adlserver.md](../../ai-digital-life/frontend/src/app/features/environment/runbooks/env-adlserver.md)               | 业务功能不可用、只剩系统能力       |
-| 下载通道   | [env-net-download.md](../../ai-digital-life/frontend/src/app/features/environment/runbooks/env-net-download.md)         | 安装下载失败（`EAI_AGAIN` / 超时） |
-| 模型凭据   | [env-model-credential.md](../../ai-digital-life/frontend/src/app/features/environment/runbooks/env-model-credential.md) | 助手能打开但不能回答               |
+| Node.js    | [env-node.md](../../adlo/frontend/src/app/features/environment/runbooks/env-node.md)                         | 助手起不来、Node 缺失或版本过低    |
+| Git / Bash | [env-git-bash.md](../../adlo/frontend/src/app/features/environment/runbooks/env-git-bash.md)                 | Git 面板为空、Bash 不可选          |
+| WebView2   | [env-webview2.md](../../adlo/frontend/src/app/features/environment/runbooks/env-webview2.md)                 | 窗口空白或应用起不来               |
+| adl-server | [env-adlserver.md](../../adlo/frontend/src/app/features/environment/runbooks/env-adlserver.md)               | 业务功能不可用、只剩系统能力       |
+| 下载通道   | [env-net-download.md](../../adlo/frontend/src/app/features/environment/runbooks/env-net-download.md)         | 安装下载失败（`EAI_AGAIN` / 超时） |
+| 模型凭据   | [env-model-credential.md](../../adlo/frontend/src/app/features/environment/runbooks/env-model-credential.md) | 助手能打开但不能回答               |
 
 ## 结构约定
 
@@ -71,4 +71,4 @@ WSL、MSYS2，或用户在设置组手动填写的路径。宿主 Git 安装失�
   `registry.npmjs.org`；
   dsh 的模型配置入口按界面泛化描述，不写死内部地址。
 - 凭据一律用占位符 `<你的 Key>`；禁止真实 Key、个人目录、内网域名与本机地址。
-- 自动化守卫见 `ai-digital-life/frontend/src/app/features/environment/runbooks.test.ts`（五段标题 + 禁止字符串）。
+- 自动化守卫见 `adlo/frontend/src/app/features/environment/runbooks.test.ts`（五段标题 + 禁止字符串）。

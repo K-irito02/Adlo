@@ -2,7 +2,7 @@
 
 ## 概述
 
-对 AI Digital Life 前端的国际化系统进行了全面升级，覆盖所有 UI 表面（tooltip、对话框、菜单、卡片、标签、aria-label、placeholder 等），消除了所有硬编码中文字符串。
+对 Adlo 前端的国际化系统进行了全面升级，覆盖所有 UI 表面（tooltip、对话框、菜单、卡片、标签、aria-label、placeholder 等），消除了所有硬编码中文字符串。
 
 ## 架构变更
 

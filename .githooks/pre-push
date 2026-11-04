@@ -5,15 +5,15 @@
 set -e
 ROOT="$(git rev-parse --show-toplevel)"
 # Dev tooling syntax (scripts sit outside eslint/tsc scope).
-( cd "$ROOT/ai-digital-life" && for f in scripts/*.mjs; do node --check "$f"; done )
+( cd "$ROOT/adlo" && for f in scripts/*.mjs; do node --check "$f"; done )
 # Repo-level hygiene: dev-tooling unit tests + scripts formatting + desktop E2E types.
 # 与 `check:all` 共用同一聚合脚本（check:repo），避免合并门禁与推送门禁各写一套后漂移。
-( cd "$ROOT/ai-digital-life" && pnpm run check:repo )
+( cd "$ROOT/adlo" && pnpm run check:repo )
 # Rust affected scope: fmt always; clippy + affected-crate unit tests when Rust files changed.
-( cd "$ROOT/ai-digital-life" && node ./scripts/check-rust-changed.mjs )
+( cd "$ROOT/adlo" && node ./scripts/check-rust-changed.mjs )
 # PATH injection regression: real adl-server process + temp data dir (never mutates the test env).
-( cd "$ROOT/ai-digital-life" && cargo test -p adl-server --test env_path_cli )
-cd "$ROOT/ai-digital-life/frontend"
+( cd "$ROOT/adlo" && cargo test -p adl-server --test env_path_cli )
+cd "$ROOT/adlo/frontend"
 if [ "$ADL_PREPUSH_FULL" = "1" ]; then
   echo "[pre-push] FULL gate (user-approved): check:full"
   pnpm check:full

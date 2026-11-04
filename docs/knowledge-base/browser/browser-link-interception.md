@@ -2,7 +2,7 @@
 
 ## 问题背景
 
-在 Tauri 2.x 开发的 AI 数字生命应用中，浏览器功能存在链接点击不触发导航的问题，特别是复杂网站（如 Bilibili）的 JavaScript 处理的链接。
+在 Tauri 2.x 开发的 Adlo应用中，浏览器功能存在链接点击不触发导航的问题，特别是复杂网站（如 Bilibili）的 JavaScript 处理的链接。
 
 ## 解决方案演进
 
@@ -15,7 +15,7 @@
 - **问题**：独立窗口无法嵌入到浏览器面板区域，UI 体验不佳
 
 ### 方案 3：子 WebView + 全面拦截机制（成功）
-- **实现文件**：[crates/browser/src/lib.rs](file:///e:\AI-DIGITAL-LIFE\SourceWorkspace\ai-digital-life\crates\browser\src\lib.rs)
+- **实现文件**：[crates/browser/src/lib.rs](file:///e:\AI-DIGITAL-LIFE\SourceWorkspace\adlo\crates\browser\src\lib.rs)
 - **核心思路**：
   - 使用 `initialization_script` 在 WebView 初始化时注入拦截脚本
   - 在 Rust 端通过 `on_new_window` 拦截新窗口请求
@@ -132,7 +132,7 @@ while (target) {
 
 ### 修改的文件
 
-- **[crates/browser/src/lib.rs](file:///e:\AI-DIGITAL-LIFE\SourceWorkspace\ai-digital-life\crates\browser\src\lib.rs)**：增强 `INIT_SCRIPT`，优化 `on_new_window`
+- **[crates/browser/src/lib.rs](file:///e:\AI-DIGITAL-LIFE\SourceWorkspace\adlo\crates\browser\src\lib.rs)**：增强 `INIT_SCRIPT`，优化 `on_new_window`
 
 ## 经验教训
 

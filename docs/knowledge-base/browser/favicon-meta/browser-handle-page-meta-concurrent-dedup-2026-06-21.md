@@ -32,7 +32,7 @@
 
 ## 修复方案
 
-两处修改，均在 [useBrowserPageMeta.ts](../../../../ai-digital-life/frontend/src/app/features/browser/useBrowserPageMeta.ts)：
+两处修改，均在 [useBrowserPageMeta.ts](../../../../adlo/frontend/src/app/features/browser/useBrowserPageMeta.ts)：
 
 ### 修复 1：step 3 创建标签前调用 `markUrlSeen`
 

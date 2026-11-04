@@ -167,6 +167,6 @@ frontend/src/app/regions/
 
 ## 相关文件
 
-- [component-split-phase3.md](file:///e:/Programs/Obsidian/notes/ai-digital-life/.trae/documents/component-split-phase3.md) — 阶段 3 拆分计划
-- [remaining-work-plan.md](file:///e:/Programs/Obsidian/notes/ai-digital-life/.trae/documents/remaining-work-plan.md) — 剩余工作执行计划
-- [AGENTS.md](file:///e:/Programs/Obsidian/notes/ai-digital-life/AGENTS.md) — 项目治理文件
+- [component-split-phase3.md](file:///e:/Programs/Obsidian/notes/adlo/.trae/documents/component-split-phase3.md) — 阶段 3 拆分计划
+- [remaining-work-plan.md](file:///e:/Programs/Obsidian/notes/adlo/.trae/documents/remaining-work-plan.md) — 剩余工作执行计划
+- [AGENTS.md](file:///e:/Programs/Obsidian/notes/adlo/AGENTS.md) — 项目治理文件

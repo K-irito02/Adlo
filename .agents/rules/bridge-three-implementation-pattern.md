@@ -1,6 +1,6 @@
 ---
 description: 前端 Bridge 接口三实现架构（Tauri/Preview/Mock）
-globs: ai-digital-life/frontend/src/shared/ipc/**,ai-digital-life/frontend/src/tauri-bridge/**,ai-digital-life/frontend/src/preview-bridge/**,ai-digital-life/frontend/src/mock/**
+globs: adlo/frontend/src/shared/ipc/**,adlo/frontend/src/tauri-bridge/**,adlo/frontend/src/preview-bridge/**,adlo/frontend/src/mock/**
 alwaysApply: false
 ---
 

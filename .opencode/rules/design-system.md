@@ -1,6 +1,6 @@
 ---
 description: Design system constraints, theming, component specifications, and accessibility
-globs: ai-digital-life/frontend/**/*
+globs: adlo/frontend/**/*
 alwaysApply: false
 ---
 
@@ -88,7 +88,7 @@ const shouldShowSeparator =
   (activeTab === nextTab.id || hoveredTab === nextTab.id);
 ```
 
-详见 [tool-switcher.css](../../ai-digital-life/frontend/src/styles/regions/rightpanel/tool-switcher.css)（`.adl-iconstrip__separator`）。
+详见 [tool-switcher.css](../../adlo/frontend/src/styles/regions/rightpanel/tool-switcher.css)（`.adl-iconstrip__separator`）。
 
 ## CodeMirror 编辑器集成
 
@@ -189,9 +189,9 @@ const shouldShowSeparator =
 
 - [ui-patterns.md](./ui-patterns.md) — UI 模式速查（对话框、菜单、悬停、点击、颜色、Hint Card、按钮、文件树等 27 类模式的一站式入口）
 - [docs/design-system/README.md](../../docs/design-system/README.md)
-- [design-system/tokens.ts](../../ai-digital-life/frontend/src/design-system/tokens.ts)
-- [styles/themes.css](../../ai-digital-life/frontend/src/styles/themes.css)
-- [styles/index.css](../../ai-digital-life/frontend/src/styles/index.css) — CSS 入口（导入 layout + regions/*）
+- [design-system/tokens.ts](../../adlo/frontend/src/design-system/tokens.ts)
+- [styles/themes.css](../../adlo/frontend/src/styles/themes.css)
+- [styles/index.css](../../adlo/frontend/src/styles/index.css) — CSS 入口（导入 layout + regions/*）
 - [mandatory-testing.md](./mandatory-testing.md)
 
 ## CSS 架构

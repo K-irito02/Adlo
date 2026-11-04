@@ -1,6 +1,6 @@
 ---
 description: Tauri Backend/Commands/WebView boundaries, security baseline, and capability allowlist
-globs: ai-digital-life/src-tauri/**,ai-digital-life/frontend/**,ai-digital-life/crates/**
+globs: adlo/src-tauri/**,adlo/frontend/**,adlo/crates/**
 alwaysApply: false
 ---
 
@@ -154,5 +154,5 @@ pub async fn workspace_list_tree(
 
 ## 相关文件
 
-- [frontend/src/shared/ipc/](../../ai-digital-life/frontend/src/shared/ipc) — DigitalLifeBridge 类型契约（域拆分）
-- [src-tauri/src/commands](../../ai-digital-life/src-tauri/src/commands)
+- [frontend/src/shared/ipc/](../../adlo/frontend/src/shared/ipc) — DigitalLifeBridge 类型契约（域拆分）
+- [src-tauri/src/commands](../../adlo/src-tauri/src/commands)

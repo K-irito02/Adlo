@@ -1,6 +1,6 @@
 ---
 description: Region 布局壳架构 — shell 布局与领域功能分离
-globs: ai-digital-life/frontend/src/app/regions/**
+globs: adlo/frontend/src/app/regions/**
 alwaysApply: false
 ---
 

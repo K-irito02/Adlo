@@ -1,6 +1,6 @@
 ---
 description: Hint color usage spec for drag handles and dividers, neutral gray instead of accent blue
-globs: ai-digital-life/frontend/**/*
+globs: adlo/frontend/**/*
 alwaysApply: false
 ---
 
@@ -49,5 +49,5 @@ alwaysApply: false
 
 - [design-system.md](./design-system.md#提示色hint) — 设计系统入口（指针）
 - [tokens.md](../../docs/design-system/foundations/tokens.md#hint--提示色) — 文档侧规范
-- [themes.css](../../ai-digital-life/frontend/src/styles/themes.css) — token 真源
-- [terminal-panel.css](../../ai-digital-life/frontend/src/styles/regions/rightpanel/terminal-panel.css) — 首个统一案例
+- [themes.css](../../adlo/frontend/src/styles/themes.css) — token 真源
+- [terminal-panel.css](../../adlo/frontend/src/styles/regions/rightpanel/terminal-panel.css) — 首个统一案例

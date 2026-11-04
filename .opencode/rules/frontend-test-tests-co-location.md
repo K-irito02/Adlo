@@ -1,6 +1,6 @@
 ---
 description: 前端测试文件必须放置在待测模块同级目录下的 __tests__/ 子目录中
-globs: ai-digital-life/frontend/src/**
+globs: adlo/frontend/src/**
 alwaysApply: false
 ---
 

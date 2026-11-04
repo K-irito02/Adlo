@@ -22,7 +22,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 
 **生命周期：** 预检 → P0 调查 → P1 定径 → P2 修复 → P3 验证 → P4 审查 → P5 文档同步 → P6 清理总结。
 
-> **文档路径基准：** 本技能所有 `docs/...` 以**仓库根目录**（含根 `AGENTS.md` 与 `docs/` 的治理根，即 `ai-digital-life/` 的父目录）为基准。禁止在 `ai-digital-life/docs/` 下另建目录。
+> **文档路径基准：** 本技能所有 `docs/...` 以**仓库根目录**（含根 `AGENTS.md` 与 `docs/` 的治理根，即 `adlo/` 的父目录）为基准。禁止在 `adlo/docs/` 下另建目录。
 
 ## When to Use / When NOT to Use
 
@@ -141,8 +141,8 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 | 检查项 | 路径 |
 |-------|------|
 | 桌面壳 + 浏览器前端 | `<仓库根>/.adl-logs/terminal-logs*.txt`、`debug-logs*.txt`、`debug-logs-browser*.txt` |
-| 后端引擎 | `<仓库根>/ai-digital-life/.adl-logs/adl-server-logs*.txt` |
-| 本地运行/诊断 | `<仓库根>/ai-digital-life/.run-logs/`、`/diagnostic-logs/` |
+| 后端引擎 | `<仓库根>/adlo/.adl-logs/adl-server-logs*.txt` |
+| 本地运行/诊断 | `<仓库根>/adlo/.run-logs/`、`/diagnostic-logs/` |
 | 发布态 | `<数据根>/logs/`（无 `.adl-logs`） |
 
 规则：逐项检查，缺项跳过不 block；`multi` 会话文件（`*-<时间戳>.txt`）先按 `LastWriteTime` 取**最新一个**，覆盖式同名文件直接读。**分析标准按日志级别（与阶段 Pn 无关，勿混淆）：ERROR（崩溃堆栈 / IPC 失败等功能错误）必须修或记录，WARN 评估，INFO/DEBUG 忽略；完成条件：无未解 ERROR。**
@@ -218,7 +218,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 ## P3：验证
 
 1. **补日志**（P2A 已加则跳过）：格式 `[时间戳] [级别] [组件::函数] 消息 — 键=值`；级别 DEBUG（路径追踪）/ INFO（状态转换）/ WARN（预期异常）/ ERROR（意外失败）。
-2. **触发验证：** 有自动化操作能力则自己驱动触发（见调试埋点触发节），否则把用户当"手"：给出编号操作步骤（启动哪个模式、打开哪个地址/窗口、点击哪里、预期哪个文件出现什么日志），等用户回复"操作完成"后再读日志；**不预告成功**；记进度文件。需要直接验证后端接口（不起桌面壳）时用 `pnpm --dir ai-digital-life run serve:server`：先构建 `adl-server`，再以临时数据目录启动并打印 URL 与 `proxyEffective`，避免手跑旧二进制得出错误结论。
+2. **触发验证：** 有自动化操作能力则自己驱动触发（见调试埋点触发节），否则把用户当"手"：给出编号操作步骤（启动哪个模式、打开哪个地址/窗口、点击哪里、预期哪个文件出现什么日志），等用户回复"操作完成"后再读日志；**不预告成功**；记进度文件。需要直接验证后端接口（不起桌面壳）时用 `pnpm --dir adlo run serve:server`：先构建 `adl-server`，再以临时数据目录启动并打印 URL 与 `proxyEffective`，避免手跑旧二进制得出错误结论。
    - **UI/主题改动**：必须在真实浏览器/WebView 中读取目标元素的 `getComputedStyle`（涉及亮暗 token 时两套都读），把 color/background/关键变量写入进度文件。CSS 文本断言、截图、肉眼判断都不能替代 computed style。
    - **进程/环境改动**：必须用真实子进程或终端验证最终二进制/最终快照的实际行为；纯函数单测不能替代。
 3. **日志分析**（按日志协议只取最新）：预期条目在 → 生效；错误条目 → 边界缺口；条目缺失 → 路径未触发；意外模式 → 假设错。
@@ -248,7 +248,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 
 - `git branch --show-current`、`git status --short`；未跟踪文件判定是否为本次产物。
 - 定点预检（源自 `code-review`）：`git rev-parse <定点>` 确认可解、diff 非空才派发子代理；坏 ref / 空 diff 在此失败，不进子代理论证。
-- git 在仓库根执行；`cargo`/`pnpm` 在 `ai-digital-life/` 执行；命令前按规则 `.agents/rules/commands.md` 设 PATH。
+- git 在仓库根执行；`cargo`/`pnpm` 在 `adlo/` 执行；命令前按规则 `.agents/rules/commands.md` 设 PATH。
 - 磁盘（可选）：`clean-target.ps1 -WhatIf` 干跑后问用户；`target/debug` 超 30 GB 才全量 `cargo clean`（**永久删除**，不进回收站）。
 
 ### 4b. 采集变更 + 快照预生成
@@ -261,7 +261,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 两类都无变更 → 跳过 4c–4e（进度文件记理由），仅保留 Exit criteria 中的分级测试。有变更时按下述建快照，再进 4c 两轮必跑：
 
 1. 建 `.review-diffs/`（已在 `.gitignore`，P6 删除）。
-2. **一键生成快照（推荐）**：`node ai-digital-life/scripts/review-snapshot.mjs --rev <N>`
+2. **一键生成快照（推荐）**：`node adlo/scripts/review-snapshot.mjs --rev <N>`
    脚本完成：解析 base（`merge-base(origin/HEAD, HEAD)`，无远端回退 `HEAD`）→ `git add -N` 未跟踪文件 → 每文件写 `<safe>-rev<N>.diff` → 写 `changed-files-rev<N>.txt` / `commits-rev<N>.txt` / `manifest-rev<N>.md`（base、commits、文件清单、命名规则）；空 diff 直接失败。文件数明显多于预期时，先核对 base 是否等于本分支分叉点，再继续。
    - 手工等价物（脚本不可用时）：`git diff --output=<safe>-rev<N>.diff HEAD -- <file>` —— **`--output` 必须在 `--` 之前**；放到 `--` 之后会被 git 当成 pathspec（不写文件、整段 diff 进 stdout，实测一次刷出约 100KB）。
    - **编码安全**：禁止把 `git diff` 结果经 PowerShell 管道 / `Out-File` 转存（本仓实测会把 UTF-8 中文注释转成 GBK 乱码，审查代理只能退回读源码）。
@@ -316,12 +316,12 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 |------|------|---------|
 | 规则 | `.agents/rules/`（真源）→ `.opencode/rules/`、`.trae/rules/` | 编码、架构、工具链变化；增删规则在根 `RULES.md` 规则清单登记 |
 | 技能 | `.agents/skills/`（真源）→ `.opencode/skills/`、`.trae/skills/` | 指令/触发条件变化；改后按子目录递归做三目录哈希比对（如 `Get-FileHash`） |
-| 治理 | `AGENTS.md`、`ai-digital-life/AGENTS.md`、`CONTEXT.md` | 术语、功能、架构层级 |
-| 根文档 | `README.md`、`ai-digital-life/README.md`、`CONTRIBUTING.md`、`ai-digital-life/CONTRIBUTING.md`、`SECURITY.md`、`FUTURE-ROADMAP.md`、`docs/development/project-engineering-constraints.md` | 安装使用、协作流程、安全策略、后续规划、工程约束 |
+| 治理 | `AGENTS.md`、`adlo/AGENTS.md`、`CONTEXT.md` | 术语、功能、架构层级 |
+| 根文档 | `README.md`、`adlo/README.md`、`CONTRIBUTING.md`、`adlo/CONTRIBUTING.md`、`SECURITY.md`、`FUTURE-ROADMAP.md`、`docs/development/project-engineering-constraints.md` | 安装使用、协作流程、安全策略、后续规划、工程约束 |
 | 架构/开发/分析 | `docs/architecture/`、`docs/development/`（上行点名文件除外）、`docs/analysis/` | 决策、流程、分析结论 |
 | 设计/运维 | `docs/design-system/`、`docs/operations/`（UI 交互落 `ui-manual/`） | 可复用 UI 模式、运维手册 |
 | 沉淀 | `docs/knowledge-base/` | 经验教训 |
-| 工程基线 | `.githooks/pre-push`、`ai-digital-life/src-tauri/capabilities/*.json`、`ai-digital-life/src-tauri/tauri.conf.json`、`ai-digital-life/.cargo/config.toml`、`ai-digital-life/clippy.toml`、`ai-digital-life/rustfmt.toml`、根 `.editorconfig` | 触及门禁命令 / 新增 Command 登记与通配 / CSP 与 `withGlobalTauri` / 构建基线时同步；未触及表态无需 |
+| 工程基线 | `.githooks/pre-push`、`adlo/src-tauri/capabilities/*.json`、`adlo/src-tauri/tauri.conf.json`、`adlo/.cargo/config.toml`、`adlo/clippy.toml`、`adlo/rustfmt.toml`、根 `.editorconfig` | 触及门禁命令 / 新增 Command 登记与通配 / CSP 与 `withGlobalTauri` / 构建基线时同步；未触及表态无需 |
 | 本技能归档 | `docs/root-cause-to-close/YYYY-MM/README.md` | 追加 `progress-...md` 链接（最新在最后）；用过 brainstorming 则确认设计文档（`docs/superpowers/specs/`）已索引 |
 
 UI 引入可复用模式或修正规范时，提取为标准并更新 `docs/design-system/` 与对应手册。
@@ -334,7 +334,7 @@ P5 逐项表态完成后直接进 P6（阶段之间不停留；结算性工作�
 
 **顺序铁律**：最后一次分级测试/全量门禁通过后，再执行清理与总结提交；门禁返工产生新增改动时，先重建快照并重跑同范围审查，不得带着未验证的改动进清理（清理删除快照后无法复审）。
 
-**清理（预授权范围，无需再问用户）**（先用读取确认存在再删，年龄按 `LastWriteTime`）：两处 `.adl-logs/`（仓库根与 `ai-digital-life/`）超 7 天文件；`debug-logs*.txt`、`debug-logs-browser*.txt`、`adl-server-logs*.txt` 运行残留；根 `test-artifacts/` 超 3 天临时文件；`grep` 确认 `[DBG-` 诊断前缀清零（兑现 P0-4 的单 grep 清零承诺，有残留先删）后再删除 `.review-diffs/` 全部快照。用过 `playwright-cli` 则一并清理其测试产物：关闭残留浏览器会话（`close-all`），删除仓库内 `.playwright-cli/` 目录（快照/trace/录像）与测试截图；产物若在 Temp 目录则整批删除。
+**清理（预授权范围，无需再问用户）**（先用读取确认存在再删，年龄按 `LastWriteTime`）：两处 `.adl-logs/`（仓库根与 `adlo/`）超 7 天文件；`debug-logs*.txt`、`debug-logs-browser*.txt`、`adl-server-logs*.txt` 运行残留；根 `test-artifacts/` 超 3 天临时文件；`grep` 确认 `[DBG-` 诊断前缀清零（兑现 P0-4 的单 grep 清零承诺，有残留先删）后再删除 `.review-diffs/` 全部快照。用过 `playwright-cli` 则一并清理其测试产物：关闭残留浏览器会话（`close-all`），删除仓库内 `.playwright-cli/` 目录（快照/trace/录像）与测试截图；产物若在 Temp 目录则整批删除。
 
 **清理范围边界：** 上述"本技能自有临时产物"才属预授权；`.run-logs/`、`diagnostic-logs/`、发布态 `<数据根>/logs/` 及被跟踪文件不在预授权内，需清理时另行询问。删除未提交源码/他人改动/被跟踪文件、或执行 `cargo clean` 等破坏性操作前，必须先向用户询问（对应底部 Red Flag"未经确认的清理"）。
 

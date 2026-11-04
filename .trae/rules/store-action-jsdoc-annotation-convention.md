@@ -1,6 +1,6 @@
 ---
 description: Standardized JSDoc annotations for store actions with reads writes and IPC see references
-globs: ai-digital-life/frontend/src/app/stores/actions/**
+globs: adlo/frontend/src/app/stores/actions/**
 alwaysApply: false
 ---
 

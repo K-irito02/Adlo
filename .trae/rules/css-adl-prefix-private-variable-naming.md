@@ -1,6 +1,6 @@
 ---
 description: CSS 自定义属性命名空间——公共设计 Token 无前缀，组件/区域私有变量必须使用 --adl- 前缀
-globs: ai-digital-life/frontend/**/*.css
+globs: adlo/frontend/**/*.css
 alwaysApply: false
 ---
 

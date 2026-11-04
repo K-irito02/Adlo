@@ -1,12 +1,12 @@
 ---
 description: Rust 内部 crate 统一使用 adl- 前缀命名
-globs: ai-digital-life/crates/*/Cargo.toml,ai-digital-life/src-tauri/Cargo.toml
+globs: adlo/crates/*/Cargo.toml,adlo/src-tauri/Cargo.toml
 alwaysApply: false
 ---
 
 # Rust Crate `adl-` 命名前缀约定
 
-所有内部 Rust crate 使用 `adl-` 前缀（项目代号 "AI Digital Life" 缩写），确保与外部 crate 在 Cargo.toml 中的明确区分。
+所有内部 Rust crate 使用 `adl-` 前缀（工程前缀：品牌名为 Adlo，`adl` 是旧名时代确立的固定前缀，不随品牌改名），确保与外部 crate 在 Cargo.toml 中的明确区分。
 
 ## 规则
 

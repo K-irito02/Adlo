@@ -1,6 +1,6 @@
 # 内置浏览器实现总结
 
-> **体裁**：设计决策（架构与双模式契约）。实现快照（crate 细节）见 [analysis/ai-digital-life/features/builtin-browser.md](../../analysis/ai-digital-life/features/builtin-browser.md)。
+> **体裁**：设计决策（架构与双模式契约）。实现快照（crate 细节）见 [analysis/adlo/features/builtin-browser.md](../../analysis/adlo/features/builtin-browser.md)。
 
 ## 摘要
 为右侧面板浏览器工具实现了完整的双模式内置浏览器功能。Tauri 桌面模式使用原生 child WebView（multiwebview），浏览器预览模式使用 `<iframe>` 直连 + 外部浏览器降级按钮。

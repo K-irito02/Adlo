@@ -14,7 +14,7 @@
 ### 1.1 只是想启动
 
 ```powershell
-cd ai-digital-life
+cd adlo
 pnpm dev:tauri      # Tauri 桌面应用
 pnpm dev:preview    # 浏览器模式（含真实后端 adl-server）
 pnpm dev:browser    # 浏览器模式（纯前端，无后端）
@@ -134,7 +134,7 @@ pnpm dev:tauri
 |-------------|------|--------|
 | Tauri 桌面壳 | `<仓库根>/.adl-logs/` | `terminal-logs*.txt`（壳 tracing）、`debug-logs*.txt`（壳调试日志） |
 | 浏览器前端（dev preview service） | `<仓库根>/.adl-logs/` | `debug-logs-browser*.txt`（与壳的 `debug-logs*.txt` **分名**，避免双端并行时互相覆盖） |
-| adl-server 后端引擎 | `<仓库根>/ai-digital-life/.adl-logs/` | `adl-server-logs*.txt` |
+| adl-server 后端引擎 | `<仓库根>/adlo/.adl-logs/` | `adl-server-logs*.txt` |
 
 - 之所以是两个目录：各自用编译期 `CARGO_MANIFEST_DIR` 上推两级推导 dev 项目根
 - `*.txt` 表示固定名文件；`multi` 模式另有 `*-<时间戳>.txt` 会话文件
@@ -150,7 +150,7 @@ $RepoRoot = (git rev-parse --show-toplevel).Trim()
 # 列出两处日志目录（按时间倒序）
 Get-ChildItem "$RepoRoot\.adl-logs" |
   Sort-Object LastWriteTime -Descending | Select-Object -First 10 Name, Length, LastWriteTime
-Get-ChildItem "$RepoRoot\ai-digital-life\.adl-logs" |
+Get-ChildItem "$RepoRoot\adlo\.adl-logs" |
   Sort-Object LastWriteTime -Descending | Select-Object -First 10 Name, Length, LastWriteTime
 
 # 只看关键的日志开关事件
@@ -265,7 +265,7 @@ Get-ChildItem "$dir" -Filter "terminal-logs-*.txt" |
 
 - **必须用绝对路径** `LS`/`Read`，`Glob`/`Grep` 会因 `.gitignore` 看不到日志
 - 只分析**最新**文件（同名固定文件直接读；`*-<时间戳>` 会话文件按 `LastWriteTime` 取最新）
-- 别忘了**两处目录**：壳/浏览器在 `<仓库根>/.adl-logs/`，adl-server 在 `<仓库根>/ai-digital-life/.adl-logs/`
+- 别忘了**两处目录**：壳/浏览器在 `<仓库根>/.adl-logs/`，adl-server 在 `<仓库根>/adlo/.adl-logs/`
 - 覆盖是 `session-only`：重启后回到配置文件值，**不要**把"重启后变回去了"误判为 bug
 
 ---
@@ -349,7 +349,7 @@ ANSI 颜色码。文件层已 `.with_ansi(false)`；若仍出现请检查该层�
 
 ```powershell
 # 场景：怀疑补丁预览有问题，需要最详细日志 + 逐次会话文件
-cd ai-digital-life
+cd adlo
 pnpm dev:tauri -- --log-level trace --terminal-log-mode multi
 
 # 启动后终端应出现：
@@ -370,6 +370,6 @@ Get-ChildItem "$RepoRoot\.adl-logs" -Filter "terminal-logs-*.txt" |
 # 2) 仅运行时切换（不污染 config.json）
 curl -X POST "http://127.0.0.1:56709/app/log-settings" `
   -H "Content-Type: application/json" -d "{\"logLevel\":\"trace\"}"
-# 3) 读 <仓库根>\ai-digital-life\.adl-logs\adl-server-logs.txt 断言出现：
+# 3) 读 <仓库根>\adlo\.adl-logs\adl-server-logs.txt 断言出现：
 #    [ADL-SETTINGS] runtime log settings applied level=Some(Trace) terminal=None debug=None
 ```

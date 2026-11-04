@@ -8,12 +8,12 @@
 
 `dev:tauri` → `run-project-surface.mjs` → `cargo tauri dev` → tauri-cli 内部执行 `cargo run --no-default-features`。
 
-Windows 下上一 dev 会话的 `ai-digital-life.exe` 进程残留（终端被强制关闭等），独占锁住 `target/debug/ai-digital-life.exe`。新的 `cargo run` 重链接时无法覆盖被占用的 exe → 链接失败 → 旧窗口仍显示旧代码。
+Windows 下上一 dev 会话的 `adlo.exe` 进程残留（终端被强制关闭等），独占锁住 `target/debug/adlo.exe`。新的 `cargo run` 重链接时无法覆盖被占用的 exe → 链接失败 → 旧窗口仍显示旧代码。
 
 - 已实测：残留进程运行期间 exe 被独占锁定（`fs.openSync` Open ReadWrite 抛 "used by another process"）；进程停止后 exe 恢复可写
 - 参考上游：tauri#12429（Windows 下 watcher 重建前未杀 app 进程）
 
-## 修复方案（`ai-digital-life/scripts/run-project-surface.mjs`）
+## 修复方案（`adlo/scripts/run-project-surface.mjs`）
 
 1. `killProcessesByName(imageName, exePath)` 导出函数：
    - win32：PowerShell `Get-Process -Name <去.exe后缀> | Where-Object {$_.Path -eq <dev exe 精确路径>} | Stop-Process -Force`，仅杀路径匹配实例，避免误伤同名的 release/installed 构建

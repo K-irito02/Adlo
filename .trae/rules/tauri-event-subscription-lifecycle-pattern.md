@@ -1,6 +1,6 @@
 ---
 description: Tauri 事件订阅生命周期——异步 unlisten 幂等清理、未就绪/已取消竞态保护，优先复用 subscribeChannel
-globs: ai-digital-life/frontend/src/tauri-bridge/**,ai-digital-life/frontend/src/app/**,ai-digital-life/frontend/src/shared/**
+globs: adlo/frontend/src/tauri-bridge/**,adlo/frontend/src/app/**,adlo/frontend/src/shared/**
 alwaysApply: false
 ---
 

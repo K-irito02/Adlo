@@ -5,25 +5,25 @@ dist
 .DS_Store
 
 # Rust workspace (handled by rustfmt)
-ai-digital-life/target
-ai-digital-life/**/target
+adlo/target
+adlo/**/target
 
 # Frontend (has its own prettier config)
-ai-digital-life/frontend/dist
-ai-digital-life/frontend/node_modules
-ai-digital-life/frontend/coverage
+adlo/frontend/dist
+adlo/frontend/node_modules
+adlo/frontend/coverage
 
 # Auto-generated files
-ai-digital-life/frontend/src/shared/ipc-types.generated.ts
-ai-digital-life/frontend/src/shared/ipc/generated/
-ai-digital-life/frontend/src/vite-env.d.ts
+adlo/frontend/src/shared/ipc-types.generated.ts
+adlo/frontend/src/shared/ipc/generated/
+adlo/frontend/src/vite-env.d.ts
 
 # Test fixtures & mocks
-ai-digital-life/frontend/src/test-fixtures/
-ai-digital-life/frontend/src/mock/
-ai-digital-life/frontend/src/types/
+adlo/frontend/src/test-fixtures/
+adlo/frontend/src/mock/
+adlo/frontend/src/types/
 
 # Config files (handled separately)
-ai-digital-life/frontend/*.config.ts
-ai-digital-life/frontend/*.config.js
-ai-digital-life/frontend/*.d.ts
+adlo/frontend/*.config.ts
+adlo/frontend/*.config.js
+adlo/frontend/*.d.ts

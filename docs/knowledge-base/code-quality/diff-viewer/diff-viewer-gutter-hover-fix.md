@@ -22,8 +22,8 @@
 
 | 文件 | 功能 |
 |------|------|
-| `ai-digital-life/frontend/src/app/features/editor/gutterHoverSync.ts` | 悬停同步扩展核心实现 |
-| `ai-digital-life/frontend/src/styles/regions/rightpanel/diff-viewer.css` | 变更查看器样式 |
+| `adlo/frontend/src/app/features/editor/gutterHoverSync.ts` | 悬停同步扩展核心实现 |
+| `adlo/frontend/src/styles/regions/rightpanel/diff-viewer.css` | 变更查看器样式 |
 
 GutterHoverSync 扩展架构：
 

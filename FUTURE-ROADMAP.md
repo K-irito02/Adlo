@@ -1,6 +1,6 @@
 # 未来想法
 
-本文档记录 AI 数字生命项目的未来想法清单。仅作备忘，**不承诺、不立项**（当前形态：桌面应用宿主 + 第三方 Agent harness 集成，见 [AGENTS.md](./AGENTS.md#项目形态)）。
+本文档记录 Adlo项目的未来想法清单。仅作备忘，**不承诺、不立项**（当前形态：桌面应用宿主 + 第三方 Agent harness 集成，见 [AGENTS.md](./AGENTS.md#项目形态)）。
 
 ---
 
@@ -82,4 +82,4 @@
 ## 相关文件
 
 - [AGENTS.md](./AGENTS.md)
-- [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)
+- [adlo/AGENTS.md](./adlo/AGENTS.md)

@@ -2,9 +2,9 @@
 
 > `render*` helpers in `design-system/components.ts` 仅作设计约束参考；React 消费端以 `Toast`/`Tooltip` 等组件为准。
 
-Source of truth: `[frontend/src/styles/components.css](../../../ai-digital-life/frontend/src/styles/components.css)` (visual rules) and `[frontend/src/design-system/components.ts](../../../ai-digital-life/frontend/src/design-system/components.ts)` (renderer helpers).
+Source of truth: `[frontend/src/styles/components.css](../../../adlo/frontend/src/styles/components.css)` (visual rules) and `[frontend/src/design-system/components.ts](../../../adlo/frontend/src/design-system/components.ts)` (renderer helpers).
 
-All renderer helpers return `RawHtml` from the `[html](../../../ai-digital-life/frontend/src/design-system/html.ts)` tagged template, so they compose safely with each other while interpolated user data is automatically HTML-escaped.
+All renderer helpers return `RawHtml` from the `[html](../../../adlo/frontend/src/design-system/html.ts)` tagged template, so they compose safely with each other while interpolated user data is automatically HTML-escaped.
 
 ## Button
 
@@ -409,7 +409,7 @@ showToast('Terminal ready', 'success', 'terminal') // position 2
 | Single-line modifier | `.tooltip--single-line` forces `.tooltip__content` to `nowrap` (for short icon-button labels; long hints go through `HintCardTrigger`, never Tooltip) |
 | Placement | `data-side="top\|bottom\|left\|right"` (viewport flip/clamp + Webview2 avoid-rects + cross-axis slide) |
 
-React API entry points: `Tooltip` (provider), `TooltipTrigger` (event wiring), `TooltipContent` (portal surface), `TooltipSimple` (one-shot wrapper). Source: `[Tooltip.tsx](../../../ai-digital-life/frontend/src/app/components/Tooltip.tsx)`.
+React API entry points: `Tooltip` (provider), `TooltipTrigger` (event wiring), `TooltipContent` (portal surface), `TooltipSimple` (one-shot wrapper). Source: `[Tooltip.tsx](../../../adlo/frontend/src/app/components/Tooltip.tsx)`.
 
 Fold gutter tooltips use `FoldTooltipOverlay` (React portal to `document.body`, 实位 `frontend/src/app/features/editor/FoldTooltipOverlay.tsx`).
 

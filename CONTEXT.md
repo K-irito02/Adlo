@@ -1,13 +1,13 @@
 # 架构与实现说明
 
-本文档记录 AI 数字生命的架构概念、实现落点与文件路径。规范用词（术语定义与同义项禁用）见 [GLOSSARY.md](./GLOSSARY.md)；本文档不重复定义术语。
+本文档记录 Adlo的架构概念、实现落点与文件路径。规范用词（术语定义与同义项禁用）见 [GLOSSARY.md](./GLOSSARY.md)；本文档不重复定义术语。
 
 ---
 
 ## 架构概念
 
 ### 双根结构
-项目仓库分为两个根目录：根目录负责规划与治理（文档、规则、配置），`ai-digital-life/` 负责实际代码实现（Rust 后端 + 前端 UI）。
+项目仓库分为两个根目录：根目录负责规划与治理（文档、规则、配置），`adlo/` 负责实际代码实现（Rust 后端 + 前端 UI）。
 
 ### 双端一致性
 所有功能必须在 **Tauri 桌面应用** 和 **浏览器模式** 中保持**功能行为一致**。由于两种模式的运行环境不同（Tauri 有 Rust 后端 + SQLite + 系统 API，浏览器仅有 WebView + Web API），实现策略可以因环境而异。通过统一接口抽象（如 `TerminalOutputStore`、`PreviewBridge`）隔离环境差异，消费端不感知底层实现。新增 IPC 方法需同步实现 `tauri-bridge.ts` / `preview-bridge/` / `mock-bridge.ts` 三层桥接。
@@ -62,7 +62,7 @@ Tauri 的 IPC 调用机制。前端通过 `invoke()` 调用 Rust 后端函数，
 Tracing 日志系统的配置层，支持文件输出和结构化字段。
 
 ### Sidecar
-桌面端启动的独立后端子进程（当前 Tauri 模式）。未来移动端可通过 SSH/Sidecar 连接桌面端或服务器。
+桌面端启动的独立后端子进程（当前 Tauri 模式）。
 
 ### Harness 版本 UI（单一通用卡片）
 
@@ -121,10 +121,10 @@ dsh 与 OpenCode CLI 共用的版本内核，位于 `crates/harness-version/`：
 依赖的一种来源类型：由应用自己下载并安装到数据目录的副本（区别于系统已安装版本）。实际来源由 `auto`（宿主优先）/`system`/`host` 三种偏好解析，强制来源缺失时返回 `none` 而不静默降级。宿主版本由 `crates/adl-hosted/` 托管。
 
 ### env-baseline.json
-环境依赖的最低/稳定版本基线资源（`ai-digital-life/src-tauri/resources/env-baseline.json`，随包发布）。记录 node stable 与 dist 源、git stable/tag/asset/base、webview2 minimum，以及 node/git 各自资产的 `sha256` 钉死哈希（安装前完整性校验；钉死版本不可被镜像替换）；用于判定 `meetsBaseline` 与安装版本。
+环境依赖的最低/稳定版本基线资源（`adlo/src-tauri/resources/env-baseline.json`，随包发布）。记录 node stable 与 dist 源、git stable/tag/asset/base、webview2 minimum，以及 node/git 各自资产的 `sha256` 钉死哈希（安装前完整性校验；钉死版本不可被镜像替换）；用于判定 `meetsBaseline` 与安装版本。
 
 ### runbook
-面向人/agent 的可执行修复手册，按依赖各一份（Node、Git/Bash、WebView2、adl-server、网络下载、模型凭据）。唯一真源为 `ai-digital-life/frontend/src/app/features/environment/runbooks/`（前端 `?raw` 内联），`docs/runbooks/README.md` 仅为索引。固定五段：症状 / 检测命令 / 安装步骤 / 装后回填 / 回滚。
+面向人/agent 的可执行修复手册，按依赖各一份（Node、Git/Bash、WebView2、adl-server、网络下载、模型凭据）。唯一真源为 `adlo/frontend/src/app/features/environment/runbooks/`（前端 `?raw` 内联），`docs/runbooks/README.md` 仅为索引。固定五段：症状 / 检测命令 / 安装步骤 / 装后回填 / 回滚。
 
 ### 首启环境准备 (First-Run Provisioning)
 首次启动时按固定顺序检查并补齐五项：Node.js / Git / Bash / DSH「Web 形态」/ OpenCode CLI，不可跳过。每项首次 + 3 次重试，失败跳过并继续；Node/Git/Bash 始终安装宿主托管，DSH/OpenCode 优先使用已有系统/宿主版本。结束后可「再次尝试」失败项，有失败项时环境组显示续接横幅，也可用环境组刷新图标重新运行。
@@ -237,4 +237,4 @@ Rust 端 `crates/kernel/src/command_risk.rs`，采用 deny/ask/allow 三态模�
 | 双端启动 | `pnpm run dev:both` | 两者 | 两者 |
 
 ### 开发实例 (Dev Instance)
-以 `pnpm dev*` 从某个工作树启动的应用实例：`scripts/instance-id.mjs` 为槽位目录派生 identifier 后缀并把 storage locator 落到 `<worktree>/ai-digital-life/target/adl-instance/`（主工作树沿用默认身份，与正式安装共用数据）；`scripts/dev-port.mjs` 分配 `5173+N` 稳定前端端口并生成实例令牌，`vite` 以 `strictPort` 绑定，启动器用 `GET /__adl_dev_instance__` 校验「应答的是不是自己 spawn 的 vite」。
+以 `pnpm dev*` 从某个工作树启动的应用实例：`scripts/instance-id.mjs` 为槽位目录派生 identifier 后缀并把 storage locator 落到 `<worktree>/adlo/target/adl-instance/`（主工作树沿用默认身份，与正式安装共用数据）；`scripts/dev-port.mjs` 分配 `5173+N` 稳定前端端口并生成实例令牌，`vite` 以 `strictPort` 绑定，启动器用 `GET /__adl_dev_instance__` 校验「应答的是不是自己 spawn 的 vite」。

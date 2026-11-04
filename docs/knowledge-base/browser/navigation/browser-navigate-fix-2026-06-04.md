@@ -18,7 +18,7 @@
 
 ### 1. `browserSlice.ts - `browserNavigateActiveTab` 核心修复
 
-**问题：在 [browserSlice.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/stores/slices/browserSlice.ts#L362-L420)
+**问题：在 [browserSlice.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/stores/slices/browserSlice.ts#L362-L420)
 
 ```typescript
 browserNavigateActiveTab: (url: string, title?: string) =&gt; {
@@ -71,7 +71,7 @@ browserNavigateActiveTab: (url: string, title?: string) =&gt; {
 
 ### 2. `browserpanel.tsx - iframe 条件判断修复
 
-**问题：** 在 [browserpanel.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser/browserpanel.tsx#L608) 原代码：
+**问题：** 在 [browserpanel.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/features/browser/browserpanel.tsx#L608) 原代码：
 ```typescript
 // 原代码：
 {browserState.hasActiveTab &amp;&amp; browserState.activeTab?.url !== "about:blank" ? (
@@ -92,7 +92,7 @@ sandbox="allow-scripts allow-forms allow-popups allow-modals allow-top-navigatio
 ## 调试手段总结
 
 ### 1. 调试信息面板（右上角绿色框）
-在 [browserpanel.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser/browserpanel.tsx#L608-L630) 中临时添加了一个调试面板，显示关键状态：
+在 [browserpanel.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/features/browser/browserpanel.tsx#L608-L630) 中临时添加了一个调试面板，显示关键状态：
 - `hasActiveTab` - 是否有活动标签页
 - `activeTab.url` - 活动标签页 URL
 - `activeTab.title` - 活动标签页标题
@@ -103,13 +103,13 @@ sandbox="allow-scripts allow-forms allow-popups allow-modals allow-top-navigatio
 ### 2. 浏览器控制台调试日志
 在多个关键函数中添加 `console.log` 调试信息：
 
-**在 `submitAddress`（[useBrowserPanel.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser/useBrowserPanel.ts#L399-L419)）：
+**在 `submitAddress`（[useBrowserPanel.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/features/browser/useBrowserPanel.ts#L399-L419)）：
 - `[DEBUG] submitAddress called` - 函数调用
 - `[DEBUG] Input address` - 输入地址
 - `[DEBUG] No match, normalized URL` - 匹配结果
 - `[DEBUG] Called browserNavigateActiveTab and navigateBrowser with` - 调用结果
 
-**在 `browserNavigateActiveTab`（[browserSlice.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/stores/slices/browserSlice.ts#L363-L419)）：
+**在 `browserNavigateActiveTab`（[browserSlice.ts](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/stores/slices/browserSlice.ts#L363-L419)）：
 - `[DEBUG][browserSlice] browserNavigateActiveTab called with` - 调用参数
 - `[DEBUG][browserSlice] current state` - 当前状态
 - `[DEBUG][browserSlice] No active tab or no tabs, creating new tab` - 创建新标签
@@ -122,7 +122,7 @@ sandbox="allow-scripts allow-forms allow-popups allow-modals allow-top-navigatio
 - `[DEBUG][browserpanel] iframe onError event` - iframe 错误事件
 
 ### 3. CSS 样式辅助调试
-在 [browser-panel.css](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/styles/regions/rightpanel/browser-panel.css#L237-L245) 中临时给 iframe 添加红色边框，方便判断 iframe 是否被渲染出来：
+在 [browser-panel.css](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/styles/regions/rightpanel/browser-panel.css#L237-L245) 中临时给 iframe 添加红色边框，方便判断 iframe 是否被渲染出来：
 ```css
 .adl-browser-iframe {
   position: absolute;
@@ -170,10 +170,10 @@ sandbox="allow-scripts allow-forms allow-popups allow-modals allow-top-navigatio
 
 | 文件 | 修改类型 | 说明 |
 |------|----------|------|
-| `ai-digital-life/frontend/src/app/stores/slices/browserSlice.ts` | 核心修复 | 在 `browserNavigateActiveTab` 新增创建新标签页的逻辑 |
-| `ai-digital-life/frontend/src/app/features/browser/browserpanel.tsx` | 修复 | 完善 iframe 渲染条件判断；添加 `allow-same-origin` 属性 |
-| `ai-digital-life/frontend/vite.config.ts` | 配置 | 临时放宽 CSP（后恢复，最后简化为仅 `X-Frame-Options: ALLOWALL` |
-| `ai-digital-life/frontend/src/styles/regions/rightpanel/browser-panel.css` | 调试用（临时）| 临时添加红色边框（后移除） |
+| `adlo/frontend/src/app/stores/slices/browserSlice.ts` | 核心修复 | 在 `browserNavigateActiveTab` 新增创建新标签页的逻辑 |
+| `adlo/frontend/src/app/features/browser/browserpanel.tsx` | 修复 | 完善 iframe 渲染条件判断；添加 `allow-same-origin` 属性 |
+| `adlo/frontend/vite.config.ts` | 配置 | 临时放宽 CSP（后恢复，最后简化为仅 `X-Frame-Options: ALLOWALL` |
+| `adlo/frontend/src/styles/regions/rightpanel/browser-panel.css` | 调试用（临时）| 临时添加红色边框（后移除） |
 
 ## 最终验证结果
 

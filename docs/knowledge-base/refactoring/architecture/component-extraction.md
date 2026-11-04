@@ -36,7 +36,7 @@
 - 项目内部工具函数（如 `getChangeKindLabel`）：如果在目标模块目录中不可用，保持原有导入路径，或将该工具函数也提取到共享位置
 - Icon 组件：统一从 `../../icons` 导入（在 patch-review 模块中）或 `../../../icons`（在 ChangesPanel 同级别的 panels 目录中）
 - 公共类型（如 `PatchHunkSummary`）：从相邻的 `./patchReview` 导入
-- 外部包类型（如 `PatchHunkDecision`）：从 `@ai-digital-life/kernel` 直接导入，避免依赖模块内部转发
+- 外部包类型（如 `PatchHunkDecision`）：从 `@adlo/kernel` 直接导入，避免依赖模块内部转发
 
 **教训**：提取组件时，必须先分析目标文件位置到所有依赖的相对路径。批量修改路径后，类型检查是最快的验证手段。
 
@@ -44,9 +44,9 @@
 
 **问题**：`PatchHunkDecision` 最初从 `patch-review/index.ts` 导入，但 `PatchHunkCard.tsx` 和 `PatchFileCard.tsx` 不在同模块中通过 re-export 获取该类型——类型检查报错 "Module has no exported member"。
 
-**解决方案**：直接从 `@ai-digital-life/kernel` 导入 `PatchHunkDecision`，因为该类型是 kernel crate 的一部分，不走模块内部转发。
+**解决方案**：直接从 `@adlo/kernel` 导入 `PatchHunkDecision`，因为该类型是 kernel crate 的一部分，不走模块内部转发。
 
-**教训**：外部包的类型（`@ai-digital-life/kernel`）应始终从其真源导入，而不是通过项目内部模块 re-export 间接引用。
+**教训**：外部包的类型（`@adlo/kernel`）应始终从其真源导入，而不是通过项目内部模块 re-export 间接引用。
 
 ### 4. Vite Pre-transform 缓存问题
 

@@ -1,6 +1,6 @@
 ---
 description: Domain-split SVG icon organization with make factory family and barrel exports
-globs: ai-digital-life/frontend/src/app/icons/**
+globs: adlo/frontend/src/app/icons/**
 alwaysApply: false
 ---
 
