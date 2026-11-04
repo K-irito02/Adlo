@@ -82,6 +82,18 @@ DSH 与 OpenCode CLI 共用一张版本卡片 `features/harness/HarnessVersionCa
 `styles/regions/harness-version.css`（卡片）+ `styles/regions/dsh-settings.css`（组内控件）。
 设置搜索索引的 `dsh/version`、`dsh/source` 锚点与 `dsh` / `opencode` 分组标识保持不变。
 
+**卡片行显隐矩阵**（术语见 GLOSSARY「管理项 / 系统托管 / 待切换来源」，实现见上表两处派生值）：
+
+| 状态（偏好 / 解析 / 运行态） | 管理项 | 当前版本行 | OpenCode 终端开关 |
+|---|---|---|---|
+| 解析 = 宿主托管（偏好 auto 或 host） | 显示 | 显示 | 显示 |
+| 解析 = 系统安装（偏好 auto 或 system） | 隐藏 | 隐藏 | 隐藏 |
+| 待切换来源 = 系统安装（本次解析仍为原来源） | 隐藏 | 显示 | 显示 |
+| 偏好 = 系统安装但解析 = 无（本机没有系统副本） | 隐藏 | 显示（读数「未安装」） | 显示 |
+| 解析 = 无（偏好 auto / host） | 显示 | 显示（未安装 / 版本未知） | 显示 |
+
+运行中实例不改变上表（显隐只按解析结果判定）；它只影响「当前版本」读数与解析提示的措辞。
+
 ### DSH 宿主渲染
 
 dsh 基于 npm 发布，启动方式为 `npx @deepseek-ai/dsh@<version> --profile web --no-open`。在应用中作为**普通浏览器标签**承载于中心的多标签宿主（`location='center'` + `isDsh`），面板↔中心为同一原生 WebView 的位置移动；关闭 dsh 标签即彻底退出进程（`dsh.close(false)`），不跨重启持久化。

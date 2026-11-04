@@ -39,3 +39,37 @@
 - **截图只用于人眼审美判断**（配色、间距观感、对齐是否"看着舒服"）；同一状态每轮 ≤2 张，取最终态，不拍中间态。
 - 产物落 Temp 并在清理阶段整批删除；不要把截图放进仓库（`.playwright-cli/`、`test-artifacts/` 都不入库）。
 - 原型流程里 4 个方案可以先各拍 1 张终态对比图；方案内部的布局 bug 用 eval 判断，不要靠反复截图找。
+
+## 6. 首帧 / 闪烁定位（rAF 采样，2026-11-04 实测）
+
+视觉闪烁 = **相邻帧之间几何跳变**，或**第一帧画了错的东西**。两者都能逐帧量出来，不用截图猜。
+
+```js
+// 1) 采样器：不设帧数上限（用 splice 控内存），只记状态位与几何
+(() => {
+  window.__fr = [];
+  const tick = () => {
+    const o = document.querySelector('[data-testid=target]');
+    const d = o?.querySelector('.dialog')?.getBoundingClientRect();
+    window.__fr.push({
+      t: +performance.now().toFixed(1),
+      has: !!o,
+      foot: !!o?.querySelector('.foot'),
+      h: d ? Math.round(d.height) : 0,
+      top: d ? Math.round(d.top) : 0,
+    });
+    if (window.__fr.length > 6000) window.__fr.splice(0, 3000);
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+})();
+// 2) 触发与确认放进同一个 eval：点按钮 → rAF 里等确认框出现再点确认
+// 3) 读结果只打印状态跃迁（has/foot 变化点），不要 dump 全部帧
+```
+
+- **判据：第一帧几何 == 稳态几何**。出现 `h`/`top` 变化即跳变（本仓实测：完成页脚先画后收，313→248，整卡上下跳 32px）。
+- 首帧正确性看状态位（`foot`/按钮是否存在），别只看高度；两者都会错时以状态位定性、以几何定量。
+- 交叉验证用 `new PerformanceObserver(...).observe({ type: 'layout-shift', buffered: false })`：`value` 给幅度，`sources[].node.className` 直接点名元素。
+- 断言「某节点曾经渲染过」用 MutationObserver 的 added/removed 记录，**不要赌回调投递时机**；`disconnect()` 会清空未投递队列——先 `takeRecords()` 再断开。
+- **桌面 Tauri**：合成层闪烁（`backdrop-filter` 首帧等）WebDriver 截图抓不到。浏览器帧序列用来定位布局类根因，最终视觉结论交给用户桌面实测；不要为抓闪烁去跑 `e2e:build`。
+- 成本：一次 `playwright-cli` 调用 2–5s，采样窗口只有几秒；**别把「点触发」和「点确认」拆成两次调用**（本仓实测因此白跑一整轮）。

@@ -103,6 +103,7 @@ node e2e/run-e2e.mjs --spec specs/smoke.spec.ts --logLevel debug
 - 启动前置：依次关环境向导（`[data-testid="env-wizard"]`）和随后串行出现的 harness 向导（`[data-testid="harness-wizard"]`）；两者都是全屏 overlay，只关一个会让原生点击等不到标题栏。再用 `elementFromPoint` 等启动遮罩退场（遮罩至少 3.5s）。
 - 各用例共享同一个应用实例：不依赖执行顺序，自己准备前置状态。
 - 截图写 `e2e/artifacts/`（已 gitignore），不要写进 `specs/`。
+- 截图只能看静态结果：**首帧/闪烁类问题抓不到**（WebDriver 截图取的是合成完的某一帧）。视觉闪烁用浏览器 rAF 帧采样定位（见 `root-cause-to-close/references/playwright-cli-experience.md` §6），最终交给用户桌面实测；不要为抓闪烁去跑 `e2e:build`。
 - mock 只对 `browser.tauri.execute` 通道有效（见 §6）；不要为测试改生产代码。
 
 **前置**：`smoke.spec.ts` 里的 `dismissSetupWizards` / `waitForTitlebarClickable` 目前是文件内私有函数。第二个 spec 要用时，先把这两个函数移到 `e2e/specs/helpers.ts` 并 export，再让两个 spec 都从 `./helpers` import（e2e 是独立包，别跨包引前端源码）。下面的示例假定已完成这一步。

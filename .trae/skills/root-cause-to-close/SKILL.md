@@ -101,6 +101,8 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 | 上下文压缩前 | 确认关键信息已落盘 |
 | P6 前 | 通读文件确认事项状态 |
 
+**数字规则：** 测试数、行数、轮次、条数等数字**必须来自命令输出或重新计数**（`vitest` 汇总行、`rg -c 'it\('`、快照清单），禁止凭记忆或手算。本仓实测：手算的用例数/行数连错三次，每次都多烧一轮定向复核。
+
 **子代理报告规则：** 任何子代理必须把完整报告写入独立文件（`.review-diffs/<对象>-rev<N>-report.md`），自包含输入（快照路径、任务描述）、输出（逐项结论、severity、建议修复）、依据。返回消息只给路径 + 摘要。主代理收到后**同时**做两件事：正文转写关键信息、正文索引报告路径（缺一不可）。
 
 > 主代理只能拿到子代理最终返回消息，故必须落盘报告文件。
@@ -239,6 +241,8 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 ---
 
 ## P4：审查引擎
+
+> **P4 范围边界（省轮次）：** P4 只修**代码与代码内注释**。`GLOSSARY.md`、`docs/adr/`、`docs/design-system/`、`docs/operations/ui-manual/` 的修订统一留到 P5；P4 审查发现这些文档过期时，记为「P5 处理」并在本轮收尾，**不把文档改动送进下一轮快照**（否则每改一轮文档就多一轮定向复核）。P5 是强制阶段，信息不会丢。本仓实测：R2 后顺手修文档，额外产生 3 轮定向复核。
 
 ### 4a. 前置检查
 

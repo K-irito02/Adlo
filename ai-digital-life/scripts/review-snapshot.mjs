@@ -101,6 +101,60 @@ function stageIntentToAdd() {
   return untracked.length;
 }
 
+/** 注释里的「绝对断言」：供作者派发审查前自读（启发式，不是门禁）。 */
+const CLAIM_PATTERN = /必然|总是|永远|从不|唯一|一定|不可达|不会走到|always|never|unreachable/i;
+const COMMENT_LINE_PATTERN = /^\s*(\/\/|\/\*|\*|<!--)/;
+
+/**
+ * 从本轮快照里挑出「新增注释 + 绝对断言」的行，写 `claims-rev<N>.md`。
+ *
+ * 为什么需要：R1/R2 的后半场经常全在核「注释说 X、代码是 Y」。压到审查发现前，
+ * 让作者先自读一遍最便宜；这是启发式（只覆盖注释，不覆盖文档散文），不阻断流程。
+ */
+function collectClaimHints(files, outDir, rev) {
+  const hints = [];
+  for (const file of files) {
+    const diffPath = path.join(outDir, `${safeSnapshotName(file)}-rev${rev}.diff`);
+    if (!fs.existsSync(diffPath)) {
+      continue;
+    }
+    let newLine = 0;
+    for (const line of fs.readFileSync(diffPath, "utf8").split(/\r?\n/)) {
+      const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+      if (hunk) {
+        newLine = Number(hunk[1]);
+        continue;
+      }
+      if (line.startsWith("+++") || line.startsWith("---") || line.startsWith("\\")) {
+        continue;
+      }
+      if (line.startsWith("+")) {
+        const text = line.slice(1);
+        if (COMMENT_LINE_PATTERN.test(text) && CLAIM_PATTERN.test(text)) {
+          hints.push({ file, line: newLine, text: text.trim() });
+        }
+        newLine += 1;
+      } else if (!line.startsWith("-")) {
+        newLine += 1;
+      }
+    }
+  }
+  if (hints.length === 0) {
+    return 0;
+  }
+  const body = [
+    `# 待自读的断言 — rev${rev}`,
+    "",
+    "下面是本轮**新增注释**里含绝对断言（必然/总是/永远/不会/不可达/唯一/always/never…）的行。",
+    "派发审查前逐条自读：它与**最终代码**相符吗？能由某个测试或分支证明吗？不能就降级措辞。",
+    "",
+    ...hints.slice(0, 100).map((hit) => `- ${hit.file}:${hit.line} — ${hit.text}`),
+    "",
+  ].join("\n");
+  fs.writeFileSync(path.join(outDir, `claims-rev${rev}.md`), body, "utf8");
+  return hints.length;
+}
+
 function main() {
   let options;
   try {
@@ -108,8 +162,7 @@ function main() {
   } catch (error) {
     console.error(`[review-snapshot] ${error.message}`);
     process.exit(1);
-  }
-  if (options.help) {
+  }  if (options.help) {
     console.log("usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>]");
     return;
   }
@@ -132,6 +185,7 @@ function main() {
   }
 
   const rev = options.rev;
+  const claims = collectClaimHints(files, outDir, rev);
   fs.writeFileSync(
     path.join(outDir, `changed-files-rev${rev}.txt`),
     `${files.join("\n")}\n`,
@@ -184,6 +238,9 @@ function main() {
   );
   console.log(`[review-snapshot] out=${path.relative(repoRoot, outDir) || "."}`);
   console.log(`[review-snapshot] manifest=${path.relative(repoRoot, manifestPath)}`);
+  if (claims > 0) {
+    console.log(`[review-snapshot] claims=${claims} (见 claims-rev${rev}.md，派发前自读)`);
+  }
   for (const file of files) {
     console.log(`  ${safeSnapshotName(file)}-rev${rev}.diff`);
   }
