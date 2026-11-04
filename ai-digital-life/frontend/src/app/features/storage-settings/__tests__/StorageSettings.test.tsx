@@ -3301,10 +3301,12 @@ describe('StorageSettings entry cache (stale-while-revalidate)', () => {
   it('冷进入（无缓存）：加载成功后写回缓存，供下次进场瞬显', async () => {
     expect(getCachedStorageStatus()).toBeNull();
     renderSettings();
+    // 缓存写回在 effect 里，与「行已渲染」不是同一次提交：两个条件都等，避免
+    // 并行跑时断言落在 commit 与 passive effect 之间（本仓实测过一次 flaky）。
     await waitFor(() => {
       expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      expect(getCachedStorageStatus()?.root).toBe(status.root);
     });
-    expect(getCachedStorageStatus()?.root).toBe(status.root);
   });
 
   it('预取静默填充缓存；畸形 status 不入缓存', async () => {
