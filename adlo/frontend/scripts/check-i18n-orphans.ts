@@ -6,7 +6,8 @@ import { enUS } from '../src/app/i18n/en-US/index';
 
 /**
  * 按需运行的孤儿 i18n 键审计（`pnpm run check:i18n:orphans`）。
- * 刻意不接入 `check:static` / pre-commit 的全量模式：全量有 400+ 历史债需要人工确认。
+ * 默认是**报告模式**（exit 0）：全量有数百条历史债，直接当门禁会让一次正常审计
+ * 看起来像失败。历史债清理用 `check:i18n:orphans:strict`（Tier A 存在即 exit 1）。
  * `--changed` 是差异感知的回归检查：只找「本次 diff 删掉了生产引用、当前只剩测试/零引用」
  * 的键（pre-commit 与 check:changed 使用），不会追讨历史债。
  *
@@ -106,6 +107,7 @@ for (const key of [...allKeys].sort()) {
 }
 
 const changedOnly = process.argv.includes('--changed');
+const strict = process.argv.includes('--strict');
 const repoRoot = (() => {
   const result = spawnSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' });
   return result.status === 0 ? (result.stdout ?? '').trim() : '';
@@ -178,7 +180,9 @@ if (changedOnly) {
 }
 
 if (tierA.length > 0) {
-  console.log(`❌ 疑似孤儿键 Tier A（零引用，先 grep 排除动态访问再删，共 ${tierA.length} 个）：`);
+  console.log(
+    `${strict ? '❌' : '⚠️'} 疑似孤儿键 Tier A（零引用，先 grep 排除动态访问再删，共 ${tierA.length} 个）：`,
+  );
   for (const key of tierA) {
     console.log(`  - ${key}`);
   }
@@ -191,5 +195,10 @@ if (tierB.length > 0) {
 }
 if (tierA.length === 0 && tierB.length === 0) {
   console.log(`✅ 无孤儿键（${allKeys.size} 键均有源码引用）`);
+  process.exit(0);
 }
-process.exit(tierA.length === 0 ? 0 : 1);
+if (strict) {
+  process.exit(tierA.length === 0 ? 0 : 1);
+}
+console.log('[i18n:orphans] 全量审计仅报告；历史债清理用 `check:i18n:orphans:strict`。');
+process.exit(0);

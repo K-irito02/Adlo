@@ -40,6 +40,24 @@ $Manifest = Join-Path $WorkspaceRoot "Cargo.toml"
 # `--profile debug` is rejected by cargo because "debug" is reserved.
 $ProfileArgs = if ($Profile -eq "release") { @("--release") } else { @() }
 
+# Fail fast when a dev instance holds the debug server image. Cargo would
+# otherwise fail halfway through with an opaque "拒绝访问" on the output file.
+$DebugServer = Join-Path $WorkspaceRoot "target\debug\adl-server.exe"
+if (Test-Path -LiteralPath $DebugServer) {
+    try {
+        $probe = [System.IO.File]::Open(
+            $DebugServer,
+            [System.IO.FileMode]::Open,
+            [System.IO.FileAccess]::ReadWrite,
+            [System.IO.FileShare]::None
+        )
+        $probe.Close()
+    } catch {
+        Write-Error "target\debug\adl-server.exe is locked by a running dev instance. Run 'pnpm run dev:stop' from adlo/ and retry."
+        exit 1
+    }
+}
+
 $Staged = Join-Path $WorkspaceRoot "src-tauri\binaries\adl-server-x86_64-pc-windows-msvc.exe"
 
 # Preserve any caller-provided flags (e.g. CI's `-D warnings`) and append the

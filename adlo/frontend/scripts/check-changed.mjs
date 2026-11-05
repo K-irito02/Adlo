@@ -184,12 +184,12 @@ if (srcChanges.length > 0) {
   if (i18nScopes) {
     run(
       `vitest scoped (i18n-only change -> ${i18nScopes.length} dirs)`,
-      `npx vitest run ${i18nScopes.map(quote).join(' ')} --passWithNoTests`,
+      `npx vitest run ${i18nScopes.map(quote).join(' ')} --passWithNoTests --reporter=dot --silent=passed-only`,
     );
   } else {
     run(
       `vitest related (${srcChanges.length} changed source files)`,
-      `npx vitest related ${srcChanges.map(quote).join(' ')} --passWithNoTests`,
+      `npx vitest related ${srcChanges.map(quote).join(' ')} --passWithNoTests --reporter=dot --silent=passed-only`,
     );
   }
 } else {

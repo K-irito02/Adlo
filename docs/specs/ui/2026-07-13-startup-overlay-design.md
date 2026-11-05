@@ -1,3 +1,4 @@
+<!-- brand-allow-file: historical design record (Kora/可燃 naming kept as written) -->
 # StartupOverlay — 启动过渡动画覆盖层
 
 ## 问题

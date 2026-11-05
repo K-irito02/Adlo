@@ -34,7 +34,7 @@
 
 开工自检、新建与复用槽位、保留策略、异常处置见技能 [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md)（唯一真源）。硬约束摘要：契约文件单写者、禁止共享 `CARGO_TARGET_DIR`、分支工作树不写 `.workbuddy/memory`、工作树默认保留。
 
-**开工铁律**：改任何文件前，先在目标目录输出该技能 §2 的 `[ENV]` 快照并经用户选定工作树（§3 二选一）；无快照不得开工。
+**开工铁律**：改任何文件前，先在目标目录输出该技能 §2 的 `[ENV]` 快照并经用户选定工作树（§3 二选一）；无快照不得开工。快照可直接运行 `pnpm --dir adlo run worktree:env` 生成。
 
 新工作树先跑 `pnpm --dir adlo run setup:worktree`：启用仓库级 git hooks（`core.hooksPath=.githooks`）并为该工作树建 CodeGraph 索引（`adlo/.codegraph/`，不入库、不跨工作树共用）。
 

@@ -19,6 +19,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { findLockedDevExecutables, devStopHint } from "./dev-instance.mjs";
 
 const implRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cargo = process.platform === "win32" ? "cargo.exe" : "cargo";
@@ -238,10 +239,18 @@ function main() {
       process.exit(1);
     }
     if (compilesShell) {
-      // 提示先于 staging：staging 自身也会写 target/debug/adl-server.exe 并被运行实例锁住。
-      console.warn(
-        "[check-rust] 注意：桌面实例会锁住 target/debug/adl-server.exe；若 staging 或 clippy 报 PermissionDenied，先关闭它。",
-      );
+      // 运行中的桌面实例会锁住 target/debug 下的 exe（app 与 adl-server），
+      // 让 staging / clippy 在构建到一半时才以 PermissionDenied 失败。先探测并
+      // 给出可执行的停止命令，避免把环境问题误判成代码问题。
+      const locked = findLockedDevExecutables(implRoot);
+      if (locked.length > 0) {
+        console.error("[check-rust] 本工作树的桌面实例正在运行，构建产物被占用：");
+        for (const file of locked) {
+          console.error(`  - ${file}`);
+        }
+        console.error(`[check-rust] ${devStopHint()}。`);
+        process.exit(1);
+      }
       // 参数与 package.json#stage:sidecar 保持一致（-Profile debug）。
       run(
         "powershell",

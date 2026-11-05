@@ -7,8 +7,8 @@
 ### 产品与边界
 
 **Adlo（安洛）**:
-产品名；英文名 Adlo，中文名安洛，并列书写为「Adlo · 安洛」。旧名 AI Digital Life、AIDigitalLife、可燃、Kora 一律不再使用。
-_Avoid_: AI Digital Life, AIDigitalLife, 可燃, Kora
+产品名；英文名 Adlo，中文名安洛，并列书写为「Adlo · 安洛」。旧名 AI Digital Life、AIDigitalLife、可燃、Kora 一律不再使用。<!-- brand-allow: legacy names are the point -->
+_Avoid_: AI Digital Life, AIDigitalLife, 可燃, Kora <!-- brand-allow: legacy names are the point -->
 
 **Harness（第三方 harness）**:
 提供 Agent 对话、模型接入与编排能力的外部运行时，由本应用集成而非实现。当前接入两个实现：DSH（Web 应用形态，由应用承载）与 OpenCode（CLI 形态，在终端中使用）。

@@ -13,8 +13,13 @@ alwaysApply: true
 | `pnpm run dev:browser` | 浏览器预览模式（用于快速开发和 Agent 测试） |
 | `pnpm run dev:tauri` | Tauri 桌面应用 |
 | `pnpm run dev:both` | 同时启动浏览器 + Tauri（推荐用于双端一致性验证） |
+| `pnpm run dev:status` | 列出本机各工作树实例（端口 / 令牌 / PID / 后端） |
+| `pnpm run dev:stop` | 停止本工作树的 dev 实例，释放 `target/debug` 构建产物锁 |
+| `pnpm run worktree:env` | 输出并行开发所需的 `[ENV]` 快照（分支 / base / dirty / instance / hooks / graph） |
 | `pnpm run build` | 构建所有包 |
 | `pnpm run start` | 启动已构建应用 |
+
+> `cargo check/build/clippy` 报 `PermissionDenied` 时，先 `pnpm run dev:stop`：桌面实例会锁住 `target/debug/adlo.exe` 与 `adl-server.exe`。
 
 ## 双端验证命令
 

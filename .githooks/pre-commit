@@ -51,6 +51,7 @@ fi
 ( cd "$ROOT/adlo/frontend" && pnpm run check:glossary )
 ( cd "$ROOT/adlo/frontend" && pnpm run check:dead-code )
 ( cd "$ROOT/adlo/frontend" && pnpm run check:vite-config )
+( cd "$ROOT/adlo" && node scripts/check-brand.mjs )
 ( cd "$ROOT/adlo" && node --test "scripts/*.test.mjs" )
 
 echo "[pre-commit] OK (tsc + vitest stay in check:changed / pre-push)"
