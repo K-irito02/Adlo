@@ -4,6 +4,7 @@ import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
+import { createAppInfo } from '../../../test-fixtures/appInfo';
 import { KeybindSettings } from './KeybindSettings';
 
 const mockT = new Proxy({} as Record<string, string>, {
@@ -29,43 +30,7 @@ describe('KeybindSettings', () => {
     originalPlatform = navigator.platform;
     Object.defineProperty(navigator, 'platform', { value: 'Win32', configurable: true });
     useAppStore.setState({
-      appInfo: {
-        appName: 'test',
-        version: '0.0.0',
-        config: {
-          language: 'en-US',
-          themeMode: 'system',
-          resolvedTheme: 'light',
-          logLevel: 'info',
-          terminalLogMode: 'overwrite',
-          debugLogMode: 'overwrite',
-          maxRecentWorkspaces: 5,
-          modelPreferences: { providers: {} },
-          keybinds: {},
-          fonts: { uiFont: '', codeFont: '', terminalFont: '' },
-          maxConcurrentWorkspaces: 6,
-          workspacePriorityIds: [],
-          workspaceDeferredIds: [],
-          workspaceNaturalOrder: [],
-          browserInactiveTabSuspendMs: 3_600_000,
-          linkOpenMethod: 'panel',
-          fileOpenMethod: 'panel',
-          agentLinkIntercept: false,
-          agentSiteWhitelist: [],
-          browserSuspendWhitelistEnabled: false,
-          browserSuspendWhitelist: [],
-        },
-        currentWorkspace: undefined,
-        recentLogs: [],
-        runtime: {
-          shell: 'browser',
-          tauriVersion: null,
-          webviewVersion: null,
-          os: 'windows',
-          arch: 'x86_64',
-          logDir: '',
-        },
-      },
+      appInfo: createAppInfo(),
       toasts: [],
     });
   });
@@ -251,43 +216,7 @@ describe('KeybindSettings', () => {
 
   it('KeybindControl shows Unassigned when no keybind set', () => {
     useAppStore.setState({
-      appInfo: {
-        appName: 'test',
-        version: '0.0.0',
-        config: {
-          language: 'en-US',
-          themeMode: 'system',
-          resolvedTheme: 'light',
-          logLevel: 'info',
-          terminalLogMode: 'overwrite',
-          debugLogMode: 'overwrite',
-          maxRecentWorkspaces: 5,
-          modelPreferences: { providers: {} },
-          keybinds: { 'settings.open': 'none' },
-          fonts: { uiFont: '', codeFont: '', terminalFont: '' },
-          maxConcurrentWorkspaces: 6,
-          workspacePriorityIds: [],
-          workspaceDeferredIds: [],
-          workspaceNaturalOrder: [],
-          browserInactiveTabSuspendMs: 3_600_000,
-          linkOpenMethod: 'panel',
-          fileOpenMethod: 'panel',
-          agentLinkIntercept: false,
-          agentSiteWhitelist: [],
-          browserSuspendWhitelistEnabled: false,
-          browserSuspendWhitelist: [],
-        },
-        currentWorkspace: undefined,
-        recentLogs: [],
-        runtime: {
-          shell: 'browser',
-          tauriVersion: null,
-          webviewVersion: null,
-          os: 'windows',
-          arch: 'x86_64',
-          logDir: '',
-        },
-      },
+      appInfo: createAppInfo({ config: { keybinds: { 'settings.open': 'none' } } }),
     });
 
     render(
@@ -464,43 +393,7 @@ describe('KeybindSettings', () => {
 
   it('row reset restores a single shortcut without a confirm dialog', async () => {
     useAppStore.setState({
-      appInfo: {
-        appName: 'test',
-        version: '0.0.0',
-        config: {
-          language: 'en-US',
-          themeMode: 'system',
-          resolvedTheme: 'light',
-          logLevel: 'info',
-          terminalLogMode: 'overwrite',
-          debugLogMode: 'overwrite',
-          maxRecentWorkspaces: 5,
-          modelPreferences: { providers: {} },
-          keybinds: { 'settings.open': 'mod+k' },
-          fonts: { uiFont: '', codeFont: '', terminalFont: '' },
-          maxConcurrentWorkspaces: 6,
-          workspacePriorityIds: [],
-          workspaceDeferredIds: [],
-          workspaceNaturalOrder: [],
-          browserInactiveTabSuspendMs: 3_600_000,
-          linkOpenMethod: 'panel',
-          fileOpenMethod: 'panel',
-          agentLinkIntercept: false,
-          agentSiteWhitelist: [],
-          browserSuspendWhitelistEnabled: false,
-          browserSuspendWhitelist: [],
-        },
-        currentWorkspace: undefined,
-        recentLogs: [],
-        runtime: {
-          shell: 'browser',
-          tauriVersion: null,
-          webviewVersion: null,
-          os: 'windows',
-          arch: 'x86_64',
-          logDir: '',
-        },
-      },
+      appInfo: createAppInfo({ config: { keybinds: { 'settings.open': 'mod+k' } } }),
     });
     const updatePreferencesSpy = vi
       .spyOn(useAppStore.getState(), 'updatePreferences')
@@ -525,43 +418,9 @@ describe('KeybindSettings', () => {
 
   it('group reset opens a confirm dialog and resets the group on confirm', async () => {
     useAppStore.setState({
-      appInfo: {
-        appName: 'test',
-        version: '0.0.0',
-        config: {
-          language: 'en-US',
-          themeMode: 'system',
-          resolvedTheme: 'light',
-          logLevel: 'info',
-          terminalLogMode: 'overwrite',
-          debugLogMode: 'overwrite',
-          maxRecentWorkspaces: 5,
-          modelPreferences: { providers: {} },
-          keybinds: { 'workspace.new': 'mod+k', 'workspace.open': 'mod+j' },
-          fonts: { uiFont: '', codeFont: '', terminalFont: '' },
-          maxConcurrentWorkspaces: 6,
-          workspacePriorityIds: [],
-          workspaceDeferredIds: [],
-          workspaceNaturalOrder: [],
-          browserInactiveTabSuspendMs: 3_600_000,
-          linkOpenMethod: 'panel',
-          fileOpenMethod: 'panel',
-          agentLinkIntercept: false,
-          agentSiteWhitelist: [],
-          browserSuspendWhitelistEnabled: false,
-          browserSuspendWhitelist: [],
-        },
-        currentWorkspace: undefined,
-        recentLogs: [],
-        runtime: {
-          shell: 'browser',
-          tauriVersion: null,
-          webviewVersion: null,
-          os: 'windows',
-          arch: 'x86_64',
-          logDir: '',
-        },
-      },
+      appInfo: createAppInfo({
+        config: { keybinds: { 'workspace.new': 'mod+k', 'workspace.open': 'mod+j' } },
+      }),
     });
     const updatePreferencesSpy = vi
       .spyOn(useAppStore.getState(), 'updatePreferences')
@@ -610,43 +469,7 @@ describe('KeybindSettings', () => {
 
   it('group reset button enables only for the group that changed', () => {
     useAppStore.setState({
-      appInfo: {
-        appName: 'test',
-        version: '0.0.0',
-        config: {
-          language: 'en-US',
-          themeMode: 'system',
-          resolvedTheme: 'light',
-          logLevel: 'info',
-          terminalLogMode: 'overwrite',
-          debugLogMode: 'overwrite',
-          maxRecentWorkspaces: 5,
-          modelPreferences: { providers: {} },
-          keybinds: { 'workspace.new': 'mod+k' },
-          fonts: { uiFont: '', codeFont: '', terminalFont: '' },
-          maxConcurrentWorkspaces: 6,
-          workspacePriorityIds: [],
-          workspaceDeferredIds: [],
-          workspaceNaturalOrder: [],
-          browserInactiveTabSuspendMs: 3_600_000,
-          linkOpenMethod: 'panel',
-          fileOpenMethod: 'panel',
-          agentLinkIntercept: false,
-          agentSiteWhitelist: [],
-          browserSuspendWhitelistEnabled: false,
-          browserSuspendWhitelist: [],
-        },
-        currentWorkspace: undefined,
-        recentLogs: [],
-        runtime: {
-          shell: 'browser',
-          tauriVersion: null,
-          webviewVersion: null,
-          os: 'windows',
-          arch: 'x86_64',
-          logDir: '',
-        },
-      },
+      appInfo: createAppInfo({ config: { keybinds: { 'workspace.new': 'mod+k' } } }),
     });
 
     render(
@@ -766,44 +589,8 @@ describe('KeybindSettings', () => {
 
   it('group reset reflects hidden rows under an active filter', () => {
     useAppStore.setState({
-      appInfo: {
-        appName: 'test',
-        version: '0.0.0',
-        config: {
-          language: 'en-US',
-          themeMode: 'system',
-          resolvedTheme: 'light',
-          logLevel: 'info',
-          terminalLogMode: 'overwrite',
-          debugLogMode: 'overwrite',
-          maxRecentWorkspaces: 5,
-          modelPreferences: { providers: {} },
-          // 可见行（workspace.new）为默认，被滤掉的 workspace.open 被改过。
-          keybinds: { 'workspace.open': 'mod+k' },
-          fonts: { uiFont: '', codeFont: '', terminalFont: '' },
-          maxConcurrentWorkspaces: 6,
-          workspacePriorityIds: [],
-          workspaceDeferredIds: [],
-          workspaceNaturalOrder: [],
-          browserInactiveTabSuspendMs: 3_600_000,
-          linkOpenMethod: 'panel',
-          fileOpenMethod: 'panel',
-          agentLinkIntercept: false,
-          agentSiteWhitelist: [],
-          browserSuspendWhitelistEnabled: false,
-          browserSuspendWhitelist: [],
-        },
-        currentWorkspace: undefined,
-        recentLogs: [],
-        runtime: {
-          shell: 'browser',
-          tauriVersion: null,
-          webviewVersion: null,
-          os: 'windows',
-          arch: 'x86_64',
-          logDir: '',
-        },
-      },
+      // 可见行（workspace.new）为默认，被滤掉的 workspace.open 被改过。
+      appInfo: createAppInfo({ config: { keybinds: { 'workspace.open': 'mod+k' } } }),
     });
 
     render(
@@ -855,43 +642,7 @@ describe('KeybindSettings', () => {
 
   it('resetting a command without default removes its key instead of writing none', async () => {
     useAppStore.setState({
-      appInfo: {
-        appName: 'test',
-        version: '0.0.0',
-        config: {
-          language: 'en-US',
-          themeMode: 'system',
-          resolvedTheme: 'light',
-          logLevel: 'info',
-          terminalLogMode: 'overwrite',
-          debugLogMode: 'overwrite',
-          maxRecentWorkspaces: 5,
-          modelPreferences: { providers: {} },
-          keybinds: { 'file.toggle-line-numbers': 'alt+l' },
-          fonts: { uiFont: '', codeFont: '', terminalFont: '' },
-          maxConcurrentWorkspaces: 6,
-          workspacePriorityIds: [],
-          workspaceDeferredIds: [],
-          workspaceNaturalOrder: [],
-          browserInactiveTabSuspendMs: 3_600_000,
-          linkOpenMethod: 'panel',
-          fileOpenMethod: 'panel',
-          agentLinkIntercept: false,
-          agentSiteWhitelist: [],
-          browserSuspendWhitelistEnabled: false,
-          browserSuspendWhitelist: [],
-        },
-        currentWorkspace: undefined,
-        recentLogs: [],
-        runtime: {
-          shell: 'browser',
-          tauriVersion: null,
-          webviewVersion: null,
-          os: 'windows',
-          arch: 'x86_64',
-          logDir: '',
-        },
-      },
+      appInfo: createAppInfo({ config: { keybinds: { 'file.toggle-line-numbers': 'alt+l' } } }),
     });
     const updatePreferencesSpy = vi
       .spyOn(useAppStore.getState(), 'updatePreferences')

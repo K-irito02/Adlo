@@ -50,6 +50,20 @@
 - [ ] 组件：注入假桥，断言用户可见行为，不测内部实现。
 - [ ] 跨语言契约：固定 JSON 夹具 + Rust 序列化断言 + TS `satisfies` 断言（参照 `fixtures/harness-version-status.json`）。
 
+## 8. 扩展现有共享契约（以 `AppInfo` 为例）
+
+新增字段/类型时，除本清单外还要同步以下位置；漏一处会在运行时变成 `undefined` 或让测试 fixture 大面积报错。
+
+- [ ] Rust 类型：`crates/types/src/types/config.rs`（可选字段带 `#[serde(default)]`）
+- [ ] 序列化契约：`crates/types/src/types/mod.rs` 的 `app_info_serializes` 断言新字段
+- [ ] kernel 构造：`crates/kernel/src/app_info.rs::build` 的签名与调用方
+- [ ] 桌面壳填充：`src-tauri/src/commands/app.rs::build_app_info`
+- [ ] 浏览器填充：`crates/server/src/handlers/app.rs`（`get_info` 与 `update_preferences` 两处）
+- [ ] 前端镜像：`frontend/src/kernel/types.ts`
+- [ ] mock / preview 快照：`frontend/src/mock/**`、`frontend/src/preview-bridge/**`
+- [ ] 测试 fixture：优先用 `frontend/src/test-fixtures/appInfo.ts` 的 `createAppInfo({...})`，不要再复制整份 `AppInfo`
+- [ ] 契约测试：Rust 序列化 + server 路由 + 前端行为各一条
+
 ## 常见漏项
 
 - 只加 httpBridge，忘记 mock/preview → 浏览器模式报「不支持」。
