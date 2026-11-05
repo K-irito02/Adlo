@@ -1,10 +1,7 @@
-import { useEffect, useLayoutEffect, useState, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { useAppStore } from '../stores/slicedStore';
 import { systemPrefersDark, type ResolvedTheme } from '../../design-system';
 import FlowFieldBackground from './flow-field-background';
-import LogoSvg from './LogoSvg';
-import { resolveAppLanguage } from '../i18n/resolveLanguage';
 
 function getThemeFromRoot(): ResolvedTheme {
   if (typeof document !== 'undefined') {
@@ -26,9 +23,6 @@ const THEME_COLORS: Record<
 
 export default function StartupOverlay() {
   const [theme, setTheme] = useState<ResolvedTheme>(getThemeFromRoot);
-  const storeLanguage = useAppStore((s) => s.appInfo?.config.language);
-  // Logo 变体按解析后的实际语言（'system' → 跟随系统解析）。
-  const displayLang = useMemo(() => resolveAppLanguage(storeLanguage), [storeLanguage]);
 
   // 移除 index.html 中的静态预加载覆盖层，让 React 覆盖层接管
   useLayoutEffect(() => {
@@ -86,14 +80,31 @@ export default function StartupOverlay() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 18,
+          }}
         >
-          <LogoSvg
-            language={displayLang}
-            color={colors.stroke}
-            width={320}
-            staggerDelay={0.15}
-            drawDuration={3}
+          <img
+            src="/adlo-icon.png"
+            alt=""
+            width={88}
+            height={88}
+            style={{ borderRadius: 20 }}
+            aria-hidden="true"
           />
+          <div
+            style={{
+              color: colors.stroke,
+              fontSize: 26,
+              fontWeight: 600,
+              letterSpacing: '0.14em',
+            }}
+          >
+            Adlo · 安洛
+          </div>
         </motion.div>
       </div>
     </div>

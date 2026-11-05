@@ -13,7 +13,7 @@ async function syncTauriWindowIcon(): Promise<void> {
   }
 
   try {
-    const response = await fetch('/logo-chatgpt.png', { cache: 'force-cache' });
+    const response = await fetch('/adlo-icon.png', { cache: 'force-cache' });
     if (!response.ok) {
       return;
     }
