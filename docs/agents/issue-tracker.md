@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues and specs for this repo live as GitHub issues in `K-irito02/Kora`. Use the `gh` CLI for all operations.
+Issues and specs for this repo live as GitHub issues in `K-irito02/Adlo`. Use the `gh` CLI for all operations.
 
 > **版本要求**：`gh` ≥ 2.94（sub-issue 支持；`gh issue edit --add-sub-issue`）。低于该版本时改用 `gh api` 的 sub-issues 端点，或在子 issue 正文首行写 `Part of #<parent>`。升级：下载官方 MSI 静默安装（`msiexec /i gh_x.y.z_windows_amd64.msi /qn`），并用官方 `checksums.txt` 校验 SHA256。
 

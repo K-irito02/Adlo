@@ -125,7 +125,7 @@ TypeScript/Rust 风格指南、Commit 规范详见 [dev-rules.md](.agents/rules/
 
 ### Issue tracker
 
-Issue 与 spec 存放在 GitHub Issues（`K-irito02/Kora`），使用 `gh` CLI。详见 `docs/agents/issue-tracker.md`。
+Issue 与 spec 存放在 GitHub Issues（`K-irito02/Adlo`），使用 `gh` CLI。详见 `docs/agents/issue-tracker.md`。
 
 ### Triage labels
 
@@ -149,6 +149,7 @@ Issue 与 spec 存放在 GitHub Issues（`K-irito02/Kora`），使用 `gh` CLI�
 - [RULES.md](./RULES.md) — 规则系统（分层与优先级、三目录同步、文件规范、规则清单）
 - [SKILLS.md](./SKILLS.md) — 技能系统（来源分类、三技能目录、同步规则、技能摘要）
 - [SECURITY.md](./SECURITY.md) — 安全策略
+- [RELEASE-CHECKLIST.md](./RELEASE-CHECKLIST.md) — 发布前必做清单（许可证、第三方声明全量生成、仓库公开与链接、版本一致性等）
 - [docs/development/project-engineering-constraints.md](./docs/development/project-engineering-constraints.md) — 工程约束
 - [docs/development/adding-an-ipc-domain.md](./docs/development/adding-an-ipc-domain.md) — 新增 IPC 域的端到端接线清单（Rust / 四端桥接 / store / UI / 测试）
 - [docs/knowledge-base/README.md](./docs/knowledge-base/README.md) — 经验教训与总结索引
