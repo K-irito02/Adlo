@@ -18,6 +18,7 @@ import { harnessVersionEn } from './harnessVersion';
 import { opencodeEn } from './opencode';
 import { environmentEn } from './environment';
 import { networkEn } from './network';
+import { aboutEn } from './about';
 import { settingsEn } from './settings';
 import { notificationEn } from './notification';
 import { errorsEn } from './errors';
@@ -43,6 +44,7 @@ export const enUS = {
   ...opencodeEn,
   ...environmentEn,
   ...networkEn,
+  ...aboutEn,
   ...settingsEn,
   ...notificationEn,
   ...errorsEn,

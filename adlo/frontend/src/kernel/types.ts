@@ -377,6 +377,24 @@ export interface AppInfo {
   config: ConfigSnapshot;
   currentWorkspace?: WorkspaceMeta;
   recentLogs: LogEntrySummary[];
+  runtime: RuntimeInfo;
+}
+
+/** 运行形态：桌面壳（Tauri WebView）或浏览器（ad-server HTTP 客户端）。 */
+export type RuntimeShell = 'tauri' | 'browser';
+
+/**
+ * 应用自身运行时信息（不是用户机器上的 Node/Git 等工具链 —— 那些属于环境组）。
+ * `webviewVersion` 取不到时为 null，界面显示「未知」，不猜版本号。
+ */
+export interface RuntimeInfo {
+  shell: RuntimeShell;
+  tauriVersion: string | null;
+  webviewVersion: string | null;
+  os: string;
+  arch: string;
+  /** 有效日志目录（debug 为仓库根 `.adl-logs`，release 为数据根 `logs`）。 */
+  logDir: string;
 }
 
 /**
@@ -445,7 +463,8 @@ export type SettingsGroupId =
   | 'network'
   | 'environment'
   | 'storage'
-  | 'openMethod';
+  | 'openMethod'
+  | 'about';
 
 export type SettingValue = string | boolean | number | string[] | AgentSiteAllowEntry[];
 

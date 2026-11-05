@@ -25,6 +25,7 @@
 @import './regions/dsh-settings.css';
 @import './regions/harness-version.css';
 @import './regions/environment-settings.css';
+@import './regions/about-settings.css';
 @import './regions/rightpanel.css';
 @import './regions/titlebar.css';
 @import './regions/statusbar.css';

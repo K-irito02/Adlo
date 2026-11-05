@@ -1,6 +1,7 @@
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import type { Window } from '@tauri-apps/api/window';
 import type { WindowBridge } from '../shared/ipc/window';
+import { invokeIpc } from './tauri-shared';
 
 interface TauriWindowModule {
   getCurrentWindow(): Window;
@@ -30,6 +31,7 @@ export function createTauriWindowBridge(): WindowBridge {
       shellModule ??= await import('@tauri-apps/plugin-shell');
       return shellModule.open(url);
     },
+    openPath: (path: string) => invokeIpc<boolean>('platform_open_path', { path }),
     onResized: (listener: () => void) => {
       let active = true;
       let ul: UnlistenFn | undefined;

@@ -203,6 +203,14 @@ describe('createTauriBridge system-capability domains stay on Tauri', () => {
     expect(mockInvoke).not.toHaveBeenCalled();
   });
 
+  it('window.openPath invokes the platform_open_path shell command', async () => {
+    mockInvoke.mockResolvedValue(okResult(true));
+    const bridge = createTauriBridge('http://127.0.0.1:9999');
+    const res = await bridge.window.openPath('C:/adlo/logs');
+    expect(mockInvoke).toHaveBeenCalledWith('platform_open_path', { path: 'C:/adlo/logs' });
+    expect(res).toEqual({ ok: true, data: true });
+  });
+
   it('browser.createForTab returns null in httpBridge but is Tauri-native on desktop', async () => {
     mockInvoke.mockResolvedValue(okResult('tab-1'));
     const bridge = createTauriBridge('http://127.0.0.1:9999');

@@ -18,6 +18,7 @@ import { harnessVersionZh } from './harnessVersion';
 import { opencodeZh } from './opencode';
 import { environmentZh } from './environment';
 import { networkZh } from './network';
+import { aboutZh } from './about';
 import { settingsZh } from './settings';
 import { notificationZh } from './notification';
 import { errorsZh } from './errors';
@@ -43,6 +44,7 @@ export const zhCN = {
   ...opencodeZh,
   ...environmentZh,
   ...networkZh,
+  ...aboutZh,
   ...settingsZh,
   ...notificationZh,
   ...errorsZh,

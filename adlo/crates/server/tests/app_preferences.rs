@@ -21,6 +21,15 @@ async fn app_info_returns_config_for_the_settings_panel() {
     assert_eq!(body["data"]["config"]["logLevel"], "info");
     assert_eq!(body["data"]["config"]["terminalLogMode"], "overwrite");
     assert_eq!(body["data"]["config"]["debugLogMode"], "overwrite");
+    // 浏览器形态：ad-server 不自称桌面壳，也不编造 Tauri 版本。
+    assert_eq!(body["data"]["runtime"]["shell"], "browser");
+    assert!(body["data"]["runtime"]["tauriVersion"].is_null());
+    assert_eq!(body["data"]["runtime"]["os"], std::env::consts::OS);
+    assert_eq!(body["data"]["runtime"]["arch"], std::env::consts::ARCH);
+    assert!(
+        body["data"]["runtime"]["logDir"].as_str().is_some_and(|dir| !dir.is_empty()),
+        "effective log dir must be reported for the About page"
+    );
 }
 
 #[tokio::test]

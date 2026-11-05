@@ -806,6 +806,8 @@ export function createHttpBridge({
         }
         return Promise.resolve();
       },
+      // 系统能力（打开本地目录）没有 HTTP 路由；浏览器模式由 preview-bridge 覆盖实现。
+      openPath: (_path: string) => taskNotSupported<boolean>('window.openPath'),
     },
     app: {
       // `getInfo` / `updatePreferences` are REAL over HTTP (`/app/info` +

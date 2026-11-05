@@ -82,6 +82,14 @@ function setConfig(
       },
       currentWorkspace: undefined,
       recentLogs: [],
+      runtime: {
+        shell: 'browser',
+        tauriVersion: null,
+        webviewVersion: null,
+        os: 'windows',
+        arch: 'x86_64',
+        logDir: '',
+      },
     },
   });
 }

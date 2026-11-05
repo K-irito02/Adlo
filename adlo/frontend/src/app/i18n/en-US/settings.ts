@@ -281,7 +281,8 @@ export const settingsEn = {
     'Downloaded version directories for DSH and OpenCode (one subdirectory per harness).',
   storageCategoryHarnessesRelated:
     'Relates to version management in the DSH / OpenCode settings groups and terminal availability.',
-  storageCategoryLogsDesc: 'Terminal and debug log files used for troubleshooting.',
+  storageCategoryLogsDesc:
+    "Terminal and debug log files used for troubleshooting. Dev builds write to the worktree's .adl-logs; release builds use this directory.",
   storageCategoryLogsRelated:
     'Relates to debugging tools (log collector, copy debug logs) and the troubleshooting workflow.',
   storageCategoryCredentialsFallbackDesc:

@@ -47,6 +47,7 @@ import { OpencodeSettings } from '../../features/opencode/OpencodeSettings';
 import { NetworkSettings } from '../../features/network/NetworkSettings';
 import { EnvironmentSettings } from '../../features/environment/EnvironmentSettings';
 import { StorageSettings } from '../../features/storage-settings/StorageSettings';
+import { AboutSettings } from '../../features/about/AboutSettings';
 import {
   prefetchStorageSettings,
   getCachedStorageStatus,
@@ -93,6 +94,7 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   network: NetworkSettings,
   environment: EnvironmentSettings,
   storage: StorageSettings,
+  about: AboutSettings,
 };
 
 /**
@@ -268,10 +270,14 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   // 除环境组与 OpenCode 组外全默认 → 顶部「恢复全部默认」禁用（口径与侧边栏行 disabled 同源）。
   // 环境组不进 ResetAll 自动序列；OpenCode 组虽有侧边栏重置按钮（自有确认流程），
   // 但不进 ResetAll 自动序列（ResetAll 按 GroupKey 编排，opencode 无执行腿），
-  // 两者都不参与顶部判定。
+  // 两者都不参与顶部判定。非可重置组（如「关于」）没有默认值概念，同样不参与。
   const allGroupsAtDefault =
     SETTINGS_GROUPS.filter(
-      (g) => g.id !== 'environment' && g.id !== 'opencode' && !disabledResetGroups.has(g.id),
+      (g) =>
+        RESETTABLE_GROUPS.has(g.id) &&
+        g.id !== 'environment' &&
+        g.id !== 'opencode' &&
+        !disabledResetGroups.has(g.id),
     ).length === 0;
 
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);

@@ -1796,6 +1796,14 @@ describe('SettingsPanel open-method group', () => {
       },
       currentWorkspace: undefined,
       recentLogs: [],
+      runtime: {
+        shell: 'browser' as const,
+        tauriVersion: null,
+        webviewVersion: null,
+        os: 'windows',
+        arch: 'x86_64',
+        logDir: '',
+      },
     } as AppInfo;
   }
 

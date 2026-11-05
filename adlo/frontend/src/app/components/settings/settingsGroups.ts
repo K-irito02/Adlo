@@ -30,6 +30,7 @@ export const SETTINGS_GROUPS: { id: SettingsGroupId; labelKey: keyof CopyDict }[
   { id: 'opencode', labelKey: 'settingsOpencode' },
   { id: 'network', labelKey: 'settingsNetwork' },
   { id: 'environment', labelKey: 'settingsEnvironment' },
+  { id: 'about', labelKey: 'settingsAbout' },
 ];
 
 /**

@@ -312,6 +312,39 @@ fn default_browser_inactive_tab_suspend_ms() -> u64 {
     900_000
 }
 
+/// 运行形态：桌面壳（Tauri WebView）或浏览器（ad-server HTTP 客户端）。
+///
+/// 由各自的宿主填充，不靠前端猜测 —— 同一份 `AppInfo` 契约在两种形态下
+/// 如实回答「这个界面跑在什么壳里」。见「关于」组的运行时行。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeShell {
+    Tauri,
+    Browser,
+}
+
+/// 应用自身运行时信息（不是用户机器上的 Node/Git 等工具链 —— 那些属于环境组）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeInfo {
+    pub shell: RuntimeShell,
+    /// Tauri 版本；浏览器形态为 `None`。
+    #[serde(default)]
+    pub tauri_version: Option<String>,
+    /// 渲染引擎版本：桌面为 WebView2 运行时版本，浏览器为客户端引擎版本。
+    /// 取不到时为 `None`（界面显示「未知」，不编造）。
+    #[serde(default)]
+    pub webview_version: Option<String>,
+    /// 操作系统标识（`std::env::consts::OS`）。
+    pub os: String,
+    /// CPU 架构标识（`std::env::consts::ARCH`）。
+    pub arch: String,
+    /// 有效日志目录：debug 构建为仓库根 `.adl-logs`，release 为数据根 `logs`。
+    /// 由后端解析后如实上报，界面不自行拼接路径。
+    #[serde(default)]
+    pub log_dir: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AppInfo {
@@ -320,6 +353,7 @@ pub struct AppInfo {
     pub config: ConfigSnapshot,
     pub current_workspace: Option<super::WorkspaceMeta>,
     pub recent_logs: Vec<LogEntrySummary>,
+    pub runtime: RuntimeInfo,
 }
 
 /// `updatePreferences` 的响应体：更新后的应用信息 + 本次被会话级 CLI/env 覆盖

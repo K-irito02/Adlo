@@ -57,6 +57,14 @@ describe('KeybindSettings', () => {
         },
         currentWorkspace: undefined,
         recentLogs: [],
+        runtime: {
+          shell: 'browser',
+          tauriVersion: null,
+          webviewVersion: null,
+          os: 'windows',
+          arch: 'x86_64',
+          logDir: '',
+        },
       },
       toasts: [],
     });
@@ -271,6 +279,14 @@ describe('KeybindSettings', () => {
         },
         currentWorkspace: undefined,
         recentLogs: [],
+        runtime: {
+          shell: 'browser',
+          tauriVersion: null,
+          webviewVersion: null,
+          os: 'windows',
+          arch: 'x86_64',
+          logDir: '',
+        },
       },
     });
 
@@ -476,6 +492,14 @@ describe('KeybindSettings', () => {
         },
         currentWorkspace: undefined,
         recentLogs: [],
+        runtime: {
+          shell: 'browser',
+          tauriVersion: null,
+          webviewVersion: null,
+          os: 'windows',
+          arch: 'x86_64',
+          logDir: '',
+        },
       },
     });
     const updatePreferencesSpy = vi
@@ -529,6 +553,14 @@ describe('KeybindSettings', () => {
         },
         currentWorkspace: undefined,
         recentLogs: [],
+        runtime: {
+          shell: 'browser',
+          tauriVersion: null,
+          webviewVersion: null,
+          os: 'windows',
+          arch: 'x86_64',
+          logDir: '',
+        },
       },
     });
     const updatePreferencesSpy = vi
@@ -606,6 +638,14 @@ describe('KeybindSettings', () => {
         },
         currentWorkspace: undefined,
         recentLogs: [],
+        runtime: {
+          shell: 'browser',
+          tauriVersion: null,
+          webviewVersion: null,
+          os: 'windows',
+          arch: 'x86_64',
+          logDir: '',
+        },
       },
     });
 
@@ -755,6 +795,14 @@ describe('KeybindSettings', () => {
         },
         currentWorkspace: undefined,
         recentLogs: [],
+        runtime: {
+          shell: 'browser',
+          tauriVersion: null,
+          webviewVersion: null,
+          os: 'windows',
+          arch: 'x86_64',
+          logDir: '',
+        },
       },
     });
 
@@ -835,6 +883,14 @@ describe('KeybindSettings', () => {
         },
         currentWorkspace: undefined,
         recentLogs: [],
+        runtime: {
+          shell: 'browser',
+          tauriVersion: null,
+          webviewVersion: null,
+          os: 'windows',
+          arch: 'x86_64',
+          logDir: '',
+        },
       },
     });
     const updatePreferencesSpy = vi

@@ -195,6 +195,7 @@ fn main() {
             commands::download_commands::download_cancel,
             commands::download_commands::download_save_blob,
             commands::platform::workspace_open_in_file_manager,
+            commands::platform::platform_open_path,
             commands::port_scan::browser_scan_ports,
             commands::port_scan::browser_get_port_details,
             commands::storage::storage_get_status,

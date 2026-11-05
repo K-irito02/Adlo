@@ -146,7 +146,15 @@ export const appInfo: AppInfo = {
       scope: "tauri",
       message: `Preview mode: using mock bridge (no real filesystem). workspace=${workspaceRoot}`
     }
-  ]
+  ],
+  runtime: {
+    shell: "browser" as const,
+    tauriVersion: null,
+    webviewVersion: null,
+    os: "",
+    arch: "",
+    logDir: ""
+  }
 };
 
 export const recentWorkspaces: RecentWorkspaceEntry[] = [

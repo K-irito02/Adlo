@@ -15,9 +15,10 @@ use crate::ServerState;
 use crate::ipc;
 use adl_errors::AppError;
 use adl_kernel::events::AppEvent;
-use adl_types::types::config::AppPreferencePatch;
+use adl_types::types::config::{AppPreferencePatch, RuntimeInfo, RuntimeShell};
 use axum::body::Bytes;
 use axum::extract::State;
+use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use std::sync::Mutex as StdMutex;
 
@@ -51,7 +52,7 @@ fn rollback_runtime(
 }
 
 /// GET `/app/info` — 当前 `AppInfo`（config + 活动工作区）。
-pub async fn get_info(State(state): State<ServerState>) -> impl IntoResponse {
+pub async fn get_info(State(state): State<ServerState>, headers: HeaderMap) -> impl IntoResponse {
     let result = (|| -> Result<serde_json::Value, AppError> {
         let config = state
             .config
@@ -63,9 +64,47 @@ pub async fn get_info(State(state): State<ServerState>) -> impl IntoResponse {
             .read()
             .map_err(|_| AppError::Internal("workspace lock poisoned".into()))?
             .clone();
-        Ok(serde_json::to_value(adl_kernel::app_info::build(&config, workspace))?)
+        Ok(serde_json::to_value(adl_kernel::app_info::build(
+            &config,
+            workspace,
+            browser_runtime_info(&headers, state.log_manager.log_dir()),
+        ))?)
     })();
     ipc::to_response(result)
+}
+
+/// 浏览器形态的运行时信息：ad-server 不跑在 Tauri 里，只能从调用方
+/// User-Agent 取渲染引擎版本；取不到时留 `None`，由界面显示「未知」。
+fn browser_runtime_info(headers: &HeaderMap, log_dir: &std::path::Path) -> RuntimeInfo {
+    let ua = headers
+        .get(axum::http::header::USER_AGENT)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    RuntimeInfo {
+        shell: RuntimeShell::Browser,
+        tauri_version: None,
+        webview_version: engine_version_from_user_agent(ua),
+        os: std::env::consts::OS.to_string(),
+        arch: std::env::consts::ARCH.to_string(),
+        log_dir: log_dir.to_string_lossy().into_owned(),
+    }
+}
+
+/// 从 User-Agent 提取引擎版本：Edge/WebView2(`Edg/`) → Opera(`OPR/`) →
+/// Firefox → Chrome → Safari(`Version/`)。只取版本号本体（`141.0.x` 形态）。
+fn engine_version_from_user_agent(ua: &str) -> Option<String> {
+    for token in ["Edg/", "OPR/", "Firefox/", "Chrome/"] {
+        if let Some(version) = version_after(ua, token) {
+            return Some(version);
+        }
+    }
+    version_after(ua, "Version/")
+}
+
+fn version_after(ua: &str, token: &str) -> Option<String> {
+    let rest = &ua[ua.find(token)? + token.len()..];
+    let version: String = rest.chars().take_while(|c| c.is_ascii_digit() || *c == '.').collect();
+    if version.is_empty() { None } else { Some(version) }
 }
 
 /// POST `/app/preferences` — 应用偏好补丁：日志字段先运行时生效，再把 config.json
@@ -75,6 +114,7 @@ pub async fn get_info(State(state): State<ServerState>) -> impl IntoResponse {
 /// 整个补丁被拒绝（含无关字段）；落盘失败时 best-effort 回滚已应用的运行期变更。
 pub async fn update_preferences(
     State(state): State<ServerState>,
+    headers: HeaderMap,
     body: Bytes,
 ) -> impl IntoResponse {
     let patch: AppPreferencePatch = match ipc::json_body(body).await {
@@ -105,6 +145,7 @@ pub async fn update_preferences(
     let config_dir = state.storage.paths().config_dir.clone();
     let config_arc = state.config.clone();
     let overrides = state.log_overrides;
+    let runtime = browser_runtime_info(&headers, state.log_manager.log_dir());
     let spawned = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
         let _guard = CONFIG_WRITE_LOCK
             .lock()
@@ -132,7 +173,7 @@ pub async fn update_preferences(
         // （current_workspace 另有独立 RwLock；此处读到的值至多略旧，
         // 下次 get_info 自愈，故不引入跨锁排序。）
         let workspace = state.current_workspace.read().ok().and_then(|w| w.clone());
-        let info = adl_kernel::app_info::build(&config, workspace);
+        let info = adl_kernel::app_info::build(&config, workspace, runtime);
         let result = adl_types::types::config::UpdatePreferencesResult {
             info,
             session_locked_fields: locked_fields,
@@ -213,4 +254,36 @@ pub async fn apply_log_settings(
         ))));
     }
     ipc::to_response(Ok(serde_json::json!(null)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::engine_version_from_user_agent;
+
+    #[test]
+    fn extracts_edge_version_from_webview2_user_agent() {
+        let ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+                  (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.3537.99";
+        assert_eq!(engine_version_from_user_agent(ua), Some("141.0.3537.99".into()));
+    }
+
+    #[test]
+    fn extracts_chrome_version_when_no_edge_token() {
+        let ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+                  (KHTML, like Gecko) Chrome/140.0.7339.82 Safari/537.36";
+        assert_eq!(engine_version_from_user_agent(ua), Some("140.0.7339.82".into()));
+    }
+
+    #[test]
+    fn falls_back_to_safari_version_token() {
+        let ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 \
+                  (KHTML, like Gecko) Version/18.3 Safari/605.1.15";
+        assert_eq!(engine_version_from_user_agent(ua), Some("18.3".into()));
+    }
+
+    #[test]
+    fn missing_user_agent_yields_none_instead_of_guessing() {
+        assert_eq!(engine_version_from_user_agent(""), None);
+        assert_eq!(engine_version_from_user_agent("curl/8.0"), None);
+    }
 }

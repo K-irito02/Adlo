@@ -135,9 +135,24 @@ mod tests {
             },
             current_workspace: None,
             recent_logs: vec![],
+            runtime: RuntimeInfo {
+                shell: RuntimeShell::Tauri,
+                tauri_version: Some("2.11.5".into()),
+                webview_version: Some("141.0.0.0".into()),
+                os: "windows".into(),
+                arch: "x86_64".into(),
+                log_dir: "/repo/.adl-logs".into(),
+            },
         };
         let json = serde_json::to_string(&info).unwrap();
         assert!(json.contains("\"themeMode\":\"system\""));
         assert!(json.contains("\"appName\":\"Adlo\""));
+        // 运行时字段是「关于」页的事实来源：形状一旦漂移，页面会静默显示错误信息。
+        assert!(json.contains("\"shell\":\"tauri\""));
+        assert!(json.contains("\"tauriVersion\":\"2.11.5\""));
+        assert!(json.contains("\"webviewVersion\":\"141.0.0.0\""));
+        assert!(json.contains("\"os\":\"windows\""));
+        assert!(json.contains("\"arch\":\"x86_64\""));
+        assert!(json.contains("\"logDir\":\"/repo/.adl-logs\""));
     }
 }

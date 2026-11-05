@@ -296,6 +296,12 @@ impl LogManager {
         &self.terminal_prefix
     }
 
+    /// 有效日志目录（debug 构建为仓库根 `.adl-logs`，release 为数据根 `logs`）。
+    /// 「关于 → 打开日志目录」等只读入口用它，避免指向未实际使用的目录。
+    pub fn log_dir(&self) -> &std::path::Path {
+        &self.log_dir
+    }
+
     pub fn write_debug_logs(&self, content: &str) -> LogResult<()> {
         let mode = self
             .config

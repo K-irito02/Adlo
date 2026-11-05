@@ -249,7 +249,8 @@ export const settingsZh = {
   storageCategorySnapshotRelated: '与补丁预览、应用、回滚以及差异查看器有关。',
   storageCategoryHarnessesDesc: 'DSH 与 OpenCode 的已下载版本目录（按工具分子目录）。',
   storageCategoryHarnessesRelated: '与 DSH / OpenCode 设置组的版本管理及终端可用性有关。',
-  storageCategoryLogsDesc: '终端日志与调试日志文件，用于问题排查。',
+  storageCategoryLogsDesc:
+    '终端日志与调试日志文件，用于问题排查。开发态写入工作树根 .adl-logs，此目录用于发布版。',
   storageCategoryLogsRelated: '与调试工具（日志收起器、复制调试日志）及问题排查流程有关。',
   storageCategoryCredentialsFallbackDesc:
     '仅在操作系统凭据管理器不可用时，以加密文件形式保存的凭据。',

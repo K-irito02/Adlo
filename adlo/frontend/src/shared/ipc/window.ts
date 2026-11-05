@@ -4,6 +4,8 @@
  * Tauri 命令: 直接使用 window API
  * 浏览器模式: 无操作 UI 模拟
  */
+import type { IpcResult } from '@adlo/kernel';
+
 export interface WindowBridge {
   /**
    * 最小化窗口
@@ -73,4 +75,13 @@ export interface WindowBridge {
    * @see preview-bridge/index.ts → window.openExternal
    */
   openExternal: (url: string) => Promise<void>;
+  /**
+   * 在系统文件管理器中打开一个目录（不存在时先创建）。
+   * 仅用于「关于」页的日志目录；不是通用文件打开器。
+   * @command platform_open_path
+   * @see tauri-bridge.ts → window.openPath
+   * @see mock-bridge.ts → window.openPath
+   * @see preview-bridge/index.ts → window.openPath
+   */
+  openPath: (path: string) => Promise<IpcResult<boolean>>;
 }

@@ -2,7 +2,9 @@ use crate::config::AppConfig;
 
 use adl_types::now_ms;
 use adl_types::types::WorkspaceMeta;
-use adl_types::types::config::{AppInfo, ConfigSnapshot, LogEntrySummary, Theme, ThemeMode};
+use adl_types::types::config::{
+    AppInfo, ConfigSnapshot, LogEntrySummary, RuntimeInfo, Theme, ThemeMode,
+};
 
 /// 构造跨进程一致的 `AppInfo`（Tauri shell 与 adl-server 共用，杜绝两份契约面漂移）。
 ///
@@ -11,7 +13,14 @@ use adl_types::types::config::{AppInfo, ConfigSnapshot, LogEntrySummary, Theme, 
 ///
 /// `WorkspaceMeta` 的 verbatim 前缀剥离由调用方完成后传入 —— 该 helper 属
 /// workspace crate，kernel 不得反向依赖。
-pub fn build(config: &AppConfig, current_workspace: Option<WorkspaceMeta>) -> AppInfo {
+///
+/// `runtime` 由宿主提供（壳层读 Tauri/WebView2，ad-server 读客户端 User-Agent）：
+/// kernel 不依赖 tauri，也不该猜「当前是谁在调用」。
+pub fn build(
+    config: &AppConfig,
+    current_workspace: Option<WorkspaceMeta>,
+    runtime: RuntimeInfo,
+) -> AppInfo {
     let resolved = match config.theme_mode {
         ThemeMode::Light => Theme::Light,
         ThemeMode::Dark => Theme::Dark,
@@ -51,6 +60,7 @@ pub fn build(config: &AppConfig, current_workspace: Option<WorkspaceMeta>) -> Ap
             scope: "backend".into(),
             message: "Backend ready.".into(),
         }],
+        runtime,
     }
 }
 
@@ -60,16 +70,28 @@ mod tests {
     use adl_types::types::config::LogLevel;
     use adl_types::types::config::LogMode;
 
+    /// 测试用运行时：形状固定，断言只关心透传。
+    fn test_runtime() -> RuntimeInfo {
+        RuntimeInfo {
+            shell: adl_types::types::config::RuntimeShell::Browser,
+            tauri_version: None,
+            webview_version: Some("141.0.0.0".into()),
+            os: "windows".into(),
+            arch: "x86_64".into(),
+            log_dir: "/repo/.adl-logs".into(),
+        }
+    }
+
     #[test]
     fn system_theme_resolves_to_light_backend_side() {
         let config = AppConfig { theme_mode: ThemeMode::System, ..AppConfig::default() };
-        assert_eq!(build(&config, None).config.resolved_theme, Theme::Light);
+        assert_eq!(build(&config, None, test_runtime()).config.resolved_theme, Theme::Light);
     }
 
     #[test]
     fn dark_theme_resolves_to_dark() {
         let config = AppConfig { theme_mode: ThemeMode::Dark, ..AppConfig::default() };
-        assert_eq!(build(&config, None).config.resolved_theme, Theme::Dark);
+        assert_eq!(build(&config, None, test_runtime()).config.resolved_theme, Theme::Dark);
     }
 
     #[test]
@@ -80,15 +102,21 @@ mod tests {
             debug_log_mode: LogMode::Append,
             ..AppConfig::default()
         };
-        let info = build(&config, None);
+        let info = build(&config, None, test_runtime());
         assert_eq!(info.config.log_level, LogLevel::Trace);
         assert_eq!(info.config.terminal_log_mode, LogMode::Multi);
         assert_eq!(info.config.debug_log_mode, LogMode::Append);
     }
 
     #[test]
+    fn runtime_is_passed_through_verbatim() {
+        let info = build(&AppConfig::default(), None, test_runtime());
+        assert_eq!(info.runtime, test_runtime());
+    }
+
+    #[test]
     fn no_workspace_yields_none_and_one_synthetic_log() {
-        let info = build(&AppConfig::default(), None);
+        let info = build(&AppConfig::default(), None, test_runtime());
         assert!(info.current_workspace.is_none());
         assert_eq!(info.recent_logs.len(), 1);
         assert_eq!(info.version, env!("CARGO_PKG_VERSION"));

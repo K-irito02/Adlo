@@ -65,6 +65,13 @@ pub fn workspace_open_in_file_manager(path: String) -> IpcResult<bool> {
     ipc(open_in_os_file_manager(&path).map(|()| true))
 }
 
+/// Open any directory in the OS file manager ("关于" → 日志目录).
+/// Missing directories are created first so the target is always openable.
+#[tauri::command]
+pub fn platform_open_path(path: String) -> IpcResult<bool> {
+    ipc(open_in_os_file_manager(&path).map(|()| true))
+}
+
 /// Open a file with its OS-default application.
 pub fn open_file(path: &str) -> Result<(), AppError> {
     let p = PathBuf::from(path);

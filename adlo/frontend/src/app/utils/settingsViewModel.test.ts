@@ -40,6 +40,14 @@ const mockAppInfo: AppInfo = {
   },
   currentWorkspace: undefined,
   recentLogs: [],
+  runtime: {
+    shell: 'tauri',
+    tauriVersion: '2.11.5',
+    webviewVersion: null,
+    os: 'windows',
+    arch: 'x86_64',
+    logDir: '',
+  },
 };
 
 const mockT = {

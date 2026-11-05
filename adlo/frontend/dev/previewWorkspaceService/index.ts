@@ -402,6 +402,43 @@ async function revealInFileManager(targetPath: string): Promise<boolean> {
   return true;
 }
 
+/** 打开目录本身（非「选中条目」）；与桌面端 `platform_open_path` 同语义，缺失时先创建。 */
+async function openPathInFileManager(targetPath: string): Promise<boolean> {
+  const normalizedPath =
+    process.platform === 'win32' ? targetPath.replace(/\//g, '\\') : targetPath;
+  const absolutePath = path.resolve(normalizedPath);
+  fsSync.mkdirSync(absolutePath, { recursive: true });
+  if (process.platform === 'win32') {
+    await new Promise<void>((resolve, reject) => {
+      // explorer 对目录成功打开时也可能返回非 0，故只以 spawn 成功为准。
+      const child = spawn('explorer', [absolutePath], {
+        windowsHide: false,
+        detached: true,
+        shell: false,
+      });
+      child.on('error', reject);
+      child.on('spawn', () => resolve());
+    });
+    return true;
+  }
+  const cmd = process.platform === 'darwin' ? 'open' : 'xdg-open';
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(cmd, [absolutePath], { windowsHide: true });
+    child.on('error', reject);
+    child.on('spawn', () => resolve());
+  });
+  return true;
+}
+
+/** `/system/open-path` 的校验 + 执行（导出供路由单测；执行会 spawn 系统文件管理器）。 */
+export async function systemOpenPathRoute(body: unknown) {
+  const b = body as { path?: string } | undefined;
+  if (!b?.path?.trim()) {
+    return fail('path is required', 'INVALID_INPUT');
+  }
+  return ok(await openPathInFileManager(b.path.trim()));
+}
+
 // --- Route table ---
 
 interface Route {
@@ -525,6 +562,11 @@ const routes: Route[] = [
       if (!b?.path?.trim()) return fail('path is required', 'INVALID_INPUT');
       return ok(await revealInFileManager(b.path.trim()));
     },
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/system/open-path'),
+    handler: async (_req, body) => systemOpenPathRoute(body),
   },
   {
     method: 'POST',

@@ -2,6 +2,7 @@ use crate::commands::ipc;
 use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
+use adl_types::types::config::{RuntimeInfo, RuntimeShell};
 use adl_types::{
     AppInfo, AppPreferencePatch, EventDiagnostics, HealthComponent, HealthSnapshot, HealthStatus,
     IpcResult, MigrationDiagnostics, RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot,
@@ -300,7 +301,20 @@ pub fn build_app_info(
         w.root_path = strip_verbatim_prefix(&w.root_path);
         w
     });
-    Ok(adl_kernel::app_info::build(&config, current_workspace))
+    Ok(adl_kernel::app_info::build(&config, current_workspace, shell_runtime_info(state)))
+}
+
+/// 桌面壳自身运行时：Tauri 版本编译期可得，WebView2 版本运行时向系统查询。
+/// 查不到时返回 `None`（页面显示「未知」，不猜版本号）。
+fn shell_runtime_info(state: &AppState) -> RuntimeInfo {
+    RuntimeInfo {
+        shell: RuntimeShell::Tauri,
+        tauri_version: Some(tauri::VERSION.to_string()),
+        webview_version: tauri::webview_version().ok(),
+        os: std::env::consts::OS.to_string(),
+        arch: std::env::consts::ARCH.to_string(),
+        log_dir: state.log_manager.log_dir().to_string_lossy().into_owned(),
+    }
 }
 
 /// 写入调试日志到项目目录（委托 LogManager，按当前模式处理）。

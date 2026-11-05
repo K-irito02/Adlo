@@ -22,4 +22,5 @@ export const mockWindow: WindowBridge = {
   openExternal: async (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   },
+  openPath: async () => ({ ok: true, data: true }),
 };

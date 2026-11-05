@@ -4,9 +4,18 @@ import { DEFAULT_FONTS } from '../../../shared/defaultPreferences';
 import {
   GROUP_RESET_PATCHES,
   RESETTABLE_GROUPS,
+  SETTINGS_GROUPS,
   getGroupResetPatch,
   isPatchSatisfied,
 } from './settingsGroups';
+
+describe('settings group registry', () => {
+  it('关于组排在导航最后，且没有可恢复的默认值', () => {
+    expect(SETTINGS_GROUPS.at(-1)?.id).toBe('about');
+    expect(RESETTABLE_GROUPS.has('about')).toBe(false);
+    expect(getGroupResetPatch('about')).toBeNull();
+  });
+});
 
 describe('isPatchSatisfied', () => {
   it('treats null/undefined as empty-string default (事项 12a)', () => {
