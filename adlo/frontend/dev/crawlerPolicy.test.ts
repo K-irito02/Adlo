@@ -24,7 +24,7 @@ describe('crawlerPolicy', () => {
 
   it('isPrivateUrl leaves public hosts alone', () => {
     expect(isPrivateUrl('https://example.com/')).toBe(false);
-    expect(isPrivateUrl('https://github.com/K-irito02/Kora')).toBe(false);
+    expect(isPrivateUrl('https://github.com/K-irito02/Adlo')).toBe(false);
     expect(isPrivateUrl('http://8.8.8.8/')).toBe(false);
   });
 
@@ -73,7 +73,7 @@ describe('crawlerPolicy', () => {
   });
 
   it('robotsAllowFetch: disallow hard blocks public url', async () => {
-    const body = 'User-agent: AIDigitalLife\nDisallow: /private\n';
+    const body = 'User-agent: Adlo\nDisallow: /private\n';
     const fetchImpl = vi.fn(
       async () => ({ ok: true, status: 200, text: async () => body }) as unknown as Response,
     );

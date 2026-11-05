@@ -5,7 +5,9 @@
  * Rust side mirrors this exact string in `src-tauri/src/commands/browser.rs`
  * (`USER_AGENT` const). Update both locations together — they must stay in sync
  * so that Tauri-mode and preview-mode requests appear identical to servers.
- * This is a compliant crawler identity (robots.txt product token: `AIDigitalLife`),
+ * This is a compliant crawler identity (robots.txt product token: `Adlo`),
  * not a browser UA spoof.
  */
-export const USER_AGENT = 'AIDigitalLife/1.0 (+https://github.com/K-irito02/Kora; MetaFetcher)';
+export const BOT_PRODUCT_TOKEN = 'Adlo';
+
+export const USER_AGENT = `${BOT_PRODUCT_TOKEN}/1.0 (+https://github.com/K-irito02/Adlo; MetaFetcher)`;

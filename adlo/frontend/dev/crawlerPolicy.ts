@@ -4,7 +4,7 @@
  * 供 `vite.config.ts` `/__adl_preview_api__/browser/page-meta` 中间件使用。
  */
 import { parseRobotsTxt, isAllowed, type RobotsRules } from './crawlerRobots';
-import { USER_AGENT } from '../src/shared/userAgent';
+import { USER_AGENT, BOT_PRODUCT_TOKEN } from '../src/shared/userAgent';
 
 declare global {
   var __adlRobotsCache: RobotsCache | undefined;
@@ -112,5 +112,5 @@ export async function robotsAllowFetch(
     if (rules) cache.insert(domain, rules, now);
   }
   if (!rules) return true;
-  return isAllowed(rules, 'AIDigitalLife', parsed.pathname);
+  return isAllowed(rules, BOT_PRODUCT_TOKEN, parsed.pathname);
 }

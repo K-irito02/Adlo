@@ -1092,7 +1092,7 @@ pub fn browser_clear_cache(
 /// Mirrors `frontend/src/shared/userAgent.ts` (`USER_AGENT`). Update both
 /// locations together — they must stay in sync so Tauri-mode and preview-mode
 /// requests appear identical to servers.
-const USER_AGENT: &str = "AIDigitalLife/1.0 (+https://github.com/K-irito02/Kora; MetaFetcher)";
+const USER_AGENT: &str = "Adlo/1.0 (+https://github.com/K-irito02/Adlo; MetaFetcher)";
 
 use std::collections::HashMap;
 

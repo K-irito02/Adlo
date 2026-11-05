@@ -3,44 +3,40 @@ import { parseRobotsTxt, isAllowed, productToken, longestMatch } from './crawler
 
 describe('crawlerRobots', () => {
   it('productToken takes part before slash', () => {
-    expect(productToken('AIDigitalLife/1.0')).toBe('AIDigitalLife');
+    expect(productToken('Adlo/1.0')).toBe('Adlo');
     expect(productToken('Googlebot')).toBe('Googlebot');
   });
 
   it('disallow blocks matching path', () => {
-    const rules = parseRobotsTxt('User-agent: AIDigitalLife\nDisallow: /private/');
-    expect(isAllowed(rules, 'AIDigitalLife/1.0', '/private/data.html')).toBe(false);
+    const rules = parseRobotsTxt('User-agent: Adlo\nDisallow: /private/');
+    expect(isAllowed(rules, 'Adlo/1.0', '/private/data.html')).toBe(false);
   });
 
   it('allow wins over disallow on equal specificity', () => {
     const rules = parseRobotsTxt('User-agent: *\nDisallow: /foo\nAllow: /foo\n');
-    expect(isAllowed(rules, 'AIDigitalLife', '/foo')).toBe(true);
+    expect(isAllowed(rules, 'Adlo', '/foo')).toBe(true);
   });
 
   it('most specific user-agent group wins over star', () => {
-    const rules = parseRobotsTxt(
-      'User-agent: *\nDisallow: /x\n\nUser-agent: AIDigitalLife\nAllow: /\n',
-    );
-    expect(isAllowed(rules, 'AIDigitalLife/1.0', '/x')).toBe(true);
+    const rules = parseRobotsTxt('User-agent: *\nDisallow: /x\n\nUser-agent: Adlo\nAllow: /\n');
+    expect(isAllowed(rules, 'Adlo/1.0', '/x')).toBe(true);
     expect(isAllowed(rules, 'OtherBot/1.0', '/x')).toBe(false);
   });
 
   it('comments and blank lines ignored', () => {
-    const rules = parseRobotsTxt(
-      '# top\n\nUser-agent: AIDigitalLife # inline\n# c\nDisallow: /tmp\n\n',
-    );
-    expect(isAllowed(rules, 'AIDigitalLife', '/tmp/a')).toBe(false);
-    expect(isAllowed(rules, 'AIDigitalLife', '/ok')).toBe(true);
+    const rules = parseRobotsTxt('# top\n\nUser-agent: Adlo # inline\n# c\nDisallow: /tmp\n\n');
+    expect(isAllowed(rules, 'Adlo', '/tmp/a')).toBe(false);
+    expect(isAllowed(rules, 'Adlo', '/ok')).toBe(true);
   });
 
   it('empty allow or disallow ignored', () => {
     const rules = parseRobotsTxt('User-agent: *\nDisallow:\nAllow:\n');
-    expect(isAllowed(rules, 'AIDigitalLife', '/anything')).toBe(true);
+    expect(isAllowed(rules, 'Adlo', '/anything')).toBe(true);
   });
 
   it('no rules for token allows everything', () => {
     const rules = parseRobotsTxt('User-agent: Googlebot\nDisallow: /x\n');
-    expect(isAllowed(rules, 'AIDigitalLife/1.0', '/x')).toBe(true);
+    expect(isAllowed(rules, 'Adlo/1.0', '/x')).toBe(true);
   });
 
   it('wildcard star and dollar anchor', () => {
@@ -54,7 +50,7 @@ describe('crawlerRobots', () => {
     const rules = parseRobotsTxt(
       'User-agent: *\nDisallow: /foo/bar\nDisallow: /foo\nAllow: /foo\n',
     );
-    expect(isAllowed(rules, 'AIDigitalLife', '/foo/bar')).toBe(false);
-    expect(isAllowed(rules, 'AIDigitalLife', '/foo')).toBe(true);
+    expect(isAllowed(rules, 'Adlo', '/foo/bar')).toBe(false);
+    expect(isAllowed(rules, 'Adlo', '/foo')).toBe(true);
   });
 });

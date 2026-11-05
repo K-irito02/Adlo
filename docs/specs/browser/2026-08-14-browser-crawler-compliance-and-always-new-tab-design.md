@@ -35,7 +35,7 @@
 
 | 组件 | 说明 |
 |------|------|
-| 机器人 UA 常量 | `AIDigitalLife/1.0 (+{本项目仓库 URL}; MetaFetcher)`，实现时填入项目公开仓库 URL。双端同步：Rust `USER_AGENT` 常量 + `frontend/src/shared/userAgent.ts` |
+| 机器人 UA 常量 | `Adlo/1.0 (+https://github.com/K-irito02/Adlo; MetaFetcher)`，实现时填入项目公开仓库 URL。双端同步：Rust `USER_AGENT` 常量 + `frontend/src/shared/userAgent.ts` |
 | robots.txt 解析器 | Rust：`crates/browser/src/robots_txt.rs` 纯函数模块；Vite 端：`frontend/dev/` 下对应纯函数模块。解析 `User-agent` / `Allow` / `Disallow`，按 RFC 9309 最具体匹配（先精确 token，后 `*`） |
 | robots 缓存 | 按域名内存缓存 + TTL（1 小时），避免每 URL 重复拉取 robots.txt |
 | 域名限速器 | 每域名滑动窗口（5s/次），超限返回空结果走兜底 |
