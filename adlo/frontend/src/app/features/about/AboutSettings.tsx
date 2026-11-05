@@ -4,44 +4,13 @@ import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { openUrlByMethod } from '@features/preview/openByMethod';
-import type { CopyKey } from '@i18n/types';
 import { ABOUT_URLS, MIT_LICENSE_TEXT } from './aboutContent';
+import { CREDIT_GROUPS } from './creditsData';
+import { THIRD_PARTY_NOTICES } from './thirdPartyNotices';
 import { formatArch, formatOs } from './runtimeLabels';
 import { AboutTextDialog } from './AboutTextDialog';
 
-type AboutDialog = 'license' | 'credits' | null;
-
-interface CreditItem {
-  name: string;
-  detailKey: CopyKey;
-}
-
-/** 致谢只列**真实使用**的字体 / 组件 / 外部工具；许可条款留给发布前的第三方声明。 */
-const CREDIT_GROUPS: { titleKey: CopyKey; items: CreditItem[] }[] = [
-  {
-    titleKey: 'aboutCreditsFonts',
-    items: [
-      { name: 'Inter', detailKey: 'aboutCreditsInter' },
-      { name: 'JetBrains Mono', detailKey: 'aboutCreditsJetbrains' },
-    ],
-  },
-  {
-    titleKey: 'aboutCreditsComponents',
-    items: [
-      { name: 'Tauri', detailKey: 'aboutCreditsTauri' },
-      { name: 'React', detailKey: 'aboutCreditsReact' },
-      { name: 'CodeMirror', detailKey: 'aboutCreditsCodemirror' },
-      { name: 'xterm.js', detailKey: 'aboutCreditsXterm' },
-      { name: 'markdown-it · Starry Night', detailKey: 'aboutCreditsMarkdown' },
-      { name: 'Zustand', detailKey: 'aboutCreditsZustand' },
-      { name: 'Lucide', detailKey: 'aboutCreditsLucide' },
-    ],
-  },
-  {
-    titleKey: 'aboutCreditsTools',
-    items: [{ name: 'DSH · OpenCode CLI', detailKey: 'aboutCreditsHarness' }],
-  },
-];
+type AboutDialog = 'license' | 'credits' | 'notices' | null;
 
 /**
  * 设置 ·「关于」组（Colophon 居中版，用户 2026-11-05 选定）。
@@ -152,6 +121,9 @@ export function AboutSettings() {
         <button type="button" className="adl-about__link" onClick={() => setDialog('credits')}>
           {t.aboutCredits}
         </button>
+        <button type="button" className="adl-about__link" onClick={() => setDialog('notices')}>
+          {t.aboutThirdPartyNotices}
+        </button>
       </div>
 
       <div className="adl-about__meta">
@@ -187,15 +159,68 @@ export function AboutSettings() {
             <section className="adl-about-credits" key={group.titleKey}>
               <h3 className="adl-about-credits__title">{t[group.titleKey]}</h3>
               <ul className="adl-about-credits__list">
-                {group.items.map((item) => (
-                  <li className="adl-about-credits__item" key={item.name}>
-                    <span className="adl-about-credits__name">{item.name}</span>
-                    <span className="adl-about-credits__desc">{t[item.detailKey]}</span>
-                  </li>
-                ))}
+                {group.items.map((item) => {
+                  const url = item.url;
+                  return (
+                    <li className="adl-about-credits__item" key={item.name}>
+                      <div className="adl-about-credits__head">
+                        {url ? (
+                          <button
+                            type="button"
+                            className="adl-about-credits__name adl-about-credits__link"
+                            onClick={() => openUrlByMethod(url)}
+                          >
+                            {item.name}
+                          </button>
+                        ) : (
+                          <span className="adl-about-credits__name">{item.name}</span>
+                        )}
+                        {item.license ? (
+                          <span className="adl-about-credits__license">{item.license}</span>
+                        ) : null}
+                      </div>
+                      <span className="adl-about-credits__desc">{t[item.detailKey]}</span>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           ))}
+          <p className="adl-about-credits__thanks">{t.aboutCreditsGeneralThanks}</p>
+          <p className="adl-about-credits__trademark">{t.aboutCreditsTrademarkNote}</p>
+        </AboutTextDialog>
+      ) : null}
+
+      {dialog === 'notices' ? (
+        <AboutTextDialog
+          title={t.aboutThirdPartyNoticesTitle}
+          subtitle={t.aboutThirdPartyNoticesSubtitle}
+          wide
+          onClose={() => setDialog(null)}
+        >
+          {THIRD_PARTY_NOTICES.map((notice) => (
+            <section className="adl-about-notice" key={notice.name}>
+              <div className="adl-about-notice__head">
+                <button
+                  type="button"
+                  className="adl-about-notice__name adl-about-credits__link"
+                  onClick={() => openUrlByMethod(notice.url)}
+                >
+                  {notice.name}
+                </button>
+                <span className="adl-about-notice__license">{notice.license}</span>
+              </div>
+              <p className="adl-about-notice__meta">
+                {notice.copyright ?? t.aboutNoticeNoCopyright}
+              </p>
+              <p className="adl-about-notice__desc">{t[notice.detailKey]}</p>
+              <details className="adl-about-notice__details">
+                <summary>{t.aboutNoticeLicenseText}</summary>
+                <pre className="adl-about-dialog__license">{notice.text}</pre>
+              </details>
+            </section>
+          ))}
+          <p className="adl-about-notice__scope">{t.aboutThirdPartyNoticesScope}</p>
         </AboutTextDialog>
       ) : null}
     </div>

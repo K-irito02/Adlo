@@ -53,17 +53,55 @@ const aboutT = new Proxy({} as Record<string, string>, {
       case 'aboutCreditsTitle':
         return '致谢';
       case 'aboutCreditsSubtitle':
-        return 'Adlo 使用了以下字体、开源组件与外部工具。';
+        return 'Adlo 使用了以下字体、素材、开源项目与外部工具。';
       case 'aboutCreditsFonts':
-        return '字体';
-      case 'aboutCreditsComponents':
-        return '开源组件';
+        return '字体与排版';
+      case 'aboutCreditsAssets':
+        return '图标与素材';
+      case 'aboutCreditsCharts':
+        return '图表与可视化';
+      case 'aboutCreditsEditors':
+        return '编辑器与预览';
+      case 'aboutCreditsFramework':
+        return '应用框架与基础设施';
       case 'aboutCreditsTools':
         return '外部工具';
       case 'aboutCreditsInter':
         return '界面字体首选。';
-      case 'aboutCreditsHarness':
-        return '由各自项目提供并维护。';
+      case 'aboutCreditsReactSymbols':
+        return '文件类型图标。';
+      case 'aboutCreditsBklit':
+        return 'Git 可视化图表。';
+      case 'aboutCreditsDevicons':
+        return '开发者与技术图标。';
+      case 'aboutCreditsDsh':
+        return '由 DeepSeek 提供并维护。';
+      case 'aboutCreditsOpencode':
+        return '由其项目提供并维护。';
+      case 'aboutCreditsGeneralThanks':
+        return '此外，谨向所有作者、维护者与社区致以诚挚感谢。';
+      case 'aboutCreditsTrademarkNote':
+        return '文中提及的第三方名称与标识归各自所有者。';
+      case 'aboutThirdPartyNotices':
+        return '第三方声明';
+      case 'aboutThirdPartyNoticesTitle':
+        return '第三方声明';
+      case 'aboutThirdPartyNoticesSubtitle':
+        return '随包分发的素材与移植代码的许可声明。';
+      case 'aboutNoticeLicenseText':
+        return '许可全文';
+      case 'aboutNoticeNoCopyright':
+        return '上游许可文件未提供版权行';
+      case 'aboutNoticeBklit':
+        return 'Git 可视化图表组件；部分代码移植并适配。';
+      case 'aboutNoticeReactSymbols':
+        return '文件类型图标。';
+      case 'aboutNoticeUntitledUi':
+        return '文件类型图标素材。';
+      case 'aboutNoticeDevicons':
+        return '开发者与技术图标。';
+      case 'aboutThirdPartyNoticesScope':
+        return '本版本收录随包分发的素材与移植代码的许可。';
       case 'operationFailed':
         return '操作失败';
       case 'close':
@@ -229,15 +267,41 @@ describe('AboutSettings', () => {
     expect(document.activeElement).toBe(closeButton);
   });
 
-  it('shows fonts and external tools in the credits dialog only', () => {
+  it('lists fonts, assets, charts, editors, framework and tools in the credits dialog', () => {
     renderAbout();
 
     fireEvent.click(screen.getByText('致谢'));
     const dialog = screen.getByRole('dialog');
     expect(dialog.textContent).toContain('Inter');
     expect(dialog.textContent).toContain('JetBrains Mono');
-    expect(dialog.textContent).toContain('DSH · OpenCode CLI');
+    expect(dialog.textContent).toContain('React Symbols');
+    expect(dialog.textContent).toContain('Untitled UI');
+    expect(dialog.textContent).toContain('Devicons');
+    expect(dialog.textContent).toContain('bklit-ui');
+    expect(dialog.textContent).toContain('CodeMirror');
+    expect(dialog.textContent).toContain('Tauri');
+    expect(dialog.textContent).toContain('DSH');
+    expect(dialog.textContent).toContain('OpenCode CLI');
+    expect(dialog.textContent).toContain('谨向所有作者、维护者与社区致以诚挚感谢');
+    expect(dialog.textContent).toContain('第三方名称与标识归各自所有者');
+    expect(screen.getAllByText('MIT').length).toBeGreaterThanOrEqual(3);
     expect(dialog.textContent).not.toContain('MIT License');
+  });
+
+  it('shows third-party notices with copyright lines and expandable license text', () => {
+    renderAbout();
+
+    fireEvent.click(screen.getByText('第三方声明'));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.textContent).toContain('bklit-ui');
+    expect(dialog.textContent).toContain('Copyright (c) 2026 uixmat');
+    expect(dialog.textContent).toContain('React Symbols');
+    expect(dialog.textContent).toContain('Copyright (c) 2022 Pablo Hernández');
+    expect(dialog.textContent).toContain('Untitled UI');
+    expect(dialog.textContent).toContain('Copyright (c) 2025 Untitled UI');
+    expect(dialog.textContent).toContain('上游许可文件未提供版权行');
+    expect(dialog.querySelectorAll('details')).toHaveLength(4);
+    expect(screen.getAllByText('许可全文')).toHaveLength(4);
   });
 
   it('keeps only the logs entry in the support row', () => {

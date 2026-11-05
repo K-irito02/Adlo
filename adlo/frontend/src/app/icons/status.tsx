@@ -271,6 +271,8 @@ export const IconWorld = make(
 
 /**
  * DeepSeek 官方品牌图标（宿主第三方 harness 标识）。
+ *
+ * 来源：Devicons — https://devicons.io/icons/（MIT，仓库 https://github.com/vorillaz/devicons）。
  * 源 SVG 的硬编码蓝色 `#4D6BFE` 改为 `currentColor` 继承主题色（中性灰）；
  * 原始 `0 0 600 600` viewBox 保留；clipPath（整幅画布裁剪，无实际裁剪效果）已省略，
  * 仅保留主体路径。填充走默认 nonzero 规则，与源 SVG 一致（无需 fillRule）。
