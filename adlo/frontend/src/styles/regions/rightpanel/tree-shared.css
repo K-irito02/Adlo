@@ -230,6 +230,22 @@
   text-align: center;
 }
 
+/* 文案中间嵌图标（如标题栏「添加工作区」按钮）：保持单行内联，窄面板自动换行。 */
+.adl-empty-hint__inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  vertical-align: middle;
+}
+
+.adl-empty-hint__icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-secondary);
+}
+
 .adl-multitree__empty {
   display: flex;
   align-items: flex-start;

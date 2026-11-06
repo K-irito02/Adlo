@@ -56,6 +56,32 @@ pub async fn get_git_status(
     }
 }
 
+/// POST `/workspace/git/init` — initialize a **local** git repository at the
+/// explicitly supplied workspace path (covers `WorkspaceBridge.initGitRepo`).
+///
+/// `workspacePath` is mandatory: unlike status/branches, falling back to the
+/// active workspace could initialize the wrong workspace in a multi-workspace
+/// session. Only `.git` is created; no network, no existing file changes.
+pub async fn init_git_repo(body: axum::body::Bytes) -> impl IntoResponse {
+    let body_val: serde_json::Value = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let workspace_path = body_val.get("workspacePath").and_then(|v| v.as_str()).map(String::from);
+    let Some(workspace_path) = workspace_path else {
+        return ipc::to_response(Err(AppError::InvalidInput(
+            "workspacePath is required".to_string(),
+        )));
+    };
+    let result = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
+        let snapshot = adl_workspace::init_git_repo(Path::new(&workspace_path))?;
+        Ok(serde_json::to_value(&snapshot)?)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")));
+    ipc::to_response(result.and_then(|r| r))
+}
+
 /// POST `/workspace/git/branches` — list git branches (covers
 /// `WorkspaceBridge.listGitBranches`).
 pub async fn list_git_branches(

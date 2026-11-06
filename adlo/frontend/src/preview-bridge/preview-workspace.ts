@@ -147,6 +147,11 @@ export function createPreviewWorkspaceBridge(
       const params = new URLSearchParams({ rootPath: workspacePath });
       return requestPreviewApi<GitSnapshot>(`/workspace/git-status?${params.toString()}`);
     },
+    initGitRepo: async (workspacePath: string) =>
+      requestPreviewApi<GitSnapshot>('/workspace/git-init', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath: workspacePath }),
+      }),
     revealInFileManager: async (workspacePath: string) =>
       requestPreviewApi<boolean>('/workspace/reveal', {
         method: 'POST',

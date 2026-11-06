@@ -54,6 +54,12 @@ export const changesZh = {
   changesBranchLocal: '本地',
   changesBranchRemote: '远程',
   changesBranchInitRepo: '请先初始化为 Git 仓库',
+  changesNonGitRepoTitle: '非 Git 仓库',
+  changesNonGitRepoInitAction: '初始化为 Git 仓库',
+  changesNonGitRepoInitializing: '正在初始化…',
+  changesNonGitRepoHintLabel: '非 Git 仓库说明',
+  changesNonGitRepoHint:
+    '# 什么是 Git 仓库\n记录文件版本与变更历史的本地数据库，位于当前工作区根目录的 .git 文件夹。\n# 为什么需要它\n变更面板依赖 Git 快照比较工作区与上一次提交：\n· 显示已暂存 / 已修改 / 未跟踪文件\n· 支持暂存、取消暂存、丢弃与提交\n# 初始化后会发生什么\n· 只在当前工作区根目录创建 .git，不联网、不上传、不添加远程仓库\n· 不会改动、删除或提交任何现有文件\n· 之后可随时添加远程仓库并推送',
   changesBranchNoOther: '暂无其它分支',
   changesBranchSearchNone: '搜索分支不存在',
   changesBranchAhead: '本地超前',

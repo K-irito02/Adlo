@@ -246,6 +246,11 @@ interface GitActions {
     workspacePath: string,
     options?: { silent?: boolean },
   ) => Promise<void>;
+  /**
+   * 在指定工作区根目录初始化**本地** Git 仓库（幂等，只创建 `.git`）。
+   * @returns 是否初始化成功
+   */
+  initGitRepo: (workspaceId: string, workspacePath: string) => Promise<boolean>;
   expandWorkspaceChangesInFileNav: (workspaceId: string, workspacePath: string) => Promise<void>;
   collapseAllWorkspaceChanges: () => void;
   expandAllWorkspaceChanges: () => Promise<void>;

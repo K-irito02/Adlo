@@ -1,6 +1,9 @@
 import { useCallback } from 'react';
 import { BrowserTreeEntry } from './BrowserTreeEntry';
 import type { BrowserCategoryState, BrowserCategoryType } from './types';
+import { useTCopy } from '@i18n/useTCopy';
+import { AddWorkspaceHint } from '@features/multi-workspace/AddWorkspaceHint';
+import { IconNewFolderBrowser } from '@icons';
 
 export interface SectionCallbacks {
   onCreateTab: (workspaceId?: string, folderId?: string) => void;
@@ -52,6 +55,7 @@ export function BrowserCategorySection({
   browserViewMode,
   filterTabIds,
 }: BrowserCategorySectionProps) {
+  const { t } = useTCopy();
   const handleOpenFile = useCallback((path: string) => onOpenFile(path), [onOpenFile]);
 
   const topLevelCount = category.nodes.length;
@@ -79,6 +83,35 @@ export function BrowserCategorySection({
             filterTabIds={filterTabIds}
           />
         ))}
+        {category.nodes.length === 0 ? (
+          <div className="adl-browser-category__empty">
+            {categoryType === 'history' ? (
+              <span className="adl-browser-category__empty-title">
+                {t.browserCategoryEmptyHistory as string}
+              </span>
+            ) : (
+              <span className="adl-browser-category__empty-guide">
+                <AddWorkspaceHint
+                  prefix={
+                    categoryType === 'workspace'
+                      ? (t.browserCategoryEmptyWorkspaceGuidePrefix as string)
+                      : (t.browserCategoryEmptyUserFolderGuidePrefix as string)
+                  }
+                  suffix={
+                    categoryType === 'workspace'
+                      ? (t.browserCategoryEmptyWorkspaceGuideSuffix as string)
+                      : (t.browserCategoryEmptyUserFolderGuideSuffix as string)
+                  }
+                  icon={
+                    categoryType === 'userFolder' ? (
+                      <IconNewFolderBrowser size={14} decorative />
+                    ) : undefined
+                  }
+                />
+              </span>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   );

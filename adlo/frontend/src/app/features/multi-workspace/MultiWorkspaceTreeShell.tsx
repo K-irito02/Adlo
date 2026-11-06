@@ -4,7 +4,7 @@ import type { RecentWorkspaceEntry } from '@shared/ipc';
 export interface MultiWorkspaceTreeShellProps {
   visibleWorkspaces: RecentWorkspaceEntry[];
   expandedState: Record<string, boolean>;
-  emptyText: string;
+  emptyText: React.ReactNode;
   onToggleExpand: (workspaceId: string) => void;
   onClearSelection: () => void;
   renderContent: (workspace: RecentWorkspaceEntry, isExpanded: boolean) => React.ReactNode;

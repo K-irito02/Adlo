@@ -1,5 +1,5 @@
 // src/app/features/terminal/__tests__/TerminalMenuDropdown.test.tsx
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { TerminalMenuDropdown } from '../TerminalMenuDropdown';
 import type { TerminalMenuItem } from '../useTerminalPanel';
@@ -112,5 +112,45 @@ describe('TerminalMenuDropdown hint mark', () => {
   it('无 hint 的项不渲染感叹号', () => {
     renderDropdown([{ id: 'x', label: '普通项', action: vi.fn() }]);
     expect(document.querySelector('.adl-menu-item__hint')).toBeNull();
+  });
+});
+
+function makeRect(left: number, top: number, width: number, height: number): DOMRect {
+  return {
+    left,
+    top,
+    width,
+    height,
+    right: left + width,
+    bottom: top + height,
+    x: left,
+    y: top,
+    toJSON() {},
+  } as DOMRect;
+}
+
+describe('TerminalMenuDropdown 提示卡锚点', () => {
+  const HINT = '# 结束鼠标最近一次所点击的终端窗口\n· 只影响这一格';
+
+  beforeEach(() => {
+    vi.stubGlobal('innerWidth', 1200);
+    vi.stubGlobal('innerHeight', 800);
+  });
+
+  it('以整行菜单项为锚点（贴合菜单左缘），而不是感叹号自身', () => {
+    renderDropdown([{ id: 'kill', label: '杀死进程', hint: HINT, action: vi.fn() }]);
+    const row = document.querySelector('.adl-menu__item') as HTMLElement;
+    const mark = document.querySelector('.adl-menu-item__hint') as HTMLElement;
+
+    // 行左缘 700、感叹号左缘 870：两者相差 170px，足以区分锚点来源。
+    row.getBoundingClientRect = () => makeRect(700, 100, 200, 30);
+    mark.getBoundingClientRect = () => makeRect(870, 104, 16, 16);
+
+    fireEvent.mouseEnter(mark);
+
+    const card = document.body.querySelector('.hint-card') as HTMLElement | null;
+    expect(card).not.toBeNull();
+    // placement=left 放得下时：left = 行左缘 - gap(5)。用感叹号自身会得到 865px。
+    expect(card?.style.left).toBe('695px');
   });
 });

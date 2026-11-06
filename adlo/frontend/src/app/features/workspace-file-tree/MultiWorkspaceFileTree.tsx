@@ -6,6 +6,7 @@ import { WorkspaceFileTreeEntry } from './WorkspaceFileTreeEntry';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import type { TreeExpansion } from '@stores/slices/uiSliceTypes';
+import { AddWorkspaceHint } from '../multi-workspace/AddWorkspaceHint';
 
 export interface MultiWorkspaceFileTreeProps {
   workspaces: RecentWorkspaceEntry[];
@@ -153,7 +154,12 @@ export function MultiWorkspaceFileTree({
     <MultiWorkspaceTreeShell
       visibleWorkspaces={workspaces}
       expandedState={expandedStates}
-      emptyText={t.workspaceEmpty as string}
+      emptyText={
+        <AddWorkspaceHint
+          prefix={t.workspaceEmptyAddWorkspacePrefix as string}
+          suffix={t.workspaceEmptyAddWorkspaceSuffix as string}
+        />
+      }
       onToggleExpand={onToggleExpand}
       onClearSelection={onClearSelection}
       renderContent={renderContent}

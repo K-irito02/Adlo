@@ -47,6 +47,13 @@ export const browserEn = {
   browserCategoryWorkspace: 'Workspace Directory',
   browserCategoryUserFolder: 'Custom Directory',
   browserCategoryHistory: 'History Directory',
+  browserCategoryEmptyWorkspaceGuidePrefix: 'Click the',
+  browserCategoryEmptyWorkspaceGuideSuffix:
+    'button in the title bar to create a workspace directory',
+  browserCategoryEmptyUserFolderGuidePrefix: 'Click the',
+  browserCategoryEmptyUserFolderGuideSuffix:
+    'button above this sidebar to create a custom directory',
+  browserCategoryEmptyHistory: 'No history yet',
   browserOpenTabs: 'Open Tabs',
   browserCreateDir: 'New Directory',
   browserCreateDirHint:
@@ -55,6 +62,7 @@ export const browserEn = {
   browserDeleteHistoryMonthLabel: 'Delete all history · Month',
   browserDeleteHistoryDayLabel: 'Delete all history · Day',
   browserNoContent: 'No content',
+  browserEmptyDirectory: 'Empty directory',
   browserOpenTabsEmpty: 'No open tabs yet',
   browserTabDir: 'Tab Directory',
   browserRenamePrompt: 'Rename',

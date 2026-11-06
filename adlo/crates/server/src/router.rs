@@ -143,6 +143,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/sidebar/remove", post(handlers::workspace_sidebar::remove_from_sidebar))
         // Workspace-git domain
         .route("/workspace/git/status", post(handlers::workspace_git::get_git_status))
+        .route("/workspace/git/init", post(handlers::workspace_git::init_git_repo))
         .route("/workspace/git/branches", post(handlers::workspace_git::list_git_branches))
         .route("/workspace/git/switch", post(handlers::workspace_git::switch_git_branch))
         .route("/workspace/git/create", post(handlers::workspace_git::create_git_branch))

@@ -33,6 +33,7 @@ interface TestStore {
     workspacePath: string,
     options?: { silent?: boolean },
   ) => Promise<void>;
+  initGitRepo: (workspaceId: string, workspacePath: string) => Promise<boolean>;
   reportSilentError: (...args: unknown[]) => string;
 }
 
@@ -132,6 +133,59 @@ describe('refreshGitSnapshot', () => {
     });
     await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
     expect(store.getState().workspaceChangesTreeErrors['ws-1']).toBeUndefined();
+  });
+});
+
+describe('initGitRepo', () => {
+  beforeEach(() => {
+    vi.stubGlobal('digitalLife', {
+      workspace: {
+        initGitRepo: vi.fn(),
+        listGitStatusForWorkspace: vi.fn(),
+      },
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('成功时写入快照、清除旧 error，并把工作区路径显式传给后端', async () => {
+    (window as any).digitalLife.workspace.initGitRepo.mockResolvedValue({
+      ok: true,
+      data: {
+        isRepo: true,
+        branch: 'main',
+        staged: [],
+        unstaged: [],
+        untracked: [],
+        conflicts: [],
+        capturedAt: 1,
+      },
+    });
+    const { store } = makeStore();
+    store.setState({ workspaceChangesTreeErrors: { 'ws-1': 'stale' } });
+
+    const ok = await store.getState().initGitRepo('ws-1', '/target-workspace');
+
+    expect(ok).toBe(true);
+    expect((window as any).digitalLife.workspace.initGitRepo).toHaveBeenCalledWith(
+      '/target-workspace',
+    );
+    expect(store.getState().gitSnapshots['ws-1']).toMatchObject({ isRepo: true, branch: 'main' });
+    expect(store.getState().workspaceChangesTreeErrors['ws-1']).toBeUndefined();
+  });
+
+  it('失败时返回 false 并写入该工作区的 error', async () => {
+    (window as any).digitalLife.workspace.initGitRepo.mockResolvedValue({
+      ok: false,
+      error: { message: 'git init failed' },
+    });
+    const { store } = makeStore();
+
+    const ok = await store.getState().initGitRepo('ws-1', '/target-workspace');
+
+    expect(ok).toBe(false);
+    expect(store.getState().workspaceChangesTreeErrors['ws-1']).toBe('git init failed');
   });
 });
 

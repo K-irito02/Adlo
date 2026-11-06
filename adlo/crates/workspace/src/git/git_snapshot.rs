@@ -1,3 +1,4 @@
+use adl_errors::AppError;
 use adl_types::{GitSnapshot, now_ms};
 use std::path::Path;
 
@@ -86,6 +87,24 @@ pub fn capture_git_snapshot(root: &Path) -> GitSnapshot {
         conflicts,
         captured_at: now_ms(),
     }
+}
+
+/// 在当前工作区根目录初始化**本地** Git 仓库（幂等）。
+///
+/// 只创建 `.git`，不联网、不添加远程、不改动/删除/提交任何现有文件；
+/// 已存在 `.git` 时直接返回当前快照。`root` 必须显式传入且必须是目录，
+/// 避免多工作区场景下误初始化到其它工作区。
+pub fn init_git_repo(root: &Path) -> Result<GitSnapshot, AppError> {
+    if !root.is_dir() {
+        return Err(AppError::InvalidInput(format!(
+            "workspace path is not a directory: {}",
+            root.display()
+        )));
+    }
+    if !root.join(".git").exists() {
+        run_git_required(root, &["init"])?;
+    }
+    Ok(capture_git_snapshot(root))
 }
 
 pub async fn capture_git_snapshot_async(root: &Path) -> GitSnapshot {

@@ -374,6 +374,38 @@ export function createGitSnapshotActions(
     },
 
     /**
+     * [initGitRepo - 在当前工作区根目录初始化本地 Git 仓库]
+     * 只创建 `.git`；成功后把返回的快照写入 store，让「非 Git 仓库」空状态立即消失。
+     * `workspacePath` 显式传给后端，避免多工作区场景下误初始化到其它工作区。
+     * @param workspaceId 目标工作区 id（仅用于定位快照槽位，不参与后端执行）
+     * @param workspacePath 目标工作区根路径
+     * @returns 是否初始化成功
+     * @see shared/ipc/workspace.ts → workspace.initGitRepo
+     * @see mock-bridge.ts → workspace.initGitRepo
+     * @see preview-bridge/preview-workspace.ts → workspace.initGitRepo
+     */
+    initGitRepo: async (workspaceId: string, workspacePath: string): Promise<boolean> => {
+      const result = await window.digitalLife.workspace.initGitRepo(workspacePath);
+      if (!result.ok) {
+        set({
+          workspaceChangesTreeErrors: {
+            ...get().workspaceChangesTreeErrors,
+            [workspaceId]: result.error.message,
+          },
+        });
+        return false;
+      }
+      set((state) => ({
+        ...buildGitSnapshotSyncPatch(state, { workspaceId, snapshot: result.data }),
+        workspaceChangesTreeErrors: {
+          ...state.workspaceChangesTreeErrors,
+          [workspaceId]: undefined,
+        },
+      }));
+      return true;
+    },
+
+    /**
      * [refreshAllGitSnapshotsSilent - 静默刷新所有可见已展开工作区的 Git 快照]
      * 手动"刷新全部"的静默版（范围语义与其一致：可见 + 导航器已展开）：
      * 后端 watcher 只监听当前工作区根，非当前工作区的外部变更永远收不到批次，

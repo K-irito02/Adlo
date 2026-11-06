@@ -9,6 +9,8 @@ export const workspaceEn = {
   newSessionCreate: 'Create Chat',
   newSessionDefaultName: 'New Chat',
   workspaceEmpty: 'Click + above to create a workspace',
+  workspaceEmptyAddWorkspacePrefix: 'Click the',
+  workspaceEmptyAddWorkspaceSuffix: 'button in the title bar to add a workspace',
   workspaceTreeEmpty: 'No files in this workspace',
   sessionEmpty: 'Create a new session in this workspace',
   showMoreSessions: 'Show more',

@@ -43,18 +43,18 @@ function TerminalMenuItemRow({
     if (!item.hint) {
       return;
     }
-    // 对准感叹号自身（而非整行），箭头落位更准；取不到时回退整行。
-    const markRect = triggerRef.current?.getBoundingClientRect();
-    if (markRect && markRect.width > 0) {
-      showHint(item.hint, markRect);
-      return;
-    }
+    // 以整行菜单项为锚点（与 BrowserMenuHintItem 同口径）：placement 翻转到菜单
+    // 外侧时，卡片边缘正好贴合菜单边缘。用感叹号自身作锚点会把卡片压进菜单内部。
     const button = (event.target as HTMLElement).closest('button');
     const btnRect = button?.getBoundingClientRect();
-    if (!btnRect) {
+    if (btnRect) {
+      showHint(item.hint, btnRect);
       return;
     }
-    showHint(item.hint, btnRect);
+    const markRect = triggerRef.current?.getBoundingClientRect();
+    if (markRect) {
+      showHint(item.hint, markRect);
+    }
   };
 
   const isToggle = item.checked !== undefined;

@@ -144,6 +144,18 @@ export interface WorkspaceBridge {
    */
   listGitStatusForWorkspace: (workspacePath: string) => Promise<IpcResult<GitSnapshot>>;
   /**
+   * 在当前工作区根目录初始化**本地** Git 仓库（幂等）。
+   * 只创建 `.git`，不联网、不添加远程、不改动/删除/提交任何现有文件。
+   * `workspacePath` 必须显式传入，避免多工作区下误初始化到其它工作区。
+   * @param workspacePath 工作区的绝对路径
+   * @returns 初始化后的 Git 状态快照
+   * @command workspace_init_git_repo（HTTP: POST /workspace/git/init）
+   * @see httpBridge.ts → workspace.initGitRepo
+   * @see preview-bridge/preview-workspace.ts → workspace.initGitRepo
+   * @see mock/mock-workspace.ts → workspace.initGitRepo
+   */
+  initGitRepo: (workspacePath: string) => Promise<IpcResult<GitSnapshot>>;
+  /**
    * 在系统文件管理器中显示路径
    * @param workspacePath 要显示的绝对路径
    * @returns 是否成功打开文件管理器

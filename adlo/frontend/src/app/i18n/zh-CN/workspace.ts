@@ -9,6 +9,8 @@ export const workspaceZh = {
   newSessionCreate: '创建会话',
   newSessionDefaultName: '临时会话',
   workspaceEmpty: '点击上方 + 号创建工作区',
+  workspaceEmptyAddWorkspacePrefix: '点击顶部标题栏',
+  workspaceEmptyAddWorkspaceSuffix: '按钮添加工作区',
   workspaceTreeEmpty: '该工作区暂无文件',
   sessionEmpty: '在此工作区下新建一个会话',
   showMoreSessions: '展开更多',

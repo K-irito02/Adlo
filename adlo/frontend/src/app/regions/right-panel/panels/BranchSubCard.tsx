@@ -601,6 +601,7 @@ export function BranchMenuItem({
 }) {
   const { t } = useTCopy();
   const [isOnWrapper, setIsOnWrapper] = useState(false);
+  const rowRef = useRef<HTMLDivElement | null>(null);
   const { hintState, showHint: showHintCard, scheduleHide, hintCardProps } = useHintCard();
 
   const handleMenuEnter = () => {
@@ -625,6 +626,7 @@ export function BranchMenuItem({
 
   return (
     <div
+      ref={rowRef}
       className="adl-multitree-entry__menu-item--with-sub"
       onMouseEnter={handleMenuEnter}
       onMouseLeave={handleMenuLeave}
@@ -649,9 +651,13 @@ export function BranchMenuItem({
         className="adl-menu-item__hint"
         onMouseEnter={(e) => {
           e.stopPropagation();
+          // 以整行菜单项为锚点：卡片翻转到菜单外侧时边缘正好贴合菜单边缘
+          // （与 MenuHintItem / BrowserMenuHintItem 同口径）。用感叹号自身作锚点
+          // 会把卡片压进菜单内部。
+          const rowRect = rowRef.current?.getBoundingClientRect();
           showHintCard(
             t.changesBranchMenuHint as string,
-            (e.currentTarget as HTMLElement).getBoundingClientRect(),
+            rowRect ?? (e.currentTarget as HTMLElement).getBoundingClientRect(),
           );
         }}
         onMouseLeave={(e) => {

@@ -54,6 +54,12 @@ export const changesEn = {
   changesBranchLocal: 'Local',
   changesBranchRemote: 'Remote',
   changesBranchInitRepo: 'Initialize a Git repository first',
+  changesNonGitRepoTitle: 'Not a Git repository',
+  changesNonGitRepoInitAction: 'Initialize Git repository',
+  changesNonGitRepoInitializing: 'Initializing…',
+  changesNonGitRepoHintLabel: 'About the non-Git workspace state',
+  changesNonGitRepoHint:
+    '# What is a Git repository\nA local database of file versions and change history, stored in the .git folder at this workspace root.\n# Why it is needed\nThe Changes panel compares the workspace with the last commit using Git snapshots:\n· shows staged / modified / untracked files\n· enables stage, unstage, discard and commit\n# What happens after initialization\n· only .git is created at this workspace root — no network, no upload, no remote added\n· no existing file is changed, deleted or committed\n· you can add a remote and push later',
   changesBranchNoOther: 'No other branches',
   changesBranchSearchNone: 'No branches match your search',
   changesBranchAhead: 'Local ahead',

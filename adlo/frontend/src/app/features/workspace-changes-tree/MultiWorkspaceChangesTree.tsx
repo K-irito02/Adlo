@@ -3,6 +3,7 @@ import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
 import type { TreeExpansion } from '@stores/slices/uiSliceTypes';
 import { MultiWorkspaceTreeShell } from '../multi-workspace/MultiWorkspaceTreeShell';
+import { AddWorkspaceHint } from '../multi-workspace/AddWorkspaceHint';
 import { WorkspaceChangesEntry } from './WorkspaceChangesEntry';
 import { useTCopy } from '@i18n/useTCopy';
 
@@ -157,7 +158,12 @@ export function MultiWorkspaceChangesTree({
     <MultiWorkspaceTreeShell
       visibleWorkspaces={workspaces}
       expandedState={expandedStates}
-      emptyText={t.changesEmpty as string}
+      emptyText={
+        <AddWorkspaceHint
+          prefix={t.workspaceEmptyAddWorkspacePrefix as string}
+          suffix={t.workspaceEmptyAddWorkspaceSuffix as string}
+        />
+      }
       onToggleExpand={onToggleExpand}
       onClearSelection={onClearSelection}
       renderContent={renderContent}

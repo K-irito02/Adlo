@@ -825,6 +825,20 @@ const routes: Route[] = [
     },
   },
   {
+    method: 'POST',
+    pathname: makePath('/workspace/git-init'),
+    handler: async (_req, body) => {
+      const b = body as { rootPath?: string } | undefined;
+      const rootPath = b?.rootPath?.trim();
+      if (!rootPath) return fail('rootPath is required', 'INVALID_INPUT');
+      try {
+        return ok(await git.initGitRepo(rootPath));
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'INVALID_INPUT');
+      }
+    },
+  },
+  {
     method: 'GET',
     pathname: makePath('/workspace/git-branches'),
     handler: async (_req, _body, searchParams) => {

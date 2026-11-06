@@ -421,6 +421,32 @@
   display: none;
 }
 
+/* 分类内联空状态：标题 + 创建目录指导，水平居中（用户 2026-11-07 指定）。 */
+.adl-browser-category__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.adl-browser-category__empty-title {
+  color: var(--text-muted);
+}
+
+.adl-browser-category__empty-guide {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--text-muted);
+}
+
 /* Text label row (工作区目录 / 自建目录 / 历史目录) */
 .adl-browser-category__label {
   display: flex;

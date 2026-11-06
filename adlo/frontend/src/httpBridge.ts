@@ -913,6 +913,8 @@ export function createHttpBridge({
         ),
       listGitStatusForWorkspace: (workspacePath: string) =>
         call<GitSnapshot>(baseUrl, '/workspace/git/status', POST({ workspacePath })),
+      initGitRepo: (workspacePath: string) =>
+        call<GitSnapshot>(baseUrl, '/workspace/git/init', POST({ workspacePath })),
       revealInFileManager: (_workspacePath: string) =>
         taskNotSupported<boolean>('workspace.revealInFileManager'),
       createFile: (relativePath: string, content = '', workspacePath?: string) =>

@@ -82,9 +82,6 @@ export function MultiWorkspaceTerminal({
     onCreateTab('');
   };
 
-  const hasNoWorkspaces = workspaces.length === 0;
-  const hasNoIndependentTabs = independentTabs.length === 0;
-
   return (
     <div className="adl-multitree adl-multitree--terminal">
       <WorkspaceTerminalEntry
@@ -142,11 +139,6 @@ export function MultiWorkspaceTerminal({
             />
           )}
         />
-      )}
-      {hasNoWorkspaces && hasNoIndependentTabs && (
-        <div className="adl-multitree__empty">
-          <p className="adl-empty-hint">{t.workspaceEmpty as string}</p>
-        </div>
       )}
     </div>
   );

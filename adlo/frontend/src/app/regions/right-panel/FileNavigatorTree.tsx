@@ -68,10 +68,6 @@ const FileNavigatorTree = React.memo(function FileNavigatorTree({
   setDeleteWorkspacePath,
   clearMenuHighlightRef,
 }: FileNavigatorTreeProps) {
-  if (visibleWorkspaces.length === 0) {
-    return null;
-  }
-
   return (
     <CustomScrollArea
       shellClassName="adl-multitree"

@@ -23,9 +23,9 @@ pub use git::git_vis::{
 };
 pub use git::{
     capture_git_snapshot, capture_git_snapshot_async, create_git_branch, discard_file_changes,
-    ensure_branch_worktree, git_has_local_changes, has_auto_stash, list_git_branches,
-    list_worktrees, pop_auto_stash, prune_worktrees, remove_worktree, sibling_worktree_dir,
-    stage_file, switch_git_branch, unstage_file, worktree_for_branch,
+    ensure_branch_worktree, git_has_local_changes, has_auto_stash, init_git_repo,
+    list_git_branches, list_worktrees, pop_auto_stash, prune_worktrees, remove_worktree,
+    sibling_worktree_dir, stage_file, switch_git_branch, unstage_file, worktree_for_branch,
 };
 pub use gitignore::{GitignoreMatcher, GitignoreRuleSet, load_gitignore_chain};
 pub use preview::read_change_preview;
@@ -198,10 +198,39 @@ mod tests {
         assert!(status.success(), "git command failed: git {}", args.join(" "));
     }
 
-    fn init_git_repo(dir: &Path) {
+    fn init_git_test_repo(dir: &Path) {
         run_git_test(dir, &["init"]);
         run_git_test(dir, &["config", "user.email", "adl-tests@example.com"]);
         run_git_test(dir, &["config", "user.name", "ADL Tests"]);
+    }
+
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn init_git_repo_creates_local_repository_idempotently() {
+        let dir = std::env::temp_dir().join(format!("adl-workspace-init-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("note.txt"), "keep\n").unwrap();
+
+        let first = init_git_repo(&dir).unwrap();
+        assert!(first.is_repo);
+        assert!(dir.join(".git").is_dir());
+        assert_eq!(std::fs::read_to_string(dir.join("note.txt")).unwrap(), "keep\n");
+
+        // 幂等：重复调用不报错、不产生提交、不改变现有文件。
+        let second = init_git_repo(&dir).unwrap();
+        assert!(second.is_repo);
+        assert!(second.head.is_none());
+        assert_eq!(std::fs::read_to_string(dir.join("note.txt")).unwrap(), "keep\n");
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn init_git_repo_rejects_non_directory_paths() {
+        let dir = std::env::temp_dir()
+            .join(format!("adl-workspace-init-missing-{}", uuid::Uuid::new_v4()));
+        let result = init_git_repo(&dir);
+        assert!(matches!(result, Err(AppError::InvalidInput(_))));
     }
 
     #[test]
@@ -258,7 +287,7 @@ mod tests {
     fn captures_git_snapshot_for_untracked_and_unstaged_files() {
         let dir = std::env::temp_dir().join(format!("adl-workspace-git-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        init_git_repo(&dir);
+        init_git_test_repo(&dir);
         std::fs::write(dir.join("tracked.txt"), "hello\n").unwrap();
         run_git_test(&dir, &["add", "tracked.txt"]);
         run_git_test(&dir, &["commit", "-m", "init"]);
@@ -402,7 +431,7 @@ mod tests {
         let dir = std::env::temp_dir()
             .join(format!("adl-workspace-change-preview-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(dir.join("resume")).unwrap();
-        init_git_repo(&dir);
+        init_git_test_repo(&dir);
         std::fs::write(dir.join("resume/index.html"), "<h1>resume</h1>\n").unwrap();
         run_git_test(&dir, &["add", "resume/index.html"]);
         run_git_test(&dir, &["commit", "-m", "init"]);
@@ -429,7 +458,7 @@ mod tests {
         let dir = std::env::temp_dir()
             .join(format!("adl-workspace-change-preview-large-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        init_git_repo(&dir);
+        init_git_test_repo(&dir);
         let big = "x".repeat(2 * 1024 * 1024);
         std::fs::write(dir.join("big.json"), &big).unwrap();
 
@@ -446,7 +475,7 @@ mod tests {
         let dir = std::env::temp_dir()
             .join(format!("adl-workspace-change-preview-large-base-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        init_git_repo(&dir);
+        init_git_test_repo(&dir);
         let big = "y".repeat(2 * 1024 * 1024);
         std::fs::write(dir.join("big.json"), &big).unwrap();
         run_git_test(&dir, &["add", "big.json"]);
@@ -467,7 +496,7 @@ mod tests {
         let dir = std::env::temp_dir()
             .join(format!("adl-workspace-change-preview-parity-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        init_git_repo(&dir);
+        init_git_test_repo(&dir);
         // 先把基线全部提交，再统一制造工作区状态（避免中间 commit 吞掉已暂存变更）。
         for name in ["a.txt", "b.txt", "mm.txt", "sd.txt", "ro.txt"] {
             std::fs::write(dir.join(name), "v1\n").unwrap();
@@ -578,7 +607,7 @@ mod tests {
         let dir = std::env::temp_dir()
             .join(format!("adl-workspace-change-preview-parity-ro-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        init_git_repo(&dir);
+        init_git_test_repo(&dir);
         std::fs::write(dir.join("ro.txt"), "ro1\n").unwrap();
         run_git_test(&dir, &["add", "ro.txt"]);
         run_git_test(&dir, &["commit", "-m", "init"]);
@@ -601,7 +630,7 @@ mod tests {
         let dir = std::env::temp_dir()
             .join(format!("adl-workspace-change-preview-parity-dc-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        init_git_repo(&dir);
+        init_git_test_repo(&dir);
         std::fs::write(dir.join("gone.txt"), "gone\n").unwrap();
         std::fs::write(dir.join("fight.txt"), "base\n").unwrap();
         run_git_test(&dir, &["add", "."]);
@@ -636,7 +665,7 @@ mod tests {
         let dir = std::env::temp_dir()
             .join(format!("adl-workspace-change-preview-parity-err-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        init_git_repo(&dir);
+        init_git_test_repo(&dir);
         std::fs::write(dir.join("clean.txt"), "clean\n").unwrap();
         run_git_test(&dir, &["add", "."]);
         run_git_test(&dir, &["commit", "-m", "init"]);
@@ -832,7 +861,7 @@ mod tests {
     fn git_has_local_changes_returns_false_for_clean_repo() {
         let dir = std::env::temp_dir().join(format!("adl-ws-clean-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        init_git_repo(&dir);
+        init_git_test_repo(&dir);
         std::fs::write(dir.join("README.md"), "# Test").unwrap();
         run_git_test(&dir, &["add", "README.md"]);
         run_git_test(&dir, &["commit", "-m", "init"]);
@@ -848,7 +877,7 @@ mod tests {
     fn git_has_local_changes_returns_true_with_unstaged() {
         let dir = std::env::temp_dir().join(format!("adl-ws-unstaged-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        init_git_repo(&dir);
+        init_git_test_repo(&dir);
         std::fs::write(dir.join("README.md"), "# Test").unwrap();
         run_git_test(&dir, &["add", "README.md"]);
         run_git_test(&dir, &["commit", "-m", "init"]);
@@ -865,7 +894,7 @@ mod tests {
     fn git_has_local_changes_returns_true_with_untracked() {
         let dir = std::env::temp_dir().join(format!("adl-ws-untracked-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        init_git_repo(&dir);
+        init_git_test_repo(&dir);
         std::fs::write(dir.join("README.md"), "# Test").unwrap();
         run_git_test(&dir, &["add", "README.md"]);
         run_git_test(&dir, &["commit", "-m", "init"]);
@@ -882,7 +911,7 @@ mod tests {
     fn list_git_branches_returns_current_branch() {
         let dir = std::env::temp_dir().join(format!("adl-ws-branches-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        init_git_repo(&dir);
+        init_git_test_repo(&dir);
         std::fs::write(dir.join("README.md"), "# Test").unwrap();
         run_git_test(&dir, &["add", "README.md"]);
         run_git_test(&dir, &["commit", "-m", "init"]);

@@ -128,7 +128,7 @@ export async function captureGitSnapshot(rootPath: string): Promise<GitSnapshot>
   ]);
 
   return {
-    isRepo: Boolean(branch || head),
+    isRepo: fsSync.existsSync(path.join(rootPath, '.git')) || Boolean(branch || head),
     branch: branch || undefined,
     head: head || undefined,
     ahead: undefined,
@@ -139,6 +139,24 @@ export async function captureGitSnapshot(rootPath: string): Promise<GitSnapshot>
     conflicts,
     capturedAt: nowMs(),
   };
+}
+
+/**
+ * 在当前工作区根目录初始化**本地** Git 仓库（幂等）。
+ * 只创建 `.git`，不联网、不添加远程、不改动/删除/提交任何现有文件。
+ */
+export async function initGitRepo(rootPath: string): Promise<GitSnapshot> {
+  const stat = await fs.stat(rootPath).catch(() => null);
+  if (!stat?.isDirectory()) {
+    throw new Error(`workspace path is not a directory: ${rootPath}`);
+  }
+  if (!fsSync.existsSync(path.join(rootPath, '.git'))) {
+    const output = await runGit(rootPath, ['init']);
+    if (output === undefined) {
+      throw new Error('git init failed');
+    }
+  }
+  return captureGitSnapshot(rootPath);
 }
 
 async function gitHeadFileExists(rootPath: string, relativeTarget: string): Promise<boolean> {

@@ -184,7 +184,7 @@ export function buildTabsById(tabs: TerminalTabState[]): Record<string, Terminal
 // Constants
 export const TERMINAL_NAVIGATOR_WIDTH_MIN = 180;
 export const TERMINAL_NAVIGATOR_WIDTH_MAX = 300;
-export const DEFAULT_TERMINAL_NAVIGATOR_WIDTH = 240;
+export const DEFAULT_TERMINAL_NAVIGATOR_WIDTH = TERMINAL_NAVIGATOR_WIDTH_MIN;
 
 /** 终端字号：默认 13，可调 10–24（更多终端操作 → 增大/减小字号，持久化）。 */
 export const TERMINAL_FONT_SIZE_DEFAULT = 13;

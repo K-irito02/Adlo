@@ -97,6 +97,10 @@ export const mockWorkspace: WorkspaceBridge = {
     ok: true,
     data: { isRepo: true, branch: "main", staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: Date.now() }
   }),
+  initGitRepo: async (_workspacePath: string) => ({
+    ok: true,
+    data: { isRepo: true, branch: "main", staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: Date.now() }
+  }),
   revealInFileManager: async () => ({ ok: true, data: true }),
   createFile: async (relativePath: string, content = "", _workspacePath?: string) => {
     documents.set(relativePath, content);
