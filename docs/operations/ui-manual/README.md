@@ -72,8 +72,8 @@
  ------ ---------- ------ 
   打开工作区   标题栏 → 文件菜单 → 打开文件夹   [titlebar/menus/file-menu.md](./titlebar/menus/file-menu.md)  
   切换工具   右侧面板 → 工具切换器   [rightpanel/tool-switcher.md](./rightpanel/tool-switcher.md)  
-  切换主题   标题栏 → 主题按钮   [titlebar/actions.md](./titlebar/actions.md)  
-  打开设置   `Ctrl+Shift+Comma` 或标题栏 → 设置按钮   [titlebar/actions.md](./titlebar/actions.md)  
+  切换主题   设置 → 通用 → 主题   [rightpanel/tools/settings.md](./rightpanel/tools/settings.md)  
+  打开设置   `Ctrl+Shift+Comma` 或汉堡菜单 → 视图 → 设置   [titlebar/actions.md](./titlebar/actions.md)  
 
 ### 全局快捷键
 

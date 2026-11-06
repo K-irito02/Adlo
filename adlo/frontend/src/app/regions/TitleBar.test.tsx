@@ -26,8 +26,6 @@ function renderTitleBar(overrides: Partial<Parameters<typeof TitleBar>[0]> = {})
     onTriggerCreateWorkspace: vi.fn(),
     onOpenFolder: vi.fn(),
     isOpeningWorkspace: false,
-    onCycleTheme: vi.fn(),
-    onSelectLanguage: vi.fn(),
     ...overrides,
   };
   render(
@@ -51,16 +49,64 @@ describe('TitleBar add-workspace control', () => {
     expect(onOpenFolder).toHaveBeenCalledTimes(1);
   });
 
-  it('renders a divider between the add-workspace button and the theme button', () => {
+  it('renders a divider between the add-workspace button and the panel group', () => {
     renderTitleBar();
     const addButton = screen.getByRole('button', { name: 'addWorkspace' });
-    const themeButton = screen.getByRole('button', { name: 'theme' });
     const divider = document.querySelector('.adl-titlebar__action-divider');
+    const panelGroup = document.querySelector('.adl-titlebar__panel-group');
     expect(divider).not.toBeNull();
     expect(divider).toHaveAttribute('aria-hidden', 'true');
     const FOLLOWING = Node.DOCUMENT_POSITION_FOLLOWING;
     expect(addButton.compareDocumentPosition(divider!) & FOLLOWING).toBeTruthy();
-    expect(divider!.compareDocumentPosition(themeButton) & FOLLOWING).toBeTruthy();
+    expect(divider!.compareDocumentPosition(panelGroup!) & FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps a drag lane between the tab strip and the right controls', () => {
+    renderTitleBar();
+    const lane = document.querySelector('.adl-titlebar__drag-lane');
+    const strip = document.querySelector('.adl-center-tab-strip');
+    const right = document.querySelector('.adl-titlebar__right');
+    expect(lane).not.toBeNull();
+    expect(lane).toHaveAttribute('data-tauri-drag-region');
+    const FOLLOWING = Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(strip!.compareDocumentPosition(lane!) & FOLLOWING).toBeTruthy();
+    expect(lane!.compareDocumentPosition(right!) & FOLLOWING).toBeTruthy();
+  });
+
+  it('uses the folder-plus glyph for add workspace', () => {
+    renderTitleBar();
+    const paths = screen.getByRole('button', { name: 'addWorkspace' }).querySelectorAll('svg path');
+    expect(paths.length).toBe(3);
+    expect(paths[0]?.getAttribute('d')).toBe(
+      'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z',
+    );
+    expect(paths[1]?.getAttribute('d')).toBe('M12 11v6');
+    expect(paths[2]?.getAttribute('d')).toBe('M9 14h6');
+  });
+
+  it('switches the both-panels glyph with the collapsed state', () => {
+    useAppStore.setState({ leftCollapsed: false, rightCollapsed: false });
+    renderTitleBar();
+    const expanded = screen
+      .getByRole('button', { name: 'panelToggleBoth' })
+      .querySelectorAll('svg path');
+    expect(expanded[2]?.getAttribute('d')).toBe('m9.5 9-3 3 3 3');
+    expect(expanded[3]?.getAttribute('d')).toBe('m14.5 9 3 3-3 3');
+
+    cleanup();
+    useAppStore.setState({ leftCollapsed: true, rightCollapsed: true });
+    renderTitleBar();
+    const collapsed = screen
+      .getByRole('button', { name: 'panelToggleBoth' })
+      .querySelectorAll('svg path');
+    expect(collapsed[2]?.getAttribute('d')).toBe('m7 9 3 3-3 3');
+    expect(collapsed[3]?.getAttribute('d')).toBe('m17 9-3 3 3 3');
+  });
+
+  it('does not render theme or language buttons (moved to settings)', () => {
+    renderTitleBar();
+    expect(screen.queryByRole('button', { name: 'theme' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'language' })).toBeNull();
   });
 });
 

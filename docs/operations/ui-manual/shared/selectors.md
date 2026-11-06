@@ -135,11 +135,13 @@ a[aria-label="帮助"]
 | 标题栏容器  | `.adl-titlebar`                                            |
 | 汉堡菜单    | `.adl-hamburger__trigger`                                  |
 | 汉堡下拉    | `.adl-hamburger__dropdown`                                 |
-| 主题按钮    | `button[aria-label="主题"]`                                |
-| 语言按钮    | `button[aria-label*="语言"]`                               |
-| 设置按钮    | `button[aria-label="设置"]`                                |
+| 添加工作区  | `button[aria-label="添加工作区"]`                          |
+| 通知        | `button[aria-label="通知"]`                                |
+| 新建入口页  | `.adl-center-tab-strip__add button`                        |
+| 切换两侧面板 | `button[aria-label="切换两侧面板"]`                       |
 | 左面板切换  | `button[aria-label="切换左侧边栏"]`                        |
 | 右面板切换  | `button[aria-label="切换右侧面板"]`                        |
+| 拖拽车道    | `.adl-titlebar__drag-lane`                                 |
 | 最小化      | `button[aria-label="最小化"]`                              |
 | 最大化/还原 | `button[aria-label="最大化"]`, `button[aria-label="还原"]` |
 | 关闭        | `button[aria-label="关闭"]`                                |

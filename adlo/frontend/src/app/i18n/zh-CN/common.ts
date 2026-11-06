@@ -15,8 +15,6 @@ export const commonZh = {
   quickSkills: '技能',
   quickMcp: 'MCP 服务',
   quickSkillsComingSoon: '即将推出',
-  language: '语言',
-  theme: '主题',
   themeLight: '浅色',
   themeDark: '暗色',
   themeSystem: '跟随系统',
@@ -99,14 +97,9 @@ export const commonZh = {
   contextSearchAria: '搜索上下文选项',
   contextNoMatch: '未找到匹配的选项',
   contextRemoveAria: '移除 {label}',
-  // ======== Environment Controls ========
+  // ======== Language options ========
   languageSystem: '跟随系统',
   languageChinese: '中文',
-  languageEnglish: 'EN',
-  envControlsAria: 'Environment controls',
-  changeLanguageAria: 'Change language',
-  themeTooltip: 'Theme: {theme} (click to cycle)',
-  themeButtonAria: 'Current theme: {theme}. Click to change.',
   // ======== Main Content ========
   mainContentAria: '主内容区域',
   // ======== Workspace Split Button ========

@@ -2,7 +2,6 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import {
-  IconAddWorkspace,
   IconChevronLeft,
   IconChevronRight,
   IconChevronDown,
@@ -10,6 +9,8 @@ import {
   IconChevronsLeft,
   IconChevronsRight,
   IconExpandCorners,
+  IconPanelsCollapse,
+  IconPanelsExpand,
 } from './core';
 
 describe('chevron icon family geometry', () => {
@@ -60,26 +61,23 @@ describe('chevron icon family geometry', () => {
   });
 });
 
-describe('IconAddWorkspace geometry', () => {
-  it('renders a horizontal and a vertical crosshair path (24x24 plus sign)', () => {
-    const { container } = render(<IconAddWorkspace size={16} decorative />);
+describe('IconPanelsCollapse / IconPanelsExpand geometry', () => {
+  it('points both arrows outward when collapsing', () => {
+    const { container } = render(<IconPanelsCollapse size={16} decorative />);
     const paths = container.querySelectorAll('path');
-    expect(paths.length).toBe(2);
-    expect(paths[0]?.getAttribute('d')).toBe('M6 12H18');
-    expect(paths[1]?.getAttribute('d')).toBe('M12 18V6');
+    expect(paths.length).toBe(4);
+    expect(paths[0]?.getAttribute('d')).toBe('M4 4v16');
+    expect(paths[1]?.getAttribute('d')).toBe('M20 4v16');
+    expect(paths[2]?.getAttribute('d')).toBe('m9.5 9-3 3 3 3');
+    expect(paths[3]?.getAttribute('d')).toBe('m14.5 9 3 3-3 3');
   });
 
-  it('dims the horizontal path to 0.4 opacity', () => {
-    const { container } = render(<IconAddWorkspace size={16} decorative />);
+  it('mirrors both arrows inward when expanding', () => {
+    const { container } = render(<IconPanelsExpand size={16} decorative />);
     const paths = container.querySelectorAll('path');
-    expect(paths[0]?.getAttribute('opacity')).toBe('0.4');
-    expect(paths[1]?.getAttribute('opacity')).toBeNull();
-  });
-
-  it('applies a 1.5 stroke width', () => {
-    const { container } = render(<IconAddWorkspace size={16} decorative />);
-    const svg = container.querySelector('svg');
-    expect(svg?.getAttribute('stroke-width')).toBe('1.5');
+    expect(paths.length).toBe(4);
+    expect(paths[2]?.getAttribute('d')).toBe('m7 9 3 3-3 3');
+    expect(paths[3]?.getAttribute('d')).toBe('m17 9-3 3 3 3');
   });
 });
 

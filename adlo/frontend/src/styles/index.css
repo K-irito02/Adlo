@@ -28,6 +28,7 @@
 @import './regions/about-settings.css';
 @import './regions/rightpanel.css';
 @import './regions/titlebar.css';
+@import './regions/titlebar-affordances.css';
 @import './regions/statusbar.css';
 @import './regions/composer.css';
 @import './utilities.css';

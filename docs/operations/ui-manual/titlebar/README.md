@@ -1,13 +1,14 @@
 # 标题栏区域
 
-> 标题栏包含汉堡菜单、操作按钮和窗口控制。
+> 标题栏包含汉堡菜单、中心标签条、拖拽车道、操作按钮（添加工作区 / 通知）、面板控制与窗口控制。
+> 主题与语言已移入设置面板「通用」组，不再占用标题栏。
 
 ## 布局结构
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ [1] Hamburger Menu                    │  [9] Drag Region  │[4][5][6] [7][8]│
-└──────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│ [1] 汉堡 │ [2] 中心标签条（+ 跟随末标签） │ [6] 拖拽车道 │ [3] 操作组 │ [4] 面板组 │ [5] 窗口 │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## 元素索引
@@ -15,25 +16,22 @@
 | 编号 | 名称 | 文档 | 说明 |
 |------|------|------|------|
 | [1] | Hamburger Menu | [hamburger-menu.md](./hamburger-menu.md) | 汉堡菜单（文件/视图/帮助） |
-| [2] | Center Tabs | [center-tabs.md](./center-tabs.md) | 中心标签条（切换/关闭/拖拽排序/溢出滚动） |
-| [3] | Brand | [brand.md](./brand.md) | 品牌 Logo 悬停 Tooltip（编号 [3] 历史缺失，现补 brand 行） |
-| [4] | Theme Toggle | [actions.md](./actions.md#主题切换) | 主题切换按钮 |
-| [5] | Language Toggle | [actions.md](./actions.md#语言切换) | 语言切换按钮 |
-| [6] | Settings | [actions.md](./actions.md#设置按钮) | 设置按钮 |
-| [7] | Panel Controls | [panels.md](./panels.md) | 面板控制按钮组 |
-| [8] | Window Controls | [window.md](./window.md) | 窗口控制按钮组 |
-| [9] | Drag Region | - | 窗口拖拽区域（不可交互） |
+| [2] | Center Tabs | [center-tabs.md](./center-tabs.md) | 中心标签条（切换/关闭/拖拽排序/溢出滚动/两端渐隐） |
+| [3] | Action Group | [actions.md](./actions.md) | 添加工作区 + 通知 |
+| [4] | Panel Controls | [panels.md](./panels.md) | 面板控制按钮组（两侧 / 左 / 右） |
+| [5] | Window Controls | [window.md](./window.md) | 窗口控制按钮组 |
+| [6] | Drag Lane | - | 24px 窗口拖拽车道（不可交互，悬停显示握把点） |
 
-子文档：[brand.md](./brand.md)（品牌 Logo 悬停 Tooltip）、[center-tabs.md](./center-tabs.md)、[actions.md](./actions.md)、[panels.md](./panels.md)、[window.md](./window.md)、[menus/](./menus/README.md)。
+子文档：[center-tabs.md](./center-tabs.md)、[actions.md](./actions.md)、[panels.md](./panels.md)、[window.md](./window.md)、[menus/](./menus/README.md)。
 
 ## 容器选择器
 
 | 选择器 | 说明 |
 |--------|------|
 | `.adl-titlebar` | 标题栏容器 |
-| `.adl-titlebar__left` | 左侧区域（Hamburger Menu） |
+| `.adl-titlebar__left` | 左侧区域（Hamburger Menu，`padding-right` 保留与标签条的间距，无分割线） |
 | `.adl-titlebar__right` | 右侧区域（Actions + Panels + Window） |
-| `.adl-titlebar__drag` | 拖拽区域（不可交互） |
+| `.adl-titlebar__drag-lane` | 拖拽车道（24px，`data-tauri-drag-region`，flex 不收缩） |
 
 ## 子区域选择器
 
@@ -41,8 +39,12 @@
 |--------|------|
 | `.adl-hamburger` | 汉堡菜单容器 |
 | `.adl-center-tab-strip` | 中心标签条容器 |
+| `.adl-center-tab-strip__scroll` | 标签滚动区（`data-tauri-drag-region`） |
+| `.adl-center-tab-strip__tabs` | `role="tablist"` 容器（`display: contents`，仅承载 ARIA 归属） |
 | `.adl-center-tab` | 中心标签 |
-| `.adl-titlebar__action-group` | 操作按钮组（主题/语言/设置） |
+| `.adl-center-tab-strip__add` | 「+」新建入口页（跟随最后一个标签；溢出时 `position: sticky` 固定右端） |
+| `.adl-center-tab-strip__fade-left` / `__fade-right` | 两端溢出渐隐（24px，mask + `backdrop-filter: blur(2px)`） |
+| `.adl-titlebar__action-group` | 操作按钮组（添加工作区 / 通知） |
 | `.adl-titlebar__panel-group` | 面板控制组 |
 | `.adl-titlebar__window-group` | 窗口控制组 |
 
@@ -51,73 +53,48 @@
 ### 打开汉堡菜单
 
 ```javascript
-// 点击汉堡菜单图标
 await page.click('.adl-hamburger__trigger');
-// 等待下拉菜单出现
 await page.waitForSelector('.adl-hamburger__dropdown');
 ```
 
-### 切换主题
+### 切换主题 / 语言（设置面板）
 
 ```javascript
-// 点击主题按钮（循环切换：system → light → dark → system）
-await page.click('button[aria-label="主题"]');
-// 等待主题变化
-await page.waitForFunction(() => {
-  const theme = document.documentElement.getAttribute('data-theme');
-  return theme !== null;
-});
+// 标题栏不再提供主题/语言按钮；快捷键打开设置，再切到「通用」组
+await page.keyboard.press('Control+Shift+Comma');
 ```
 
-### 切换语言
+- 主题：设置 → 通用 → 主题（跟随系统 / 浅色 / 暗色）
+- 语言：设置 → 通用 → 语言（跟随系统 / 中文 / English）
+
+### 切换两侧面板
 
 ```javascript
-// 点击语言按钮（切换：中文 ↔ 英文）
-await page.click('button[aria-label*="语言"]');
-// 等待语言变化
-await page.waitForFunction(() => {
-  const lang = document.querySelector('.adl-titlebar__action-group button[aria-label*="语言"]');
-  return lang !== null;
-});
+await page.click('button[aria-label="切换两侧面板"]');
 ```
 
-### 切换左侧边栏
+### 窗口拖拽
 
 ```javascript
-// 点击左面板切换按钮
-await page.click('button[aria-label="切换左侧边栏"]');
-// 等待状态变化
-await page.waitForFunction(() => {
-  const leftbar = document.querySelector('.adl-leftbar');
-  return leftbar.classList.contains('adl-leftbar--collapsed');
-});
+// 拖拽车道永远保留 24px，即使标签占满整条也可拖动窗口
+await page.mouse.move(laneCenterX, laneCenterY);
+await page.mouse.down();
+await page.mouse.move(laneCenterX + 80, laneCenterY);
+await page.mouse.up();
 ```
 
-### 最小化窗口
+### 最小化 / 最大化 / 关闭
 
 ```javascript
 await page.click('button[aria-label="最小化"]');
-```
-
-### 最大化/还原窗口
-
-```javascript
-// 点击最大化按钮
 await page.click('button[aria-label="最大化"]');
-// 或使用还原按钮（已最大化时）
-await page.click('button[aria-label="还原"]');
-```
-
-### 关闭窗口
-
-```javascript
 await page.click('button[aria-label="关闭"]');
 ```
 
 ## 注意事项
 
-1. **拖拽区域**：`.adl-titlebar__drag` 用于窗口拖拽，不可点击交互
-2. **菜单状态**：菜单下拉是动态渲染的，需要等待出现后再操作
-3. **主题切换**：主题切换是循环模式，无法直接指定主题
-4. **语言切换**：语言切换是切换模式，无法直接指定语言
-5. **窗口控制**：最小化/关闭后窗口会消失，测试需要重新启动
+1. **拖拽车道**：`.adl-titlebar__drag-lane` 固定 24px、不参与 flex 收缩；光标保持系统箭头，悬停显示握把点。
+2. **中心标签条**：「+」跟随最后一个标签；标签溢出时 sticky 固定在右端，两端渐隐提示还有隐藏标签。
+3. **菜单状态**：菜单下拉是动态渲染的，需要等待出现后再操作。
+4. **主题 / 语言**：仅设置面板可改，标题栏无对应按钮。
+5. **窗口控制**：最小化/关闭后窗口会消失，测试需要重新启动。

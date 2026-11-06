@@ -28,7 +28,7 @@
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
 | 1 | aria-label | `button[aria-label="切换两侧面板"]` |
-| 2 | CSS | `.adl-titlebar__panel-group button` (眼睛图标) |
+| 2 | CSS | `.adl-titlebar__panel-group button`（双箭头图标：两侧展开时向外、两侧折叠时向内） |
 
 ### 前置条件
 

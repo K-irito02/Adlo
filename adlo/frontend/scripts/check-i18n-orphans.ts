@@ -60,7 +60,7 @@ const allKeys = new Set<string>([...flattenKeys(zhCN), ...flattenKeys(enUS)]);
 const sorted = [...allKeys].sort((a, b) => b.length - a.length);
 const pattern = new RegExp(
   sorted
-    .map((k) => `t\\.${escapeRegExp(k)}\\b|'${escapeRegExp(k)}'|"${escapeRegExp(k)}"`)
+    .map((k) => `\\bt\\.${escapeRegExp(k)}\\b|'${escapeRegExp(k)}'|"${escapeRegExp(k)}"`)
     .join('|'),
   'g',
 );
@@ -153,7 +153,9 @@ if (changedOnly) {
       continue;
     }
     const text = line.slice(1);
-    for (const match of text.matchAll(/t\.([A-Za-z_$][\w$]*)/g)) {
+    // `\b` 前边界必须有：否则 `dataset.theme` / `next.theme` / `result.language`
+    // 都会被子串 `t.theme` / `t.language` 误判成生产引用。
+    for (const match of text.matchAll(/\bt\.([A-Za-z_$][\w$]*)/g)) {
       removedRefs.add(match[1]);
     }
     for (const match of text.matchAll(/['"]([A-Za-z_$][\w$]*)['"]/g)) {

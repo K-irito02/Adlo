@@ -62,6 +62,70 @@ describe('CenterTabStrip', () => {
     expect(tabs[0].kind).toBe('launcher');
   });
 
+  it('「+」位于滚动区内且排在标签之后', () => {
+    useAppStore.getState().centerAddTab('launcher', null);
+    renderStrip();
+    const scroll = document.querySelector('.adl-center-tab-strip__scroll');
+    const add = document.querySelector('.adl-center-tab-strip__add');
+    expect(scroll).not.toBeNull();
+    expect(add).not.toBeNull();
+    expect(scroll!.contains(add!)).toBe(true);
+    const tab = screen.getAllByRole('tab')[0];
+    expect(tab.compareDocumentPosition(add!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('根据滚动指标切换两端渐隐标记', () => {
+    renderStrip();
+    const strip = document.querySelector('.adl-center-tab-strip') as HTMLElement;
+    const scroller = document.querySelector('.adl-center-tab-strip__scroll') as HTMLElement;
+
+    const setMetrics = (scrollLeft: number, scrollWidth: number, clientWidth: number) => {
+      Object.defineProperty(scroller, 'scrollLeft', {
+        configurable: true,
+        writable: true,
+        value: scrollLeft,
+      });
+      Object.defineProperty(scroller, 'scrollWidth', {
+        configurable: true,
+        value: scrollWidth,
+      });
+      Object.defineProperty(scroller, 'clientWidth', {
+        configurable: true,
+        value: clientWidth,
+      });
+      fireEvent.scroll(scroller);
+    };
+
+    setMetrics(0, 400, 400);
+    expect(strip.getAttribute('data-fade-left')).toBe('false');
+    expect(strip.getAttribute('data-fade-right')).toBe('false');
+
+    setMetrics(0, 1000, 400);
+    expect(strip.getAttribute('data-fade-left')).toBe('false');
+    expect(strip.getAttribute('data-fade-right')).toBe('true');
+
+    setMetrics(300, 1000, 400);
+    expect(strip.getAttribute('data-fade-left')).toBe('true');
+    expect(strip.getAttribute('data-fade-right')).toBe('true');
+
+    setMetrics(600, 1000, 400);
+    expect(strip.getAttribute('data-fade-left')).toBe('true');
+    expect(strip.getAttribute('data-fade-right')).toBe('false');
+  });
+
+  it('tablist 只包住标签，「+」在 tablist 之外', () => {
+    useAppStore.getState().centerAddTab('launcher', null);
+    renderStrip();
+    const scroll = document.querySelector('.adl-center-tab-strip__scroll');
+    const tablist = document.querySelector('[role="tablist"]');
+    const add = document.querySelector('.adl-center-tab-strip__add');
+    expect(tablist).not.toBeNull();
+    expect(tablist).not.toBe(scroll);
+    expect(tablist!.querySelectorAll('[role="tab"]').length).toBeGreaterThan(0);
+    expect(tablist!.contains(add!)).toBe(false);
+    expect(scroll!.contains(add!)).toBe(true);
+  });
+
   it('关闭按钮移除对应标签', () => {
     const a = useAppStore.getState().centerAddTab('launcher', null);
     useAppStore.getState().centerAddTab('launcher', null);
@@ -395,7 +459,7 @@ describe('CenterTabStrip 拖拽排序（B·滑动让位）', () => {
 
   it('拖拽中挂 is-dragging 与 data-dragging（CSS 由此隐藏按钮并取消名称遮挡）', () => {
     renderThreeTabs();
-    const scroller = screen.getAllByRole('tab')[0].parentElement as HTMLElement;
+    const scroller = document.querySelector('.adl-center-tab-strip__scroll') as HTMLElement;
     const tabs = screen.getAllByRole('tab') as HTMLElement[];
     pointer(tabs[0], 'pointerdown', 50);
     pointer(tabs[0], 'pointermove', 300);
