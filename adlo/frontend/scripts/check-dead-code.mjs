@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseRenameMap } from './lib/rename-map.mjs';
+import { deepSelectorsAdded } from './lib/css-selectors.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const srcRoot = path.resolve(here, '../src');
@@ -222,39 +223,17 @@ for (const file of changedDicts) {
 }
 
 // ---- 4) 本次新增的 CSS 选择器复合层级是否超过 3 层 ----
-// 近似口径：去掉属性 [...] 与函数 (...) 内容后，按空白/组合子切分计数。
-// 只查 base 里不存在的新选择器（整文件重排不误报历史选择器）。
-function selectorDepth(selector) {
-  const stripped = selector.replace(/\[[^\]]*\]/g, '[]').replace(/\([^()]*\)/g, '()');
-  return stripped.split(/[\s>+~]+/).filter((part) => part && part !== '*').length;
-}
-function extractSelectors(cssText) {
-  const out = new Set();
-  const withoutComments = cssText.replace(/\/\*[\s\S]*?\*\//g, '');
-  for (const match of withoutComments.matchAll(/([^{}]+)\{/g)) {
-    const group = match[1].trim();
-    if (!group || group.startsWith('@')) continue;
-    for (const selector of group.split(',')) {
-      const normalized = selector.trim();
-      if (normalized && !/^(from|to|\d+%)$/.test(normalized)) out.add(normalized);
-    }
-  }
-  return out;
-}
+// 解析完整工作区文件再与 base 求差（见 lib/css-selectors.mjs 的说明）。
 for (const file of changedCss) {
-  const added = addedText(file);
+  if (!fs.existsSync(file)) continue;
+  const currentText = fs.readFileSync(file, 'utf8');
   const relativeToRepo = path.relative(repoRoot, file).split(path.sep).join('/');
   const basePath = renameMap.get(relativeToRepo) ?? relativeToRepo;
   const baseText = capture('git', ['show', `${base}:${basePath}`]);
-  const baseSelectors = extractSelectors(baseText);
-  for (const selector of extractSelectors(added)) {
-    if (baseSelectors.has(selector)) continue;
-    const depth = selectorDepth(selector);
-    if (depth > 3) {
-      problems.push(
-        `${path.relative(srcRoot, file)}: selector "${selector}" is ${depth} levels deep (max 3)`,
-      );
-    }
+  for (const { selector, depth } of deepSelectorsAdded(currentText, baseText)) {
+    problems.push(
+      `${path.relative(srcRoot, file)}: selector "${selector}" is ${depth} levels deep (max 3)`,
+    );
   }
 }
 

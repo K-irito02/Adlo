@@ -145,6 +145,7 @@ app/stores/
 - [parallel-branch-development](../.agents/skills/parallel-branch-development/SKILL.md) — 并行分支开发技能（唯一真源；工作树/槽位、开工自检）
 - [docs/architecture/core/system-overview.md](../docs/architecture/core/system-overview.md)
 - [docs/design-system/README.md](../docs/design-system/README.md)
+- [docs/operations/ui-manual/](../docs/operations/ui-manual/) — UI 区域操作手册（选择器与交互契约，`check:repo` 会校验选择器仍在代码中存在）
 
 ## 调试工具
 

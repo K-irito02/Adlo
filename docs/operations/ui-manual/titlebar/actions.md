@@ -115,4 +115,4 @@ await page.waitForSelector('.adl-notif-dropdown');
 | 操作按钮组 | `.adl-titlebar__action-group` | 包含添加工作区、通知 |
 | 分界线 | `.adl-titlebar__action-divider` | 添加工作区与通知之间的分界线（`aria-hidden`） |
 | 拖拽车道 | `.adl-titlebar__drag-lane` | 操作组左侧 24px 窗口拖拽区 |
-| Tooltip | `.adl-tooltip` | 悬停按钮时显示的提示 |
+| Tooltip | `.tooltip__content` | 悬停按钮时显示的提示 |

@@ -72,6 +72,39 @@ function run(label, command) {
   }
 }
 
+/**
+ * 测试运行器：vitest 的 dot reporter 在非 TTY 下会逐条输出（本仓全量约 1.7k 行、
+ * 单次 30k+ 字符），直接 inherit 会把整段灌进代理上下文。这里捕获输出，只回显
+ * 汇总行；失败时回显尾部 120 行供定位。
+ */
+function runTests(label, command) {
+  console.log(`\n[check:changed] ${label}`);
+  const result = spawnSync(command, {
+    cwd,
+    encoding: 'utf8',
+    shell: true,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  const stripAnsi = (text) => text.replace(/\x1b\[[0-9;]*m/g, '');
+  const output = stripAnsi(`${result.stdout ?? ''}\n${result.stderr ?? ''}`);
+  if (result.status !== 0) {
+    console.log(output.trim().split(/\r?\n/).slice(-120).join('\n'));
+    console.log(`\n[check:changed] FAILED: ${label}`);
+    process.exit(result.status ?? 1);
+  }
+  const summary = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^(Test Files|Tests|Duration)\b/.test(line));
+  if (summary.length > 0) {
+    for (const line of summary) {
+      console.log(`  ${line}`);
+    }
+  } else {
+    console.log('  ok (no tests matched)');
+  }
+}
+
 function runFileList(label, prefix, files, fallback) {
   if (files.length === 0) {
     console.log(`[check:changed] ${label} skipped (no matching changed files)`);
@@ -182,12 +215,12 @@ if (srcChanges.length > 0) {
   // 仅当变更文件全部是**已知**字典域时才收窄，未知字典仍走 related（宁可多跑）。
   const i18nScopes = i18nTestScopes(srcChanges);
   if (i18nScopes) {
-    run(
+    runTests(
       `vitest scoped (i18n-only change -> ${i18nScopes.length} dirs)`,
       `npx vitest run ${i18nScopes.map(quote).join(' ')} --passWithNoTests --reporter=dot --silent=passed-only`,
     );
   } else {
-    run(
+    runTests(
       `vitest related (${srcChanges.length} changed source files)`,
       `npx vitest related ${srcChanges.map(quote).join(' ')} --passWithNoTests --reporter=dot --silent=passed-only`,
     );

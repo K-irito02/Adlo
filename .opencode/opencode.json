@@ -3,6 +3,7 @@
   "skills": ["./.agents/skills"],
   "permissions": [
     { "action": "shell", "resource": "*Select-String*", "effect": "deny" },
+    { "action": "shell", "resource": "*git grep*", "effect": "deny" },
     { "action": "shell", "resource": "*-replace*", "effect": "deny" },
     { "action": "shell", "resource": "*Add-Content*", "effect": "deny" },
     { "action": "shell", "resource": "*Set-Content*", "effect": "deny" },

@@ -103,4 +103,5 @@ Agent 不能按 `Ctrl+C` 守护进程，用后台方式：
 ## 相关
 
 - 包装脚本实现：`adlo/scripts/run-project-surface.mjs`
+- 真实渲染探针：`adlo/scripts/ui-probe.mjs`（先启动预览，再按 selector 读取 `getComputedStyle`；Edge/Chrome CDP，无新依赖）
 - 常用命令速查：[commands.md](../../rules/commands.md)

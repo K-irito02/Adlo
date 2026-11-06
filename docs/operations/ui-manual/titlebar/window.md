@@ -195,4 +195,4 @@ await page.click('button[aria-label="关闭"]');
 | 元素 | 选择器 | 说明 |
 |------|--------|------|
 | 窗口控制组 | `.adl-titlebar__window-group` | 包含最小化、最大化、关闭按钮 |
-| Tooltip | `.adl-tooltip` | 悬停按钮时显示的提示 |
+| Tooltip | `.tooltip__content` | 悬停按钮时显示的提示 |
