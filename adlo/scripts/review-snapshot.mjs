@@ -212,8 +212,7 @@ function claimKey(hit) {
 export function validateClaimAck(ackText, hints) {
   const lines = ackText.split(/\r?\n/);
   const missing = hints.filter(
-    (hit) =>
-      !lines.some((line) => line.includes(claimKey(hit)) && /\[x\]/i.test(line)),
+    (hit) => !lines.some((line) => line.includes(claimKey(hit)) && /\[x\]/i.test(line)),
   );
   return { ok: missing.length === 0, missing };
 }

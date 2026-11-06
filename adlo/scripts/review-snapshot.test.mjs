@@ -1,10 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  findSuspiciousUntracked,
-  parseArgs,
-  validateClaimAck,
-} from "./review-snapshot.mjs";
+import { findSuspiciousUntracked, parseArgs, validateClaimAck } from "./review-snapshot.mjs";
 
 test("rejects numeric and temp-looking untracked files", () => {
   assert.deepEqual(
@@ -52,10 +48,7 @@ test("requires an [x] acknowledgement per claim", () => {
   ];
 
   assert.deepEqual(validateClaimAck("", hints).missing, hints);
-  assert.deepEqual(
-    validateClaimAck("- [ ] src/a.ts:12 — pending", hints).missing,
-    hints,
-  );
+  assert.deepEqual(validateClaimAck("- [ ] src/a.ts:12 — pending", hints).missing, hints);
   assert.deepEqual(
     validateClaimAck(
       ["- [x] src/a.ts:12 — verified by test", "- [x] src/b.ts:4 — reworded"].join("\n"),
@@ -63,8 +56,7 @@ test("requires an [x] acknowledgement per claim", () => {
     ),
     { ok: true, missing: [] },
   );
-  assert.deepEqual(
-    validateClaimAck("- [x] src/a.ts:12 — verified by test", hints).missing,
-    [hints[1]],
-  );
+  assert.deepEqual(validateClaimAck("- [x] src/a.ts:12 — verified by test", hints).missing, [
+    hints[1],
+  ]);
 });
