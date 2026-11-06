@@ -10,6 +10,7 @@ import {
   buildHeatmapFillScale,
   generateHeatmapSkeletonFromTarget,
   HEATMAP_DEFAULT_LEVEL_STYLES,
+  type HeatmapLevelResolver,
 } from '@/components/charts/heatmap';
 import { commitStatsToHeatmapColumns } from '../adapters/chartDataAdapters';
 
@@ -51,6 +52,8 @@ interface CalendarHeatmapProps {
   year?: number;
   status?: ChartStatus;
   loadingLabel?: string;
+  /** Dataset-aware count → level resolver shared with the card legend. */
+  levelForCount?: HeatmapLevelResolver;
 }
 
 export const CalendarHeatmap = React.memo(function CalendarHeatmap({
@@ -58,6 +61,7 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
   year,
   status = 'ready',
   loadingLabel,
+  levelForCount,
 }: CalendarHeatmapProps) {
   const { t, locale } = useTCopy();
   const expandedData = useMemo(() => {
@@ -96,15 +100,15 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
   const dayLabels = useMemo(() => dayFmt(locale), [locale]);
 
   const defaultFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
-  const customFillScale = useCallback(
-    (count: number | null | undefined) => {
+  const customFillScale = useMemo(() => {
+    const levelFillScale = buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES, levelForCount);
+    return (count: number | null | undefined) => {
       if (count === -1) {
         return 'transparent';
       }
-      return defaultFillScale(count);
-    },
-    [defaultFillScale],
-  );
+      return levelFillScale(count);
+    };
+  }, [levelForCount]);
 
   const formatLabel = useCallback(
     (count: number) => {
@@ -149,6 +153,7 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
       maxBinSize={CALENDAR_CELL_BOUNDS.max}
       animate={true}
       fillScale={customFillScale}
+      levelForCount={levelForCount}
     >
       <HeatmapCells cornerRadius={2} />
       <HeatmapXAxis labelFormat="numeric" />

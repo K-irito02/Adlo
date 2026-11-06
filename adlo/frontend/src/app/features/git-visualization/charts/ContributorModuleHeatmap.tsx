@@ -6,10 +6,8 @@ import {
   HeatmapXAxis,
   HeatmapYAxis,
   HeatmapTooltip,
-  buildHeatmapFillScale,
-  HEATMAP_DEFAULT_LEVEL_STYLES,
 } from '@/components/charts/heatmap';
-import type { HeatmapColumn } from '@/components/charts/heatmap';
+import type { HeatmapColumn, HeatmapLevelResolver } from '@/components/charts/heatmap';
 import type { ChartStatus } from '@/components/charts/chart-phase';
 import { ModuleBreadcrumb } from '../ModuleBreadcrumb';
 import { ModuleTreeCard } from '../ModuleTreeCard';
@@ -33,6 +31,8 @@ interface ContributorModuleHeatmapProps {
    */
   drillPath?: string[];
   onDrillPathChange?: (path: string[]) => void;
+  /** Dataset-aware count → level resolver shared with the card legend. */
+  levelForCount?: HeatmapLevelResolver;
 }
 
 export const ContributorModuleHeatmap = React.memo(function ContributorModuleHeatmap({
@@ -42,6 +42,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
   loadingLabel,
   drillPath: drillPathProp,
   onDrillPathChange,
+  levelForCount,
 }: ContributorModuleHeatmapProps) {
   const { t, locale } = useTCopy();
   const [internalDrillPath, setInternalDrillPath] = useState<string[]>([]);
@@ -67,8 +68,6 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
   const drillCacheRef = useRef<
     Map<string, { columns: HeatmapColumn[]; rowLabels: string[]; columnMeta: ColumnMeta[] }>
   >(new Map());
-
-  const customFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
 
   useEffect(() => {
     drillCacheRef.current = new Map();
@@ -225,7 +224,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
         binSize={36}
         layout="fluid"
         animate={true}
-        fillScale={customFillScale}
+        levelForCount={levelForCount}
         status={status}
         loadingLabel={loadingLabel}
       >

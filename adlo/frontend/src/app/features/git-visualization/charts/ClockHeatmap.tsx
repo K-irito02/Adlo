@@ -7,9 +7,8 @@ import {
   HeatmapXAxis,
   HeatmapYAxis,
   HeatmapTooltip,
-  buildHeatmapFillScale,
   generateHeatmapSkeletonFromTarget,
-  HEATMAP_DEFAULT_LEVEL_STYLES,
+  type HeatmapLevelResolver,
 } from '@/components/charts/heatmap';
 import { hourlyDistributionToHeatmapColumns } from '../adapters/chartDataAdapters';
 
@@ -17,6 +16,8 @@ interface ClockHeatmapProps {
   data?: { day: number; hour: number; count: number }[];
   status?: ChartStatus;
   loadingLabel?: string;
+  /** Dataset-aware count → level resolver shared with the card legend. */
+  levelForCount?: HeatmapLevelResolver;
 }
 
 function expandToFullGrid(
@@ -42,6 +43,7 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({
   data,
   status = 'ready',
   loadingLabel,
+  levelForCount,
 }: ClockHeatmapProps) {
   const { t, locale, formatT } = useTCopy();
   const dayLabels = useMemo(
@@ -88,8 +90,6 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({
     [skeletonTarget],
   );
 
-  const customFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
-
   const formatLabel = useCallback(
     (count: number) => {
       const word = count === 1 ? t.gitVisContribution : t.gitVisContributions;
@@ -110,7 +110,6 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({
         gap={2}
         binSize={30}
         animate={true}
-        fillScale={customFillScale}
       >
         <HeatmapCells cornerRadius={2} />
         <HeatmapXAxis tickEvery={2} />
@@ -130,7 +129,7 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({
       gap={2}
       binSize={30}
       animate={true}
-      fillScale={customFillScale}
+      levelForCount={levelForCount}
     >
       <HeatmapCells cornerRadius={2} />
       <HeatmapXAxis tickEvery={2} />

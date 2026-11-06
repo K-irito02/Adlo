@@ -5,13 +5,10 @@ import { memo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { defaultHeatmapColorScale, type HeatmapLevelStyles } from './heatmap-colors';
 import { useHeatmapInteractionOptional } from './heatmap-context';
+import { type HeatmapLevelResolver, getHeatmapContributionLevel } from './heatmap-data';
 import { HeatmapLegendGradient } from './heatmap-legend-gradient';
 import { HeatmapLegendSwatch } from './heatmap-legend-swatch';
-import {
-  getHeatmapContributionLevel,
-  isHeatmapHoverEffectEnabled,
-  resolveHeatmapHoverStyle,
-} from './heatmap-utils';
+import { isHeatmapHoverEffectEnabled, resolveHeatmapHoverStyle } from './heatmap-utils';
 
 export const HEATMAP_LEGEND_LEVELS = [0, 1, 2, 3, 4] as const;
 
@@ -47,6 +44,11 @@ export interface HeatmapLegendProps {
   labelClassName?: string;
   /** Shared level styles for cells and legend swatches. */
   levelStyles?: HeatmapLevelStyles;
+  /**
+   * Dataset-aware count → level resolver. Pass the same resolver used by the
+   * active chart so tooltip hover highlights the cell's real level.
+   */
+  levelForCount?: HeatmapLevelResolver;
   /** Override the default color scale (used when `levelStyles` is omitted). */
   colorScale?: (count: number | null | undefined) => string;
   /** Opacity for inactive swatches while interacting. Default: 0.3 */
@@ -72,6 +74,7 @@ export const HeatmapLegend = memo(function HeatmapLegend({
   fontSize,
   labelClassName,
   levelStyles: levelStylesProp,
+  levelForCount = getHeatmapContributionLevel,
   colorScale = defaultHeatmapColorScale,
   inactiveOpacity = HEATMAP_INACTIVE_OPACITY,
   inactiveScale = 1,
@@ -99,7 +102,7 @@ export const HeatmapLegend = memo(function HeatmapLegend({
     };
 
   const highlightedLevel =
-    hoveredLegendLevel ?? (tooltipData ? getHeatmapContributionLevel(tooltipData.count) : null);
+    hoveredLegendLevel ?? (tooltipData ? levelForCount(tooltipData.count) : null);
   const hoverParams = { inactiveOpacity, inactiveScale, activeScale };
   const inactiveEnabled = isHeatmapHoverEffectEnabled(hoverParams);
   const isDimming = isInteractive && highlightedLevel !== null && inactiveEnabled;

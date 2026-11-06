@@ -12,6 +12,7 @@ import type { ChartStatus } from '@/components/charts/chart-phase';
 import type { RawCommitStats } from './adapters/chartDataAdapters';
 import { buildModuleTree, getChildrenAtPath } from './moduleTreeUtils';
 import { HeatmapInteractionProvider, HeatmapLegend } from '@/components/charts/heatmap';
+import { resolveHeatmapLevelResolver } from './utils/heatmapLevelScale';
 import { CalendarHeatmap } from './charts/CalendarHeatmap';
 import { ClockHeatmap } from './charts/ClockHeatmap';
 import { ContributorActivityHeatmap } from './charts/ContributorActivityHeatmap';
@@ -255,6 +256,31 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     [contributorModuleAllPaths],
   );
 
+  // Per active tab (module: per drill level). Every visible heatmap cell and
+  // the legend tooltip / hover highlight share this resolver so the dynamic
+  // boundaries cannot drift between the chart and its legend.
+  const levelForCount = useMemo(
+    () =>
+      resolveHeatmapLevelResolver({
+        tab: activeHeatmapTab,
+        commitStats,
+        contributorModules,
+        moduleTree,
+        moduleDrillPath,
+        since: displayRange.since,
+        until: displayRange.until,
+      }),
+    [
+      activeHeatmapTab,
+      commitStats,
+      contributorModules,
+      displayRange.since,
+      displayRange.until,
+      moduleDrillPath,
+      moduleTree,
+    ],
+  );
+
   // Reset a stale module drill path here (the state owner) so it is cleared
   // even while the module tab is unmounted and the child heatmap cannot run its
   // own reset — otherwise returning to the tab would briefly show "Col: 0" and
@@ -352,6 +378,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
                   data={commitStats?.dailyCommits}
                   status={commitStatsStatus}
                   loadingLabel={loadingLabel}
+                  levelForCount={levelForCount}
                   year={
                     displayRange.since && displayRange.since.length >= 4
                       ? parseInt(displayRange.since.substring(0, 4), 10) || undefined
@@ -364,6 +391,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
                   data={commitStats?.hourlyDistribution}
                   status={commitStatsStatus}
                   loadingLabel={loadingLabel}
+                  levelForCount={levelForCount}
                 />
               )}
               {activeHeatmapTab === 'activity' && (
@@ -373,6 +401,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
                   until={displayRange.until}
                   status={commitStatsStatus}
                   loadingLabel={loadingLabel}
+                  levelForCount={levelForCount}
                 />
               )}
               {activeHeatmapTab === 'module' && (
@@ -383,13 +412,20 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
                   loadingLabel={loadingLabel}
                   drillPath={moduleDrillPath}
                   onDrillPathChange={setModuleDrillPath}
+                  levelForCount={levelForCount}
                 />
               )}
             </>
           )}
         </div>
         <div className="adl-git-vis__heatmap-legend">
-          <HeatmapLegend lessLabel={t.gitVisLess} moreLabel={t.gitVisMore} cellSize={10} gap={2} />
+          <HeatmapLegend
+            lessLabel={t.gitVisLess}
+            moreLabel={t.gitVisMore}
+            cellSize={10}
+            gap={2}
+            levelForCount={levelForCount}
+          />
         </div>
       </HeatmapInteractionProvider>
       <p className="adl-git-vis__card-desc">

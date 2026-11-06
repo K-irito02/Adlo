@@ -36,6 +36,7 @@ import {
   buildHeatmapFillScale,
   resolveHeatmapLevelStyles,
 } from './heatmap-colors';
+import { getHeatmapContributionLevel, type HeatmapLevelResolver } from './heatmap-data';
 import {
   type HeatmapColumn,
   type HeatmapContextValue,
@@ -104,6 +105,12 @@ export interface HeatmapChartProps {
   levelColors?: HeatmapLevelColors;
   /** Per-level fill styles (color and optional pattern). Takes precedence over `levelColors`. */
   levelStyles?: HeatmapLevelStyles;
+  /**
+   * Dataset-aware count → level resolver. Defaults to the fixed semantic scale
+   * (`0 / 1 / 2 / 3 / ≥4`). Pass one built from the chart's own counts to give
+   * each chart data-driven five-level thresholds.
+   */
+  levelForCount?: HeatmapLevelResolver;
   /** Optional outer aspect ratio (e.g. "2 / 1"). Omit to fill the parent. */
   aspectRatio?: string;
   /** Additional class name for the container */
@@ -165,6 +172,7 @@ interface HeatmapChartInnerProps {
   colorScale: (count: number | null | undefined) => string;
   fillScale: (count: number | null | undefined) => string;
   levelStyles: HeatmapLevelStyles;
+  levelForCount: HeatmapLevelResolver;
   chartStatus: ChartStatus;
   chartPhase: ChartPhase;
   isLoaded: boolean;
@@ -202,6 +210,7 @@ function HeatmapChartInner({
   colorScale,
   fillScale,
   levelStyles,
+  levelForCount,
   chartStatus,
   chartPhase,
   isLoaded,
@@ -337,6 +346,7 @@ function HeatmapChartInner({
       colorScale,
       fillScale,
       levelStyles,
+      levelForCount,
       containerRef,
       chartStatus,
       chartPhase,
@@ -377,6 +387,7 @@ function HeatmapChartInner({
       loadingCellRandomness,
       loadingLabel,
       levelStyles,
+      levelForCount,
       loadingOpacity,
       margin,
       revealMode,
@@ -589,6 +600,7 @@ export function HeatmapChart({
   fillScale: fillScaleProp,
   levelColors,
   levelStyles: levelStylesProp,
+  levelForCount: levelForCountProp,
   aspectRatio,
   className = '',
   status = DEFAULT_CHART_STATUS,
@@ -613,13 +625,14 @@ export function HeatmapChart({
     () => resolveHeatmapLevelStyles(levelColors, levelStylesProp),
     [levelColors, levelStylesProp],
   );
+  const levelForCount = levelForCountProp ?? getHeatmapContributionLevel;
   const colorScale = useMemo(
-    () => colorScaleProp ?? buildHeatmapColorScaleFromStyles(levelStyles),
-    [colorScaleProp, levelStyles],
+    () => colorScaleProp ?? buildHeatmapColorScaleFromStyles(levelStyles, levelForCount),
+    [colorScaleProp, levelForCount, levelStyles],
   );
   const fillScale = useMemo(
-    () => fillScaleProp ?? buildHeatmapFillScale(levelStyles),
-    [fillScaleProp, levelStyles],
+    () => fillScaleProp ?? buildHeatmapFillScale(levelStyles, levelForCount),
+    [fillScaleProp, levelForCount, levelStyles],
   );
 
   const { chartPhase, isLoaded, revealEpoch, revealMode, animateCells } = useHeatmapChartLifecycle({
@@ -660,6 +673,7 @@ export function HeatmapChart({
             height={parentHeight}
             isLoaded={isLoaded}
             layout={layout}
+            levelForCount={levelForCount}
             levelStyles={levelStyles}
             loadingCellMaxOpacity={loadingCellMaxOpacity}
             loadingCellRandomness={loadingCellRandomness}

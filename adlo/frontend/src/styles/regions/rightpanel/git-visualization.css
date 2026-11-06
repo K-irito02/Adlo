@@ -178,6 +178,7 @@
 .adl-branch-graph__label {
   position: relative;
   flex-shrink: 0;
+  color: var(--branch-label-fg, #fff);
 }
 
 /* Indicator bar — absolutely positioned above button (compositor-only via will-change) */
@@ -550,6 +551,28 @@
   --chart-tooltip-background: oklch(0.21 0.006 285);
   --chart-tooltip-foreground: oklch(0.985 0 0);
   --chart-tooltip-muted: oklch(0.65 0.01 260);
+}
+
+/* ── Branch label categorical palette ──
+   12 slots ordered so consecutive slots sit 150° apart on the hue wheel.
+   With the persisted assignment map, an existing branch keeps its recorded
+   slot while other branches are added or removed; only a branch without a
+   recorded slot consumes a free slot. The fixed L/C keeps white label text
+   readable on every slot in both themes. */
+.adl-git-vis__container {
+  --branch-label-fg: #fff;
+  --branch-color-01: oklch(0.48 0.13 265);
+  --branch-color-02: oklch(0.48 0.13 55);
+  --branch-color-03: oklch(0.48 0.13 205);
+  --branch-color-04: oklch(0.48 0.13 355);
+  --branch-color-05: oklch(0.48 0.13 145);
+  --branch-color-06: oklch(0.48 0.13 295);
+  --branch-color-07: oklch(0.48 0.13 85);
+  --branch-color-08: oklch(0.48 0.13 235);
+  --branch-color-09: oklch(0.48 0.13 25);
+  --branch-color-10: oklch(0.48 0.13 175);
+  --branch-color-11: oklch(0.48 0.13 325);
+  --branch-color-12: oklch(0.48 0.13 115);
 }
 
 /* ════════════════════════════════════════════

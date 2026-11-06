@@ -24,9 +24,10 @@ export function resolveRowDisplay(
   fallbackColor: string,
   ownership: Map<string, string>,
   selectedBranches: Set<string>,
+  colorMap: ReadonlyMap<string, string>,
 ): RowDisplay {
   const owner = ownership.get(node.id);
-  const ownerColor = owner ? getRefLabelColor(owner) : fallbackColor;
+  const ownerColor = owner ? getRefLabelColor(owner, colorMap) : fallbackColor;
 
   if (selectedBranches.size === 0) {
     return { selected: true, color: ownerColor };
@@ -34,7 +35,7 @@ export function resolveRowDisplay(
 
   const anchor = (node.refs ?? []).find((ref) => selectedBranches.has(ref));
   if (anchor) {
-    return { selected: true, color: getRefLabelColor(anchor) };
+    return { selected: true, color: getRefLabelColor(anchor, colorMap) };
   }
   if (owner && selectedBranches.has(owner)) {
     return { selected: true, color: ownerColor };

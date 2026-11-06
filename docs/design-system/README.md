@@ -34,7 +34,8 @@ docs/design-system/
     ├── README.md
     ├── accessibility.md     # WCAG AA, keyboard nav, screen reader, contrast
     ├── responsive.md        # Breakpoints, app-shell adaptation
-    └── testing.md           # Unit/integration/build coverage strategy
+    ├── testing.md           # Unit/integration/build coverage strategy
+    └── data-visualization.md # Dynamic heatmap levels + branch categorical palette
 ```
 
 ## Layered Architecture
@@ -98,6 +99,7 @@ const unsub = theme.subscribe((state) => console.log(state.resolvedTheme));
 | [`guidelines/accessibility.md`](./guidelines/accessibility.md) | Guidelines | Keyboard, screen reader, contrast, reduced motion |
 | [`guidelines/responsive.md`](./guidelines/responsive.md) | Guidelines | Breakpoints, app-shell adaptations |
 | [`guidelines/testing.md`](./guidelines/testing.md) | Guidelines | Unit + integration coverage strategy |
+| [`guidelines/data-visualization.md`](./guidelines/data-visualization.md) | Guidelines | Dynamic heatmap levels + branch categorical palette |
 
 > **UI 模式速查**：[`ui-patterns.md`](../../.agents/rules/ui-patterns.md) — 按场景（对话框、菜单、悬停、点击、颜色、Hint Card、按钮、文件树等 20 类）索引到本文档各章节，开发时快速定位。
 

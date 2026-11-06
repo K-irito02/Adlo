@@ -30,6 +30,7 @@ const mockData: RawBranchGraph = {
 
 afterEach(() => {
   cleanup();
+  window.localStorage.removeItem('adl-git-vis:branch-colors');
   // Reset avatarCache mock to default (null) between tests so per-test
   // overrides in integration tests do not leak into other tests.
   vi.mocked(getAvatar).mockResolvedValue(null);
@@ -399,7 +400,8 @@ describe('BranchGraph', () => {
       expect((a8Row as HTMLElement).style.opacity).toBe('1');
     });
     // The anchor SVG node uses the archived branch color (not the owner's).
-    const archivedColor = getRefLabelColor('archived');
+    const archivedColor = (archivedLabel as HTMLElement).style.background;
+    expect(archivedColor).toContain('var(--branch-color-');
     const anchorCircle = [...container.querySelectorAll('circle')].find(
       (c) => c.getAttribute('fill') === archivedColor,
     );
@@ -414,12 +416,14 @@ describe('BranchGraph', () => {
   it('colors lane lines by branch ownership, matching the branch label colors', async () => {
     const { container } = render(<BranchGraph data={mockData} />);
     const labels = container.querySelectorAll('.adl-branch-graph__label');
-    const branchColors = allBranches.map((b) => getRefLabelColor(b));
+    const branchColors = new Set(
+      [...labels].map((label) => (label as HTMLElement).style.background),
+    );
 
-    // Default state: lane lines already use the owning branch's stable color,
-    // never the raw lane-assignment palette color.
+    // Default state: branch-owned lane segments use the owning branch's label
+    // color rather than the raw lane-assignment palette color.
     const laneLines = [...container.querySelectorAll('line')].filter((l) =>
-      l.getAttribute('stroke')?.startsWith('hsl('),
+      l.getAttribute('stroke')?.startsWith('var(--branch-color-'),
     );
     expect(laneLines.length).toBeGreaterThan(0);
     laneLines.forEach((l) => {
@@ -437,12 +441,49 @@ describe('BranchGraph', () => {
     });
     const dimmedLaneLines = [...container.querySelectorAll('line')].filter((l) => {
       const stroke = l.getAttribute('stroke');
-      return stroke !== null && stroke.startsWith('hsl(') && l.getAttribute('opacity') === '0.1';
+      return (
+        stroke !== null &&
+        stroke.startsWith('var(--branch-color-') &&
+        l.getAttribute('opacity') === '0.1'
+      );
     });
     expect(dimmedLaneLines.length).toBeGreaterThan(0);
     dimmedLaneLines.forEach((l) => {
       expect(branchColors).toContain(l.getAttribute('stroke'));
     });
+  });
+
+  it('uses the shared branch color map for labels and lane strokes', () => {
+    const { container } = render(<BranchGraph data={mockData} />);
+    const releaseLabel = [...container.querySelectorAll('.adl-branch-graph__label')].find(
+      (label) => label.textContent === 'release/v1.0',
+    ) as HTMLElement | undefined;
+    expect(releaseLabel).toBeTruthy();
+
+    const releaseColor = releaseLabel!.style.background;
+    expect(releaseColor).toContain('var(--branch-color-');
+    // The fixture's assigned slot differs from the per-name hash fallback, so
+    // dropping the shared map would surface as a different lane color.
+    expect(releaseColor).not.toBe(getRefLabelColor('release/v1.0'));
+
+    const laneStrokes = [...container.querySelectorAll('.adl-branch-graph__svg line')].map((line) =>
+      line.getAttribute('stroke'),
+    );
+    expect(laneStrokes).toContain(releaseColor);
+  });
+
+  it('preloads the persisted branch color map on first render', () => {
+    window.localStorage.setItem(
+      'adl-git-vis:branch-colors',
+      JSON.stringify({ main: 5, 'feature-1': 7 }),
+    );
+
+    const { container } = render(<BranchGraph data={mockData} />);
+    const mainLabel = [...container.querySelectorAll('.adl-branch-graph__label')].find(
+      (label) => label.textContent === 'main',
+    ) as HTMLElement | undefined;
+    expect(mainLabel).toBeTruthy();
+    expect(mainLabel!.style.background).toContain('--branch-color-06');
   });
 
   it('replaces pixel avatar with cached avatar after async load', async () => {

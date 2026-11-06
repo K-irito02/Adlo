@@ -1,4 +1,5 @@
 import type { CommitNode, CommitEdge } from '../types/gitGraph';
+import { isLocalBranchName } from './branchLabelColors';
 
 /**
  * Computes which local branch "owns" each commit in the branch graph.
@@ -45,9 +46,7 @@ export function computeBranchOwnership(
     }
   }
 
-  const localBranches = branches.filter(
-    (b) => !b.startsWith('origin/') && !b.startsWith('upstream/') && b !== 'HEAD',
-  );
+  const localBranches = branches.filter(isLocalBranchName);
   if (localBranches.length === 0) {
     return new Map();
   }

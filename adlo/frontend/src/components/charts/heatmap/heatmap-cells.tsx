@@ -14,6 +14,7 @@ import {
   heatmapLoadingCellParticipates,
   resolveHeatmapEnterFadeDurationSec,
 } from './heatmap-animation';
+import { computeHeatmapCellFaded } from './heatmap-cell-state';
 import { heatmapLevelCellFillOpacity } from './heatmap-colors';
 import {
   type HeatmapBin,
@@ -22,7 +23,6 @@ import {
   useHeatmapInteraction,
 } from './heatmap-context';
 import {
-  getHeatmapContributionLevel,
   isHeatmapGhostBin,
   isHeatmapHoverEffectEnabled,
   resolveHeatmapDisplayRange,
@@ -40,25 +40,6 @@ const HEATMAP_CONCEAL_TRANSITION = {
   duration: HEATMAP_LOADING_CONCEAL_MS / 1000,
   ease: HEATMAP_DEFAULT_ENTER_EASE,
 };
-
-function computeHeatmapCellFaded(
-  isCellHovering: boolean,
-  isLevelHovering: boolean,
-  hoveredCell: { column: number; row: number } | null,
-  hoveredLegendLevel: number | null,
-  cell: { column: number; row: number },
-  count: number,
-): { isHighlighted: boolean; isDimmed: boolean } {
-  if (isCellHovering && hoveredCell) {
-    const isHighlighted = hoveredCell.column === cell.column && hoveredCell.row === cell.row;
-    return { isHighlighted, isDimmed: !isHighlighted };
-  }
-  if (isLevelHovering && hoveredLegendLevel !== null) {
-    const isHighlighted = getHeatmapContributionLevel(count) === hoveredLegendLevel;
-    return { isHighlighted, isDimmed: !isHighlighted };
-  }
-  return { isHighlighted: false, isDimmed: false };
-}
 
 interface SyncCellLayerParams {
   animateCells: boolean;
@@ -213,10 +194,11 @@ const HeatmapMotionCell = memo(function HeatmapMotionCell({
     showLoadingCells: showLoadingCellsLayer,
     loadingCellMaxOpacity,
     loadingCellRandomness,
+    levelForCount,
     levelStyles,
   } = useHeatmap();
 
-  const levelStyle = levelStyles[getHeatmapContributionLevel(bin.count ?? 0)] ?? levelStyles[0];
+  const levelStyle = levelStyles[levelForCount(bin.count)] ?? levelStyles[0];
   const targetFill = fillScale(bin.count);
   const emptyFill = fillScale(0);
   const patternFillOpacity = heatmapLevelCellFillOpacity(levelStyle);
@@ -411,6 +393,7 @@ export const HeatmapCells = memo(function HeatmapCells({
     chartStatus,
     colorScale: contextColorScale,
     fillScale: contextFillScale,
+    levelForCount,
   } = useHeatmap();
   const colorScale = colorScaleProp ?? contextColorScale;
   const fillScale = contextFillScale;
@@ -509,6 +492,7 @@ export const HeatmapCells = memo(function HeatmapCells({
                 hoveredLegendLevel,
                 cell,
                 bin.count,
+                levelForCount,
               );
 
               return (

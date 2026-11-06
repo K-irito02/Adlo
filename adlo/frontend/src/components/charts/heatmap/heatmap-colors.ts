@@ -1,6 +1,6 @@
 import { CHART_SCALE_VARS } from '../chart-scale';
 import type { PatternPresetId } from '../pattern-preset';
-import { getHeatmapContributionLevel } from './heatmap-data';
+import { getHeatmapContributionLevel, type HeatmapLevelResolver } from './heatmap-data';
 
 /** Default Less → More scale using {@link CHART_SCALE_VARS}. */
 export const HEATMAP_DEFAULT_LEVEL_COLORS = CHART_SCALE_VARS;
@@ -135,24 +135,27 @@ export function resolveHeatmapLevelStyles(
 
 export function buildHeatmapColorScale(
   levelColors: HeatmapLevelColors,
+  levelForCount: HeatmapLevelResolver = getHeatmapContributionLevel,
 ): (count: number | null | undefined) => string {
-  return buildHeatmapColorScaleFromStyles(levelStylesFromColors(levelColors));
+  return buildHeatmapColorScaleFromStyles(levelStylesFromColors(levelColors), levelForCount);
 }
 
 export function buildHeatmapColorScaleFromStyles(
   levelStyles: HeatmapLevelStyles,
+  levelForCount: HeatmapLevelResolver = getHeatmapContributionLevel,
 ): (count: number | null | undefined) => string {
   return (count: number | null | undefined) => {
-    const level = getHeatmapContributionLevel(count ?? 0);
+    const level = levelForCount(count);
     return levelStyles[level]?.color ?? levelStyles[0].color;
   };
 }
 
 export function buildHeatmapFillScale(
   levelStyles: HeatmapLevelStyles,
+  levelForCount: HeatmapLevelResolver = getHeatmapContributionLevel,
 ): (count: number | null | undefined) => string {
   return (count: number | null | undefined) => {
-    const level = getHeatmapContributionLevel(count ?? 0);
+    const level = levelForCount(count);
     const style = levelStyles[level] ?? levelStyles[0];
 
     if (isHeatmapLevelPattern(style)) {

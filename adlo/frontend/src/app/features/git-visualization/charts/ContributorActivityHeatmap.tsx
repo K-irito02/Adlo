@@ -8,9 +8,8 @@ import {
   HeatmapYAxis,
   HeatmapTooltip,
   HeatmapYearHint,
-  buildHeatmapFillScale,
   generateHeatmapSkeletonFromTarget,
-  HEATMAP_DEFAULT_LEVEL_STYLES,
+  type HeatmapLevelResolver,
 } from '@/components/charts/heatmap';
 import { contributorActivityToHeatmapColumns } from '../adapters/chartDataAdapters';
 
@@ -25,6 +24,8 @@ interface ContributorActivityHeatmapProps {
   until?: string;
   status?: ChartStatus;
   loadingLabel?: string;
+  /** Dataset-aware count → level resolver shared with the card legend. */
+  levelForCount?: HeatmapLevelResolver;
 }
 
 export const ContributorActivityHeatmap = React.memo(function ContributorActivityHeatmap({
@@ -33,6 +34,7 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
   until,
   status = 'ready',
   loadingLabel,
+  levelForCount,
 }: ContributorActivityHeatmapProps) {
   const { t, locale } = useTCopy();
   const { columns, rowLabels } = useMemo(
@@ -55,8 +57,6 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
     [skeletonTarget],
   );
 
-  const customFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
-
   const formatLabel = useCallback(
     (count: number) => {
       const word = count === 1 ? t.gitVisContribution : t.gitVisContributions;
@@ -77,7 +77,6 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
         gap={2}
         binSize={22}
         animate={true}
-        fillScale={customFillScale}
       >
         <HeatmapCells cornerRadius={2} />
         <HeatmapXAxis top={18} tickEvery={2} />
@@ -98,7 +97,7 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
       gap={2}
       binSize={22}
       animate={true}
-      fillScale={customFillScale}
+      levelForCount={levelForCount}
     >
       <HeatmapCells cornerRadius={2} />
       <HeatmapXAxis top={18} tickEvery={2} />

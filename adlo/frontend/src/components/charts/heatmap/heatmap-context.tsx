@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import type { Margin } from '../chart-context';
 import type { ChartPhase, ChartStatus } from '../chart-phase';
 import type { HeatmapLevelStyles } from './heatmap-colors';
+import type { HeatmapLevelResolver } from './heatmap-data';
 import type { HeatmapSeparatorLayout, HeatmapWeekStartDay } from './heatmap-utils';
 
 type HeatmapTimeScale = ReturnType<typeof scaleTime<number>>;
@@ -83,6 +84,8 @@ export interface HeatmapContextValue {
   colorScale: (count: number | null | undefined) => string;
   fillScale: (count: number | null | undefined) => string;
   levelStyles: HeatmapLevelStyles;
+  /** Dataset-aware count → level resolver shared by cells and legend hover. */
+  levelForCount: HeatmapLevelResolver;
   containerRef: RefObject<HTMLDivElement | null>;
   chartStatus: ChartStatus;
   chartPhase: ChartPhase;

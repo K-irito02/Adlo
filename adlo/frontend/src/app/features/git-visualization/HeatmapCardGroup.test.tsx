@@ -1,7 +1,29 @@
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import { render, cleanup, fireEvent, screen } from '@testing-library/react';
 import React from 'react';
+import type * as HeatmapCharts from '@/components/charts/heatmap';
 import { HeatmapCardGroup } from './HeatmapCardGroup';
+
+const legendProps = vi.hoisted(() => ({ current: null as Record<string, unknown> | null }));
+const calendarProps = vi.hoisted(() => ({ current: null as Record<string, unknown> | null }));
+
+vi.mock('./charts/CalendarHeatmap', () => ({
+  CalendarHeatmap: (props: Record<string, unknown>) => {
+    calendarProps.current = props;
+    return props.status === 'loading' ? React.createElement('div', null, 'Loading chart...') : null;
+  },
+}));
+
+vi.mock('@/components/charts/heatmap', async (importOriginal) => {
+  const actual = await importOriginal<typeof HeatmapCharts>();
+  return {
+    ...actual,
+    HeatmapLegend: (props: Record<string, unknown>) => {
+      legendProps.current = props;
+      return React.createElement('div', { 'data-testid': 'heatmap-legend' });
+    },
+  };
+});
 
 function createMotionValue(initial = 0) {
   let value = initial;
@@ -184,6 +206,38 @@ describe('HeatmapCardGroup', () => {
   it('passes commitStatsStatus loading to heatmap tabs', { timeout: 30000 }, () => {
     render(<HeatmapCardGroup commitStatsStatus="loading" />);
     expect(screen.getAllByText('Loading chart...').length).toBeGreaterThan(0);
+  });
+
+  it('passes the same data-driven level resolver to the legend', { timeout: 30000 }, () => {
+    const year = new Date().getFullYear();
+    const commitStats = {
+      dailyCommits: [
+        { date: `${year}-01-01`, count: 4 },
+        { date: `${year}-01-02`, count: 8 },
+        { date: `${year}-01-03`, count: 15 },
+        { date: `${year}-01-04`, count: 78 },
+      ],
+      hourlyDistribution: [],
+      contributorActivity: [],
+      commitTimeline: [],
+    };
+    render(<HeatmapCardGroup commitStats={commitStats} commitStatsStatus="ready" />);
+
+    const levelForCount = legendProps.current?.levelForCount as
+      | ((count: number) => number)
+      | undefined;
+    expect(levelForCount).toBeTypeOf('function');
+    expect(levelForCount?.(4)).toBe(1);
+    expect(levelForCount?.(8)).toBe(2);
+    expect(levelForCount?.(15)).toBe(3);
+    expect(levelForCount?.(78)).toBe(4);
+
+    const chartLevelForCount = calendarProps.current?.levelForCount as
+      | ((count: number) => number)
+      | undefined;
+    expect(chartLevelForCount).toBeTypeOf('function');
+    expect(chartLevelForCount?.(4)).toBe(levelForCount?.(4));
+    expect(chartLevelForCount?.(78)).toBe(levelForCount?.(78));
   });
 
   it(

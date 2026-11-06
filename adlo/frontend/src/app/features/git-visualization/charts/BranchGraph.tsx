@@ -11,7 +11,14 @@ import { getAvatar, getCachedAvatarUrl } from '../utils/avatarCache';
 import { computeBranchOwnership } from '../utils/branchOwnership';
 import { computeMergedBranches } from '../utils/branchMergeStatus';
 import { resolveRowDisplay } from '../utils/branchRowDisplay';
-import { getRefLabelColor } from '../utils/branchLabelColors';
+import {
+  assignBranchColorSlots,
+  buildRefLabelColorMap,
+  compareBranchNames,
+  getRefLabelColor,
+  isLocalBranchName,
+} from '../utils/branchLabelColors';
+import { readJson, writeJson } from '@stores/storageHelpers';
 import { IconFileText } from '@icons/status';
 import type { ColumnInfo } from '../hooks/useLaneAssignment';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
@@ -29,6 +36,33 @@ const NODE_RADIUS = 6;
 const MERGE_NODE_SIZE = 12;
 const INITIAL_LOAD = 50;
 const LOAD_MORE = 30;
+const BRANCH_COLOR_STORAGE_KEY = 'adl-git-vis:branch-colors';
+
+/**
+ * Persisted name → slot map. Persisting outside React keeps colors stable
+ * across refreshes / restarts: existing assignments are reused, so only a
+ * newly seen branch needs a free slot.
+ */
+function loadBranchColorSlots(): Record<string, number> {
+  const stored = readJson<unknown>(BRANCH_COLOR_STORAGE_KEY, {});
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) {
+    return Object.create(null);
+  }
+  // Slot-level sanitization is centralized in assignBranchColorSlots; this
+  // function only guards the JSON shape.
+  return stored as Record<string, number>;
+}
+
+function branchColorSlotsEqual(
+  a: Readonly<Record<string, number>>,
+  b: Readonly<Record<string, number>>,
+): boolean {
+  const aKeys = Object.keys(a);
+  if (aKeys.length !== Object.keys(b).length) {
+    return false;
+  }
+  return aKeys.every((key) => a[key] === b[key]);
+}
 
 interface AuthorAvatarProps {
   name: string;
@@ -229,6 +263,7 @@ interface SvgLanesProps {
   totalHeight: number;
   nodeStroke: string;
   ownership: Map<string, string>;
+  branchColorMap: ReadonlyMap<string, string>;
   selectedBranches: Set<string>;
   hoveredRowId: string | null;
   aheadRows: Set<number>;
@@ -243,14 +278,16 @@ const SvgLanes = React.memo(
     totalHeight,
     nodeStroke,
     ownership,
+    branchColorMap,
     selectedBranches,
     hoveredRowId,
     aheadRows,
   }: SvgLanesProps) {
     const nodeY = (rowIndex: number) => rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
     const rowDisplay = useCallback(
-      (row: RowData) => resolveRowDisplay(row.node, row.color, ownership, selectedBranches),
-      [ownership, selectedBranches],
+      (row: RowData) =>
+        resolveRowDisplay(row.node, row.color, ownership, selectedBranches, branchColorMap),
+      [branchColorMap, ownership, selectedBranches],
     );
     const rowIndexById = useMemo(() => {
       const map = new Map<string, number>();
@@ -441,6 +478,7 @@ const SvgLanes = React.memo(
     prev.totalHeight === next.totalHeight &&
     prev.nodeStroke === next.nodeStroke &&
     prev.ownership === next.ownership &&
+    prev.branchColorMap === next.branchColorMap &&
     prev.selectedBranches === next.selectedBranches &&
     prev.hoveredRowId === next.hoveredRowId &&
     prev.aheadRows === next.aheadRows,
@@ -451,6 +489,7 @@ const SvgLanes = React.memo(
 interface CommitTableRowsProps {
   visibleRows: RowData[];
   ownership: Map<string, string>;
+  branchColorMap: ReadonlyMap<string, string>;
   selectedBranches: Set<string>;
   onRowHover: (id: string | null) => void;
   theme: ReturnType<typeof useBklitTheme>;
@@ -462,6 +501,7 @@ const CommitTableRows = React.memo(
   function CommitTableRows({
     visibleRows,
     ownership,
+    branchColorMap,
     selectedBranches,
     onRowHover,
     theme,
@@ -493,7 +533,13 @@ const CommitTableRows = React.memo(
         </div>
         {visibleRows.map((row) => {
           const owner = ownership.get(row.node.id);
-          const display = resolveRowDisplay(row.node, row.color, ownership, selectedBranches);
+          const display = resolveRowDisplay(
+            row.node,
+            row.color,
+            ownership,
+            selectedBranches,
+            branchColorMap,
+          );
           const isFiltered = !display.selected;
           const additionalRefs =
             row.node.refs?.filter(
@@ -662,6 +708,7 @@ const CommitTableRows = React.memo(
   (prev, next) =>
     prev.visibleRows === next.visibleRows &&
     prev.ownership === next.ownership &&
+    prev.branchColorMap === next.branchColorMap &&
     prev.selectedBranches === next.selectedBranches &&
     prev.onRowHover === next.onRowHover &&
     prev.theme === next.theme &&
@@ -674,6 +721,7 @@ const CommitTableRows = React.memo(
 interface TagRowProps {
   tagRowOrder: string[];
   branchLabels: BranchLabel[];
+  branchColorMap: ReadonlyMap<string, string>;
   draggedId: string | null;
   overId: string | null;
   isDark: boolean;
@@ -687,6 +735,7 @@ interface TagRowProps {
 const TagRow = React.memo(function TagRow({
   tagRowOrder,
   branchLabels,
+  branchColorMap,
   draggedId,
   overId,
   isDark,
@@ -797,8 +846,7 @@ const TagRow = React.memo(function TagRow({
               style={{
                 padding: '2px 8px',
                 borderRadius: 0,
-                background: getRefLabelColor(label.name),
-                color: '#fff',
+                background: getRefLabelColor(label.name, branchColorMap),
                 fontSize: 11,
                 fontWeight: 600,
                 border: 'none',
@@ -959,17 +1007,6 @@ interface BranchGraphProps {
   isGitSnapshotLoaded?: boolean;
 }
 
-/** Rank for ordering branch labels: mainline first, then master, then rest. */
-function branchRank(name: string): number {
-  if (name === 'main') {
-    return 0;
-  }
-  if (name === 'master') {
-    return 1;
-  }
-  return 2;
-}
-
 export function BranchGraph({
   data,
   status = 'ready',
@@ -995,6 +1032,30 @@ export function BranchGraph({
   }, [deferredSelectedLabels]);
 
   const adapted = useMemo(() => (data ? adaptBranchGraphData(data) : null), [data]);
+
+  // Persisted name → slot assignment. Valid recorded slots are reused
+  // verbatim; only names without a recorded slot consume a free slot.
+  const [branchColorSlots, setBranchColorSlots] =
+    useState<Record<string, number>>(loadBranchColorSlots);
+  const allBranchNames = adapted?.allBranches ?? emptyArr;
+  const branchColorMap = useMemo(
+    () => buildRefLabelColorMap(allBranchNames, branchColorSlots),
+    [allBranchNames, branchColorSlots],
+  );
+  useEffect(() => {
+    // Keep stored colors when the graph has no local branches (initial load /
+    // empty workspace) instead of treating history as a complete snapshot.
+    if (!allBranchNames.some(isLocalBranchName)) {
+      return;
+    }
+    const next = assignBranchColorSlots(allBranchNames, branchColorSlots);
+    if (branchColorSlotsEqual(next, branchColorSlots)) {
+      return;
+    }
+    setBranchColorSlots(next);
+    writeJson(BRANCH_COLOR_STORAGE_KEY, next);
+  }, [allBranchNames, branchColorSlots]);
+
   // Preload avatar images so tooltip card shows them instantly
   useEffect(() => {
     if (!adapted?.nodes) {
@@ -1111,11 +1172,8 @@ export function BranchGraph({
       return [];
     }
     const progress = adapted.branchProgress ?? {};
-    const local = (adapted.allBranches ?? []).filter(
-      (b) => !b.startsWith('origin/') && !b.startsWith('upstream/') && b !== 'HEAD',
-    );
-    const sorted = [...local].sort((a, b) => branchRank(a) - branchRank(b) || a.localeCompare(b));
-    return sorted.map((name) => ({ name, progress: progress[name] }));
+    const local = (adapted.allBranches ?? []).filter(isLocalBranchName);
+    return [...local].sort(compareBranchNames).map((name) => ({ name, progress: progress[name] }));
   }, [adapted]);
 
   // Merge new labels when data loads, preserving drag-adjusted positions
@@ -1246,6 +1304,7 @@ export function BranchGraph({
       <TagRow
         tagRowOrder={tagRowOrder}
         branchLabels={branchLabels}
+        branchColorMap={branchColorMap}
         draggedId={draggedId}
         overId={overId}
         isDark={isDark}
@@ -1267,6 +1326,7 @@ export function BranchGraph({
               totalHeight={totalHeight}
               nodeStroke={nodeStroke}
               ownership={ownership}
+              branchColorMap={branchColorMap}
               selectedBranches={selectedBranches}
               hoveredRowId={hoveredRowId}
               aheadRows={aheadRows}
@@ -1275,6 +1335,7 @@ export function BranchGraph({
           <CommitTableRows
             visibleRows={visibleRows}
             ownership={ownership}
+            branchColorMap={branchColorMap}
             selectedBranches={selectedBranches}
             onRowHover={onRowHover}
             theme={theme}

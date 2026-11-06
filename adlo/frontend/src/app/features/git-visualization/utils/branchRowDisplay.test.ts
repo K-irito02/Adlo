@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveRowDisplay } from './branchRowDisplay';
-import { getRefLabelColor } from './branchLabelColors';
+import { buildRefLabelColorMap, getRefLabelColor } from './branchLabelColors';
 import type { CommitNode } from '../types/gitGraph';
 
 function node(id: string, refs?: string[]): CommitNode {
@@ -17,17 +17,24 @@ function node(id: string, refs?: string[]): CommitNode {
 }
 
 const fallback = '#888';
+const colorMap = buildRefLabelColorMap([
+  'main',
+  'archived',
+  'feature-1',
+  'feature-2',
+  'release/v1.0',
+]);
 
 describe('resolveRowDisplay', () => {
   it('keeps every row selected with the owner color when no branch is selected', () => {
     const ownership = new Map([['n1', 'main']]);
-    const d = resolveRowDisplay(node('n1'), fallback, ownership, new Set());
+    const d = resolveRowDisplay(node('n1'), fallback, ownership, new Set(), colorMap);
     expect(d.selected).toBe(true);
-    expect(d.color).toBe(getRefLabelColor('main'));
+    expect(d.color).toBe(colorMap.get('main'));
   });
 
   it('falls back to the lane color when there is no owner and no selection', () => {
-    const d = resolveRowDisplay(node('n1'), fallback, new Map(), new Set());
+    const d = resolveRowDisplay(node('n1'), fallback, new Map(), new Set(), colorMap);
     expect(d.selected).toBe(true);
     expect(d.color).toBe(fallback);
   });
@@ -40,9 +47,10 @@ describe('resolveRowDisplay', () => {
       fallback,
       ownership,
       new Set(['archived']),
+      colorMap,
     );
     expect(d.selected).toBe(true);
-    expect(d.color).toBe(getRefLabelColor('archived'));
+    expect(d.color).toBe(colorMap.get('archived'));
   });
 
   it('uses the owner color when the owning branch itself is selected', () => {
@@ -52,9 +60,10 @@ describe('resolveRowDisplay', () => {
       fallback,
       ownership,
       new Set(['feature-1']),
+      colorMap,
     );
     expect(d.selected).toBe(true);
-    expect(d.color).toBe(getRefLabelColor('feature-1'));
+    expect(d.color).toBe(colorMap.get('feature-1'));
   });
 
   it('dims a node whose anchor/owner branch is not selected, keeping the owner color', () => {
@@ -64,14 +73,44 @@ describe('resolveRowDisplay', () => {
       fallback,
       ownership,
       new Set(['feature-1']),
+      colorMap,
     );
     expect(d.selected).toBe(false);
-    expect(d.color).toBe(getRefLabelColor('feature-2'));
+    expect(d.color).toBe(colorMap.get('feature-2'));
   });
 
   it('dims an ownerless node when a selection exists, keeping the fallback color', () => {
-    const d = resolveRowDisplay(node('n1'), fallback, new Map(), new Set(['feature-1']));
+    const d = resolveRowDisplay(node('n1'), fallback, new Map(), new Set(['feature-1']), colorMap);
     expect(d.selected).toBe(false);
     expect(d.color).toBe(fallback);
+  });
+
+  it('uses the map color on the selected-anchor path too', () => {
+    const d = resolveRowDisplay(
+      node('n1', ['main', 'release/v1.0']),
+      fallback,
+      new Map([['n1', 'main']]),
+      new Set(['release/v1.0']),
+      colorMap,
+    );
+
+    expect(d.selected).toBe(true);
+    expect(d.color).toBe(colorMap.get('release/v1.0'));
+    expect(d.color).not.toBe(getRefLabelColor('release/v1.0'));
+  });
+
+  it('uses the shared map color instead of the per-name fallback', () => {
+    // release/v1.0 is the fixture branch whose assigned slot differs from its
+    // hash fallback; missing the map must surface as a different color.
+    const d = resolveRowDisplay(
+      node('n1', ['release/v1.0']),
+      fallback,
+      new Map([['n1', 'release/v1.0']]),
+      new Set(),
+      colorMap,
+    );
+
+    expect(d.color).toBe(colorMap.get('release/v1.0'));
+    expect(d.color).not.toBe(getRefLabelColor('release/v1.0'));
   });
 });
