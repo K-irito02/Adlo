@@ -5,6 +5,8 @@ alwaysApply: true
 
 # 常用命令
 
+> 本文件命令默认在 `adlo/` 执行（`frontend/` 相对 `adlo/`）。在仓库根执行时改用 `pnpm --dir adlo/frontend ...`；仓库根没有 `package.json`。
+
 ## 开发命令（`adlo/`）
 
 | 命令 | 用途 |

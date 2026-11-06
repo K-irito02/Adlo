@@ -6,6 +6,8 @@ alwaysApply: false
 
 # 质量门禁
 
+> 命令默认在 `adlo/` 执行；在仓库根执行时，前端命令用 `pnpm --dir adlo/frontend ...`，adlo 脚本用 `pnpm --dir adlo run ...`。完整命令索引见 [commands.md](./commands.md)。
+
 ## 结束验收流程
 
 代码变更后的完整验收流程定义见 [mandatory-testing.md](./mandatory-testing.md) — **结束验收流程（强制红绿测试）**。

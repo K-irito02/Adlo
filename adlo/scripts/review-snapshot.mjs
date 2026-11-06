@@ -9,7 +9,11 @@
  *
  * 用法：
  *   node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>]
+ *     [--allow-untracked] [--allow-claims]
  * 默认 base = merge-base(origin/HEAD, HEAD)，无远端时 HEAD；out = 仓库根 .review-diffs。
+ *
+ * 未跟踪的纯数字名 / `.tmp/.log/.out/.bak` 会被拒绝（审查子代理临时产物）。
+ * 新增注释里的绝对断言必须先在 claims-ack-rev<N>.md 逐条标 [x]，否则退出码为 1。
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -41,11 +45,26 @@ export function safeSnapshotName(file) {
 }
 
 export function parseArgs(argv) {
-  const options = { base: null, out: ".review-diffs", rev: 1, help: false };
+  const options = {
+    base: null,
+    out: ".review-diffs",
+    rev: 1,
+    help: false,
+    allowUntracked: false,
+    allowClaims: false,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--help" || arg === "-h") {
       options.help = true;
+      continue;
+    }
+    if (arg === "--allow-untracked") {
+      options.allowUntracked = true;
+      continue;
+    }
+    if (arg === "--allow-claims") {
+      options.allowClaims = true;
       continue;
     }
     const next = () => {
@@ -89,10 +108,35 @@ function resolveBase(explicit) {
   return "HEAD";
 }
 
-function stageIntentToAdd() {
+/**
+ * 审查子代理曾把临时输出重定向到 `adlo/frontend/11` / `12`，随后被
+ * `git add -N` 带进快照。这里只拦“纯数字名 / 临时扩展名”这类高置信度产物；
+ * 正常新增源码不受影响。误报时用 `--allow-untracked`。
+ */
+const TEMP_BASENAME_PATTERN = /^\d+$|\.(?:tmp|log|out|bak)$/i;
+
+export function findSuspiciousUntracked(files) {
+  return files.filter((file) => {
+    const normalized = file.replace(/\\/g, "/");
+    const base = normalized.split("/").at(-1) ?? "";
+    return TEMP_BASENAME_PATTERN.test(base);
+  });
+}
+
+function stageIntentToAdd(allowUntracked) {
   const untracked = splitLines(git(["ls-files", "--others", "--exclude-standard"]));
   if (untracked.length === 0) {
     return 0;
+  }
+  const suspicious = findSuspiciousUntracked(untracked);
+  if (suspicious.length > 0 && !allowUntracked) {
+    throw new Error(
+      [
+        "refusing to snapshot suspicious untracked files:",
+        ...suspicious.map((file) => `  - ${file}`),
+        "Move temporary output to $env:TEMP or .review-diffs/tmp, or pass --allow-untracked.",
+      ].join("\n"),
+    );
   }
   // 分批避免 Windows 命令行长度上限。
   for (let i = 0; i < untracked.length; i += 50) {
@@ -101,7 +145,7 @@ function stageIntentToAdd() {
   return untracked.length;
 }
 
-/** 注释里的「绝对断言」：供作者派发审查前自读（启发式，不是门禁）。 */
+/** 注释里的「绝对断言」：默认门控，确认后由 claims-ack 放行。 */
 const CLAIM_PATTERN = /必然|总是|永远|从不|唯一|一定|不可达|不会走到|always|never|unreachable/i;
 const COMMENT_LINE_PATTERN = /^\s*(\/\/|\/\*|\*|<!--)/;
 
@@ -109,11 +153,16 @@ const COMMENT_LINE_PATTERN = /^\s*(\/\/|\/\*|\*|<!--)/;
  * 从本轮快照里挑出「新增注释 + 绝对断言」的行，写 `claims-rev<N>.md`。
  *
  * 为什么需要：R1/R2 的后半场经常全在核「注释说 X、代码是 Y」。压到审查发现前，
- * 让作者先自读一遍最便宜；这是启发式（只覆盖注释，不覆盖文档散文），不阻断流程。
+ * 让作者先自读一遍最便宜；这是启发式（只覆盖代码注释，不覆盖文档散文），
+ * 未在 claims-ack-rev<N>.md 逐条确认时阻断快照生成（`--allow-claims` 可放行）。
  */
 function collectClaimHints(files, outDir, rev) {
   const hints = [];
   for (const file of files) {
+    // Markdown prose belongs to P5 docs review; this heuristic targets code comments.
+    if (file.endsWith(".md")) {
+      continue;
+    }
     const diffPath = path.join(outDir, `${safeSnapshotName(file)}-rev${rev}.diff`);
     if (!fs.existsSync(diffPath)) {
       continue;
@@ -140,7 +189,7 @@ function collectClaimHints(files, outDir, rev) {
     }
   }
   if (hints.length === 0) {
-    return 0;
+    return { hints: [], count: 0 };
   }
   const body = [
     `# 待自读的断言 — rev${rev}`,
@@ -152,7 +201,36 @@ function collectClaimHints(files, outDir, rev) {
     "",
   ].join("\n");
   fs.writeFileSync(path.join(outDir, `claims-rev${rev}.md`), body, "utf8");
-  return hints.length;
+  return { hints, count: hints.length };
+}
+
+function claimKey(hit) {
+  return `${hit.file}:${hit.line}`;
+}
+
+/** Ack 文件里每个 claim 必须有一行 `- [x] file:line — evidence`。 */
+export function validateClaimAck(ackText, hints) {
+  const lines = ackText.split(/\r?\n/);
+  const missing = hints.filter(
+    (hit) =>
+      !lines.some((line) => line.includes(claimKey(hit)) && /\[x\]/i.test(line)),
+  );
+  return { ok: missing.length === 0, missing };
+}
+
+function writeClaimAckTemplate(ackPath, rev, hints) {
+  if (fs.existsSync(ackPath)) {
+    return;
+  }
+  const body = [
+    `# Claims ack — rev${rev}`,
+    "",
+    "逐条核对注释与最终代码/测试；确认后把 `[ ]` 改成 `[x]`，并在 `—` 后写证据或降级措辞。",
+    "",
+    ...hints.map((hit) => `- [ ] ${claimKey(hit)} — ${hit.text}`),
+    "",
+  ].join("\n");
+  fs.writeFileSync(ackPath, body, "utf8");
 }
 
 function main() {
@@ -164,7 +242,9 @@ function main() {
     process.exit(1);
   }
   if (options.help) {
-    console.log("usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>]");
+    console.log(
+      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--allow-untracked] [--allow-claims]",
+    );
     return;
   }
 
@@ -172,7 +252,13 @@ function main() {
   const outDir = path.resolve(repoRoot, options.out);
   fs.mkdirSync(outDir, { recursive: true });
 
-  const intended = stageIntentToAdd();
+  let intended;
+  try {
+    intended = stageIntentToAdd(options.allowUntracked);
+  } catch (error) {
+    console.error(`[review-snapshot] ${error.message}`);
+    process.exit(1);
+  }
   const files = splitLines(git(["diff", "--name-only", base]));
   if (files.length === 0) {
     console.error(`[review-snapshot] no changes against base ${base}; nothing to snapshot`);
@@ -186,7 +272,8 @@ function main() {
   }
 
   const rev = options.rev;
-  const claims = collectClaimHints(files, outDir, rev);
+  const claimResult = collectClaimHints(files, outDir, rev);
+  const claims = claimResult.count;
   fs.writeFileSync(
     path.join(outDir, `changed-files-rev${rev}.txt`),
     `${files.join("\n")}\n`,
@@ -241,6 +328,23 @@ function main() {
   console.log(`[review-snapshot] manifest=${path.relative(repoRoot, manifestPath)}`);
   if (claims > 0) {
     console.log(`[review-snapshot] claims=${claims} (见 claims-rev${rev}.md，派发前自读)`);
+    if (!options.allowClaims) {
+      const ackPath = path.join(outDir, `claims-ack-rev${rev}.md`);
+      writeClaimAckTemplate(ackPath, rev, claimResult.hints);
+      const ackText = fs.existsSync(ackPath) ? fs.readFileSync(ackPath, "utf8") : "";
+      const ack = validateClaimAck(ackText, claimResult.hints);
+      if (!ack.ok) {
+        console.error(
+          [
+            `[review-snapshot] claims not acknowledged (${ack.missing.length} missing):`,
+            ...ack.missing.map((hit) => `  - ${claimKey(hit)}`),
+            `Fill ${path.relative(repoRoot, ackPath)} with "- [x] file:line — evidence", then rerun.`,
+            "Use --allow-claims only when every absolute claim is verified by code or a test.",
+          ].join("\n"),
+        );
+        process.exitCode = 1;
+      }
+    }
   }
   for (const file of files) {
     console.log(`  ${safeSnapshotName(file)}-rev${rev}.diff`);

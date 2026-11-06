@@ -161,7 +161,7 @@ export function assignBranchColorSlots(
 }
 
 /**
- * Current branches are never evicted. Only history entries are trimmed to fit
+ * Current branches are exempt from the history budget. Only history entries are trimmed to fit
  * the cap, so a large current branch set can exceed the history budget without
  * losing an assignment (which would otherwise make the persistence effect
  * oscillate).

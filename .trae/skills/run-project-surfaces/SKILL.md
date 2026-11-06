@@ -42,6 +42,13 @@ description: 启动 Adlo 的三种运行模式（浏览器预览、Tauri 桌面�
 - 若 Trae IDE 内置浏览器功能因本地环境问题不可用，明确告知用户，并保持本地预览服务器继续运行。
 - 验证 Tauri 桌面模式时，确认 Tauri 进程确实在运行（可通过 `[adl-run]` 日志输出确认），不要仅凭命令退出就认为启动成功。
 
+## Agent 视觉验证已知问题
+
+- **首次运行准备挡住预览**：`dev:preview` 使用新数据目录时会弹出「首次运行准备」，可能卡在 Git/Node 下载。开发/视觉验证会话可在启动前设置 `$env:VITE_ADL_SKIP_FIRST_RUN='1'`（仅 `import.meta.env.DEV` 生效；显式「继续向导」仍会打开），或使用已准备好的数据目录。不要用手工 DOM 隐藏遮罩代替。
+- **长 HMR 后静态资源/图表不渲染**：长会话反复 HMR 后，可能出现动态导入 `ERR_PROXY_CONNECTION_FAILED`、右侧面板错误边界、或 `ParentSize` 高度为 0 导致热力图空白。先 `pnpm run dev:stop` 再重启 `dev:preview`、重开/刷新 tab，再判断是否为代码回归。
+- **`dev:preview` 首次构建**：没有预构建 `target/debug/adl-server.exe` 时会走 `cargo run` 冷编译（数分钟）；先看 `[adl-dev]` 日志确认 `adl-server bound` 与 `frontend ready at`，不要误判为启动失败。
+- **视觉验证顺序**：重启 dev server → 打开新 tab → 切到目标面板 → 等目标 DOM 出现 → 再读 `getComputedStyle`。不要在旧 HMR tab 上直接下结论。
+
 ## 常见错误
 
 | 错误 | 修正 |

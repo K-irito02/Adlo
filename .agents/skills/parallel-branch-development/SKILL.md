@@ -111,6 +111,8 @@ Test-Path -LiteralPath "adlo/.codegraph"  # 9 CodeGraph 索引是否就绪（每
 
 > `registry` 为 `missing` 时**不算开工完成**：先按 §6 在 `$WT_ROOT/.sessions/` 写入本会话文件（只写自己的），再通知用户可以开始开发。
 
+> `pnpm --dir adlo run worktree:env` 在 `graph : missing` / `hooks : missing` 时会额外打印 `[worktree:env] WARN`。先运行 `pnpm --dir adlo run setup:worktree`（仓库根）补齐 hooks 与 CodeGraph 索引，再进入源码探索；不要带着缺失索引开始 P0。
+
 读完 §2 后必须进入 §3 交互流程（先列表、再让用户选）；**禁止跳过用户选择直接定目录开工**。
 
 ---

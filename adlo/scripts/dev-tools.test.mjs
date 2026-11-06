@@ -18,12 +18,21 @@ test("safeSnapshotName keeps paths readable but filesystem-safe", () => {
 });
 
 test("review-snapshot parses base/out/rev and rejects invalid rev", () => {
-  assert.deepEqual(parseReviewArgs([]), { base: null, out: ".review-diffs", rev: 1, help: false });
+  assert.deepEqual(parseReviewArgs([]), {
+    base: null,
+    out: ".review-diffs",
+    rev: 1,
+    help: false,
+    allowUntracked: false,
+    allowClaims: false,
+  });
   assert.deepEqual(parseReviewArgs(["--base", "origin/main", "--out", ".diffs", "--rev", "3"]), {
     base: "origin/main",
     out: ".diffs",
     rev: 3,
     help: false,
+    allowUntracked: false,
+    allowClaims: false,
   });
   assert.throws(() => parseReviewArgs(["--rev", "0"]), /positive integer/);
   assert.throws(() => parseReviewArgs(["--nope"]), /unknown argument/);

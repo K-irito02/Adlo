@@ -77,7 +77,7 @@ export function buildHeatmapLevelThresholds(counts: Iterable<number>): HeatmapLe
   const quantile = (p: number) => positive[Math.floor((positive.length - 1) * p)];
   // Keep the maximum strictly above the last boundary so level 4 is reachable
   // even when the top quartile is flat (many cells share the maximum). The
-  // half-step shrinks for fractional maxima so a cap can never go negative.
+  // half-step shrinks for fractional maxima so the cap stays positive.
   const cap = max - Math.min(0.5, max / 2);
   const nextDistinctBoundary = (target: number, above: number): number => {
     const candidate = distinct.find((value) => value > above && value >= target);

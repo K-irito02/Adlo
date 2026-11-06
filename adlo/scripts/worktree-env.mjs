@@ -80,3 +80,12 @@ const lines = [
 ];
 
 console.log(lines.join("\n"));
+
+if (graph === "missing") {
+  console.log(
+    "[worktree:env] WARN graph index missing; run: pnpm --dir adlo run setup:worktree (then retry)",
+  );
+}
+if (hooksState === "missing") {
+  console.log("[worktree:env] WARN git hooks not enabled; the same setup command enables them.");
+}

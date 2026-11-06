@@ -18,6 +18,7 @@ const RightPanel = lazy(() =>
 );
 import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
 import { FirstRunProvisioningWizard } from './features/environment/FirstRunProvisioningWizard';
+import { shouldShowAutomaticFirstRunWizard } from './features/environment/firstRunGate';
 import { ToastContainer } from './components/Toast';
 import { ToastRegion } from './components/ToastRegion';
 import { ConflictModal } from './components/ConflictModal';
@@ -186,6 +187,10 @@ export function App() {
   const envWizardRequestId = useAppStore((s) => s.envWizardRequestId);
   const [envWizardResolved, setEnvWizardResolved] = useState(false);
   const [showEnvWizard, setShowEnvWizard] = useState(false);
+  // Dev-only: let visual-verification sessions skip the automatic provisioning
+  // wizard (set VITE_ADL_SKIP_FIRST_RUN=1). Explicit "continue wizard" still works.
+  const skipAutomaticFirstRun =
+    import.meta.env.DEV && import.meta.env.VITE_ADL_SKIP_FIRST_RUN === '1';
   useEffect(() => {
     void (async () => {
       await applyPendingVersionSource();
@@ -198,10 +203,16 @@ export function App() {
   // 首启向导展示：串行自检完成后，若引导未完成则打开；设置组 resume 横幅把
   // envWizardDone 置回 false 即可重新打开（向导关闭恒落盘 done=true）。
   useEffect(() => {
-    if (envWizardResolved && !envWizardDone) {
+    if (
+      shouldShowAutomaticFirstRunWizard({
+        resolved: envWizardResolved,
+        done: envWizardDone,
+        skip: skipAutomaticFirstRun,
+      })
+    ) {
       setShowEnvWizard(true);
     }
-  }, [envWizardResolved, envWizardDone]);
+  }, [envWizardResolved, envWizardDone, skipAutomaticFirstRun]);
 
   // 「继续向导」nonce：done 已为 false 时单纯置 false 无状态变化，必须由
   // requestEnvWizard() 自增的序号驱动重新打开（含 goManualPath 已写 done=true 的场景）。

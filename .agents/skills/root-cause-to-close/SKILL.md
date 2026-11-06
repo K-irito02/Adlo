@@ -266,6 +266,8 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
    - 手工等价物（脚本不可用时）：`git diff --output=<safe>-rev<N>.diff HEAD -- <file>` —— **`--output` 必须在 `--` 之前**；放到 `--` 之后会被 git 当成 pathspec（不写文件、整段 diff 进 stdout，实测一次刷出约 100KB）。
    - **编码安全**：禁止把 `git diff` 结果经 PowerShell 管道 / `Out-File` 转存（本仓实测会把 UTF-8 中文注释转成 GBK 乱码，审查代理只能退回读源码）。
    - **新增未跟踪文件**：脚本已自动 `git add -N`；手工执行时必须先做，否则 `git diff` 看不到它们、快照会漏审。
+   - **临时文件守卫**：未跟踪的纯数字名 / `.tmp/.log/.out/.bak` 会被拒绝（审查子代理临时产物）。把临时脚本/输出放到 `$env:TEMP` 或 `.review-diffs/tmp/`；确需纳入时用 `--allow-untracked`。
+   - **绝对断言门控**：新增代码注释含「必然/永远/always/never…」会生成 `claims-rev<N>.md` + `claims-ack-rev<N>.md`；未逐条标 `[x]` 并写证据/降级措辞时脚本以非零退出。不要用 `--allow-claims` 跳过核对。
 3. 子代理只读快照，禁止终端 `git diff`；每轮修复后 rev 递增**全量重生成**，复审看最新完整 diff（禁只看增量/复用旧快照）。派发时把 `manifest-rev<N>.md` 路径给子代理，不再手写快照命名规则。
 
 ### 4c. 两轮循环审查（顺序门控，两轮皆不可跳过）
