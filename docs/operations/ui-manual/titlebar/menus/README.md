@@ -42,7 +42,7 @@ await page.waitForSelector('.adl-hamburger__dropdown');
 
 ```javascript
 // 点击菜单外部关闭
-await page.click('.adl-titlebar__drag');
+await page.click('.adl-titlebar__drag-lane');
 
 // 或按 Escape 键
 await page.keyboard.press('Escape');

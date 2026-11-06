@@ -1,0 +1,98 @@
+/* ==========================================================================
+   Regions: TitleBar affordances
+   标题栏的两类辅助视觉：
+   - 拖拽车道：标签占满整条时仍保留的 24px 窗口拖拽面；
+   - 标签条两端溢出渐隐：被「+」或滚动边界裁断的标签不再硬切。
+   布局主体仍在 titlebar.css，这里只放与滚动/裁剪强相关的辅助规则。
+   ========================================================================== */
+
+/* 标签的 tablist 容器：只承载 ARIA 归属，不参与布局（标签仍是滚动区的直接 flex 子项），
+   这样「+」不会成为 tablist 的 owned element。 */
+.adl-center-tab-strip__tabs {
+  display: contents;
+}
+
+/* 拖拽车道：固定在标签区与右侧控件组之间，宽 24px 且不参与 flex 收缩。
+   标签占满整条时，这一条仍可按住拖动窗口（data-tauri-drag-region）。
+   光标保持系统默认箭头：grab 与相邻按钮的 pointer 在边界反复切换会闪烁。 */
+.adl-titlebar__drag-lane {
+  flex: 0 0 24px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+/* 悬停握把点：仅悬停时淡入，提示此处可拖动窗口。 */
+.adl-titlebar__drag-lane::after {
+  content: '';
+  width: 12px;
+  height: 12px;
+  opacity: 0;
+  transition: opacity var(--duration-150) var(--ease-default);
+  background-image: radial-gradient(currentColor 1.1px, transparent 1.2px);
+  background-size: 5px 5px;
+  background-position: center;
+  background-repeat: repeat;
+  border-radius: 2px;
+  /* 提示色规范：拖拽手柄必须用 --text-secondary，不得降级到 --text-muted。 */
+  color: var(--text-secondary);
+}
+
+.adl-titlebar__drag-lane:hover::after {
+  /* 0.9 与 --text-secondary 叠加，保持非文本指示器的可见性余量。 */
+  opacity: 0.9;
+}
+
+/* 左端溢出渐隐：仅在向左滚动过（scrollLeft > 1px）时显示，提示左侧还有被隐藏的标签。
+   叠在标签之上、低于 sticky 的「+」按钮（--z-raised）与标签操作按钮；不拦截指针。 */
+.adl-center-tab-strip__fade-left {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: var(--z-base);
+  width: 24px;
+  opacity: 0;
+  pointer-events: none;
+  background: var(--bg);
+  backdrop-filter: blur(2px);
+  -webkit-mask-image: linear-gradient(to right, #000, transparent);
+  mask-image: linear-gradient(to right, #000, transparent);
+  /* 同时覆盖显隐（opacity）与主题切换（background-color）。 */
+  transition: var(--theme-transition);
+}
+
+.adl-center-tab-strip[data-fade-left='true'] .adl-center-tab-strip__fade-left {
+  opacity: 1;
+}
+
+/* 右端溢出渐隐：贴在「+」左侧 24px。层级为 --z-base，低于标签操作按钮（2），
+   只覆盖标签内容——关闭按钮始终画在渐隐之上，不会被压暗；「+」自身在更高层。
+   仅当右侧仍有被隐藏的标签（data-fade-right）时淡入。 */
+.adl-center-tab-strip__fade-right {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: calc(var(--space-2) + 22px);
+  z-index: var(--z-base);
+  width: 24px;
+  opacity: 0;
+  pointer-events: none;
+  background: var(--bg);
+  backdrop-filter: blur(2px);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000);
+  mask-image: linear-gradient(to right, transparent, #000);
+  /* 同时覆盖显隐（opacity）与主题切换（background-color）。 */
+  transition: var(--theme-transition);
+}
+
+.adl-center-tab-strip[data-fade-right='true'] .adl-center-tab-strip__fade-right {
+  opacity: 1;
+}
+
+/* 隐藏时不做淡出：非溢出态「+」会离开右缘，渐隐层若缓慢淡出会留下错位残影。 */
+.adl-center-tab-strip[data-fade-right='false'] .adl-center-tab-strip__fade-right {
+  transition: none;
+}

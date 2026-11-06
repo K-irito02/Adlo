@@ -26,6 +26,7 @@
 | [center-tab-terminal-toolbar-and-clip-pattern-2026-10-04.md](./center-tab-terminal-toolbar-and-clip-pattern-2026-10-04.md) | 中心标签条/终端工具栏：4 类 CSS 根因（作用域变量未定义、`:focus-within`、TooltipTrigger 包裹层 `min-width`、类名复用误伤）+ 可复用「卷帘门」裁剪/悬停遮挡与共享重命名 hook |
 | [center-tab-strip-overflow-drag-2026-10-09.md](./center-tab-strip-overflow-drag-2026-10-09.md) | 中心标签条：grid 隐式列撑爆真根因（先锁内部后查外层）+ Pointer Events 拖拽排序模式（阈值/单写 store/offsetParent 锚点/mask 联动/mouse-only 门控） |
 | [clipboard-viewer-lessons-2026-10-11.md](./clipboard-viewer-lessons-2026-10-11.md) | 剪贴板放大查看弹窗 37 项重构 6 条可复用经验（跨域下载失效走原生对话框、Tooltip 包裹层 grid、常驻 hidden 防闪、互斥编辑代际 guard、四端键 parity、Node/Rust 拒绝语义对齐） |
+| [titlebar-overflow-affordances-2026-11-07.md](./titlebar-overflow-affordances-2026-11-07.md) | 标题栏拖拽车道与两端渐隐：sticky 覆盖层不能用 `scroll-padding` 让位（改层级）、z 顺序（渐隐 < 操作按钮 < “+” < 拖拽项）、隐藏瞬时防残影、选中底色不做颜色过渡、jsdom 伪造滚动指标测渐隐四态 |
 
 ## 子主题
 

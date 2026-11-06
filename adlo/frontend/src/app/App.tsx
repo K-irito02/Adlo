@@ -1,5 +1,4 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { AppInfo } from '@adlo/kernel';
 import { useAppStore } from './stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppActions } from './hooks/useAppActions';
@@ -74,20 +73,6 @@ export function App() {
     setPatchReviewFilter,
     handleJumpPatchHunk,
   } = patchReview;
-
-  const handleCycleTheme = useCallback(() => {
-    const mode = appInfo?.config.themeMode ?? 'system';
-    const next: AppInfo['config']['themeMode'] =
-      mode === 'system' ? 'light' : mode === 'light' ? 'dark' : 'system';
-    void actions.updatePreferences({ themeMode: next });
-  }, [appInfo?.config.themeMode, actions]);
-
-  const handleSelectLanguage = useCallback(
-    (language: AppInfo['config']['language']) => {
-      void actions.updatePreferences({ language });
-    },
-    [actions],
-  );
 
   const [createWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
   const [isOpeningWorkspace, setIsOpeningWorkspace] = useState(false);
@@ -262,13 +247,10 @@ export function App() {
       <TCopyProvider t={t} locale={locale}>
         <main className="adl-shell adl-ide">
           <TitleBar
-            appInfo={appInfo}
             onOpenSettings={handleOpenSettings}
             onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
             onOpenFolder={handleOpenFolder}
             isOpeningWorkspace={isOpeningWorkspace}
-            onCycleTheme={handleCycleTheme}
-            onSelectLanguage={handleSelectLanguage}
           />
 
           <div

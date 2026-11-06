@@ -1,4 +1,4 @@
-import { make, makeFilled, makeThin } from './helper';
+import { make, makeFilled } from './helper';
 
 export const IconLogo = make(
   <>
@@ -63,6 +63,29 @@ export const IconPanelRightClose = make(
     <rect x="3" y="3" width="18" height="18" rx="2" />
     <path d="M15 3v18" />
     <path d="m8 9 3 3-3 3" />
+  </>,
+);
+
+/**
+ * 「切换两侧面板」收起态：两侧竖线代表左右面板，向外双箭头表示两侧面板向外收走。
+ * 与 IconPanelLeftClose / IconPanelRightClose 同属面板图标族，区别是作用于“两侧”。
+ */
+export const IconPanelsCollapse = make(
+  <>
+    <path d="M4 4v16" />
+    <path d="M20 4v16" />
+    <path d="m9.5 9-3 3 3 3" />
+    <path d="m14.5 9 3 3-3 3" />
+  </>,
+);
+
+/** 「切换两侧面板」展开态：IconPanelsCollapse 的镜像，两侧面板向内收回画面。 */
+export const IconPanelsExpand = make(
+  <>
+    <path d="M4 4v16" />
+    <path d="M20 4v16" />
+    <path d="m7 9 3 3-3 3" />
+    <path d="m17 9-3 3 3 3" />
   </>,
 );
 
@@ -239,11 +262,3 @@ export const IconWindowRestore = make(
 );
 
 export const IconWindowClose = make(<path d="M7 7l10 10M17 7L7 17" />);
-
-export const IconAddWorkspace = makeThin(
-  <>
-    <path opacity="0.4" d="M6 12H18" />
-    <path d="M12 18V6" />
-  </>,
-  1.5,
-);

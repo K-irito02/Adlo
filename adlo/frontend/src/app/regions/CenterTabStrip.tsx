@@ -42,7 +42,8 @@ interface TabDragState {
  * 触屏拖拽尝试以 pointercancel 安全中止）：整标签按住拖超 4px 进入拖拽，被拖项提起跟随指针，
  * 其余标签 transform 平滑让位，松手提交一次 centerReorderTabs；阈值内仍为单击选择。
  * 可拖拽区由容器的 `data-tauri-drag-region` 提供（标签/按钮不设该属性，
- * 点击标签不会拖动窗口）。右端 `+` 固定不随标签滚动。
+ * 点击标签不会拖动窗口）。右端 `+` 位于滚动区内、跟在最后一个标签之后；
+ * 标签溢出后由 `position: sticky` 固定在右端（不随标签滚走）。
  */
 export const CenterTabStrip = React.memo(function CenterTabStrip() {
   const { t } = useTCopy();
@@ -74,6 +75,30 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
   const dragRef = useRef<TabDragState | null>(null);
   const suppressClickRef = useRef(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  // 滚动溢出的两侧渐隐：由滚动位置与内容宽度推导，供 CSS 显示/隐藏渐隐层。
+  const [fadeEdges, setFadeEdges] = useState({ left: false, right: false });
+
+  const updateFadeEdges = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) {
+      return;
+    }
+    const maxScrollLeft = el.scrollWidth - el.clientWidth;
+    const left = el.scrollLeft > 1;
+    const right = maxScrollLeft > 1 && el.scrollLeft < maxScrollLeft - 1;
+    setFadeEdges((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
+  }, []);
+
+  useEffect(() => {
+    updateFadeEdges();
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(updateFadeEdges);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [updateFadeEdges, centerTabs.length]);
 
   // 活动标签始终滚入视口：标签溢出后新增/切换的标签可能落在滚动区外，
   // 此时右侧控件组不再被挤压，改为内部滚动消化，此处保证活动标签可见。
@@ -116,10 +141,8 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
     if (!scroller) {
       return [];
     }
-    return Array.from(scroller.children).filter(
-      (child): child is HTMLElement =>
-        child instanceof HTMLElement && child.classList.contains('adl-center-tab'),
-    );
+    // 标签包在 display:contents 的 tablist 容器里，不能再按直接子元素取。
+    return Array.from(scroller.querySelectorAll<HTMLElement>('.adl-center-tab[role="tab"]'));
   }, []);
 
   /** 清除所有拖拽残留样式并停止边缘滚动，不提交。 */
@@ -497,152 +520,168 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
   }, [centerAddTab]);
 
   return (
-    <div className="adl-center-tab-strip">
+    <div
+      className="adl-center-tab-strip"
+      data-fade-left={fadeEdges.left ? 'true' : 'false'}
+      data-fade-right={fadeEdges.right ? 'true' : 'false'}
+    >
       <div
         ref={scrollRef}
         className="adl-center-tab-strip__scroll"
-        role="tablist"
-        aria-label={t.centerTabStripLabel}
         data-tauri-drag-region
         onWheel={handleWheel}
+        onScroll={updateFadeEdges}
       >
-        {centerTabs.map((tab) => {
-          const isActive = tab.id === centerActiveTabId;
-          const browserTab =
-            tab.kind === 'browser' && tab.refId ? browserTabsById[tab.refId] : null;
-          const terminalTab =
-            tab.kind === 'terminal' && tab.refId ? terminalTabsById[tab.refId] : null;
+        {/* tablist 只包住标签；「+」是动作按钮，不能作为 tablist 的 owned element。
+            display: contents 让这层不参与布局，标签仍是滚动区的直接 flex 子项。 */}
+        <div
+          className="adl-center-tab-strip__tabs"
+          role="tablist"
+          aria-label={t.centerTabStripLabel}
+        >
+          {centerTabs.map((tab) => {
+            const isActive = tab.id === centerActiveTabId;
+            const browserTab =
+              tab.kind === 'browser' && tab.refId ? browserTabsById[tab.refId] : null;
+            const terminalTab =
+              tab.kind === 'terminal' && tab.refId ? terminalTabsById[tab.refId] : null;
 
-          let label: string;
-          let icon: React.ReactNode;
-          if (tab.kind === 'browser') {
-            label = browserTab?.titleResolved ? browserTab.title : t.newTabPage;
-            icon = <BrowserFavicon url={browserTab?.url ?? ''} />;
-          } else if (tab.kind === 'terminal') {
-            label = terminalTab?.title || t.terminalNewTerminal;
-            icon = terminalTab ? (
-              <TerminalProfileIcon profile={terminalTab.profile} />
-            ) : (
-              <IconTerminal size={14} decorative />
-            );
-          } else {
-            label = t.centerNewTab;
-            icon = <IconNewTabPage size={14} decorative />;
-          }
-
-          const showInPanelLabel =
-            tab.kind === 'browser' ? t.centerTabShowInBrowserPanel : t.centerTabShowInTerminalPanel;
-          // 是否展示「回到面板」按钮：单一判定，供 data-actions 与实际渲染共用
-          const showReturn = tab.kind !== 'launcher' && tab.refId !== null;
-          const isEditing =
-            tab.kind === 'terminal' && tab.refId !== null && rename.editingTabId === tab.refId;
-          const actionCount = showReturn ? 2 : 1;
-
-          return (
-            <div
-              key={tab.id}
-              role="tab"
-              aria-selected={isActive}
-              tabIndex={0}
-              data-actions={actionCount}
-              data-tab-id={tab.id}
-              className={`adl-center-tab adl-clip-tab${isActive ? ' is-active' : ''}${draggingId === tab.id ? ' is-dragging' : ''}`}
-              onClick={() => handleTabClick(tab)}
-              onPointerDown={(event) => handleTabPointerDown(tab, event)}
-              onPointerMove={(event) => handleTabPointerMove(tab, event)}
-              onPointerUp={(event) =>
-                handlePointerSettle(tab.id, event.pointerId, event.button, true)
-              }
-              onPointerCancel={(event) =>
-                handlePointerSettle(tab.id, event.pointerId, event.button, false)
-              }
-              onDragStart={(event) => event.preventDefault()}
-              onDoubleClick={() => {
-                // 编辑态内双击（如选中词）不得重置已输入文本
-                if (isEditing) {
-                  return;
-                }
-                if (tab.kind === 'terminal' && tab.refId) {
-                  rename.handleDoubleClick(tab.refId, terminalTab?.title || '');
-                }
-              }}
-              onKeyDown={(event) => {
-                // 仅处理标签本体聚焦的按键：不吞掉内部输入框/操作按钮冒泡上来的
-                // Enter/Space（否则重命名无法输入空格、按钮无法键盘激活）。
-                if (event.target !== event.currentTarget) {
-                  return;
-                }
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  handleTabKeyActivate(tab);
-                }
-              }}
-            >
-              {isEditing ? (
-                <input
-                  ref={rename.editInputRef}
-                  type="text"
-                  value={rename.editValue}
-                  onChange={(event) => rename.setEditValue(event.target.value)}
-                  onBlur={rename.handleEditSubmit}
-                  onKeyDown={rename.handleEditKeyDown}
-                  className="adl-center-tab__edit"
-                  aria-label={t.rename}
-                />
+            let label: string;
+            let icon: React.ReactNode;
+            if (tab.kind === 'browser') {
+              label = browserTab?.titleResolved ? browserTab.title : t.newTabPage;
+              icon = <BrowserFavicon url={browserTab?.url ?? ''} />;
+            } else if (tab.kind === 'terminal') {
+              label = terminalTab?.title || t.terminalNewTerminal;
+              icon = terminalTab ? (
+                <TerminalProfileIcon profile={terminalTab.profile} />
               ) : (
-                <>
-                  <span className="adl-center-tab__icon" aria-hidden="true">
-                    {icon}
-                  </span>
-                  <span className="adl-center-tab__label adl-clip-tab__label">{label}</span>
-                  <span className="adl-center-tab__actions adl-clip-tab__actions">
-                    {showReturn && (
-                      <TooltipSimple content={showInPanelLabel} placement="bottom">
+                <IconTerminal size={14} decorative />
+              );
+            } else {
+              label = t.centerNewTab;
+              icon = <IconNewTabPage size={14} decorative />;
+            }
+
+            const showInPanelLabel =
+              tab.kind === 'browser'
+                ? t.centerTabShowInBrowserPanel
+                : t.centerTabShowInTerminalPanel;
+            // 是否展示「回到面板」按钮：单一判定，供 data-actions 与实际渲染共用
+            const showReturn = tab.kind !== 'launcher' && tab.refId !== null;
+            const isEditing =
+              tab.kind === 'terminal' && tab.refId !== null && rename.editingTabId === tab.refId;
+            const actionCount = showReturn ? 2 : 1;
+
+            return (
+              <div
+                key={tab.id}
+                role="tab"
+                aria-selected={isActive}
+                tabIndex={0}
+                data-actions={actionCount}
+                data-tab-id={tab.id}
+                className={`adl-center-tab adl-clip-tab${isActive ? ' is-active' : ''}${draggingId === tab.id ? ' is-dragging' : ''}`}
+                onClick={() => handleTabClick(tab)}
+                onPointerDown={(event) => handleTabPointerDown(tab, event)}
+                onPointerMove={(event) => handleTabPointerMove(tab, event)}
+                onPointerUp={(event) =>
+                  handlePointerSettle(tab.id, event.pointerId, event.button, true)
+                }
+                onPointerCancel={(event) =>
+                  handlePointerSettle(tab.id, event.pointerId, event.button, false)
+                }
+                onDragStart={(event) => event.preventDefault()}
+                onDoubleClick={() => {
+                  // 编辑态内双击（如选中词）不得重置已输入文本
+                  if (isEditing) {
+                    return;
+                  }
+                  if (tab.kind === 'terminal' && tab.refId) {
+                    rename.handleDoubleClick(tab.refId, terminalTab?.title || '');
+                  }
+                }}
+                onKeyDown={(event) => {
+                  // 仅处理标签本体聚焦的按键：不吞掉内部输入框/操作按钮冒泡上来的
+                  // Enter/Space（否则重命名无法输入空格、按钮无法键盘激活）。
+                  if (event.target !== event.currentTarget) {
+                    return;
+                  }
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    handleTabKeyActivate(tab);
+                  }
+                }}
+              >
+                {isEditing ? (
+                  <input
+                    ref={rename.editInputRef}
+                    type="text"
+                    value={rename.editValue}
+                    onChange={(event) => rename.setEditValue(event.target.value)}
+                    onBlur={rename.handleEditSubmit}
+                    onKeyDown={rename.handleEditKeyDown}
+                    className="adl-center-tab__edit"
+                    aria-label={t.rename}
+                  />
+                ) : (
+                  <>
+                    <span className="adl-center-tab__icon" aria-hidden="true">
+                      {icon}
+                    </span>
+                    <span className="adl-center-tab__label adl-clip-tab__label">{label}</span>
+                    <span className="adl-center-tab__actions adl-clip-tab__actions">
+                      {showReturn && (
+                        <TooltipSimple content={showInPanelLabel} placement="bottom">
+                          <button
+                            type="button"
+                            className="adl-icon-btn adl-icon-btn--xs"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              centerReturnToPanel(tab.id);
+                            }}
+                            aria-label={showInPanelLabel}
+                          >
+                            <IconMoveToCenter size={12} decorative />
+                          </button>
+                        </TooltipSimple>
+                      )}
+                      <TooltipSimple content={t.close} placement="bottom">
                         <button
                           type="button"
-                          className="adl-icon-btn adl-icon-btn--xs"
+                          className="adl-icon-btn adl-icon-btn--xs adl-icon-btn--danger-hover"
                           onClick={(event) => {
                             event.stopPropagation();
-                            centerReturnToPanel(tab.id);
+                            handleClose(tab);
                           }}
-                          aria-label={showInPanelLabel}
+                          aria-label={t.close}
                         >
-                          <IconMoveToCenter size={12} decorative />
+                          <IconClose size={12} decorative />
                         </button>
                       </TooltipSimple>
-                    )}
-                    <TooltipSimple content={t.close} placement="bottom">
-                      <button
-                        type="button"
-                        className="adl-icon-btn adl-icon-btn--xs adl-icon-btn--danger-hover"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleClose(tab);
-                        }}
-                        aria-label={t.close}
-                      >
-                        <IconClose size={12} decorative />
-                      </button>
-                    </TooltipSimple>
-                  </span>
-                </>
-              )}
-            </div>
-          );
-        })}
+                    </span>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {/* 「新建入口页」跟随最后一个标签；标签溢出滚动时由 sticky 固定在右端 */}
+        <div className="adl-center-tab-strip__add">
+          <TooltipSimple content={t.centerNewTab} placement="bottom">
+            <button
+              type="button"
+              className="adl-icon-btn adl-icon-btn--xs"
+              onClick={handleAdd}
+              aria-label={t.centerNewTab}
+            >
+              <IconPlus size={14} decorative />
+            </button>
+          </TooltipSimple>
+        </div>
       </div>
-      <div className="adl-center-tab-strip__add">
-        <TooltipSimple content={t.centerNewTab} placement="bottom">
-          <button
-            type="button"
-            className="adl-icon-btn adl-icon-btn--xs"
-            onClick={handleAdd}
-            aria-label={t.centerNewTab}
-          >
-            <IconPlus size={14} decorative />
-          </button>
-        </TooltipSimple>
-      </div>
+      <div className="adl-center-tab-strip__fade-left" aria-hidden="true" />
+      <div className="adl-center-tab-strip__fade-right" aria-hidden="true" />
     </div>
   );
 });

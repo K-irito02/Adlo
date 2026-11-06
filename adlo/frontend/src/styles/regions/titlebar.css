@@ -47,7 +47,11 @@
   /* 锁定左侧宽度：标签再多也不压缩汉堡菜单（flex 默认 shrink=1 会被挤）。
      `flex: 0 0 auto` 的 shrink 分量已为 0，不再重复声明。 */
   flex: 0 0 auto;
+  /* 与标签区之间的间隔：保留间距，但不再画分割线。 */
+  padding-right: var(--space-2);
 }
+
+/* 拖拽车道与溢出渐隐见 titlebar-affordances.css（与标签条的滚动/裁剪强相关）。 */
 
 .adl-menu {
   position: relative;
@@ -139,7 +143,6 @@
 }
 
 /* 区域边缘分割线（与按钮组/窗口组之间的自然分界线同款：整高 + 细微边框色） */
-.adl-titlebar__left-divider,
 .adl-titlebar__action-divider {
   align-self: stretch;
   width: 1px;
@@ -475,6 +478,7 @@
 /* ---------------- Center tab strip ---------------- */
 
 .adl-center-tab-strip {
+  position: relative;
   display: flex;
   align-items: center;
   align-self: stretch;
@@ -483,6 +487,8 @@
   height: 100%;
   overflow: hidden;
 }
+
+/* 左端溢出渐隐与右端「+」裁断渐隐见 titlebar-affordances.css。 */
 
 /* __scroll 设 relative：一是收敛 offsetParent 到滚动区（拖拽数学要求 offsetLeft
    与 pointerContentX 同坐标系，勿删），二是不创建层叠上下文（无 z-index），
@@ -495,7 +501,12 @@
   flex: 1 1 auto;
   min-width: 0;
   height: 100%;
-  padding: 0 var(--space-1);
+  /* 右侧不留 padding：sticky 的「+」直接贴到滚动区右缘，避免它与拖拽车道之间
+     漏出一条被裁切标签的边。 */
+  padding: 0 0 0 var(--space-1);
+  /* 活动标签自动 scrollIntoView 时为其预留「+」的覆盖宽度（8px 内距 + 22px 按钮 + 4px 余量），
+     避免标签右缘停在「+」下面。 */
+  scroll-padding-right: calc(var(--space-2) + 22px + var(--space-1));
   overflow-y: hidden;
   overflow-x: auto;
   /* flex 容器默认不换行（flex-wrap: nowrap），无需 white-space。 */
@@ -531,8 +542,10 @@
   cursor: pointer;
   user-select: none;
   -webkit-app-region: no-drag;
-  /* 拖拽排序（B·滑动让位）：其余标签用 transform 让位（token 过渡保证跟手平滑）。 */
-  transition: var(--transition-transform), var(--transition-colors);
+  /* 拖拽排序（B·滑动让位）：其余标签用 transform 让位（token 过渡保证跟手平滑）。
+     刻意不包含 --transition-colors：新增/切换标签时旧选中底色的淡出与新标签底色
+     同时出现会形成拖影（“闪烁”），底色应当瞬时跟随选中态。 */
+  transition: var(--transition-transform);
 }
 
 .adl-center-tab:hover {
@@ -543,8 +556,9 @@
 .adl-center-tab.is-dragging {
   /* 显式 relative：z-index 只对定位元素生效，不依赖 .adl-clip-tab 附带的 relative。 */
   position: relative;
-  /* 压过同条兄弟与操作按钮（z 2），仍在下拉菜单（20）之下。 */
-  z-index: var(--z-raised);
+  /* 压过同条兄弟、操作按钮（2）与 sticky 的「+」（--z-raised）；与下拉菜单同为
+     --z-dropdown，两者重叠时由 DOM 顺序决定（右侧通知菜单在标题栏下方展开，不重叠）。 */
+  z-index: var(--z-dropdown);
   transition: none;
   /* 非活动被拖项的提起底面；被拖活动标签仍显示 bg-active（后方 .is-active 同分胜出，
      有意为之：保持选中身份，阴影+置顶已足够表达提起，勿追加覆盖）。 */
@@ -686,15 +700,24 @@
   height: auto;
 }
 
-/* 「新建入口页」+ 按钮：固定在中间标签区最右侧（滚动区之外），
-   与标签同属中心；与右侧控件组的分隔线由 .adl-titlebar__right 提供。 */
+/* 「新建入口页」+ 按钮：作为滚动区的最后一个子项，紧跟在最后一个标签之后；
+   标签溢出滚动时由 sticky 固定在滚动区右端（不随标签滚走）。
+   必须压过标签操作按钮（.adl-clip-tab__actions 的 z-index: 2），否则隐藏标签的
+   关闭按钮会盖在「+」上面并抢走点击。底色用 titlebar 的 --bg，彻底遮住下方标签。 */
 .adl-center-tab-strip__add {
+  position: sticky;
+  right: 0;
+  /* 压过标签操作按钮（2），但低于被拖拽标签（--z-dropdown）。 */
+  z-index: var(--z-raised);
   display: flex;
   align-items: center;
   justify-content: center;
   /* `flex: 0 0 auto` 的 shrink 分量已为 0，不再重复声明。 */
   flex: 0 0 auto;
   height: 100%;
-  padding: 0 var(--space-1);
+  padding-left: var(--space-2);
+  background: var(--bg);
+  /* 底色跟随标题栏主题过渡，避免切换主题时按钮瞬时变色。 */
+  transition: var(--theme-transition);
   -webkit-app-region: no-drag;
 }

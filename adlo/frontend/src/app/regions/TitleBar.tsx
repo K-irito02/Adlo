@@ -1,20 +1,14 @@
 import React, { useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import type { AppInfo } from '@adlo/kernel';
 import { useTCopy } from '../i18n/useTCopy';
-import { resolveAppLanguage } from '../i18n/resolveLanguage';
 import {
-  IconAddWorkspace,
-  IconEye,
-  IconLangEn,
-  IconLangZh,
-  IconMonitor,
-  IconMoon,
+  IconFolderPlus,
   IconPanelLeft,
   IconPanelLeftClose,
   IconPanelRight,
   IconPanelRightClose,
-  IconSun,
+  IconPanelsCollapse,
+  IconPanelsExpand,
 } from '../icons';
 import { Spinner } from '../components/Spinner';
 import { useAppStore } from '../stores/slicedStore';
@@ -28,44 +22,17 @@ import { TitleBarNotifications } from './TitleBarNotifications';
 import { CenterTabStrip } from './CenterTabStrip';
 
 interface TitleBarProps {
-  appInfo?: AppInfo;
   onOpenSettings: () => void;
   onTriggerCreateWorkspace: () => void;
   onOpenFolder: () => void;
   isOpeningWorkspace: boolean;
-  onCycleTheme: () => void;
-  onSelectLanguage: (language: AppInfo['config']['language']) => void;
-}
-
-function ThemeIcon({ mode }: { mode: AppInfo['config']['themeMode'] | undefined }) {
-  switch (mode) {
-    case 'dark':
-      return <IconMoon size={16} decorative />;
-    case 'light':
-      return <IconSun size={16} decorative />;
-    default:
-      return <IconMonitor size={16} decorative />;
-  }
-}
-
-function LanguageIcon({ language }: { language: AppInfo['config']['language'] | undefined }) {
-  switch (language) {
-    case 'en-US':
-      return <IconLangEn size={16} decorative />;
-    case 'zh-CN':
-    default:
-      return <IconLangZh size={16} decorative />;
-  }
 }
 
 const TitleBar = React.memo(function TitleBar({
-  appInfo,
   onOpenSettings,
   onTriggerCreateWorkspace,
   onOpenFolder,
   isOpeningWorkspace,
-  onCycleTheme,
-  onSelectLanguage,
 }: TitleBarProps) {
   const { t } = useTCopy();
 
@@ -80,10 +47,9 @@ const TitleBar = React.memo(function TitleBar({
         navigateRightTool: state.navigateRightTool,
       })),
     );
-  // 图标/切换目标按**解析后**的界面语言（'system' 跟随系统时显示当前实际语言）；
-  // 切换即写入具体语言值，成为用户个人默认基线。
-  const language = resolveAppLanguage(appInfo?.config.language);
-  const nextLanguage = language === 'zh-CN' ? 'en-US' : 'zh-CN';
+  // toggleBoth 的行为：两侧都折叠 → 同时展开；否则 → 同时折叠。
+  // 因此“两侧都折叠”等价于该按钮的“可展开”态，据此切换图标方向。
+  const bothCollapsed = leftCollapsed && rightCollapsed;
 
   const handleClose = useCallback(() => {
     if (!useAppStore.getState().isTauri) {
@@ -121,9 +87,10 @@ const TitleBar = React.memo(function TitleBar({
     <header className="adl-titlebar" role="banner">
       <div className="adl-titlebar__left">
         <HamburgerMenu t={t} fileItems={fileItems} viewItems={viewItems} helpItems={helpItems} />
-        <span className="adl-titlebar__left-divider" aria-hidden="true" />
       </div>
       <CenterTabStrip />
+      {/* 拖拽车道：标签占满整条时仍保留窗口拖拽面（24px，永不被标签压缩） */}
+      <div className="adl-titlebar__drag-lane" data-tauri-drag-region aria-hidden="true" />
       <div className="adl-titlebar__right">
         <div className="adl-titlebar__action-group">
           <TooltipSimple
@@ -140,31 +107,11 @@ const TitleBar = React.memo(function TitleBar({
               {isOpeningWorkspace ? (
                 <Spinner size="sm" speed="fast" />
               ) : (
-                <IconAddWorkspace size={16} decorative />
+                <IconFolderPlus size={16} decorative />
               )}
             </button>
           </TooltipSimple>
           <span className="adl-titlebar__action-divider" aria-hidden="true" />
-          <TooltipSimple content={t.theme} placement="bottom">
-            <button
-              type="button"
-              className="adl-icon-btn adl-iconstrip__button"
-              onClick={onCycleTheme}
-              aria-label={t.theme}
-            >
-              <ThemeIcon mode={appInfo?.config.themeMode} />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.language} placement="bottom">
-            <button
-              type="button"
-              className="adl-icon-btn adl-iconstrip__button"
-              onClick={() => onSelectLanguage(nextLanguage)}
-              aria-label={`${t.language}: ${nextLanguage === 'zh-CN' ? t.languageChinese : t.languageEnglish}`}
-            >
-              <LanguageIcon language={language} />
-            </button>
-          </TooltipSimple>
           <TitleBarNotifications t={t} />
         </div>
         <div
@@ -179,7 +126,11 @@ const TitleBar = React.memo(function TitleBar({
               onClick={toggleBoth}
               aria-label={t.panelToggleBoth}
             >
-              <IconEye size={16} decorative />
+              {bothCollapsed ? (
+                <IconPanelsExpand size={16} decorative />
+              ) : (
+                <IconPanelsCollapse size={16} decorative />
+              )}
             </button>
           </TooltipSimple>
           <TooltipSimple content={t.panelToggleLeft} placement="bottom">
