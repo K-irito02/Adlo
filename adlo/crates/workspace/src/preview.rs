@@ -1,7 +1,6 @@
 use adl_errors::AppError;
 use adl_types::{WorkspaceChangeKind, WorkspaceChangePreview, WorkspaceChangeStatus};
 use std::path::Path;
-use std::process::Command;
 
 /// 单文件 porcelain 状态（事项4-R2 per-file 轻量化）。
 ///
@@ -84,9 +83,8 @@ pub(crate) fn porcelain_status_for_file(
 ) -> Option<PorcelainStatus> {
     // `:(literal)` 让 git 做精确匹配，文件名含 *?[] 等魔术字符时仍走快路径（P4-R1-F3）。
     let spec = format!(":(literal){normalized_path}");
-    let output = Command::new("git")
+    let output = crate::git::git_command(root)
         .args(["status", "--porcelain=v1", "-z", "--", &spec])
-        .current_dir(root)
         .output()
         .ok()?;
     if !output.status.success() {

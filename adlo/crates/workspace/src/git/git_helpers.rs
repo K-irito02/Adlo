@@ -8,8 +8,33 @@ use tracing::{debug, warn};
 
 const GIT_TIMEOUT_SECS: u64 = 30;
 
+/// 以显式工作区根为准的 `git` 子进程。
+///
+/// 继承自外部的 `GIT_DIR` / `GIT_WORK_TREE` 等仓库定位变量会覆盖
+/// `current_dir`，让「调用方传入的 root」实际指向另一个仓库（典型场景：
+/// 从 git hook 继承环境时，非仓库目录会被误判为仓库）。本 crate 的每次
+/// git 调用都以 root 为准，因此统一移除这些变量。
+pub(crate) fn git_command(root: &Path) -> Command {
+    let mut command = Command::new("git");
+    command.current_dir(root);
+    for key in [
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_NAMESPACE",
+        "GIT_CEILING_DIRECTORIES",
+        "GIT_DISCOVERY_ACROSS_FILESYSTEM",
+    ] {
+        command.env_remove(key);
+    }
+    command
+}
+
 pub(crate) fn run_git(root: &Path, args: &[&str]) -> Option<String> {
-    let output = Command::new("git").args(args).current_dir(root).output().ok()?;
+    let output = git_command(root).args(args).output().ok()?;
     if output.status.success() {
         Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
     } else {
@@ -22,8 +47,7 @@ pub(crate) async fn run_git_with_timeout(root: &Path, args: &[&str]) -> Option<S
     let args_owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
     let result = tokio_timeout(Duration::from_secs(GIT_TIMEOUT_SECS), async move {
         tokio::task::spawn_blocking(move || {
-            let output =
-                Command::new("git").args(&args_owned).current_dir(&root_owned).output().ok()?;
+            let output = git_command(&root_owned).args(&args_owned).output().ok()?;
             if output.status.success() {
                 Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
             } else {
@@ -38,7 +62,7 @@ pub(crate) async fn run_git_with_timeout(root: &Path, args: &[&str]) -> Option<S
 }
 
 pub(crate) fn run_git_bytes(root: &Path, args: &[&str]) -> Option<Vec<u8>> {
-    let output = Command::new("git").args(args).current_dir(root).output().ok()?;
+    let output = git_command(root).args(args).output().ok()?;
     if output.status.success() { Some(output.stdout) } else { None }
 }
 
@@ -69,9 +93,8 @@ pub(crate) fn capture_git_paths_with_fallback(
 }
 
 pub(crate) fn run_git_required(root: &Path, args: &[&str]) -> Result<String, AppError> {
-    let output = Command::new("git")
+    let output = git_command(root)
         .args(args)
-        .current_dir(root)
         .output()
         .map_err(|error| AppError::Workspace(format!("failed to execute git: {error}")))?;
     if output.status.success() {
@@ -132,9 +155,8 @@ pub(crate) async fn capture_git_paths_with_fallback_async(
 
 pub(crate) fn git_show_file(root: &Path, relative_path: &str) -> Result<Option<String>, AppError> {
     let object_path = format!("HEAD:{relative_path}");
-    let output = Command::new("git")
+    let output = git_command(root)
         .args(["show", &object_path])
-        .current_dir(root)
         .output()
         .map_err(|error| AppError::Workspace(format!("failed to execute git: {error}")))?;
     if output.status.success() {
@@ -155,9 +177,8 @@ pub(crate) fn git_show_file(root: &Path, relative_path: &str) -> Result<Option<S
 
 pub(crate) fn git_file_exists(root: &Path, relative_path: &str) -> Result<bool, AppError> {
     let object_path = format!("HEAD:{relative_path}");
-    let output = Command::new("git")
+    let output = git_command(root)
         .args(["cat-file", "-e", &object_path])
-        .current_dir(root)
         .output()
         .map_err(|error| AppError::Workspace(format!("failed to execute git: {error}")))?;
     Ok(output.status.success())
@@ -165,8 +186,7 @@ pub(crate) fn git_file_exists(root: &Path, relative_path: &str) -> Result<bool, 
 
 #[cfg(test)]
 pub(crate) fn run_git_test(dir: &Path, args: &[&str]) {
-    let status =
-        Command::new("git").args(args).current_dir(dir).status().expect("git should be available");
+    let status = git_command(dir).args(args).status().expect("git should be available");
     assert!(status.success(), "git command failed: git {}", args.join(" "));
 }
 
@@ -175,4 +195,33 @@ pub(crate) fn init_git_repo(dir: &Path) {
     run_git_test(dir, &["init"]);
     run_git_test(dir, &["config", "user.email", "adl-tests@example.com"]);
     run_git_test(dir, &["config", "user.name", "ADL Tests"]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 回归：git hook 会把 `GIT_DIR` 等变量传给子进程，若不清除，显式传入的
+    /// 非仓库目录会被判定为仓库（`capture_git_snapshot_short_circuits_non_repo`）。
+    #[test]
+    fn git_command_drops_inherited_repo_locators() {
+        let removed: Vec<String> = git_command(Path::new("."))
+            .get_envs()
+            .filter(|(_, value)| value.is_none())
+            .map(|(key, _)| key.to_string_lossy().into_owned())
+            .collect();
+        for key in [
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_OBJECT_DIRECTORY",
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+            "GIT_COMMON_DIR",
+            "GIT_NAMESPACE",
+            "GIT_CEILING_DIRECTORIES",
+            "GIT_DISCOVERY_ACROSS_FILESYSTEM",
+        ] {
+            assert!(removed.iter().any(|item| item == key), "{key} should be removed");
+        }
+    }
 }
