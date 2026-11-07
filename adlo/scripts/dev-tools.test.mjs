@@ -119,21 +119,26 @@ test("shouldStageSidecar only when clippy compiles the shell", () => {
   assert.equal(shouldStageSidecar([]), false);
 });
 
-test("check-rust parses --all/--skip-fmt/--skip-test/--base", () => {
+test("check-rust parses --all/--skip-fmt/--skip-test/--base/--verbose", () => {
   assert.deepEqual(parseRustArgs([]), {
     base: null,
     all: false,
     skipFmt: false,
     skipTest: false,
+    verbose: false,
     help: false,
   });
-  assert.deepEqual(parseRustArgs(["--all", "--skip-fmt", "--skip-test", "--base", "HEAD~2"]), {
-    base: "HEAD~2",
-    all: true,
-    skipFmt: true,
-    skipTest: true,
-    help: false,
-  });
+  assert.deepEqual(
+    parseRustArgs(["--all", "--skip-fmt", "--skip-test", "--base", "HEAD~2", "--verbose"]),
+    {
+      base: "HEAD~2",
+      all: true,
+      skipFmt: true,
+      skipTest: true,
+      verbose: true,
+      help: false,
+    },
+  );
   assert.throws(() => parseRustArgs(["--base"]), /missing value/);
 });
 

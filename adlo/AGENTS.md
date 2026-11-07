@@ -4,20 +4,20 @@
 
 ## 技术栈
 
-| 层级 | 技术 |
-|------|------|
-| 后端 | Rust stable + Tauri 2.x + tokio + rusqlite + serde + tracing |
-| 前端 | React 19 + Vite + Zustand + TypeScript + CodeMirror 6 + xterm.js；Markdown 预览 markdown-it + starry-night（语法高亮）+ github-markdown-css（变量驱动单表，见 `frontend/scripts/generate-md-theme-vars.mjs`） |
-| 桥接 | `#[tauri::command]` + `@tauri-apps/api` |
-| 打包 | `cargo tauri build` |
-| 包管理 | pnpm（前端）/ Cargo（Rust） |
-| Rust 质量 | `cargo clippy` + `cargo fmt` + `rustfmt.toml` + `clippy.toml` |
-| 前端质量 | ESLint v9（flat config）+ Prettier + TypeScript-ESLint + React Hooks plugin |
-| Rust Lint | `pnpm run cargo:clippy` |
-| 前端 Lint | `cd frontend && npx eslint . && npx tsc --noEmit` |
-| 桌面 E2E | `@wdio/tauri-service`（embedded WebDriver，opt-in；`pnpm run e2e`，**不进** `check:all`，见技能 `desktop-e2e-wdio`） |
-| 门禁 | 唯一真源：[`.agents/rules/quality-gates.md`](../.agents/rules/quality-gates.md)。日常 `pnpm --dir frontend run check:changed`；合并/发布前 `pnpm run check:all`（含仓库卫生 `check:repo` 与前端 `check:full`）。全量必须先获用户批准；hooks 启用：`pnpm --dir adlo run setup:worktree` |
-| 凭据存储 | `crates/credential/`（keyring + 加密文件降级） |
+| 层级      | 技术                                                                                                                                                                                                                                                                                   |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 后端      | Rust stable + Tauri 2.x + tokio + rusqlite + serde + tracing                                                                                                                                                                                                                           |
+| 前端      | React 19 + Vite + Zustand + TypeScript + CodeMirror 6 + xterm.js；Markdown 预览 markdown-it + starry-night（语法高亮）+ github-markdown-css（变量驱动单表，见 `frontend/scripts/generate-md-theme-vars.mjs`）                                                                          |
+| 桥接      | `#[tauri::command]` + `@tauri-apps/api`                                                                                                                                                                                                                                                |
+| 打包      | `cargo tauri build`                                                                                                                                                                                                                                                                    |
+| 包管理    | pnpm（前端）/ Cargo（Rust）                                                                                                                                                                                                                                                            |
+| Rust 质量 | `cargo clippy` + `cargo fmt` + `rustfmt.toml` + `clippy.toml`                                                                                                                                                                                                                          |
+| 前端质量  | ESLint v9（flat config）+ Prettier + TypeScript-ESLint + React Hooks plugin                                                                                                                                                                                                            |
+| Rust Lint | `pnpm run cargo:clippy`                                                                                                                                                                                                                                                                |
+| 前端 Lint | `cd frontend && npx eslint . && npx tsc --noEmit`                                                                                                                                                                                                                                      |
+| 桌面 E2E  | `@wdio/tauri-service`（embedded WebDriver，opt-in；`pnpm run e2e`，**不进** `check:all`，见技能 `desktop-e2e-wdio`）                                                                                                                                                                   |
+| 门禁      | 唯一真源：[`.agents/rules/quality-gates.md`](../.agents/rules/quality-gates.md)。日常 `pnpm --dir frontend run check:changed`；合并/发布前 `pnpm run check:all`（含仓库卫生 `check:repo` 与前端 `check:full`）。全量必须先获用户批准；hooks 启用：`pnpm --dir adlo run setup:worktree` |
+| 凭据存储  | `crates/credential/`（keyring + 加密文件降级）                                                                                                                                                                                                                                         |
 
 ### 存储路径解析（`adl-kernel::storage`）
 
@@ -52,10 +52,10 @@
 
 ## 安全边界
 
-| 层 | 允许 | 禁止 |
-|----|------|------|
-| Rust Backend | 文件系统、SQLite、模型请求、凭据 | 直接操作 DOM |
-| WebView | UI 渲染、状态编排、订阅事件 | 直接访问系统能力、密钥、原始 SQL |
+| 层           | 允许                             | 禁止                             |
+| ------------ | -------------------------------- | -------------------------------- |
+| Rust Backend | 文件系统、SQLite、模型请求、凭据 | 直接操作 DOM                     |
+| WebView      | UI 渲染、状态编排、订阅事件      | 直接访问系统能力、密钥、原始 SQL |
 
 跨进程能力通过 `#[tauri::command]` + `capabilities/*.json` 白名单暴露。
 
@@ -82,12 +82,14 @@ pnpm run e2e         # 必须经 e2e/run-e2e.mjs 包装器
 
 ## 设计系统约束
 
-| 约束 | 规则 |
-|------|------|
-| 颜色 | 必须使用 CSS 自定义属性 `var(--…)` |
-| 图标 | SVG 格式，继承 `currentColor`，禁止 emoji。动画反馈场景可例外使用 `lucide-animated`（MIT 许可）|
-| Tooltip | 统一使用自定义 Tooltip 组件；原生 `title` 仅用于无交互的补充说明 |
-| 窗口 | 最小宽度 640px |
+| 约束    | 规则                                                                                            |
+| ------- | ----------------------------------------------------------------------------------------------- |
+| 颜色    | 必须使用 CSS 自定义属性 `var(--…)`                                                              |
+| 图标    | SVG 格式，继承 `currentColor`，禁止 emoji。动画反馈场景可例外使用 `lucide-animated`（MIT 许可） |
+| Tooltip | 统一使用自定义 Tooltip 组件；原生 `title` 仅用于无交互的补充说明                                |
+| 窗口    | 最小宽度 640px                                                                                  |
+
+CSS 选择器/层叠/布局/主题变更：按 [desktop-ui-verification.md](../.agents/rules/desktop-ui-verification.md) 用 `ui-probe.mjs` 读取计算样式（亮暗两套）；主观 UI/UX 验收仍由用户完成。
 
 详见 [docs/design-system/](../docs/design-system/)
 
@@ -131,12 +133,12 @@ app/stores/
 
 ### 关键文件
 
-| 文件 | 职责 |
-|------|------|
-| `frontend/src/app/stores/slicedStore.ts` | 切片合并 Store（真源） |
-| `frontend/src/app/stores/StoreState.ts` | 完整类型接口 |
+| 文件                                                    | 职责                                                                         |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `frontend/src/app/stores/slicedStore.ts`                | 切片合并 Store（真源）                                                       |
+| `frontend/src/app/stores/StoreState.ts`                 | 完整类型接口                                                                 |
 | `frontend/src/app/stores/slices/browserFoldersSlice.ts` | `BookmarkTabItem`（`TabFolderState.tabs` 元素类型：`{ tabId, url, title }`） |
-| `frontend/src/app/stores/selectors.ts` | 性能选择器（useShallow） |
+| `frontend/src/app/stores/selectors.ts`                  | 性能选择器（useShallow）                                                     |
 
 ## 文档入口
 
@@ -149,13 +151,13 @@ app/stores/
 
 ## 调试工具
 
-| 功能 | 说明 |
-|------|------|
-| 日志收起器 | `frontend/src/app/utils/debugLogCollector.ts`，拦截所有 console 输出，自动收起存储 |
-| 复制按钮 | 页面右上角可拖拽"复制调试日志"按钮 |
-| 自动写入 | `.adl-logs/`（debug 构建）；Tauri 桌面壳 `debug-logs*.txt`、浏览器模式 `debug-logs-browser*.txt` |
-| 后端命令 | `src-tauri/src/commands/app.rs` → `write_debug_logs_to_project` |
-| 浏览器后端 | `frontend/dev/previewWorkspaceService/`（目录，`logging.ts` → `writeDebugLogs`） |
+| 功能       | 说明                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------ |
+| 日志收起器 | `frontend/src/app/utils/debugLogCollector.ts`，拦截所有 console 输出，自动收起存储               |
+| 复制按钮   | 页面右上角可拖拽"复制调试日志"按钮                                                               |
+| 自动写入   | `.adl-logs/`（debug 构建）；Tauri 桌面壳 `debug-logs*.txt`、浏览器模式 `debug-logs-browser*.txt` |
+| 后端命令   | `src-tauri/src/commands/app.rs` → `write_debug_logs_to_project`                                  |
+| 浏览器后端 | `frontend/dev/previewWorkspaceService/`（目录，`logging.ts` → `writeDebugLogs`）                 |
 
 **优先级**：调试日志收起器是最高优先级的调试手段，遇到 UI/交互问题时优先使用。详见 [仓库根 AGENTS.md](../AGENTS.md#问题排查与调试)。
 
@@ -189,8 +191,8 @@ app/stores/
 
 ### 清理策略（空间阈值触发全量清理）
 
-| 条件 | 阈值 | 说明 |
-|------|------|------|
+| 条件 | 阈值                   | 说明                              |
+| ---- | ---------------------- | --------------------------------- |
 | 空间 | `target/debug` > 30 GB | 超过即执行 `cargo clean` 全量删除 |
 
 不再按时间窗口判断；超过 30 GB 直接全量清理。

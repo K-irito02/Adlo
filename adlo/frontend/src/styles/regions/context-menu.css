@@ -193,34 +193,6 @@
   gap: var(--space-1);
 }
 
-.adl-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 5px 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  cursor: pointer;
-}
-
-.adl-btn--primary {
-  background: var(--accent);
-  color: var(--accent-foreground);
-  border-color: var(--accent);
-}
-
-.adl-btn--secondary {
-  background: transparent;
-  color: var(--text-primary);
-}
-
-.adl-btn--danger {
-  background: var(--danger);
-  color: var(--danger-foreground, white);
-  border-color: var(--danger);
-}
-
 /* 首启环境向导（Task 8）：复用 confirm 对话框 chrome，仅加宽容纳逐项卡片，
    列表区限高滚动；色值一律设计 token，无硬编码。 */
 .adl-confirm-dialog.adl-env-wizard {

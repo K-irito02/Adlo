@@ -8,14 +8,14 @@ alwaysApply: false
 
 ## 核心规则
 
-修改桌面端 UI 后，必须重新运行应用以验证效果。
+修改桌面端 UI 后，必须重新运行应用以验证效果。**主观 UI/UX 验收由用户完成；CSS 选择器、层叠关系、主题 token 或布局变更还必须做机械计算样式验证**：用 `node adlo/scripts/ui-probe.mjs --url <预览地址> --selector <css> --props <属性>` 读取亮暗两套计算值，或使用环境内置 browser 工具的 `getComputedStyle`；不能只靠截图/肉眼。
 
 ## 适用范围
 
-| 路径 | 说明 |
-|------|------|
+| 路径                    | 说明       |
+| ----------------------- | ---------- |
 | `frontend/src/**/*.tsx` | React 组件 |
-| `frontend/src/**/*.css` | 样式文件 |
+| `frontend/src/**/*.css` | 样式文件   |
 
 ## 验证流程
 
@@ -32,16 +32,16 @@ alwaysApply: false
 
 修改 UI 后必须在 Tauri 桌面和浏览器模式下分别验证：
 
-| 验证项 | 差异说明 |
-|--------|----------|
-| 窗口控制按钮 | Tauri: 可实际操作; 浏览器: 仅显示 |
-| 标题栏拖拽 | Tauri: 可拖拽; 浏览器: 不可拖拽 |
-| 拖拽打开工作区 | Tauri: `onDragDropEvent`; 浏览器: HTML5 `dragover`/`drop` |
-| 主题/语言切换 | 两模式一致 |
-| 文件树/变更面板 | Tauri: Rust 后端; 浏览器: Preview API |
-| 终端面板（多会话/Shell 切换/命令执行） | Tauri: Rust PTY; 浏览器: Node.js `child_process.spawn` |
-| Tooltip 方案（自定义组件/原生 `title`）双端一致检查 | 两模式一致 |
-| 终端主题同步 / 空状态按钮组 | 两模式一致 |
+| 验证项                                              | 差异说明                                                  |
+| --------------------------------------------------- | --------------------------------------------------------- |
+| 窗口控制按钮                                        | Tauri: 可实际操作; 浏览器: 仅显示                         |
+| 标题栏拖拽                                          | Tauri: 可拖拽; 浏览器: 不可拖拽                           |
+| 拖拽打开工作区                                      | Tauri: `onDragDropEvent`; 浏览器: HTML5 `dragover`/`drop` |
+| 主题/语言切换                                       | 两模式一致                                                |
+| 文件树/变更面板                                     | Tauri: Rust 后端; 浏览器: Preview API                     |
+| 终端面板（多会话/Shell 切换/命令执行）              | Tauri: Rust PTY; 浏览器: Node.js `child_process.spawn`    |
+| Tooltip 方案（自定义组件/原生 `title`）双端一致检查 | 两模式一致                                                |
+| 终端主题同步 / 空状态按钮组                         | 两模式一致                                                |
 
 ## 相关文件
 

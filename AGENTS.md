@@ -6,19 +6,19 @@
 
 ## 双根结构
 
-| 目录 | 职责 |
-|------|------|
-| 仓库根目录 | 规划与治理：`AGENTS.md`、`docs/`、`CONTRIBUTING.md`、`GLOSSARY.md`、`CONTEXT.md`、`SECURITY.md` |
-| `adlo/` | 实现工作区：Rust + Tauri 桌面应用 + WebView 前端 |
-| `references/` | 外部参考源码（本地拉取的开源项目，供开发参考与复用） |
+| 目录          | 职责                                                                                            |
+| ------------- | ----------------------------------------------------------------------------------------------- |
+| 仓库根目录    | 规划与治理：`AGENTS.md`、`docs/`、`CONTRIBUTING.md`、`GLOSSARY.md`、`CONTEXT.md`、`SECURITY.md` |
+| `adlo/`       | 实现工作区：Rust + Tauri 桌面应用 + WebView 前端                                                |
+| `references/` | 外部参考源码（本地拉取的开源项目，供开发参考与复用）                                            |
 
 ## 源码地图与代码知识图谱
 
-| 参考项 | 说明 |
-|------|------|
+| 参考项         | 说明                                                               |
+| -------------- | ------------------------------------------------------------------ |
 | 源码地图 (ADL) | [docs/analysis/adlo/](./docs/analysis/adlo/)（本项目的渐进式索引） |
 
-> **代码知识图谱**：`adlo/` 配置了 [CodeGraph](https://github.com/colbymchenry/codegraph)（MIT 许可）本地知识图谱（实现工作区根 `adlo/.codegraph/`，SQLite）。MCP 接入见项目配置 [.opencode/opencode.json](./.opencode/opencode.json)（`mcp.servers.codegraph`），默认只暴露 `codegraph_explore` 一个工具；找符号/调用方/影响范围等细分查询走 `codegraph` CLI。查询、检索代码时优先使用图谱，技能说明见 [SKILLS.md](./SKILLS.md) 中的 `codegraph-knowledge-graph`。
+> **代码知识图谱**：`adlo/` 配置了 [CodeGraph](https://github.com/colbymchenry/codegraph)（MIT 许可）本地知识图谱（实现工作区根 `adlo/.codegraph/`，SQLite）。MCP 接入见项目配置 [.opencode/opencode.json](./.opencode/opencode.json)（`mcp.servers.codegraph`），默认只暴露 `codegraph_explore` 一个工具；找符号/调用方/影响范围等细分查询走 `codegraph` CLI。查询、检索代码时优先使用图谱，技能说明见 [SKILLS.md](./SKILLS.md) 中的 `codegraph-knowledge-graph`。符号查询用 `maxFiles: 3`，宽泛查询先窄后宽（见该技能 §控制返回体积）。
 >
 > 参考代码直接复用需遵守 MIT 许可要求，并在代码注释中标注来源。
 
@@ -54,6 +54,7 @@
 第三方依赖 `debug=1`（自己 crate 白名单保留 `debug=2` 可断点调试）。
 
 **清理策略（空间阈值触发全量清理，见 [adlo/AGENTS.md#磁盘空间管理](./adlo/AGENTS.md#磁盘空间管理)）：**
+
 - 空间条件：`adlo/target/debug` 超过 30 GB → 全量清理
 
 超过阈值即运行 `adlo/.cargo/clean-target.ps1` 执行 `cargo clean` 全量删除（不按时间窗口判断；`-WhatIf` 干跑预览，`-Full` 强制全清）。`cargo prune` 为 `cargo clean` 别名。删除为**永久删除**：直接物理删除构建产物，**不进入回收站/垃圾箱**，无需清空回收站。
@@ -99,21 +100,23 @@
 ## 编码规范
 
 ### 分支命名
+
 - 使用短横线分隔（kebab-case），最多 3 个单词
 - 禁止斜杠、禁止类型前缀（如 `feat/`、`fix/`）
 - 示例：`session-recovery`、`fix-scroll-state`、`browser-panel-fix`
 
 ### Commit 与 PR 标题
+
 使用 Conventional Commit 风格：`type(scope): summary`
 
-| 类型 | 用途 | 示例 |
-|------|------|------|
-| `feat` | 新功能 | `feat(session): add message streaming` |
-| `fix` | Bug 修复 | `fix(browser): resolve crash on navigate` |
-| `docs` | 文档变更 | `docs: update contributing guide` |
-| `chore` | 维护任务 | `chore(deps): bump tauri version` |
-| `refactor` | 重构 | `refactor(stores): extract browser slice` |
-| `test` | 测试 | `test(workspace): add tree parsing` |
+| 类型       | 用途     | 示例                                      |
+| ---------- | -------- | ----------------------------------------- |
+| `feat`     | 新功能   | `feat(session): add message streaming`    |
+| `fix`      | Bug 修复 | `fix(browser): resolve crash on navigate` |
+| `docs`     | 文档变更 | `docs: update contributing guide`         |
+| `chore`    | 维护任务 | `chore(deps): bump tauri version`         |
+| `refactor` | 重构     | `refactor(stores): extract browser slice` |
+| `test`     | 测试     | `test(workspace): add tree parsing`       |
 
 Scope 可选项：`core`、`frontend`、`rust`、`stores`、`browser`、`terminal`、`ipc`、`docs`、`deps` 等。
 

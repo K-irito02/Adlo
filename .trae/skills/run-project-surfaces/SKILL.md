@@ -9,11 +9,11 @@ description: 启动 Adlo 的三种运行模式（浏览器预览、Tauri 桌面�
 
 ## 三种模式
 
-| 模式 | 命令 | 行为 |
-|------|------|------|
-| **browser** | `pnpm run dev:browser` | 仅启动 Vite 开发服务器，在浏览器中预览（适合 Agent 快速迭代测试） |
-| **tauri** | `pnpm run dev:tauri`（或 `pnpm run dev`） | 启动 Vite + Tauri 原生桌面窗口（`dev` 为默认命令，等同于 `dev:tauri`） |
-| **both** | `pnpm run dev:both` | 同时启动 Vite + Tauri 桌面窗口，浏览器预览保持可用（适合双端一致性验证） |
+| 模式        | 命令                                      | 行为                                                                     |
+| ----------- | ----------------------------------------- | ------------------------------------------------------------------------ |
+| **browser** | `pnpm run dev:browser`                    | 仅启动 Vite 开发服务器，在浏览器中预览（适合 Agent 快速迭代测试）        |
+| **tauri**   | `pnpm run dev:tauri`（或 `pnpm run dev`） | 启动 Vite + Tauri 原生桌面窗口（`dev` 为默认命令，等同于 `dev:tauri`）   |
+| **both**    | `pnpm run dev:both`                       | 同时启动 Vite + Tauri 桌面窗口，浏览器预览保持可用（适合双端一致性验证） |
 
 模式参数别名：`app`、`external` 均等价于 `tauri`。
 
@@ -51,16 +51,16 @@ description: 启动 Adlo 的三种运行模式（浏览器预览、Tauri 桌面�
 
 ## 常见错误
 
-| 错误 | 修正 |
-|------|------|
-| 从错误路径运行（如其他项目目录） | 切换到当前工作树的 `adlo/` 后执行 |
-| 使用 `npm run` 而非 `pnpm run` | 本项目使用 pnpm 作为包管理器 |
-| 直接调用 `cargo tauri dev` | 使用包装脚本，以便端口被正确探测和共享 |
-| 用反引号包裹 URL | 以纯文本输出，使 IDE 可点击 |
-| 启动后用 agent-browser 打开 URL | 不要替用户打开；P3/P4 的自动化验证可以打开，结束后关闭并清理产物 |
-| Tauri 模式下 Rust 工具链不可用 | 先设置 PATH：`$env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"` |
-| 仅凭命令退出就认为桌面模式已启动 | 验证 `[adl-run]` 日志确认 Tauri 进程实际运行 |
-| Tauri 窗口空白、标题栏拖拽失效 | 参见下方「adl-server 二进制缺失排查」 |
+| 错误                             | 修正                                                               |
+| -------------------------------- | ------------------------------------------------------------------ |
+| 从错误路径运行（如其他项目目录） | 切换到当前工作树的 `adlo/` 后执行                                  |
+| 使用 `npm run` 而非 `pnpm run`   | 本项目使用 pnpm 作为包管理器                                       |
+| 直接调用 `cargo tauri dev`       | 使用包装脚本，以便端口被正确探测和共享                             |
+| 用反引号包裹 URL                 | 以纯文本输出，使 IDE 可点击                                        |
+| 启动后用 agent-browser 打开 URL  | 不要替用户打开；P3/P4 的自动化验证可以打开，结束后关闭并清理产物   |
+| Tauri 模式下 Rust 工具链不可用   | 先设置 PATH：`$env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"` |
+| 仅凭命令退出就认为桌面模式已启动 | 验证 `[adl-run]` 日志确认 Tauri 进程实际运行                       |
+| Tauri 窗口空白、标题栏拖拽失效   | 参见下方「adl-server 二进制缺失排查」                              |
 
 ## 故障排查：adl-server 二进制缺失（桌面窗口空白）
 
@@ -110,5 +110,5 @@ Agent 不能按 `Ctrl+C` 守护进程，用后台方式：
 ## 相关
 
 - 包装脚本实现：`adlo/scripts/run-project-surface.mjs`
-- 真实渲染探针：`adlo/scripts/ui-probe.mjs`（先启动预览，再按 selector 读取 `getComputedStyle`；Edge/Chrome CDP，无新依赖）
+- 真实渲染探针：`adlo/scripts/ui-probe.mjs`（先启动预览，再按 selector 读取 `getComputedStyle`；Edge/Chrome CDP，无新依赖）；若环境提供内置 browser 工具（`tabs.open` / `evaluate` / `hover` / `screenshot`），优先用它读取计算样式。
 - 常用命令速查：[commands.md](../../rules/commands.md)

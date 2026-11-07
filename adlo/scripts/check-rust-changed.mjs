@@ -23,6 +23,7 @@ import { findLockedDevExecutables, devStopHint } from "./dev-instance.mjs";
 
 const implRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cargo = process.platform === "win32" ? "cargo.exe" : "cargo";
+let verbose = false;
 
 // pre-push 钩子会注入 GIT_DIR / GIT_WORK_TREE 等相对路径变量；从
 // `adlo/` 子目录调用 git 时它们会解析失败（ls-files 直接报错）。
@@ -72,7 +73,14 @@ export function packageNameOf(dir) {
 }
 
 export function parseArgs(argv) {
-  const options = { base: null, all: false, skipFmt: false, skipTest: false, help: false };
+  const options = {
+    base: null,
+    all: false,
+    skipFmt: false,
+    skipTest: false,
+    verbose: false,
+    help: false,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--help" || arg === "-h") {
@@ -83,6 +91,8 @@ export function parseArgs(argv) {
       options.skipFmt = true;
     } else if (arg === "--skip-test") {
       options.skipTest = true;
+    } else if (arg === "--verbose") {
+      options.verbose = true;
     } else if (arg === "--base") {
       const value = argv[i + 1];
       if (value === undefined) {
@@ -125,13 +135,35 @@ function resolveBase(explicit) {
   return parent ?? "HEAD";
 }
 
+function tailOutput(text, maxLines = 120) {
+  const lines = text.trimEnd().split(/\r?\n/);
+  if (lines.length <= maxLines) {
+    return text.trimEnd();
+  }
+  return `… (${lines.length - maxLines} lines omitted)\n${lines.slice(-maxLines).join("\n")}`;
+}
+
 function run(command, args, label) {
   console.log(`[check-rust] ${label}`);
-  const result = spawnSync(command, args, { cwd: implRoot, stdio: "inherit" });
+  if (verbose) {
+    const result = spawnSync(command, args, { cwd: implRoot, stdio: "inherit" });
+    if (result.status !== 0) {
+      console.error(`[check-rust] FAILED: ${label}`);
+      process.exit(result.status ?? 1);
+    }
+    return;
+  }
+  const result = spawnSync(command, args, {
+    cwd: implRoot,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
   if (result.status !== 0) {
-    console.error(`[check-rust] FAILED: ${label}`);
+    console.error(tailOutput(`${result.stdout ?? ""}${result.stderr ?? ""}`));
+    console.error(`[check-rust] FAILED: ${label} (rerun with --verbose for full output)`);
     process.exit(result.status ?? 1);
   }
+  console.log(`[check-rust] ok: ${label}`);
 }
 
 const WORKSPACE_LEVEL_FILES = new Set([
@@ -203,9 +235,10 @@ function main() {
     console.error(`[check-rust] ${error.message}`);
     process.exit(1);
   }
+  verbose = options.verbose;
   if (options.help) {
     console.log(
-      "usage: node scripts/check-rust-changed.mjs [--base <ref>] [--all] [--skip-fmt] [--skip-test]",
+      "usage: node scripts/check-rust-changed.mjs [--base <ref>] [--all] [--skip-fmt] [--skip-test] [--verbose]",
     );
     return;
   }

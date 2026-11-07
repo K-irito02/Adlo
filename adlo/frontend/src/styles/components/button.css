@@ -150,3 +150,74 @@
   background: var(--accent);
   color: var(--text-on-accent);
 }
+
+/* --------------------------------------------------------------------------
+   Adlo shared button (`.adl-btn`) — 全应用共用的按钮基座与变体。
+   唯一真源：不要在其他样式文件里重复定义顶层 `.adl-btn`（check:css-globals 会拦截）。
+   -------------------------------------------------------------------------- */
+
+.adl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1-5);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition-colors);
+  white-space: nowrap;
+}
+
+.adl-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.adl-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-btn--primary {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+}
+
+.adl-btn--primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+
+.adl-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.adl-btn--ghost:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.adl-btn--sm {
+  padding: var(--space-1) var(--space-2);
+  font-size: 11px;
+}
+
+.adl-btn--secondary {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.adl-btn--danger {
+  background: var(--danger);
+  color: var(--danger-foreground, white);
+  border-color: var(--danger);
+}
+
+.adl-btn--danger:hover:not(:disabled) {
+  background: var(--danger);
+  filter: brightness(0.92);
+}

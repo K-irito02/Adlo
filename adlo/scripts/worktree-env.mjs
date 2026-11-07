@@ -38,19 +38,36 @@ const mode = isPoolWorktree ? "existing-worktree" : "main-worktree";
 const sessionsDir = path.join(path.dirname(toplevel), ".sessions");
 const activeSessions = [];
 let registry = "missing";
+
+function formatAge(ms) {
+  const hours = Math.floor(ms / (60 * 60 * 1000));
+  if (hours < 1) {
+    return "just now";
+  }
+  if (hours < 24) {
+    return `${hours}h`;
+  }
+  return `${Math.floor(hours / 24)}d`;
+}
+
 try {
   for (const name of fs.readdirSync(sessionsDir)) {
     if (!name.endsWith(".json")) {
       continue;
     }
     try {
-      const record = JSON.parse(fs.readFileSync(path.join(sessionsDir, name), "utf8"));
+      const filePath = path.join(sessionsDir, name);
+      const record = JSON.parse(fs.readFileSync(filePath, "utf8"));
       const sameWorktree =
         typeof record.worktree === "string" &&
         path.resolve(record.worktree).toLowerCase() === path.resolve(toplevel).toLowerCase();
       if (sameWorktree && record.status === "active") {
         registry = name;
-        activeSessions.push(record.session ?? name);
+        const ageMs = Date.now() - fs.statSync(filePath).mtimeMs;
+        const stale = ageMs > 24 * 60 * 60 * 1000;
+        activeSessions.push(
+          `${record.session ?? name} (active${stale ? `, ${formatAge(ageMs)} stale` : ""})`,
+        );
       }
     } catch {
       // Ignore a malformed registry entry; report the rest.
