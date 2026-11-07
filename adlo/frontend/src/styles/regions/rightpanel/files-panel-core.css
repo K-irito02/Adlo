@@ -336,7 +336,7 @@
 }
 
 .adl-tool-surface--files > .adl-tool-navigator {
-  width: var(--adl-files-nav-width, 240px);
+  width: var(--adl-files-nav-width, 180px);
   flex-shrink: 0;
 }
 

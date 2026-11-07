@@ -10,10 +10,19 @@ import {
   LEFT_PANEL_WIDTH_MAX,
   FILES_NAVIGATOR_WIDTH_MIN,
   FILES_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_FILES_NAVIGATOR_WIDTH,
+  CHANGES_NAVIGATOR_WIDTH_MIN,
+  DEFAULT_CHANGES_NAVIGATOR_WIDTH,
   DEFAULT_BROWSER_NAVIGATOR_WIDTH,
   BROWSER_NAVIGATOR_WIDTH_MIN,
   BROWSER_NAVIGATOR_WIDTH_MAX,
+  SETTINGS_NAVIGATOR_WIDTH_MIN,
+  DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
 } from '../uiSliceTypes';
+import {
+  DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
+  TERMINAL_NAVIGATOR_WIDTH_MIN,
+} from '../terminalSliceTypes';
 
 function createSlice() {
   let state: Record<string, unknown> = {};
@@ -101,6 +110,14 @@ describe('uiSliceWidths leftbarWidth persistence', () => {
 
   it('defaults browserNavigatorWidth to DEFAULT_BROWSER_NAVIGATOR_WIDTH (single owner, T19)', () => {
     expect(createSlice().current().browserNavigatorWidth).toBe(DEFAULT_BROWSER_NAVIGATOR_WIDTH);
+  });
+
+  it('五个面板导航器默认宽度统一为各自最小值（首次安装）', () => {
+    expect(DEFAULT_FILES_NAVIGATOR_WIDTH).toBe(FILES_NAVIGATOR_WIDTH_MIN);
+    expect(DEFAULT_CHANGES_NAVIGATOR_WIDTH).toBe(CHANGES_NAVIGATOR_WIDTH_MIN);
+    expect(DEFAULT_BROWSER_NAVIGATOR_WIDTH).toBe(BROWSER_NAVIGATOR_WIDTH_MIN);
+    expect(DEFAULT_TERMINAL_NAVIGATOR_WIDTH).toBe(TERMINAL_NAVIGATOR_WIDTH_MIN);
+    expect(DEFAULT_SETTINGS_NAVIGATOR_WIDTH).toBe(SETTINGS_NAVIGATOR_WIDTH_MIN);
   });
 
   it('navigateRightTool sets the tool and expands a collapsed right panel', () => {

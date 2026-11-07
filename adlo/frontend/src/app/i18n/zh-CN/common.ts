@@ -127,7 +127,6 @@ export const commonZh = {
   searchBookmarksHint: '输入关键词搜索收藏标签',
   searchHistoryHint: '输入关键词搜索历史标签',
   clearAllOpenTabs: '清空所有已打开标签',
-  deleteAllTabDirs: '删除工作区与非工作区全部标签 （保留目录结构）',
   newTabPage: '新建标签页',
   centerNewTab: '新建入口页',
   centerTabStripLabel: '中心标签页',

@@ -1,9 +1,9 @@
 //! Workspace-git and workspace-git-vis domain HTTP endpoints. Combines tests
 //! from the original `workspace_git.rs` and `workspace_git_vis.rs` files.
 //! Deterministic coverage: the non-git paths fail fast (no repo → error), and
-//! a real temp git repo exercises the positive status/branch paths. `git` is
-//! required only for the two positive-repo tests (the repo itself is git-based,
-//! so git is present). Each test drives `app_router` over a fresh
+//! real temp git repos exercise the positive status/branch/init paths. `git`
+//! is required for the positive-repo and init tests (the repo itself is
+//! git-based, so git is present). Each test drives `app_router` over a fresh
 //! `ServerState` via `tower::ServiceExt::oneshot`.
 
 #![allow(clippy::unwrap_used)]
@@ -66,6 +66,60 @@ async fn get_git_status_in_git_repo_reports_branch() {
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     assert_eq!(body["data"]["isRepo"], true, "body: {body}");
     assert!(body["data"]["branch"].is_string(), "branch resolved: {body}");
+}
+
+/// POST /workspace/git/init without `workspacePath` must return 400 and must
+/// NOT fall back to the active workspace (multi-workspace safety).
+#[tokio::test]
+async fn init_git_repo_without_workspace_path_returns_400_and_leaves_active_workspace_untouched() {
+    let state = state("ws-git-init").await;
+    let dir = temp_dir("init-active");
+    std::fs::write(dir.join("keep.txt"), "keep\n").unwrap();
+    let (open_status, open_body) = send_post(
+        state.clone(),
+        "/workspace/open",
+        Some(json!({ "workspacePath": dir.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(open_status, axum::http::StatusCode::OK, "open failed: {open_body}");
+
+    let (status, body) = send_post(state, "/workspace/git/init", Some(json!({}))).await;
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "body: {body}");
+    assert_eq!(body["ok"], false, "body: {body}");
+    assert_eq!(body["error"]["code"], "INVALID_INPUT", "body: {body}");
+    assert!(!dir.join(".git").exists(), "active workspace must not be initialized");
+}
+
+/// POST /workspace/git/init creates a local repository at the explicit path,
+/// is idempotent, and never touches existing files.
+#[tokio::test]
+async fn init_git_repo_creates_local_repo_and_is_idempotent() {
+    let state = state("ws-git-init").await;
+    let dir = temp_dir("init-target");
+    std::fs::write(dir.join("note.txt"), "keep me\n").unwrap();
+
+    let (status, body) = send_post(
+        state.clone(),
+        "/workspace/git/init",
+        Some(json!({ "workspacePath": dir.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
+    assert_eq!(body["ok"], true, "body: {body}");
+    assert_eq!(body["data"]["isRepo"], true, "body: {body}");
+    assert!(dir.join(".git").is_dir(), ".git must exist");
+    assert_eq!(std::fs::read_to_string(dir.join("note.txt")).unwrap(), "keep me\n");
+
+    let (second_status, second_body) = send_post(
+        state,
+        "/workspace/git/init",
+        Some(json!({ "workspacePath": dir.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(second_status, axum::http::StatusCode::OK, "body: {second_body}");
+    assert_eq!(second_body["data"]["isRepo"], true, "body: {second_body}");
+    assert!(second_body["data"]["head"].is_null(), "no commit yet: {second_body}");
+    assert_eq!(std::fs::read_to_string(dir.join("note.txt")).unwrap(), "keep me\n");
 }
 
 /// POST /workspace/git/branches on a non-git dir returns an error (the branch

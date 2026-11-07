@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { MutableRefObject } from 'react';
 import { render } from '@testing-library/react';
+import { IconFolderPlus } from '@icons';
 import { MultiWorkspaceFileTree } from '@features/workspace-file-tree/MultiWorkspaceFileTree';
 import { MultiWorkspaceChangesTree } from '@features/workspace-changes-tree/MultiWorkspaceChangesTree';
 
@@ -19,7 +20,14 @@ const noop = () => {};
 const persistRef = { current: false } as MutableRefObject<boolean>;
 const clearMenuRef = { current: undefined } as MutableRefObject<(() => void) | undefined>;
 
-describe('无工作区空状态提示', () => {
+function expectFolderPlusIcon(container: HTMLElement) {
+  const actual = container.querySelector('.adl-empty-hint__icon svg');
+  expect(actual).not.toBeNull();
+  const { container: reference } = render(<IconFolderPlus size={14} decorative />);
+  expect(actual?.innerHTML).toBe(reference.querySelector('svg')?.innerHTML);
+}
+
+describe('无工作区空态提示', () => {
   it('文件面板渲染「标题栏添加工作区」提示，并嵌入同款图标', () => {
     const { container } = render(
       <MultiWorkspaceFileTree
@@ -52,7 +60,7 @@ describe('无工作区空状态提示', () => {
 
     expect(container.textContent).toContain('PREFIX');
     expect(container.textContent).toContain('SUFFIX');
-    expect(container.querySelector('.adl-empty-hint__icon svg')).not.toBeNull();
+    expectFolderPlusIcon(container);
   });
 
   it('变更面板渲染「标题栏添加工作区」提示，并嵌入同款图标', () => {
@@ -88,6 +96,6 @@ describe('无工作区空状态提示', () => {
 
     expect(container.textContent).toContain('PREFIX');
     expect(container.textContent).toContain('SUFFIX');
-    expect(container.querySelector('.adl-empty-hint__icon svg')).not.toBeNull();
+    expectFolderPlusIcon(container);
   });
 });

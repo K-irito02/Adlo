@@ -119,6 +119,12 @@ Empty states are rendered with the shared classes in
 only. `.adl-sortable-empty` (drop zone) and `.adl-welcome__empty` (center welcome) are the
 documented exceptions.
 
+When the empty state points at a real toolbar action, use `AddWorkspaceHint`
+(`.adl-empty-hint__inline` / `.adl-empty-hint__icon`) to embed the **same icon** between
+the prefix and suffix. Browser category empties (`.adl-browser-category__empty`) are a
+documented layout override; their icon must match the actual button
+(`IconFolderPlus` for add-workspace, `IconNewFolderBrowser` for new-directory).
+
 ## Auto-resolved note（自动检测·真实状态提示行）
 
 Source of truth: `frontend/src/app/components/settings/AutoResolvedNote.tsx`;

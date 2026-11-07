@@ -17,6 +17,7 @@ import { BranchSubCard } from '@regions/right-panel/panels/BranchSubCard';
 import { useWorkspaceChangesActions } from './WorkspaceChangesActions';
 import { WorkspaceChangesMenu } from './WorkspaceChangesMenu';
 import { GitInitEmptyState } from './GitInitEmptyState';
+import { shouldShowGitInitEmptyState } from './gitInitEmptyStateUtils';
 
 export interface WorkspaceChangesEntryProps {
   workspace: RecentWorkspaceEntry;
@@ -275,7 +276,7 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
             />
           ) : isLoading ? (
             <LoadingRow />
-          ) : gitSnapshot?.isRepo === false ? (
+          ) : shouldShowGitInitEmptyState(gitSnapshot) ? (
             <GitInitEmptyState
               workspaceId={workspace.id}
               workspacePath={workspace.path}

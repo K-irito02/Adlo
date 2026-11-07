@@ -537,7 +537,7 @@ alwaysApply: false
 ### 统一空状态行 → `EmptyRow`
 
 - 文件：[LoadingRow.tsx](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/LoadingRow.tsx)（与 LoadingRow 同文件）
-- 用法：`<EmptyRow variant="row" message={t.noContent as string} />` 或 `variant="center"`
+- 用法：`<EmptyRow variant="row" message={t.browserNoContent as string} />` 或 `variant="center"`
 - 文字居中对齐（`width: 100%` + `text-align: center`）
 - 内置 `role="status"` + `aria-label={message}`
 

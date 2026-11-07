@@ -150,7 +150,8 @@ describe('TerminalMenuDropdown 提示卡锚点', () => {
 
     const card = document.body.querySelector('.hint-card') as HTMLElement | null;
     expect(card).not.toBeNull();
-    // placement=left 放得下时：left = 行左缘 - gap(5)。用感叹号自身会得到 865px。
+    // placement=left 且卡片宽 0（jsdom 无布局）时：left = 行左缘 - 0 - gap(5)。
+    // 用感叹号自身会得到 865px。
     expect(card?.style.left).toBe('695px');
   });
 });

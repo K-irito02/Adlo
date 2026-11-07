@@ -188,6 +188,17 @@ function renderNavigator(
   return actions;
 }
 
+describe('BrowserNavigator new-directory affordance', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('keeps the new-directory button reachable in list mode', () => {
+    renderNavigator('list');
+    expect(screen.getByRole('button', { name: 'New directory' })).toBeTruthy();
+  });
+});
+
 describe('BrowserNavigator bookmark delete confirmation', () => {
   beforeEach(() => {
     vi.clearAllMocks();

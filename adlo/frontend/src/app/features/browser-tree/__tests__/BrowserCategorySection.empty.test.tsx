@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
+import { IconFolderPlus, IconNewFolderBrowser } from '@icons';
 import { BrowserCategorySection } from '../BrowserCategorySection';
 
 vi.mock('@i18n/useTCopy', () => ({
@@ -26,7 +27,21 @@ const baseProps = {
   counts: new Map<string, number>(),
 };
 
-describe('BrowserCategorySection 空状态', () => {
+function expectFolderPlusIcon(container: HTMLElement) {
+  const actual = container.querySelector('.adl-empty-hint__icon svg');
+  expect(actual).not.toBeNull();
+  const { container: reference } = render(<IconFolderPlus size={14} decorative />);
+  expect(actual?.innerHTML).toBe(reference.querySelector('svg')?.innerHTML);
+}
+
+function expectNewFolderBrowserIcon(container: HTMLElement) {
+  const actual = container.querySelector('.adl-empty-hint__icon svg');
+  expect(actual).not.toBeNull();
+  const { container: reference } = render(<IconNewFolderBrowser size={14} decorative />);
+  expect(actual?.innerHTML).toBe(reference.querySelector('svg')?.innerHTML);
+}
+
+describe('BrowserCategorySection 空态', () => {
   it('工作区目录为空时显示「点击顶部标题栏 [图标] 按钮创建工作区目录」，不再有「暂无目录」', () => {
     const { container } = render(
       <BrowserCategorySection
@@ -38,7 +53,7 @@ describe('BrowserCategorySection 空状态', () => {
     expect(container.textContent).toContain('点击顶部标题栏');
     expect(container.textContent).toContain('按钮创建工作区目录');
     expect(container.textContent).not.toContain('暂无目录');
-    expect(container.querySelector('.adl-empty-hint__icon svg')).not.toBeNull();
+    expectFolderPlusIcon(container);
   });
 
   it('自建目录为空时显示「点击此侧边栏上方 [图标] 按钮创建自建目录」', () => {
@@ -52,7 +67,7 @@ describe('BrowserCategorySection 空状态', () => {
     expect(container.textContent).toContain('点击此侧边栏上方');
     expect(container.textContent).toContain('按钮创建自建目录');
     expect(container.textContent).not.toContain('暂无目录');
-    expect(container.querySelector('.adl-empty-hint__icon svg')).not.toBeNull();
+    expectNewFolderBrowserIcon(container);
   });
 
   it('历史为空时只显示「暂无历史记录」', () => {

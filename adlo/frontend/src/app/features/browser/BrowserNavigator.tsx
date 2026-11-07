@@ -208,7 +208,11 @@ export function BrowserNavigator() {
             }}
             onClearOpenTabs={() => handleCloseAllTabs()}
           />
-          <span style={{ display: navigatorMode === 'tabs' ? '' : 'none' }}>
+          <span
+            style={{
+              display: navigatorMode === 'tabs' || navigatorMode === 'list' ? '' : 'none',
+            }}
+          >
             <TooltipSimple content={t.browserCreateDir} placement="top">
               <button
                 type="button"

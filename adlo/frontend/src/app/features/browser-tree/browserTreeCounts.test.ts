@@ -310,10 +310,14 @@ describe('count rules per category type', () => {
     expect(tree).toHaveLength(2);
   });
 
-  it('category top-level count equals nodes.length (history is always 1: history:root)', () => {
+  it('非空历史时顶层恒为 1 个 history:root', () => {
     const e1 = makeHistoryEntry('e1', 'E1', 'https://a.example', new Date(2026, 5, 2).getTime());
     const tree = buildHistoryCategoryTree([e1], [], mockDateLabels);
     expect(tree).toHaveLength(1);
+  });
+
+  it('空历史不渲染 history:root', () => {
+    expect(buildHistoryCategoryTree([], [], mockDateLabels)).toEqual([]);
   });
 
   it('filters out history leaves with an empty resolved name', () => {

@@ -116,7 +116,6 @@ export const commonEn = {
   searchBookmarksHint: 'Search saved tabs by keyword',
   searchHistoryHint: 'Search history tabs by keyword',
   clearAllOpenTabs: 'Clear all open tabs',
-  deleteAllTabDirs: 'Delete all workspace and custom directory tabs (keep directory structure)',
   newTabPage: 'New tab page',
   centerNewTab: 'New entry page',
   centerTabStripLabel: 'Center tabs',

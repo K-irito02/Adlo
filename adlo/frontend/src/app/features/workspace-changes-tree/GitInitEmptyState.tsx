@@ -11,11 +11,12 @@ export interface GitInitEmptyStateProps {
 }
 
 /**
- * 变更面板「已添加工作区但不是 Git 仓库」空状态。
+ * 变更面板「已添加工作区但不是 Git 仓库」空态。
  *
- * 版式（用户 2026-11-07 指定）：无卡片底色、无 Git 图标；「非 Git 仓库 + !」
- * 水平居中，`!` 在名称右侧并承载完整说明（什么是 / 为什么需要 / 初始化后变化，
- * 以及「只初始化本地仓库」）。按钮直接执行本地 `git init`。
+ * 版式（用户 2026-11-07 指定）：无卡片底色、无 Git 图标；标题独占一行，
+ * 「初始化为 Git 仓库」按钮内部右侧带 `!`，由 `!` 承载完整说明
+ * （什么是 / 为什么需要 / 初始化后变化，以及「只初始化本地仓库」）。
+ * 按钮直接执行本地 `git init`。
  */
 export function GitInitEmptyState({ workspaceId, workspacePath, error }: GitInitEmptyStateProps) {
   const { t } = useTCopy();

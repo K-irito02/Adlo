@@ -139,6 +139,16 @@ await page.click('button[aria-label="新建文件"]');
 
 ---
 
+## 空态
+
+> 文件面板左侧导航器在无工作区时的提示。
+
+- 无任何工作区：显示「点击顶部标题栏 [添加工作区图标] 按钮添加工作区」，图标复用标题栏「添加工作区」的 `IconFolderPlus`。
+- 定位选择器：`.adl-empty-hint`、`.adl-empty-hint__inline`、`.adl-empty-hint__icon`。
+- 文字样式：`--text-muted` / `--text-xs`，水平居中；图标颜色 `--text-secondary`。
+
+---
+
 ## 搜索
 
 > 文件搜索功能

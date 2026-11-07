@@ -11,8 +11,9 @@ export interface AddWorkspaceHintProps {
 }
 
 /**
- * 空状态里的「前缀 + 真实图标 + 后缀」提示：把操作入口的图标嵌进文案中间，
- * 让用户一眼对应到实际按钮。字号 / 颜色 / 居中由 `.adl-empty-hint` 基线决定。
+ * 空态里的「前缀 + 真实图标 + 后缀」提示：把操作入口的图标嵌进文案中间，
+ * 让用户一眼对应到实际按钮。字号/颜色由调用方容器决定：文件/变更面板走
+ * `.adl-empty-hint` 基线，浏览器分类走 `.adl-browser-category__empty`。
  */
 export function AddWorkspaceHint({ prefix, suffix, icon }: AddWorkspaceHintProps) {
   return (

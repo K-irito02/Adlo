@@ -60,6 +60,12 @@ function renderTerminal(tabs: TerminalTabState[]) {
 }
 
 describe('MultiWorkspaceTerminal 面板终端列表排除中心标签', () => {
+  it('无工作区且无独立标签时不显示全局空态', () => {
+    const { container, queryByText } = renderTerminal([]);
+    expect(container.querySelector('.adl-multitree__empty')).toBeNull();
+    expect(queryByText('workspaceEmpty')).toBeNull();
+  });
+
   it('转入中心的终端标签不在面板树中显示，计数只含面板标签', () => {
     const { container, queryByText } = renderTerminal([
       makeTab('panel-term', 'Panel shell', 'panel'),
@@ -69,5 +75,8 @@ describe('MultiWorkspaceTerminal 面板终端列表排除中心标签', () => {
     expect(queryByText('Panel shell')).toBeTruthy();
     expect(queryByText('Center shell')).toBeNull();
     expect(container.querySelector('.adl-multitree-entry__count')?.textContent).toBe('1');
+    // 无工作区且无独立标签时不再显示全局空态（由「默认终端目录」行内按钮承担提示）。
+    expect(container.querySelector('.adl-multitree__empty')).toBeNull();
+    expect(queryByText('workspaceEmpty')).toBeNull();
   });
 });

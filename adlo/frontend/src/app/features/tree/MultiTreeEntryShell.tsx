@@ -123,7 +123,7 @@ export const MultiTreeEntryShell = React.memo(function MultiTreeEntryShell({
 
       {isExpanded && !hasChildren ? (
         <div className="adl-browser-entry__empty">
-          {/* 展开空目录时把“暂无内容”作为状态变化播报（与 EmptyRow 的 role=status 对齐）。 */}
+          {/* 展开空目录时把当前空态文案（现为“空目录”）作为状态变化播报（与 EmptyRow 的 role=status 对齐）。 */}
           <span className="adl-empty-hint" role="status">
             {emptyText}
           </span>
