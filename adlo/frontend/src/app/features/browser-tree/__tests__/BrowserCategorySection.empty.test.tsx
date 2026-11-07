@@ -82,7 +82,7 @@ describe('BrowserCategorySection 空态', () => {
     expect(container.querySelector('.adl-empty-hint__icon')).toBeNull();
   });
 
-  it('非空分类不渲染空状态', () => {
+  it('非空分类不渲染空态', () => {
     const { container } = render(
       <BrowserCategorySection
         {...baseProps}

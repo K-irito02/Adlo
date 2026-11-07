@@ -375,7 +375,7 @@ export function createGitSnapshotActions(
 
     /**
      * [initGitRepo - 在当前工作区根目录初始化本地 Git 仓库]
-     * 只创建 `.git`；成功后把返回的快照写入 store，让「非 Git 仓库」空状态立即消失。
+     * 只创建 `.git`；成功后把返回的快照写入 store，让「非 Git 仓库」空态立即消失。
      * `workspacePath` 显式传给后端，避免多工作区场景下误初始化到其它工作区。
      * @param workspaceId 目标工作区 id（仅用于定位快照槽位，不参与后端执行）
      * @param workspacePath 目标工作区根路径
