@@ -53,7 +53,11 @@ function readText(el: Element | null): string {
  * 嵌套的 `<DL>` 可能作为 `<DT>` 的下一个兄弟，也可能被 HTML 解析器塞进 `<DT>` 内部，
  * 两种形态都要认。
  */
-function parseList(dl: Element, result: { nodes: TransferNode[]; invalidCount: number }): void {
+function parseList(
+  dl: Element,
+  result: { nodes: TransferNode[]; invalidCount: number },
+  now: number,
+): void {
   const children = Array.from(dl.children);
   let index = 0;
   while (index < children.length) {
@@ -66,7 +70,7 @@ function parseList(dl: Element, result: { nodes: TransferNode[]; invalidCount: n
         if (!href || !isSupportedUrl(href)) {
           result.invalidCount += 1;
         } else {
-          const addedAt = parseTimestampAttr(anchor.getAttribute('ADD_DATE'), Date.now());
+          const addedAt = parseTimestampAttr(anchor.getAttribute('ADD_DATE'), now);
           const lastModifiedAt = parseTimestampAttr(anchor.getAttribute('LAST_MODIFIED'), addedAt);
           const icon = anchor.getAttribute('ICON')?.trim() || undefined;
           const title = readText(anchor) || fallbackTitle(href);
@@ -84,7 +88,7 @@ function parseList(dl: Element, result: { nodes: TransferNode[]; invalidCount: n
         const folder: TransferFolder = { name: readText(heading) || 'Folder', children: [] };
         if (nested) {
           const sub = { nodes: folder.children, invalidCount: 0 };
-          parseList(nested.el, sub);
+          parseList(nested.el, sub, now);
           result.invalidCount += sub.invalidCount;
           if (nested.consumedSibling) {
             index += 1;
@@ -120,7 +124,7 @@ function findNestedList(
  * - 标题缺失时回退主机名
  * - `ADD_DATE` / `LAST_MODIFIED` 缺失时用当前时间，保证导入条目有可展示的时间
  */
-export function parseBookmarkHtml(html: string): ParsedBookmarkFile {
+export function parseBookmarkHtml(html: string, now: number = Date.now()): ParsedBookmarkFile {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const rootName = readText(doc.querySelector('H1')) || readText(doc.querySelector('title'));
   const rootList = doc.querySelector('DL');
@@ -131,7 +135,7 @@ export function parseBookmarkHtml(html: string): ParsedBookmarkFile {
     nodes: [],
     invalidCount: 0,
   };
-  parseList(rootList, result);
+  parseList(rootList, result, now);
   return { rootName, nodes: result.nodes, invalidCount: result.invalidCount };
 }
 
