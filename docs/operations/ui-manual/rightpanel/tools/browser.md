@@ -16,7 +16,7 @@
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
-| 1 | CSS | `.adl-tool-context--browser` |
+| 1 | CSS | `.adl-tool-context--files` |
 
 ### 操作
 
@@ -87,7 +87,7 @@ await page.keyboard.press('Enter');
 ```javascript
 // 验证 blur 恢复（删除 URL 后点击空白区域，应恢复为原始 URL）
 await page.fill('.adl-tool-search--address input', '');
-await page.click('.adl-browser-content'); // 点击内容区域触发 blur
+await page.click('.adl-tool-primary--browser'); // 点击内容区域触发 blur
 // 地址栏折叠；重新展开后应看到原始 URL
 await page.click('.adl-tool-search--address');
 ```
@@ -108,13 +108,13 @@ await expect(page.locator('.adl-browser-landing')).toBeVisible();
 await page.click('.adl-tool-search--address');
 
 // 点击复制链接按钮
-await page.click('.adl-tool-search__copy');
+await page.click('.adl-copy-btn');
 
 // 复制成功后图标播放动画，Tooltip 显示"已复制到剪贴板"
 // 1.5 秒后自动恢复为"复制链接"提示
 ```
 
-**选择器**：`.adl-tool-search__copy`（复制按钮，仅在地址栏展开或悬停时显示）
+**选择器**：`.adl-copy-btn`（复制按钮，仅在地址栏展开或悬停时显示）
 
 **行为**：点击复制 URL → 图标播放 lucide-animated 弹簧动画（~400ms）→ 500ms 后图标恢复原位 → Tooltip 显示"已复制到剪贴板"（1.5s）
 
@@ -323,8 +323,8 @@ await page.fill('.adl-tool-search--navigator input', '关键词');
 const text = await page.locator('.adl-browser-entry__header .adl-browser-entry__trailing').textContent();
 
 // 判定行类型
-const isCategory = await page.locator('.adl-multitree-category__row').count() > 0;
-const isFile = await page.locator('.adl-filetree__item--file').count() > 0;
+const isCategory = await page.locator('.adl-browser-entry__header').count() > 0;
+const isFile = await page.locator('.adl-filetree__node--file').count() > 0;
 ```
 
 **相关选择器**：
@@ -475,7 +475,7 @@ await page.click('.adl-multitree-entry__expand-btn:first-child');
 // 1. 确保有标签在不同目录中打开
 // 2. 点击"已打开标签"按钮
 // 3. 验证历史分类不存在
-await expect(page.locator('.adl-multitree-category__row:has-text("历史")')).not.toBeVisible();
+await expect(page.locator('.adl-browser-entry__header:has-text("历史")')).not.toBeVisible();
 
 // 4. 验证只显示有标签的目录
 const entries = await page.locator('.adl-browser-entry__header').all();
@@ -575,8 +575,8 @@ await page.click('.adl-browser-entry__header');
 // 点击子目录选中并展开
 await page.click('.adl-filetree__item');
 
-// 点击"新建子目录"按钮
-await page.click('button[aria-label="新建子目录"]');
+// 点击"新建目录"按钮
+await page.click('button[aria-label="新建目录"]');
 ```
 
 ---

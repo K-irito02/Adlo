@@ -7,8 +7,9 @@
  *
  * 全量门禁（check:full / cargo test --workspace / 发布打包）必须先获得用户批准。
  *
- * 用法：node scripts/check-changed.mjs [--base <ref>]
- * 修复循环可传 `--base HEAD` 只查本轮改动；最终提交前省略，按 upstream 全量受影响范围跑一次。
+ * 用法：node scripts/check-changed.mjs [--base <ref>] [--skip-tests]
+ * 修复循环可传 `--base HEAD` 只查本轮改动；中间轮次可加 `--skip-tests`
+ * 只跑 lint/format/typecheck，落盘前再跑一次不带该参数的全量受影响范围。
  */
 import { spawnSync } from 'node:child_process';
 import { i18nTestScopes } from './i18n-test-scope.mjs';
@@ -17,11 +18,13 @@ import { isRustPath } from '../../scripts/check-rust-changed.mjs';
 const options = parseArgs(process.argv.slice(2));
 
 function parseArgs(argv) {
-  const parsed = { base: null, help: false };
+  const parsed = { base: null, help: false, skipTests: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') {
       parsed.help = true;
+    } else if (arg === '--skip-tests') {
+      parsed.skipTests = true;
     } else if (arg === '--base') {
       const value = argv[i + 1];
       if (value === undefined) {
@@ -37,7 +40,7 @@ function parseArgs(argv) {
 }
 
 if (options.help) {
-  console.log('usage: node scripts/check-changed.mjs [--base <ref>]');
+  console.log('usage: node scripts/check-changed.mjs [--base <ref>] [--skip-tests]');
   process.exit(0);
 }
 
@@ -210,7 +213,9 @@ run(
   `git -C "${repoRoot}" diff --exit-code -- ${prefix}src/styles/vendor`,
 );
 
-if (srcChanges.length > 0) {
+if (options.skipTests) {
+  console.log('[check:changed] tests skipped (--skip-tests)');
+} else if (srcChanges.length > 0) {
   // i18n 字典被几乎所有组件引用：`vitest related` 会把整张导入图拉进来。
   // 仅当变更文件全部是**已知**字典域时才收窄，未知字典仍走 related（宁可多跑）。
   const i18nScopes = i18nTestScopes(srcChanges);

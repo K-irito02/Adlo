@@ -15,12 +15,13 @@ const NUMERIC_COUNT = /\d+\s*个/;
 const ALLOW_MARKER = 'glossary-allow';
 
 /**
- * 只扫这些位置：中文 UI 文案与操作手册里的可见文案。
- * 代码注释、英文标识符不参与（避免 `viewer`、`工作区` 这类误报）。
+ * 只扫这些位置：中文 UI 文案、操作手册与架构/运维文档里的可见文案。
+ * 代码注释不参与（避免 `viewer`、`工作区` 这类误报；注释用词由审查简报 §5.5 兜底）。
  */
 const ENFORCED_SOURCES = [
   { root: path.join(here, '../src/app/i18n/zh-CN'), extensions: ['.ts'] },
-  { root: path.join(repoRoot, 'docs/operations/ui-manual'), extensions: ['.md'] },
+  { root: path.join(repoRoot, 'docs/operations'), extensions: ['.md'] },
+  { root: path.join(repoRoot, 'docs/architecture'), extensions: ['.md'] },
 ];
 
 function fail(messages: string[]): never {

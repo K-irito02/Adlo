@@ -11,7 +11,7 @@ description: 启动 Adlo 的三种运行模式（浏览器预览、Tauri 桌面�
 
 | 模式        | 命令                                      | 行为                                                                     |
 | ----------- | ----------------------------------------- | ------------------------------------------------------------------------ |
-| **browser** | `pnpm run dev:browser`                    | 仅启动 Vite 开发服务器，在浏览器中预览（适合 Agent 快速迭代测试）        |
+| **browser** | `pnpm run dev:browser`                    | 仅启动 Vite，不启动 adl-server；业务域走 mock/降级，可能白屏，仅适合纯前端静态检查。真实 UI 验证用 `dev:preview`        |
 | **tauri**   | `pnpm run dev:tauri`（或 `pnpm run dev`） | 启动 Vite + Tauri 原生桌面窗口（`dev` 为默认命令，等同于 `dev:tauri`）   |
 | **both**    | `pnpm run dev:both`                       | 同时启动 Vite + Tauri 桌面窗口，浏览器预览保持可用（适合双端一致性验证） |
 
@@ -26,7 +26,7 @@ description: 启动 Adlo 的三种运行模式（浏览器预览、Tauri 桌面�
 - 解析到的端口同时用于 Vite 与 Tauri 的 `devUrl`；Vite 侧 `strictPort: true`，端口被占即失败。
 - Vite 就绪以实例令牌为准：启动器请求 `GET /__adl_dev_instance__`，只有回显本次令牌（`ADL_DEV_TOKEN`）才继续；同端口上是别人的 dev server 会立即报错。
 - 桌面应用进程**不继承** `ADL_PORT` / `PORT` / `ADL_DEV_TOKEN`，因此可以在 App 内嵌终端里直接启动另一个工作树（父实例的端口不会串进来）。
-- 直接运行 `pnpm run frontend:dev`（裸 `vite`）不经过启动器：端口恒为 `5173` 或显式 `ADL_PORT`，且 `strictPort` 下被占用即失败；并行场景请用 `pnpm run dev:browser`。
+- 直接运行 `pnpm run frontend:dev`（裸 `vite`）不经过启动器：端口恒为 `5173` 或显式 `ADL_PORT`，且 `strictPort` 下被占用即失败；并行场景请用 `pnpm run dev:browser`（纯前端）或 `dev:preview`（需要业务数据）。
 
 ## 启动与停止
 
@@ -44,6 +44,9 @@ description: 启动 Adlo 的三种运行模式（浏览器预览、Tauri 桌面�
 
 ## Agent 视觉验证已知问题
 
+- **`dev:browser` 白屏**：该模式只起 Vite，不注入 `VITE_ADL_SERVER_URL`，前端会落到兜底 `http://127.0.0.1:61234`（见 `frontend/src/httpBridge.ts`），业务调用失败后可能只剩调试按钮。需要真实数据 / 设置 / 面板时用 `dev:preview`（会先起 adl-server 再绑 URL）。
+- **`dev:preview` 控制台的 CORS / `ERR_PROXY_CONNECTION_FAILED`**：adl-server 已对所有响应发送 `Access-Control-Allow-Origin: *`（`crates/server/src/router.rs`）。这类报错通常是本机系统代理拦截，先看 `[adl-bridge] … falls back` 警告判断业务域是否降级，不要据此改代码。
+- **取计算样式优先 `ui-probe.mjs`**：`node scripts/ui-probe.mjs --url <预览地址> --selector <css> --props <属性>`（无头 Edge/Chrome CDP，不占用 Review 面板）。内置 browser 工具用于点击/填表/网络/控制台；`screenshot` 需要桌面窗口可见，窗口不可见时会失败，不要把它当作样式取证手段。
 - **首次运行准备挡住预览**：`dev:preview` 使用新数据目录时会弹出「首次运行准备」，可能卡在 Git/Node 下载。开发/视觉验证会话可在启动前设置 `$env:VITE_ADL_SKIP_FIRST_RUN='1'`（仅 `import.meta.env.DEV` 生效；显式「继续向导」仍会打开），或使用已准备好的数据目录。不要用手工 DOM 隐藏遮罩代替。
 - **长 HMR 后静态资源/图表不渲染**：长会话反复 HMR 后，可能出现动态导入 `ERR_PROXY_CONNECTION_FAILED`、右侧面板错误边界、或 `ParentSize` 高度为 0 导致热力图空白。先 `pnpm run dev:stop` 再重启 `dev:preview`、重开/刷新 tab，再判断是否为代码回归。
 - **`dev:preview` 首次构建**：没有预构建 `target/debug/adl-server.exe` 时会走 `cargo run` 冷编译（数分钟）；先看 `[adl-dev]` 日志确认 `adl-server bound` 与 `frontend ready at`，不要误判为启动失败。
@@ -110,5 +113,5 @@ Agent 不能按 `Ctrl+C` 守护进程，用后台方式：
 ## 相关
 
 - 包装脚本实现：`adlo/scripts/run-project-surface.mjs`
-- 真实渲染探针：`adlo/scripts/ui-probe.mjs`（先启动预览，再按 selector 读取 `getComputedStyle`；Edge/Chrome CDP，无新依赖）；若环境提供内置 browser 工具（`tabs.open` / `evaluate` / `hover` / `screenshot`），优先用它读取计算样式。
+- 真实渲染探针：`adlo/scripts/ui-probe.mjs`（先启动预览，再按 selector 读取 `getComputedStyle`；Edge/Chrome CDP，无新依赖）。**样式取证优先用它**；若环境提供内置 browser 工具（`tabs.open` / `evaluate` / `hover` / `screenshot`），用于交互、网络与控制台排障，不作为样式取证首选。
 - 常用命令速查：[commands.md](../../rules/commands.md)

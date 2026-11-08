@@ -62,6 +62,8 @@ OpenCode 通过项目配置 `.opencode/opencode.json` 接入 `codegraph` MCP ser
 
 **控制返回体积**：问"某个符号怎么实现/谁调用它"时，把查询写成精确符号名并传 `maxFiles: 3`；宽泛的自然语言查询（如"设置面板版本来源与代理…"）会一次带出多个大组件，单次可达数万字符、挤占上下文。先窄后宽，不够再追加一次精确查询。
 
+**中文 UI 描述会按词法命中无关文件**：例如查"右侧面板导航栏…"会带出图表组件与 Rust handler，而真正的 `ToolSwitcher.tsx` / `RightPanel.tsx` 一个都不在结果里。先用英文符号名/文件名查询（`ToolSwitcher`、`RightPanel`、`right-panel`），中文描述只作补充；`maxFiles` 保持 3–6。
+
 验证与重连：
 
 ```powershell

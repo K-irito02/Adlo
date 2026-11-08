@@ -204,7 +204,7 @@ await page.fill('.adl-settings-row__control input', 'value');
 > 统一根 / 每类独立两种模式（`features/storage-settings/StorageSettings.tsx`）。10 条可迁移路径 + 1 个设置值路径（`downloads_default`，仅记录浏览器默认下载目录，不迁移）+ 6 项不可移动（keyring/机器身份/localStorage/IndexedDB/WebView2/工作区缓存，UI 附原因说明）。
 >
 > - 迁移二选一：立即迁移并重启（Tauri 经 `storage_*` 命令直写 locator + `app_restart`），或下次启动生效（浏览器模式 `restartApp` 返回 `NOT_SUPPORTED` 并提示）
-> - 预检非纯只读：`preflight` 创建目标父目录并写 `.adl-write-probe` 探测文件
+> - 预检非纯只读：`preflight` 创建目标父目录并写 `adl-write-probe` 探测文件
 > - 空间未知：服务端 `freeBytes` 恒为 0 时 UI 跳过空间判定（不渲染 verdict）
 > - 恢复全部默认时存储排最后（可能触发迁移与重启），见上文聚合确认框
 
@@ -239,8 +239,8 @@ await page.fill('.adl-settings-row__control input', 'value');
 | `.adl-harness-version` | 通用版本卡片根（两工具共用；DSH 组内只有这一张版本卡） |
 | `.adl-harness-version__readout` | DSH 运行态/来源读数插槽（版本号 + 运行地址或系统安装路径 + 更新徽标） |
 | `.adl-harness-version__action-btn` | 版本操作文字按钮（更新到最新/安装/切换/卸载/重装/取消） |
-| `.adl-harness-version__picker` | 双通道版本选择器（稳定版 / 预发布各一） |
-| `.adl-harness-version__menu` | 选择器展开菜单（Portal 挂 body） |
+| `.adl-harness-version__control-slot` | 双通道版本选择器（稳定版 / 预发布各一） |
+| `.adl-harness-version__version-menu` | 选择器展开菜单（Portal 挂 body） |
 | `[data-settings-anchor="dsh:source"]` | 块底只读摘要卡（当前下载源 + 模式提示） |
 | `.adl-dsh-settings__source-mode` | 摘要行的模式提示（中性灰，「自动检测」/「手动选择」） |
 | `.adl-dsh-settings__action-btn` | 摘要卡的「前往修改」按钮 |
@@ -254,8 +254,8 @@ await page.fill('.adl-settings-row__control input', 'value');
 await page.click('button:has-text("更新到最新")');
 
 // 稳定版 / 预发布：展开选择器选版本，再点行内操作
-await page.click('.adl-harness-version__picker');
-await page.click('.adl-harness-version__menu-item-action:has-text("1.0.0")');
+await page.click('.adl-harness-version__control-slot');
+await page.click('.adl-harness-version__version-menu-item:has-text("1.0.0")');
 await page.click('button:has-text("安装")');
 
 // 卸载当前版本需二次确认（首次点击进入危险确认态，再次点击执行）
@@ -306,7 +306,7 @@ await page.click('button:has-text("前往修改")');
 | 落点高亮 | `.adl-reveal-highlight`（`.is-active` 播放中，本面板带 `--accent` 变体） | 跳转落点临时高亮（1.4s，共享实现） |
 | 设置项行 | `.adl-settings-row` | 带 `data-settings-anchor`；块内行另带 `data-settings-row`（行级落点） |
 | 搜索历史卡片 | `.adl-settings-search-history`（`#adl-settings-search-history`） | 输入框聚焦且查询为空时列出历史（自建，替代浏览器原生自动填充下拉） |
-| 聚合确认框 | `.adl-settings-reset-all-dialog`（复用 `.adl-confirm-*` 类） | 恢复全部默认 |
+| 聚合确认框 | `.adl-confirm-dialog`（复用通用确认框样式） | 恢复全部默认 |
 | DSH设置 | `.adl-dsh-settings` | DSH设置容器 |
 
 ---

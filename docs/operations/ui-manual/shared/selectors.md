@@ -26,7 +26,7 @@ button[aria-label="最小化"]
 
 /* 输入框 */
 input[aria-label="搜索"]
-textarea[aria-label="消息输入"]
+textarea[aria-label="消息输入框"]
 
 /* 链接 */
 a[aria-label="帮助"]
@@ -86,7 +86,7 @@ a[aria-label="帮助"]
 
 /* 组件类名 */
 .adl-hamburger__trigger
-.adl-tool-switcher__tab
+.adl-toolswitcher__tab
 
 /* 状态修饰符 */
 .adl-icon-btn:disabled
@@ -104,7 +104,7 @@ a[aria-label="帮助"]
 .adl-titlebar button[aria-label="设置"]
 
 /* 左侧边栏内的剪切看板 */
-.adl-leftbar .adl-clipboard-history
+.adl-leftbar .adl-clipboard
 
 /* 中心宿主内的入口页 */
 .adl-center .adl-center-entry
@@ -114,7 +114,7 @@ a[aria-label="帮助"]
 
 ```css
 /* 激活状态 */
-.adl-tool-switcher__tab.is-active
+.adl-toolswitcher__tab.is-active
 
 /* 禁用状态 */
 .adl-icon-btn:disabled

@@ -22,6 +22,9 @@ test("daily check:changed wires affected Rust tests and accepts --base", () => {
   );
   assert.match(text, /check-rust-changed\.mjs/);
   assert.match(text, /--base/);
+  // 中间审查轮次可只跑 lint/format/typecheck；落盘前的最终门禁仍必须跑测试。
+  assert.match(text, /--skip-tests/);
+  assert.match(text, /tests skipped \(--skip-tests\)/);
 });
 
 test("check:all and pre-push share the repo-level gate (check:repo)", () => {

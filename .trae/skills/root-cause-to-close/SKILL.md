@@ -146,7 +146,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 | 本地运行/诊断       | `<仓库根>/adlo/.run-logs/`、`/diagnostic-logs/`                                       |
 | 发布态              | `<数据根>/logs/`（无 `.adl-logs`）                                                    |
 
-规则：逐项检查，缺项跳过不 block；`multi` 会话文件（`*-<时间戳>.txt`）先按 `LastWriteTime` 取**最新一个**，覆盖式同名文件直接读。**分析标准按日志级别（与阶段 Pn 无关，勿混淆）：ERROR（崩溃堆栈 / IPC 失败等功能错误）必须修或记录，WARN 评估，INFO/DEBUG 忽略；完成条件：无未解 ERROR。**
+规则：逐项检查，缺项跳过不 block；`multi` 会话文件（`*-<时间戳>.txt`）先按 `LastWriteTime` 取**最新一个**，覆盖式同名文件直接读。**大文件只读尾部**：先用 `Get-Content -Tail 80`（读取，不是搜索）看最后 80 行，命中 ERROR 再全文，避免把数百行 DEBUG 灌进上下文。**分析标准按日志级别（与阶段 Pn 无关，勿混淆）：ERROR（崩溃堆栈 / IPC 失败等功能错误）必须修或记录，WARN 评估，INFO/DEBUG 忽略；完成条件：无未解 ERROR。**
 
 ### 调试埋点触发与自动化验证（能力边界）
 
@@ -228,6 +228,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
    - 部分有效 → 回 P2 补缺口并记录。
    - 无效/回归 → 记录后按 方案 → 代码 → 方法 → 架构 逐层排查。
    - 用户说没解决 → 记"用户报告无效"进失败迭代（最多 3 轮，第 4 轮禁止，直接升级报告：每轮尝试、学到什么、未解架构问题；等待批准期不计入迭代轮次）。
+   - **用户报告视觉差异但自动化无法复现**：先索要截图/录屏 + 精确操作步骤（注明浏览器预览还是 Tauri 桌面），确认前不改设计数值试探；把"未复现"与"已修复"分开记录。
 
 **P3→P4 过渡（用户批准门控，禁止自行进入 P4）：** P3 自动化验证通过后必须停下，弹出「询问卡片」向用户报告验证结果并等待用户亲自测试（用户可明示免测并直接授权，此时视为已批准，记入进度文件）。**验证结果按「问答卡片输出协议」作为正文完整输出，卡片只放批准/不批准等短选项。**
 
@@ -261,7 +262,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 
 两类都无变更 → 跳过 4c–4e（进度文件记理由），仅保留 Exit criteria 中的分级测试。有变更时按下述建快照，再进 4c 两轮必跑：
 
-1. 建 `.review-diffs/`（已在 `.gitignore`，P6 删除）。
+1. 建 `.review-diffs/`（已在 `.gitignore`，P6 删除）。**先完成 4c 门禁再生成快照**——格式/类型失败若发生在快照之后，会让整轮 rev 返工。
 2. **一键生成快照（推荐）**：`node adlo/scripts/review-snapshot.mjs --rev <N>`
    脚本完成：解析 base（`merge-base(origin/HEAD, HEAD)`，无远端回退 `HEAD`）→ `git add -N` 未跟踪文件 → 每文件写 `<safe>-rev<N>.diff` → 写 `changed-files-rev<N>.txt` / `commits-rev<N>.txt` / `manifest-rev<N>.md`（base、commits、文件清单、命名规则）；空 diff 直接失败。文件数明显多于预期时，先核对 base 是否等于本分支分叉点，再继续。
    - 手工等价物（脚本不可用时）：`git diff --output=<safe>-rev<N>.diff HEAD -- <file>` —— **`--output` 必须在 `--` 之前**；放到 `--` 之后会被 git 当成 pathspec（不写文件、整段 diff 进 stdout，实测一次刷出约 100KB）。
@@ -273,7 +274,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 
 ### 4c. 两轮循环审查（顺序门控，两轮皆不可跳过）
 
-**派发前门禁：** 每次 R1/R2 派发前，先在本轮 rev 快照对应的工作区上跑 `check:changed` / `check:rust:changed`；门禁失败项先修复并重新生成快照，不得把门禁可发现的问题交给审查子代理。
+**生成快照前门禁：** 每次生成 rev 快照**之前**，先在当前工作区跑 `check:changed` / `check:rust:changed`；门禁失败项先修复，再生成快照，不得把门禁可发现的问题交给审查子代理。中间修复轮次可加 `--skip-tests` 只跑 lint/format/typecheck；落盘前的最终快照必须跑一次完整门禁（不带 `--skip-tests`），避免只跑轻量门禁就交付。
 
 **门控铁律（违反即 Red Flag，见底部表格）：**
 
@@ -406,7 +407,7 @@ P5 逐项表态完成后直接进 P6（阶段之间不停留；结算性工作�
 | P1                            | 全条件判定 A（修根因）/ B（预防）                                                                                                 | 路径明确                        |
 | P2                            | 失败测试→单点修→查同类→加日志；失败 3 次停                                                                                        | 改在源头                        |
 | P3                            | 补日志→触发验证（自动优先/用户为手）→最新日志分析→分流；3 轮上限；验证通过置 `待用户确认`，停下等用户批准，禁自行进 P4            | 双确认通过 + 用户明确批准       |
-| P4                            | 前置检查→快照（未提交 ∪ 未推送）→R1 循环至零问题→R2 循环至零问题（两轮顺序、每轮循环、皆不可跳过）→验证→修复循环；达标后直接进 P5 | R1 与 R2 先后零问题             |
+| P4                            | 前置检查→门禁→快照（未提交 ∪ 未推送）→R1 循环至零问题→R2 循环至零问题（两轮顺序、每轮循环、皆不可跳过）→验证→修复循环；达标后直接进 P5 | R1 与 R2 先后零问题             |
 | P5                            | 九类文档逐项表态 + 三目录同步 + 索引登记；完成后直接进 P6                                                                         | 列出更新                        |
 | P6                            | 按龄清理 + 读进度文件总结                                                                                                         | 用户知晓结果                    |
 | 测试（全程分级）              | `git diff` 定位受影响，clippy/tsc + 分级 test，禁全量替代                                                                         | 零警告错误                      |

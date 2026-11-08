@@ -160,7 +160,7 @@ function main() {
       baselinePath,
       `${JSON.stringify(
         {
-          note: "历史漂移基线：仅用于阻止新增漂移；清理后请重跑 --update-baseline 收缩。",
+          note: "漂移基线：应保持 0 条；新增漂移请直接修复，不要加入基线。",
           entries,
         },
         null,

@@ -46,7 +46,7 @@
 | ------------------------------------ | -------------------------------------------- |
 | `.adl-tool-list__item--terminal-tab` | 单个终端标签（14px 缩进，flex row，24px 高） |
 | `.adl-tool-list__item-btn.is-active` | 激活标签                                     |
-| `.adl-tool-list__item--pinned`       | 置顶标签（左侧黄色 pin 标记）                |
+| `.adl-tool-list__item--terminal-tab.is-pinned` | 置顶标签（左侧黄色 pin 标记） |
 
 ### 交互功能
 

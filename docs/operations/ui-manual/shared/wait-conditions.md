@@ -30,7 +30,7 @@ await page.waitForFunction(
 // 等待元素变为激活
 await page.waitForFunction(
   selector => document.querySelector(selector)?.classList.contains('is-active'),
-  '.adl-tool-switcher__tab',
+  '.adl-toolswitcher__tab',
   { timeout: 3000 }
 );
 ```

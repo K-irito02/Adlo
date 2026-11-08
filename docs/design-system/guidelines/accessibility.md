@@ -9,6 +9,7 @@ The renderer targets **WCAG 2.1 AA** out of the box. This document captures the 
 - All interactive controls are real `<button>`, `<a>`, or form controls — never `div role="button"`.
 - Custom focus rings are powered by `box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring)` with `outline: 0`. Never remove `:focus-visible` styles.
 - Segmented controls expose `aria-pressed` so assistive tech can speak the toggle state.
+- Toggle buttons pick one state channel: a constant name paired with `aria-pressed` / `aria-expanded`, **or** a name that changes with the action and no state attribute. Never both — "Expand toolbar · pressed" is contradictory.
 - Banner / status messages use `role="status"` and `aria-live` (assertive only for danger banners).
 - The color-scheme picker is a `role="group"` with per-button `aria-label` (the human-readable name) and `aria-pressed`.
 

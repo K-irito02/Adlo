@@ -93,7 +93,7 @@ await page.waitForSelector('.adl-multitree-entry__menu');
 | 按钮 | 位置 | aria-label | 说明 |
 |------|------|------------|------|
 | 展开/折叠全部 | Row 1 左 | 展开全部/折叠全部 | 批量展开/收起所有工作区 |
-| 刷新全部 | Row 1 右 | 刷新全部 | 刷新所有已展开工作区文件树；检索文件模式下随后用当前窗口上限原位重跑内容检索 |
+| 刷新 | Row 1 右 | 刷新 | 刷新所有已展开工作区文件树；检索文件模式下随后用当前窗口上限原位重跑内容检索 |
 | 文件树 | Row 2 左 | 文件树 | 切换到文件树视图 |
 | 文档大纲 | Row 2 左 | 文档大纲 | 切换到文档大纲视图 |
 | 新建文件 | Row 2 右 | 新建文件 | 创建新文件 |
@@ -101,7 +101,7 @@ await page.waitForSelector('.adl-multitree-entry__menu');
 
 ```javascript
 await page.click('button[aria-label="展开全部"]');
-await page.click('button[aria-label="刷新全部"]');
+await page.click('button[aria-label="刷新"]');
 await page.click('button[aria-label="新建文件"]');
 ```
 
