@@ -652,7 +652,7 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
     expect(refreshOneWorkspaceTree).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
   });
 
-  it('溢出批次（无归属根）：逐根静默补刷已加载的树与变更快照', async () => {
+  it('溢出批次（无批次归属）：逐根静默补刷已加载的树与变更快照', async () => {
     const { store, refreshGitSnapshot, refreshOneWorkspaceTree } = makeStore();
     bridge().readFile.mockResolvedValue({
       ok: true,
@@ -668,7 +668,7 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
     expect(refreshGitSnapshot).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
   });
 
-  it('带归属根的批次：只刷新该工作区（非当前工作区也生效）', async () => {
+  it('带批次归属的批次：只刷新该工作区（非当前工作区也生效）', async () => {
     const { store, refreshGitSnapshot, refreshOneWorkspaceTree } = makeStore();
     store.setState({
       recentWorkspaces: [
@@ -692,7 +692,7 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
     expect(bridge().readFile).not.toHaveBeenCalled();
   });
 
-  it('带归属根的批次命中选中文件所属工作区：用该工作区通道重读', async () => {
+  it('带批次归属的批次命中选中文件所属工作区：用该工作区通道重读', async () => {
     const { store } = makeStore();
     store.setState({
       recentWorkspaces: [

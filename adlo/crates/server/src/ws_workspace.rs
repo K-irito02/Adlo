@@ -32,7 +32,7 @@ fn overflow_frame() -> Message {
     Message::Text(files_changed_frame("", &[], &[], true).to_string())
 }
 
-/// overflow 帧的归属根：
+/// overflow 帧的批次归属：
 /// - `coalesced=true`（队列满丢过帧，被丢批次可能来自任意根）→ 空串（前端按全部工作区补刷）；
 /// - 否则（watcher 自身单批超限）→ 保留该批次的根，前端只补刷该工作区。
 ///

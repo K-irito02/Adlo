@@ -186,7 +186,7 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
       resetRecomputePending();
       return;
     }
-    // 批次带归属根时只处理检索目标工作区的批次：批次路径是相对该根的，
+    // 批次带批次归属时只处理检索目标工作区的批次：批次路径是相对该根的，
     // 拿别的工作区的同名路径去标陈旧会误伤跨仓同名文件。
     if (batch.rootPath) {
       const state = get();
