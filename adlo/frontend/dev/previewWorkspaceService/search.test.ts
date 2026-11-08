@@ -104,5 +104,7 @@ describe('preview searchInFiles', () => {
     const page2 = await searchInFiles(root, ['wide2.txt'], 'needle');
     expect(page2.hits.length).toBe(0);
     rmSync(root, { recursive: true, force: true });
-  });
+    // 该用例要写 18MB 临时文件；满负载（465 个测试文件并行）下 5s 默认超时会被调度挤爆，
+    // 单独跑稳定在 ~110ms。放宽到 30s，断言的是行为而非耗时。
+  }, 30_000);
 });
