@@ -109,6 +109,19 @@ pnpm --dir frontend run test -- src/app/features/browser
 pnpm --dir frontend run test:watch
 ```
 
+### 门禁调用策略（省时）
+
+```powershell
+# 中间修复轮：只跑 lint/format/typecheck，不跑 vitest
+pnpm --dir frontend run check:changed -- --skip-tests
+
+# 落盘 / 提交前：必须跑一次完整受影响门禁（含 vitest related）
+pnpm --dir frontend run check:changed
+```
+
+- 门禁 / 构建是 5–10 分钟级长命令：用**后台执行 + 输出文件**，再用 `Wait-Process` 等进程结束；不要前台缓冲输出等超时（超时会丢掉全部输出，只剩失败尾巴）。
+- 单次任务里不要把完整门禁跑成每一轮修复的固定动作：中间轮 `--skip-tests`，只在生成审查快照前与提交前跑完整版。
+
 ## 终端调试
 
 | 命令 | 用途 |

@@ -2,12 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   findDebugTags,
+  findFixedTempDirLines,
   findLegacyCompatibility,
   findLiteralEscapedNewlines,
   findMojibake,
   findReplacementChars,
   hasBom,
   isCompatibilityScope,
+  parseAddedLines,
 } from "./check-source-hygiene.mjs";
 
 test("flags literal backslash-n inside comment lines", () => {
@@ -103,4 +105,24 @@ test("compatibility scope excludes historical plans but covers product sources",
   assert.equal(isCompatibilityScope("docs/design-system/components/components.md"), true);
   assert.equal(isCompatibilityScope("docs/plans/2026-01-old.md"), false);
   assert.equal(isCompatibilityScope(".workbuddy/memory/old.md"), false);
+});
+
+test("parseAddedLines maps additions to new-file line numbers", () => {
+  const diff = ["@@ -1,2 +10,3 @@", "-old", "+one", "+two", " context", "+three"].join("\n");
+  assert.deepEqual(parseAddedLines(diff), [
+    { line: 10, text: "one" },
+    { line: 11, text: "two" },
+    { line: 13, text: "three" },
+  ]);
+});
+
+test("flags fixed-name test temp dirs on added lines only", () => {
+  const lines = [
+    { line: 3, text: 'let d = std::env::temp_dir().join("fixed-name");' },
+    { line: 4, text: 'let d = std::env::temp_dir().join(format!("x-{}", id));' },
+  ];
+  assert.deepEqual(
+    findFixedTempDirLines(lines).map((hit) => hit.line),
+    [3],
+  );
 });

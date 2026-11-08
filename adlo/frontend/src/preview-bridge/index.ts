@@ -113,7 +113,9 @@ export async function setupPreviewBridge(): Promise<void> {
   const ptyBridge = createPtyBridge();
   const audioMonitor = new BrowserAudioMonitor();
   window.__adlAudioMonitor = audioMonitor;
-  // 工作区 ctx 由 workspace bridge 维护（open 时更新），events 轮询共享同一对象以读取 rootPath。
+  // 工作区 ctx 由 workspace bridge 维护（open 时更新）；search/git 两桥共享同一对象。
+  // 文件变更轮询不复用该 ctx：监听根由应用层经 `setFilesChangedRoots` 显式声明
+  // （可达 adl-server 时工作区操作走 HTTP，ctx 不会被 preview open 更新）。
   const previewWorkspaceCtx = {
     recentWorkspaces: loadRecentWorkspaces(),
     currentWorkspace: undefined,
@@ -123,11 +125,11 @@ export async function setupPreviewBridge(): Promise<void> {
     previewWorkspaceCtx,
     setMockActiveWorkspace,
   );
-  // search/git/events 三桥共享同一 ctx（open 时更新 currentWorkspace）：
+  // search/git 两桥共享同一 ctx（open 时更新 currentWorkspace）：
   // 独立字面量会导致切换后 search/git 恒读 undefined（事项 45 Phase 4 G3-1.5 同类）。
   const gitBridge = createPreviewGitBridge(previewWorkspaceCtx, setMockActiveWorkspace);
   const searchBridge = createPreviewSearchBridge(previewWorkspaceCtx);
-  const eventsBridge = createPreviewEventsBridge(previewWorkspaceCtx);
+  const eventsBridge = createPreviewEventsBridge();
   const windowBridge = createPreviewWindowBridge(mockDigitalLifeBridge.window);
   const diagnosticBridge = createPreviewDiagnosticBridge(mockDigitalLifeBridge.app);
   const patchBridge = createPreviewPatchBridge(mockDigitalLifeBridge.patch);
@@ -138,6 +140,7 @@ export async function setupPreviewBridge(): Promise<void> {
     ...gitBridge,
     onFileChanged: eventsBridge.onFileChanged,
     onFilesChanged: eventsBridge.onFilesChanged,
+    setFilesChangedRoots: eventsBridge.setFilesChangedRoots,
   };
 
   // `workspace.pickDirectory` (native folder dialog) and
@@ -178,7 +181,7 @@ export async function setupPreviewBridge(): Promise<void> {
       // `Promise` instead of the real unsubscribe (breaks the sync-unsubscribe
       // contract + React effect cleanup). They are returned as-is from the
       // preview impl (same in both reachable and fallback paths).
-      ['onFileChanged', 'onFilesChanged'],
+      ['onFileChanged', 'onFilesChanged', 'setFilesChangedRoots'],
     ),
     retrieval: preferHttpWhenReachable<RetrievalBridge>(
       adlServerBaseUrl,

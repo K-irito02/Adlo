@@ -9,6 +9,7 @@ import {
   toHitEntries,
 } from '../slices/searchSlice';
 import type { WorkspaceFilesChangedBatch, WorkspaceSearchFilter } from '@adlo/kernel';
+import { sameWorkspacePath } from '@shared/workspacePathMatch';
 import type { StoreApi } from 'zustand';
 import { handleExternalBatch } from './editorActions';
 const SCOPE = 'search';
@@ -184,6 +185,19 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
     if (!get().searchQuery.trim() || get().filesSearchScope === 'file') {
       resetRecomputePending();
       return;
+    }
+    // 批次带批次归属时只处理检索目标工作区的批次：批次路径是相对该根的，
+    // 拿别的工作区的同名路径去标陈旧会误伤跨仓同名文件。
+    if (batch.rootPath) {
+      const state = get();
+      const { path: searchWorkspacePath } = resolveSearchWorkspace(
+        state.recentWorkspaces,
+        state.searchTargetWorkspaceId,
+        state.appInfo?.currentWorkspace?.path,
+      );
+      if (!sameWorkspacePath(batch.rootPath, searchWorkspacePath)) {
+        return;
+      }
     }
     batch.changed.forEach((path) => pendingChanged.add(path));
     batch.removed.forEach((path) => pendingRemoved.add(path));

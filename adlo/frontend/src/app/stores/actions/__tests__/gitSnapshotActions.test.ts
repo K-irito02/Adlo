@@ -6,7 +6,12 @@ import {
   createGitSnapshotActions,
 } from '../gitSnapshotActions';
 import { pendingChangePreviewPath, setPendingChangePreviewPath } from '../../cacheHelpers';
-import { getNextChangePreviewRequestSeq, scopedFileKey } from '../../cacheHelpers';
+import {
+  getCachedChangePreview,
+  getNextChangePreviewRequestSeq,
+  scopedFileKey,
+  setCachedChangePreview,
+} from '../../cacheHelpers';
 import { openChangePreviewGeneric } from '../editorActionsHelpers';
 
 interface TestWorkspaceEntry {
@@ -35,6 +40,9 @@ interface TestStore {
   ) => Promise<void>;
   initGitRepo: (workspaceId: string, workspacePath: string) => Promise<boolean>;
   reportSilentError: (...args: unknown[]) => string;
+  selectedChangePreviewPath?: string;
+  selectedChangePreviewWorkspaceId?: string;
+  openChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => Promise<void>;
 }
 
 function makeStore(opts?: {
@@ -43,6 +51,7 @@ function makeStore(opts?: {
   workspaceChangesExpanded?: Record<string, boolean>;
 }) {
   const reportSilentError = vi.fn(() => 'silent-id');
+  const openChangePreviewForWorkspace = vi.fn(async () => {});
   const store = createStore<TestStore>((set, get) => {
     const actions = createGitSnapshotActions(set as never, () => get() as never);
     return {
@@ -55,10 +64,11 @@ function makeStore(opts?: {
       recentWorkspaces: opts?.recentWorkspaces ?? [],
       workspaceChangesExpanded: opts?.workspaceChangesExpanded ?? {},
       reportSilentError,
+      openChangePreviewForWorkspace,
       ...actions,
     } as TestStore;
   });
-  return { store, reportSilentError };
+  return { store, reportSilentError, openChangePreviewForWorkspace };
 }
 
 const snapshotData = { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 0 };
@@ -133,6 +143,119 @@ describe('refreshGitSnapshot', () => {
     });
     await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
     expect(store.getState().workspaceChangesTreeErrors['ws-1']).toBeUndefined();
+  });
+
+  it('选中预览仍在快照中时按新内容重开（diff 与大纲同步）', async () => {
+    vi.mocked(window.digitalLife.workspace.listGitStatusForWorkspace).mockResolvedValue({
+      ok: true,
+      data: {
+        isRepo: true,
+        staged: ['a.txt'],
+        unstaged: [],
+        untracked: [],
+        conflicts: [],
+        capturedAt: 5,
+      },
+    });
+    const { store, openChangePreviewForWorkspace } = makeStore({
+      recentWorkspaces: [{ id: 'ws-1', path: '/p' }],
+    });
+    // 旧 diff 进缓存：重开必须失效它，否则会读回旧内容（本轮修复的核心）。
+    setCachedChangePreview(scopedFileKey('ws-1', 'a.txt'), {
+      baseContent: 'old-base',
+      currentContent: 'old-current',
+    } as never);
+    store.setState({
+      selectedChangePreviewPath: 'a.txt',
+      selectedChangePreviewWorkspaceId: 'ws-1',
+    });
+    await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
+    expect(getCachedChangePreview(scopedFileKey('ws-1', 'a.txt'))).toBeUndefined();
+    expect(openChangePreviewForWorkspace).toHaveBeenCalledWith('/p', 'a.txt');
+  });
+
+  it('当前工作区不在侧栏时按同一 global 键失效缓存', async () => {
+    vi.mocked(window.digitalLife.workspace.listGitStatusForWorkspace).mockResolvedValue({
+      ok: true,
+      data: {
+        isRepo: true,
+        staged: ['a.txt'],
+        unstaged: [],
+        untracked: [],
+        conflicts: [],
+        capturedAt: 5,
+      },
+    });
+    const { store, openChangePreviewForWorkspace } = makeStore({ appInfo: currentWsAppInfo });
+    const globalKey = scopedFileKey(undefined, 'a.txt');
+    setCachedChangePreview(globalKey, {
+      baseContent: 'old-base',
+      currentContent: 'old-current',
+    } as never);
+    store.setState({
+      selectedChangePreviewPath: 'a.txt',
+      selectedChangePreviewWorkspaceId: 'ws-current',
+    });
+
+    await store.getState().refreshGitSnapshot('ws-current', '/current', { silent: true });
+
+    expect(getCachedChangePreview(globalKey)).toBeUndefined();
+    expect(openChangePreviewForWorkspace).toHaveBeenCalledWith('/current', 'a.txt');
+  });
+
+  it('用户预览请求在途时让路（不重开）', async () => {
+    vi.mocked(window.digitalLife.workspace.listGitStatusForWorkspace).mockResolvedValue({
+      ok: true,
+      data: {
+        isRepo: true,
+        staged: ['a.txt'],
+        unstaged: [],
+        untracked: [],
+        conflicts: [],
+        capturedAt: 5,
+      },
+    });
+    const { store, openChangePreviewForWorkspace } = makeStore({
+      recentWorkspaces: [{ id: 'ws-1', path: '/p' }],
+    });
+    store.setState({
+      selectedChangePreviewPath: 'a.txt',
+      selectedChangePreviewWorkspaceId: 'ws-1',
+    });
+    setPendingChangePreviewPath('a.txt');
+    try {
+      await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
+      expect(openChangePreviewForWorkspace).not.toHaveBeenCalled();
+    } finally {
+      setPendingChangePreviewPath(undefined);
+    }
+  });
+
+  it('预览不属于该工作区时不重开', async () => {
+    vi.mocked(window.digitalLife.workspace.listGitStatusForWorkspace).mockResolvedValue({
+      ok: true,
+      data: {
+        isRepo: true,
+        staged: ['a.txt'],
+        unstaged: [],
+        untracked: [],
+        conflicts: [],
+        capturedAt: 5,
+      },
+    });
+    const { store, openChangePreviewForWorkspace } = makeStore({
+      appInfo: currentWsAppInfo,
+      recentWorkspaces: [
+        { id: 'ws-1', path: '/p' },
+        { id: 'ws-2', path: '/other' },
+      ],
+    });
+    store.setState({
+      selectedChangePreviewPath: 'a.txt',
+      selectedChangePreviewWorkspaceId: 'ws-2',
+    });
+    await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
+    expect(openChangePreviewForWorkspace).not.toHaveBeenCalled();
   });
 });
 

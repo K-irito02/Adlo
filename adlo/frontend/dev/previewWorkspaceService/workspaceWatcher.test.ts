@@ -1,9 +1,9 @@
 // @vitest-environment node
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { WorkspaceWatcher } from './workspaceWatcher';
+import { workspaceWatchers, WorkspaceWatcher } from './workspaceWatcher';
 
 describe('WorkspaceWatcher', () => {
   it('aggregates writes and ignores log noise', async () => {
@@ -23,7 +23,6 @@ describe('WorkspaceWatcher', () => {
   it('classifies deletions as removed and ignores .adl-cache', async () => {
     const root = mkdtempSync(join(tmpdir(), 'adl-preview-watch-del-'));
     writeFileSync(join(root, 'gone.txt'), 'bye');
-    const { mkdirSync } = await import('node:fs');
     mkdirSync(join(root, '.adl-cache'), { recursive: true });
     const watcher = new WorkspaceWatcher();
     watcher.start(root);
@@ -48,6 +47,23 @@ describe('WorkspaceWatcher', () => {
     expect(batch.changed).toContain('first.md');
     expect(batch.overflow ?? false).toBe(false);
     watcher.stop();
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('recovers when the root appears after the first ensure', async () => {
+    const root = join(tmpdir(), `adl-preview-watch-late-${process.pid}-${Date.now()}`);
+    const first = workspaceWatchers.ensure(root);
+    expect(first.isWatching()).toBe(false);
+
+    mkdirSync(root, { recursive: true });
+    const again = workspaceWatchers.ensure(root);
+    expect(again.isWatching()).toBe(true);
+
+    writeFileSync(join(root, 'late.md'), 'x');
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    expect(again.since(0).changed).toContain('late.md');
+
+    workspaceWatchers.dispose(root);
     rmSync(root, { recursive: true, force: true });
   });
 });

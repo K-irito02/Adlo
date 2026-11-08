@@ -1,6 +1,6 @@
 # 架构与实现说明
 
-本文档记录 Adlo的架构概念、实现落点与文件路径。规范用词（术语定义与同义项禁用）见 [GLOSSARY.md](./GLOSSARY.md)；本文档不重复定义术语。
+本文档记录 Adlo的架构概念、实现落点与文件路径。规范用词（术语定义与同义项禁用）见 [GLOSSARY.md](./GLOSSARY.md)；架构决策索引见 [docs/adr/README.md](./docs/adr/README.md)；本文档不重复定义术语。
 
 ---
 
@@ -199,7 +199,7 @@ Rust 端 `crates/kernel/src/command_risk.rs`，采用 deny/ask/allow 三态模�
 前端代码编辑器面板，基于 CodeMirror，支持多标签页、语法高亮、diff 对比。存盘链与外部变更跟手见 `adlo/frontend/src/app/stores/editorSavePipeline.ts` 与 `stores/actions/editorActions.ts`；决策见 [ADR-0016](./docs/adr/0016-editor-save-pipeline-boundary.md)，经验见 [编辑器自动保存竞态](./docs/knowledge-base/interaction/editor-autosave-watcher-race-2026-11-08.md)。
 
 ### 工作区 (Workspace)
-项目管理模块，支持 Git 操作（clone/commit/diff/worktree）、文件树、大纲解析、搜索。
+项目管理模块，支持 Git 操作（clone/commit/diff/worktree）、文件树、大纲解析、搜索。文件监听按「监听根」组织：当前工作区 + 侧栏全部已添加工作区各一个 watcher，批次带批次归属（`rootPath`）按工作区分发（决策见 [ADR-0018](./docs/adr/0018-multi-root-workspace-watchers.md)）。
 
 ### 浏览器 (Browser)
 内嵌 WebView（Tauri 模式）和 iframe（浏览器模式）面板，支持多标签页、书签、历史记录。网站元数据缓存（favicon data-URI + 标题）为三层架构：Tauri 端 `crates/browser/src/site_meta_cache.rs`（SQLite）、浏览器端 preview JSON 文件（`.adl-cache/`）、前端内存层 `siteMetaCache.ts`（唯一渲染真源）。

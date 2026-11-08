@@ -76,6 +76,11 @@ export interface WorkspaceSearchPage {
 }
 
 export interface WorkspaceFilesChangedBatch {
+  /**
+   * 批次归属的工作区根路径（与 `recentWorkspaces[].path` 同源）。
+   * 缺省/空串 = 来源未知（断线重连、慢订阅者 overflow），消费端按全部工作区处理。
+   */
+  rootPath?: string;
   /** 变更（新增/修改）文件的工作区相对路径 */
   changed: string[];
   /** 删除文件的工作区相对路径 */

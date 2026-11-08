@@ -147,16 +147,20 @@ function stageIntentToAdd(allowUntracked) {
 
 /** 注释里的「绝对断言」：默认门控，确认后由 claims-ack 放行。 */
 const CLAIM_PATTERN = /必然|总是|永远|从不|唯一|一定|不可达|不会走到|always|never|unreachable/i;
+/** 「数字断言」：注释/文案里的计数容易随代码漂移（本次实测 3 处），与绝对断言同等门控。 */
+const NUMERIC_CLAIM_PATTERN =
+  /\b\d+\s*(?:files?|tests?|passed)\b|\d+\s*个(?:用例|测试|文件|入口|步骤)|上限\s*\d+/i;
 const COMMENT_LINE_PATTERN = /^\s*(\/\/|\/\*|\*|<!--)/;
 
 /**
- * 从本轮快照里挑出「新增注释 + 绝对断言」的行，写 `claims-rev<N>.md`。
+ * 从本轮快照里挑出「新增注释 + 断言类措辞」的行，写 `claims-rev<N>.md`。
  *
  * 为什么需要：R1/R2 的后半场经常全在核「注释说 X、代码是 Y」。压到审查发现前，
  * 让作者先自读一遍最便宜；这是启发式（只覆盖代码注释，不覆盖文档散文），
  * 未在 claims-ack-rev<N>.md 逐条确认时阻断快照生成（`--allow-claims` 可放行）。
+ * `kind`: `absolute`（必然/唯一…）或 `numeric`（计数/上限，容易随实现漂移）。
  */
-function collectClaimHints(files, outDir, rev) {
+export function collectClaimHints(files, outDir, rev) {
   const hints = [];
   for (const file of files) {
     // Markdown prose belongs to P5 docs review; this heuristic targets code comments.
@@ -179,8 +183,15 @@ function collectClaimHints(files, outDir, rev) {
       }
       if (line.startsWith("+")) {
         const text = line.slice(1);
-        if (COMMENT_LINE_PATTERN.test(text) && CLAIM_PATTERN.test(text)) {
-          hints.push({ file, line: newLine, text: text.trim() });
+        if (COMMENT_LINE_PATTERN.test(text)) {
+          const kind = CLAIM_PATTERN.test(text)
+            ? "absolute"
+            : NUMERIC_CLAIM_PATTERN.test(text)
+              ? "numeric"
+              : null;
+          if (kind) {
+            hints.push({ file, line: newLine, text: text.trim(), kind });
+          }
         }
         newLine += 1;
       } else if (!line.startsWith("-")) {
@@ -188,19 +199,35 @@ function collectClaimHints(files, outDir, rev) {
       }
     }
   }
+  const claimsPath = path.join(outDir, `claims-rev${rev}.md`);
+  const ackPath = path.join(outDir, `claims-ack-rev${rev}.md`);
   if (hints.length === 0) {
+    // 同 rev 重新生成且已无断言：清掉上一轮的 claims/ack，避免审查代理读取过期清单
+    // （本仓实测：修复措辞后 rev1 的旧 claims 文件留在目录里，导致一次假阳性复审）。
+    fs.rmSync(claimsPath, { force: true });
+    fs.rmSync(ackPath, { force: true });
     return { hints: [], count: 0 };
   }
+  const absolute = hints.filter((hit) => hit.kind === "absolute");
+  const numeric = hints.filter((hit) => hit.kind === "numeric");
+  const section = (title, items) =>
+    items.length === 0
+      ? []
+      : [
+          `## ${title}`,
+          "",
+          ...items.slice(0, 100).map((hit) => `- ${hit.file}:${hit.line} — ${hit.text}`),
+          "",
+        ];
   const body = [
     `# 待自读的断言 — rev${rev}`,
     "",
-    "下面是本轮**新增注释**里含绝对断言（必然/总是/永远/不会/不可达/唯一/always/never…）的行。",
-    "派发审查前逐条自读：它与**最终代码**相符吗？能由某个测试或分支证明吗？不能就降级措辞。",
+    "派发审查前逐条自读：它与**最终代码**相符吗？能由某个测试或分支证明吗？不能就降级措辞或改成不写具体计数。",
     "",
-    ...hints.slice(0, 100).map((hit) => `- ${hit.file}:${hit.line} — ${hit.text}`),
-    "",
+    ...section("绝对断言（必然/唯一/不可达/always/never…）", absolute),
+    ...section("数字断言（计数/上限/通过数——最容易随实现漂移）", numeric),
   ].join("\n");
-  fs.writeFileSync(path.join(outDir, `claims-rev${rev}.md`), body, "utf8");
+  fs.writeFileSync(claimsPath, body, "utf8");
   return { hints, count: hints.length };
 }
 
@@ -217,18 +244,29 @@ export function validateClaimAck(ackText, hints) {
   return { ok: missing.length === 0, missing };
 }
 
-function writeClaimAckTemplate(ackPath, rev, hints) {
-  if (fs.existsSync(ackPath)) {
+/**
+ * 写/补 ack 模板：同一 rev 重新生成时保留已勾选条目，只追加本轮新增的断言，
+ * 避免「文件已存在就直接 return」导致新断言没有可勾选的行。
+ */
+export function writeClaimAckTemplate(ackPath, rev, hints) {
+  let existing = "";
+  try {
+    existing = fs.readFileSync(ackPath, "utf8");
+  } catch {
+    existing = "";
+  }
+  const missing = hints.filter((hit) => !existing.includes(claimKey(hit)));
+  if (missing.length === 0) {
     return;
   }
-  const body = [
+  const header = [
     `# Claims ack — rev${rev}`,
     "",
     "逐条核对注释与最终代码/测试；确认后把 `[ ]` 改成 `[x]`，并在 `—` 后写证据或降级措辞。",
     "",
-    ...hints.map((hit) => `- [ ] ${claimKey(hit)} — ${hit.text}`),
-    "",
   ].join("\n");
+  const appended = missing.map((hit) => `- [ ] ${claimKey(hit)} — ${hit.text}`).join("\n");
+  const body = existing.trim() ? `${existing.trimEnd()}\n${appended}\n` : `${header}${appended}\n`;
   fs.writeFileSync(ackPath, body, "utf8");
 }
 

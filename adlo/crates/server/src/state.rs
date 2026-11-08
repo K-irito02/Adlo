@@ -102,6 +102,7 @@ pub struct ServerState {
     /// 避免每次进入设置面板都走一次 registry 网络请求；拉取失败时回退旧值。
     pub dsh_catalog_cache:
         Arc<RwLock<Option<(std::time::Instant, adl_harness_version::VersionCatalog)>>>,
-    /// 活动工作区文件监听器（warn+降级：启动失败时保持 `None`，功能退化为无自动刷新）
-    pub workspace_watcher: Arc<StdMutex<Option<adl_workspace::WorkspaceWatcher>>>,
+    /// 文件监听注册表：当前活动工作区 + 侧栏里所有已添加工作区（每根一个 watcher；
+    /// 启动失败 warn 降级为该根无自动刷新，不影响其它根）。
+    pub(crate) workspace_watchers: Arc<StdMutex<crate::workspace_watch::WorkspaceWatchers>>,
 }

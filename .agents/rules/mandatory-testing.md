@@ -195,6 +195,12 @@ ESLint/Clippy 的 `--fix` 自动修复和任何人工修复必须遵守以下约
 
 ---
 
+### 测试临时目录隔离（硬性）
+
+测试创建的临时目录必须**进程唯一**：用 `uuid` 或 `std::process::id()` + 计数器拼目录名；禁止固定名（`temp_dir().join("my-test")`）。并发跑同一 crate 的测试时（例如 `check:changed` 与手动 `cargo test` 同时进行），固定名目录会被两个进程互删，watcher/DB 类用例会挂起或偶发失败。`check-source-hygiene` 对新增行里的固定名临时目录给出 warning（存量逐步清理）。
+
+---
+
 ## 覆盖率收集
 
 覆盖率收集工具配置后自动可用，但**不设硬性门禁**：

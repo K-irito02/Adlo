@@ -140,6 +140,7 @@ pnpm dev:tauri
 - `*.txt` 表示固定名文件；`multi` 模式另有 `*-<时间戳>.txt` 会话文件
 - **release 构建不写 `.adl-logs`**，统一落 `<数据根>/logs/`
 - 检索提示：`.adl-logs/` 已被 `.gitignore` 排除，`Glob`/`Grep` **找不到**它，必须用 `LS` / `Read` 绝对路径
+- **实例属于哪个工作树**：日志写在**运行实例所在工作树**的上述目录。多工作树并行时先用 `pnpm run dev:status` 看 port/token/pid 与「logs(本工作树)」；`managed=false` 的行按 pid 查进程路径定位其工作树，再去该工作树的 `.adl-logs` / `adlo/.adl-logs` 读。
 
 ### 4.1 常见组合示例
 

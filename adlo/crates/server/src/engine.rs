@@ -224,7 +224,9 @@ pub async fn init_server_state(
         env_probe_client,
         dsh_source_cache,
         dsh_catalog_cache,
-        workspace_watcher: Arc::new(StdMutex::new(None)),
+        workspace_watchers: Arc::new(StdMutex::new(
+            crate::workspace_watch::WorkspaceWatchers::new(),
+        )),
     };
     // 启动时按当前来源刷新终端 PATH 注入（只影响之后新建的会话）。
     // 先应用 env 依赖目录（宿主副本 / 指定路径；dsh 拉起与内部 git 都走 PATH），
@@ -245,50 +247,81 @@ pub async fn init_server_state(
         }
     }
     if let Some(root) = restored_root.as_ref() {
-        restart_workspace_watcher(&state, Path::new(root));
+        tracing::debug!(root = %root, "restored active workspace root");
     }
+    // 启动即监听侧栏里所有已添加工作区（不只当前活动根）。
+    sync_workspace_watchers(&state).await;
     Ok(state)
 }
 
-/// 启动/重建活动工作区 watcher：把批次转成 `AppEvent::FilesChanged` 广播给 WS 订阅者。
-/// 失败仅告警（降级为无自动刷新），不影响应用启动。
-///
-/// 生命周期不变量（事项 45 Phase 4 R3 核验结论）：改变"当前工作区"的出口只有
-/// `open`（重建）、`clear-current`（停止）、进程启动恢复（重建）；分支切换等
-/// 只更新元数据（同根），无需重建。`emit` 是 broadcast 非阻塞发送，watcher
-/// 回调永不被反压（慢订阅者侧以 `Lagged→overflow` 降级）。
-pub(crate) fn restart_workspace_watcher(state: &ServerState, root: &std::path::Path) {
-    // 先短持锁取出旧实例，锁外 stop/start：持锁 join 线程会占用 executor，
-    // 且未来回调若需此锁即死锁（事项 45 Phase 4 D1）。
-    let previous = match state.workspace_watcher.lock() {
-        Ok(mut slot) => slot.take(),
-        Err(poisoned) => {
-            tracing::warn!("workspace watcher slot poisoned; recovering");
-            poisoned.into_inner().take()
-        },
-    };
-    if let Some(previous) = previous {
-        previous.stop();
-    }
-    let bus = state.event_bus.clone();
-    let callback = std::sync::Arc::new(move |batch: adl_workspace::FilesChangedBatch| {
-        bus.emit(adl_kernel::events::AppEvent::FilesChanged {
-            changed: batch.changed,
-            removed: batch.removed,
-            overflow: batch.overflow,
-        });
-    });
-    match adl_workspace::WorkspaceWatcher::start(root, callback) {
-        Ok(watcher) => match state.workspace_watcher.lock() {
-            Ok(mut slot) => *slot = Some(watcher),
-            Err(poisoned) => {
-                tracing::warn!("workspace watcher slot poisoned; recovering");
-                *poisoned.into_inner() = Some(watcher);
-            },
+/// 收集需要监听的根：当前活动工作区（如有）+ 侧栏里所有「已添加」工作区
+/// （不过滤 `available`：由注册表的 `is_dir()` 剔除离线/已删除路径）。
+/// 顺序决定截断优先级（当前工作区在前，其次按侧栏 DB 存储顺序——不是呈现顺序）。
+/// 侧栏读取失败返回 `Err`：调用方必须**跳过本次对账**，不能用残缺集合停掉现有监听。
+fn collect_watch_roots(state: &ServerState) -> Result<Vec<String>, AppError> {
+    let mut roots: Vec<String> = Vec::new();
+    match state.current_workspace.read() {
+        Ok(current) => {
+            if let Some(meta) = current.as_ref() {
+                roots.push(meta.path.clone());
+            }
         },
         Err(err) => {
-            tracing::warn!(error = %err, root = %root.display(), "workspace watcher disabled")
+            // 锁 poison 时仍可读侧栏集合；只记录告警，不因缺当前根把其它根停掉。
+            tracing::warn!(error = %err, "current workspace lock poisoned; using sidebar roots only");
         },
+    }
+    roots.extend(crate::handlers::workspace_sidebar::watch_roots_with_db(&state.db)?);
+    Ok(roots)
+}
+
+/// 同步所有已添加工作区的 watcher 集合：新增的启动、移除的停止。
+/// 失败仅告警（降级为无自动刷新），不影响应用运行。
+///
+/// 生命周期不变量：改变"监听集合"（已添加工作区 / 当前工作区）的出口是
+/// `workspace_open`、`sidebar/remove`、进程启动恢复与 `clear-current`；它们都调用
+/// 本函数做集合对账。分支切换等只更新元数据（同根），无需重建。
+///
+/// 阻塞边界：SQLite 读、`is_dir()`（网络盘可阻塞）、OS watcher 创建与 `stop()` 的
+/// 线程 join 全部同步；必须走 `spawn_blocking`，不得占用 tokio worker（与 handler
+/// 配方一致）。根快照在锁内采集，避免并发出口用旧快照覆盖新集合。
+pub(crate) async fn sync_workspace_watchers(state: &ServerState) {
+    let blocking_state = state.clone();
+    let outcome = tokio::task::spawn_blocking(move || {
+        sync_workspace_watchers_blocking(&blocking_state);
+    })
+    .await;
+    if let Err(err) = outcome {
+        tracing::warn!(error = %err, "workspace watchers sync task failed");
+    }
+}
+
+fn sync_workspace_watchers_blocking(state: &ServerState) {
+    let bus = state.event_bus.clone();
+    let removed = match state.workspace_watchers.lock() {
+        Ok(mut slot) => match collect_watch_roots(state) {
+            Ok(roots) => slot.sync(roots, &bus),
+            Err(err) => {
+                // 读不到侧栏 ≠ 要停掉监听：保留现有集合，等下一次出口自愈。
+                tracing::warn!(error = %err, "workspace watcher roots: sidebar read failed; keeping current watchers");
+                return;
+            },
+        },
+        Err(poisoned) => {
+            tracing::warn!("workspace watchers slot poisoned; recovering");
+            let mut slot = poisoned.into_inner();
+            match collect_watch_roots(state) {
+                Ok(roots) => slot.sync(roots, &bus),
+                Err(err) => {
+                    tracing::warn!(error = %err, "workspace watcher roots: sidebar read failed; keeping current watchers");
+                    return;
+                },
+            }
+        },
+    };
+    // 锁外 stop：只避免持锁 join 造成死锁；join 本身发生在阻塞池线程，不占用 executor。
+    for watcher in removed {
+        watcher.stop();
     }
 }
 
@@ -491,5 +524,50 @@ mod startup_migration_tests {
         assert_eq!(*order.borrow(), vec!["migrate", "load"], "migration must precede locator load");
         assert_eq!(svc.paths().root, PathBuf::from("/migrated-root"));
         assert_ne!(svc.paths().root, PathBuf::from("/data-dir"));
+    }
+}
+
+#[cfg(test)]
+mod watcher_sync_tests {
+    use super::*;
+    use crate::test_util::test_server_state;
+
+    /// 侧栏 DB 读失败必须跳过本次对账（不能把已有 watcher 当成"已移除"停掉）。
+    #[test]
+    fn sidebar_read_failure_keeps_existing_watchers() {
+        let state = test_server_state();
+        let dir = std::env::temp_dir().join(format!(
+            "adl-watch-keep-{}-{}",
+            std::process::id(),
+            std::line!()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let entries = serde_json::json!([{
+            "id": "ws-a",
+            "path": dir.to_string_lossy(),
+            "rootPath": dir.to_string_lossy(),
+            "name": "a",
+            "lastOpenedAt": 0,
+            "isPinned": false,
+            "pinnedOrder": 0,
+            "unpinnedOrder": 0,
+            "removedFromSidebar": false,
+            "available": true
+        }]);
+        state.db.put_state("recent_workspaces_sidebar_v1", &entries.to_string()).unwrap();
+
+        sync_workspace_watchers_blocking(&state);
+        assert_eq!(state.workspace_watchers.lock().unwrap().watcher_count(), 1);
+
+        state.db.put_state("recent_workspaces_sidebar_v1", "not-json").unwrap();
+        sync_workspace_watchers_blocking(&state);
+        assert_eq!(
+            state.workspace_watchers.lock().unwrap().watcher_count(),
+            1,
+            "sidebar read failure must keep the existing watchers"
+        );
+
+        state.workspace_watchers.lock().unwrap().stop_all();
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -24,6 +24,41 @@ const MOJIBAKE_MARKERS = ["\u951f\u65a4\u62f7", "\u70eb\u70eb\u70eb", "\u5c6f\u5
 /** 临时诊断日志前缀：留下即生产日志噪声，必须清理。 */
 const DEBUG_TAG_PATTERN = /\[(?:DBG-|ADL-DEBUG\])/;
 
+/**
+ * 测试临时目录必须进程唯一（uuid 或 `process::id()`）：固定名目录在并发跑同一
+ * crate 的测试时会互删（本仓实测：watcher 测试盯着被删目录挂起 249s）。
+ * 仅对新增行做 warning，不阻断（存量用例逐步清理）。
+ */
+const FIXED_TEMP_DIR_PATTERN = /temp_dir\(\)\s*\.join\(\s*"/;
+
+/** 从 `git diff -U0` 输出解析「新增行」及其在**新文件**里的行号。纯函数，供单测。 */
+export function parseAddedLines(diffText) {
+  const lines = [];
+  let newLine = 0;
+  for (const raw of diffText.split(/\r?\n/)) {
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(raw);
+    if (hunk) {
+      newLine = Number(hunk[1]);
+      continue;
+    }
+    if (raw.startsWith("+++") || raw.startsWith("---") || raw.startsWith("\\")) {
+      continue;
+    }
+    if (raw.startsWith("+")) {
+      lines.push({ line: newLine, text: raw.slice(1) });
+      newLine += 1;
+    } else if (raw.startsWith(" ")) {
+      newLine += 1;
+    }
+  }
+  return lines;
+}
+
+/** 固定名临时目录（新增行）。纯函数，供单测。 */
+export function findFixedTempDirLines(lines) {
+  return lines.filter((line) => FIXED_TEMP_DIR_PATTERN.test(line.text));
+}
+
 /** 返回注释行里含字面量 `\n` 的行（1-based 行号）。纯函数，供单测。hygiene-allow */
 export function findLiteralEscapedNewlines(text) {
   const hits = [];
@@ -142,10 +177,14 @@ function changedFiles(git) {
   }
   const tracked = readStdout(git(["diff", "--name-only", "--diff-filter=ACMR", base]));
   const untracked = readStdout(git(["ls-files", "--others", "--exclude-standard", "--full-name"]));
-  const files = [...new Set([...tracked.split(/\r?\n/), ...untracked.split(/\r?\n/)])]
+  const untrackedFiles = untracked
+    .split(/\r?\n/)
+    .map((file) => file.trim())
+    .filter(Boolean);
+  const files = [...new Set([...tracked.split(/\r?\n/), ...untrackedFiles])]
     .map((file) => file.trim())
     .filter((file) => CHECK_EXTENSIONS.has(path.extname(file)));
-  return { base, files };
+  return { base, files, untracked: untrackedFiles };
 }
 
 /** 从 cwd 向上找 `.git`（工作树里是文件、普通仓库是目录），不依赖可能被 hook 改写的 GIT_DIR。 */
@@ -171,12 +210,14 @@ function main() {
   }
 
   const git = createGit(repoRoot);
-  const { base, files } = changedFiles(git);
+  const { base, files, untracked } = changedFiles(git);
+  const untrackedSet = new Set(untracked);
   if (process.env.ADL_HYGIENE_DEBUG === "1") {
     console.error(`[hygiene:debug] repoRoot=${repoRoot} base=${base} files=${files.length}`);
   }
 
   const offenders = [];
+  const warnings = [];
   for (const relative of files) {
     const absolute = path.join(repoRoot, relative);
     let text;
@@ -186,7 +227,28 @@ function main() {
       continue;
     }
     const extension = path.extname(relative);
+
+    // 新增行（新文件行号）按需计算：`legacy-compat` / `temp-dir` 只针对本次改动，
+    // 避免「碰一下老文件」就被历史遗留措辞连坐（本仓实测：改 pending 逻辑时被
+    // 文件里既有的「旧格式 .doc」注释拦下，被迫加无关的 compat-allow）。
+    let addedMemo;
+    const addedLines = () => {
+      if (addedMemo !== undefined) {
+        return addedMemo;
+      }
+      if (untrackedSet.has(relative)) {
+        addedMemo = text
+          .split(/\r?\n/)
+          .map((lineText, index) => ({ line: index + 1, text: lineText }));
+        return addedMemo;
+      }
+      const diff = readStdout(git(["diff", "-U0", "--no-color", base, "--", relative]));
+      addedMemo = parseAddedLines(diff);
+      return addedMemo;
+    };
+
     if (SOURCE_EXTENSIONS.has(extension)) {
+      // 字面量 `\n` 与诊断日志是「零基线」不变量：整文件仍全查（历史残留也应修）。
       for (const hit of findLiteralEscapedNewlines(text)) {
         offenders.push(`[literal \\n] ${relative}:${hit.line}  ${hit.text.slice(0, 160)}`);
       }
@@ -204,8 +266,27 @@ function main() {
       offenders.push(`[BOM] ${relative}:1  UTF-8 BOM (write UTF-8 without BOM)`);
     }
     if (isCompatibilityScope(relative)) {
-      for (const hit of findLegacyCompatibility(text)) {
-        offenders.push(`[legacy-compat] ${relative}:${hit.line}  ${hit.text.slice(0, 160)}`);
+      const hits = findLegacyCompatibility(
+        addedLines()
+          .map((line) => line.text)
+          .join("\n"),
+      );
+      for (const hit of hits) {
+        const source = addedLines()[hit.line - 1];
+        offenders.push(
+          `[legacy-compat] ${relative}:${source?.line ?? hit.line}  ${hit.text.slice(0, 160)}`,
+        );
+      }
+    }
+    if (
+      relative.startsWith("adlo/crates/") &&
+      relative.endsWith(".rs") &&
+      (relative.includes("/tests/") || text.includes("#[cfg(test)]"))
+    ) {
+      for (const hit of findFixedTempDirLines(addedLines())) {
+        warnings.push(
+          `[temp-dir] ${relative}:${hit.line}  测试临时目录必须进程唯一（uuid 或 process::id()）`,
+        );
       }
     }
   }
@@ -219,6 +300,13 @@ function main() {
       '[hygiene] use edit/write (not shell -replace/Set-Content/sed). Add "hygiene-allow" for an intentional literal/encoding sample, or "compat-allow: <reason>" only for a real external format. The unreleased product must not carry data-format compatibility code.',
     );
     process.exit(1);
+  }
+
+  if (warnings.length > 0) {
+    console.warn("[hygiene] advisory warnings (not failing):");
+    for (const entry of warnings) {
+      console.warn(`  ${entry}`);
+    }
   }
 
   console.log("[hygiene] ok");

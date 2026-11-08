@@ -1,0 +1,39 @@
+# 架构决策记录（ADR）
+
+按域分组的索引。新决策在 `docs/adr/` 用下一个编号新建，并在本表登记一行；被推翻的决策改 `Status` 并在此标「已废弃」。
+
+## 工作区、文件变更与编辑器
+
+- [0003 只监听当前工作区，焦点回归补刷兜底](./0003-watch-current-workspace-only.md) — **已废弃**，由 0018 取代
+- [0015 本地 Git 初始化必须显式指定工作区路径](./0015-local-git-init-explicit-workspace.md) — 只创建本地 `.git`，不联网
+- [0016 编辑器存盘分离草稿 / 已保存版本 / 外部版本](./0016-editor-save-pipeline-boundary.md) — 自写回声不触发冲突
+- [0018 为所有已添加工作区各建监听根](./0018-multi-root-workspace-watchers.md) — 批次携带批次归属，按根刷新
+
+## 环境、Harness 与依赖
+
+- [0004 Harness 版本管理收敛为通用层](./0004-harness-provisioning-without-bundling.md) — 取消安装包内置版本
+- [0005 宿主托管 CLI 通过终端 PATH 注入生效](./0005-terminal-path-injection-for-hosted-cli.md)
+- [0008 版本管理只保留单卡单行集合](./0008-version-card-single-row-set.md)
+- [0010 宿主托管 OpenCode CLI 使用独立会话数据库](./0010-hosted-opencode-database-isolation.md)
+- [0011 OpenCode CLI 2.x 与 1.x 共用一套版本管理 UI](./0011-opencode-2x-package-line.md)
+- [0012 环境依赖通过进程级 PATH 注入生效](./0012-env-dependency-path-injection.md)
+
+## 网络与来源
+
+- [0006 自动检测代理不可达时静默改走直连](./0006-proxy-auto-silent-direct-fallback.md) — 自定义代理不回退
+- [0007 设置项始终显示偏好，解析结果与可用性分列](./0007-auto-preference-vs-resolved-source.md)
+
+## 设置与刷新
+
+- [0009 设置刷新按行/块限定作用域，环境按依赖重检](./0009-settings-refresh-scope-and-recheck.md)
+
+## 浏览器与预览
+
+- [0001 浏览器 WebView 按宿主分三个 UDF 隔离](./0001-browser-udf-isolation.md)
+- [0002 文件预览用无文字扫光占位并按文件身份缓存](./0002-preview-loading-and-cache.md)
+- [0017 书签为独立实体，导入导出保留来源标签弱引用](./0017-bookmark-transfer-and-identity.md) — 书签条目与活标签页解耦
+
+## 品牌、工具链与 Git 可视化
+
+- [0013 品牌改名后保留 `adl` 工程前缀](./0013-retain-adl-prefix-after-rename.md)
+- [0014 分支配色优先保持稳定，超过色板容量时允许复用](./0014-stable-branch-color-assignment.md)

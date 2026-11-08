@@ -1030,6 +1030,8 @@ export function createHttpBridge({
       },
       onFilesChanged: (listener: (batch: WorkspaceFilesChangedBatch) => void) =>
         getWorkspaceEvents().onFilesChanged(listener),
+      // 桌面/HTTP：监听根由 adl-server 按侧栏数据库自行派生，前端声明为 no-op。
+      setFilesChangedRoots: (_roots: string[]) => {},
       getGitStatus: () => call<GitSnapshot>(baseUrl, '/workspace/git/status', POST({})),
       listGitBranches: (rootPath?: string) =>
         call<GitBranchSummary[]>(

@@ -72,6 +72,41 @@ describe('createWorkspaceEventsClient', () => {
     client.dispose();
   });
 
+  it('carries the batch rootPath so consumers can route to one workspace', () => {
+    const client = createWorkspaceEventsClient('http://h', {
+      wsFactory,
+      reconnectDelayMs: 10,
+    });
+    const received: unknown[] = [];
+    const unsubscribe = client.onFilesChanged((batch) => received.push(batch));
+    const socket = FakeSocket.instances[0];
+    socket.serverOpen();
+    socket.serverSend(
+      JSON.stringify({
+        kind: 'files-changed',
+        rootPath: 'E:/repo',
+        changed: ['a.md'],
+        removed: [],
+        overflow: false,
+      }),
+    );
+    socket.serverSend(
+      JSON.stringify({
+        kind: 'files-changed',
+        rootPath: '',
+        changed: ['b.md'],
+        removed: [],
+        overflow: false,
+      }),
+    );
+    expect(received).toEqual([
+      { rootPath: 'E:/repo', changed: ['a.md'], removed: [], overflow: false },
+      { changed: ['b.md'], removed: [], overflow: false },
+    ]);
+    unsubscribe();
+    client.dispose();
+  });
+
   it('ignores null frames without throwing', () => {
     const client = createWorkspaceEventsClient('http://h', {
       wsFactory,

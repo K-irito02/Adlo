@@ -42,8 +42,11 @@ pub enum AppEvent {
     FileChanged {
         path: String,
     },
-    /// 活动工作区内的文件批量变更（由 `adl-workspace` 的 watcher 产出，经 WS 推送）。
+    /// 某个已监听工作区内的文件批量变更（由 `adl-workspace` 的 watcher 产出，经 WS 推送）。
+    /// `root_path` 标识批次归属的工作区根；空串表示"来源未知，按全部工作区处理"
+    /// （断线重连/慢订阅者 overflow 时无法确定单一根）。
     FilesChanged {
+        root_path: String,
         changed: Vec<String>,
         removed: Vec<String>,
         overflow: bool,
@@ -119,7 +122,8 @@ impl AppEvent {
     pub fn to_json(&self) -> serde_json::Value {
         let mut obj = serde_json::Map::new();
         obj.insert("type".into(), serde_json::Value::String(self.kind().to_string()));
-        if let Self::FilesChanged { changed, removed, overflow } = self {
+        if let Self::FilesChanged { root_path, changed, removed, overflow } = self {
+            obj.insert("rootPath".into(), serde_json::Value::String(root_path.clone()));
             obj.insert("changed".into(), serde_json::json!(changed));
             obj.insert("removed".into(), serde_json::json!(removed));
             obj.insert("overflow".into(), serde_json::json!(overflow));
@@ -150,6 +154,7 @@ mod tests {
     #[test]
     fn files_changed_event_kind_and_payload() {
         let event = AppEvent::FilesChanged {
+            root_path: "E:/repo".to_string(),
             changed: vec!["a.txt".to_string()],
             removed: vec![],
             overflow: false,
@@ -157,6 +162,7 @@ mod tests {
         assert_eq!(event.kind(), "workspace.files-changed");
         let json = event.to_json();
         assert_eq!(json["type"], "workspace.files-changed");
+        assert_eq!(json["rootPath"], "E:/repo");
         assert_eq!(json["changed"][0], "a.txt");
         assert_eq!(json["removed"].as_array().unwrap().len(), 0);
         assert_eq!(json["overflow"], false);
