@@ -34,7 +34,7 @@
   align-items: center;
   gap: var(--space-1);
   /* 与其它面板第一行工具栏（.adl-tool-context--files）同高：40px。
-     导航栏「折叠/展开第一行工具栏」按钮对五个面板统一生效，
+     工具切换器「折叠/展开第一行工具栏」按钮对五个面板统一生效，
      展开态的高度也须一致，否则设置面板看起来像另一套工具栏。 */
   min-height: 40px;
   padding: var(--space-1-5) var(--space-2);

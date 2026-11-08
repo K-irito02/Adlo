@@ -75,7 +75,7 @@ await page.click('button[aria-label="展开工具栏"]');
 await page.waitForSelector('.adl-rightpanel:not(.adl-rightpanel--toolbar-collapsed)');
 ```
 
-> 状态全局一份（`adl:ui.rightPanelToolbarCollapsed`），五个工具面板统一折叠；折叠后只隐藏各面板第一行工具栏，导航栏保留。
+> 状态全局一份（`adl:ui.rightPanelToolbarCollapsed`），五个工具面板统一折叠；折叠后只隐藏各面板第一行工具栏，工具切换器保留。
 
 ### 折叠右侧面板
 

@@ -442,7 +442,7 @@ export const registry = {
     read: readBooleanRecord,
   }),
   // 右侧面板第一行工具栏折叠态：全局统一一份（不按面板分别持久化），
-  // 供导航栏「折叠/展开工具栏」按钮写、RightPanel 根节点读。
+  // 供工具切换器「折叠/展开工具栏」按钮写、RightPanel 根节点读。
   'adl:ui.rightPanelToolbarCollapsed': defineEntry<boolean>({
     key: 'adl:ui.rightPanelToolbarCollapsed',
     field: 'rightPanelToolbarCollapsed',

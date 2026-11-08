@@ -113,7 +113,7 @@ await page.waitForSelector('.adl-rightpanel:not(.adl-rightpanel--toolbar-collaps
 | 持久化键 | `adl:ui.rightPanelToolbarCollapsed` |
 | 作用范围 | 全局一份，五个工具面板统一（不按面板拆分） |
 
-折叠后各工具面板第一行工具栏隐藏（文件/变更/浏览器/终端为 `.adl-tool-context`，设置为设置面板头部），导航栏保留；中心区（中间）的终端/浏览器工具栏不受影响。
+折叠后各工具面板第一行工具栏隐藏（文件/变更/浏览器/终端为 `.adl-tool-context`，设置为设置面板头部），工具切换器保留；中心的终端/浏览器工具栏不受影响。
 
 ---
 

@@ -44,7 +44,7 @@
   .adl-tool-list__item-close{opacity:1}` 使其同步。
 - **长名截断用 CSS 宽度驱动而非 JS 字符数**：由 `max-width + text-overflow:ellipsis` 决定，行为随容器
   连续变化；可见截断与可访问名分离（`aria-label` 补全完整名称，触屏无 tooltip 时仍可获知）。
-- **高度对齐口径**：右侧「面板切换导航栏」高 = 30px 按钮 + 1px 底边 = 31px；中心工具栏 `min-height:31px`
+- **高度对齐口径**：右侧「工具切换器」高 = 30px 按钮 + 1px 底边 = 31px；中心工具栏 `min-height:31px`
   （`border-box` 已含 1px 底边）与之一致。
 - **作用域隔离**：终端工具栏的收缩/下限规则须限定 `:not(.adl-center-terminal)`，避免波及中心终端
   （其 `--grow` 是空占位组）；中心视图的覆盖统一用 `.adl-center-*` 前缀，右侧面板不受影响。
