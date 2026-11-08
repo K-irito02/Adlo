@@ -23,3 +23,12 @@ describe('RightPanel no longer hosts the legacy models tool', () => {
     expect(existsSync(providerManagerPath)).toBe(false);
   });
 });
+
+describe('RightPanel first-row toolbar collapse', () => {
+  it('wires the global toolbar state into the panel root class helper', () => {
+    expect(rightPanelSource).toContain('rightPanelToolbarCollapsed');
+    expect(rightPanelSource).toContain(
+      'rightPanelRootClassName(collapsed, rightPanelToolbarCollapsed)',
+    );
+  });
+});

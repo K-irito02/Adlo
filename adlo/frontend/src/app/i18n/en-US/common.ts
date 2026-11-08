@@ -8,6 +8,8 @@ export const commonEn = {
   panelNavigatorToggle: 'Toggle sidebar',
   rightPanelExpand: 'Expand panel',
   rightPanelRestore: 'Restore panel',
+  rightPanelToolbarCollapse: 'Collapse toolbar',
+  rightPanelToolbarExpand: 'Expand toolbar',
   windowMinimize: 'Minimize',
   windowMaximize: 'Maximize',
   windowRestore: 'Restore',

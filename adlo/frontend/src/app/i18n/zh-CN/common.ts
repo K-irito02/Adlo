@@ -8,6 +8,8 @@ export const commonZh = {
   panelNavigatorToggle: '右侧面板-切换左侧边栏',
   rightPanelExpand: '扩大右侧面板',
   rightPanelRestore: '还原右侧面板',
+  rightPanelToolbarCollapse: '折叠工具栏',
+  rightPanelToolbarExpand: '展开工具栏',
   windowMinimize: '最小化',
   windowMaximize: '最大化',
   windowRestore: '还原',

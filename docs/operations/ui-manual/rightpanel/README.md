@@ -47,6 +47,7 @@
 | `.adl-rightpanel` | 右侧面板容器 |
 | `.adl-rightpanel__content` | 内容区域 |
 | `.adl-rightpanel--collapsed` | 折叠状态 |
+| `.adl-rightpanel--toolbar-collapsed` | 第一行工具栏折叠状态 |
 | `.adl-rightpanel--overlay-active` | 覆盖模式激活 |
 | `.adl-rightpanel--overlay-expanded` | 覆盖模式完全展开 |
 
@@ -56,11 +57,25 @@
 
 ```javascript
 // 点击工具标签
-await page.click('.adl-tool-switcher__tab[aria-label="文件"]');
+await page.click('.adl-toolswitcher__tab[aria-label="文件"]');
 
 // 等待面板激活
-await page.waitForSelector('#files-panel.is-active');
+await page.waitForSelector('.adl-rightpanel__tool.is-active');
 ```
+
+### 折叠 / 展开第一行工具栏
+
+```javascript
+// 展开态 → 折叠（按钮名称随状态变化）
+await page.click('button[aria-label="折叠工具栏"]');
+await page.waitForSelector('.adl-rightpanel--toolbar-collapsed');
+
+// 折叠态 → 展开
+await page.click('button[aria-label="展开工具栏"]');
+await page.waitForSelector('.adl-rightpanel:not(.adl-rightpanel--toolbar-collapsed)');
+```
+
+> 状态全局一份（`adl:ui.rightPanelToolbarCollapsed`），五个工具面板统一折叠；折叠后只隐藏各面板第一行工具栏，导航栏保留。
 
 ### 折叠右侧面板
 
@@ -92,6 +107,7 @@ await page.mouse.up();
 |------|----------|------|
 | 展开 | - | 默认状态 |
 | 折叠 | `.adl-rightpanel--collapsed` | 隐藏内容 |
+| 第一行工具栏折叠 | `.adl-rightpanel--toolbar-collapsed` | 只隐藏各面板第一行工具栏 |
 
 ### 覆盖模式
 

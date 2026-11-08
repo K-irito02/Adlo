@@ -53,6 +53,17 @@ export interface RightPanelOverlayState {
   overlayExpanded: boolean;
 }
 
+/**
+ * 面板根节点的 class 组合：整体折叠（`--collapsed`）与第一行工具栏折叠
+ * （`--toolbar-collapsed`）是两件独立的事，任何一个都不能吞掉另一个。
+ * 抽成纯函数以便做真值表测试（源码子串断言无法发现条件反转）。
+ */
+export function rightPanelRootClassName(collapsed: boolean, toolbarCollapsed: boolean): string {
+  return `adl-rightpanel${collapsed ? ' adl-rightpanel--collapsed' : ''}${
+    toolbarCollapsed ? ' adl-rightpanel--toolbar-collapsed' : ''
+  }`;
+}
+
 export function deriveRightPanelOverlayState(
   mode: RightPanelMode,
   collapsed: boolean,

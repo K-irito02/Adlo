@@ -168,14 +168,17 @@ a[aria-label="帮助"]
 | 元素         | 选择器                                               |
 | ------------ | ---------------------------------------------------- |
 | 右侧面板容器 | `.adl-rightpanel`                                    |
-| 工具切换器   | `.adl-tool-switcher`                                 |
-| 工具标签     | `.adl-tool-switcher__tab`                            |
-| 激活标签     | `.adl-tool-switcher__tab.is-active`                  |
-| 文件面板     | `#files-panel` 或 `[aria-labelledby*="files"]`       |
-| 变更面板     | `#changes-panel` 或 `[aria-labelledby*="changes"]`   |
-| 浏览器面板   | `#browser-panel` 或 `[aria-labelledby*="browser"]`   |
-| 终端面板     | `#terminal-panel` 或 `[aria-labelledby*="terminal"]`   |
-| 设置面板     | `#settings-panel` 或 `[aria-labelledby*="settings"]` |
+| 工具切换器   | `.adl-toolswitcher`                                  |
+| 工具标签     | `.adl-toolswitcher__tab`                             |
+| 激活标签     | `.adl-toolswitcher__tab.is-active`                   |
+| 第一行工具栏折叠态 | `.adl-rightpanel--toolbar-collapsed`          |
+| 工具栏开关   | `button[aria-label="折叠工具栏"]` / `button[aria-label="展开工具栏"]` |
+| 文件面板     | `[id$="-files-panel"]` 或 `[aria-labelledby*="files"]`       |
+| 变更面板     | `[id$="-changes-panel"]` 或 `[aria-labelledby*="changes"]`   |
+| 浏览器面板   | `[id$="-browser-panel"]` 或 `[aria-labelledby*="browser"]`   |
+| 终端面板     | `[id$="-terminal-panel"]` 或 `[aria-labelledby*="terminal"]`   |
+| 设置面板     | `[id$="-settings-panel"]` 或 `[aria-labelledby*="settings"]` |
+| 展开/还原按钮 | `.adl-toolswitcher__expand`                         |
 | 调整手柄     | `.adl-rightpanel__resize-handle`                     | ⚠️ 仅 3px `::before` 线可拖拽（容器不吃指针，层级低于弹层遮罩） |
 
 ## 注意事项

@@ -2,8 +2,31 @@ import { describe, expect, it } from 'vitest';
 import {
   deriveRightPanelOverlayState,
   resolveOverlayAnchorWidth,
+  rightPanelRootClassName,
   shouldSkipPassiveLayoutSync,
 } from './rightPanelLayout';
+
+describe('rightPanelRootClassName', () => {
+  it('emits neither modifier when fully expanded', () => {
+    expect(rightPanelRootClassName(false, false)).toBe('adl-rightpanel');
+  });
+
+  it('emits only the toolbar modifier when just the toolbar is collapsed', () => {
+    expect(rightPanelRootClassName(false, true)).toBe(
+      'adl-rightpanel adl-rightpanel--toolbar-collapsed',
+    );
+  });
+
+  it('emits only the panel modifier when the whole panel is collapsed', () => {
+    expect(rightPanelRootClassName(true, false)).toBe('adl-rightpanel adl-rightpanel--collapsed');
+  });
+
+  it('emits both modifiers independently', () => {
+    expect(rightPanelRootClassName(true, true)).toBe(
+      'adl-rightpanel adl-rightpanel--collapsed adl-rightpanel--toolbar-collapsed',
+    );
+  });
+});
 
 describe('rightPanelLayout', () => {
   it('clears overlay state when the panel is collapsed from partial overlay', () => {

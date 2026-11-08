@@ -231,6 +231,12 @@ export interface UISlice {
    */
   siblingWebviewNonce: number;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
+  /**
+   * 右侧面板第一行工具栏是否整体折叠（文件/变更/浏览器/终端为 `.adl-tool-context`，
+   * 设置为面板头部）。全局统一一份，不按面板分别持久化，
+   * 读盘/落盘键为 `adl:ui.rightPanelToolbarCollapsed`。
+   */
+  rightPanelToolbarCollapsed: boolean;
   /** 变更状态过滤器（`adl:changes.statusFilter`，Task 23；空集 = 不过滤） */
   changesStatusFilter: Set<ChangeFileState>;
   /** 变更大纲展开项（按工作区隔离，`adl:changes.outlineExpanded`，Task 23） */
@@ -334,6 +340,8 @@ export interface UISlice {
   bumpSiblingWebviewNonce: () => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
   toggleNavigator: (tool: ToolId) => void;
+  /** 切换右侧面板第一行工具栏折叠态（全局统一，落盘 `adl:ui.rightPanelToolbarCollapsed`）。 */
+  toggleRightPanelToolbar: () => void;
   setChangesStatusFilter: (filter: Set<ChangeFileState>) => void;
   toggleChangesStatusFilter: (filter: ChangeFileState) => void;
   setChangesOutlineExpanded: (workspaceId: string, ids: string[]) => void;

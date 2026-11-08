@@ -50,6 +50,12 @@ describe('hydrateAll', () => {
     expect(patch.workspaceTreeExpandedInFileNav).toEqual({});
   });
 
+  it('reads the global right-panel toolbar collapsed flag', () => {
+    localStorage.setItem('adl:ui.rightPanelToolbarCollapsed', 'true');
+    const { patch } = hydrateAll();
+    expect(patch.rightPanelToolbarCollapsed).toBe(true);
+  });
+
   it('only performs the actual read once (idempotent)', () => {
     localStorage.setItem(KEY, JSON.stringify({ workspace_a: true }));
     const first = hydrateAll();

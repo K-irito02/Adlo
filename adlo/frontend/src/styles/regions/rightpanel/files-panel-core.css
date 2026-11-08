@@ -174,6 +174,17 @@
   padding: var(--space-1-5) var(--space-2);
 }
 
+/* 导航栏「折叠工具栏」开启时，右侧面板内所有工具面板的第一行工具栏整体隐藏：
+   文件/变更/浏览器/终端为 .adl-tool-context，设置为面板头部自身类。
+   选择器限定在 .adl-rightpanel 内 —— 中心区同类工具栏
+   （.adl-center-browser / .adl-center-terminal）不受影响。
+   折叠后内容区顶边与中间区内容区顶边对齐（实测面板顶 36 → 两侧内容顶 67：
+   导航栏 31px 之下；展开时右侧内容顶为 107，即再多 40px 工具栏）。 */
+.adl-rightpanel--toolbar-collapsed .adl-tool-context,
+.adl-rightpanel--toolbar-collapsed .adl-settings-panel__header {
+  display: none;
+}
+
 /* 中心视图工具栏：仅中心降高，与右侧面板「面板切换导航栏」
    （.adl-toolswitcher / .adl-iconstrip，30px 按钮 + 1px 底边 = 31px）等高；
    右侧面板工具栏不变。本元素为 border-box，min-height 31px 已含 1px 底边，

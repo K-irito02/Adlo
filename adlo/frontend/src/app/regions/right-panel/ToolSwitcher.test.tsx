@@ -27,7 +27,10 @@ const badges: Record<ToolId, number> = {
   settings: 0,
 };
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  useAppStore.setState({ rightPanelToolbarCollapsed: false });
+});
 
 function renderSwitcher() {
   return render(
@@ -62,6 +65,37 @@ describe('ToolSwitcher', () => {
   it('renders five tool tabs and no removed communicate tab', () => {
     renderSwitcher();
     expect(screen.queryByRole('tab', { name: 'toolCommunicate' })).not.toBeInTheDocument();
+  });
+
+  it('renders the toolbar toggle left of the expand button, separated by a hairline', () => {
+    const { container } = renderSwitcher();
+    const toggle = screen.getByRole('button', { name: 'rightPanelToolbarCollapse' });
+    // 名称随状态变化（折叠/展开），因此不再叠加 aria-pressed —— 否则 AT 会播报
+    // 「展开工具栏 · 已按下」这种自相矛盾的状态。
+    expect(toggle).not.toHaveAttribute('aria-pressed');
+
+    const actions = container.querySelector('.adl-toolswitcher__actions');
+    const separator = actions?.querySelector('.adl-toolswitcher__actions-separator');
+    expect(separator).not.toBeNull();
+    // 分隔线必须位于「折叠/展开工具栏」与「扩大/还原右侧面板」两个按钮之间。
+    const toggleTrigger = toggle.closest('.tooltip-trigger');
+    const expand = screen.getByRole('button', { name: 'rightPanelExpand' });
+    const expandTrigger = expand.closest('.tooltip-trigger');
+    expect(separator?.previousElementSibling).toBe(toggleTrigger);
+    expect(separator?.nextElementSibling).toBe(expandTrigger);
+  });
+
+  it('toggles the global toolbar collapsed state', () => {
+    renderSwitcher();
+    fireEvent.click(screen.getByRole('button', { name: 'rightPanelToolbarCollapse' }));
+    expect(useAppStore.getState().rightPanelToolbarCollapsed).toBe(true);
+  });
+
+  it('shows the expand label when the toolbar is collapsed', () => {
+    useAppStore.setState({ rightPanelToolbarCollapsed: true });
+    renderSwitcher();
+    const toggle = screen.getByRole('button', { name: 'rightPanelToolbarExpand' });
+    expect(toggle).not.toHaveAttribute('aria-pressed');
   });
 
   it('derives tab shortcut hints from user keybinds', async () => {

@@ -28,6 +28,11 @@
 }
 
 .adl-toolswitcher__actions {
+  /* 动作区与标签区同源尺寸：本容器没有 `.adl-iconstrip` 类，若不在这里补变量，
+     `.adl-iconstrip__button` 的 width/min-width 会解析为 auto，按钮缩到图标宽度
+     （16px），悬停灰底宽度与标签区其它按钮不一致。 */
+  --adl-iconstrip-height: 30px;
+  --adl-iconstrip-button-size: 30px;
   display: flex;
   align-items: stretch;
   flex: 0 0 auto;
@@ -37,6 +42,18 @@
 
 .adl-toolswitcher__actions .tooltip-trigger {
   display: flex !important;
+}
+
+/* 「折叠/展开工具栏」与「扩大/还原右侧面板」之间的细分隔线：
+   与 .adl-iconstrip__separator.is-visible 同观感（1px、上下各内缩 7px），
+   但常驻显示、不随 hover 出现；左右各留 2px 避免贴住按钮。 */
+.adl-toolswitcher__actions-separator {
+  flex: 0 0 1px;
+  width: 1px;
+  align-self: stretch;
+  margin: 7px 2px;
+  background: var(--border-strong);
+  pointer-events: none;
 }
 
 .adl-toolswitcher__expand.adl-iconstrip__button {

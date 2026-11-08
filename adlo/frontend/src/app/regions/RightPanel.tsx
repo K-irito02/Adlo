@@ -27,6 +27,7 @@ import type { PatchDirection, PatchReviewFilter } from '../features/patch-review
 import type { EditorRef, DiffEditorRef } from '../stores/types';
 import type { ToolId } from '../stores/types';
 import { useRightPanelLayout } from './right-panel/hooks/useRightPanelLayout';
+import { rightPanelRootClassName } from './right-panel/rightPanelLayout';
 import { useRightPanelViewProps } from './right-panel/hooks/useRightPanelViewProps';
 import { useFilesPanelProps } from './right-panel/hooks/useFilesPanelProps';
 import { useChangesPanelProps } from './right-panel/hooks/useChangesPanelProps';
@@ -159,6 +160,7 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
   } = useRightPanelLayout(collapsed);
 
   const leftCollapsed = useAppStore((s) => s.leftCollapsed);
+  const rightPanelToolbarCollapsed = useAppStore((s) => s.rightPanelToolbarCollapsed);
   useDividerStrip({
     panelRef,
     collapsed,
@@ -216,7 +218,7 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
   return (
     <aside
       ref={panelRef}
-      className={`adl-rightpanel${collapsed ? ' adl-rightpanel--collapsed' : ''}`}
+      className={rightPanelRootClassName(collapsed, rightPanelToolbarCollapsed)}
       aria-label={t.toolPanel}
       aria-hidden={collapsed}
     >

@@ -1,5 +1,7 @@
 import React from 'react';
 import {
+  IconChevronDown,
+  IconChevronUp,
   IconFiles,
   IconGitFork,
   IconGlobe,
@@ -74,6 +76,11 @@ export const ToolSwitcher = React.memo(function ToolSwitcher({
   const { t } = useTCopy();
   const [hoveredTool, setHoveredTool] = React.useState<ToolId | null>(null);
   const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds) ?? EMPTY_KEYBINDS;
+  const toolbarCollapsed = useAppStore((s) => s.rightPanelToolbarCollapsed);
+  const toggleRightPanelToolbar = useAppStore((s) => s.toggleRightPanelToolbar);
+  const toolbarToggleLabel = toolbarCollapsed
+    ? t.rightPanelToolbarExpand
+    : t.rightPanelToolbarCollapse;
 
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLButtonElement>, currentTool: ToolId) => {
@@ -162,6 +169,23 @@ export const ToolSwitcher = React.memo(function ToolSwitcher({
         })}
       </div>
       <div className="adl-toolswitcher__actions">
+        <TooltipSimple content={toolbarToggleLabel} placement="top">
+          <button
+            type="button"
+            className="adl-iconstrip__button"
+            aria-label={toolbarToggleLabel}
+            onClick={toggleRightPanelToolbar}
+          >
+            <span className="adl-toolswitcher__icon">
+              {toolbarCollapsed ? (
+                <IconChevronDown size={16} decorative />
+              ) : (
+                <IconChevronUp size={16} decorative />
+              )}
+            </span>
+          </button>
+        </TooltipSimple>
+        <span className="adl-toolswitcher__actions-separator" aria-hidden="true" />
         <TooltipSimple
           content={rightPanelExpanded ? t.rightPanelRestore : t.rightPanelExpand}
           placement="top"

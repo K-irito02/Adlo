@@ -94,6 +94,7 @@ export const createUISlice = (
     opencodeBlocksAtDefault: null,
     siblingWebviewNonce: 0,
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
+    rightPanelToolbarCollapsed: false,
     changesStatusFilter: new Set(),
     changesOutlineExpanded: {},
     changesLineNumbers: true,
@@ -318,5 +319,9 @@ export const createUISlice = (
         };
         return persistField('adl:ui.navigatorCollapsed', next);
       }),
+    toggleRightPanelToolbar: () =>
+      set((state) =>
+        persistField('adl:ui.rightPanelToolbarCollapsed', !state.rightPanelToolbarCollapsed),
+      ),
   };
 };
