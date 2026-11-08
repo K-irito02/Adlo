@@ -7,23 +7,51 @@ import {
 } from './rightPanelLayout';
 
 describe('rightPanelRootClassName', () => {
-  it('emits neither modifier when fully expanded', () => {
-    expect(rightPanelRootClassName(false, false)).toBe('adl-rightpanel');
+  it('emits neither modifier when fully expanded and docked', () => {
+    expect(rightPanelRootClassName(false, false, 'docked')).toBe('adl-rightpanel');
   });
 
   it('emits only the toolbar modifier when just the toolbar is collapsed', () => {
-    expect(rightPanelRootClassName(false, true)).toBe(
+    expect(rightPanelRootClassName(false, true, 'docked')).toBe(
       'adl-rightpanel adl-rightpanel--toolbar-collapsed',
     );
   });
 
   it('emits only the panel modifier when the whole panel is collapsed', () => {
-    expect(rightPanelRootClassName(true, false)).toBe('adl-rightpanel adl-rightpanel--collapsed');
+    expect(rightPanelRootClassName(true, false, 'docked')).toBe(
+      'adl-rightpanel adl-rightpanel--collapsed',
+    );
   });
 
-  it('emits both modifiers independently', () => {
-    expect(rightPanelRootClassName(true, true)).toBe(
+  it('emits both panel modifiers independently', () => {
+    expect(rightPanelRootClassName(true, true, 'docked')).toBe(
       'adl-rightpanel adl-rightpanel--collapsed adl-rightpanel--toolbar-collapsed',
+    );
+  });
+
+  it('keeps the overlay classes in the React-owned className for partial overlay', () => {
+    expect(rightPanelRootClassName(false, false, 'overlay_partial')).toBe(
+      'adl-rightpanel adl-rightpanel--overlay-active',
+    );
+  });
+
+  it('keeps both overlay classes for the maximized panel', () => {
+    expect(rightPanelRootClassName(false, false, 'overlay_full')).toBe(
+      'adl-rightpanel adl-rightpanel--overlay-active adl-rightpanel--overlay-expanded',
+    );
+  });
+
+  it('keeps overlay classes while the toolbar is collapsed', () => {
+    // 回归：工具栏折叠触发的重渲染曾经丢掉命令式加上的 overlay 类，
+    // 面板从"最大化"退回普通宽度，而 store 模式仍是 overlay_full。
+    expect(rightPanelRootClassName(false, true, 'overlay_full')).toBe(
+      'adl-rightpanel adl-rightpanel--toolbar-collapsed adl-rightpanel--overlay-active adl-rightpanel--overlay-expanded',
+    );
+  });
+
+  it('drops overlay classes when the whole panel is collapsed', () => {
+    expect(rightPanelRootClassName(true, false, 'overlay_full')).toBe(
+      'adl-rightpanel adl-rightpanel--collapsed',
     );
   });
 });

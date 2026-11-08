@@ -218,7 +218,7 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
   return (
     <aside
       ref={panelRef}
-      className={rightPanelRootClassName(collapsed, rightPanelToolbarCollapsed)}
+      className={rightPanelRootClassName(collapsed, rightPanelToolbarCollapsed, rightPanelMode)}
       aria-label={t.toolPanel}
       aria-hidden={collapsed}
     >

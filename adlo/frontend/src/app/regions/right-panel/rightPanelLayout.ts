@@ -54,13 +54,27 @@ export interface RightPanelOverlayState {
 }
 
 /**
- * 面板根节点的 class 组合：整体折叠（`--collapsed`）与第一行工具栏折叠
- * （`--toolbar-collapsed`）是两件独立的事，任何一个都不能吞掉另一个。
- * 抽成纯函数以便做真值表测试（源码子串断言无法发现条件反转）。
+ * 面板根节点的 class 组合：整体折叠（`--collapsed`）、第一行工具栏折叠
+ * （`--toolbar-collapsed`）与覆盖模式（`--overlay-active` / `--overlay-expanded`）
+ * 分别由三组独立状态决定；整块折叠时覆盖模式不生效（`collapsed` 优先），
+ * 其余两组互不覆盖。
+ *
+ * 覆盖类必须由 React 的 className 持有（而不是只靠 `syncOverlayClasses` 命令式
+ * 添加）：工具栏折叠等无关状态引发的重渲染会用新 className 覆盖掉命令式类，
+ * 面板会从最大化退回普通宽度，而 store 模式仍是 `overlay_full`。
+ * 命令式 toggle 仍负责 shell body 的覆盖类，以及拖拽预览（`updateState: false`）
+ * 期间的面板类；React className 负责面板类的持久一致。
  */
-export function rightPanelRootClassName(collapsed: boolean, toolbarCollapsed: boolean): string {
+export function rightPanelRootClassName(
+  collapsed: boolean,
+  toolbarCollapsed: boolean,
+  mode: RightPanelMode,
+): string {
+  const overlay = deriveRightPanelOverlayState(mode, collapsed);
   return `adl-rightpanel${collapsed ? ' adl-rightpanel--collapsed' : ''}${
     toolbarCollapsed ? ' adl-rightpanel--toolbar-collapsed' : ''
+  }${overlay.overlayActive ? ' adl-rightpanel--overlay-active' : ''}${
+    overlay.overlayExpanded ? ' adl-rightpanel--overlay-expanded' : ''
   }`;
 }
 

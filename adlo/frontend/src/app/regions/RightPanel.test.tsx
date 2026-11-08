@@ -28,7 +28,7 @@ describe('RightPanel first-row toolbar collapse', () => {
   it('wires the global toolbar state into the panel root class helper', () => {
     expect(rightPanelSource).toContain('rightPanelToolbarCollapsed');
     expect(rightPanelSource).toContain(
-      'rightPanelRootClassName(collapsed, rightPanelToolbarCollapsed)',
+      'rightPanelRootClassName(collapsed, rightPanelToolbarCollapsed, rightPanelMode)',
     );
   });
 });
