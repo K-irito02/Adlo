@@ -1,6 +1,6 @@
 # 架构与实现说明
 
-本文档记录 Adlo的架构概念、实现落点与文件路径。规范用词（术语定义与同义项禁用）见 [GLOSSARY.md](./GLOSSARY.md)；本文档不重复定义术语。
+本文档记录 Adlo的架构概念、实现落点与文件路径。规范用词（术语定义与同义项禁用）见 [GLOSSARY.md](./GLOSSARY.md)；架构决策索引见 [docs/adr/README.md](./docs/adr/README.md)；本文档不重复定义术语。
 
 ---
 

@@ -84,6 +84,9 @@ function pidFor(port) {
 
 const markerFile = markerPathFor(process.cwd());
 const marker = readMarker(markerFile);
+const worktreeRoot = fs.existsSync(path.join(process.cwd(), "adlo", "package.json"))
+  ? process.cwd()
+  : path.dirname(process.cwd());
 
 const rows = [];
 for (const port of PORTS) {
@@ -118,6 +121,9 @@ if (rows.length === 0) {
     );
   }
   console.log("[dev:status] 对应启动行：[adl-run] … token=<同上 8 位>");
+  console.log(
+    `[dev:status] logs(本工作树): ${path.join(worktreeRoot, ".adl-logs")} (壳/浏览器) | ${path.join(worktreeRoot, "adlo", ".adl-logs")} (adl-server)`,
+  );
   for (const row of rows) {
     if (!row.managed) {
       console.warn(

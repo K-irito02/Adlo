@@ -1,6 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { findSuspiciousUntracked, parseArgs, validateClaimAck } from "./review-snapshot.mjs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  collectClaimHints,
+  findSuspiciousUntracked,
+  parseArgs,
+  safeSnapshotName,
+  validateClaimAck,
+  writeClaimAckTemplate,
+} from "./review-snapshot.mjs";
 
 test("rejects numeric and temp-looking untracked files", () => {
   assert.deepEqual(
@@ -59,4 +69,71 @@ test("requires an [x] acknowledgement per claim", () => {
   assert.deepEqual(validateClaimAck("- [x] src/a.ts:12 — verified by test", hints).missing, [
     hints[1],
   ]);
+});
+
+test("collects absolute and numeric claims with new-file line numbers", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adl-review-snapshot-"));
+  const file = "adlo/frontend/src/foo.ts";
+  try {
+    writeFileSync(
+      join(dir, `${safeSnapshotName(file)}-rev5.diff`),
+      [
+        "@@ -1,0 +10,3 @@",
+        "+// 永远只刷新当前工作区",
+        "+// 现在有 3 个入口",
+        "+const value = 1;",
+      ].join("\n"),
+    );
+    const result = collectClaimHints([file], dir, 5);
+    assert.equal(result.count, 2);
+    assert.deepEqual(
+      result.hints.map((hit) => [hit.line, hit.kind]),
+      [
+        [10, "absolute"],
+        [11, "numeric"],
+      ],
+    );
+    const body = readFileSync(join(dir, "claims-rev5.md"), "utf8");
+    assert.match(body, /绝对断言/);
+    assert.match(body, /数字断言/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("clears stale claims and ack files when a regenerated rev has no claims", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adl-review-snapshot-"));
+  const file = "adlo/frontend/src/foo.ts";
+  try {
+    writeFileSync(
+      join(dir, `${safeSnapshotName(file)}-rev6.diff`),
+      "@@ -1,0 +1,1 @@\n+const v = 1;",
+    );
+    writeFileSync(join(dir, "claims-rev6.md"), "stale");
+    writeFileSync(join(dir, "claims-ack-rev6.md"), "stale");
+    const result = collectClaimHints([file], dir, 6);
+    assert.equal(result.count, 0);
+    assert.equal(existsSync(join(dir, "claims-rev6.md")), false);
+    assert.equal(existsSync(join(dir, "claims-ack-rev6.md")), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("ack template appends newly collected claims without losing checked ones", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adl-review-snapshot-"));
+  const ackPath = join(dir, "claims-ack-rev7.md");
+  try {
+    writeFileSync(ackPath, "# Claims ack — rev7\n\n- [x] src/a.ts:12 — verified by test\n");
+    writeClaimAckTemplate(ackPath, 7, [
+      { file: "src/a.ts", line: 12, text: "// always" },
+      { file: "src/b.ts", line: 4, text: "// 3 个入口" },
+    ]);
+    const text = readFileSync(ackPath, "utf8");
+    assert.match(text, /\[x\] src\/a\.ts:12/);
+    assert.match(text, /\[ \] src\/b\.ts:4/);
+    assert.equal(text.match(/src\/a\.ts:12/g)?.length, 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

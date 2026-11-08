@@ -76,13 +76,13 @@
 - 任何 UI 展示文本硬编码（包括但不限于按钮/Tooltip/aria-label/占位符/过滤器标签/相对时间/日期格式/面包屑标签映射），必须使用 i18n key
 - 语言切换时依赖 Zustand store 易变数据的渲染条件缺少 fallback 导致标题行/路径栏消失
 - 错误提示/状态提示常驻显示（必须仅在活跃错误状态下可见）
-- 调试日志（`console.log`/`[ADL-DEBUG]`）遗留生产代码不清理
+- 调试日志（`console.log`/`[ADL-DEBUG]`）遗留生产代码不清理（自动校验：`check-source-hygiene`）
 - iframe 嵌入缺少前置检测（必须使用 checkEmbed HEAD 预检 + 同步 ref 门控 + 基于 attachShadow mode:closed 的 SafeIframe 沙箱保护，标准 `<iframe>` JSX 会导致 React DevTools 跨域 SecurityError）
 - Tauri 桌面模式下依赖 CSS z-index 覆盖浏览器原生 WebView（WebView2 是 OS 级渲染表面。浮动菜单/对话框出现时：必须通过 `browser_set_bounds` 移出画面，使用 State + MutationObserver 双路检测协同。面板 Resize Handle 被覆盖时：采用"区域逃逸"方案——handle 向左扩展 8px 进入中心（无 WebView），无需 IPC 干预）
 - 未发布产品的开发阶段禁止添加/保留数据格式兼容或旧版本迁移代码（产品发布后需添加时须先与用户确认）
 - 禁止「向后兼容」重导出或类似仅为旧导入路径保留的兼容层
 - 未经用户允许禁止擅自使用蓝色（含 `var(--accent)` 系）作为特殊提示警醒色、填充色等；此类场景一律使用白/灰/黑中性色（明度/纯度自行设计，须兼顾亮暗主题可见性），需其它颜色时先与用户确认（规范见 `.agents/rules/hint-color-usage.md`）
-- 违反上方「工具选择（Agent）」小节（PowerShell `Select-String`、shell 内联批量改写源码/文档）
+- 违反上方「工具选择（Agent）」小节（PowerShell `Select-String`、shell 内联批量改写源码/文档）（自动校验：shell 权限 + `check-source-hygiene`）
 - 并行开发时两个会话共用同一工作树目录、共享 `CARGO_TARGET_DIR`、或在分支工作树写 `.workbuddy/memory`（见技能 [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md)）
 
 ## 双端一致性
@@ -137,7 +137,7 @@ Issue 与 spec 存放在 GitHub Issues（`K-irito02/Adlo`），使用 `gh` CLI�
 
 ### Domain docs
 
-单上下文：术语表为仓库根 `GLOSSARY.md`，决策记录在 `docs/adr/`。详见 `docs/agents/domain.md`。
+单上下文：术语表为仓库根 `GLOSSARY.md`，决策记录在 [`docs/adr/`](docs/adr/)（[按域索引](docs/adr/README.md)）。详见 `docs/agents/domain.md`。
 
 ## 相关文档
 

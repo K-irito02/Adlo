@@ -185,7 +185,9 @@ console.log(
   `[check:changed] base=${base} changed(frontend)=${changed.length} src=${srcChanges.length}`,
 );
 
-runFileList('eslint', 'npx eslint', lintable, 'npx eslint .');
+// 改动文件按「零 warning」收口：warning 不阻断时容易长期残留（本仓实测 Array<T>
+// 警告跨两轮门禁存活）。全量回退保留现状（vite.config 等既有 warning 不在本轮范围）。
+runFileList('eslint', 'npx eslint --max-warnings 0 --no-warn-ignored', lintable, 'npx eslint .');
 runFileList(
   'prettier --check',
   'npx prettier --check',
