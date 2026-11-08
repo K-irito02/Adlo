@@ -4,12 +4,12 @@ import { scanText } from "./check-brand.mjs";
 
 test("flags legacy brand names", () => {
   const violations = scanText(
-    "const ua = 'AIDigitalLife/1.0';\nconst name = 'Kora';\n欢迎可燃",
+    "const ua = 'AIDigitalLife/1.0';\nconst name = 'Kora';\n欢迎可燃\n# AI数字生命 项目级工程规则与约束",
     "x.md",
   );
   assert.deepEqual(
     violations.map((violation) => violation.term),
-    ["AIDigitalLife", "Kora", "可燃"],
+    ["AIDigitalLife", "Kora", "可燃", "AI数字生命"],
   );
 });
 

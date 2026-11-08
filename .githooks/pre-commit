@@ -45,7 +45,7 @@ else
   echo "[pre-commit] node --check: no staged .mjs files, skipped"
 fi
 
-# 4) 仓库不变量（秒级）：i18n 对等、术语表、死代码、vite 配置冒烟、dev tooling 单测
+# 4) 仓库不变量（秒级）：i18n 对等、术语表、死代码、vite 配置冒烟、dev tooling 单测、删除 crate 术语
 ( cd "$ROOT/adlo/frontend" && pnpm run check:i18n )
 ( cd "$ROOT/adlo/frontend" && pnpm run check:i18n:orphans:changed )
 ( cd "$ROOT/adlo/frontend" && pnpm run check:glossary )
@@ -53,6 +53,7 @@ fi
 ( cd "$ROOT/adlo/frontend" && pnpm run check:vite-config )
 ( cd "$ROOT/adlo" && node scripts/check-brand.mjs )
 ( cd "$ROOT/adlo" && node scripts/check-stale-terms.mjs )
+( cd "$ROOT/adlo" && node scripts/check-deleted-crates.mjs )
 ( cd "$ROOT/adlo" && node scripts/check-no-new-any.mjs )
 ( cd "$ROOT/adlo" && node --test "scripts/*.test.mjs" )
 

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -139,6 +140,43 @@ test("SKILLS.md counts and summary index match the skill directories", () => {
   const extra = [...indexed].filter((skill) => !skillDirs.includes(skill));
   assert.deepEqual(missing, [], "skills missing from SKILLS.md §4");
   assert.deepEqual(extra, [], "SKILLS.md §4 lists nonexistent skills");
+});
+
+test("no tracked files live in nested .agents directories", () => {
+  const tracked = execFileSync("git", ["ls-files"], { cwd: repoRoot, encoding: "utf8" })
+    .split("\n")
+    .map((file) => file.trim())
+    .filter(Boolean);
+  const nested = tracked.filter(
+    (file) => /(^|\/)\.agents\//i.test(file) && !file.startsWith(".agents/"),
+  );
+  assert.deepEqual(
+    nested,
+    [],
+    "nested .agents/ directories must not be tracked (analysis artifacts belong in temp, not git)",
+  );
+});
+
+test("alwaysApply:false rules carry globs or are registered as on-demand in RULES.md", () => {
+  const doc = readDoc("RULES.md");
+  const falseRow = doc.match(/\| `alwaysApply: false` \| \d+ \|[^\n]*\|/);
+  assert.ok(falseRow, "RULES.md §1.3 must have an alwaysApply:false row");
+  const onDemand = [...falseRow[0].matchAll(/\`([a-z0-9-]+\.md)\`/g)].map((m) => m[1]);
+  for (const file of onDemand) {
+    assert.ok(ruleFiles.includes(file), `on-demand registration ${file} does not exist`);
+  }
+  const offenders = [];
+  for (const file of ruleFiles) {
+    const head = readFileSync(join(repoRoot, ".agents/rules", file), "utf8");
+    if (/^alwaysApply:\s*true\s*$/m.test(head)) continue;
+    if (/^globs:\s*\S/m.test(head)) continue;
+    if (!onDemand.includes(file)) offenders.push(file);
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    "rules with neither a globs field nor an on-demand registration would never be injected",
+  );
 });
 
 test("RULES.md counts and rule index match .agents/rules", () => {

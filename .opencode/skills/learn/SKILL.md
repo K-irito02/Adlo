@@ -58,7 +58,7 @@ allowed-tools: Read, Write, Edit, RunCommand, Glob, Grep, LS, Task, AskUserQuest
   ]
 }
 
-约束：impactScore ≥4 才纳入，最多 5 条，禁止编造模式，不返回与现有规则重复的发现。
+约束：impactScore ≥4 才纳入，最多 5 条，禁止编造模式，不返回与现有规则重复的发现。涉及数量的任何陈述（文件数、crate 数、切片数、行数等）必须给出实测命令与输出原文（如 Glob/ls/Grep 计数），并在陈述中显式声明计数口径（如「以 `export function create*Actions` 命中计为准」）；禁止估算。
 ```
 
 **故障处理：**
@@ -73,7 +73,7 @@ allowed-tools: Read, Write, Edit, RunCommand, Glob, Grep, LS, Task, AskUserQuest
 ### 阶段 3：审查与过滤
 
 1. **解析 JSON**：尝试 `JSON.parse()`，失败则提取 ```json 代码块，仍失败则展示原始输出询问用户。
-2. **验证 findings**：每条须有清晰标题、≥2 条 evidence、impactScore ≥4、格式良好的 content。
+2. **验证 findings**：每条须有清晰标题、≥2 条 evidence、impactScore ≥4、格式良好的 content；涉及数量的陈述必须复核口径并附实测命令与输出（如 `Glob`/`Grep` 计数），禁止采信估算。
 3. **去重**：读取所有现有规则文件内容，若 finding 的 title 或 content 所述核心约定已被现有规则覆盖，则跳过。
 4. **选取 Top 3**：按 impactScore 降序取前 3 条；不足 3 条则展示全部。
 5. **零条发现**：告知用户项目已充分文档化或未发现显著未记录模式。

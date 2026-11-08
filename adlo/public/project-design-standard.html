@@ -649,14 +649,14 @@
         <div class="card-body">
           主体采用分层架构保证清晰可控：UI → Bridge → Backend 命令 → Domain crates → 存储，层间单向依赖。
           Agent 对话、模型接入与编排不由本仓库实现，宿主通过第三方 harness 集成提供 Agent 能力
-          （当前为 deepseek dsh：进程托管、版本管理、下载源/镜像、宿主渲染）。
+          （当前为 DSH 与 OpenCode CLI：进程托管、版本管理、下载源/镜像、宿主渲染）。
         </div>
         <div class="card-compare">
           <div class="compare-col">
             <div class="compare-col-title">分层宿主</div>
             <div class="compare-item">层间单向依赖，结构清晰</div>
             <div class="compare-item">上手快，调试方便</div>
-            <div class="compare-item">双端一致（三桥接对齐）</div>
+            <div class="compare-item">双端一致（四端桥接对齐）</div>
           </div>
           <div class="compare-col">
             <div class="compare-col-title">harness 集成</div>
@@ -669,7 +669,7 @@
           <div class="compare-why-label">为什么这样选</div>
           <div class="compare-why-text">
             分层保证宿主清晰可控、双端行为一致；Agent 体系自研成本高且与宿主正交，
-            交由专业第三方 harness（deepseek dsh）提供，宿主只保留集成面（拉起、版本、渲染），避免"大泥球"。
+            交由专业第三方 harness（DSH 与 OpenCode CLI）提供，宿主只保留集成面（拉起、版本、渲染），避免"大泥球"。
           </div>
         </div>
       </div>
@@ -687,7 +687,7 @@
         <div class="card-title">Agent 设计</div>
         <div class="card-choice">状态持有 + 事件订阅（历史）</div>
         <div class="card-body">
-          ⛔ 已退役：自研 Agent 体系已随 dsh 剥离删除，Agent 对话与编排由第三方 harness（deepseek dsh）提供。
+          ⛔ 已退役：自研 Agent 体系已随 dsh 剥离删除，Agent 对话与编排由第三方 harness（DSH 与 OpenCode CLI）提供。
           原选择（历史）：状态持有 + 事件订阅。以下存档不作为实现依据。
         </div>
       </div>
@@ -782,7 +782,7 @@
         <div class="card-body">
           所有应用数据路径由 adl-kernel::storage 的 StoragePaths 统一解析，locator 文件记录指针。
           SQLite 存结构化状态（工作区、补丁快照索引、站点元数据、剪贴板等），文件存大体量内容
-          （日志、dsh bundle）。路径变更走启动期迁移，不做运行中热迁移。
+          （日志、harness 安装包）。路径变更走启动期迁移，不做运行中热迁移。
         </div>
         <div class="card-compare">
           <div class="compare-col">
@@ -861,7 +861,7 @@
         <div class="card-choice">设计感精致型</div>
         <div class="card-body">
           充足留白、卡片化布局、流畅动画过渡，视觉层次清晰，强调品牌感和体验愉悦感。
-          已落地：CSS 设计 Token（亮暗主题）+ 自定义 Tooltip/滚动条 + i18n（22 领域）。
+          已落地：CSS 设计 Token（亮暗主题）+ 自定义 Tooltip/滚动条 + i18n（25 领域）。
         </div>
         <div class="card-compare">
           <div class="compare-col">
@@ -1118,7 +1118,7 @@
         <div style="margin-top: 12px;">
           <span style="color: var(--color-kernel); font-weight: 700;">// Agent 能力（决定智能上限，由外部提供）</span><br>
           <span style="color: var(--color-text);">智能层</span> =
-          <span style="color: var(--color-alt);">第三方 harness（deepseek dsh：进程托管 + 版本管理 + 宿主渲染）</span>
+          <span style="color: var(--color-alt);">第三方 harness（DSH 与 OpenCode CLI：进程托管 + 版本管理 + 宿主渲染）</span>
         </div>
         <div style="margin-top: 12px;">
           <span style="color: var(--color-kernel); font-weight: 700;">// 双端与质量（决定体验下限）</span><br>
@@ -1151,7 +1151,8 @@
         <div class="view-text">
           采用分层宿主架构。严格遵循层间单向依赖原则：
           UI → Bridge → Backend Commands → Storage。
-          前端经三桥接调用统一 IPC，经 #[tauri::command]（桌面）或 HTTP（浏览器预览）到达 Rust domain crates。
+          前端经四端桥接（tauri-bridge / preview-bridge / httpBridge / mock-bridge）调用统一 IPC，
+          到达 Rust domain crates 或 adl-server（HTTP 路由，与 Tauri 壳共用领域逻辑）。
           关键契约（IPC 接口、共享类型）使用 TypeScript 类型作为单一真源（Rust→TS 自动生成）。
         </div>
       </div>
@@ -1180,7 +1181,7 @@
           <span class="arch-module">React 组件</span>
           <span class="arch-module">设计系统 Token</span>
           <span class="arch-module">工作区/终端/编辑器/浏览器面板</span>
-          <span class="arch-module">设置（含存储组/dsh 设置）</span>
+          <span class="arch-module">设置（含存储组/harness 设置）</span>
           <span class="arch-module">i18n</span>
         </div>
       </div>
@@ -1189,7 +1190,8 @@
         🌉 桥接层
         <div class="arch-layer-modules">
           <span class="arch-module">Tauri Bridge (桌面)</span>
-          <span class="arch-module">Preview Bridge (浏览器)</span>
+          <span class="arch-module">Preview Bridge (浏览器预览，http 优先可回退)</span>
+          <span class="arch-module">HTTP Bridge (httpBridge，ad-server 基底)</span>
           <span class="arch-module">Mock Bridge (测试)</span>
           <span class="arch-module">IPC 契约统一</span>
         </div>
@@ -1209,7 +1211,7 @@
         💾 存储层
         <div class="arch-layer-modules">
           <span class="arch-module">SQLite 状态（工作区/快照索引/站点元数据/剪贴板…）</span>
-          <span class="arch-module">文件（日志/dsh bundle）</span>
+          <span class="arch-module">文件（日志/harness 安装包）</span>
           <span class="arch-module">storage-locator 指针</span>
           <span class="arch-module">启动期迁移</span>
         </div>
@@ -1219,8 +1221,8 @@
         🤖 外部 harness（非层内，宿主集成）
         <div class="arch-layer-modules">
           <span class="arch-module">webapp-host 拉起 + 健康检查</span>
-          <span class="arch-module">dsh-bundle 内嵌版本</span>
-          <span class="arch-module">dsh-version 系统版本/升级回退</span>
+          <span class="arch-module">harness-version 版本管理（DSH + OpenCode）</span>
+          <span class="arch-module">adl-hosted 原子换装/进度任务</span>
           <span class="arch-module">download-source 下载源/镜像</span>
           <span class="arch-module">中心宿主渲染</span>
         </div>
@@ -1232,7 +1234,7 @@
       <div class="card">
         <div class="card-title" style="font-size: 16px;">🧩 进程托管</div>
         <div style="margin-top: 12px;">
-          <div class="compare-item" style="padding: 4px 0;">webapp-host 拉起 dsh 进程，就绪探测 + 失败重试</div>
+          <div class="compare-item" style="padding: 4px 0;">webapp-host 拉起 harness 进程，就绪探测 + 失败重试</div>
           <div class="compare-item" style="padding: 4px 0;">Windows 下先直调、失败回退 .cmd</div>
           <div class="compare-item" style="padding: 4px 0;">Tauri 独立 WebView2 子窗口承载，browser_set_bounds 跟随布局</div>
         </div>
@@ -1240,8 +1242,8 @@
       <div class="card">
         <div class="card-title" style="font-size: 16px;">📦 版本管理</div>
         <div style="margin-top: 12px;">
-          <div class="compare-item" style="padding: 4px 0;">内嵌版本（dsh-bundle：manifest + package 校验）</div>
-          <div class="compare-item" style="padding: 4px 0;">系统版本 PATH 检测（缓存避免重复探测）</div>
+          <div class="compare-item" style="padding: 4px 0;">安装包不预置任何 harness（ADR-0004）：首启向导按需下载</div>
+          <div class="compare-item" style="padding: 4px 0;">系统版本 PATH 检测（缓存避免重复探测）与宿主版本 harness-version 双源</div>
           <div class="compare-item" style="padding: 4px 0;">查最新 / 升级 / 回退 / 卸载（npm registry + 可配镜像）</div>
         </div>
       </div>
@@ -1282,7 +1284,7 @@
           想象搬家公司 + 档案室：<br>
           • locator 是"新家地址卡"，所有东西按卡上的地址放<br>
           • SQLite 是档案柜：工作区清单、补丁快照索引、网站元数据、剪贴板各就各位<br>
-          • 文件是仓库：日志、dsh 安装包放架子上<br>
+          • 文件是仓库：日志、harness 安装包放架子上<br>
           • 搬家（迁移）只在开门前进行：先复印、再验货、再换地址卡，最后清理旧家；验货失败就不换卡
         </div>
       </div>
@@ -1290,7 +1292,7 @@
 
     <h3 style="font-size: 20px; margin: 36px 0 20px;">📦 存储布局</h3>
     <div class="model-box">
-<pre><span class="model-comment">// ===== 统一根下 9 可迁移分类（顺序与 StorageCategory::key() 一致） =====</span>
+<pre><span class="model-comment">// ===== 统一根下 10 可迁移分类（顺序与 StorageCategory::key() 一致） =====</span>
 &lt;统一根&gt;/
 ├── database             <span class="model-comment"># 主 SQLite：工作区、补丁快照索引等结构化状态</span>
 ├── downloads_db         <span class="model-comment"># 浏览器下载记录库</span>
@@ -1298,7 +1300,8 @@
 ├── config               <span class="model-comment"># 应用配置</span>
 ├── clipboard            <span class="model-comment"># 剪贴板历史</span>
 ├── snapshot             <span class="model-comment"># 补丁快照</span>
-├── dsh/                 <span class="model-comment"># dsh 相关：dsh-bundle 内嵌版本 + 版本管理数据</span>
+├── harnesses/           <span class="model-comment"># harness 版本目录（dsh/、opencode/，versions/... 同构布局）</span>
+├── tree_cache/          <span class="model-comment"># 目录树缓存（tree-cache.db）</span>
 ├── logs/                <span class="model-comment"># 日志（debug 构建另写仓库根 .adl-logs）</span>
 └── credentials_fallback <span class="model-comment"># keyring 不可用时的加密文件降级</span>
 
@@ -1323,15 +1326,15 @@
     <div class="risk-grid">
 
       <div class="risk-card">
-        <div class="risk-card-title">风险 01 · dsh 宿主进程托管可靠性</div>
+        <div class="risk-card-title">风险 01 · harness 宿主进程托管可靠性</div>
         <div class="risk-card-desc">
-          dsh 为外部进程：拉起失败、端口占用、版本不匹配、进程意外退出
+          harness 为外部进程：拉起失败、端口占用、版本不匹配、进程意外退出
           都会让中心无内容可渲染。
         </div>
         <div class="risk-solution">
           <div class="risk-solution-label">✅ 应对策略</div>
           ① webapp-host 拉起后做就绪探测，失败重试；Windows 下先直调、失败回退 .cmd<br>
-          ② 系统 dsh 与内嵌 bundle 双源：优先可用源，检测经缓存避免重复探测<br>
+          ② 系统 harness（PATH 检测）与宿主安装（harness-version）双源：优先可用源，检测经缓存避免重复探测<br>
           ③ 版本管理支持查最新 / 升级 / 回退 / 卸载，升级失败保留旧版可用<br>
           ④ 浏览器模式 iframe 加载被拒（X-Frame-Options / CSP）时退化为"外部打开"按钮
         </div>
@@ -1418,7 +1421,7 @@
       <div class="roadmap-item">
         <div class="roadmap-phase">✅ 已实现（完整形态）</div>
         <ul class="roadmap-list">
-          <li>✅ Tauri 桌面壳 + SQLite 状态 + 安全边界（capability 白名单）+ 双端一致（三桥接）</li>
+          <li>✅ Tauri 桌面壳 + SQLite 状态 + 安全边界（capability 白名单）+ 双端一致（四端桥接）</li>
           <li>✅ 工作区管理、文件树、大纲解析、搜索、Git 可视化、补丁预览/应用/回滚、快照</li>
           <li>✅ xterm.js 交互式终端（多会话 PTY）+ 一个终端标签多终端窗口（独立 PTY、均分/自由布局引擎、自定义布局卡片）</li>
           <li>✅ CodeMirror 编辑器 + 文件预览 + 差异查看器</li>
@@ -1426,7 +1429,7 @@
           <li>✅ 第三方 harness 宿主集成（进程托管、内嵌与系统版本管理、下载源/镜像、宿主渲染）</li>
           <li>✅ 存储治理（统一路径解析 + 启动期迁移 + 设置面板存储组）</li>
           <li>✅ 系统能力（剪贴板历史、系统监视器、CI 状态、GitHub 面板、凭据存储）</li>
-          <li>✅ 设计 Token + 自定义 Tooltip/滚动条 + i18n（22 领域）</li>
+          <li>✅ 设计 Token + 自定义 Tooltip/滚动条 + i18n（25 领域）</li>
         </ul>
       </div>
 

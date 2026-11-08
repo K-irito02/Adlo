@@ -34,6 +34,7 @@ const RULES = [
   { name: "AIDigitalLife", pattern: /\bAIDigitalLife\b/g },
   { name: "Kora", pattern: /\bKora\b/gi },
   { name: "可燃", pattern: /可燃/g },
+  { name: "AI数字生命", pattern: /AI数字生命/g },
 ];
 
 export function scanText(text, file = "<memory>") {
