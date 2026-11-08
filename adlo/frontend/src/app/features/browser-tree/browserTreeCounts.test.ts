@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type {
   BrowserTabState,
-  TabFolderState,
+  BookmarkFolder,
   BrowserHistoryState,
-  WorkspaceBookmarkEntry,
+  BookmarkEntry,
 } from '@stores/slices/browserSlice';
 import type { BrowserCategoryType, BrowserTreeNode } from './types';
 import {
@@ -54,15 +54,22 @@ function makeFolder(
   id: string,
   name: string,
   parentId: string | undefined,
-  parentType: TabFolderState['parentType'],
+  parentType: BookmarkFolder['parentType'],
   tabIds: string[] = [],
-): TabFolderState {
+): BookmarkFolder {
   return {
     id,
     name,
     parentId,
     parentType,
-    tabs: tabIds.map((tabId) => ({ tabId, url: '', title: '' })),
+    entries: tabIds.map((id) => ({
+      id,
+      sourceTabId: id,
+      url: '',
+      title: '',
+      addedAt: 0,
+      lastModifiedAt: 0,
+    })),
     createdAt: 0,
     isUserCreated: parentType === 'folder' && parentId === undefined,
   };
@@ -385,16 +392,14 @@ describe('resolveChildCount (renderer for FileTree child count slot)', () => {
 
 describe('bookmark tree node title via resolveDisplayTitle (⑪)', () => {
   it('placeholder snapshot title falls back to the cached meta title', () => {
-    const bookmarks: WorkspaceBookmarkEntry[] = [
-      { tabId: 'bm-tab', url: 'https://a.com/', title: 'a.com' },
+    const bookmarks: BookmarkEntry[] = [
+      { id: 'bm-tab', url: 'https://a.com/', title: 'a.com', addedAt: 0, lastModifiedAt: 0 },
     ];
     const tree = buildWorkspaceCategoryTree(
       [workspace],
       [],
       [],
       { 'ws-1': bookmarks },
-      [],
-      {},
       (_title, url) => (url === 'https://a.com/' ? '真实标题' : ''),
     );
     const bmNode = tree[0].children.find((c) => c.url === 'https://a.com/');
@@ -402,8 +407,8 @@ describe('bookmark tree node title via resolveDisplayTitle (⑪)', () => {
   });
 
   it('custom snapshot title is preserved even when a meta title exists', () => {
-    const bookmarks: WorkspaceBookmarkEntry[] = [
-      { tabId: 'bm-tab', url: 'https://b.com/', title: '我的书签' },
+    const bookmarks: BookmarkEntry[] = [
+      { id: 'bm-tab', url: 'https://b.com/', title: '我的书签', addedAt: 0, lastModifiedAt: 0 },
     ];
     // resolver 持有真实标题决策（生产为 resolveSiteTitle）：非占位快照标题优先
     const tree = buildWorkspaceCategoryTree(
@@ -411,8 +416,6 @@ describe('bookmark tree node title via resolveDisplayTitle (⑪)', () => {
       [],
       [],
       { 'ws-1': bookmarks },
-      [],
-      {},
       (title, url) => (url === 'https://b.com/' ? title || '服务端标题' : ''),
     );
     const bmNode = tree[0].children.find((c) => c.url === 'https://b.com/');
@@ -464,7 +467,16 @@ describe('audio indicator propagation across tree categories (事项 7)', () => 
     const tab = makeTab('t1', '视频', 'https://www.bilibili.com/video/BV1', 'ws-1');
     tab.isPlayingAudio = true;
     const folder = makeFolder('root', 'Root', undefined, undefined);
-    folder.tabs = [{ tabId: 't1', url: 'https://www.bilibili.com/video/BV1/', title: '视频' }];
+    folder.entries = [
+      {
+        id: 'bm1',
+        sourceTabId: 't1',
+        url: 'https://www.bilibili.com/video/BV1/',
+        title: '视频',
+        addedAt: 0,
+        lastModifiedAt: 0,
+      },
+    ];
     const tree = buildUserFolderCategoryTree([folder], [tab]);
     const leaf = tree[0].children[0];
     expect(leaf.isPlayingAudio).toBe(true);
@@ -475,8 +487,15 @@ describe('audio indicator propagation across tree categories (事项 7)', () => 
     // 归一化 URL 匹配时保留音频状态。
     const tab = makeTab('bm-tab', '视频', 'https://www.bilibili.com/video/BV1', 'other-ws');
     tab.isPlayingAudio = true;
-    const bookmarks: WorkspaceBookmarkEntry[] = [
-      { tabId: 'bm-tab', url: 'https://www.bilibili.com/video/BV1/', title: '视频' },
+    const bookmarks: BookmarkEntry[] = [
+      {
+        id: 'bm-entry',
+        sourceTabId: 'bm-tab',
+        url: 'https://www.bilibili.com/video/BV1/',
+        title: '视频',
+        addedAt: 0,
+        lastModifiedAt: 0,
+      },
     ];
     const tree = buildWorkspaceCategoryTree([workspace], [tab], [], { 'ws-1': bookmarks });
     const bmNode = tree[0].children.find((c) => c.url === 'https://www.bilibili.com/video/BV1/');

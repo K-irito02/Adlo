@@ -1,1 +1,1 @@
-export type { BookmarkTabItem, TabFolderState, TabFolderStateUpdate } from './browserTypes';
+export type { BookmarkEntry, BookmarkFolder, BookmarkFolderUpdate } from './browserTypes';

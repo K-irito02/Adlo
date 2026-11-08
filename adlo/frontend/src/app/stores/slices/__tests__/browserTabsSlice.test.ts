@@ -79,8 +79,7 @@ describe('browserOpenTab folder append dedup (url+title)', () => {
       browserTabs: [],
       browserTabsById: {},
       browserActiveTabId: '',
-      browserTabFolders: [{ id: folderId, name: 'F', createdAt: 0, tabs: [] }],
-      browserBookmarkTabIdUrlMap: {},
+      browserBookmarkFolders: [{ id: folderId, name: 'F', createdAt: 0, entries: [] }],
       browserBookmarks: [],
     }));
   }
@@ -89,16 +88,16 @@ describe('browserOpenTab folder append dedup (url+title)', () => {
     const store = makeStoreWithFolder('f1');
     store.getState().browserOpenTab('https://e.com', 'Title A', undefined, 'f1');
     store.getState().browserOpenTab('https://e.com', 'Title A', undefined, 'f1');
-    const folder = store.getState().browserTabFolders.find((f: any) => f.id === 'f1');
-    expect(folder.tabs).toHaveLength(1);
+    const folder = store.getState().browserBookmarkFolders.find((f: any) => f.id === 'f1');
+    expect(folder.entries).toHaveLength(1);
   });
 
   it('allows same url with a different title in the folder', () => {
     const store = makeStoreWithFolder('f1');
     store.getState().browserOpenTab('https://e.com', 'Title A', undefined, 'f1');
     store.getState().browserOpenTab('https://e.com', 'Title B', undefined, 'f1');
-    const folder = store.getState().browserTabFolders.find((f: any) => f.id === 'f1');
-    expect(folder.tabs).toHaveLength(2);
+    const folder = store.getState().browserBookmarkFolders.find((f: any) => f.id === 'f1');
+    expect(folder.entries).toHaveLength(2);
   });
 });
 

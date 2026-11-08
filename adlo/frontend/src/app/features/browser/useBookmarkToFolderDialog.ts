@@ -120,7 +120,7 @@ export function useBookmarkToFolderDialog({
         : undefined;
       const result = await useAppStore
         .getState()
-        .browserBookmarkTab(tabId, folderId, undefined, workspaceId, title);
+        .browserSaveTabAsBookmark(tabId, folderId, undefined, workspaceId, title);
       if (result.ok === false && result.reason !== 'no-tab') {
         const msg = result.pathLabel
           ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {

@@ -6,10 +6,9 @@ import type { BrowserCategoryType } from './types';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type {
   BrowserTabState,
-  TabFolderState,
+  BookmarkEntry,
+  BookmarkFolder,
   BrowserHistoryState,
-  BrowserBookmark,
-  WorkspaceBookmarkEntry,
 } from '@stores/slices/browserSlice';
 
 interface BrowserCategoryLabels {
@@ -29,12 +28,12 @@ interface BrowserTabTreeCallbacks {
   onDeleteHistory: (level: 'label' | 'year' | 'month' | 'day', nodePath: string) => void;
   onOpenTab: (url: string, tabId?: string) => void;
   // Tab-level operations
-  onRefreshTab: (tabId: string, url: string) => void;
+  onRefreshTab: (tabId: string | undefined, url: string) => void;
   onEditTab: (tabId: string, name: string, url: string) => void;
   onDeleteTab: (tabId: string, url: string) => void;
   onCopyTabLink: (url: string) => void;
   onOpenTabInNewTab: (url: string, title?: string) => void;
-  onOpenTabInCurrentTab: (tabId: string) => void;
+  onOpenTabInCurrentTab: (url: string) => void;
   onCloseTab?: (tabId: string) => void;
   onBookmarkTab?: (url: string, title: string) => void;
   onRemoveBookmarkTab?: (tabId: string, url: string) => void;
@@ -43,11 +42,9 @@ interface BrowserTabTreeCallbacks {
 interface BrowserTabTreeProps {
   workspaces: RecentWorkspaceEntry[];
   browserTabs: BrowserTabState[];
-  browserTabFolders: TabFolderState[];
+  browserBookmarkFolders: BookmarkFolder[];
   browserHistory: BrowserHistoryState[];
-  browserWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>;
-  browserBookmarks?: BrowserBookmark[];
-  browserBookmarkTabIdUrlMap?: Record<string, string>;
+  browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>;
   tabTreeExpanded: Record<string, boolean>;
   selectedTreePath: string | null;
   onSelectTreePath: (path: string | null) => void;
@@ -59,38 +56,34 @@ interface BrowserTabTreeProps {
 }
 
 function findWorkspaceBookmarkUrl(
-  bookmarks: Record<string, WorkspaceBookmarkEntry[]>,
-  tabId: string,
+  bookmarks: Record<string, BookmarkEntry[]>,
   uniqueKey: string,
 ): string | undefined {
   for (const [wsId, entries] of Object.entries(bookmarks)) {
     for (const entry of entries) {
-      if (entry.tabId === tabId && entry.url) {
-        const expected = `ws-bookmark-${wsId}-${entry.tabId}-${encodeURIComponent(entry.url)}`;
-        if (expected === uniqueKey) {
-          return entry.url;
-        }
+      const encodedUrl = encodeURIComponent(entry.url);
+      if (!uniqueKey.endsWith(encodedUrl)) {
+        continue;
+      }
+      const candidates = [entry.id, entry.sourceTabId].filter(Boolean) as string[];
+      if (candidates.some((id) => uniqueKey === `ws-bookmark-${wsId}-${id}-${encodedUrl}`)) {
+        return entry.url;
       }
     }
   }
   return undefined;
 }
 
-function findFolderBookmarkUrl(
-  folders: TabFolderState[],
-  tabId: string,
-  uniqueKey: string,
-): string | undefined {
+function findFolderBookmarkUrl(folders: BookmarkFolder[], uniqueKey: string): string | undefined {
   for (const folder of folders) {
-    if (!folder.tabs) {
-      continue;
-    }
-    for (const entry of folder.tabs) {
-      if (entry.tabId === tabId && entry.url) {
-        const expected = `folder-${folder.id}-${entry.tabId}-${encodeURIComponent(entry.url)}`;
-        if (expected === uniqueKey) {
-          return entry.url;
-        }
+    for (const entry of folder.entries ?? []) {
+      const encodedUrl = encodeURIComponent(entry.url);
+      if (!uniqueKey.endsWith(encodedUrl)) {
+        continue;
+      }
+      const candidates = [entry.id, entry.sourceTabId].filter(Boolean) as string[];
+      if (candidates.some((id) => uniqueKey === `folder-${folder.id}-${id}-${encodedUrl}`)) {
+        return entry.url;
       }
     }
   }
@@ -100,11 +93,9 @@ function findFolderBookmarkUrl(
 export function BrowserTabTree({
   workspaces,
   browserTabs,
-  browserTabFolders,
+  browserBookmarkFolders,
   browserHistory,
   browserWorkspaceBookmarks,
-  browserBookmarks,
-  browserBookmarkTabIdUrlMap,
   tabTreeExpanded,
   selectedTreePath,
   onSelectTreePath,
@@ -117,11 +108,9 @@ export function BrowserTabTree({
   const categories = useBrowserTreeData(
     workspaces,
     browserTabs,
-    browserTabFolders,
+    browserBookmarkFolders,
     browserHistory,
     browserWorkspaceBookmarks,
-    browserBookmarks ?? [],
-    browserBookmarkTabIdUrlMap ?? {},
     labels,
   );
 
@@ -140,8 +129,8 @@ export function BrowserTabTree({
 
         if (uniqueKey.startsWith('ws-bookmark-') || uniqueKey.startsWith('folder-')) {
           const bookmarkUrl = uniqueKey.startsWith('ws-bookmark-')
-            ? findWorkspaceBookmarkUrl(browserWorkspaceBookmarks, tabId, uniqueKey)
-            : findFolderBookmarkUrl(browserTabFolders, tabId, uniqueKey);
+            ? findWorkspaceBookmarkUrl(browserWorkspaceBookmarks, uniqueKey)
+            : findFolderBookmarkUrl(browserBookmarkFolders, uniqueKey);
           if (bookmarkUrl) {
             callbacks.onOpenTab(bookmarkUrl);
             return;
@@ -171,7 +160,7 @@ export function BrowserTabTree({
           if (second) {
             const entries = browserWorkspaceBookmarks[first];
             if (entries) {
-              const entry = entries.find((e) => e.tabId === second);
+              const entry = entries.find((e) => e.id === second);
               if (entry?.url) {
                 callbacks.onOpenTab(entry.url);
                 return;
@@ -193,7 +182,7 @@ export function BrowserTabTree({
         }
       }
     },
-    [browserTabs, browserHistory, browserWorkspaceBookmarks, browserTabFolders, callbacks],
+    [browserTabs, browserHistory, browserWorkspaceBookmarks, browserBookmarkFolders, callbacks],
   );
 
   return (

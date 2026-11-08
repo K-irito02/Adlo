@@ -22,7 +22,7 @@ import type { TerminalSlice } from './slices/terminalSlice';
 import type { BrowserTabsSlice } from './slices/browserTabsSlice';
 import type { BrowserBookmarkSlice } from './slices/browserBookmarkSlice';
 import type { BrowserHistorySlice } from './slices/browserHistorySlice';
-import type { BrowserFoldersSlice } from './slices/browserFoldersSlice';
+import type { BrowserBookmarkFoldersSlice } from './slices/browserFoldersSlice';
 import type { BrowserLandingSlice } from './slices/browserLandingSlice';
 import type { BrowserSearchEnginesSlice } from './slices/browserSearchEnginesSlice';
 import type { BrowserSlice } from './slices/browserSlice';
@@ -116,7 +116,7 @@ type AllSlices = [
   BrowserTabsSlice,
   BrowserBookmarkSlice,
   BrowserHistorySlice,
-  BrowserFoldersSlice,
+  BrowserBookmarkFoldersSlice,
   BrowserLandingSlice,
   BrowserSearchEnginesSlice,
   BrowserSlice,

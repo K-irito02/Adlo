@@ -117,7 +117,7 @@ function makeState(
     hasActiveTab: false,
     isBookmarked: false,
     browserTabs: [],
-    browserTabFolders: [],
+    browserBookmarkFolders: [],
     tabTreeExpanded: {},
     allTreeExpanded: false,
     navigatorQuery: '',
@@ -168,7 +168,6 @@ function renderNavigator(
 ) {
   useAppStore.setState({
     browserBookmarks: [],
-    browserBookmarkTabIdUrlMap: {},
     browserHistory: [],
     browserWorkspaceBookmarks: {},
     setBrowserNavigatorWidth: vi.fn(),

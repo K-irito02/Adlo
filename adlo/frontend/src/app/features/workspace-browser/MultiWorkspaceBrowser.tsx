@@ -1,10 +1,10 @@
 import type { RecentWorkspaceEntry } from '@shared/ipc';
-import type { BrowserTabState, TabFolderState } from '@stores/slices/browserSlice';
+import type { BrowserTabState, BookmarkFolder } from '@stores/slices/browserSlice';
 import { useTCopy } from '@i18n/useTCopy';
 
 export interface MultiWorkspaceBrowserProps {
   workspaces: RecentWorkspaceEntry[];
-  tabFolders?: TabFolderState[];
+  tabFolders?: BookmarkFolder[];
   browserTabs: BrowserTabState[];
   activeTabId: string | null;
 }

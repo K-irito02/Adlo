@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
-import type { TabFolderState } from '@stores/slices/browserFoldersSlice';
+import type { BookmarkFolder } from '@stores/slices/browserFoldersSlice';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import type { BrowserSearchScope } from './useBrowserSearch';
 import type { BrowserMenuItem } from './useBrowserMenus';
@@ -14,7 +14,7 @@ export interface BrowserPanelState {
   hasActiveTab: boolean;
   isBookmarked: boolean;
   browserTabs: BrowserTabState[];
-  browserTabFolders: TabFolderState[];
+  browserBookmarkFolders: BookmarkFolder[];
   tabTreeExpanded: Record<string, boolean>;
   allTreeExpanded: boolean;
   navigatorQuery: string;

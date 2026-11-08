@@ -1,11 +1,11 @@
-import type { TabFolderState } from '@stores/slices/browserSlice';
+import type { BookmarkFolder } from '@stores/slices/browserSlice';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 import { buildFolderPathLabel } from '@stores/slices/browserFoldersUtils';
 import type { BrowserTreeNode } from './types';
 
 export function buildBrowserNodeTitleMap(
   rootNodes: BrowserTreeNode[],
-  tabFolders: TabFolderState[],
+  tabFolders: BookmarkFolder[],
   workspaces: RecentWorkspaceEntry[],
   baseParentPath = '',
 ): Map<string, string> {

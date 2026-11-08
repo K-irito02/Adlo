@@ -1,19 +1,16 @@
 import { BrowserTabTree } from '@features/browser-tree';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
-import type { BrowserBookmark } from '@stores/slices/browserSlice';
-import type { TabFolderState } from '@stores/slices/browserFoldersSlice';
+import type { BookmarkFolder } from '@stores/slices/browserFoldersSlice';
 import type { BrowserHistoryState } from '@stores/slices/browserHistorySlice';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
-import type { WorkspaceBookmarkEntry } from '@stores/slices/browserSlice';
+import type { BookmarkEntry } from '@stores/slices/browserSlice';
 
 export interface BrowserNavTabsModeProps {
   visibleWorkspaces: RecentWorkspaceEntry[];
   browserTabs: BrowserTabState[];
-  browserTabFolders: TabFolderState[];
+  browserBookmarkFolders: BookmarkFolder[];
   browserHistory: BrowserHistoryState[];
-  browserWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>;
-  browserBookmarks?: BrowserBookmark[];
-  browserBookmarkTabIdUrlMap?: Record<string, string>;
+  browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>;
   tabTreeExpanded: Record<string, boolean>;
   selectedTreePath: string | null;
   onSelectTreePath: (path: string | null) => void;
@@ -27,7 +24,7 @@ export interface BrowserNavTabsModeProps {
   onRenameDirectory: (folderId: string) => void;
   onDeleteHistory: (level: 'label' | 'year' | 'month' | 'day', nodePath: string) => void;
   onOpenTab: (url: string, tabId?: string) => void;
-  onRefreshTab: (tabId: string, url: string) => void;
+  onRefreshTab: (tabId: string | undefined, url: string) => void;
   onEditTab: (tabId: string, name: string, url: string) => void;
   onDeleteTab: (tabId: string, url: string) => void;
   onCopyTabLink: (url: string) => void;
@@ -45,11 +42,9 @@ export interface BrowserNavTabsModeProps {
 export function BrowserNavTabsMode({
   visibleWorkspaces,
   browserTabs,
-  browserTabFolders,
+  browserBookmarkFolders,
   browserHistory,
   browserWorkspaceBookmarks,
-  browserBookmarks,
-  browserBookmarkTabIdUrlMap,
   tabTreeExpanded,
   selectedTreePath,
   onSelectTreePath,
@@ -77,11 +72,9 @@ export function BrowserNavTabsMode({
     <BrowserTabTree
       workspaces={visibleWorkspaces}
       browserTabs={browserTabs}
-      browserTabFolders={browserTabFolders}
+      browserBookmarkFolders={browserBookmarkFolders}
       browserHistory={browserHistory}
       browserWorkspaceBookmarks={browserWorkspaceBookmarks}
-      browserBookmarks={browserBookmarks}
-      browserBookmarkTabIdUrlMap={browserBookmarkTabIdUrlMap}
       tabTreeExpanded={tabTreeExpanded}
       selectedTreePath={selectedTreePath}
       onSelectTreePath={onSelectTreePath}

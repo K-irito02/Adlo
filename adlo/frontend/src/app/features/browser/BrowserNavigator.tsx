@@ -45,7 +45,7 @@ export function BrowserNavigator() {
     selectedTreePathRef,
     visibleWorkspaces,
     browserTabs,
-    browserTabFolders,
+    browserBookmarkFolders,
     tabTreeExpanded,
   } = useBrowserPanelState();
 
@@ -86,7 +86,6 @@ export function BrowserNavigator() {
 
   const {
     browserBookmarks,
-    browserBookmarkTabIdUrlMap,
     browserHistory,
     browserWorkspaceBookmarks,
     setBrowserNavigatorWidth,
@@ -94,7 +93,6 @@ export function BrowserNavigator() {
   } = useAppStore(
     useShallow((state) => ({
       browserBookmarks: state.browserBookmarks,
-      browserBookmarkTabIdUrlMap: state.browserBookmarkTabIdUrlMap,
       browserHistory: state.browserHistory,
       browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
       setBrowserNavigatorWidth: state.setBrowserNavigatorWidth,
@@ -198,7 +196,7 @@ export function BrowserNavigator() {
                   wsId = path.slice('workspace:'.length);
                 } else if (path.startsWith('folder:')) {
                   fId = path.slice('folder:'.length);
-                  wsId = resolveFolderWorkspaceId(fId, browserTabFolders);
+                  wsId = resolveFolderWorkspaceId(fId, browserBookmarkFolders);
                 }
                 setCreateTabDialog({ open: true, workspaceId: wsId, folderId: fId });
               } else {
@@ -260,11 +258,9 @@ export function BrowserNavigator() {
         <BrowserNavTabsMode
           visibleWorkspaces={visibleWorkspaces as RecentWorkspaceEntry[]}
           browserTabs={browserTabs}
-          browserTabFolders={browserTabFolders}
+          browserBookmarkFolders={browserBookmarkFolders}
           browserHistory={browserHistory}
           browserWorkspaceBookmarks={browserWorkspaceBookmarks}
-          browserBookmarks={browserBookmarks}
-          browserBookmarkTabIdUrlMap={browserBookmarkTabIdUrlMap}
           tabTreeExpanded={tabTreeExpanded}
           selectedTreePath={selectedTreePath}
           onSelectTreePath={handleSelectTreePath}
@@ -278,7 +274,7 @@ export function BrowserNavigator() {
           onRemoveFromArea={handleRemoveFromArea}
           onDeleteDirectory={handleDeleteDirectory}
           onRenameDirectory={(folderId: string) => {
-            const folder = browserTabFolders.find((f) => f.id === folderId);
+            const folder = browserBookmarkFolders.find((f) => f.id === folderId);
             setRenameFolderState({ open: true, folderId, currentName: folder?.name ?? '' });
           }}
           onDeleteHistory={handleDeleteHistoryLevel}
@@ -301,11 +297,9 @@ export function BrowserNavigator() {
         <BrowserNavListMode
           visibleWorkspaces={visibleWorkspaces as RecentWorkspaceEntry[]}
           browserTabs={browserTabs}
-          browserTabFolders={browserTabFolders}
+          browserBookmarkFolders={browserBookmarkFolders}
           browserHistory={browserHistory}
           browserWorkspaceBookmarks={browserWorkspaceBookmarks}
-          browserBookmarks={browserBookmarks}
-          browserBookmarkTabIdUrlMap={browserBookmarkTabIdUrlMap}
           tabTreeExpanded={tabTreeExpanded}
           selectedTreePath={selectedTreePath}
           onSelectTreePath={handleSelectTreePath}
@@ -319,7 +313,7 @@ export function BrowserNavigator() {
           onRemoveFromArea={handleRemoveFromArea}
           onDeleteDirectory={handleDeleteDirectory}
           onRenameDirectory={(folderId: string) => {
-            const folder = browserTabFolders.find((f) => f.id === folderId);
+            const folder = browserBookmarkFolders.find((f) => f.id === folderId);
             setRenameFolderState({ open: true, folderId, currentName: folder?.name ?? '' });
           }}
           onDeleteHistory={handleDeleteHistoryLevel}
@@ -392,7 +386,7 @@ export function BrowserNavigator() {
               browserTabs={browserTabs}
               browserHistory={browserHistory}
               browserBookmarks={browserBookmarks}
-              browserTabFolders={browserTabFolders}
+              browserBookmarkFolders={browserBookmarkFolders}
               browserWorkspaceBookmarks={browserWorkspaceBookmarks}
               onSelectResult={(url) => handleOpenTabFromTree(url)}
               onRefreshTab={handleRefreshTab}

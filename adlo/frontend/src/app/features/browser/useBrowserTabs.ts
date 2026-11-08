@@ -58,7 +58,7 @@ export function useBrowserTabs() {
     browserCloseAllTabs,
     browserToggleBookmark,
     browserClearHistory,
-    browserClearAllFolderTabs,
+    browserClearAllFolderBookmarks,
   } = useAppStore(
     useShallow((state) => ({
       browserTabs: state.browserTabs,
@@ -71,7 +71,7 @@ export function useBrowserTabs() {
       browserCloseAllTabs: state.browserCloseAllTabs,
       browserToggleBookmark: state.browserToggleBookmark,
       browserClearHistory: state.browserClearHistory,
-      browserClearAllFolderTabs: state.browserClearAllFolderTabs,
+      browserClearAllFolderBookmarks: state.browserClearAllFolderBookmarks,
     })),
   );
 
@@ -140,8 +140,8 @@ export function useBrowserTabs() {
   );
 
   const handleClearTabDirectories = useCallback(() => {
-    browserClearAllFolderTabs();
-  }, [browserClearAllFolderTabs]);
+    browserClearAllFolderBookmarks();
+  }, [browserClearAllFolderBookmarks]);
 
   const handleEditSubmit = useCallback(() => {
     if (editingTabId && editValue.trim()) {

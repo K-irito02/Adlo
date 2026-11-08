@@ -10,8 +10,8 @@ import { useTCopy } from '@i18n/useTCopy';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type {
   BrowserHistoryState,
-  TabFolderState,
-  WorkspaceBookmarkEntry,
+  BookmarkEntry,
+  BookmarkFolder,
 } from '@stores/slices/browserTypes';
 import { historyDedupKey } from '@utils/browserDisplayUtils';
 
@@ -20,10 +20,10 @@ export interface BrowserNavSearchModeProps {
   browserTabs: BrowserTabState[];
   browserHistory: BrowserHistoryState[];
   browserBookmarks: { title: string; url: string }[];
-  browserTabFolders: TabFolderState[];
-  browserWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>;
+  browserBookmarkFolders: BookmarkFolder[];
+  browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>;
   onSelectResult: (url: string) => void;
-  onRefreshTab: (tabId: string, url: string) => void;
+  onRefreshTab: (tabId: string | undefined, url: string) => void;
   onEditTab: (tabId: string, name: string, url: string) => void;
   onDeleteTab: (tabId: string, url: string) => void;
   onCopyTabLink: (url: string) => void;
@@ -45,7 +45,7 @@ export function BrowserNavSearchMode({
   browserTabs,
   browserHistory,
   browserBookmarks,
-  browserTabFolders,
+  browserBookmarkFolders,
   browserWorkspaceBookmarks,
   onSelectResult,
   onRefreshTab,
@@ -71,17 +71,17 @@ export function BrowserNavSearchMode({
 
   const items = useMemo<FlatItem[]>(() => {
     const snapshotTabIdByUrl = new Map<string, string>();
-    for (const folder of browserTabFolders) {
-      for (const item of folder.tabs ?? []) {
-        if (item.url && item.tabId && !snapshotTabIdByUrl.has(historyDedupKey(item.url))) {
-          snapshotTabIdByUrl.set(historyDedupKey(item.url), item.tabId);
+    for (const folder of browserBookmarkFolders) {
+      for (const item of folder.entries ?? []) {
+        if (item.url && item.id && !snapshotTabIdByUrl.has(historyDedupKey(item.url))) {
+          snapshotTabIdByUrl.set(historyDedupKey(item.url), item.id);
         }
       }
     }
     for (const entries of Object.values(browserWorkspaceBookmarks)) {
       for (const entry of entries ?? []) {
-        if (entry.url && entry.tabId && !snapshotTabIdByUrl.has(historyDedupKey(entry.url))) {
-          snapshotTabIdByUrl.set(historyDedupKey(entry.url), entry.tabId);
+        if (entry.url && entry.id && !snapshotTabIdByUrl.has(historyDedupKey(entry.url))) {
+          snapshotTabIdByUrl.set(historyDedupKey(entry.url), entry.id);
         }
       }
     }
@@ -108,7 +108,13 @@ export function BrowserNavSearchMode({
       };
       return { type: 'tab', node } as FlatItem;
     });
-  }, [searchResults, browserTabs, browserHistory, browserTabFolders, browserWorkspaceBookmarks]);
+  }, [
+    searchResults,
+    browserTabs,
+    browserHistory,
+    browserBookmarkFolders,
+    browserWorkspaceBookmarks,
+  ]);
 
   const sectionCallbacks = useMemo<SearchSectionCallbacks>(
     () => ({

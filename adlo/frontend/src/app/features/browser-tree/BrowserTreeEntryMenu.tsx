@@ -252,8 +252,8 @@ export function useBrowserTreeEntryMenu({
                 id: 'open-current',
                 label: t.browserContextOpenCurrent,
                 action: () => {
-                  if (contextMenuForTab.node.tabId) {
-                    callbacks.onOpenTabInCurrentTab(contextMenuForTab.node.tabId);
+                  if (contextMenuForTab.node.url) {
+                    callbacks.onOpenTabInCurrentTab(contextMenuForTab.node.url);
                   }
                   setContextMenuForTab(null);
                 },
@@ -286,7 +286,7 @@ export function useBrowserTreeEntryMenu({
                 label: t.browserRefreshMeta,
                 hint: t.browserRefreshMetaHint,
                 action: () => {
-                  if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
+                  if (contextMenuForTab.node.url) {
                     callbacks.onRefreshTab(
                       contextMenuForTab.node.tabId,
                       contextMenuForTab.node.url,
@@ -299,9 +299,9 @@ export function useBrowserTreeEntryMenu({
                 id: 'edit',
                 label: t.browserContextEdit,
                 action: () => {
-                  if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
+                  if (contextMenuForTab.node.url) {
                     callbacks.onEditTab(
-                      contextMenuForTab.node.tabId,
+                      contextMenuForTab.node.bookmarkId ?? contextMenuForTab.node.tabId ?? '',
                       contextMenuForTab.node.name,
                       contextMenuForTab.node.url,
                     );
@@ -336,7 +336,7 @@ export function useBrowserTreeEntryMenu({
                   handleBookmarkToggle(
                     contextMenuForTab.node.url ?? '',
                     contextMenuForTab.node.name,
-                    contextMenuForTab.node.tabId,
+                    contextMenuForTab.node.bookmarkId,
                   );
                   setContextMenuForTab(null);
                 },
@@ -346,18 +346,17 @@ export function useBrowserTreeEntryMenu({
                 label: t.browserContextDelete,
                 danger: true,
                 action: () => {
-                  if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
-                    if (contextMenuForTab.node.isSavedBookmark) {
-                      callbacks.onRemoveBookmarkTab?.(
-                        contextMenuForTab.node.tabId,
-                        contextMenuForTab.node.url,
-                      );
-                    } else {
-                      callbacks.onDeleteTab(
-                        contextMenuForTab.node.tabId,
-                        contextMenuForTab.node.url,
-                      );
-                    }
+                  if (!contextMenuForTab.node.url) {
+                    setContextMenuForTab(null);
+                    return;
+                  }
+                  if (contextMenuForTab.node.isSavedBookmark) {
+                    callbacks.onRemoveBookmarkTab?.(
+                      contextMenuForTab.node.bookmarkId ?? '',
+                      contextMenuForTab.node.url,
+                    );
+                  } else if (contextMenuForTab.node.tabId) {
+                    callbacks.onDeleteTab(contextMenuForTab.node.tabId, contextMenuForTab.node.url);
                   }
                   setContextMenuForTab(null);
                 },

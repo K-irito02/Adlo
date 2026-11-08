@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { buildBrowserTabUrlMap, markResolvedTitles } from '../composite';
+import { markResolvedTitles } from '../composite';
+import { useAppStore } from '@stores/slicedStore';
 import { hydrateAll, resetHydrationForTest } from '../hydrate';
 
 describe('markResolvedTitles', () => {
@@ -20,19 +21,11 @@ describe('markResolvedTitles', () => {
   });
 });
 
-describe('buildBrowserTabUrlMap', () => {
-  it('prefers workspace bookmark urls, then folder tab urls, then the persisted map', () => {
-    const map = buildBrowserTabUrlMap({
-      tabs: [{ id: 'tab-b', url: 'https://from-tab.test' }] as never,
-      workspaceBookmarks: { ws1: [{ tabId: 'tab-a', url: 'https://from-bookmark.test' }] } as never,
-      tabFolders: [{ tabs: [{ tabId: 'tab-b' }] }] as never,
-      persistedMap: { 'tab-c': 'https://from-persisted.test' },
-    });
-    expect(map).toEqual({
-      'tab-a': 'https://from-bookmark.test',
-      'tab-b': 'https://from-tab.test',
-      'tab-c': 'https://from-persisted.test',
-    });
+describe('bookmark identity', () => {
+  it('keeps bookmark entries independent from tab ids', () => {
+    const state = useAppStore.getState();
+    expect(state.browserBookmarks).toEqual([]);
+    expect(state.browserBookmarkFolders).toEqual([]);
   });
 });
 
@@ -84,7 +77,6 @@ describe('composite hydration is defensive', () => {
     }).not.toThrow();
 
     expect(patch.browserWorkspaceBookmarks).toEqual({});
-    expect(patch.browserBookmarkTabIdUrlMap).toEqual({});
   });
 
   it('rejects a tab-folder array holding a malformed folder', () => {
@@ -103,7 +95,6 @@ describe('composite hydration is defensive', () => {
       patch = hydrateAll().patch as Partial<Record<string, unknown>>;
     }).not.toThrow();
 
-    expect(patch.browserTabFolders).toEqual([]);
-    expect(patch.browserBookmarkTabIdUrlMap).toEqual({});
+    expect(patch.browserBookmarkFolders).toEqual([]);
   });
 });

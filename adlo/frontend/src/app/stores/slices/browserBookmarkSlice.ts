@@ -6,16 +6,14 @@ import { resolveAppLanguage } from '@i18n/resolveLanguage';
 import type {
   BrowserTabState,
   BrowserBookmark as _BrowserBookmark,
-  WorkspaceBookmarkEntry as _WorkspaceBookmarkEntry,
-  TabFolderState,
-  BookmarkTabItem,
+  BookmarkEntry,
+  BookmarkFolder,
 } from './browserTypes';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
 import { buildFolderPathLabel, buildWorkspacePathLabel } from './browserFoldersUtils';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 
 export type BrowserBookmark = _BrowserBookmark;
-export type WorkspaceBookmarkEntry = _WorkspaceBookmarkEntry;
 
 export interface BookmarkCollisionCheck {
   ok: boolean;
@@ -29,17 +27,17 @@ export function checkBookmarkCollision(
   opts: { workspaceId?: string; folderId?: string },
   state: BrowserBookmarkHelpersState,
   workspaces: RecentWorkspaceEntry[] = [],
-  excludeTabId?: string,
+  excludeBookmarkId?: string,
 ): BookmarkCollisionCheck {
   if (opts.folderId) {
-    const folder = state.browserTabFolders.find((f) => f.id === opts.folderId);
-    const collides = folder?.tabs?.some(
-      (item) => item.tabId !== excludeTabId && item.url === url && item.title === title,
+    const folder = state.browserBookmarkFolders.find((f) => f.id === opts.folderId);
+    const collides = folder?.entries?.some(
+      (entry) => entry.id !== excludeBookmarkId && entry.url === url && entry.title === title,
     );
     if (collides) {
       return {
         ok: false,
-        pathLabel: buildFolderPathLabel(opts.folderId, state.browserTabFolders, workspaces),
+        pathLabel: buildFolderPathLabel(opts.folderId, state.browserBookmarkFolders, workspaces),
       };
     }
   }
@@ -47,7 +45,7 @@ export function checkBookmarkCollision(
     const entries = state.browserWorkspaceBookmarks[opts.workspaceId] || [];
     if (
       entries.some(
-        (entry) => entry.tabId !== excludeTabId && entry.url === url && entry.title === title,
+        (entry) => entry.id !== excludeBookmarkId && entry.url === url && entry.title === title,
       )
     ) {
       return {
@@ -63,33 +61,60 @@ interface BrowserBookmarkHelpersState {
   browserTabs: BrowserTabState[];
   browserActiveTabId: string;
   browserBookmarks: _BrowserBookmark[];
-  browserTabFolders: TabFolderState[];
-  browserWorkspaceBookmarks: Record<string, _WorkspaceBookmarkEntry[]>;
-  browserBookmarkTabIdUrlMap: Record<string, string>;
+  browserBookmarkFolders: BookmarkFolder[];
+  browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>;
 }
 
 interface BookmarkOutcome {
   partial: Partial<{
     browserBookmarks: _BrowserBookmark[];
-    browserTabFolders: TabFolderState[];
-    browserWorkspaceBookmarks: Record<string, _WorkspaceBookmarkEntry[]>;
-    browserBookmarkTabIdUrlMap: Record<string, string>;
+    browserBookmarkFolders: BookmarkFolder[];
+    browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>;
   }> | null;
   bookmarksChanged: boolean;
   foldersChanged: boolean;
   wsBookmarksChanged: boolean;
-  tabIdUrlMapChanged: boolean;
 }
 
-interface BookmarkTabParams {
-  tabId: string;
-  folderId?: string;
-  newFolderName?: string;
-  workspaceId?: string;
-  titleOverride?: string;
-  newFolderId: string;
-  now: number;
-  locale: 'en-US' | 'zh-CN';
+const NO_CHANGES: BookmarkOutcome = {
+  partial: null,
+  bookmarksChanged: false,
+  foldersChanged: false,
+  wsBookmarksChanged: false,
+};
+
+function makeEntry(
+  id: string,
+  url: string,
+  title: string,
+  now: number,
+  sourceTabId?: string,
+): BookmarkEntry {
+  return {
+    id,
+    url,
+    title,
+    addedAt: now,
+    lastModifiedAt: now,
+    ...(sourceTabId ? { sourceTabId } : {}),
+  };
+}
+
+/** 该 (url,title) 元组是否仍被任何目录 / 工作区条目引用。 */
+function isTupleStillReferenced(
+  folders: BookmarkFolder[],
+  workspaceBookmarks: Record<string, BookmarkEntry[]>,
+  url: string,
+  title: string,
+): boolean {
+  for (const entries of Object.values(workspaceBookmarks)) {
+    if (entries.some((entry) => entry.url === url && entry.title === title)) {
+      return true;
+    }
+  }
+  return folders.some((folder) =>
+    folder.entries?.some((entry) => entry.url === url && entry.title === title),
+  );
 }
 
 function computeToggleBookmarkOutcome(
@@ -102,288 +127,320 @@ function computeToggleBookmarkOutcome(
   const rawTitle = input?.title?.trim() || active?.title || url;
   const title = rawTitle || hostnameFromUrl(url) || url;
 
-  // 元组语义：按 (url,title) 判断该具体收藏是否存在
   const exists = state.browserBookmarks.some((b) => b.url === url && b.title === title);
-
-  let nextFolders = state.browserTabFolders;
-  let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
-  let nextBookmarks = state.browserBookmarks;
-
-  let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
-  if (exists) {
-    const tabIdsForUrl = new Set(
-      state.browserTabs.filter((tab) => tab.url === url).map((tab) => tab.id),
-    );
-    if (tabIdsForUrl.size > 0) {
-      nextTabIdUrlMap = { ...nextTabIdUrlMap };
-      for (const tid of tabIdsForUrl) {
-        delete nextTabIdUrlMap[tid];
-      }
-    }
-  } else if (active?.id) {
-    nextTabIdUrlMap = {
-      ...(nextTabIdUrlMap !== undefined ? nextTabIdUrlMap : {}),
-      [active.id]: url,
+  if (!exists) {
+    return {
+      partial: { browserBookmarks: [...state.browserBookmarks, { url, title }] },
+      bookmarksChanged: true,
+      foldersChanged: false,
+      wsBookmarksChanged: false,
     };
   }
 
+  // 取消收藏：只移除「来自这些同 URL 标签页」的条目，手动加入目录的副本保持不动。
+  const sourceTabIds = new Set(
+    state.browserTabs.filter((tab) => tab.url === url).map((tab) => tab.id),
+  );
+
   let foldersChanged = false;
-  let wsBookmarksChanged = false;
-
-  if (exists) {
-    const tabIdsForUrl = new Set(
-      state.browserTabs.filter((tab) => tab.url === url).map((tab) => tab.id),
+  const nextFolders = state.browserBookmarkFolders.map((folder) => {
+    if (!folder.entries?.length) {
+      return folder;
+    }
+    const remaining = folder.entries.filter(
+      (entry) =>
+        !(
+          entry.url === url &&
+          entry.title === title &&
+          entry.sourceTabId !== undefined &&
+          sourceTabIds.has(entry.sourceTabId)
+        ),
     );
-
-    if (tabIdsForUrl.size > 0) {
-      nextFolders = state.browserTabFolders.map((folder) => {
-        if (
-          folder.tabs &&
-          folder.tabs.some(
-            (item) => tabIdsForUrl.has(item.tabId) && item.url === url && item.title === title,
-          )
-        ) {
-          return {
-            ...folder,
-            tabs: folder.tabs.filter(
-              (item) => !(tabIdsForUrl.has(item.tabId) && item.url === url && item.title === title),
-            ),
-          };
-        }
-        return folder;
-      });
-      foldersChanged = true;
-
-      nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
-      for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
-        if (
-          nextWorkspaceBookmarks[wsId].some(
-            (entry) => tabIdsForUrl.has(entry.tabId) && entry.url === url && entry.title === title,
-          )
-        ) {
-          nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter(
-            (entry) =>
-              !(tabIdsForUrl.has(entry.tabId) && entry.url === url && entry.title === title),
-          );
-          if (nextWorkspaceBookmarks[wsId].length === 0) {
-            delete nextWorkspaceBookmarks[wsId];
-          }
-        }
-      }
-      wsBookmarksChanged = true;
+    if (remaining.length === folder.entries.length) {
+      return folder;
     }
+    foldersChanged = true;
+    return { ...folder, entries: remaining };
+  });
 
-    // 仅当该 (url,title) 元组不再被任何 folder/workspace 条目引用时才从全局移除
-    const stillReferenced =
-      Object.values(nextWorkspaceBookmarks).some((entries) =>
-        entries.some((e) => e.url === url && e.title === title),
-      ) || nextFolders.some((f) => f.tabs?.some((t) => t.url === url && t.title === title));
-    if (!stillReferenced) {
-      nextBookmarks = state.browserBookmarks.filter((b) => !(b.url === url && b.title === title));
+  let wsBookmarksChanged = false;
+  const nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
+  for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
+    const entries = nextWorkspaceBookmarks[wsId];
+    const remaining = entries.filter(
+      (entry) =>
+        !(
+          entry.url === url &&
+          entry.title === title &&
+          entry.sourceTabId !== undefined &&
+          sourceTabIds.has(entry.sourceTabId)
+        ),
+    );
+    if (remaining.length === entries.length) {
+      continue;
     }
-  } else {
-    nextBookmarks = [...state.browserBookmarks, { url, title }];
+    wsBookmarksChanged = true;
+    if (remaining.length === 0) {
+      delete nextWorkspaceBookmarks[wsId];
+    } else {
+      nextWorkspaceBookmarks[wsId] = remaining;
+    }
   }
+
+  const stillReferenced = isTupleStillReferenced(nextFolders, nextWorkspaceBookmarks, url, title);
+  const nextBookmarks = stillReferenced
+    ? state.browserBookmarks
+    : state.browserBookmarks.filter((b) => !(b.url === url && b.title === title));
 
   return {
     partial: {
       browserBookmarks: nextBookmarks,
-      browserTabFolders: nextFolders,
+      browserBookmarkFolders: nextFolders,
       browserWorkspaceBookmarks: nextWorkspaceBookmarks,
-      browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
     },
     bookmarksChanged: nextBookmarks !== state.browserBookmarks,
     foldersChanged,
     wsBookmarksChanged,
-    tabIdUrlMapChanged: nextTabIdUrlMap !== state.browserBookmarkTabIdUrlMap,
   };
 }
 
-function computeBookmarkTabOutcome(
+interface SaveTabBookmarkParams {
+  tabId: string;
+  folderId?: string;
+  newFolderName?: string;
+  workspaceId?: string;
+  titleOverride?: string;
+  newFolderId: string;
+  newBookmarkId: string;
+  now: number;
+}
+
+function computeSaveTabBookmarkOutcome(
   state: BrowserBookmarkHelpersState,
-  params: BookmarkTabParams,
+  params: SaveTabBookmarkParams,
 ): BookmarkOutcome {
-  const { tabId, folderId, newFolderName, workspaceId, newFolderId, now, titleOverride } = params;
+  const { tabId, folderId, newFolderName, workspaceId, newFolderId, newBookmarkId, now } = params;
   const tab = state.browserTabs.find((t) => t.id === tabId);
   if (!tab || !tab.url) {
-    return {
-      partial: null,
-      bookmarksChanged: false,
-      foldersChanged: false,
-      wsBookmarksChanged: false,
-      tabIdUrlMapChanged: false,
-    };
+    return NO_CHANGES;
   }
 
   const url = tab.url;
-  const rawTitle = titleOverride?.trim() || tab.title;
-  const title = rawTitle || hostnameFromUrl(url) || url;
+  const title = params.titleOverride?.trim() || tab.title || hostnameFromUrl(url) || url;
 
-  const existsInBookmarks = state.browserBookmarks.some((b) => b.url === url && b.title === title);
-  let nextBookmarks = state.browserBookmarks;
+  const existsInIndex = state.browserBookmarks.some((b) => b.url === url && b.title === title);
+  const nextBookmarks = existsInIndex
+    ? state.browserBookmarks
+    : [...state.browserBookmarks, { url, title }];
 
-  if (!existsInBookmarks) {
-    nextBookmarks = [...state.browserBookmarks, { url, title }];
-  }
+  const staleTuples: { url: string; title: string }[] = [];
 
-  let nextFolders = [...state.browserTabFolders];
-  let targetFolderId = folderId;
+  let nextFolders = state.browserBookmarkFolders;
   let foldersChanged = false;
+  let targetFolderId = folderId;
 
-  // 记录该 tabId 在目标路径中的旧 (url,title) 元组，供标题变更后修剪全局孤儿
-  const oldTuples: { url: string; title: string }[] = [];
   if (targetFolderId) {
-    const folder = state.browserTabFolders.find((f) => f.id === targetFolderId);
-    const oldItem = folder?.tabs?.find((item) => item.tabId === tabId);
-    if (oldItem) {
-      oldTuples.push({ url: oldItem.url, title: oldItem.title });
+    const folder = state.browserBookmarkFolders.find((f) => f.id === targetFolderId);
+    const oldEntry = folder?.entries?.find((entry) => entry.sourceTabId === tabId);
+    if (oldEntry) {
+      staleTuples.push({ url: oldEntry.url, title: oldEntry.title });
     }
   }
   if (workspaceId) {
     const oldEntry = (state.browserWorkspaceBookmarks[workspaceId] || []).find(
-      (entry) => entry.tabId === tabId,
+      (entry) => entry.sourceTabId === tabId,
     );
     if (oldEntry) {
-      oldTuples.push({ url: oldEntry.url, title: oldEntry.title });
+      staleTuples.push({ url: oldEntry.url, title: oldEntry.title });
     }
   }
 
   if (!targetFolderId && newFolderName) {
-    const folderCount = nextFolders.length;
-    const folderName = newFolderName.trim() || `New Folder ${folderCount + 1}`;
-    const newFolder: TabFolderState = {
+    const folderName = newFolderName.trim() || `New Folder ${nextFolders.length + 1}`;
+    const newFolder: BookmarkFolder = {
       id: newFolderId,
       name: folderName,
       createdAt: now,
       isUserCreated: true,
-      tabs: [{ tabId, url, title }],
+      entries: [makeEntry(newBookmarkId, url, title, now, tabId)],
     };
     nextFolders = [...nextFolders, newFolder];
     targetFolderId = newFolder.id;
     foldersChanged = true;
   } else if (targetFolderId) {
     nextFolders = nextFolders.map((folder) => {
-      if (folder.id === targetFolderId) {
-        const existingTabs: BookmarkTabItem[] = folder.tabs || [];
-        const existing = existingTabs.find((item) => item.tabId === tabId && item.url === url);
-        if (existing) {
-          if (existing.title !== title) {
-            const titleCollision = existingTabs.some(
-              (item) => item.tabId !== tabId && item.url === url && item.title === title,
-            );
-            if (titleCollision) {
-              return folder;
-            }
-            foldersChanged = true;
-            return {
-              ...folder,
-              tabs: existingTabs.map((item) =>
-                item.tabId === tabId && item.url === url ? { tabId, url, title } : item,
-              ),
-            };
-          }
-        } else {
-          const duplicate = existingTabs.some((item) => item.url === url && item.title === title);
-          if (duplicate) {
-            return folder;
-          }
-          // 就地导航场景：同 tabId 的旧 URL 条目一并移除，避免残留
-          const priorSameTab = existingTabs.filter((item) => item.tabId === tabId);
-          const tabsWithoutStale =
-            priorSameTab.length > 0
-              ? existingTabs.filter((item) => item.tabId !== tabId)
-              : existingTabs;
-          foldersChanged = true;
-          return {
-            ...folder,
-            tabs: [...tabsWithoutStale, { tabId, url, title }],
-          };
-        }
+      if (folder.id !== targetFolderId) {
+        return folder;
       }
-      return folder;
+      const existingEntries = folder.entries ?? [];
+      const sameSource = existingEntries.find((entry) => entry.sourceTabId === tabId);
+      if (sameSource) {
+        if (sameSource.url === url && sameSource.title === title) {
+          return folder;
+        }
+        const titleCollision = existingEntries.some(
+          (entry) => entry.id !== sameSource.id && entry.url === url && entry.title === title,
+        );
+        if (titleCollision) {
+          return folder;
+        }
+        foldersChanged = true;
+        return {
+          ...folder,
+          entries: existingEntries.map((entry) =>
+            entry.id === sameSource.id ? { ...entry, url, title, lastModifiedAt: now } : entry,
+          ),
+        };
+      }
+      if (existingEntries.some((entry) => entry.url === url && entry.title === title)) {
+        return folder;
+      }
+      foldersChanged = true;
+      return {
+        ...folder,
+        entries: [...existingEntries, makeEntry(newBookmarkId, url, title, now, tabId)],
+      };
     });
   }
-
-  let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
-  nextTabIdUrlMap = { ...nextTabIdUrlMap, [tabId]: url };
 
   let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
   let wsBookmarksChanged = false;
   if (workspaceId) {
-    const existingWsTabs = state.browserWorkspaceBookmarks[workspaceId] || [];
-    const existingIdx = existingWsTabs.findIndex(
-      (entry) => entry.tabId === tabId && entry.url === url,
-    );
-    if (existingIdx >= 0) {
-      const titleCollision = existingWsTabs.some(
-        (entry) => entry.tabId !== tabId && entry.url === url && entry.title === title,
+    const existing = state.browserWorkspaceBookmarks[workspaceId] || [];
+    const sameSourceIdx = existing.findIndex((entry) => entry.sourceTabId === tabId);
+    if (sameSourceIdx >= 0) {
+      const current = existing[sameSourceIdx];
+      const unchanged = current.url === url && current.title === title;
+      const collision = existing.some(
+        (entry) => entry.id !== current.id && entry.url === url && entry.title === title,
       );
-      if (!titleCollision) {
-        const current = existingWsTabs[existingIdx];
-        if (current.url !== url || current.title !== title) {
-          const updated = [...existingWsTabs];
-          updated[existingIdx] = { tabId, url, title };
-          nextWorkspaceBookmarks = {
-            ...state.browserWorkspaceBookmarks,
-            [workspaceId]: updated,
-          };
-          wsBookmarksChanged = true;
-        }
-      }
-    } else {
-      const duplicate = existingWsTabs.some((entry) => entry.url === url && entry.title === title);
-      if (!duplicate) {
-        // 就地导航场景：同 tabId 的旧 URL 条目一并移除，避免残留
-        const tabsWithoutStale = existingWsTabs.filter((entry) => entry.tabId !== tabId);
-        nextWorkspaceBookmarks = {
-          ...state.browserWorkspaceBookmarks,
-          [workspaceId]: [...tabsWithoutStale, { tabId, url, title }],
-        };
+      if (!unchanged && !collision) {
+        const updated = [...existing];
+        updated[sameSourceIdx] = { ...current, url, title, lastModifiedAt: now };
+        nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks, [workspaceId]: updated };
         wsBookmarksChanged = true;
       }
+    } else if (!existing.some((entry) => entry.url === url && entry.title === title)) {
+      nextWorkspaceBookmarks = {
+        ...state.browserWorkspaceBookmarks,
+        [workspaceId]: [...existing, makeEntry(newBookmarkId, url, title, now, tabId)],
+      };
+      wsBookmarksChanged = true;
     }
   }
 
-  // 修剪全局孤儿元组：旧 (url,title) 若不再被任何 folder/workspace 条目引用则移除
   let bookmarksChanged = nextBookmarks !== state.browserBookmarks;
-  for (const oldTuple of oldTuples) {
-    if (oldTuple.url === url && oldTuple.title === title) {
+  let finalBookmarks = nextBookmarks;
+  for (const stale of staleTuples) {
+    if (stale.url === url && stale.title === title) {
       continue;
     }
-    const stillReferenced =
-      Object.values(nextWorkspaceBookmarks).some((entries) =>
-        entries.some((e) => e.url === oldTuple.url && e.title === oldTuple.title),
-      ) ||
-      nextFolders.some((f) =>
-        f.tabs?.some((t) => t.url === oldTuple.url && t.title === oldTuple.title),
-      );
-    if (!stillReferenced) {
-      nextBookmarks = nextBookmarks.filter(
-        (b) => !(b.url === oldTuple.url && b.title === oldTuple.title),
-      );
+    if (isTupleStillReferenced(nextFolders, nextWorkspaceBookmarks, stale.url, stale.title)) {
+      continue;
+    }
+    const filtered = finalBookmarks.filter(
+      (b) => !(b.url === stale.url && b.title === stale.title),
+    );
+    if (filtered.length !== finalBookmarks.length) {
+      finalBookmarks = filtered;
       bookmarksChanged = true;
     }
   }
 
   return {
     partial: {
-      browserTabFolders: nextFolders,
-      browserBookmarks: nextBookmarks,
+      browserBookmarkFolders: nextFolders,
+      browserBookmarks: finalBookmarks,
       browserWorkspaceBookmarks: nextWorkspaceBookmarks,
-      browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
     },
     bookmarksChanged,
     foldersChanged,
     wsBookmarksChanged,
-    tabIdUrlMapChanged: nextTabIdUrlMap[tabId] !== state.browserBookmarkTabIdUrlMap[tabId],
+  };
+}
+
+interface RemoveEntriesResult {
+  partial: Partial<StoreState> | null;
+  foldersChanged: boolean;
+  wsChanged: boolean;
+  bookmarksChanged: boolean;
+}
+
+/**
+ * 从目录 / 工作区里删除满足条件的书签条目，并修剪因此变成孤儿的全局索引项。
+ * 删除只影响书签，不会关闭任何浏览器标签页。
+ */
+function removeEntriesMatching(
+  state: BrowserBookmarkHelpersState,
+  predicate: (entry: BookmarkEntry) => boolean,
+  scopeFolderId?: string,
+): RemoveEntriesResult {
+  const removedTuples: { url: string; title: string }[] = [];
+
+  const nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
+  let wsChanged = false;
+  for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
+    const entries = nextWorkspaceBookmarks[wsId];
+    const matching = entries.filter(predicate);
+    if (matching.length === 0) {
+      continue;
+    }
+    removedTuples.push(...matching.map((entry) => ({ url: entry.url, title: entry.title })));
+    const remaining = entries.filter((entry) => !predicate(entry));
+    if (remaining.length === 0) {
+      delete nextWorkspaceBookmarks[wsId];
+    } else {
+      nextWorkspaceBookmarks[wsId] = remaining;
+    }
+    wsChanged = true;
+  }
+
+  let foldersChanged = false;
+  const nextFolders = state.browserBookmarkFolders.map((folder) => {
+    if (scopeFolderId && folder.id !== scopeFolderId) {
+      return folder;
+    }
+    const entries = folder.entries ?? [];
+    const matching = entries.filter(predicate);
+    if (matching.length === 0) {
+      return folder;
+    }
+    removedTuples.push(...matching.map((entry) => ({ url: entry.url, title: entry.title })));
+    foldersChanged = true;
+    return { ...folder, entries: entries.filter((entry) => !predicate(entry)) };
+  });
+
+  const toRemoveTuples = removedTuples.filter(
+    (tuple) => !isTupleStillReferenced(nextFolders, nextWorkspaceBookmarks, tuple.url, tuple.title),
+  );
+  const nextBookmarks =
+    toRemoveTuples.length > 0
+      ? state.browserBookmarks.filter(
+          (b) => !toRemoveTuples.some((t) => t.url === b.url && t.title === b.title),
+        )
+      : state.browserBookmarks;
+  const bookmarksChanged = nextBookmarks !== state.browserBookmarks;
+
+  if (!wsChanged && !foldersChanged && !bookmarksChanged) {
+    return { partial: null, foldersChanged: false, wsChanged: false, bookmarksChanged: false };
+  }
+
+  return {
+    partial: {
+      browserBookmarks: nextBookmarks,
+      browserWorkspaceBookmarks: nextWorkspaceBookmarks,
+      browserBookmarkFolders: nextFolders,
+    },
+    foldersChanged,
+    wsChanged,
+    bookmarksChanged,
   };
 }
 
 export interface BrowserBookmarkSlice {
   browserBookmarks: _BrowserBookmark[];
-  browserWorkspaceBookmarks: Record<string, _WorkspaceBookmarkEntry[]>;
-  browserBookmarkTabIdUrlMap: Record<string, string>;
-  browserPendingBookmark: { url: string; title: string; tabId?: string } | null;
+  browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>;
+  browserPendingBookmark: { url: string; title: string; bookmarkId?: string } | null;
 
   browserToggleBookmark: (input?: { url?: string; title?: string }) => void;
   browserCreateBookmarkEntry: (input: {
@@ -392,7 +449,7 @@ export interface BrowserBookmarkSlice {
     workspaceId?: string;
     folderId?: string;
   }) => BookmarkCollisionCheck;
-  browserBookmarkTab: (
+  browserSaveTabAsBookmark: (
     tabId: string,
     folderId?: string,
     newFolderName?: string,
@@ -400,13 +457,21 @@ export interface BrowserBookmarkSlice {
     titleOverride?: string,
   ) => Promise<BookmarkCollisionCheck>;
   browserUpdateSavedBookmark: (
-    tabId: string,
+    bookmarkId: string,
     updates: { url: string; title: string },
   ) => { ok: boolean; pathLabel?: string; isSavedBookmark?: boolean };
-  browserRemoveTabBookmarks: (tabId: string, url: string, scopeFolderId?: string) => void;
+  browserRemoveBookmark: (bookmarkId: string, url: string, scopeFolderId?: string) => void;
+  /** 关闭/删除某个标签页时，连带移除它当初带来的那份收藏。 */
+  browserRemoveBookmarksFromTab: (tabId: string, url: string) => void;
   browserRemoveOrphanedBookmarks: () => void;
   browserClearAllWorkspaceBookmarks: () => void;
-  browserSetPendingBookmark: (data: { url: string; title: string; tabId?: string } | null) => void;
+  browserSetPendingBookmark: (
+    data: {
+      url: string;
+      title: string;
+      bookmarkId?: string;
+    } | null,
+  ) => void;
 }
 
 export const createBrowserBookmarkSlice = (
@@ -415,7 +480,6 @@ export const createBrowserBookmarkSlice = (
 ): BrowserBookmarkSlice => ({
   browserBookmarks: [],
   browserWorkspaceBookmarks: {},
-  browserBookmarkTabIdUrlMap: {},
   browserPendingBookmark: null,
 
   browserToggleBookmark: (input?: { url?: string; title?: string }) => {
@@ -428,13 +492,10 @@ export const createBrowserBookmarkSlice = (
         persist('adl:browser.bookmarks', outcome.partial.browserBookmarks!);
       }
       if (outcome.foldersChanged) {
-        persist('adl:browser.tabFolders', outcome.partial.browserTabFolders!);
+        persist('adl:browser.bookmarkFolders', outcome.partial.browserBookmarkFolders!);
       }
       if (outcome.wsBookmarksChanged) {
         persist('adl:browser.workspaceBookmarks', outcome.partial.browserWorkspaceBookmarks!);
-      }
-      if (outcome.tabIdUrlMapChanged) {
-        persist('adl:browser.tabIdUrlMap', outcome.partial.browserBookmarkTabIdUrlMap!);
       }
       return outcome.partial;
     });
@@ -458,30 +519,29 @@ export const createBrowserBookmarkSlice = (
       return collision;
     }
     set((state) => {
-      const url = input.url.trim();
-      const title = input.title.trim() || hostnameFromUrl(url) || url;
-      if (!url) {
-        return state;
-      }
-      const syntheticTabId = createUiId('bookmark');
+      const now = Date.now();
+      const bookmarkId = createUiId('bookmark');
       const exists = state.browserBookmarks.some((b) => b.url === url && b.title === title);
       const nextBookmarks = exists
         ? state.browserBookmarks
         : [...state.browserBookmarks, { url, title }];
 
-      let nextFolders = state.browserTabFolders;
+      let nextFolders = state.browserBookmarkFolders;
       let foldersChanged = false;
       if (input.folderId) {
-        nextFolders = state.browserTabFolders.map((folder) => {
+        nextFolders = state.browserBookmarkFolders.map((folder) => {
           if (folder.id !== input.folderId) {
             return folder;
           }
-          const existingTabs = folder.tabs || [];
-          if (existingTabs.some((item) => item.url === url && item.title === title)) {
+          const existingEntries = folder.entries ?? [];
+          if (existingEntries.some((entry) => entry.url === url && entry.title === title)) {
             return folder;
           }
           foldersChanged = true;
-          return { ...folder, tabs: [...existingTabs, { tabId: syntheticTabId, url, title }] };
+          return {
+            ...folder,
+            entries: [...existingEntries, makeEntry(bookmarkId, url, title, now)],
+          };
         });
       }
 
@@ -492,43 +552,34 @@ export const createBrowserBookmarkSlice = (
         if (!existing.some((entry) => entry.url === url && entry.title === title)) {
           nextWorkspaceBookmarks = {
             ...state.browserWorkspaceBookmarks,
-            [input.workspaceId]: [...existing, { tabId: syntheticTabId, url, title }],
+            [input.workspaceId]: [...existing, makeEntry(bookmarkId, url, title, now)],
           };
           wsChanged = true;
         }
-      }
-
-      let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
-      if (input.folderId && foldersChanged) {
-        nextTabIdUrlMap = { ...nextTabIdUrlMap, [syntheticTabId]: url };
       }
 
       if (!exists) {
         persist('adl:browser.bookmarks', nextBookmarks);
       }
       if (foldersChanged) {
-        persist('adl:browser.tabFolders', nextFolders);
+        persist('adl:browser.bookmarkFolders', nextFolders);
       }
       if (wsChanged) {
         persist('adl:browser.workspaceBookmarks', nextWorkspaceBookmarks);
       }
-      if (input.folderId && foldersChanged) {
-        persist('adl:browser.tabIdUrlMap', nextTabIdUrlMap);
-      }
 
       return {
         browserBookmarks: nextBookmarks,
-        browserTabFolders: nextFolders,
+        browserBookmarkFolders: nextFolders,
         browserWorkspaceBookmarks: nextWorkspaceBookmarks,
-        browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
       };
     });
     return { ok: true };
   },
 
-  browserBookmarkTab: async (tabId, folderId, newFolderName, workspaceId, titleOverride) => {
+  browserSaveTabAsBookmark: async (tabId, folderId, newFolderName, workspaceId, titleOverride) => {
     const locale = resolveAppLanguage(_get().appInfo?.config.language);
-    const folders = _get().browserTabFolders;
+    const folders = _get().browserBookmarkFolders;
     const resolvedName =
       newFolderName != null
         ? newFolderName.trim() || (await formatNewFolderNameByLocale(locale, folders.length + 1))
@@ -542,13 +593,23 @@ export const createBrowserBookmarkSlice = (
     {
       const url = tab.url;
       const title = titleOverride?.trim() || tab.title || hostnameFromUrl(url) || url;
+      // 同一标签页重复收藏走"更新已有条目"路径：预检必须排除它自己，否则会被判成重复
+      const existingEntryId = folderId
+        ? currentState.browserBookmarkFolders
+            .find((f) => f.id === folderId)
+            ?.entries?.find((entry) => entry.sourceTabId === tabId)?.id
+        : workspaceId
+          ? currentState.browserWorkspaceBookmarks[workspaceId]?.find(
+              (entry) => entry.sourceTabId === tabId,
+            )?.id
+          : undefined;
       const collision = checkBookmarkCollision(
         url,
         title,
         { folderId, workspaceId },
         currentState,
         currentState.recentWorkspaces,
-        tabId,
+        existingEntryId,
       );
       if (!collision.ok) {
         return collision;
@@ -556,21 +617,21 @@ export const createBrowserBookmarkSlice = (
     }
 
     set((state) => {
-      const outcome = computeBookmarkTabOutcome(state, {
+      const outcome = computeSaveTabBookmarkOutcome(state, {
         tabId,
         folderId,
         newFolderName: resolvedName,
         workspaceId,
         titleOverride,
-        newFolderId: createUiId('tab-folder'),
+        newFolderId: createUiId('bookmark-folder'),
+        newBookmarkId: createUiId('bookmark'),
         now: Date.now(),
-        locale,
       });
       if (outcome.partial === null) {
         return state;
       }
       if (outcome.foldersChanged) {
-        persist('adl:browser.tabFolders', outcome.partial.browserTabFolders!);
+        persist('adl:browser.bookmarkFolders', outcome.partial.browserBookmarkFolders!);
       }
       if (outcome.bookmarksChanged) {
         persist('adl:browser.bookmarks', outcome.partial.browserBookmarks!);
@@ -578,15 +639,12 @@ export const createBrowserBookmarkSlice = (
       if (outcome.wsBookmarksChanged) {
         persist('adl:browser.workspaceBookmarks', outcome.partial.browserWorkspaceBookmarks!);
       }
-      if (outcome.tabIdUrlMapChanged) {
-        persist('adl:browser.tabIdUrlMap', outcome.partial.browserBookmarkTabIdUrlMap!);
-      }
       return outcome.partial;
     });
     return { ok: true };
   },
 
-  browserUpdateSavedBookmark: (tabId: string, updates: { url: string; title: string }) => {
+  browserUpdateSavedBookmark: (bookmarkId: string, updates: { url: string; title: string }) => {
     const url = updates.url.trim();
     const title = updates.title.trim() || hostnameFromUrl(url) || url;
     const workspaces = _get().recentWorkspaces ?? [];
@@ -597,85 +655,95 @@ export const createBrowserBookmarkSlice = (
       if (!url) {
         return state;
       }
-      const foldersWithTab = (state.browserTabFolders || []).filter((f) =>
-        f.tabs?.some((item) => item.tabId === tabId),
+      const now = Date.now();
+      const foldersWithEntry = state.browserBookmarkFolders.filter((folder) =>
+        folder.entries?.some((entry) => entry.id === bookmarkId),
       );
-      const wsIdsWithTab = Object.keys(state.browserWorkspaceBookmarks || {}).filter((id) =>
-        state.browserWorkspaceBookmarks[id].some((entry) => entry.tabId === tabId),
+      const wsIdsWithEntry = Object.keys(state.browserWorkspaceBookmarks || {}).filter((id) =>
+        state.browserWorkspaceBookmarks[id].some((entry) => entry.id === bookmarkId),
       );
-      if (foldersWithTab.length === 0 && wsIdsWithTab.length === 0) {
+      if (foldersWithEntry.length === 0 && wsIdsWithEntry.length === 0) {
         return state;
       }
       isSavedBookmark = true;
 
-      // 任一包含该 tabId 的路径存在同路径 (url,title) 碰撞（其它 tabId）→ 拦截
-      for (const folder of foldersWithTab) {
-        const folderCollides = (folder.tabs || []).some(
-          (item) => item.tabId !== tabId && item.url === url && item.title === title,
+      for (const folder of foldersWithEntry) {
+        const collides = (folder.entries || []).some(
+          (entry) => entry.id !== bookmarkId && entry.url === url && entry.title === title,
         );
-        if (folderCollides) {
+        if (collides) {
           ok = false;
-          pathLabel = buildFolderPathLabel(folder.id, state.browserTabFolders, workspaces);
+          pathLabel = buildFolderPathLabel(folder.id, state.browserBookmarkFolders, workspaces);
           return state;
         }
       }
-      for (const id of wsIdsWithTab) {
-        const wsCollides = state.browserWorkspaceBookmarks[id].some(
-          (entry) => entry.tabId !== tabId && entry.url === url && entry.title === title,
+      for (const id of wsIdsWithEntry) {
+        const collides = state.browserWorkspaceBookmarks[id].some(
+          (entry) => entry.id !== bookmarkId && entry.url === url && entry.title === title,
         );
-        if (wsCollides) {
+        if (collides) {
           ok = false;
           pathLabel = buildWorkspacePathLabel(id, workspaces);
           return state;
         }
       }
 
-      const oldTuples: { url: string; title: string }[] = [];
-      let nextFolders = state.browserTabFolders;
+      const staleTuples: { url: string; title: string }[] = [];
+      let nextFolders = state.browserBookmarkFolders;
       let foldersChanged = false;
-      if (foldersWithTab.length > 0) {
-        for (const folder of foldersWithTab) {
-          const oldItem = folder.tabs?.find((item) => item.tabId === tabId);
-          if (oldItem) {
-            oldTuples.push({ url: oldItem.url, title: oldItem.title });
-            if (oldItem.url !== url || oldItem.title !== title) {
-              foldersChanged = true;
-            }
+      if (foldersWithEntry.length > 0) {
+        const folderIds = new Set(foldersWithEntry.map((f) => f.id));
+        for (const folder of foldersWithEntry) {
+          const oldEntry = folder.entries?.find((entry) => entry.id === bookmarkId);
+          if (oldEntry) {
+            staleTuples.push({ url: oldEntry.url, title: oldEntry.title });
           }
         }
-        const tabIdSet = new Set(foldersWithTab.map((f) => f.id));
-        nextFolders = state.browserTabFolders.map((f) =>
-          tabIdSet.has(f.id)
-            ? {
-                ...f,
-                tabs: (f.tabs || []).map((item) =>
-                  item.tabId === tabId ? { tabId, url, title } : item,
-                ),
-              }
-            : f,
-        );
+        nextFolders = state.browserBookmarkFolders.map((folder) => {
+          if (!folderIds.has(folder.id)) {
+            return folder;
+          }
+          const entries = folder.entries || [];
+          const target = entries.find((entry) => entry.id === bookmarkId);
+          if (!target || (target.url === url && target.title === title)) {
+            return folder;
+          }
+          foldersChanged = true;
+          return {
+            ...folder,
+            entries: entries.map((entry) =>
+              entry.id === bookmarkId ? { ...entry, url, title, lastModifiedAt: now } : entry,
+            ),
+          };
+        });
       }
 
       let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
       let wsChanged = false;
-      if (wsIdsWithTab.length > 0) {
-        for (const id of wsIdsWithTab) {
+      if (wsIdsWithEntry.length > 0) {
+        const wsIdSet = new Set(wsIdsWithEntry);
+        for (const id of wsIdsWithEntry) {
           const oldEntry = state.browserWorkspaceBookmarks[id].find(
-            (entry) => entry.tabId === tabId,
+            (entry) => entry.id === bookmarkId,
           );
           if (oldEntry) {
-            oldTuples.push({ url: oldEntry.url, title: oldEntry.title });
-            if (oldEntry.url !== url || oldEntry.title !== title) {
-              wsChanged = true;
-            }
+            staleTuples.push({ url: oldEntry.url, title: oldEntry.title });
           }
         }
-        const wsIdSet = new Set(wsIdsWithTab);
         nextWorkspaceBookmarks = Object.fromEntries(
           Object.entries(state.browserWorkspaceBookmarks).map(([id, entries]) => [
             id,
             wsIdSet.has(id)
-              ? entries.map((entry) => (entry.tabId === tabId ? { tabId, url, title } : entry))
+              ? entries.map((entry) => {
+                  if (entry.id !== bookmarkId) {
+                    return entry;
+                  }
+                  if (entry.url === url && entry.title === title) {
+                    return entry;
+                  }
+                  wsChanged = true;
+                  return { ...entry, url, title, lastModifiedAt: now };
+                })
               : entries,
           ]),
         );
@@ -687,140 +755,83 @@ export const createBrowserBookmarkSlice = (
         nextBookmarks = [...nextBookmarks, { url, title }];
         bookmarksChanged = true;
       }
-      for (const oldTuple of oldTuples) {
-        if (url === oldTuple.url && title === oldTuple.title) {
+      for (const stale of staleTuples) {
+        if (stale.url === url && stale.title === title) {
           continue;
         }
-        const stillReferenced =
-          Object.values(nextWorkspaceBookmarks || {}).some((entries) =>
-            entries.some((e) => e.url === oldTuple.url && e.title === oldTuple.title),
-          ) ||
-          (nextFolders || []).some((f) =>
-            f.tabs?.some((t) => t.url === oldTuple.url && t.title === oldTuple.title),
-          );
-        if (!stillReferenced) {
-          nextBookmarks = nextBookmarks.filter(
-            (b) => !(b.url === oldTuple.url && b.title === oldTuple.title),
-          );
+        if (isTupleStillReferenced(nextFolders, nextWorkspaceBookmarks, stale.url, stale.title)) {
+          continue;
+        }
+        const filtered = nextBookmarks.filter(
+          (b) => !(b.url === stale.url && b.title === stale.title),
+        );
+        if (filtered.length !== nextBookmarks.length) {
+          nextBookmarks = filtered;
           bookmarksChanged = true;
         }
       }
-
-      const nextTabIdUrlMap = { ...state.browserBookmarkTabIdUrlMap, [tabId]: url };
 
       if (bookmarksChanged) {
         persist('adl:browser.bookmarks', nextBookmarks);
       }
       if (foldersChanged) {
-        persist('adl:browser.tabFolders', nextFolders);
+        persist('adl:browser.bookmarkFolders', nextFolders);
       }
       if (wsChanged) {
         persist('adl:browser.workspaceBookmarks', nextWorkspaceBookmarks);
       }
-      if (nextTabIdUrlMap[tabId] !== state.browserBookmarkTabIdUrlMap[tabId]) {
-        persist('adl:browser.tabIdUrlMap', nextTabIdUrlMap);
-      }
 
       return {
         browserBookmarks: nextBookmarks,
-        browserTabFolders: nextFolders,
+        browserBookmarkFolders: nextFolders,
         browserWorkspaceBookmarks: nextWorkspaceBookmarks,
-        browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
       };
     });
     return { ok, isSavedBookmark, ...(pathLabel !== undefined ? { pathLabel } : {}) };
   },
 
-  browserRemoveTabBookmarks: (tabId: string, url: string, scopeFolderId?: string) => {
+  browserRemoveBookmark: (bookmarkId: string, url: string, scopeFolderId?: string) => {
     set((state) => {
-      const nextTabIdUrlMap = { ...state.browserBookmarkTabIdUrlMap };
-      delete nextTabIdUrlMap[tabId];
-
-      const removedTuples: { url: string; title: string }[] = [];
-
-      const nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
-      let wsChanged = false;
-      for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
-        const matching = nextWorkspaceBookmarks[wsId].filter(
-          (entry) => entry.tabId === tabId && entry.url === url,
-        );
-        if (matching.length > 0) {
-          removedTuples.push(...matching.map((e) => ({ url: e.url, title: e.title })));
-          nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter(
-            (entry) => !(entry.tabId === tabId && entry.url === url),
-          );
-          if (nextWorkspaceBookmarks[wsId].length === 0) {
-            delete nextWorkspaceBookmarks[wsId];
-          }
-          wsChanged = true;
-        }
-      }
-      if (wsChanged) {
-        persist('adl:browser.workspaceBookmarks', nextWorkspaceBookmarks);
-      }
-
-      const nextFolders = scopeFolderId
-        ? state.browserTabFolders.map((folder) => {
-            if (folder.id === scopeFolderId) {
-              const matching = (folder.tabs || []).filter(
-                (item) => item.tabId === tabId && item.url === url,
-              );
-              if (matching.length > 0) {
-                removedTuples.push(...matching.map((i) => ({ url: i.url, title: i.title })));
-                return {
-                  ...folder,
-                  tabs: (folder.tabs || []).filter(
-                    (item) => !(item.tabId === tabId && item.url === url),
-                  ),
-                };
-              }
-            }
-            return folder;
-          })
-        : state.browserTabFolders.map((folder) => {
-            const matching = (folder.tabs || []).filter(
-              (item) => item.tabId === tabId && item.url === url,
-            );
-            if (matching.length > 0) {
-              removedTuples.push(...matching.map((i) => ({ url: i.url, title: i.title })));
-              return {
-                ...folder,
-                tabs: (folder.tabs || []).filter(
-                  (item) => !(item.tabId === tabId && item.url === url),
-                ),
-              };
-            }
-            return folder;
-          });
-      if (nextFolders !== state.browserTabFolders) {
-        persist('adl:browser.tabFolders', nextFolders);
-      }
-
-      // 仅当被移除的 (url,title) 元组不再被任何 folder/workspace 条目引用时才从全局移除
-      const stillReferenced = (u: string, t: string) =>
-        Object.values(nextWorkspaceBookmarks).some((entries) =>
-          entries.some((e) => e.url === u && e.title === t),
-        ) || nextFolders.some((f) => f.tabs?.some((i) => i.url === u && i.title === t));
-      const toRemoveTuples = removedTuples.filter(
-        (tuple) => !stillReferenced(tuple.url, tuple.title),
+      const result = removeEntriesMatching(
+        state,
+        (entry) => entry.id === bookmarkId && entry.url === url,
+        scopeFolderId,
       );
-      const nextBookmarks =
-        toRemoveTuples.length > 0
-          ? state.browserBookmarks.filter(
-              (b) => !toRemoveTuples.some((t) => t.url === b.url && t.title === b.title),
-            )
-          : state.browserBookmarks;
-      if (nextBookmarks !== state.browserBookmarks) {
-        persist('adl:browser.bookmarks', nextBookmarks);
+      if (result.partial === null) {
+        return state;
       }
+      if (result.wsChanged) {
+        persist('adl:browser.workspaceBookmarks', result.partial.browserWorkspaceBookmarks!);
+      }
+      if (result.foldersChanged) {
+        persist('adl:browser.bookmarkFolders', result.partial.browserBookmarkFolders!);
+      }
+      if (result.bookmarksChanged) {
+        persist('adl:browser.bookmarks', result.partial.browserBookmarks!);
+      }
+      return result.partial;
+    });
+  },
 
-      persist('adl:browser.tabIdUrlMap', nextTabIdUrlMap);
-      return {
-        browserBookmarks: nextBookmarks,
-        browserWorkspaceBookmarks: nextWorkspaceBookmarks,
-        browserTabFolders: nextFolders,
-        browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
-      };
+  browserRemoveBookmarksFromTab: (tabId: string, url: string) => {
+    set((state) => {
+      const result = removeEntriesMatching(
+        state,
+        (entry) => entry.sourceTabId === tabId && entry.url === url,
+      );
+      if (result.partial === null) {
+        return state;
+      }
+      if (result.wsChanged) {
+        persist('adl:browser.workspaceBookmarks', result.partial.browserWorkspaceBookmarks!);
+      }
+      if (result.foldersChanged) {
+        persist('adl:browser.bookmarkFolders', result.partial.browserBookmarkFolders!);
+      }
+      if (result.bookmarksChanged) {
+        persist('adl:browser.bookmarks', result.partial.browserBookmarks!);
+      }
+      return result.partial;
     });
   },
 
@@ -835,12 +846,10 @@ export const createBrowserBookmarkSlice = (
           }
         }
       }
-      for (const folder of state.browserTabFolders) {
-        if (folder.tabs) {
-          for (const tab of folder.tabs) {
-            if (tab.url) {
-              referenced.add(tupleKey(tab.url, tab.title));
-            }
+      for (const folder of state.browserBookmarkFolders) {
+        for (const entry of folder.entries ?? []) {
+          if (entry.url) {
+            referenced.add(tupleKey(entry.url, entry.title));
           }
         }
       }
@@ -856,11 +865,7 @@ export const createBrowserBookmarkSlice = (
 
   browserClearAllWorkspaceBookmarks: () => {
     persist('adl:browser.workspaceBookmarks', {});
-    persist('adl:browser.tabIdUrlMap', {});
-    set({
-      browserWorkspaceBookmarks: {},
-      browserBookmarkTabIdUrlMap: {},
-    });
+    set({ browserWorkspaceBookmarks: {} });
   },
 
   browserSetPendingBookmark: (data) => {

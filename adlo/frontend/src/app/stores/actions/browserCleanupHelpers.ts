@@ -2,12 +2,12 @@
  * 浏览器清理辅助函数
  * 从 workspaceActions.ts 提取的纯函数和类型
  */
-import type { BrowserTabState, TabFolderState } from '../slices/browserSlice';
+import type { BrowserTabState, BookmarkFolder } from '../slices/browserSlice';
 
 export interface BrowserCleanupResult {
   browserTabs: BrowserTabState[];
   browserTabsById: Record<string, BrowserTabState>;
-  browserTabFolders: TabFolderState[];
+  browserBookmarkFolders: BookmarkFolder[];
   browserActiveTabId: string;
 }
 
@@ -22,14 +22,14 @@ export interface BrowserCleanupResult {
 export function stripWorkspaceFromBrowserState(
   workspaceId: string,
   currentTabs: BrowserTabState[],
-  currentFolders: TabFolderState[],
+  currentFolders: BookmarkFolder[],
   currentActiveTabId: string,
 ): BrowserCleanupResult {
   // 中心标签不受面板「移除工作区」影响：只移除该工作区的面板标签。
   const browserTabs = currentTabs.filter(
     (t) => t.location === 'center' || t.workspaceId !== workspaceId,
   );
-  const browserTabFolders = currentFolders.filter(
+  const browserBookmarkFolders = currentFolders.filter(
     (f) => !(f.parentType === 'workspace' && f.parentId === workspaceId),
   );
 
@@ -45,7 +45,7 @@ export function stripWorkspaceFromBrowserState(
   return {
     browserTabs,
     browserTabsById,
-    browserTabFolders,
+    browserBookmarkFolders,
     browserActiveTabId,
   };
 }

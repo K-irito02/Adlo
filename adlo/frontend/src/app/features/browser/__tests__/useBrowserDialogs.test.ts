@@ -395,10 +395,9 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
       browserNavigateInPlace: false,
       browserCreateBookmarkEntry: originalActions.browserCreateBookmarkEntry,
       browserNavigateActiveTab: originalActions.browserNavigateActiveTab,
-      browserTabFolders: [],
+      browserBookmarkFolders: [],
       browserWorkspaceBookmarks: {},
       browserBookmarks: [],
-      browserBookmarkTabIdUrlMap: {},
       browserTabs: [],
       browserActiveTabId: '',
       recentWorkspaces: [],
@@ -468,7 +467,7 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
   it('save-only with both workspaceId and folderId lands the bookmark in the folder ONLY', async () => {
     useAppStore.setState({
       browserCreateBookmarkEntry: originalActions.browserCreateBookmarkEntry,
-      browserTabFolders: [{ id: 'f1', name: 'F', createdAt: 0, tabs: [] }],
+      browserBookmarkFolders: [{ id: 'f1', name: 'F', createdAt: 0, entries: [] }],
       browserWorkspaceBookmarks: {},
     });
     const openTab = vi.fn();
@@ -480,9 +479,9 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
       await result.current.handleCreateTabConfirm('Name', 'https://example.com', 'save-only');
     });
     const state = useAppStore.getState();
-    const folder = state.browserTabFolders.find((f) => f.id === 'f1')!;
-    expect(folder.tabs).toHaveLength(1);
-    expect(folder.tabs![0]).toMatchObject({ url: 'https://example.com', title: 'Name' });
+    const folder = state.browserBookmarkFolders.find((f) => f.id === 'f1')!;
+    expect(folder.entries).toHaveLength(1);
+    expect(folder.entries![0]).toMatchObject({ url: 'https://example.com', title: 'Name' });
     expect(state.browserWorkspaceBookmarks['ws1']).toBeUndefined();
   });
 
@@ -512,17 +511,25 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
   it('save-and-open collision shows toast with path and does not open tab', async () => {
     useAppStore.setState({
       browserNavigateInPlace: false,
-      browserTabFolders: [
+      browserBookmarkFolders: [
         {
           id: 'f1',
           name: '工作区A',
           createdAt: 0,
-          tabs: [{ tabId: 'existing', url: 'https://e.com', title: 'Title' }],
+          entries: [
+            {
+              id: 'bm-existing',
+              sourceTabId: 'existing',
+              url: 'https://e.com',
+              title: 'Title',
+              addedAt: 0,
+              lastModifiedAt: 0,
+            },
+          ],
         },
       ],
       browserWorkspaceBookmarks: {},
       browserBookmarks: [{ url: 'https://e.com', title: 'Title' }],
-      browserBookmarkTabIdUrlMap: { existing: 'https://e.com' },
     });
     const openTab = vi.fn();
     const showToast = vi.fn();
@@ -544,17 +551,25 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     useAppStore.setState({
       browserNavigateInPlace: true,
       browserActiveTabId: 't1',
-      browserTabFolders: [
+      browserBookmarkFolders: [
         {
           id: 'f1',
           name: 'F',
           createdAt: 0,
-          tabs: [{ tabId: 't1', url: 'https://e.com', title: 'Title' }],
+          entries: [
+            {
+              id: 'b1',
+              sourceTabId: 't1',
+              url: 'https://e.com',
+              title: 'Title',
+              addedAt: 0,
+              lastModifiedAt: 0,
+            },
+          ],
         },
       ],
       browserWorkspaceBookmarks: {},
       browserBookmarks: [{ url: 'https://e.com', title: 'Title' }],
-      browserBookmarkTabIdUrlMap: { t1: 'https://e.com' },
       browserTabs: [
         {
           id: 't1',
@@ -611,10 +626,9 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
       browserCreateBookmarkEntry: originalActions.browserCreateBookmarkEntry,
       browserTabs: [],
       browserActiveTabId: '',
-      browserTabFolders: [{ id: 'f1', name: 'F', createdAt: 0, tabs: [] }],
+      browserBookmarkFolders: [{ id: 'f1', name: 'F', createdAt: 0, entries: [] }],
       browserWorkspaceBookmarks: {},
       browserBookmarks: [],
-      browserBookmarkTabIdUrlMap: {},
     });
     const openTab = useAppStore.getState().browserOpenTab;
     const { result } = renderHook(() =>
@@ -634,8 +648,8 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     await act(async () => {
       await result.current.handleCreateTabConfirm('Title', 'https://example.com', 'save-and-open');
     });
-    const folder = useAppStore.getState().browserTabFolders.find((f) => f.id === 'f1')!;
-    const urlEntries = folder.tabs!.filter((t) => t.url === 'https://example.com');
+    const folder = useAppStore.getState().browserBookmarkFolders.find((f) => f.id === 'f1')!;
+    const urlEntries = folder.entries!.filter((t) => t.url === 'https://example.com');
     expect(urlEntries).toHaveLength(1);
     expect(urlEntries[0].title).toBe('Title');
   });
@@ -652,27 +666,33 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
     siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
     await siteMetaCache.initSiteMetaCache();
     useAppStore.setState({
-      browserTabFolders: [
+      browserBookmarkFolders: [
         {
           id: 'f1',
           name: 'F',
           createdAt: 0,
-          tabs: [{ tabId: 'saved-1', url: 'https://old.com', title: 'Old Title' }],
+          entries: [
+            {
+              id: 'saved-1',
+              url: 'https://old.com',
+              title: 'Old Title',
+              addedAt: 0,
+              lastModifiedAt: 0,
+            },
+          ],
         },
       ],
       browserWorkspaceBookmarks: {},
       browserBookmarks: [{ url: 'https://old.com', title: 'Old Title' }],
-      browserBookmarkTabIdUrlMap: { 'saved-1': 'https://old.com' },
       browserUpdateSavedBookmark: originalUpdateSavedBookmark,
     });
   });
 
   afterEach(() => {
     useAppStore.setState({
-      browserTabFolders: [],
+      browserBookmarkFolders: [],
       browserWorkspaceBookmarks: {},
       browserBookmarks: [],
-      browserBookmarkTabIdUrlMap: {},
       browserUpdateSavedBookmark: originalUpdateSavedBookmark,
     });
   });
@@ -703,9 +723,9 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
     act(() => {
       result.current.handleEditTabConfirm('New Title', 'https://new.com', 'save-only');
     });
-    const folder = useAppStore.getState().browserTabFolders.find((f) => f.id === 'f1')!;
-    expect(folder.tabs![0]).toMatchObject({
-      tabId: 'saved-1',
+    const folder = useAppStore.getState().browserBookmarkFolders.find((f) => f.id === 'f1')!;
+    expect(folder.entries![0]).toMatchObject({
+      id: 'saved-1',
       url: 'https://new.com',
       title: 'New Title',
     });
@@ -715,14 +735,14 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
 
   it('intercepts a same-path url+title collision with a path toast and keeps dialog open', () => {
     useAppStore.setState({
-      browserTabFolders: [
+      browserBookmarkFolders: [
         {
           id: 'f1',
           name: 'F',
           createdAt: 0,
-          tabs: [
-            { tabId: 'saved-1', url: 'https://e.com', title: 'A' },
-            { tabId: 'other-2', url: 'https://e.com', title: 'A' },
+          entries: [
+            { id: 'saved-1', url: 'https://e.com', title: 'A', addedAt: 0, lastModifiedAt: 0 },
+            { id: 'other-2', url: 'https://e.com', title: 'A', addedAt: 0, lastModifiedAt: 0 },
           ],
         },
       ],
@@ -737,20 +757,20 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
     });
     expect(showToast).toHaveBeenCalledWith('DUP at F', 'warning');
     expect(result.current.editTabDialog.open).toBe(true);
-    const folder = useAppStore.getState().browserTabFolders.find((f) => f.id === 'f1')!;
-    expect(folder.tabs).toHaveLength(2);
+    const folder = useAppStore.getState().browserBookmarkFolders.find((f) => f.id === 'f1')!;
+    expect(folder.entries).toHaveLength(2);
   });
 
   it('does not call browserUpdateTab on a blocked collision edit (live tab untouched)', () => {
     useAppStore.setState({
-      browserTabFolders: [
+      browserBookmarkFolders: [
         {
           id: 'f1',
           name: 'F',
           createdAt: 0,
-          tabs: [
-            { tabId: 'saved-1', url: 'https://e.com', title: 'A' },
-            { tabId: 'other-2', url: 'https://e.com', title: 'A' },
+          entries: [
+            { id: 'saved-1', url: 'https://e.com', title: 'A', addedAt: 0, lastModifiedAt: 0 },
+            { id: 'other-2', url: 'https://e.com', title: 'A', addedAt: 0, lastModifiedAt: 0 },
           ],
         },
       ],

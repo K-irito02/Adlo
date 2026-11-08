@@ -76,11 +76,11 @@ export {
   createBrowserHistorySlice,
 } from './slices/browserHistorySlice';
 export {
-  type BrowserFoldersSlice,
-  type BookmarkTabItem,
-  type TabFolderState,
-  type TabFolderStateUpdate,
-  createBrowserFoldersSlice,
+  type BrowserBookmarkFoldersSlice,
+  type BookmarkEntry,
+  type BookmarkFolder,
+  type BookmarkFolderUpdate,
+  createBrowserBookmarkFoldersSlice,
 } from './slices/browserFoldersSlice';
 export {
   type BrowserLandingSlice,

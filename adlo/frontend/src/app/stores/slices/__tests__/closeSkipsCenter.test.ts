@@ -64,12 +64,12 @@ describe('破坏性操作跳过中心标签', () => {
     expect(s.terminalActiveTabId).toBe('');
   });
 
-  it('browserDeleteAllTabsInNode 不删除工作区内的中心标签', () => {
+  it('browserDeleteAllBookmarksInNode 不删除工作区内的中心标签', () => {
     useAppStore.getState().browserOpenTab('https://a.test', 'A', 'ws-1');
     useAppStore.getState().browserOpenTab('https://b.test', 'B', 'ws-1');
     const [a, b] = useAppStore.getState().browserTabs.map((t) => t.id);
     useAppStore.getState().browserSetLocation(a, 'center');
-    useAppStore.getState().browserDeleteAllTabsInNode('workspace:ws-1');
+    useAppStore.getState().browserDeleteAllBookmarksInNode('workspace:ws-1');
     const s = useAppStore.getState();
     expect(s.browserTabs.some((t) => t.id === a)).toBe(true);
     expect(s.browserTabs.some((t) => t.id === b)).toBe(false);

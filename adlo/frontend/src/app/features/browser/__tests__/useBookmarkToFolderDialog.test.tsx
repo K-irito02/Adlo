@@ -34,7 +34,7 @@ function makeDeps(
 
 /** 用 setState 覆盖 action（zustand 的 setState 会合并进同一个 store，spy 因此可跨更新存活）。 */
 function stubAction(
-  key: 'browserBookmarkTab' | 'browserToggleBookmark',
+  key: 'browserSaveTabAsBookmark' | 'browserToggleBookmark',
   impl: unknown,
 ): () => void {
   const real = useAppStore.getState()[key];
@@ -53,7 +53,7 @@ afterEach(() => {
 describe('useBookmarkToFolderDialog', () => {
   it('未选择目录时提示先选目录：不落盘，且已打开的对话框保持打开', async () => {
     const spy = vi.fn().mockResolvedValue({ ok: true });
-    const restore = stubAction('browserBookmarkTab', spy);
+    const restore = stubAction('browserSaveTabAsBookmark', spy);
     try {
       const showToast = vi.fn();
       const { result } = renderHook((d) => useBookmarkToFolderDialog(d), {
@@ -77,7 +77,7 @@ describe('useBookmarkToFolderDialog', () => {
 
   it('选择工作区后提交：以宿主传入的活动标签落盘，并提示成功、关闭对话框', async () => {
     const spy = vi.fn().mockResolvedValue({ ok: true });
-    const restore = stubAction('browserBookmarkTab', spy);
+    const restore = stubAction('browserSaveTabAsBookmark', spy);
     try {
       const showToast = vi.fn();
       const { result } = renderHook((d) => useBookmarkToFolderDialog(d), {

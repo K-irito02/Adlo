@@ -6,7 +6,7 @@ import { useAppStore } from '@stores/slicedStore';
 import type {
   BrowserTabState,
   BrowserBookmark,
-  WorkspaceBookmarkEntry,
+  BookmarkEntry,
   BrowserHistoryState,
 } from '@stores/slices/browserTypes';
 import { useAppStartup } from '../useAppStartup';
@@ -83,8 +83,15 @@ describe('useAppStartup warmup', () => {
       { url: 'https://b.example', title: 'B' },
       { url: 'https://d.example/', title: 'D' },
     ];
-    const workspaceBookmarks: WorkspaceBookmarkEntry[] = [
-      { tabId: 'tab9', url: 'https://e.example/', title: 'E' },
+    const workspaceBookmarks: BookmarkEntry[] = [
+      {
+        id: 'bm9',
+        sourceTabId: 'tab9',
+        url: 'https://e.example/',
+        title: 'E',
+        addedAt: 0,
+        lastModifiedAt: 0,
+      },
     ];
     const history: BrowserHistoryState[] = [
       { id: 'h1', title: 'F', url: 'https://f.example/', visitedAt: 1 },

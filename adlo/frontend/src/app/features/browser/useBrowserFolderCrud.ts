@@ -20,7 +20,7 @@ function buildCenterTabIdSet(tabs: { id: string; location?: 'panel' | 'center' }
 }
 
 function collectFolderTabSnapshotUrls(
-  folders: { id: string; parentId?: string; tabs?: { tabId: string; url: string }[] }[],
+  folders: { id: string; parentId?: string; entries?: { id: string; url: string }[] }[],
   rootFolderId: string,
 ): Map<string, string> {
   const map = new Map<string, string>();
@@ -35,10 +35,10 @@ function collectFolderTabSnapshotUrls(
   }
   const visit = (fId: string) => {
     const folder = folders.find((f) => f.id === fId);
-    if (folder?.tabs) {
-      for (const item of folder.tabs) {
-        if (!map.has(item.tabId)) {
-          map.set(item.tabId, item.url);
+    if (folder?.entries) {
+      for (const entry of folder.entries) {
+        if (!map.has(entry.id)) {
+          map.set(entry.id, entry.url);
         }
       }
     }
@@ -55,19 +55,19 @@ function collectFolderTabSnapshotUrls(
 
 export function useBrowserFolderCrud() {
   const {
-    browserDeleteAllTabsInNode,
-    browserDeleteOwnTabsInNode,
-    browserDeleteTabFolder,
+    browserDeleteAllBookmarksInNode,
+    browserDeleteOwnBookmarksInNode,
+    browserDeleteBookmarkFolder,
     browserOpenTab,
-    browserRemoveTabBookmarks,
+    browserRemoveBookmark,
     browserRemoveOrphanedBookmarks,
   } = useAppStore(
     useShallow((state) => ({
-      browserDeleteAllTabsInNode: state.browserDeleteAllTabsInNode,
-      browserDeleteOwnTabsInNode: state.browserDeleteOwnTabsInNode,
-      browserDeleteTabFolder: state.browserDeleteTabFolder,
+      browserDeleteAllBookmarksInNode: state.browserDeleteAllBookmarksInNode,
+      browserDeleteOwnBookmarksInNode: state.browserDeleteOwnBookmarksInNode,
+      browserDeleteBookmarkFolder: state.browserDeleteBookmarkFolder,
       browserOpenTab: state.browserOpenTab,
-      browserRemoveTabBookmarks: state.browserRemoveTabBookmarks,
+      browserRemoveBookmark: state.browserRemoveBookmark,
       browserRemoveOrphanedBookmarks: state.browserRemoveOrphanedBookmarks,
     })),
   );
@@ -75,8 +75,6 @@ export function useBrowserFolderCrud() {
   const handleDeleteAllChildTabs = useCallback(
     (_categoryType: string, nodePath: string) => {
       const state = useAppStore.getState();
-      // 中心标签不受面板树删除影响：一次建成 id 集合，循环内 O(1) 判定。
-      const centerTabIds = buildCenterTabIdSet(state.browserTabs);
       let tabIds: string[] = [];
       let urls: string[] = [];
       let wsSnapshotUrls: Map<string, string> | null = null;
@@ -88,7 +86,7 @@ export function useBrowserFolderCrud() {
         );
         tabIds = tabs.map((t) => t.id);
         urls = tabs.map((t) => t.url).filter((u): u is string => !!u);
-        const rootFolderIds = state.browserTabFolders
+        const rootFolderIds = state.browserBookmarkFolders
           .filter(
             (f) =>
               (f as { parentType?: string }).parentType === 'workspace' &&
@@ -97,7 +95,7 @@ export function useBrowserFolderCrud() {
           .map((f) => f.id);
         for (const folderId of rootFolderIds) {
           const descendantTabIds = collectAllDescendantTabIdsLocal(
-            state.browserTabFolders as {
+            state.browserBookmarkFolders as {
               id: string;
               parentId?: string;
               tabs?: { tabId: string }[];
@@ -106,7 +104,7 @@ export function useBrowserFolderCrud() {
           );
           tabIds.push(...descendantTabIds);
           const map = collectFolderTabSnapshotUrls(
-            state.browserTabFolders as {
+            state.browserBookmarkFolders as {
               id: string;
               parentId?: string;
               tabs?: { tabId: string; url: string }[];
@@ -126,11 +124,11 @@ export function useBrowserFolderCrud() {
           }
         }
         for (const fId of rootFolderIds) {
-          const folderEntry = state.browserTabFolders.find((f) => f.id === fId);
-          if (folderEntry?.tabs) {
-            for (const item of folderEntry.tabs as { tabId: string; url: string }[]) {
-              if (item.url && !urls.includes(item.url)) {
-                urls.push(item.url);
+          const folderEntry = state.browserBookmarkFolders.find((f) => f.id === fId);
+          if (folderEntry?.entries) {
+            for (const entry of folderEntry.entries) {
+              if (entry.url && !urls.includes(entry.url)) {
+                urls.push(entry.url);
               }
             }
           }
@@ -146,7 +144,7 @@ export function useBrowserFolderCrud() {
       } else if (nodePath.startsWith('folder:')) {
         const folderId = nodePath.slice('folder:'.length);
         const folder = findFolderByIdLocal(
-          state.browserTabFolders as {
+          state.browserBookmarkFolders as {
             id: string;
             tabs?: { tabId: string }[];
             children?: unknown[];
@@ -155,7 +153,7 @@ export function useBrowserFolderCrud() {
         );
         if (folder) {
           tabIds = collectAllDescendantTabIdsLocal(
-            state.browserTabFolders as {
+            state.browserBookmarkFolders as {
               id: string;
               parentId?: string;
               tabs?: { tabId: string }[];
@@ -167,7 +165,7 @@ export function useBrowserFolderCrud() {
             .map((t) => t.url)
             .filter((u): u is string => !!u);
           const folderSnapshotUrls = collectFolderTabSnapshotUrls(
-            state.browserTabFolders as {
+            state.browserBookmarkFolders as {
               id: string;
               parentId?: string;
               tabs?: { tabId: string; url: string }[];
@@ -197,7 +195,7 @@ export function useBrowserFolderCrud() {
       if (nodePath.startsWith('folder:')) {
         const fId = nodePath.slice('folder:'.length);
         const folderEntries = collectAllDescendantTabUrlsLocal(
-          state.browserTabFolders as {
+          state.browserBookmarkFolders as {
             id: string;
             parentId?: string;
             tabs?: { tabId: string; url: string }[];
@@ -206,23 +204,7 @@ export function useBrowserFolderCrud() {
         );
         allTabUrls.push(...folderEntries);
       }
-      if (!nodePath.startsWith('folder:')) {
-        for (const tabId of tabIds) {
-          const url =
-            wsSnapshotUrls?.get(tabId) || state.browserTabs.find((t) => t.id === tabId)?.url || '';
-          if (tabId && url) {
-            allTabUrls.push({ tabId, url });
-          }
-        }
-      }
-      for (const { tabId, url } of allTabUrls) {
-        // 中心标签不受面板树删除影响（Set 已在循环外一次建成，循环内 O(1) 判定）。
-        if (tabId && url && !centerTabIds.has(tabId)) {
-          browserRemoveTabBookmarks(tabId, url);
-        }
-      }
-
-      browserDeleteAllTabsInNode(nodePath);
+      browserDeleteAllBookmarksInNode(nodePath);
 
       browserRemoveOrphanedBookmarks();
 
@@ -230,7 +212,7 @@ export function useBrowserFolderCrud() {
         removeSiteMetaIfUnreferenced(url);
       }
     },
-    [browserDeleteAllTabsInNode, browserRemoveTabBookmarks, browserRemoveOrphanedBookmarks],
+    [browserDeleteAllBookmarksInNode, browserRemoveOrphanedBookmarks],
   );
 
   const handleDeleteOwnChildTabs = useCallback(
@@ -246,7 +228,7 @@ export function useBrowserFolderCrud() {
           (t) => t.workspaceId === wsId && t.location !== 'center',
         );
         const folderTabIds: string[] = [];
-        const rootFolderIds = state.browserTabFolders
+        const rootFolderIds = state.browserBookmarkFolders
           .filter(
             (f) =>
               (f as { parentType?: string }).parentType === 'workspace' &&
@@ -255,7 +237,7 @@ export function useBrowserFolderCrud() {
           .map((f) => f.id);
         for (const folderId of rootFolderIds) {
           const descendantTabs = collectAllDescendantTabIdsLocal(
-            state.browserTabFolders as {
+            state.browserBookmarkFolders as {
               id: string;
               parentId?: string;
               tabs?: { tabId: string }[];
@@ -280,7 +262,7 @@ export function useBrowserFolderCrud() {
       } else if (nodePath.startsWith('folder:')) {
         const folderId = nodePath.slice('folder:'.length);
         const folder = findFolderByIdLocal(
-          state.browserTabFolders as {
+          state.browserBookmarkFolders as {
             id: string;
             tabs?: { tabId: string }[];
             children?: unknown[];
@@ -288,16 +270,12 @@ export function useBrowserFolderCrud() {
           folderId,
         );
         if (folder) {
-          tabIds = [...(folder.tabs ?? []).map((item) => item.tabId)];
-          urls = state.browserTabs
-            .filter((t) => tabIds.includes(t.id))
-            .map((t) => t.url)
-            .filter((u): u is string => !!u);
+          tabIds = [];
           const folderSnapshotUrls = collectFolderTabSnapshotUrls(
-            state.browserTabFolders as {
+            state.browserBookmarkFolders as {
               id: string;
               parentId?: string;
-              tabs?: { tabId: string; url: string }[];
+              entries?: { id: string; url: string }[];
             }[],
             folderId,
           );
@@ -320,26 +298,7 @@ export function useBrowserFolderCrud() {
         urls = entries.map((h) => h.url).filter((u): u is string => !!u);
       }
 
-      if (nodePath.startsWith('folder:')) {
-        const folderId = nodePath.slice('folder:'.length);
-        const folder = state.browserTabFolders.find((f) => f.id === folderId);
-        if (folder?.tabs) {
-          for (const item of folder.tabs) {
-            if (item.tabId && item.url && !centerTabIds.has(item.tabId)) {
-              browserRemoveTabBookmarks(item.tabId, item.url);
-            }
-          }
-        }
-      } else {
-        for (const tabId of tabIds) {
-          const url = state.browserTabs.find((t) => t.id === tabId)?.url || '';
-          if (tabId && url && !centerTabIds.has(tabId)) {
-            browserRemoveTabBookmarks(tabId, url);
-          }
-        }
-      }
-
-      browserDeleteOwnTabsInNode(nodePath);
+      browserDeleteOwnBookmarksInNode(nodePath);
 
       browserRemoveOrphanedBookmarks();
 
@@ -347,7 +306,7 @@ export function useBrowserFolderCrud() {
         removeSiteMetaIfUnreferenced(url);
       }
     },
-    [browserDeleteOwnTabsInNode, browserRemoveTabBookmarks, browserRemoveOrphanedBookmarks],
+    [browserDeleteOwnBookmarksInNode, browserRemoveOrphanedBookmarks],
   );
 
   const handleOpenAllInNewTabs = useCallback(
@@ -357,23 +316,35 @@ export function useBrowserFolderCrud() {
         const wsId = nodePath.slice('workspace:'.length);
         const tabs = state.browserTabs.filter((t) => t.workspaceId === wsId);
         tabs.forEach((tab) => browserOpenTab(tab.url, tab.title, tab.workspaceId));
+        // 工作区目录下的书签也一并打开（不再依赖"必须有活标签页"）
+        (state.browserWorkspaceBookmarks[wsId] ?? []).forEach((entry) => {
+          if (entry.url) {
+            browserOpenTab(entry.url, entry.title, wsId);
+          }
+        });
       } else if (nodePath.startsWith('folder:')) {
         const folderId = nodePath.slice('folder:'.length);
         const folder = findFolderByIdLocal(
-          state.browserTabFolders as {
+          state.browserBookmarkFolders as {
             id: string;
-            tabs?: { tabId: string }[];
+            entries?: { id: string; url: string; title: string }[];
             children?: unknown[];
           }[],
           folderId,
         );
-        if (folder?.tabs) {
-          folder.tabs.forEach((item) => {
-            const tab = state.browserTabs.find((t) => t.id === item.tabId);
-            if (tab) {
-              browserOpenTab(tab.url, tab.title, tab.workspaceId);
+        const collectEntries = (targetId: string) => {
+          const current = state.browserBookmarkFolders.find((f) => f.id === targetId);
+          (current?.entries ?? []).forEach((entry) => {
+            if (entry.url) {
+              browserOpenTab(entry.url, entry.title);
             }
           });
+          state.browserBookmarkFolders
+            .filter((f) => f.parentId === targetId)
+            .forEach((child) => collectEntries(child.id));
+        };
+        if (folder) {
+          collectEntries(folderId);
         }
       } else if (nodePath.startsWith('history:day:')) {
         const dayDate = nodePath.slice('history:day:'.length);
@@ -403,7 +374,7 @@ export function useBrowserFolderCrud() {
           const dy = String(d.getDate()).padStart(2, '0');
           return `${y}-${m}-${dy}` === dayDate;
         });
-        browserDeleteAllTabsInNode(folderId);
+        browserDeleteAllBookmarksInNode(folderId);
         for (const entry of entries) {
           removeSiteMetaIfUnreferenced(entry.url);
         }
@@ -414,7 +385,7 @@ export function useBrowserFolderCrud() {
         const state = useAppStore.getState();
         const centerTabIds = buildCenterTabIdSet(state.browserTabs);
         const folder = findFolderByIdLocal(
-          state.browserTabFolders as {
+          state.browserBookmarkFolders as {
             id: string;
             tabs?: { tabId: string }[];
             children?: unknown[];
@@ -425,7 +396,7 @@ export function useBrowserFolderCrud() {
         if (folder) {
           const allTabIds = [
             ...collectAllDescendantTabIdsLocal(
-              state.browserTabFolders as {
+              state.browserBookmarkFolders as {
                 id: string;
                 parentId?: string;
                 tabs?: { tabId: string }[];
@@ -438,7 +409,7 @@ export function useBrowserFolderCrud() {
             .map((t) => t.url)
             .filter((u): u is string => !!u);
           const folderSnapshotUrls = collectFolderTabSnapshotUrls(
-            state.browserTabFolders as {
+            state.browserBookmarkFolders as {
               id: string;
               parentId?: string;
               tabs?: { tabId: string; url: string }[];
@@ -452,26 +423,26 @@ export function useBrowserFolderCrud() {
           }
           const allTabUrls: { tabId: string; url: string }[] = [];
           const collectFolderTabEntries = (fId: string) => {
-            const f = state.browserTabFolders.find((f) => f.id === fId);
-            if (f?.tabs) {
-              for (const item of f.tabs) {
-                if (item.url) {
-                  allTabUrls.push({ tabId: item.tabId, url: item.url });
+            const f = state.browserBookmarkFolders.find((folder) => folder.id === fId);
+            if (f?.entries) {
+              for (const entry of f.entries) {
+                if (entry.url) {
+                  allTabUrls.push({ tabId: entry.id, url: entry.url });
                 }
               }
             }
-            for (const child of state.browserTabFolders.filter((f) => f.parentId === fId)) {
+            for (const child of state.browserBookmarkFolders.filter((f) => f.parentId === fId)) {
               collectFolderTabEntries(child.id);
             }
           };
           collectFolderTabEntries(actualId);
-          for (const { tabId, url } of allTabUrls) {
-            if (tabId && url && !centerTabIds.has(tabId)) {
-              browserRemoveTabBookmarks(tabId, url);
+          for (const { url } of allTabUrls) {
+            if (url && !folderTabUrls.includes(url)) {
+              folderTabUrls.push(url);
             }
           }
         }
-        browserDeleteTabFolder(actualId);
+        browserDeleteBookmarkFolder(actualId);
         browserRemoveOrphanedBookmarks();
         for (const url of folderTabUrls) {
           removeSiteMetaIfUnreferenced(url);
@@ -479,9 +450,9 @@ export function useBrowserFolderCrud() {
       }
     },
     [
-      browserDeleteTabFolder,
-      browserDeleteAllTabsInNode,
-      browserRemoveTabBookmarks,
+      browserDeleteBookmarkFolder,
+      browserDeleteAllBookmarksInNode,
+      browserRemoveBookmark,
       browserRemoveOrphanedBookmarks,
     ],
   );

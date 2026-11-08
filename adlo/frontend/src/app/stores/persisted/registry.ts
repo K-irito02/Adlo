@@ -45,13 +45,13 @@ import type {
   BackgroundConfig,
   BackgroundFit,
   BackgroundMode,
+  BookmarkEntry,
+  BookmarkFolder,
   BrowserBookmark,
   BrowserHistoryState,
   BrowserTabState,
   LocalPort,
   ShortcutSite,
-  TabFolderState,
-  WorkspaceBookmarkEntry,
 } from '../slices/browserTypes';
 import type { SearchEngine } from '../slices/browserSearchEnginesSlice';
 import type { BrowserNavigatorMode } from '../../features/browser/useBrowserTabs';
@@ -152,22 +152,27 @@ export const isBrowserTab = (item: Record<string, unknown>): boolean => {
   return true;
 };
 
-export const isBookmarkTabItem = (item: Record<string, unknown>): boolean =>
-  typeof item.tabId === 'string' && typeof item.url === 'string' && typeof item.title === 'string';
+export const isBookmarkEntry = (item: Record<string, unknown>): boolean =>
+  typeof item.id === 'string' &&
+  typeof item.url === 'string' &&
+  typeof item.title === 'string' &&
+  typeof item.addedAt === 'number' &&
+  typeof item.lastModifiedAt === 'number' &&
+  (item.sourceTabId === undefined || typeof item.sourceTabId === 'string');
 
-export const isTabFolder = (item: Record<string, unknown>): boolean => {
+export const isBookmarkFolder = (item: Record<string, unknown>): boolean => {
   if (typeof item.id !== 'string' || typeof item.name !== 'string') {
     return false;
   }
   if (typeof item.createdAt !== 'number') {
     return false;
   }
-  if (item.tabs === undefined) {
+  if (item.entries === undefined) {
     return true;
   }
   return (
-    Array.isArray(item.tabs) &&
-    item.tabs.every((tab) => isPlainRecord(tab) && isBookmarkTabItem(tab))
+    Array.isArray(item.entries) &&
+    item.entries.every((entry) => isPlainRecord(entry) && isBookmarkEntry(entry))
   );
 };
 
@@ -686,12 +691,12 @@ export const registry = {
     scope: 'global',
     read: readString,
   }),
-  'adl:browser.tabFolders': defineEntry<TabFolderState[]>({
-    key: 'adl:browser.tabFolders',
-    field: 'browserTabFolders',
+  'adl:browser.bookmarkFolders': defineEntry<BookmarkFolder[]>({
+    key: 'adl:browser.bookmarkFolders',
+    field: 'browserBookmarkFolders',
     fallback: [],
     scope: 'global',
-    read: readObjectArray<TabFolderState>(isTabFolder),
+    read: readObjectArray<BookmarkFolder>(isBookmarkFolder),
   }),
   'adl:browser.tabTreeExpanded': defineEntry<Record<string, boolean>>({
     key: 'adl:browser.tabTreeExpanded',
@@ -715,20 +720,13 @@ export const registry = {
     scope: 'global',
     read: readObjectArray<BrowserBookmark>(isBookmark),
   }),
-  'adl:browser.workspaceBookmarks': defineEntry<Record<string, WorkspaceBookmarkEntry[]>>({
+  'adl:browser.workspaceBookmarks': defineEntry<Record<string, BookmarkEntry[]>>({
     key: 'adl:browser.workspaceBookmarks',
     field: 'browserWorkspaceBookmarks',
     fallback: {},
     scope: 'byWorkspaceId',
-    read: readObjectArrayRecord<WorkspaceBookmarkEntry>(isBookmarkTabItem),
+    read: readObjectArrayRecord<BookmarkEntry>(isBookmarkEntry),
     prune: pruneByWorkspaceId,
-  }),
-  'adl:browser.tabIdUrlMap': defineEntry<Record<string, string>>({
-    key: 'adl:browser.tabIdUrlMap',
-    field: 'browserBookmarkTabIdUrlMap',
-    fallback: {},
-    scope: 'global',
-    read: readStringRecord,
   }),
   'adl:browser.shortcuts': defineEntry<ShortcutSite[]>({
     key: 'adl:browser.shortcuts',

@@ -9,11 +9,9 @@ export type BrowserNavListModeProps = Omit<
 export function BrowserNavListMode({
   visibleWorkspaces,
   browserTabs,
-  browserTabFolders,
+  browserBookmarkFolders,
   browserHistory,
   browserWorkspaceBookmarks,
-  browserBookmarks,
-  browserBookmarkTabIdUrlMap,
   tabTreeExpanded,
   selectedTreePath,
   onSelectTreePath,
@@ -39,11 +37,9 @@ export function BrowserNavListMode({
     <BrowserTabTree
       workspaces={visibleWorkspaces}
       browserTabs={browserTabs}
-      browserTabFolders={browserTabFolders}
+      browserBookmarkFolders={browserBookmarkFolders}
       browserHistory={browserHistory}
       browserWorkspaceBookmarks={browserWorkspaceBookmarks}
-      browserBookmarks={browserBookmarks}
-      browserBookmarkTabIdUrlMap={browserBookmarkTabIdUrlMap}
       tabTreeExpanded={tabTreeExpanded}
       selectedTreePath={selectedTreePath}
       onSelectTreePath={onSelectTreePath}

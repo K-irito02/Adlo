@@ -1,10 +1,10 @@
 import type { RecentWorkspaceEntry } from '@shared/ipc';
-import type { TabFolderState } from '@stores/slices/browserSlice';
+import type { BookmarkFolder } from '@stores/slices/browserSlice';
 import type { FileTreeRenderableNode } from '@features/file-tree/fileTree.utils';
 
 function buildFolderDirNode(
-  folder: TabFolderState,
-  allFolders: TabFolderState[],
+  folder: BookmarkFolder,
+  allFolders: BookmarkFolder[],
 ): FileTreeRenderableNode {
   const childFolders = allFolders.filter(
     (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder'),
@@ -19,7 +19,7 @@ function buildFolderDirNode(
 
 export function buildBookmarkDirectoryTree(
   workspaces: RecentWorkspaceEntry[],
-  tabFolders: TabFolderState[],
+  tabFolders: BookmarkFolder[],
 ): {
   workspaceNodes: FileTreeRenderableNode[];
   userFolderNodes: FileTreeRenderableNode[];

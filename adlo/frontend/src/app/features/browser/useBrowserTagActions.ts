@@ -16,7 +16,7 @@ export function useBrowserTagActions(options?: {
     browserUpdateTab,
     browserUpdateHistoryTitle,
     browserDeleteHistoryEntry,
-    browserRemoveTabBookmarks,
+    browserRemoveBookmarksFromTab,
   } = useAppStore(
     useShallow((state) => ({
       browserOpenTab: state.browserOpenTab,
@@ -24,7 +24,7 @@ export function useBrowserTagActions(options?: {
       browserUpdateTab: state.browserUpdateTab,
       browserUpdateHistoryTitle: state.browserUpdateHistoryTitle,
       browserDeleteHistoryEntry: state.browserDeleteHistoryEntry,
-      browserRemoveTabBookmarks: state.browserRemoveTabBookmarks,
+      browserRemoveBookmarksFromTab: state.browserRemoveBookmarksFromTab,
     })),
   );
 
@@ -36,25 +36,31 @@ export function useBrowserTagActions(options?: {
   );
 
   const handleRefreshTab = useCallback(
-    async (tabId: string, url: string) => {
+    async (tabId: string | undefined, url: string) => {
       if (!url) {
         return;
       }
       const meta = await pageMetaClient.refresh(url); // force=true
 
       const state = useAppStore.getState();
-      const tab = state.browserTabs.find((t) => t.id === tabId);
+      const tab = tabId ? state.browserTabs.find((t) => t.id === tabId) : undefined;
 
       const title = meta?.title || hostnameFromUrl(url);
       if (tab) {
-        const shouldApply = applyBroadcastTitle(tab, url, title, 'http', titleSourceRef.get(tabId));
+        const shouldApply = applyBroadcastTitle(
+          tab,
+          url,
+          title,
+          'http',
+          titleSourceRef.get(tabId!),
+        );
         // 刷新拿到真实标题并应用 → 标记已结算（M1-D）
-        browserUpdateTab(tabId, {
+        browserUpdateTab(tabId!, {
           title: shouldApply ? title : tab.title,
           ...(shouldApply ? { titleResolved: true } : {}),
         });
         if (shouldApply) {
-          titleSourceRef.set(tabId, 'http');
+          titleSourceRef.set(tabId!, 'http');
         }
       } else {
         const isHistoryEntry = state.browserHistory.some((h) => h.id === tabId);
@@ -62,12 +68,12 @@ export function useBrowserTagActions(options?: {
           browserUpdateHistoryTitle(url, title);
         }
         const bmSnapshot =
-          state.browserTabFolders.flatMap((f) => f.tabs ?? []).find((t) => t.url === url) ??
+          state.browserBookmarkFolders.flatMap((f) => f.entries ?? []).find((e) => e.url === url) ??
           Object.values(state.browserWorkspaceBookmarks)
             .flat()
             .find((e) => e.url === url);
         if (bmSnapshot && isPlaceholderTitle(bmSnapshot.title, url)) {
-          state.browserUpdateSavedBookmark(bmSnapshot.tabId, { title, url: bmSnapshot.url });
+          state.browserUpdateSavedBookmark(bmSnapshot.id, { title, url: bmSnapshot.url });
         }
       }
     },
@@ -85,14 +91,14 @@ export function useBrowserTagActions(options?: {
           removeSiteMetaIfUnreferenced(url);
         }
       } else {
-        browserRemoveTabBookmarks(tabId, url);
+        browserRemoveBookmarksFromTab(tabId, url);
         browserCloseTab(tabId);
         if (url) {
           removeSiteMetaIfUnreferenced(url);
         }
       }
     },
-    [browserCloseTab, browserRemoveTabBookmarks, browserDeleteHistoryEntry],
+    [browserCloseTab, browserRemoveBookmarksFromTab, browserDeleteHistoryEntry],
   );
 
   const handleCopyTabLink = useCallback(async (url: string) => {
@@ -118,18 +124,18 @@ export function useBrowserTagActions(options?: {
   );
 
   const handleOpenTabInCurrentTab = useCallback(
-    (tabId: string) => {
+    (url: string) => {
       const state = useAppStore.getState();
-      const tab = state.browserTabs.find((t) => t.id === tabId);
       const activeTabId = state.browserActiveTabId;
-      if (tab && activeTabId) {
-        if (navigateTabExplicit) {
-          // D4：显式导航 —— 在更新 active tab URL 的同时真正 Navigate 其已入池 WebView，
-          // 否则 Tauri 下标签 URL 与画面脱节（store action 不再触发 WebView2.Navigate）。
-          navigateTabExplicit(activeTabId, tab.url);
-        } else {
-          browserUpdateTab(activeTabId, { url: tab.url });
-        }
+      if (!url || !activeTabId) {
+        return;
+      }
+      if (navigateTabExplicit) {
+        // D4：显式导航 —— 在更新 active tab URL 的同时真正 Navigate 其已入池 WebView，
+        // 否则 Tauri 下标签 URL 与画面脱节（store action 不再触发 WebView2.Navigate）。
+        navigateTabExplicit(activeTabId, url);
+      } else {
+        browserUpdateTab(activeTabId, { url });
       }
     },
     [browserUpdateTab, navigateTabExplicit],

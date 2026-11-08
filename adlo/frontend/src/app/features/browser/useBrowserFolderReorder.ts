@@ -5,7 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 export function useBrowserFolderReorder() {
   const {
     recentWorkspaces,
-    browserTabFolders,
+    browserBookmarkFolders,
     browserTabTreeExpanded,
     browserHistory,
     browserToggleTabTreePath,
@@ -14,7 +14,7 @@ export function useBrowserFolderReorder() {
   } = useAppStore(
     useShallow((state) => ({
       recentWorkspaces: state.recentWorkspaces,
-      browserTabFolders: state.browserTabFolders,
+      browserBookmarkFolders: state.browserBookmarkFolders,
       browserTabTreeExpanded: state.browserTabTreeExpanded,
       browserHistory: state.browserHistory,
       browserToggleTabTreePath: state.browserToggleTabTreePath,
@@ -26,7 +26,9 @@ export function useBrowserFolderReorder() {
   const allTreeExpanded = useMemo(() => {
     const visible = recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available);
     const wsPaths = visible.map((w) => `workspace:${w.id}`);
-    const folderPaths = browserTabFolders.filter((f) => !f.parentId).map((f) => `folder:${f.id}`);
+    const folderPaths = browserBookmarkFolders
+      .filter((f) => !f.parentId)
+      .map((f) => `folder:${f.id}`);
     const allEntryPaths = [...wsPaths, ...folderPaths];
     if (browserHistory.length > 0) {
       allEntryPaths.push('history:root');
@@ -35,7 +37,7 @@ export function useBrowserFolderReorder() {
       return false;
     }
     return allEntryPaths.every((p) => browserTabTreeExpanded[p] ?? false);
-  }, [recentWorkspaces, browserTabFolders, browserHistory, browserTabTreeExpanded]);
+  }, [recentWorkspaces, browserBookmarkFolders, browserHistory, browserTabTreeExpanded]);
 
   const handleToggleTreePath = useCallback(
     (path: string) => {
@@ -51,7 +53,7 @@ export function useBrowserFolderReorder() {
     for (const ws of workspaces) {
       paths.push(`workspace:${ws.id}`);
     }
-    for (const folder of state.browserTabFolders) {
+    for (const folder of state.browserBookmarkFolders) {
       paths.push(`folder:${folder.id}`);
     }
     if (state.browserHistory.length > 0) {
@@ -65,7 +67,7 @@ export function useBrowserFolderReorder() {
   }, [browserCollapseAllTreePaths]);
 
   return {
-    browserTabFolders,
+    browserBookmarkFolders,
     tabTreeExpanded: browserTabTreeExpanded,
     allTreeExpanded,
     handleToggleTreePath,

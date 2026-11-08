@@ -6,7 +6,7 @@ import { pruneRegistry } from '@stores/persisted/prune';
 import type { PruneCtx } from '@stores/persisted/entry';
 import { createBrowserHistorySlice } from '../browserHistorySlice';
 import { createBrowserTabsSlice } from '../browserTabsSlice';
-import { createBrowserFoldersSlice } from '../browserFoldersSlice';
+import { createBrowserBookmarkFoldersSlice } from '../browserFoldersSlice';
 import { createBrowserLandingSlice } from '../browserLandingSlice';
 import { createBrowserSearchEnginesSlice } from '../browserSearchEnginesSlice';
 import { createBrowserBookmarkSlice } from '../browserBookmarkSlice';
@@ -32,7 +32,7 @@ function createBrowserStore() {
     ...createUIWidthSlice(set as never, get as never),
     ...createBrowserHistorySlice(set as never, get as never),
     ...createBrowserTabsSlice(set as never, get as never),
-    ...createBrowserFoldersSlice(set as never, get as never),
+    ...createBrowserBookmarkFoldersSlice(set as never, get as never),
     ...createBrowserLandingSlice(set as never, get as never),
     ...createBrowserSearchEnginesSlice(set as never, get as never),
     ...createBrowserBookmarkSlice(set as never, get as never),
@@ -221,10 +221,10 @@ describe('every migrated browser key round-trips through the registry', () => {
       act: (s) => s.browserOpenTab('https://active.test', 'Active'),
     },
     {
-      key: 'adl:browser.tabFolders',
-      field: 'browserTabFolders',
+      key: 'adl:browser.bookmarkFolders',
+      field: 'browserBookmarkFolders',
       legacyKey: 'adl-ui:browser-tab-folders',
-      act: (s) => s.browserCreateTabFolder('Folder'),
+      act: (s) => s.browserCreateBookmarkFolder('Folder'),
     },
     {
       key: 'adl:browser.tabTreeExpanded',
@@ -250,16 +250,6 @@ describe('every migrated browser key round-trips through the registry', () => {
       legacyKey: 'adl-ui:browser-workspace-bookmarks',
       act: (s) =>
         s.browserCreateBookmarkEntry({ url: 'https://ws.test', title: 'WS', workspaceId: 'ws-a' }),
-    },
-    {
-      key: 'adl:browser.tabIdUrlMap',
-      field: 'browserBookmarkTabIdUrlMap',
-      legacyKey: 'adl-ui:browser-bookmark-tabid-url-map',
-      // 映射只在存在活动标签页时写入（与运行时语义一致）
-      act: (s) => {
-        s.browserOpenTab('https://map.test', 'Map');
-        s.browserToggleBookmark({ url: 'https://map.test', title: 'Map' });
-      },
     },
     {
       key: 'adl:browser.shortcuts',

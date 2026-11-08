@@ -29,35 +29,45 @@ export interface BrowserTabStateUpdate {
   isDownloading?: boolean;
 }
 
-export interface BookmarkTabItem {
-  tabId: string;
+/**
+ * 一条书签。`id` 是书签自己的身份，与任何浏览器标签页无关——
+ * 标签页关掉、从未打开、从外部文件导入，都不影响它。
+ */
+export interface BookmarkEntry {
+  id: string;
   url: string;
   title: string;
+  /** 首次收藏时间（毫秒时间戳） */
+  addedAt: number;
+  /** 内容（标题或 URL）最后一次被编辑的时间（毫秒时间戳） */
+  lastModifiedAt: number;
+  /**
+   * 收藏时对应的浏览器标签页 id（可选弱引用，不是身份）。
+   * 只用于「取消收藏某个仍打开的标签页时，同步移除它带过来的那份收藏」。
+   * 标签页关闭后该值自然失效，不影响书签本身。
+   */
+  sourceTabId?: string;
 }
 
-export interface TabFolderState {
+/** 自建目录树上的一个文件夹；`entries` 是它直接包含的书签。 */
+export interface BookmarkFolder {
   id: string;
   name: string;
   createdAt: number;
   isUserCreated?: boolean;
-  tabs?: BookmarkTabItem[];
-  children?: TabFolderState[];
+  entries?: BookmarkEntry[];
+  children?: BookmarkFolder[];
   parentId?: string;
   parentType?: 'workspace' | 'folder';
 }
 
-export interface TabFolderStateUpdate {
+export interface BookmarkFolderUpdate {
   name?: string;
-  tabs?: BookmarkTabItem[];
+  entries?: BookmarkEntry[];
 }
 
+/** 全局「该链接是否已收藏」索引；不承载时间戳，时间戳只存在于具体书签条目上。 */
 export interface BrowserBookmark {
-  url: string;
-  title: string;
-}
-
-export interface WorkspaceBookmarkEntry {
-  tabId: string;
   url: string;
   title: string;
 }

@@ -13,7 +13,7 @@ interface BrowserTreeEntryFlatListProps {
   selectedTreePath: string | null;
   onFlatTabClick: (node: BrowserTreeNode) => void;
   onTabContextMenu: (x: number, y: number, node: BrowserTreeNode) => void;
-  onRefreshTab: (tabId: string, url: string) => void;
+  onRefreshTab: (tabId: string | undefined, url: string) => void;
   onCloseTab?: (tabId: string) => void;
 }
 
@@ -53,7 +53,7 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
   const handleRefreshClick = useCallback(
     (node: BrowserTreeNode) => (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (node.tabId && node.url) {
+      if (node.url) {
         onRefreshTab(node.tabId, node.url);
       }
     },

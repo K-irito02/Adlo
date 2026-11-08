@@ -33,7 +33,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
   filterTabIds,
 }: BrowserEntrySubEntriesProps) {
   const { t } = useTCopy();
-  const browserTabFolders = useAppStore((s) => s.browserTabFolders);
+  const browserBookmarkFolders = useAppStore((s) => s.browserBookmarkFolders);
   const recentWorkspaces = useAppStore((s) => s.recentWorkspaces);
   const isExpanded = expandedPaths[node.path] ?? false;
 
@@ -94,11 +94,11 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     }
     const baseParentPath =
       node.nodeType === 'folder' && node.folderId
-        ? buildFolderPathLabel(node.folderId, browserTabFolders, recentWorkspaces)
+        ? buildFolderPathLabel(node.folderId, browserBookmarkFolders, recentWorkspaces)
         : '';
     return buildBrowserNodeTitleMap(
       node.children,
-      browserTabFolders,
+      browserBookmarkFolders,
       recentWorkspaces,
       baseParentPath,
     );
@@ -107,7 +107,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     node.children,
     node.nodeType,
     node.folderId,
-    browserTabFolders,
+    browserBookmarkFolders,
     recentWorkspaces,
   ]);
 

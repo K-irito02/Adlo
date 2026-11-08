@@ -1,10 +1,9 @@
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type {
   BrowserTabState,
-  TabFolderState,
+  BookmarkEntry,
+  BookmarkFolder,
   BrowserHistoryState,
-  BrowserBookmark,
-  WorkspaceBookmarkEntry,
 } from '@stores/slices/browserSlice';
 import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from './types';
 import { historyDedupKey, normalizeTabTitle } from '@utils/browserDisplayUtils';
@@ -109,79 +108,55 @@ function buildHistoryLeafNode(
   };
 }
 
-function getBookmarkForTabOverride(
-  tabId: string,
-  tabUrl: string | undefined,
-  browserBookmarks: BrowserBookmark[],
-  tabIdToUrlMap: Record<string, string>,
-): { url: string; title: string } | undefined {
-  const originalUrl = tabIdToUrlMap[tabId];
-  if (originalUrl) {
-    const bm = browserBookmarks.find((b) => b.url === originalUrl);
-    if (bm) {
-      return bm;
-    }
-  }
-  if (tabUrl) {
-    const bm = browserBookmarks.find((b) => b.url === tabUrl);
-    if (bm) {
-      return bm;
-    }
-  }
-  return undefined;
-}
-
 function buildFolderNode(
-  folder: TabFolderState,
-  allFolders: TabFolderState[],
+  folder: BookmarkFolder,
+  allFolders: BookmarkFolder[],
   browserTabs: BrowserTabState[],
-  depth: number = 0,
-  parentWorkspaceId?: string,
-  browserBookmarks: BrowserBookmark[] = [],
-  tabIdToUrlMap: Record<string, string> = {},
   resolveTitle: (title: string, url: string) => string = () => '',
+  parentWorkspaceId?: string,
 ): BrowserTreeNode {
   const childFolders = allFolders.filter(
     (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder'),
   );
-  const tabChildren: BrowserTreeNode[] = (folder.tabs ?? [])
-    .map((item) => {
-      const { tabId, url: snapshotUrl, title: snapshotTitle } = item;
-      const tab = browserTabs.find((t) => t.id === tabId);
-      if (!tab) {
-        if (snapshotUrl) {
-          return {
-            path: `bookmark:${tabId}::${encodeURIComponent(snapshotUrl)}`,
-            name: resolveTitle(snapshotTitle, snapshotUrl),
-            kind: 'file' as const,
-            children: [],
-            nodeType: 'tab' as const,
-            tabId,
-            url: snapshotUrl,
-            workspaceId: parentWorkspaceId || '',
-            isPlayingAudio: false,
-            isAudioMuted: false,
-            isSavedBookmark: true,
-          };
-        }
+  const entryChildren: BrowserTreeNode[] = (folder.entries ?? [])
+    .map((entry) => {
+      const tab = entry.sourceTabId
+        ? browserTabs.find((t) => t.id === entry.sourceTabId)
+        : undefined;
+      const displayUrl = entry.url || tab?.url || '';
+      if (!displayUrl) {
         return null;
       }
-      const displayUrl = snapshotUrl || tab.url || '';
+
+      if (!tab) {
+        return {
+          path: `bookmark:${entry.id}::${encodeURIComponent(displayUrl)}`,
+          name: resolveTitle(entry.title, displayUrl),
+          kind: 'file' as const,
+          children: [],
+          nodeType: 'bookmark' as const,
+          bookmarkId: entry.id,
+          url: displayUrl,
+          workspaceId: parentWorkspaceId || '',
+          isPlayingAudio: false,
+          isAudioMuted: false,
+          isSavedBookmark: true,
+        };
+      }
+
       const node = buildTabNode(
         tab,
         tab.workspaceId,
-        `folder-${folder.id}-${tabId}-${encodeURIComponent(displayUrl)}`,
+        `folder-${folder.id}-${tab.id}-${encodeURIComponent(displayUrl)}`,
         resolveTitle,
       );
       node.isSavedBookmark = true;
-      // 使用文件夹级快照，保留收藏时的原始 URL/标题
-      node.name = resolveTitle(snapshotTitle || tab.title || '', displayUrl);
+      // 使用书签条目自己的快照，保留收藏时的原始 URL/标题
+      node.name = resolveTitle(entry.title || tab.title || '', displayUrl);
       node.url = displayUrl;
       // 收藏条目：仅在标签仍在收藏的 URL（归一化匹配，剥离跟踪参数/尾斜杠/www）上
       // 时才保留音频状态——URL 变体不丢失音量图标（2026-08-21 事项 7）。
-      // 注意：historyDedupKey 保留 modal_id（同一视频弹层的不同变体仍精确匹配到
-      // 正在播放的标签；不同 modal_id 的不同视频不会被误关联）。
-      if (snapshotUrl && historyDedupKey(tab.url) !== historyDedupKey(snapshotUrl)) {
+      if (historyDedupKey(tab.url) !== historyDedupKey(displayUrl)) {
         node.isPlayingAudio = false;
         node.isAudioMuted = false;
       }
@@ -190,23 +165,14 @@ function buildFolderNode(
     .filter(Boolean) as BrowserTreeNode[];
 
   const folderChildren: BrowserTreeNode[] = childFolders.map((child) =>
-    buildFolderNode(
-      child,
-      allFolders,
-      browserTabs,
-      depth + 1,
-      parentWorkspaceId,
-      browserBookmarks,
-      tabIdToUrlMap,
-      resolveTitle,
-    ),
+    buildFolderNode(child, allFolders, browserTabs, resolveTitle, parentWorkspaceId),
   );
 
   return {
     path: `folder:${folder.id}`,
     name: folder.name,
     kind: 'directory',
-    children: [...tabChildren, ...folderChildren],
+    children: [...entryChildren, ...folderChildren],
     nodeType: 'folder',
     folderId: folder.id,
     workspaceId: parentWorkspaceId,
@@ -216,10 +182,8 @@ function buildFolderNode(
 export function buildWorkspaceCategoryTree(
   workspaces: RecentWorkspaceEntry[],
   browserTabs: BrowserTabState[],
-  tabFolders: TabFolderState[],
-  workspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]> = {},
-  browserBookmarks: BrowserBookmark[] = [],
-  tabIdToUrlMap: Record<string, string> = {},
+  tabFolders: BookmarkFolder[],
+  workspaceBookmarks: Record<string, BookmarkEntry[]> = {},
   resolveTitle: (title: string, url: string) => string = () => '',
 ): BrowserTreeNode[] {
   return workspaces.map((ws) => {
@@ -232,58 +196,38 @@ export function buildWorkspaceCategoryTree(
     const bookmarkedEntries = workspaceBookmarks[ws.id] || [];
     const bookmarkNodes: BrowserTreeNode[] = bookmarkedEntries
       .map((entry) => {
-        if (!entry || typeof entry !== 'object') {
+        if (!entry || !entry.id || !entry.url) {
           return null;
         }
-        if (!entry.tabId) {
+        // 已有同源活标签页时，由 tabNodes 呈现，避免重复
+        const tab = entry.sourceTabId
+          ? browserTabs.find((t) => t.id === entry.sourceTabId)
+          : undefined;
+        if (tab && wsTabs.some((t) => t.id === tab.id)) {
           return null;
-        }
-        // 避免重复添加已存在的标签
-        if (wsTabs.some((t) => t.id === entry.tabId)) {
-          return null;
-        }
-        const tab = browserTabs.find((t) => t.id === entry.tabId);
-
-        // 从 entry 中获取快照 URL/标题
-        let snapshotTitle = entry.title || '';
-        let snapshotUrl = entry.url || '';
-        // 若无快照，从 tabId→URL 映射查找
-        if (!snapshotUrl) {
-          const fallbackSnap = getBookmarkForTabOverride(
-            entry.tabId,
-            tab?.url,
-            browserBookmarks,
-            tabIdToUrlMap,
-          );
-          if (fallbackSnap) {
-            snapshotTitle = fallbackSnap.title;
-            snapshotUrl = fallbackSnap.url;
-          }
         }
 
-        // 跳过无有效 URL 的条目
-        if (!snapshotUrl) {
-          return null;
-        }
+        const snapshotUrl = entry.url;
+        const snapshotTitle = entry.title || '';
 
         let node: BrowserTreeNode;
         if (tab) {
           node = buildTabNode(
             tab,
             ws.id,
-            `ws-bookmark-${ws.id}-${entry.tabId}-${encodeURIComponent(snapshotUrl)}`,
+            `ws-bookmark-${ws.id}-${entry.id}-${encodeURIComponent(snapshotUrl)}`,
             resolveTitle,
           );
           node.name = resolveTitle(snapshotTitle, snapshotUrl);
           node.url = snapshotUrl;
         } else {
           node = {
-            path: `bookmark:${ws.id}:${entry.tabId}:${encodeURIComponent(snapshotUrl)}`,
+            path: `bookmark:${ws.id}:${entry.id}:${encodeURIComponent(snapshotUrl)}`,
             name: resolveTitle(snapshotTitle, snapshotUrl),
             kind: 'file' as const,
             children: [],
-            nodeType: 'tab' as const,
-            tabId: entry.tabId,
+            nodeType: 'bookmark' as const,
+            bookmarkId: entry.id,
             url: snapshotUrl,
             workspaceId: ws.id,
             isPlayingAudio: false,
@@ -307,16 +251,7 @@ export function buildWorkspaceCategoryTree(
       (f) => f.parentType === 'workspace' && f.parentId === ws.id,
     );
     const folderNodes: BrowserTreeNode[] = wsRootFolders.map((folder) =>
-      buildFolderNode(
-        folder,
-        tabFolders,
-        browserTabs,
-        0,
-        ws.id,
-        browserBookmarks,
-        tabIdToUrlMap,
-        resolveTitle,
-      ),
+      buildFolderNode(folder, tabFolders, browserTabs, resolveTitle, ws.id),
     );
 
     return {
@@ -331,24 +266,13 @@ export function buildWorkspaceCategoryTree(
 }
 
 export function buildUserFolderCategoryTree(
-  tabFolders: TabFolderState[],
+  tabFolders: BookmarkFolder[],
   browserTabs: BrowserTabState[],
-  browserBookmarks: BrowserBookmark[] = [],
-  tabIdToUrlMap: Record<string, string> = {},
   resolveTitle: (title: string, url: string) => string = () => '',
 ): BrowserTreeNode[] {
   const rootFolders = tabFolders.filter((f) => !f.parentId);
   return rootFolders.map((folder) =>
-    buildFolderNode(
-      folder,
-      tabFolders,
-      browserTabs,
-      0,
-      undefined,
-      browserBookmarks,
-      tabIdToUrlMap,
-      resolveTitle,
-    ),
+    buildFolderNode(folder, tabFolders, browserTabs, resolveTitle),
   );
 }
 
@@ -446,11 +370,9 @@ export interface UseBrowserTreeDataResult {
 export function useBrowserTreeData(
   workspaces: RecentWorkspaceEntry[],
   browserTabs: BrowserTabState[],
-  browserTabFolders: TabFolderState[],
+  browserBookmarkFolders: BookmarkFolder[],
   browserHistory: BrowserHistoryState[],
-  browserWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>,
-  browserBookmarks: BrowserBookmark[],
-  browserBookmarkTabIdUrlMap: Record<string, string>,
+  browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>,
   labels: {
     workspaceCategory: string;
     userFolderCategory: string;
@@ -474,11 +396,9 @@ export function useBrowserTreeData(
   } = useBrowserTreeCache({
     workspaces,
     browserTabs,
-    browserTabFolders,
+    browserBookmarkFolders,
     browserHistory,
     browserWorkspaceBookmarks,
-    browserBookmarks,
-    browserBookmarkTabIdUrlMap,
     labels,
     dateLabels,
   });

@@ -93,7 +93,7 @@ export function BrowserPanelDialogs({
         title={t.browserRenamePrompt as string}
         placeholder={t.browserRenamePrompt as string}
         onConfirm={(name) => {
-          useAppStore.getState().browserUpdateTabFolder(renameFolderState.folderId, { name });
+          useAppStore.getState().browserUpdateBookmarkFolder(renameFolderState.folderId, { name });
           setRenameFolderState((prev) => ({ ...prev, open: false }));
         }}
         onCancel={() => setRenameFolderState((prev) => ({ ...prev, open: false }))}

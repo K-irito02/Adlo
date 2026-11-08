@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
-import type { TabFolderState } from '@stores/slices/browserSlice';
+import type { BookmarkFolder } from '@stores/slices/browserSlice';
 import type { BrowserTreeNode } from '../types';
 import { buildBrowserNodeTitleMap } from '../browserTreeTitle';
 
@@ -19,7 +19,7 @@ function makeWorkspace(id: string, name: string, path: string): RecentWorkspaceE
   };
 }
 
-const folders: TabFolderState[] = [
+const folders: BookmarkFolder[] = [
   { id: 'root', name: '工具', createdAt: 0 },
   { id: 'sub', name: '子文件夹', createdAt: 0, parentId: 'root', parentType: 'folder' },
   { id: 'wsRoot', name: '工作区根目录', createdAt: 0, parentId: 'ws1', parentType: 'workspace' },

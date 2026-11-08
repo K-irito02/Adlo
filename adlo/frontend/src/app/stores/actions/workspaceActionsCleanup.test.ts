@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { stripWorkspaceFromBrowserState, resolvePostRenameOpenTarget } from './workspaceActions';
-import type { BrowserTabState, TabFolderState } from '../slices/browserSlice';
+import type { BrowserTabState, BookmarkFolder } from '../slices/browserSlice';
 
 function makeTab(id: string, workspaceId: string): BrowserTabState {
   return {
@@ -20,8 +20,8 @@ function makeTab(id: string, workspaceId: string): BrowserTabState {
 function makeFolder(
   id: string,
   parentId: string | undefined,
-  parentType: TabFolderState['parentType'],
-): TabFolderState {
+  parentType: BookmarkFolder['parentType'],
+): BookmarkFolder {
   return { id, name: id, createdAt: 0, parentId, parentType };
 }
 
@@ -42,7 +42,7 @@ describe('stripWorkspaceFromBrowserState (cleanup on workspace delete)', () => {
       makeFolder('f4', undefined, undefined),
     ];
     const result = stripWorkspaceFromBrowserState('ws-a', [], folders, '');
-    expect(result.browserTabFolders.map((f) => f.id)).toEqual(['f2', 'f3', 'f4']);
+    expect(result.browserBookmarkFolders.map((f) => f.id)).toEqual(['f2', 'f3', 'f4']);
   });
 
   it('does NOT remove folders whose parent is a folder (only direct workspace children)', () => {
@@ -52,7 +52,7 @@ describe('stripWorkspaceFromBrowserState (cleanup on workspace delete)', () => {
     ];
     const result = stripWorkspaceFromBrowserState('ws-a', [], folders, '');
     // f-root is removed; f-child is kept (its parentType is folder, not workspace)
-    expect(result.browserTabFolders.map((f) => f.id)).toEqual(['f-child']);
+    expect(result.browserBookmarkFolders.map((f) => f.id)).toEqual(['f-child']);
   });
 
   it('preserves browserActiveTabId when the active tab survives the filter', () => {
@@ -81,7 +81,7 @@ describe('stripWorkspaceFromBrowserState (cleanup on workspace delete)', () => {
     const folders = [makeFolder('f1', 'ws-b', 'workspace')];
     const result = stripWorkspaceFromBrowserState('ws-nonexistent', tabs, folders, 't1');
     expect(result.browserTabs).toEqual(tabs);
-    expect(result.browserTabFolders).toEqual(folders);
+    expect(result.browserBookmarkFolders).toEqual(folders);
     expect(result.browserActiveTabId).toBe('t1');
   });
 

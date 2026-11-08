@@ -62,12 +62,12 @@ export function BookmarkToFolderDialogs({
           const parentPath = createDirDialog.parentPath;
           if (parentPath?.startsWith('folder:')) {
             const folderId = parentPath.slice('folder:'.length);
-            useAppStore.getState().browserCreateTabFolder(name, folderId, 'folder');
+            useAppStore.getState().browserCreateBookmarkFolder(name, folderId, 'folder');
           } else if (parentPath?.startsWith('workspace:')) {
             const wsId = parentPath.slice('workspace:'.length);
-            useAppStore.getState().browserCreateTabFolder(name, wsId, 'workspace');
+            useAppStore.getState().browserCreateBookmarkFolder(name, wsId, 'workspace');
           } else {
-            useAppStore.getState().browserCreateTabFolder(name, undefined, undefined);
+            useAppStore.getState().browserCreateBookmarkFolder(name, undefined, undefined);
           }
           setCreateDirDialog({ open: false, parentPath: null });
         }}

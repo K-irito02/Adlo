@@ -3,109 +3,88 @@ import { createUiId } from '../shared';
 import { persist } from '../persisted/persist';
 import { formatNewFolderNameByLocale } from '@i18n';
 import { resolveAppLanguage } from '@i18n/resolveLanguage';
-import type { TabFolderState, TabFolderStateUpdate } from './browserFoldersTypes';
+import type { BookmarkFolder, BookmarkFolderUpdate } from './browserFoldersTypes';
 import { collectAllDescendantFolderIds } from './browserFoldersUtils';
-import { computeDeleteAllTabsOutcome, computeDeleteOwnTabsOutcome } from './browserFoldersDeletion';
+import {
+  computeDeleteAllBookmarksOutcome,
+  computeDeleteOwnBookmarksOutcome,
+} from './browserFoldersDeletion';
 
-// Re-export types to preserve the public API.
-export type { BookmarkTabItem, TabFolderState, TabFolderStateUpdate } from './browserFoldersTypes';
+export type { BookmarkEntry, BookmarkFolder, BookmarkFolderUpdate } from './browserFoldersTypes';
 
-export interface BrowserFoldersSlice {
-  browserTabFolders: TabFolderState[];
+export interface BrowserBookmarkFoldersSlice {
+  browserBookmarkFolders: BookmarkFolder[];
   browserTabTreeExpanded: Record<string, boolean>;
 
-  browserCreateTabFolder: (
+  browserCreateBookmarkFolder: (
     name?: string,
     parentId?: string,
     parentType?: 'workspace' | 'folder',
   ) => void;
-  browserUpdateTabFolder: (folderId: string, patch: Partial<TabFolderStateUpdate>) => void;
-  browserDeleteTabFolder: (folderId: string) => void;
-  browserAddToFolder: (tabId: string, folderId: string) => void;
+  browserUpdateBookmarkFolder: (folderId: string, patch: Partial<BookmarkFolderUpdate>) => void;
+  browserDeleteBookmarkFolder: (folderId: string) => void;
   browserToggleTabTreePath: (path: string) => void;
   browserCollapseAllTreePaths: () => void;
   browserExpandAllTreePaths: (paths: string[]) => void;
-  browserDeleteAllTabsInNode: (nodePath: string) => void;
-  browserDeleteOwnTabsInNode: (nodePath: string) => void;
-  browserClearAllFolderTabs: () => void;
+  browserDeleteAllBookmarksInNode: (nodePath: string) => void;
+  browserDeleteOwnBookmarksInNode: (nodePath: string) => void;
+  browserClearAllFolderBookmarks: () => void;
 }
 
-export const createBrowserFoldersSlice = (
+export const createBrowserBookmarkFoldersSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   _get: () => StoreState,
-): BrowserFoldersSlice => ({
-  browserTabFolders: [],
+): BrowserBookmarkFoldersSlice => ({
+  browserBookmarkFolders: [],
   browserTabTreeExpanded: {},
 
-  browserCreateTabFolder: async (
+  browserCreateBookmarkFolder: async (
     name?: string,
     parentId?: string,
     parentType?: 'workspace' | 'folder',
   ) => {
-    const folderCount = _get().browserTabFolders.length;
+    const folderCount = _get().browserBookmarkFolders.length;
     const locale = resolveAppLanguage(_get().appInfo?.config.language);
     const folderName = name?.trim() || (await formatNewFolderNameByLocale(locale, folderCount + 1));
     set((state) => {
-      const newFolder: TabFolderState = {
-        id: createUiId('tab-folder'),
+      const newFolder: BookmarkFolder = {
+        id: createUiId('bookmark-folder'),
         name: folderName,
         createdAt: Date.now(),
         isUserCreated: true,
         parentId: parentId,
         parentType: parentType as 'workspace' | 'folder' | undefined,
       };
-      const resultFolders = [...state.browserTabFolders, newFolder];
-      persist('adl:browser.tabFolders', resultFolders);
-      return { browserTabFolders: resultFolders };
+      const resultFolders = [...state.browserBookmarkFolders, newFolder];
+      persist('adl:browser.bookmarkFolders', resultFolders);
+      return { browserBookmarkFolders: resultFolders };
     });
   },
 
-  browserUpdateTabFolder: (folderId, patch) =>
+  browserUpdateBookmarkFolder: (folderId, patch) =>
     set((state) => {
-      const nextFolders = state.browserTabFolders.map((folder) => {
+      const nextFolders = state.browserBookmarkFolders.map((folder) => {
         if (folder.id === folderId) {
           return { ...folder, ...patch };
         }
         return folder;
       });
-      persist('adl:browser.tabFolders', nextFolders);
-      return { browserTabFolders: nextFolders };
+      persist('adl:browser.bookmarkFolders', nextFolders);
+      return { browserBookmarkFolders: nextFolders };
     }),
 
-  browserDeleteTabFolder: (folderId) =>
+  browserDeleteBookmarkFolder: (folderId) =>
     set((state) => {
       const idsToDelete = [
         folderId,
-        ...collectAllDescendantFolderIds(state.browserTabFolders, folderId),
+        ...collectAllDescendantFolderIds(state.browserBookmarkFolders, folderId),
       ];
-      const nextFolders = state.browserTabFolders.filter(
+      const nextFolders = state.browserBookmarkFolders.filter(
         (folder) => !idsToDelete.includes(folder.id),
       );
-      persist('adl:browser.tabFolders', nextFolders);
-      return { browserTabFolders: nextFolders };
+      persist('adl:browser.bookmarkFolders', nextFolders);
+      return { browserBookmarkFolders: nextFolders };
     }),
-
-  browserAddToFolder: (tabId, folderId) => {
-    set((state) => {
-      const tab = state.browserTabs.find((t) => t.id === tabId);
-      const url = tab?.url || '';
-      const title = tab?.title || url;
-      const nextFolders = state.browserTabFolders.map((folder) => {
-        if (folder.id === folderId) {
-          const existingTabs = folder.tabs || [];
-          if (!existingTabs.some((item) => item.tabId === tabId)) {
-            return {
-              ...folder,
-              tabs: [...existingTabs, { tabId, url, title }],
-            };
-          }
-        }
-        return folder;
-      });
-      persist('adl:browser.tabFolders', nextFolders);
-      return { browserTabFolders: nextFolders };
-    });
-  },
 
   browserToggleTabTreePath: (path) =>
     set((state) => {
@@ -133,9 +112,9 @@ export const createBrowserFoldersSlice = (
       return { browserTabTreeExpanded: next };
     }),
 
-  browserDeleteAllTabsInNode: (nodePath) =>
+  browserDeleteAllBookmarksInNode: (nodePath) =>
     set((state) => {
-      const outcome = computeDeleteAllTabsOutcome(state, nodePath);
+      const outcome = computeDeleteAllBookmarksOutcome(state, nodePath);
       if (outcome.partial === null) {
         return state;
       }
@@ -143,7 +122,7 @@ export const createBrowserFoldersSlice = (
         persist('adl:browser.workspaceBookmarks', outcome.partial.browserWorkspaceBookmarks!);
       }
       if (outcome.foldersChanged) {
-        persist('adl:browser.tabFolders', outcome.partial.browserTabFolders!);
+        persist('adl:browser.bookmarkFolders', outcome.partial.browserBookmarkFolders!);
       }
       if (outcome.tabsChanged) {
         persist('adl:browser.tabs', outcome.partial.browserTabs!);
@@ -155,9 +134,9 @@ export const createBrowserFoldersSlice = (
       return outcome.partial;
     }),
 
-  browserDeleteOwnTabsInNode: (nodePath) =>
+  browserDeleteOwnBookmarksInNode: (nodePath) =>
     set((state) => {
-      const outcome = computeDeleteOwnTabsOutcome(state, nodePath);
+      const outcome = computeDeleteOwnBookmarksOutcome(state, nodePath);
       if (outcome.partial === null) {
         return state;
       }
@@ -165,7 +144,7 @@ export const createBrowserFoldersSlice = (
         persist('adl:browser.workspaceBookmarks', outcome.partial.browserWorkspaceBookmarks!);
       }
       if (outcome.foldersChanged) {
-        persist('adl:browser.tabFolders', outcome.partial.browserTabFolders!);
+        persist('adl:browser.bookmarkFolders', outcome.partial.browserBookmarkFolders!);
       }
       if (outcome.tabsChanged) {
         persist('adl:browser.tabs', outcome.partial.browserTabs!);
@@ -177,38 +156,29 @@ export const createBrowserFoldersSlice = (
       return outcome.partial;
     }),
 
-  browserClearAllFolderTabs: () => {
+  browserClearAllFolderBookmarks: () => {
     set((state) => {
-      const allTabIds: string[] = [];
+      const allBookmarkIds: string[] = [];
       const allUrls: string[] = [];
-      for (const folder of state.browserTabFolders) {
-        if (folder.tabs) {
-          for (const item of folder.tabs) {
-            allTabIds.push(item.tabId);
-            if (item.url && !allUrls.includes(item.url)) {
-              allUrls.push(item.url);
+      for (const folder of state.browserBookmarkFolders) {
+        if (folder.entries) {
+          for (const entry of folder.entries) {
+            allBookmarkIds.push(entry.id);
+            if (entry.url && !allUrls.includes(entry.url)) {
+              allUrls.push(entry.url);
             }
           }
         }
       }
 
-      let nextBookmarks = state.browserBookmarks;
-      let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
-      let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
-
       const urlSet = new Set(allUrls);
-      nextBookmarks = nextBookmarks.filter((b) => !urlSet.has(b.url));
+      const nextBookmarks = state.browserBookmarks.filter((b) => !urlSet.has(b.url));
 
-      const tabIdSet = new Set(allTabIds);
-      nextTabIdUrlMap = { ...nextTabIdUrlMap };
-      for (const tid of allTabIds) {
-        delete nextTabIdUrlMap[tid];
-      }
-
-      nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
+      const bookmarkIdSet = new Set(allBookmarkIds);
+      const nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
       for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
         const entries = nextWorkspaceBookmarks[wsId];
-        const remaining = entries.filter((entry) => !tabIdSet.has(entry.tabId));
+        const remaining = entries.filter((entry) => !bookmarkIdSet.has(entry.id));
         if (remaining.length === 0) {
           delete nextWorkspaceBookmarks[wsId];
         } else {
@@ -216,21 +186,19 @@ export const createBrowserFoldersSlice = (
         }
       }
 
-      const nextFolders = state.browserTabFolders.map((f) => {
-        if (f.tabs && f.tabs.length > 0) {
-          return { ...f, tabs: [] };
+      const nextFolders = state.browserBookmarkFolders.map((f) => {
+        if (f.entries && f.entries.length > 0) {
+          return { ...f, entries: [] };
         }
         return f;
       });
 
-      persist('adl:browser.tabFolders', nextFolders);
+      persist('adl:browser.bookmarkFolders', nextFolders);
       persist('adl:browser.bookmarks', nextBookmarks);
-      persist('adl:browser.tabIdUrlMap', nextTabIdUrlMap);
       persist('adl:browser.workspaceBookmarks', nextWorkspaceBookmarks);
       return {
-        browserTabFolders: nextFolders,
+        browserBookmarkFolders: nextFolders,
         browserBookmarks: nextBookmarks,
-        browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
         browserWorkspaceBookmarks: nextWorkspaceBookmarks,
       };
     });

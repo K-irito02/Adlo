@@ -4,28 +4,27 @@ import { useShallow } from 'zustand/react/shallow';
 import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 
 export function useBrowserBookmarkActions() {
-  const { browserRemoveTabBookmarks } = useAppStore(
+  const { browserRemoveBookmark } = useAppStore(
     useShallow((state) => ({
-      browserRemoveTabBookmarks: state.browserRemoveTabBookmarks,
+      browserRemoveBookmark: state.browserRemoveBookmark,
     })),
   );
 
-  const handleRemoveBookmarkTab = useCallback(
-    (tabId: string, url: string) => {
+  const handleRemoveBookmark = useCallback(
+    (bookmarkId: string, url: string) => {
       const state = useAppStore.getState();
-      const owningFolder = state.browserTabFolders.find((f) =>
-        f.tabs?.some((t) => t.tabId === tabId && t.url === url),
+      const owningFolder = state.browserBookmarkFolders.find((folder) =>
+        folder.entries?.some((entry) => entry.id === bookmarkId && entry.url === url),
       );
-      const scopeFolderId = owningFolder?.id;
-      browserRemoveTabBookmarks(tabId, url, scopeFolderId);
+      browserRemoveBookmark(bookmarkId, url, owningFolder?.id);
       if (url) {
         removeSiteMetaIfUnreferenced(url);
       }
     },
-    [browserRemoveTabBookmarks],
+    [browserRemoveBookmark],
   );
 
   return {
-    handleRemoveBookmarkTab,
+    handleRemoveBookmark,
   };
 }

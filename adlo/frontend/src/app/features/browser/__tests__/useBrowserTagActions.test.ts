@@ -34,7 +34,7 @@ describe('useBrowserTagActions refresh no longer writes site-meta cache', () => 
     useAppStore.setState({
       browserTabs: [makeTab('tab1', 'https://refresh.example')],
       browserHistory: [],
-      browserTabFolders: [],
+      browserBookmarkFolders: [],
       browserBookmarks: [],
       browserWorkspaceBookmarks: {},
     });
@@ -160,12 +160,21 @@ describe('useBrowserTagActions refresh bookmark snapshot sync', () => {
     useAppStore.setState({
       browserTabs: [],
       browserHistory: [],
-      browserTabFolders: [
+      browserBookmarkFolders: [
         {
           id: 'f1',
           name: 'F',
           createdAt: 0,
-          tabs: [{ tabId: 'tabX', url: 'https://x.com/', title: 'x.com' }],
+          entries: [
+            {
+              id: 'bm1',
+              sourceTabId: 'tabX',
+              url: 'https://x.com/',
+              title: 'x.com',
+              addedAt: 0,
+              lastModifiedAt: 0,
+            },
+          ],
         },
       ],
       browserWorkspaceBookmarks: {},
@@ -184,18 +193,27 @@ describe('useBrowserTagActions refresh bookmark snapshot sync', () => {
     await act(async () => {
       await result.current.handleRefreshTab('tabX', 'https://x.com/');
     });
-    const folder = useAppStore.getState().browserTabFolders.find((f) => f.id === 'f1')!;
-    expect(folder.tabs![0].title).toBe('真实标题');
+    const folder = useAppStore.getState().browserBookmarkFolders.find((f) => f.id === 'f1')!;
+    expect(folder.entries![0].title).toBe('真实标题');
   });
 
   it('refresh keeps custom bookmark title', async () => {
     useAppStore.setState({
-      browserTabFolders: [
+      browserBookmarkFolders: [
         {
           id: 'f1',
           name: 'F',
           createdAt: 0,
-          tabs: [{ tabId: 'tabX', url: 'https://x.com/', title: '我的书签' }],
+          entries: [
+            {
+              id: 'bm2',
+              sourceTabId: 'tabX',
+              url: 'https://x.com/',
+              title: '我的书签',
+              addedAt: 0,
+              lastModifiedAt: 0,
+            },
+          ],
         },
       ],
     });
@@ -209,8 +227,8 @@ describe('useBrowserTagActions refresh bookmark snapshot sync', () => {
     await act(async () => {
       await result.current.handleRefreshTab('tabX', 'https://x.com/');
     });
-    const folder = useAppStore.getState().browserTabFolders.find((f) => f.id === 'f1')!;
-    expect(folder.tabs![0].title).toBe('我的书签');
+    const folder = useAppStore.getState().browserBookmarkFolders.find((f) => f.id === 'f1')!;
+    expect(folder.entries![0].title).toBe('我的书签');
   });
 });
 
@@ -230,7 +248,7 @@ describe('useBrowserTagActions handleOpenTabInCurrentTab', () => {
     });
     const { result } = renderHook(() => useBrowserTagActions({ navigateTabExplicit }));
     act(() => {
-      result.current.handleOpenTabInCurrentTab('t1');
+      result.current.handleOpenTabInCurrentTab('https://e.com');
     });
     expect(navigateTabExplicit).toHaveBeenCalledWith('active', 'https://e.com');
   });
@@ -244,7 +262,7 @@ describe('useBrowserTagActions handleOpenTabInCurrentTab', () => {
     });
     const { result } = renderHook(() => useBrowserTagActions());
     act(() => {
-      result.current.handleOpenTabInCurrentTab('t1');
+      result.current.handleOpenTabInCurrentTab('https://e.com');
     });
     expect(browserUpdateTab).toHaveBeenCalledWith('active', { url: 'https://e.com' });
   });

@@ -248,7 +248,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
   } = useBrowserNavigatorState({ navigatorSearchInputRef });
 
   const {
-    browserTabFolders,
+    browserBookmarkFolders,
     tabTreeExpanded,
     allTreeExpanded,
     handleToggleTreePath,
@@ -265,7 +265,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleCopyTabLink,
     handleOpenTabInNewTab,
     handleOpenTabInCurrentTab,
-    handleRemoveBookmarkTab,
+    handleRemoveBookmark,
   } = useBrowserTreeActions({ navigateTabExplicit });
 
   const [pendingRemoveWorkspace, setPendingRemoveWorkspace] = useState<string | null>(null);
@@ -482,7 +482,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       handleOpenTabInNewTab,
       handleOpenTabInCurrentTab,
       onBookmarkTab: handleBookmarkFromUrl,
-      onRemoveBookmarkTab: handleRemoveBookmarkTab,
+      onRemoveBookmarkTab: handleRemoveBookmark,
       setBrowserMenuOpen,
       handleOpenTabFromTree,
       handleIframeLoad,
@@ -525,7 +525,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       handleOpenTabInNewTab,
       handleOpenTabInCurrentTab,
       handleBookmarkFromUrl,
-      handleRemoveBookmarkTab,
+      handleRemoveBookmark,
       setBrowserMenuOpen,
       handleOpenTabFromTree,
       handleIframeLoad,
@@ -551,7 +551,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       hasActiveTab,
       isBookmarked,
       browserTabs,
-      browserTabFolders,
+      browserBookmarkFolders,
       tabTreeExpanded,
       allTreeExpanded,
       navigatorQuery,
@@ -583,7 +583,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       hasActiveTab,
       isBookmarked,
       browserTabs,
-      browserTabFolders,
+      browserBookmarkFolders,
       tabTreeExpanded,
       allTreeExpanded,
       navigatorQuery,
@@ -611,8 +611,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
   );
 
   const bookmarkTreeData = useMemo(
-    () => buildBookmarkDirectoryTree(stateValue.visibleWorkspaces, browserTabFolders),
-    [stateValue.visibleWorkspaces, browserTabFolders],
+    () => buildBookmarkDirectoryTree(stateValue.visibleWorkspaces, browserBookmarkFolders),
+    [stateValue.visibleWorkspaces, browserBookmarkFolders],
   );
 
   return (

@@ -25,9 +25,9 @@ import type { BrowserSearchScope } from '../../features/browser/useBrowserSearch
 import type { BrowserTabState } from './browserSliceShared';
 
 export type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
-export type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserTypes';
+export type { BrowserBookmark } from './browserTypes';
 export type { BrowserHistoryState } from './browserHistorySlice';
-export type { TabFolderState, BookmarkTabItem } from './browserFoldersSlice';
+export type { BookmarkEntry, BookmarkFolder } from './browserFoldersSlice';
 export type {
   ShortcutSite,
   LocalPort,

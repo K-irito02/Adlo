@@ -12,7 +12,9 @@ function isUrlReferenced(url: string): boolean {
     Object.values(s.browserWorkspaceBookmarks).some((entries) =>
       entries.some((e) => urlMatches(e.url)),
     ) ||
-    s.browserTabFolders.some((f) => (f.tabs ?? []).some((item) => urlMatches(item.url))) ||
+    s.browserBookmarkFolders.some((f) =>
+      (f.entries ?? []).some((entry) => urlMatches(entry.url)),
+    ) ||
     s.browserHistory.some((h) => urlMatches(h.url))
   );
 }

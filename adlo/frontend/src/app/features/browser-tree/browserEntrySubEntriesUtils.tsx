@@ -144,7 +144,7 @@ export function getChildNodeMoreMenuItems(
   return [];
 }
 
-export function handleBookmarkToggle(url: string, title: string, tabId?: string): void {
+export function handleBookmarkToggle(url: string, title: string, bookmarkId?: string): void {
   if (!url) {
     return;
   }
@@ -154,7 +154,9 @@ export function handleBookmarkToggle(url: string, title: string, tabId?: string)
   if (stillBookmarked) {
     useAppStore.getState().browserToggleBookmark({ url, title });
   } else {
-    useAppStore.getState().browserSetPendingBookmark({ url, title, tabId: tabId || undefined });
+    useAppStore
+      .getState()
+      .browserSetPendingBookmark({ url, title, bookmarkId: bookmarkId || undefined });
   }
 }
 
@@ -176,8 +178,8 @@ export function getTabContextMenuItems(
       id: 'open-current',
       label: t.browserContextOpenCurrent,
       action: () => {
-        if (node.tabId) {
-          callbacks.onOpenTabInCurrentTab(node.tabId);
+        if (node.url) {
+          callbacks.onOpenTabInCurrentTab(node.url);
         }
       },
     },
@@ -195,7 +197,7 @@ export function getTabContextMenuItems(
       label: t.browserRefreshMeta,
       hint: t.browserRefreshMetaHint,
       action: () => {
-        if (node.tabId && node.url) {
+        if (node.url) {
           callbacks.onRefreshTab(node.tabId, node.url);
         }
       },
@@ -204,8 +206,8 @@ export function getTabContextMenuItems(
       id: 'edit',
       label: t.browserContextEdit,
       action: () => {
-        if (node.tabId && node.url) {
-          callbacks.onEditTab(node.tabId, node.name, node.url);
+        if (node.url) {
+          callbacks.onEditTab(node.bookmarkId ?? node.tabId ?? '', node.name, node.url);
         }
       },
     },
@@ -222,7 +224,7 @@ export function getTabContextMenuItems(
       id: 'bookmark-toggle',
       label: isBookmarked ? t.browserUnbookmark : t.browserBookmark,
       action: () => {
-        handleBookmarkToggle(node.url || '', node.name, node.tabId);
+        handleBookmarkToggle(node.url || '', node.name, node.bookmarkId);
       },
     },
     {
@@ -230,12 +232,13 @@ export function getTabContextMenuItems(
       label: t.browserContextDelete,
       danger: true,
       action: () => {
-        if (node.tabId && node.url) {
-          if (node.isSavedBookmark) {
-            callbacks.onRemoveBookmarkTab?.(node.tabId, node.url);
-          } else {
-            callbacks.onDeleteTab(node.tabId, node.url);
-          }
+        if (!node.url) {
+          return;
+        }
+        if (node.isSavedBookmark) {
+          callbacks.onRemoveBookmarkTab?.(node.bookmarkId ?? '', node.url);
+        } else if (node.tabId) {
+          callbacks.onDeleteTab(node.tabId, node.url);
         }
       },
     },

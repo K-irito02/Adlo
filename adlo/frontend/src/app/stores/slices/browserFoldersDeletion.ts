@@ -1,33 +1,34 @@
 /**
- * Browser Folders 删除操作纯函数
+ * 浏览器书签删除操作纯函数
  * 从 browserFoldersSlice.ts 提取的删除计算逻辑（无 store 访问、无副作用、无持久化）。
  *
  * Slice 仅负责调用 set() 与 scheduleWrite()；本模块只接收状态切片与参数，
  * 返回下一状态切片及变更标志，便于 slice 决定持久化范围。
+ *
+ * 语义边界：书签是独立实体，删除书签**不会**删除浏览标签页；只有删除工作区节点
+ * 时才会连带关闭该工作区的打开标签页。
  */
 import type { BrowserTabState } from './browserSliceShared';
-import type { TabFolderState } from './browserFoldersTypes';
+import type { BookmarkFolder, BookmarkEntry } from './browserFoldersTypes';
 import type { BrowserHistoryState } from './browserHistorySlice';
-import type { WorkspaceBookmarkEntry } from './browserTypes';
 import {
   findFolderById,
   collectAllDescendantFolderIds,
-  collectAllDescendantTabIds,
-  collectAllFolderTabIds,
+  collectWorkspaceFolderEntryIds,
   buildTabsById,
 } from './browserFoldersUtils';
 
 /** Subset of StoreState needed by folder deletion helpers. */
-export interface BrowserFoldersDeletionState {
+export interface BrowserBookmarksDeletionState {
   browserTabs: BrowserTabState[];
   browserActiveTabId: string;
-  browserTabFolders: TabFolderState[];
-  browserWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>;
+  browserBookmarkFolders: BookmarkFolder[];
+  browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>;
   browserHistory: BrowserHistoryState[];
 }
 
 /** Computed outcome of a delete operation. */
-export interface DeleteTabsOutcome {
+export interface DeleteBookmarksOutcome {
   /**
    * Partial state to merge via set(). `null` means no change — slice should
    * return state unchanged.
@@ -36,13 +37,13 @@ export interface DeleteTabsOutcome {
     browserTabs: BrowserTabState[];
     browserTabsById: Record<string, BrowserTabState>;
     browserActiveTabId: string;
-    browserWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>;
-    browserTabFolders: TabFolderState[];
+    browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>;
+    browserBookmarkFolders: BookmarkFolder[];
     browserHistory: BrowserHistoryState[];
   }> | null;
   /** Whether browserWorkspaceBookmarks changed and needs persistence. */
   wsChanged: boolean;
-  /** Whether browserTabFolders changed and needs persistence. */
+  /** Whether browserBookmarkFolders changed and needs persistence. */
   foldersChanged: boolean;
   /** Whether browserTabs / browserActiveTabId need persistence. */
   tabsChanged: boolean;
@@ -50,8 +51,14 @@ export interface DeleteTabsOutcome {
   historyChanged: boolean;
 }
 
+const NOTHING_TRUNCATED = {
+  foldersChanged: false,
+  tabsChanged: false,
+  historyChanged: false,
+} as const;
+
 /** Compute tab ids belonging to a specific history day (YYYY-MM-DD). */
-function computeHistoryDayTabIds(history: BrowserHistoryState[], dayDate: string): string[] {
+function computeHistoryDayEntryIds(history: BrowserHistoryState[], dayDate: string): string[] {
   return history
     .filter((h) => {
       const d = new Date(h.visitedAt);
@@ -63,85 +70,35 @@ function computeHistoryDayTabIds(history: BrowserHistoryState[], dayDate: string
     .map((h) => h.id);
 }
 
-/**
- * Compute the next state for `browserDeleteAllTabsInNode`.
- *
- * Pure: does not touch the store, call any persistence layer, or generate
- * non-deterministic values.
- */
-export function computeDeleteAllTabsOutcome(
-  state: BrowserFoldersDeletionState,
+/** 清空指定文件夹集合里的书签条目（保留目录本身）。 */
+function clearFolderEntries(
+  folders: BookmarkFolder[],
+  folderIds: string[],
+): { nextFolders: BookmarkFolder[]; changed: boolean } {
+  let changed = false;
+  const nextFolders = folders.map((folder) => {
+    if (folderIds.includes(folder.id) && folder.entries && folder.entries.length > 0) {
+      changed = true;
+      return { ...folder, entries: [] };
+    }
+    return folder;
+  });
+  return { nextFolders, changed };
+}
+
+/** 删除工作区节点下的全部内容（打开标签页 + 工作区书签 + 目录内书签）。 */
+export function computeDeleteAllBookmarksOutcome(
+  state: BrowserBookmarksDeletionState,
   nodePath: string,
-): DeleteTabsOutcome {
-  let tabIdsToDelete: string[] = [];
-  const folderIdsToClear: string[] = [];
-
-  if (nodePath.startsWith('workspace:')) {
-    const wsId = nodePath.slice('workspace:'.length);
-    tabIdsToDelete = state.browserTabs
-      .filter((t) => t.workspaceId === wsId && t.location !== 'center')
-      .map((t) => t.id);
-    const wsRootFolders = state.browserTabFolders.filter(
-      (f) => f.parentType === 'workspace' && f.parentId === wsId,
-    );
-    for (const rootFolder of wsRootFolders) {
-      folderIdsToClear.push(
-        rootFolder.id,
-        ...collectAllDescendantFolderIds(state.browserTabFolders, rootFolder.id),
-      );
-    }
-  } else if (nodePath.startsWith('folder:')) {
-    const folderId = nodePath.slice('folder:'.length);
-    const folder = findFolderById(state.browserTabFolders, folderId);
-    if (folder) {
-      const descendantTabIds = collectAllDescendantTabIds(state.browserTabFolders, folderId);
-      tabIdsToDelete = [...(folder.tabs ?? []).map((item) => item.tabId), ...descendantTabIds];
-      folderIdsToClear.push(
-        folderId,
-        ...collectAllDescendantFolderIds(state.browserTabFolders, folderId),
-      );
-    }
-  } else if (nodePath.startsWith('history:day:')) {
+): DeleteBookmarksOutcome {
+  if (nodePath.startsWith('history:day:')) {
     const dayDate = nodePath.slice('history:day:'.length);
-    tabIdsToDelete = computeHistoryDayTabIds(state.browserHistory, dayDate);
-  }
-
-  // Workspace bookmark deletion must happen even when there are no open tabs
-  // or folder structures — workspace-level bookmarks are removed unconditionally.
-  let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
-  let wsChanged = false;
-  if (nodePath.startsWith('workspace:')) {
-    const wsId = nodePath.slice('workspace:'.length);
-    if (nextWorkspaceBookmarks[wsId]) {
-      nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
-      delete nextWorkspaceBookmarks[wsId];
-      wsChanged = true;
-    }
-  }
-
-  if (tabIdsToDelete.length === 0 && folderIdsToClear.length === 0) {
-    if (wsChanged) {
-      return {
-        partial: { browserWorkspaceBookmarks: nextWorkspaceBookmarks },
-        wsChanged,
-        foldersChanged: false,
-        tabsChanged: false,
-        historyChanged: false,
-      };
+    const removedIds = computeHistoryDayEntryIds(state.browserHistory, dayDate);
+    if (removedIds.length === 0) {
+      return { partial: null, wsChanged: false, ...NOTHING_TRUNCATED };
     }
     return {
-      partial: null,
-      wsChanged: false,
-      foldersChanged: false,
-      tabsChanged: false,
-      historyChanged: false,
-    };
-  }
-
-  if (nodePath.startsWith('history:')) {
-    const nextHistory = state.browserHistory.filter((h) => !tabIdsToDelete.includes(h.id));
-    return {
-      partial: { browserHistory: nextHistory },
+      partial: { browserHistory: state.browserHistory.filter((h) => !removedIds.includes(h.id)) },
       wsChanged: false,
       foldersChanged: false,
       tabsChanged: false,
@@ -149,24 +106,65 @@ export function computeDeleteAllTabsOutcome(
     };
   }
 
-  const isFolderPath = nodePath.startsWith('folder:');
-  const nextTabs = isFolderPath
-    ? state.browserTabs
-    : state.browserTabs.filter((t) => !tabIdsToDelete.includes(t.id));
-  const nextActive = isFolderPath
-    ? state.browserActiveTabId
-    : tabIdsToDelete.includes(state.browserActiveTabId)
-      ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
-      : state.browserActiveTabId;
-
-  let nextFolders = state.browserTabFolders;
-  let foldersChanged = false;
-  if (folderIdsToClear.length > 0) {
-    nextFolders = nextFolders.map((f) =>
-      folderIdsToClear.includes(f.id) && f.tabs ? { ...f, tabs: [] } : f,
-    );
-    foldersChanged = true;
+  if (nodePath.startsWith('folder:')) {
+    const folderId = nodePath.slice('folder:'.length);
+    const folder = findFolderById(state.browserBookmarkFolders, folderId);
+    if (!folder) {
+      return { partial: null, wsChanged: false, ...NOTHING_TRUNCATED };
+    }
+    const targetIds = [
+      folderId,
+      ...collectAllDescendantFolderIds(state.browserBookmarkFolders, folderId),
+    ];
+    const { nextFolders, changed } = clearFolderEntries(state.browserBookmarkFolders, targetIds);
+    if (!changed) {
+      return { partial: null, wsChanged: false, ...NOTHING_TRUNCATED };
+    }
+    return {
+      partial: { browserBookmarkFolders: nextFolders },
+      wsChanged: false,
+      foldersChanged: true,
+      tabsChanged: false,
+      historyChanged: false,
+    };
   }
+
+  if (!nodePath.startsWith('workspace:')) {
+    return { partial: null, wsChanged: false, ...NOTHING_TRUNCATED };
+  }
+
+  const wsId = nodePath.slice('workspace:'.length);
+  const tabIdsToClose = state.browserTabs
+    .filter((t) => t.workspaceId === wsId && t.location !== 'center')
+    .map((t) => t.id);
+
+  const wsRootFolderIds = state.browserBookmarkFolders
+    .filter((f) => f.parentType === 'workspace' && f.parentId === wsId)
+    .flatMap((root) => [
+      root.id,
+      ...collectAllDescendantFolderIds(state.browserBookmarkFolders, root.id),
+    ]);
+  const { nextFolders, changed: foldersChanged } = clearFolderEntries(
+    state.browserBookmarkFolders,
+    wsRootFolderIds,
+  );
+
+  let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
+  let wsChanged = false;
+  if (nextWorkspaceBookmarks[wsId]) {
+    nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
+    delete nextWorkspaceBookmarks[wsId];
+    wsChanged = true;
+  }
+
+  if (tabIdsToClose.length === 0 && !wsChanged && !foldersChanged) {
+    return { partial: null, wsChanged: false, ...NOTHING_TRUNCATED };
+  }
+
+  const nextTabs = state.browserTabs.filter((t) => !tabIdsToClose.includes(t.id));
+  const nextActive = tabIdsToClose.includes(state.browserActiveTabId)
+    ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
+    : state.browserActiveTabId;
 
   return {
     partial: {
@@ -174,72 +172,28 @@ export function computeDeleteAllTabsOutcome(
       browserTabsById: buildTabsById(nextTabs),
       browserActiveTabId: nextActive,
       browserWorkspaceBookmarks: nextWorkspaceBookmarks,
-      browserTabFolders: nextFolders,
+      browserBookmarkFolders: nextFolders,
     },
     wsChanged,
     foldersChanged,
-    tabsChanged: true,
+    tabsChanged: tabIdsToClose.length > 0,
     historyChanged: false,
   };
 }
 
-/**
- * Compute the next state for `browserDeleteOwnTabsInNode`.
- *
- * Pure: does not touch the store, call any persistence layer, or generate
- * non-deterministic values.
- */
-export function computeDeleteOwnTabsOutcome(
-  state: BrowserFoldersDeletionState,
+/** 只删除节点自身的直接子项，不递归到更深层目录。 */
+export function computeDeleteOwnBookmarksOutcome(
+  state: BrowserBookmarksDeletionState,
   nodePath: string,
-): DeleteTabsOutcome {
-  let tabIdsToDelete: string[] = [];
-  let wsBookmarkTabIds: string[] | null = null;
-
-  if (nodePath.startsWith('workspace:')) {
-    const wsId = nodePath.slice('workspace:'.length);
-    const allWsTabIds = state.browserTabs
-      .filter((t) => t.workspaceId === wsId && t.location !== 'center')
-      .map((t) => t.id);
-    const folderTabIds = collectAllFolderTabIds(state.browserTabFolders, wsId);
-    tabIdsToDelete = allWsTabIds.filter((id) => !folderTabIds.includes(id));
-    // Collect workspace bookmark tabIds separately — they must NOT be in tabIdsToDelete
-    // (which is used to filter browserTabs), because a bookmark entry may share the
-    // same tabId as an open tab that is still active.
-    const wsBookmarks = state.browserWorkspaceBookmarks[wsId];
-    if (wsBookmarks) {
-      wsBookmarkTabIds = [];
-      for (const entry of wsBookmarks) {
-        if (!tabIdsToDelete.includes(entry.tabId)) {
-          wsBookmarkTabIds.push(entry.tabId);
-        }
-      }
-    }
-  } else if (nodePath.startsWith('folder:')) {
-    const folderId = nodePath.slice('folder:'.length);
-    const folder = findFolderById(state.browserTabFolders, folderId);
-    if (folder) {
-      tabIdsToDelete = [...(folder.tabs ?? []).map((item) => item.tabId)];
-    }
-  } else if (nodePath.startsWith('history:day:')) {
+): DeleteBookmarksOutcome {
+  if (nodePath.startsWith('history:day:')) {
     const dayDate = nodePath.slice('history:day:'.length);
-    tabIdsToDelete = computeHistoryDayTabIds(state.browserHistory, dayDate);
-  }
-
-  if (tabIdsToDelete.length === 0 && (!wsBookmarkTabIds || wsBookmarkTabIds.length === 0)) {
+    const removedIds = computeHistoryDayEntryIds(state.browserHistory, dayDate);
+    if (removedIds.length === 0) {
+      return { partial: null, wsChanged: false, ...NOTHING_TRUNCATED };
+    }
     return {
-      partial: null,
-      wsChanged: false,
-      foldersChanged: false,
-      tabsChanged: false,
-      historyChanged: false,
-    };
-  }
-
-  if (nodePath.startsWith('history:')) {
-    const nextHistory = state.browserHistory.filter((h) => !tabIdsToDelete.includes(h.id));
-    return {
-      partial: { browserHistory: nextHistory },
+      partial: { browserHistory: state.browserHistory.filter((h) => !removedIds.includes(h.id)) },
       wsChanged: false,
       foldersChanged: false,
       tabsChanged: false,
@@ -247,49 +201,61 @@ export function computeDeleteOwnTabsOutcome(
     };
   }
 
-  const isFolderPath = nodePath.startsWith('folder:');
-  const nextTabs = isFolderPath
-    ? state.browserTabs
-    : state.browserTabs.filter((t) => !tabIdsToDelete.includes(t.id));
-  const nextActive = isFolderPath
-    ? state.browserActiveTabId
-    : tabIdsToDelete.includes(state.browserActiveTabId)
-      ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
-      : state.browserActiveTabId;
+  if (nodePath.startsWith('folder:')) {
+    const folderId = nodePath.slice('folder:'.length);
+    const folder = findFolderById(state.browserBookmarkFolders, folderId);
+    if (!folder || !folder.entries || folder.entries.length === 0) {
+      return { partial: null, wsChanged: false, ...NOTHING_TRUNCATED };
+    }
+    const { nextFolders } = clearFolderEntries(state.browserBookmarkFolders, [folderId]);
+    return {
+      partial: { browserBookmarkFolders: nextFolders },
+      wsChanged: false,
+      foldersChanged: true,
+      tabsChanged: false,
+      historyChanged: false,
+    };
+  }
+
+  if (!nodePath.startsWith('workspace:')) {
+    return { partial: null, wsChanged: false, ...NOTHING_TRUNCATED };
+  }
+
+  const wsId = nodePath.slice('workspace:'.length);
+  // 「删除自己的子项」= 直接挂在工作区下的打开标签页与工作区书签，
+  // 不含已经收进目录的部分。
+  const folderEntryIds = new Set(
+    collectWorkspaceFolderEntryIds(state.browserBookmarkFolders, wsId),
+  );
+  const directTabIds = state.browserTabs
+    .filter((t) => t.workspaceId === wsId && t.location !== 'center')
+    .map((t) => t.id);
 
   let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
   let wsChanged = false;
-  if (nodePath.startsWith('workspace:')) {
-    const wsId = nodePath.slice('workspace:'.length);
-    const bookmarkedEntries = nextWorkspaceBookmarks[wsId];
-    if (bookmarkedEntries) {
-      // Filter using BOTH browser tab tabIds and workspace bookmark tabIds
-      const allTabIds = wsBookmarkTabIds
-        ? [...tabIdsToDelete, ...wsBookmarkTabIds]
-        : tabIdsToDelete;
-      const remaining = bookmarkedEntries.filter((entry) => !allTabIds.includes(entry.tabId));
-      nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
-      if (remaining.length === 0) {
-        delete nextWorkspaceBookmarks[wsId];
-      } else {
-        nextWorkspaceBookmarks[wsId] = remaining;
-      }
-      wsChanged = true;
+  const bookmarkedEntries = nextWorkspaceBookmarks[wsId];
+  if (bookmarkedEntries && bookmarkedEntries.length > 0) {
+    const remaining = bookmarkedEntries.filter((entry) => !folderEntryIds.has(entry.id));
+    nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
+    if (remaining.length === 0) {
+      delete nextWorkspaceBookmarks[wsId];
+    } else {
+      nextWorkspaceBookmarks[wsId] = remaining;
+    }
+    wsChanged = remaining.length !== bookmarkedEntries.length;
+    if (!wsChanged) {
+      nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
     }
   }
 
-  let nextFolders = state.browserTabFolders;
-  let foldersChanged = false;
-  if (isFolderPath) {
-    const folderId = nodePath.slice('folder:'.length);
-    nextFolders = nextFolders.map((f) => {
-      if (f.id === folderId && f.tabs) {
-        return { ...f, tabs: [] };
-      }
-      return f;
-    });
-    foldersChanged = true;
+  if (directTabIds.length === 0 && !wsChanged) {
+    return { partial: null, wsChanged: false, ...NOTHING_TRUNCATED };
   }
+
+  const nextTabs = state.browserTabs.filter((t) => !directTabIds.includes(t.id));
+  const nextActive = directTabIds.includes(state.browserActiveTabId)
+    ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
+    : state.browserActiveTabId;
 
   return {
     partial: {
@@ -297,11 +263,10 @@ export function computeDeleteOwnTabsOutcome(
       browserTabsById: buildTabsById(nextTabs),
       browserActiveTabId: nextActive,
       browserWorkspaceBookmarks: nextWorkspaceBookmarks,
-      browserTabFolders: nextFolders,
     },
     wsChanged,
-    foldersChanged,
-    tabsChanged: true,
+    foldersChanged: false,
+    tabsChanged: directTabIds.length > 0,
     historyChanged: false,
   };
 }

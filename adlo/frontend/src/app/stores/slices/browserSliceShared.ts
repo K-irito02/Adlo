@@ -1,7 +1,7 @@
 import type { BrowserTabState, BrowserTabStateUpdate } from './browserTypes';
 
 export type { BrowserTabState, BrowserTabStateUpdate };
-export type { BookmarkTabItem, TabFolderState, TabFolderStateUpdate } from './browserFoldersTypes';
+export type { BookmarkEntry, BookmarkFolder, BookmarkFolderUpdate } from './browserFoldersTypes';
 
 /**
  * Browser storage key constants.

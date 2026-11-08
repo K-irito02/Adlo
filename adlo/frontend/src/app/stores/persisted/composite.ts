@@ -2,10 +2,8 @@ import { isRealTitle } from '@utils/browserDisplayUtils';
 import { sanitizeRestoredBrowserUrl } from '@features/browser/browserUrlUtils';
 import type { StoreState } from '../StoreState';
 import type { BrowserTabState } from '../slices/browserSliceShared';
-import type { WorkspaceBookmarkEntry } from '../slices/browserTypes';
-import type { TabFolderState } from '../slices/browserFoldersSlice';
-import { readObjectArray, readObjectArrayRecord, readString, readStringRecord } from './parsers';
-import { isBookmarkTabItem, isBrowserTab, isTabFolder } from './registry';
+import { readObjectArray, readString } from './parsers';
+import { isBrowserTab } from './registry';
 
 /** 跨键归一化器：需要在简单条目读完之后、基于多个键的共同结果构建补丁 */
 export interface CompositeHydrator {
@@ -37,40 +35,6 @@ export function markResolvedTitles(tabs: BrowserTabState[]): BrowserTabState[] {
   }));
 }
 
-export function buildBrowserTabUrlMap(input: {
-  tabs: BrowserTabState[];
-  workspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>;
-  tabFolders: TabFolderState[];
-  persistedMap: Record<string, string>;
-}): Record<string, string> {
-  const tabsById = new Map(input.tabs.map((tab) => [tab.id, tab]));
-  const result: Record<string, string> = {};
-  for (const entries of Object.values(input.workspaceBookmarks)) {
-    for (const entry of entries) {
-      if (entry.url && !result[entry.tabId]) {
-        result[entry.tabId] = entry.url;
-      }
-    }
-  }
-  for (const folder of input.tabFolders) {
-    for (const item of folder.tabs ?? []) {
-      if (result[item.tabId]) {
-        continue;
-      }
-      const url = tabsById.get(item.tabId)?.url;
-      if (url) {
-        result[item.tabId] = url;
-      }
-    }
-  }
-  for (const [tabId, url] of Object.entries(input.persistedMap)) {
-    if (!result[tabId]) {
-      result[tabId] = url;
-    }
-  }
-  return result;
-}
-
 // ─────────────────────────────────────────────────────────────
 // 输入读取：composite 直接读原始值，不经过登记表的 read 校验器，
 // 因此必须自己承担"这一读要不要贡献补丁"的判断。但"预期形状"不自己定义 ——
@@ -93,25 +57,12 @@ function readArrayInput<T>(
   return raw === undefined ? [] : readObjectArray<T>(isItem)(raw);
 }
 
-/** 缺失 → {}；否则按登记表的两层数组读取器（任一项不合法 ⇒ 整值拒绝） */
-function readArrayRecordInput<T>(
-  isItem: (item: Record<string, unknown>) => boolean,
-  raw: unknown,
-): Record<string, T[]> | undefined {
-  return raw === undefined ? {} : readObjectArrayRecord<T>(isItem)(raw);
-}
-
 /** 恢复期统一清洗：坏 URL（盘符伪主机）回落，其余原样保留引用同一性。 */
 function sanitizeTabs<T extends { url: string }>(tabs: T[]): T[] {
   return tabs.map((tab) => {
     const url = sanitizeRestoredBrowserUrl(tab.url);
     return url === tab.url ? tab : { ...tab, url };
   });
-}
-
-/** 缺失 → {}；否则按登记表的字符串映射读取器（任一值非字符串 ⇒ 整值拒绝） */
-function readStringMapInput(raw: unknown): Record<string, string> | undefined {
-  return raw === undefined ? {} : readStringRecord(raw);
 }
 
 export const compositeHydrators: CompositeHydrator[] = [
@@ -133,38 +84,6 @@ export const compositeHydrators: CompositeHydrator[] = [
         browserTabs: tabs,
         browserTabsById: Object.fromEntries(tabs.map((tab) => [tab.id, tab])),
         browserActiveTabId: activeTabId,
-      };
-    },
-  },
-  {
-    name: 'browserTabIdUrlMap',
-    build: (read) => {
-      const rawTabs = readArrayInput<BrowserTabState>(isBrowserTab, read('adl:browser.tabs'));
-      const tabs = rawTabs === undefined ? undefined : sanitizeTabs(rawTabs);
-      const workspaceBookmarks = readArrayRecordInput<WorkspaceBookmarkEntry>(
-        isBookmarkTabItem,
-        read('adl:browser.workspaceBookmarks'),
-      );
-      const tabFolders = readArrayInput<TabFolderState>(
-        isTabFolder,
-        read('adl:browser.tabFolders'),
-      );
-      const persistedMap = readStringMapInput(read('adl:browser.tabIdUrlMap'));
-      if (
-        tabs === undefined ||
-        workspaceBookmarks === undefined ||
-        tabFolders === undefined ||
-        persistedMap === undefined
-      ) {
-        return {};
-      }
-      return {
-        browserBookmarkTabIdUrlMap: buildBrowserTabUrlMap({
-          tabs,
-          workspaceBookmarks,
-          tabFolders,
-          persistedMap,
-        }),
       };
     },
   },

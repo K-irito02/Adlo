@@ -59,7 +59,7 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
   const browserTabs = useAppStore((s) => s.browserTabs);
   const browserBookmarks = useAppStore((s) => s.browserBookmarks);
   const browserHistory = useAppStore((s) => s.browserHistory);
-  const browserTabFolders = useAppStore((s) => s.browserTabFolders);
+  const browserBookmarkFolders = useAppStore((s) => s.browserBookmarkFolders);
   const recentWorkspaces = useAppStore((s) => s.recentWorkspaces);
   const showToast = useAppStore((s) => s.showToast);
   const isTauri = useAppStore((s) => s.isTauri);
@@ -122,8 +122,8 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
     [recentWorkspaces],
   );
   const bookmarkTreeData = useMemo(
-    () => buildBookmarkDirectoryTree(visibleWorkspaces, browserTabFolders),
-    [visibleWorkspaces, browserTabFolders],
+    () => buildBookmarkDirectoryTree(visibleWorkspaces, browserBookmarkFolders),
+    [visibleWorkspaces, browserBookmarkFolders],
   );
   const [createDirDialog, setCreateDirDialog] = useState<{
     open: boolean;

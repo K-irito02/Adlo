@@ -76,34 +76,39 @@ export const createBrowserTabsSlice = (
         isDownloading: false,
       };
       const nextTabs = sortTabs([...state.browserTabs, tab]);
-      let nextFolders = state.browserTabFolders;
-      let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
+      let nextFolders = state.browserBookmarkFolders ?? [];
       if (folderId) {
+        const now = Date.now();
         nextFolders = nextFolders.map((f) => {
           if (f.id === folderId) {
-            const existingTabs = f.tabs || [];
+            const existingEntries = f.entries || [];
             const tabTitle = tab.title?.trim() || tab.url?.trim() || '';
-            // 归一化去重（剥离跟踪参数/尾斜杠/www）：URL 变体不产生重复快照条目
-            // （2026-08-21 事项 7 审查 A2-6 预存问题）。
             const entryKey = historyDedupKey(tab.url || '');
             if (
-              !existingTabs.some(
-                (item) => historyDedupKey(item.url || '') === entryKey && item.title === tabTitle,
+              !existingEntries.some(
+                (entry) =>
+                  historyDedupKey(entry.url || '') === entryKey && entry.title === tabTitle,
               )
             ) {
               return {
                 ...f,
-                tabs: [...existingTabs, { tabId: tab.id, url: tab.url || '', title: tabTitle }],
+                entries: [
+                  ...existingEntries,
+                  {
+                    id: createUiId('bookmark'),
+                    url: tab.url || '',
+                    title: tabTitle,
+                    addedAt: now,
+                    lastModifiedAt: now,
+                    sourceTabId: tab.id,
+                  },
+                ],
               };
             }
           }
           return f;
         });
-        persist('adl:browser.tabFolders', nextFolders);
-        if (tab.url && !nextTabIdUrlMap[tab.id]) {
-          nextTabIdUrlMap = { ...nextTabIdUrlMap, [tab.id]: tab.url };
-          persist('adl:browser.tabIdUrlMap', nextTabIdUrlMap);
-        }
+        persist('adl:browser.bookmarkFolders', nextFolders);
       }
       persist('adl:browser.tabs', nextTabs);
       persist('adl:browser.activeTabId', tab.id);
@@ -111,8 +116,7 @@ export const createBrowserTabsSlice = (
         browserTabs: nextTabs,
         browserTabsById: buildTabsById(nextTabs),
         browserActiveTabId: tab.id,
-        browserTabFolders: nextFolders,
-        browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
+        browserBookmarkFolders: nextFolders,
         browserBookmarks: state.browserBookmarks,
       };
     });

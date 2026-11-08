@@ -68,9 +68,9 @@ export const browserSelectors = {
   hasBrowserHistory: (state: StoreState) => state.browserHistory.length > 0,
   useHasBrowserHistory: () => useAppStore((s) => s.browserHistory.length > 0),
 
-  // --- BrowserFoldersSlice (文件夹/树) ---
-  getBrowserTabFolders: (state: StoreState) => state.browserTabFolders,
-  useBrowserTabFolders: () => useAppStore(useShallow((s) => s.browserTabFolders)),
+  // --- BrowserBookmarkFoldersSlice (书签文件夹 / 树) ---
+  getBrowserBookmarkFolders: (state: StoreState) => state.browserBookmarkFolders,
+  useBrowserBookmarkFolders: () => useAppStore(useShallow((s) => s.browserBookmarkFolders)),
 
   getBrowserTabTreeExpanded: (state: StoreState) => state.browserTabTreeExpanded,
   useBrowserTabTreeExpanded: () => useAppStore(useShallow((s) => s.browserTabTreeExpanded)),

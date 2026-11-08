@@ -73,7 +73,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       if (!tabId || !(workspaceId || folderId)) {
         return null;
       }
-      return state.browserBookmarkTab(
+      return state.browserSaveTabAsBookmark(
         tabId,
         folderId || undefined,
         undefined,
@@ -191,13 +191,31 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       }
       // save-and-open：先预检冲突（只读，不写书签）
       const state = useAppStore.getState();
+      // 就地导航重存同一个标签页时，要排除它自己那条既有书签，否则会误报重复
+      const existingEntryId = (() => {
+        if (!state.browserNavigateInPlace || !state.browserActiveTabId) {
+          return undefined;
+        }
+        const activeId = state.browserActiveTabId;
+        if (folderId) {
+          return state.browserBookmarkFolders
+            .find((f) => f.id === folderId)
+            ?.entries?.find((entry) => entry.sourceTabId === activeId)?.id;
+        }
+        if (workspaceId) {
+          return state.browserWorkspaceBookmarks[workspaceId]?.find(
+            (entry) => entry.sourceTabId === activeId,
+          )?.id;
+        }
+        return undefined;
+      })();
       const precheck = checkBookmarkCollision(
         url,
         title,
         { workspaceId: folderId ? undefined : workspaceId, folderId },
         state,
         state.recentWorkspaces,
-        state.browserNavigateInPlace ? state.browserActiveTabId : undefined,
+        existingEntryId,
       );
       if (precheck.ok === false) {
         const msg = precheck.pathLabel

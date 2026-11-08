@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 import { buildFolderPathLabel, buildWorkspacePathLabel } from '../browserFoldersUtils';
-import type { TabFolderState } from '../browserFoldersTypes';
+import type { BookmarkFolder } from '../browserFoldersTypes';
 
 function makeWorkspace(id: string, name: string, path: string): RecentWorkspaceEntry {
   return {
@@ -18,7 +18,7 @@ function makeWorkspace(id: string, name: string, path: string): RecentWorkspaceE
   };
 }
 
-const folders: TabFolderState[] = [
+const folders: BookmarkFolder[] = [
   { id: 'root', name: '工具', createdAt: 0 },
   { id: 'sub', name: '子文件夹', createdAt: 0, parentId: 'root', parentType: 'folder' },
   { id: 'deep', name: '三层', createdAt: 0, parentId: 'sub', parentType: 'folder' },
@@ -50,8 +50,8 @@ describe('buildFolderPathLabel', () => {
   });
 
   it('循环 parentId 保护：超出步数截断不死循环', () => {
-    const cycleA: TabFolderState = { id: 'a', name: 'A', createdAt: 0, parentId: 'b' };
-    const cycleB: TabFolderState = { id: 'b', name: 'B', createdAt: 0, parentId: 'a' };
+    const cycleA: BookmarkFolder = { id: 'a', name: 'A', createdAt: 0, parentId: 'b' };
+    const cycleB: BookmarkFolder = { id: 'b', name: 'B', createdAt: 0, parentId: 'a' };
     const label = buildFolderPathLabel('a', [cycleA, cycleB], []);
     expect(label).toContain('A');
     expect(label.length).toBeLessThan(200);

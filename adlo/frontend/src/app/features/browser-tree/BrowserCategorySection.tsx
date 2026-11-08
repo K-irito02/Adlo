@@ -16,12 +16,12 @@ export interface SectionCallbacks {
   onDeleteHistory: (level: 'label' | 'year' | 'month' | 'day', nodePath: string) => void;
   onOpenTab: (url: string, tabId?: string) => void;
   // Tab-level operations (for tab leaf nodes in workspace/userFolder trees)
-  onRefreshTab: (tabId: string, url: string) => void;
+  onRefreshTab: (tabId: string | undefined, url: string) => void;
   onEditTab: (tabId: string, name: string, url: string) => void;
   onDeleteTab: (tabId: string, url: string) => void;
   onCopyTabLink: (url: string) => void;
   onOpenTabInNewTab: (url: string, title?: string) => void;
-  onOpenTabInCurrentTab: (tabId: string) => void;
+  onOpenTabInCurrentTab: (url: string) => void;
   onCloseTab?: (tabId: string) => void;
   onBookmarkTab?: (url: string, title: string) => void;
   /** Remove bookmark state without closing the tab. Used for saved-bookmark entries. */

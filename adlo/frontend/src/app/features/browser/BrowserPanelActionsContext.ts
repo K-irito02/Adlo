@@ -31,7 +31,7 @@ export interface BrowserPanelActions {
   handleDeleteHistoryLevel: (level: 'label' | 'year' | 'month' | 'day', nodePath: string) => void;
   handleExpandAllTree: () => void;
   handleCollapseAllTree: () => void;
-  handleRefreshTab: (tabId: string, url: string) => Promise<void>;
+  handleRefreshTab: (tabId: string | undefined, url: string) => Promise<void>;
   handleDeleteTab: (tabId: string, url: string) => void;
   handleCopyTabLink: (url: string) => Promise<void>;
   handleOpenTabInNewTab: (url: string, title?: string) => void;

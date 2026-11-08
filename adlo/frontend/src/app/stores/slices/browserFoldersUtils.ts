@@ -3,18 +3,18 @@
  * 从 browserFoldersSlice.ts 提取的纯函数（无 store 访问）与 storage key 常量
  */
 import type { BrowserTabState } from './browserSliceShared';
-import type { TabFolderState } from './browserFoldersTypes';
+import type { BookmarkFolder } from './browserFoldersTypes';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 
 // 浏览器持久化键的遗留常量与 STORAGE_KEY 别名均已删除 —— 其单一事实来源是
 // persisted/registry.ts 的 `adl:browser.*` 登记键。
 
-export function findFolderById(folders: TabFolderState[], folderId: string): TabFolderState | null {
+export function findFolderById(folders: BookmarkFolder[], folderId: string): BookmarkFolder | null {
   return folders.find((folder) => folder.id === folderId) || null;
 }
 
 export function collectAllDescendantFolderIds(
-  folders: TabFolderState[],
+  folders: BookmarkFolder[],
   parentId: string,
 ): string[] {
   const result: string[] = [];
@@ -26,26 +26,34 @@ export function collectAllDescendantFolderIds(
   return result;
 }
 
-export function collectAllDescendantTabIds(folders: TabFolderState[], parentId: string): string[] {
+/** 收集某个文件夹的直接子书签 id（不含更深层目录）。 */
+export function collectDirectEntryIds(folders: BookmarkFolder[], folderId: string): string[] {
+  const folder = findFolderById(folders, folderId);
+  return (folder?.entries ?? []).map((entry) => entry.id);
+}
+
+/** 收集某个文件夹下全部后代文件夹里书签的 id。 */
+export function collectDescendantEntryIds(folders: BookmarkFolder[], parentId: string): string[] {
   const result: string[] = [];
   const directChildren = folders.filter((f) => f.parentId === parentId);
   for (const child of directChildren) {
-    if (child.tabs) {
-      result.push(...child.tabs.map((item) => item.tabId));
+    if (child.entries) {
+      result.push(...child.entries.map((entry) => entry.id));
     }
-    result.push(...collectAllDescendantTabIds(folders, child.id));
+    result.push(...collectDescendantEntryIds(folders, child.id));
   }
   return result;
 }
 
-export function collectAllFolderTabIds(folders: TabFolderState[], wsId: string): string[] {
+/** 收集某个工作区名下全部目录里书签的 id。 */
+export function collectWorkspaceFolderEntryIds(folders: BookmarkFolder[], wsId: string): string[] {
   const rootFolders = folders.filter((f) => f.parentType === 'workspace' && f.parentId === wsId);
   const result: string[] = [];
   for (const rootFolder of rootFolders) {
-    if (rootFolder.tabs) {
-      result.push(...rootFolder.tabs.map((item) => item.tabId));
+    if (rootFolder.entries) {
+      result.push(...rootFolder.entries.map((entry) => entry.id));
     }
-    result.push(...collectAllDescendantTabIds(folders, rootFolder.id));
+    result.push(...collectDescendantEntryIds(folders, rootFolder.id));
   }
   return result;
 }
@@ -71,7 +79,7 @@ export function buildWorkspacePathLabel(wsId: string, workspaces: RecentWorkspac
 
 export function buildFolderPathLabel(
   folderId: string,
-  folders: TabFolderState[],
+  folders: BookmarkFolder[],
   workspaces: RecentWorkspaceEntry[],
 ): string {
   const parts: string[] = [];
