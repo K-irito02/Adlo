@@ -16,6 +16,7 @@ alwaysApply: true
 - 前端命令一律带目录：在 `adlo/` 执行 `pnpm --dir frontend run check:changed`；在仓库根执行 `pnpm --dir adlo/frontend run check:changed`（仓库根没有 `package.json`）。
 - 全量/发布门禁（`check:full`、`check:all`、`cargo test --workspace`、`cargo tauri build`）执行前必须通知用户并获批准。
 - 前端格式化配置以 `adlo/frontend/` 下的 `.prettierrc` / `.prettierignore` 为准（根目录同名文件不生效）。
+- **提交遇 `.git/index.lock`**：pre-commit 会在 hook 内 `git add` 规范化后的文件，Windows 上偶发锁释放滞后。不要删锁文件；等待 3–5 秒重试同一提交，连续 3 次仍失败再报告用户。
 
 Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，必须自动执行该流程，**不得跳过**。
 

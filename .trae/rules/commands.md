@@ -17,6 +17,7 @@ alwaysApply: true
 | `pnpm run dev:both` | 同时启动浏览器 + Tauri（推荐用于双端一致性验证） |
 | `pnpm run dev:status` | 列出本机各工作树实例（端口 / 令牌 / PID / 后端） |
 | `pnpm run dev:stop` | 停止本工作树的 dev 实例，释放 `target/debug` 构建产物锁 |
+| `pnpm run prototype:serve` | 起原型静态服务（根目录 `adlo/frontend/`，固定 5200 端口，Ctrl+C 退出；不放宽端口） |
 | `pnpm run worktree:env` | 输出并行开发所需的 `[ENV]` 快照（分支 / base / dirty / instance / hooks / graph） |
 | `pnpm run build` | 构建所有包 |
 | `pnpm run start` | 启动已构建应用 |
@@ -127,6 +128,20 @@ pnpm --dir frontend run test:watch
 
 1. **Vite 中间件修改必须重启服务器** - 任何对 `vite.config.ts` 或 `dev/` 目录下文件的修改都需要完全停止并重新启动 `pnpm run dev:browser`
 2. **SSE 在 Vite 中不稳定** - Vite 的热更新机制会中断长连接，轮询是更可靠的备选方案
+
+## 跨文件重命名（store 字段 / 类型 / 持久化 key）
+
+重命名 store 字段会跨六层：**类型定义 → 切片实现 → `persisted/registry.ts` 与持久化 key → 树构建 → 特性/hook → 测试**。
+顺序错了会反复回滚；优先用现成工具，不要手工逐个 `edit`：
+
+| 命令 | 用途 |
+|------|------|
+| `node frontend/scripts/replace-term.mjs --pairs <pairs.json> [--dry-run]` | 字节级批量替换（保 UTF-8、按文件校验、支持干跑）；`pairs.json` 形如 `{ "replacements": [{"from":"旧","to":"新"}], "files": ["src/app/..."] }` |
+| `node scripts/check-stale-terms.mjs` | 旧标识符 denylist 守卫（pre-commit 与 `check:repo` 自动执行） |
+| `node scripts/check-no-new-any.mjs` | 禁止在 store 改动里**新增** `as any` / `as unknown as`（pre-commit 跑暂存 diff 的新增行） |
+
+收尾顺序：每层结束跑 `pnpm --dir frontend run typecheck`；全部改完后把旧名字加进
+`adlo/scripts/check-stale-terms.mjs` 的 `STALE_TERMS`，防止旧名回潮。
 
 ## 包管理
 

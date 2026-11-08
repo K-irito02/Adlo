@@ -71,6 +71,7 @@
 - UI/UX 或功能变更后跳过红绿测试
 - 未获用户批准就执行全量测试 / 全量门禁（`check:full`、`cargo test --workspace`）或发布打包（`cargo tauri build`）；日常只跑受变更影响的测试
 - 以下三类已由自动校验拦截（pre-commit 跑 `adlo/scripts/*.test.mjs`）：capability 通配权限、e2e 配置泄漏到生产构建、`.agents` 规则/技能未同步到 `.opencode` / `.trae` 镜像——不要用 `--no-verify` 绕过
+- 已删除的标识符（类型名 / store 字段 / 持久化 key / IPC 命令）不得回潮：`adlo/scripts/check-stale-terms.mjs` 维护 denylist，pre-commit 与 `check:repo` 自动拦截；store 改动也不得**新增** `as any` / `as unknown as`（`check-no-new-any.mjs` 只看暂存 diff 的新增行）
 - 功能或显示效果仅在 Tauri 或浏览器单一模式下可用（必须双端一致）
 - WebView URL 变化被动触发 Tauri navigateTab（必须由前端发起操作显式调用，见 `browserpanel.tsx:submitAddress`、`BrowserPanelActionsContext.ts:handleOpenTabFromTree`）
 - 任何 UI 展示文本硬编码（包括但不限于按钮/Tooltip/aria-label/占位符/过滤器标签/相对时间/日期格式/面包屑标签映射），必须使用 i18n key

@@ -65,10 +65,10 @@ describe('composite hydration is defensive', () => {
   });
 
   it('rejects a workspace-bookmark record holding a malformed item', () => {
-    // 该项有 url（弱守卫会据此往 tabId→URL 映射里塞值），但缺 title ⇒ isBookmarkTabItem 拒绝整值
+    // 该项有 url，但缺 title / addedAt / lastModifiedAt ⇒ isBookmarkEntry 拒绝整值
     localStorage.setItem(
       'adl:browser.workspaceBookmarks',
-      JSON.stringify({ ws1: [{ tabId: 'tab-a', url: 'https://malformed.test' }] }),
+      JSON.stringify({ ws1: [{ id: 'bm-a', url: 'https://malformed.test' }] }),
     );
 
     let patch: Partial<Record<string, unknown>> = {};
@@ -79,11 +79,11 @@ describe('composite hydration is defensive', () => {
     expect(patch.browserWorkspaceBookmarks).toEqual({});
   });
 
-  it('rejects a tab-folder array holding a malformed folder', () => {
-    // 该文件夹有 tabs 子项，但缺 id/name/createdAt ⇒ isTabFolder 拒绝整值
+  it('rejects a bookmark-folder array holding a malformed folder', () => {
+    // 该文件夹有 entries 子项，但缺 id/name/createdAt ⇒ isBookmarkFolder 拒绝整值
     localStorage.setItem(
-      'adl:browser.tabFolders',
-      JSON.stringify([{ tabs: [{ tabId: 'tab-b' }] }]),
+      'adl:browser.bookmarkFolders',
+      JSON.stringify([{ entries: [{ id: 'bm-b' }] }]),
     );
     localStorage.setItem(
       'adl:browser.tabs',

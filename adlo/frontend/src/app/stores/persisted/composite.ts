@@ -38,7 +38,7 @@ export function markResolvedTitles(tabs: BrowserTabState[]): BrowserTabState[] {
 // ─────────────────────────────────────────────────────────────
 // 输入读取：composite 直接读原始值，不经过登记表的 read 校验器，
 // 因此必须自己承担"这一读要不要贡献补丁"的判断。但"预期形状"不自己定义 ——
-// 一律复用登记表的逐项校验器（isBrowserTab / isBookmarkTabItem / isTabFolder）
+// 一律复用登记表的逐项校验器（isBrowserTab / isBookmarkEntry / isBookmarkFolder）
 // 与其读取器，保证同一个键不会出现两份宽严不一的形状判定。
 //
 // 语义：键缺失（undefined）≡ 空值（与 brief 的 `?? []` / `?? {}` 一致，

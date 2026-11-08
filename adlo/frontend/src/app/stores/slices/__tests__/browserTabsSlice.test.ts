@@ -113,8 +113,7 @@ describe('browserOpenTab writes history (Chrome/Edge semantics)', () => {
       browserTabs: [],
       browserTabsById: {},
       browserActiveTabId: '',
-      browserTabFolders: [],
-      browserBookmarkTabIdUrlMap: {},
+      browserBookmarkFolders: [],
       browserBookmarks: [],
     }));
   }
