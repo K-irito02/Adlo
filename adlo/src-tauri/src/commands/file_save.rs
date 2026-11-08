@@ -39,10 +39,7 @@ fn sanitize_suggested_name(raw: &str) -> String {
     let cleaned: String = base
         .chars()
         .map(|c| {
-            if matches!(
-                c,
-                '\0' | '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'
-            ) {
+            if matches!(c, '\0' | '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
                 '_'
             } else {
                 c
@@ -50,11 +47,7 @@ fn sanitize_suggested_name(raw: &str) -> String {
         })
         .collect();
     let cleaned = cleaned.trim().to_string();
-    if cleaned.is_empty() {
-        "file".to_string()
-    } else {
-        cleaned
-    }
+    if cleaned.is_empty() { "file".to_string() } else { cleaned }
 }
 
 /// 按扩展名给出「另存为」对话框的文件类型过滤器。未知扩展名退化为按该扩展名单过滤，
@@ -90,9 +83,7 @@ pub async fn app_save_file(
         match base64::engine::general_purpose::STANDARD.decode(payload.data_base64.as_bytes()) {
             Ok(bytes) => bytes,
             Err(err) => {
-                return ipc(Err(AppError::InvalidInput(format!(
-                    "invalid base64 payload: {err}"
-                ))));
+                return ipc(Err(AppError::InvalidInput(format!("invalid base64 payload: {err}"))));
             },
         };
 
