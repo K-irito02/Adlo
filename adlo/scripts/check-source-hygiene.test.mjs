@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  findDebugTags,
   findLegacyCompatibility,
   findLiteralEscapedNewlines,
   findMojibake,
@@ -46,6 +47,22 @@ test("ignores backtick inline-code examples inside comments", () => {
 test("still flags a literal outside inline code on the same line", () => {
   const hits = findLiteralEscapedNewlines("// 真事故 \\n 后面还有 `.a` 示例");
   assert.equal(hits.length, 1);
+});
+
+test("flags temporary debug tags and honors hygiene-allow", () => {
+  // 拆开拼接，避免测试夹具自身被 debug-tag 检查误报。
+  const dbgTag = `[${"DBG"}-AUTOSAVE]`;
+  const adlDebugTag = `[${"ADL"}-DEBUG]`;
+  const text = [
+    "const ok = 1;",
+    `console.log('${dbgTag}', ok);`,
+    `tracing::debug!("${adlDebugTag} watcher");`,
+  ].join("\n");
+  assert.deepEqual(
+    findDebugTags(text).map((hit) => hit.line),
+    [2, 3],
+  );
+  assert.deepEqual(findDebugTags(`// hygiene-allow: ${dbgTag} example`), []);
 });
 
 test("flags U+FFFD replacement characters and allows explicit samples", () => {

@@ -17,6 +17,17 @@ import {
   lastSavedAtOf,
   markSavedAt,
 } from '../shared';
+import {
+  beginSaveSequence,
+  classifyDiskContent,
+  clearExternalSignal,
+  clearLocalWriteContent,
+  enqueueEditorSave,
+  hasRecentExternalSignal,
+  isLatestSaveSequence,
+  noteExternalSignal,
+  noteLocalWriteContent,
+} from '../editorSavePipeline';
 import type { StoreApi } from 'zustand';
 import {
   clearError,
@@ -24,6 +35,7 @@ import {
   invalidateCachedChangePreview,
   invalidateCachedFileDocument,
   getCachedChangePreview,
+  getCachedFileDocument,
   previewCancelEpoch,
   setCachedChangePreview,
   setCachedFileDocument,
@@ -126,16 +138,26 @@ function scheduleSelectedAutoReload(get: () => StoreState, eventPath?: string): 
   // P4 F9：闭包锁定事件时刻的归一化路径，触发时若选中已变则跳过；
   // 键同样归一化，斜杠/大小写变体不并存多定时器。
   const captured = normalizeWorkspaceRelativePath(eventPath ?? selected);
-  const key = scopedFileKey(workspaceId, captured);
+  // 选中文件可能属于侧栏里的另一个工作区：草稿/回声键必须跟文件归属走，
+  // 不能用当前工作区 id 组键（否则跨工作区选中时恒判「无草稿」）。
+  const targetWorkspaceId = get().selectedFileWorkspaceId ?? workspaceId;
+  const key = scopedFileKey(targetWorkspaceId, captured);
   scheduleExternalFollow(get, `reload:${key}`, () => {
     const current = get().selectedFilePath;
     if (!current || normalizeWorkspaceRelativePath(current) !== captured) {
       return;
     }
-    // P4 F8：本次保存 1s 内的回声跳过重载（git 跟手照常），防自写自读抖动。
-    const savedAt = lastSavedAtOf(key);
-    if (savedAt !== undefined && Date.now() - savedAt < SAVE_ECHO_QUIET_MS) {
-      return;
+    // 有草稿时必须进 reconcile 做磁盘内容比对（自写回声/真外部变更都可能
+    // 发生在保存前后）；保存回声静默窗口只用于「无草稿」的重载防抖。
+    const hasPendingDraft = peekPendingEditorTextByKey(key) !== undefined;
+    if (!hasPendingDraft && !hasRecentExternalSignal(key)) {
+      // P4 F8：本次保存 1s 内的回声跳过重载（git 跟手照常），防自写自读抖动。
+      // 但存在新鲜 watcher 信号时不能跳过：必须读盘分类，否则信号老化后
+      // 自动保存会失去复核窗口。
+      const savedAt = lastSavedAtOf(key);
+      if (savedAt !== undefined && Date.now() - savedAt < SAVE_ECHO_QUIET_MS) {
+        return;
+      }
     }
     void get().reconcileSelectedFile();
   });
@@ -145,6 +167,30 @@ function scheduleSelectedAutoReload(get: () => StoreState, eventPath?: string): 
 function externalMatchesFlag(get: () => StoreState, norm: string): boolean {
   const flag = get().externalFileChange;
   return flag !== undefined && normalizeWorkspaceRelativePath(flag.path) === norm;
+}
+
+/**
+ * 取目标文件自己的基线内容。`fileContent` 只代表当前选中文件；保存非选中
+ * 文件的暂存草稿（切前 flush）时必须回退到该键的文档缓存，不能拿选中文件
+ * 的正文顶替。缓存缺失时返回 undefined，交由 classifyDiskContent 走保守路径。
+ */
+function baselineContentForTarget(
+  get: () => StoreState,
+  key: string,
+  targetPath: string,
+  targetWorkspaceId: string | undefined,
+): string | undefined {
+  const selected = get().selectedFilePath;
+  const selectedNorm = selected ? normalizeWorkspaceRelativePath(selected) : undefined;
+  const targetNorm = normalizeWorkspaceRelativePath(targetPath);
+  if (
+    selectedNorm !== undefined &&
+    selectedNorm === targetNorm &&
+    (targetWorkspaceId === undefined || get().selectedFileWorkspaceId === targetWorkspaceId)
+  ) {
+    return get().fileContent;
+  }
+  return getCachedFileDocument(key)?.content;
 }
 
 function scheduleGitFollowQuietly(get: () => StoreState): void {
@@ -202,30 +248,36 @@ export function handleExternalBatch(
   scheduleTreeFollowQuietly(get, batch);
   const selected = get().selectedFilePath;
   const workspaceId = get().appInfo?.currentWorkspace?.id;
-  if (!selected || !workspaceId) {
+  if (!workspaceId) {
+    return;
+  }
+  // 记录 watcher 信号：保存前若信号仍新鲜，必须先读盘复核，避免信号尚未
+  // 调度到 reconcile 时自动保存抢先覆盖外部修改。非选中文件的草稿在
+  // 切换前 flush 时同样受保护。
+  for (const path of batch.changed) {
+    noteExternalSignal(scopedFileKey(workspaceId, path));
+  }
+  for (const path of batch.removed) {
+    noteExternalSignal(scopedFileKey(workspaceId, path));
+  }
+  if (batch.overflow === true && selected) {
+    noteExternalSignal(scopedFileKey(workspaceId, selected));
+  }
+  if (!selected) {
     return;
   }
   const norm = normalizeWorkspaceRelativePath(selected);
   const hitPath = [...batch.changed, ...batch.removed].find(
     (p) => normalizeWorkspaceRelativePath(p) === norm,
   );
-  if (hitPath !== undefined) {
-    // 草稿保护前置标记（双端一致）：浏览器/预览模式没有单事件通道，
-    // 批次是唯一外部信号。有未存草稿时同样立 externalFileChange 旗，
-    // 供 saveFile 写前比对拦截（否则浏览器端冲突检测永不触发）；
-    // 重载调度照常（reconcile 内对草稿跳过、文件消失则提示）。
-    const hasDraft = get().dirtyEditorPaths.some((p) => normalizeWorkspaceRelativePath(p) === norm);
-    if (hasDraft) {
-      const prevExternal = get().externalFileChange?.path;
-      const hadExternal =
-        prevExternal !== undefined && normalizeWorkspaceRelativePath(prevExternal) === norm;
-      if (!hadExternal) {
-        get().setExternalFileChange({ path: hitPath, lastModifiedAt: Date.now() });
-        const locale = resolveAppLanguage(get().appInfo?.config?.language);
-        const dict = locale === 'en-US' ? fileEn : fileZh;
-        get().showToast(dict.fileExternalChangedWhileDirty, 'warning');
-      }
-    }
+  if (batch.overflow === true) {
+    // 溢出批次载荷为空但语义是「有变化」：选中文件同样要进 reconcile
+    // 读盘分类，否则外部修改只留下 3s 信号，之后自动保存可能静默覆盖。
+    scheduleSelectedAutoReload(get, selected);
+  } else if (hitPath !== undefined) {
+    // 批次是浏览器/预览模式唯一的外部信号。是否有草稿、是自写回声还是
+    // 真外部修改，统一交给 reconcile 读磁盘内容后判定（不能只看路径+脏标：
+    // watcher 会回传应用自身的新建/保存写入）。
     scheduleSelectedAutoReload(get, hitPath);
   }
   // 溢出批次（重连补发/大批量截断）载荷为空但语义是"有变化"：
@@ -310,9 +362,19 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
      * @see preview-bridge/index.ts → workspace.readFile
      */
     openFile: async (relativePath: string) => {
-      // 切文件前落盘脏缓冲（自动保存语义），再读新文件。
-      await get().saveDirtyEditors();
+      // 切文件前落盘脏缓冲（自动保存语义），再读新文件。落盘失败（例如冲突卡
+      // 未裁决）时中止切换：否则读盘会把磁盘内容写回 fileContent 并清外部旗，
+      // 残留草稿随后 flush 会在无旗保护下覆盖外部版本。
+      const flush = await get().saveDirtyEditors();
       const workspaceId = get().appInfo?.currentWorkspace?.id;
+      if (
+        flush.failed > 0 &&
+        peekPendingEditorTextByKey(scopedFileKey(workspaceId, relativePath)) !== undefined
+      ) {
+        // 目标文件自身仍有未落盘草稿（冲突未裁决）：不能读盘覆盖当前草稿。
+        // 其它文件失败不阻塞打开目标文件，其外部旗会保留到下次 flush。
+        return;
+      }
       const category = categorizeFile(relativePath);
       const opened = isMediaFileCategory(category)
         ? await openMediaFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
@@ -348,7 +410,13 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       workspacePath: string,
       relativePath: string,
     ) => {
-      await get().saveDirtyEditors();
+      const flush = await get().saveDirtyEditors();
+      if (
+        flush.failed > 0 &&
+        peekPendingEditorTextByKey(scopedFileKey(workspaceId, relativePath)) !== undefined
+      ) {
+        return;
+      }
       const category = categorizeFile(relativePath);
       const opened = isMediaFileCategory(category)
         ? await openMediaFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
@@ -547,6 +615,19 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       } else {
         set({ sessionRestoreNotice: undefined });
       }
+      // 新建即本地写入：清掉同路径可能残留的旧草稿，并登记按 key 的磁盘基线。
+      // 创建回声（磁盘内容 == 初始基线）由此被 classifyDiskContent 判为 unchanged。
+      const createdWsId = ws?.id ?? get().appInfo?.currentWorkspace?.id;
+      if (createdWsId) {
+        dropPendingEditorText(createdWsId, relativePath);
+        const createdKey = scopedFileKey(createdWsId, relativePath);
+        // 创建回声由「磁盘内容 == 初始基线」识别；这里只登记按 key 的磁盘基线，
+        // 供随后切换到其它文件时保存前复核。
+        setCachedFileDocument(createdKey, {
+          content: result.data.content,
+          lastModifiedAt: result.data.lastModifiedAt,
+        });
+      }
       const nextOutline = buildOutlineFromContent(result.data.content, relativePath);
       const norm = normalizeWorkspaceRelativePath(relativePath);
       set((state: StoreState) => {
@@ -559,6 +640,9 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
             ? state.openTabs
             : [...state.openTabs, createEditorTab(relativePath)],
           selectedFilePath: relativePath,
+          // 新建可能发生在侧栏里非当前工作区的目录：归属必须回填，否则
+          // 首次自动保存/对账会按旧工作区定向（跨仓同名文件会被覆盖）。
+          selectedFileWorkspaceId: createdWsId,
           fileContent: result.data.content,
           fileMedia: null,
           fileMediaLoading: false,
@@ -612,39 +696,29 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
     }) => {
       const selected = normalizeWorkspaceRelativePath(get().selectedFilePath ?? '');
       const incoming = normalizeWorkspaceRelativePath(path);
-      if (!selected || selected !== incoming) {
-        scheduleGitFollowQuietly(get);
-        return;
-      }
       if (
+        selected !== '' &&
+        selected === incoming &&
         typeof get().fileLastModifiedAt === 'number' &&
         get().fileLastModifiedAt === lastModifiedAt
       ) {
         // 自写回声（本次保存的 watcher 回音，mtime 一致）：忽略，防重载打转。
         return;
       }
+      const workspaceId = get().appInfo?.currentWorkspace?.id;
+      if (workspaceId) {
+        noteExternalSignal(scopedFileKey(workspaceId, path));
+      }
+      if (!selected || selected !== incoming) {
+        scheduleGitFollowQuietly(get);
+        return;
+      }
       /* external file changed.
        * 注意：此处不再顺手打灰点（dirtyEditorPaths 只属于"用户未存输入"）。
-       * 旧逻辑把外部变更也标脏，导致两害：①自动重载被"草稿优先"挡掉；
-       * ② saveDirtyEditors 会用旧基线回写，覆盖外部新内容。外部态只走
-       * externalFileChange（树上有独立标识），与脏点解耦。 */
-      const prevExternal = get().externalFileChange?.path;
-      const hadExternal =
-        prevExternal !== undefined && normalizeWorkspaceRelativePath(prevExternal) === incoming;
-      set({
-        externalFileChange: { path, lastModifiedAt },
-      });
-      // P4 F7：仅真有脏草稿时提示一次（干净文件静默重载，对标 VSCode）；
-      // hadExternal 归一化比较，斜杠/大小写变体不重复弹。
-      const hasDraft = get().dirtyEditorPaths.some(
-        (p) => normalizeWorkspaceRelativePath(p) === incoming,
-      );
-      if (hasDraft && !hadExternal) {
-        const locale = resolveAppLanguage(get().appInfo?.config?.language);
-        const dict = locale === 'en-US' ? fileEn : fileZh;
-        get().showToast(dict.fileExternalChangedWhileDirty, 'warning');
-      }
-      // 方案 A：干净即重载（防抖；触发时若用户刚开始打字，reconcile 按草稿跳过）。
+       * 外部态只走 externalFileChange（树上有独立标识），与脏点解耦。
+       * mtime 只作为快速回声过滤；真正的「自写回声 / 真外部修改」判定
+       * 交给 reconcile 读磁盘内容后完成（批次通道没有 mtime，单事件通道
+       * 也不能只凭 mtime 区分应用自身写入）。 */
       scheduleSelectedAutoReload(get, path);
       scheduleGitFollowQuietly(get);
     },
@@ -679,9 +753,11 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
 
     /**
      * [saveFile - 保存文件]
-     * 写前比对：有未存草稿且 externalFileChange 指向同一文件（外部已改）时，
-     * 非 force 调用一律拦截——推右下角冲突卡片供用户拍板，返回 false
-     * （自动保存静默跳过、切换前 flush 计入 failed 中止切换）。
+     * 同一文件保存串行执行；任务内部重新读取暂存缓冲，保证写最新草稿。
+     * 写前比对：外部旗指向同一文件时先读磁盘内容，只有「与基线/草稿/最近
+     * 本地写入都不同」才拦截并推冲突卡片（过期旗会自愈清除）。
+     * 保存响应永不把旧快照覆盖到新草稿上：若在途期间又有输入，保留草稿与
+     * 脏标，仅同步 mtime，等待下一次自动保存。
      * force=true 仅由冲突卡片"用我的覆盖"使用。
      * @writes editorSlice.fileContent, editorSlice.fileLastModifiedAt, editorSlice.dirtyEditorPaths, fileOpNoticeSlice.fileOpNotices (冲突拦截时推卡)
      * @see shared/ipc.ts → workspace.updateFileContent
@@ -713,71 +789,167 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       }
       const norm = normalizeWorkspaceRelativePath(targetPath);
       const key = scopedFileKey(targetWs.id, targetPath);
-      const pending = peekPendingEditorTextByKey(key);
-      if (pending === undefined) {
-        // 脏而无暂存 = 过期标记（旧定时器闭包/重启恢复）：只清标记，绝不拿基线回写。
-        clearStaleDirtyMark(set, norm);
-        return true;
-      }
-      if (options?.force !== true) {
-        // 写前比对：外部已改 + 本地有草稿 = 直接落盘会覆盖外部（1s 自动保存竞态）。
-        // 拦截并推冲突卡片（同文件同工作区只一张，自动保存重试不刷屏），
-        // 由用户在卡片上选"用我的覆盖 / 用磁盘覆盖 / 稍后再说"。
-        const externalPath = get().externalFileChange?.path;
-        if (externalPath !== undefined && normalizeWorkspaceRelativePath(externalPath) === norm) {
-          get().pushFileConflictNotice(targetPath, targetWs.id, rootPath);
-          return false;
-        }
-      }
-      const content = pending;
-      clearError(get, SCOPE);
       const bridgeWsPath =
         workspacePath ?? (targetWs.id !== currentWorkspace?.id ? targetWs.path : undefined);
-      const result = await window.digitalLife.workspace.updateFileContent(
-        targetPath,
-        content,
-        bridgeWsPath,
-      );
-      if (!result.ok) {
-        captureError(get, result.error, SCOPE);
-        return false;
-      }
-      // 精确删本条暂存（保留 savedAt 供回声窗口），落定推进代际。
-      dropPendingEditorText(targetWs.id, targetPath);
-      markSavedAt(key);
-      nextFileGen(key);
-      setCachedFileDocument(key, {
-        content: result.data.content,
-        lastModifiedAt: result.data.lastModifiedAt,
-      });
-      // diff 预览缓存同失效，否则变更面板的 diff 停在旧内容（60s TTL 缓存优先）。
-      invalidateCachedChangePreview(key);
-      // 落盘即跟手（报告 2）：本次保存的变更立刻进变更面板，不等 watcher 回声。
-      await postMutationRefresh(get);
-      set((state: StoreState) => {
-        const nextDirty = state.dirtyEditorPaths.filter(
-          (p) => normalizeWorkspaceRelativePath(p) !== norm,
-        );
-        void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
-        const isSelected =
-          state.selectedFilePath && normalizeWorkspaceRelativePath(state.selectedFilePath) === norm;
-        return {
-          dirtyEditorPaths: nextDirty,
-          ...(isSelected
-            ? {
-                fileContent: result.data.content,
-                fileLastModifiedAt: result.data.lastModifiedAt,
-                fileOpenError: null,
-                externalFileChange:
-                  state.externalFileChange !== undefined &&
-                  normalizeWorkspaceRelativePath(state.externalFileChange.path) === norm
-                    ? undefined
-                    : state.externalFileChange,
-              }
-            : {}),
+
+      // 保存代际在「请求入队时」推进：若期间又有新的保存请求，当前这次响应
+      // 即使晚到也直接丢弃，不更新基线/mtime/脏标。串行链负责写入顺序。
+      const seq = beginSaveSequence(key);
+      // 同一文件的保存串行执行：任务在真正执行时读取暂存缓冲，避免排队期间
+      // 使用旧草稿；执行期间的新输入由下一次串行保存消费。
+      return enqueueEditorSave(key, async () => {
+        let pending = peekPendingEditorTextByKey(key);
+        if (pending === undefined) {
+          // 脏而无暂存 = 过期标记（旧定时器闭包/重启恢复）：只清标记，绝不拿基线回写。
+          clearStaleDirtyMark(set, norm);
+          return true;
+        }
+        const isSelected = () => {
+          const selected = get().selectedFilePath;
+          return (
+            selected !== undefined &&
+            normalizeWorkspaceRelativePath(selected) === norm &&
+            get().selectedFileWorkspaceId === targetWs.id
+          );
         };
+
+        const hasExternalFlag = externalMatchesFlag(get, norm);
+        const hasFreshWatcherSignal = hasRecentExternalSignal(key);
+        if (options?.force !== true && (hasExternalFlag || hasFreshWatcherSignal)) {
+          // 写前比对：外部旗/watcher 信号可能来自已过期的批次。落盘前读一次磁盘，
+          // 只有「磁盘内容与基线/草稿/最近本地写入都不同」才真正拦截。
+          const preflight =
+            targetWs.id === currentWorkspace?.id
+              ? await window.digitalLife.workspace.readFile(targetPath)
+              : await window.digitalLife.workspace.readFileForWorkspace(targetWs.path, targetPath);
+          if (!isLatestSaveSequence(key, seq)) {
+            // 预检期间已有更新的保存请求：本次不能再推冲突卡或继续写。
+            return true;
+          }
+          // 读盘期间用户可能继续输入：重新取一次暂存缓冲，避免用旧草稿判定。
+          const latestPending = peekPendingEditorTextByKey(key);
+          if (latestPending === undefined) {
+            clearStaleDirtyMark(set, norm);
+            return true;
+          }
+          pending = latestPending;
+          if (preflight && preflight.ok) {
+            const verdict = classifyDiskContent(
+              key,
+              preflight.data.content,
+              baselineContentForTarget(get, key, targetPath, targetWs.id),
+              pending,
+            );
+            clearExternalSignal(key);
+            if (verdict === 'external') {
+              // 信号尚未被 reconcile 消费：这里补立外部旗，保证冲突卡片拿到同一版本。
+              set({
+                externalFileChange: {
+                  path: targetPath,
+                  lastModifiedAt: preflight.data.lastModifiedAt,
+                },
+              });
+              get().pushFileConflictNotice(targetPath, targetWs.id, rootPath);
+              return false;
+            }
+            // 回声/内容一致：外部旗已过期，清掉后继续落盘。
+            set((state: StoreState) =>
+              state.externalFileChange !== undefined &&
+              normalizeWorkspaceRelativePath(state.externalFileChange.path) === norm
+                ? { externalFileChange: undefined }
+                : state,
+            );
+          } else {
+            // 文件已不可读（删除/权限）：仍交给冲突卡片裁决，避免静默覆盖失败。
+            clearExternalSignal(key);
+            get().pushFileConflictNotice(targetPath, targetWs.id, rootPath);
+            return false;
+          }
+        }
+
+        // 有预检时已在上面的 await 之后重取 pending；无预检则中途没有 await，
+        // 因此这里直接使用 pending，不再重复读取。
+        const content = pending;
+        clearError(get, SCOPE);
+        noteLocalWriteContent(key, content);
+        const result = await window.digitalLife.workspace.updateFileContent(
+          targetPath,
+          content,
+          bridgeWsPath,
+        );
+        if (!result.ok) {
+          // 写失败：清掉本次本地写入回声标记，避免把之后同内容的外部写误判为回声。
+          clearLocalWriteContent(key);
+          captureError(get, result.error, SCOPE);
+          return false;
+        }
+        if (!isLatestSaveSequence(key, seq)) {
+          // 已有更新的保存在排队/落定：本次响应只代表旧版本，不碰基线/草稿。
+          return true;
+        }
+        markSavedAt(key);
+        nextFileGen(key);
+        setCachedFileDocument(key, {
+          content: result.data.content,
+          lastModifiedAt: result.data.lastModifiedAt,
+        });
+        // diff 预览缓存同失效，否则变更面板的 diff 停在旧内容（60s TTL 缓存优先）。
+        invalidateCachedChangePreview(key);
+        // 落盘即跟手（报告 2）：本次保存的变更立刻进变更面板，不等 watcher 回声。
+        await postMutationRefresh(get);
+
+        const latestPending = peekPendingEditorTextByKey(key);
+        if (latestPending !== undefined && latestPending !== content) {
+          // 保存在途期间又有新草稿：保留草稿与脏标，只同步磁盘 mtime；
+          // 绝不把旧响应写回 fileContent（受控 value 会把编辑器拉回旧内容）。
+          // 下一次自动保存（击键已重置 1s 定时器）会消费新草稿。
+          set((state: StoreState) => {
+            const nextDirty = mergeDirtyEditorPaths(state.dirtyEditorPaths, targetPath, true);
+            void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
+            return {
+              dirtyEditorPaths: nextDirty,
+              ...(isSelected()
+                ? {
+                    fileLastModifiedAt: result.data.lastModifiedAt,
+                    externalFileChange:
+                      state.externalFileChange !== undefined &&
+                      normalizeWorkspaceRelativePath(state.externalFileChange.path) === norm
+                        ? undefined
+                        : state.externalFileChange,
+                  }
+                : {}),
+            };
+          });
+          return true;
+        }
+
+        // 无更新草稿：本次响应即新基线，精确删暂存（保留 savedAt 供回声窗口）。
+        dropPendingEditorText(targetWs.id, targetPath);
+        noteLocalWriteContent(key, result.data.content);
+        markSavedAt(key);
+        set((state: StoreState) => {
+          const nextDirty = state.dirtyEditorPaths.filter(
+            (p) => normalizeWorkspaceRelativePath(p) !== norm,
+          );
+          void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
+          return {
+            dirtyEditorPaths: nextDirty,
+            ...(isSelected()
+              ? {
+                  fileContent: result.data.content,
+                  fileLastModifiedAt: result.data.lastModifiedAt,
+                  fileOpenError: null,
+                  externalFileChange:
+                    state.externalFileChange !== undefined &&
+                    normalizeWorkspaceRelativePath(state.externalFileChange.path) === norm
+                      ? undefined
+                      : state.externalFileChange,
+                }
+              : {}),
+          };
+        });
+        return true;
       });
-      return true;
     },
 
     /**
@@ -876,11 +1048,11 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
 
     /**
      * [reconcileSelectedFile - 对账选中文件与磁盘]
-     * 绕过缓存重读：有未存草稿则跳过（保草稿优先，外部旗保留供写前比对）；
-     * 文件消失则清为空白内容（复用 fileOpenError 友好视图）；
-     * 内容变化则更新基线。无草稿对账成功即清外部旗——内容区已与磁盘一致，
-     * 残留旗会导致下次保存误弹冲突卡。供刷新按钮/分支切换后调用，
-     * 解决“内容区不跟手”问题。
+     * 绕过缓存重读，分两种情形：
+     * - 有未存草稿（以暂存缓冲为准，不看防抖脏标）：不覆盖编辑器，读取磁盘后
+     *   用内容比对区分自写回声 / 内容未变 / 真外部修改；只有后者立外部旗并提示。
+     * - 无草稿：正常刷新基线；文件消失则清为空白内容（复用 fileOpenError 视图）。
+     * 供刷新按钮/分支切换/watcher 批次/保存回声共用。
      */
     reconcileSelectedFile: async () => {
       const selected = get().selectedFilePath;
@@ -894,80 +1066,127 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       const targetWs =
         (get().recentWorkspaces ?? []).find((w) => w.id === selectedWsId) ?? currentWorkspace;
       const norm = normalizeWorkspaceRelativePath(selected);
-      const hasDraft = get().dirtyEditorPaths.some(
-        (p) => normalizeWorkspaceRelativePath(p) === norm,
-      );
       const key = scopedFileKey(targetWs.id, selected);
-      invalidateCachedFileDocument(key);
-      clearError(get, SCOPE);
-      const gen = nextFileGen(key);
-      const result =
-        targetWs.id === currentWorkspace.id
-          ? await window.digitalLife.workspace.readFile(selected)
-          : await window.digitalLife.workspace.readFileForWorkspace(targetWs.path, selected);
-      if (!isCurrentFileGen(key, gen)) {
-        // 对账读等待中被更新的意图超车（新保存/新打开）：旧回复丢弃。
-        return;
-      }
-      if (!result.ok) {
-        if (hasDraft) {
-          // 草稿优先：文件虽没了，但未存内容保留在编辑器中，警告一次。
-          const locale = resolveAppLanguage(get().appInfo?.config?.language);
-          const dict = locale === 'en-US' ? fileEn : fileZh;
-          get().showToast(dict.fileUnsavedKeptAfterGone, 'warning');
+      try {
+        invalidateCachedFileDocument(key);
+        clearError(get, SCOPE);
+        const gen = nextFileGen(key);
+        const result =
+          targetWs.id === currentWorkspace.id
+            ? await window.digitalLife.workspace.readFile(selected)
+            : await window.digitalLife.workspace.readFileForWorkspace(targetWs.path, selected);
+        if (!isCurrentFileGen(key, gen)) {
+          // 对账读等待中被更新的意图超车（新保存/新打开）：旧回复丢弃。
           return;
         }
-        set({
-          fileContent: undefined,
-          fileMedia: null,
-          fileMediaLoading: false,
-          fileLastModifiedAt: undefined,
-          outline: [],
-          fileOpenError: {
-            path: selected,
-            code: 'NOT_FOUND',
-            message: result.error.message,
-            workspaceId: targetWs.id,
-            workspacePath: targetWs.path,
-          },
-          // 无草稿：内容区已按磁盘置空，外部旗同步清（有草稿分支早已 return）。
-          ...(externalMatchesFlag(get, norm) ? { externalFileChange: undefined } : {}),
-        });
-        return;
-      }
-      if (hasDraft) {
-        // P4 F6：草稿优先且不污染缓存——该读仅用于"还在不在"的判断，
-        // 基线/缓存/视图一律不动。
-        return;
-      }
-      setCachedFileDocument(key, {
-        content: result.data.content,
-        lastModifiedAt: result.data.lastModifiedAt,
-      });
-      const baseline = get().fileContent ?? '';
-      if (baseline !== result.data.content) {
-        // 预览缓存键跟预览所属工作区走（与文件所属可能不同），两边都失效。
-        const previewWsId = get().selectedChangePreviewWorkspaceId;
-        if (previewWsId && previewWsId !== targetWs.id) {
-          invalidateCachedChangePreview(scopedFileKey(previewWsId, selected));
+        const selectedNow = get().selectedFilePath;
+        if (
+          selectedNow === undefined ||
+          normalizeWorkspaceRelativePath(selectedNow) !== norm ||
+          get().selectedFileWorkspaceId !== targetWs.id
+        ) {
+          // 读盘期间用户已切到别的文件/工作区：不能把旧文件正文写进新选区。
+          return;
         }
-        set({
-          fileContent: result.data.content,
-          fileLastModifiedAt: result.data.lastModifiedAt,
-          fileOpenError: null,
-          // 内容区已与磁盘一致：外部旗同步清，防下次保存误弹冲突卡。
-          ...(externalMatchesFlag(get, norm) ? { externalFileChange: undefined } : {}),
-          outline:
-            result.data.content.length > TEXT_HEAVY_PREVIEW_CHARS
-              ? []
-              : buildOutlineFromContent(result.data.content, selected),
+        // 草稿判据以模块级暂存缓冲为准（dirtyEditorPaths 是 300ms 防抖的 UI
+        // 状态，刚输入时可能尚未置位）。必须在 await 之后重取：读盘期间用户
+        // 可能刚开始输入，用旧快照会把磁盘内容写回编辑器导致回退。
+        const pending = peekPendingEditorTextByKey(key);
+        if (!result.ok) {
+          if (pending !== undefined) {
+            // 草稿优先：文件虽没了，但未存内容保留在编辑器中，警告一次。
+            const locale = resolveAppLanguage(get().appInfo?.config?.language);
+            const dict = locale === 'en-US' ? fileEn : fileZh;
+            get().showToast(dict.fileUnsavedKeptAfterGone, 'warning');
+            return;
+          }
+          set({
+            fileContent: undefined,
+            fileMedia: null,
+            fileMediaLoading: false,
+            fileLastModifiedAt: undefined,
+            outline: [],
+            fileOpenError: {
+              path: selected,
+              code: 'NOT_FOUND',
+              message: result.error.message,
+              workspaceId: targetWs.id,
+              workspacePath: targetWs.path,
+            },
+            // 无草稿：内容区已按磁盘置空，外部旗同步清（有草稿分支早已 return）。
+            ...(externalMatchesFlag(get, norm) ? { externalFileChange: undefined } : {}),
+          });
+          return;
+        }
+        if (pending !== undefined) {
+          const baseline = get().fileContent ?? '';
+          const verdict = classifyDiskContent(key, result.data.content, baseline, pending);
+          if (verdict === 'external') {
+            // 不要把外部内容写进文档缓存：否则之后保存非选中草稿时，
+            // baselineContentForTarget 会把外部内容误当成「已知基线」而放行覆盖。
+            const hadExternal = externalMatchesFlag(get, norm);
+            set({
+              externalFileChange: { path: selected, lastModifiedAt: result.data.lastModifiedAt },
+            });
+            if (!hadExternal) {
+              const locale = resolveAppLanguage(get().appInfo?.config?.language);
+              const dict = locale === 'en-US' ? fileEn : fileZh;
+              get().showToast(dict.fileExternalChangedWhileDirty, 'warning');
+            }
+            return;
+          }
+          // self-echo（自写回声）或 unchanged（磁盘仍是基线）：磁盘内容可信，
+          // 可入缓存；基线内容保持不动（草稿优先），只同步已知磁盘 mtime。
+          setCachedFileDocument(key, {
+            content: result.data.content,
+            lastModifiedAt: result.data.lastModifiedAt,
+          });
+          set((state: StoreState) => {
+            const clearExternal =
+              state.externalFileChange !== undefined &&
+              normalizeWorkspaceRelativePath(state.externalFileChange.path) === norm;
+            if (!clearExternal && state.fileLastModifiedAt === result.data.lastModifiedAt) {
+              return state;
+            }
+            return {
+              ...(clearExternal ? { externalFileChange: undefined } : {}),
+              fileLastModifiedAt: result.data.lastModifiedAt,
+            };
+          });
+          return;
+        }
+        setCachedFileDocument(key, {
+          content: result.data.content,
+          lastModifiedAt: result.data.lastModifiedAt,
         });
-        // 磁盘变了 diff 必变：清预览缓存并重拍打开中的 diff（用户预览请求在途则让路）。
-        invalidateCachedChangePreview(key);
-        await refreshOpenPreviewIfSelected(get, selected);
-      } else if (externalMatchesFlag(get, norm)) {
-        // 内容本来就一致（仅 mtime/回声类事件）：同样清旗，不碰内容区。
-        set({ externalFileChange: undefined });
+        const baseline = get().fileContent ?? '';
+        if (baseline !== result.data.content) {
+          // 预览缓存键跟预览所属工作区走（与文件所属可能不同），两边都失效。
+          const previewWsId = get().selectedChangePreviewWorkspaceId;
+          if (previewWsId && previewWsId !== targetWs.id) {
+            invalidateCachedChangePreview(scopedFileKey(previewWsId, selected));
+          }
+          set({
+            fileContent: result.data.content,
+            fileLastModifiedAt: result.data.lastModifiedAt,
+            fileOpenError: null,
+            // 内容区已与磁盘一致：外部旗同步清，防下次保存误弹冲突卡。
+            ...(externalMatchesFlag(get, norm) ? { externalFileChange: undefined } : {}),
+            outline:
+              result.data.content.length > TEXT_HEAVY_PREVIEW_CHARS
+                ? []
+                : buildOutlineFromContent(result.data.content, selected),
+          });
+          // 磁盘变了 diff 必变：清预览缓存并重拍打开中的 diff（用户预览请求在途则让路）。
+          invalidateCachedChangePreview(key);
+          await refreshOpenPreviewIfSelected(get, selected);
+        } else if (externalMatchesFlag(get, norm)) {
+          // 内容本来就一致（仅 mtime/回声类事件）：同样清旗，不碰内容区。
+          set({ externalFileChange: undefined });
+        }
+      } finally {
+        // 本次对账已消费该 path 的 watcher 信号（成功/失败/超车都算）。
+        clearExternalSignal(key);
       }
     },
 
@@ -986,11 +1205,10 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       if (!selected || !currentWorkspace) {
         return;
       }
-      const norm = normalizeWorkspaceRelativePath(selected);
-      const hasDraft = get().dirtyEditorPaths.some(
-        (p) => normalizeWorkspaceRelativePath(p) === norm,
+      const pending = peekPendingEditorTextByKey(
+        scopedFileKey(get().selectedFileWorkspaceId, selected),
       );
-      if (hasDraft) {
+      if (pending !== undefined) {
         return;
       }
       const selectedWsId = get().selectedFileWorkspaceId;
@@ -1010,6 +1228,18 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       const gen = nextFileGen(key);
       const result = await window.digitalLife.workspace.readFile(selected);
       if (!isCurrentFileGen(key, gen)) {
+        return;
+      }
+      if (
+        get().selectedFilePath !== selected ||
+        get().selectedFileWorkspaceId !== selectedWsId ||
+        get().appInfo?.currentWorkspace?.id !== currentWorkspace.id
+      ) {
+        // 读盘期间选中/工作区又变了：旧上下文的结果直接丢弃。
+        return;
+      }
+      // 读盘期间用户可能开始输入：草稿键仍跟旧工作区归属，出现草稿就放弃本次覆盖。
+      if (peekPendingEditorTextByKey(scopedFileKey(selectedWsId, selected)) !== undefined) {
         return;
       }
       if (!result.ok) {

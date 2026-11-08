@@ -47,6 +47,7 @@
 ## 工具选择（Agent）
 
 - **内容检索一律用 `grep` 工具**；禁止 PowerShell `Select-String` 与任何 `git grep`（CJK 输出乱码、PowerShell 转义会报 `fatal: unable to resolve revision`）。文件名/扩展名检索用 `glob` 工具或 `git ls-files`。
+- **外部产品对标 / 长文档调研**：优先用 `research` 技能派子代理，主上下文只收摘要、来源链接与适配结论；不要把整页官方文档直接拉入实现会话。
 - **批量修改源码/文档一律用 `edit`/`write`**；禁止 shell 内联 `-replace`/`Add-Content`/here-string/`sed`/`node -e`/`node -p` 写文件/`perl -pi`（会破坏 CJK、写入字面量 `\n`、静默失效，见 [shell-encoding.md](.agents/rules/shell-encoding.md)）。以上命令已由 `.opencode/opencode.json` 的 shell 权限拒绝（含 `writeFileSync`/`appendFileSync`/`createWriteStream`）；提交信息/参数包含这些字样时用 `git commit -F <文件>`，临时文件用 `write` 或写成脚本文件再执行。
 
 ## 磁盘空间

@@ -181,6 +181,12 @@ export function createWorkspaceActions(
      */
     renameWorkspaceFile: async (relativePath: string, newName: string, workspacePath?: string) => {
       clearError(get, SCOPE);
+      // 改名后暂存键/磁盘路径会分叉：先把草稿落到旧路径，失败则中止改名，
+      // 避免旧键草稿在改名后触发读盘失败 / 冲突卡，或内容丢失。
+      const flush = await get().saveDirtyEditors();
+      if (flush.failed > 0) {
+        return;
+      }
       const result = await window.digitalLife.workspace.renameFile(
         relativePath,
         newName,
@@ -337,6 +343,11 @@ export function createWorkspaceActions(
      */
     moveWorkspaceFile: async (relativePath: string, newPath: string, workspacePath?: string) => {
       clearError(get, SCOPE);
+      // 同 rename：移动前先 flush，避免暂存键继续指向旧路径。
+      const flush = await get().saveDirtyEditors();
+      if (flush.failed > 0) {
+        return;
+      }
       const result = await window.digitalLife.workspace.moveFile(
         relativePath,
         newPath,
