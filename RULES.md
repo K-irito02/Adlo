@@ -37,7 +37,7 @@
 | 应用方式 | 条数 | 含义 |
 |----------|------|------|
 | `alwaysApply: true` | 7 | 全局常驻，任何任务都生效 |
-| `alwaysApply: false` + `globs` | 41 | 命中指定路径时才注入，减少无关上下文 |
+| `alwaysApply: false` | 41 | 40 条按 `globs` 命中才注入，1 条按需不注入（`ui-patterns.md`，见 §6 登记） |
 
 > 条数以 `.agents/rules/` 实际文件为准；`scripts/check-agent-dirs.test.mjs` 会在 pre-commit 校验本表与目录一致。
 
@@ -83,7 +83,7 @@
 |------|------|------|------|
 | `description` | 是 | 单行字符串 | 一句话说明该规则约束什么；中英均可，优先中文 |
 | `alwaysApply` | 是 | `true` / `false` | `true` = 全局常驻；`false` = 依赖 `globs` 命中 |
-| `globs` | `alwaysApply: false` 时必填 | 逗号分隔路径模式 | 支持 `*`、`**`，相对仓库根；`alwaysApply: true` 时不写 |
+| `globs` | `alwaysApply: false` 时必填（「按需」类规则豁免，如 `ui-patterns.md`：不写 `globs` 即永不注入） | 逗号分隔路径模式 | 支持 `*`、`**`，相对仓库根；`alwaysApply: true` 时不写 |
 
 ```yaml
 ---
@@ -140,7 +140,7 @@ alwaysApply: false
 | `error-handling.md` | 错误处理与加载状态 |
 | `shell-encoding.md` | 终端中文编码、只读场景与批量替换约束 |
 
-> 其余 38 条按 `globs` 生效，清单见 §6「应用方式」列。（`commands.md` 与 `multi-dimensional-architecture-design.md` 自 2026-11-09 起改为 `adlo/**` 命中才注入。）
+> 其余 41 条为 `alwaysApply: false`：40 条按 `globs` 生效，`ui-patterns.md`（按需速查）不注入；清单见 §6「应用方式」列。（`commands.md` 与 `multi-dimensional-architecture-design.md` 自 2026-11-09 起改为 `adlo/**` 命中才注入。）
 > `ui-patterns.md`（944 行速查表）自 2026-10-31 起改为**按需查阅**，入口见 `docs/design-system/README.md`。
 
 ---
@@ -188,7 +188,7 @@ alwaysApply: false
 | `rust-crate-lib-barrel-export-pattern.md` | `crates/*/src/lib.rs` | lib.rs 公共 API 桶导出（模块声明 + 集中 `pub use`） |
 | `rust-inline-cfg-test-pattern.md` | `crates/**`、`src-tauri/**` | 单元测试内联在源文件末尾，不建独立 `tests/` |
 | `rust-use-statement-ordering-convention.md` | `crates/**`、`src-tauri/**` | `use` 三段式排序：std → 外部 crate → `adl_*` |
-| `rust-server-handler-recipe-pattern.md` | `crates/server/**` | ad-server HTTP handler 统一四步配方与阻塞隔离 |
+| `rust-server-handler-recipe-pattern.md` | `crates/server/**` | adl-server HTTP handler 统一四步配方与阻塞隔离 |
 | `serde-default-rename-all-convention.md` | `crates/**/types/**` | 跨 IPC 类型必须同时 `#[serde(default)]` 与 `#[serde(rename_all)]` |
 | `tagged-enum-camelcase-serde-pattern.md` | `crates/types/**` | 共享类型 `rename_all = "camelCase"` + `tag = "type"` 序列化 |
 
@@ -201,7 +201,7 @@ alwaysApply: false
 | `tauri-command-ipc-wrapper-pattern.md` | `src-tauri/**` | 命令统一走 `ipc()` / `ipc_try()` 包装器 |
 | `tauri-event-subscription-lifecycle-pattern.md` | `tauri-bridge/**`、`app/**`、`shared/**` | 事件订阅生命周期：异步 unlisten 幂等清理、竞态守卫 |
 | `ts-rs-type-generation-barrel-import.md` | `crates/**`、`frontend/src/kernel/**` | ts-rs 自动生成 TS 类型 + kernel 桶导入 |
-| `bridge-three-implementation-pattern.md` | `ipc/**`、各 bridge、`mock/**` | Bridge 三实现（Tauri / Preview / Mock）行为对齐 |
+| `bridge-four-implementation-pattern.md` | `ipc/**`、各 bridge、`mock/**`、`httpBridge.ts` | Bridge 四端（Tauri / Preview / HTTP / Mock）行为对齐 |
 | `cross-language-constant-contract.md` | 前后端常量文件 | 跨语言常量契约：两侧钉值测试 + 交叉引用注释 |
 
 ### 6.6 前端架构与状态（7）
@@ -267,7 +267,7 @@ alwaysApply: false
 | Tauri Command 新增或边界变化 | `tauri-shell.md`、`rust-command-domain-action-naming.md` |
 | IPC 包装模式变化 | `tauri-command-ipc-wrapper-pattern.md` |
 | 事件订阅生命周期变化 | `tauri-event-subscription-lifecycle-pattern.md` |
-| Bridge 三实现架构变化 | `bridge-three-implementation-pattern.md` |
+| Bridge 四端桥接架构变化 | `bridge-four-implementation-pattern.md` |
 | 共享类型 / serde 序列化变化 | `tagged-enum-camelcase-serde-pattern.md`、`serde-default-rename-all-convention.md` |
 | 类型生成与桶导入变化 | `ts-rs-type-generation-barrel-import.md` |
 | 跨语言共享常量变化 | `cross-language-constant-contract.md` |

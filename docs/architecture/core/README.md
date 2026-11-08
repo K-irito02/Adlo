@@ -6,3 +6,4 @@ Adlo 项目的核心架构文档 — 系统全景与技术栈对齐。
 
 - [system-overview.md](./system-overview.md) — 系统概述（Rust + Tauri 桌面宿主 + dsh harness 集成）
 - [tech-stack-alignment.md](./tech-stack-alignment.md) — 技术栈对齐（Rust + Tauri 2.x 选型理由与旧 Electron 栈对照）
+- [storage-locations.md](./storage-locations.md) — 存储路径解析与存储设置组实现参考（locator / Plan B 迁移 / Plan C 分组）

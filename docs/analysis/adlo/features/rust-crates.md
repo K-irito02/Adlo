@@ -1,4 +1,4 @@
-# Rust Crates (22 个)
+# Rust Crates (22 个 member crates + 1 个 vendored 补丁目录)
 
 > 路径前缀: `adlo/crates/`
 > 内部依赖统一 `adl-` 前缀命名（如 `adl-errors`、`adl-kernel`、`adl-types`，见 `.agents/rules/rust-crate-adl-prefix-convention.md`）。
@@ -9,7 +9,7 @@
 | 项目 | 值 |
 |------|-----|
 | 路径 | `crates/types/` |
-| 用途 | 纯类型定义（无运行时依赖）：共享领域类型 + `doom_loop` + `permission_types` |
+| 用途 | 纯类型定义（无运行时依赖）：共享领域类型 + `doom_loop` + `types/` 子模块（`session`/`config`/`commands` 等） |
 | 依赖 | serde、serde_json、uuid、chrono、ts-rs、adl-errors、adl-logging |
 
 ## 2. kernel（运行时）
@@ -17,7 +17,7 @@
 | 项目 | 值 |
 |------|-----|
 | 路径 | `crates/kernel/` |
-| 用途 | 运行时模块：`app_info`、`config`（`DEFAULT_LANGUAGE="system"`，OS 跟随）、`config_watcher`、`events`、`storage`（`StoragePaths` 统一路径解析）、`types` |
+| 用途 | 运行时模块：`app_info`、`config`（`DEFAULT_LANGUAGE="system"`，OS 跟随）、`config_watcher`、`events`、`storage`（`StoragePaths` 统一路径解析） |
 | 依赖 | adl-errors、adl-types、serde、serde_json、ts-rs、uuid、chrono、tokio、tracing、notify |
 
 ## 3. errors（错误枚举）
@@ -148,30 +148,40 @@
 | 项目 | 值 |
 |------|-----|
 | 路径 | `crates/webapp-host/` |
-| 用途 | 第三方 harness（deepseek dsh）进程拉起与托管 |
+| 用途 | 第三方 harness（DSH 与 OpenCode CLI）进程拉起与托管 |
 
-## 18. dsh-bundle（内置 dsh 包收编）
-
-| 项目 | 值 |
-|------|-----|
-| 路径 | `crates/dsh-bundle/` |
-| 用途 | 安装器投放的一次性预置包（`manifest.json` + `package/`）；服务启动时 `adopt()` 把它搬成 `dsh-versions/installed/<v>/` 下的一条普通已装版本并删除本目录，不留副本 |
-
-## 19. dsh-version（dsh 版本管理）
+## 18. harness-version（harness 版本管理）
 
 | 项目 | 值 |
 |------|-----|
-| 路径 | `crates/dsh-version/` |
-| 用途 | 已安装版本列表/切换/npm 仓库查询/智能源选择（已运行 > 宿主安装 > 系统安装 > 下载）；安装包不预置版本，所有版本均为普通宿主版本，无独立来源分支 |
+| 路径 | `crates/harness-version/` |
+| 用途 | 宿主版本目录管理（`<root>/installed/<v>/` + `selected.txt`）：已装版本枚举/查询最新/回退/卸载/升级/重装；npm registry 目录查询（正式版/预发布分桶，镜像优先，DSH 与 OpenCode 多包线合并）；真安装引擎（`install.rs`）/任务进度与取消（`task.rs`）；系统 PATH 探测（`where` → `--version` → semver 解析）；安装包不预置版本，所有版本均为普通宿主版本 |
 
-## 20. download-source（下载源）
+**模块:** `install.rs`（真安装引擎）、`install_opencode.rs`（OpenCode 安装/多包线）、`spec.rs`（harness 描述符/包线/marker 定义）
+
+## 19. adl-env（环境依赖源模型）
+
+| 项目 | 值 |
+|------|-----|
+| 路径 | `crates/adl-env/` |
+| 用途 | 六依赖 provider 检测与宿主安装/卸载（node/git/bash/webview2/adlserver/netprobe）；来源偏好（`env-sources.json`）与基线（`env-baseline.json` 资源）；纯函数 `resolve()` 解析实际来源（auto 宿主优先，强制来源不静默降级） |
+
+## 20. adl-hosted（宿主版本/进程原语）
+
+| 项目 | 值 |
+|------|-----|
+| 路径 | `crates/adl-hosted/` |
+| 用途 | 通用托管安装层：版本目录布局 + 原子换装（残留备份告警）、adopt 既有安装、安装锁；子进程宿主（参数脱敏）+ 可轮询进度任务 |
+| 入口 | `HostedVersions`、`swap_into_place`、`InstallLock`、`spawn_with_marker`/`HostedProcess`、`ProgressTask`/`ProgressSnapshot`/`ProgressPhase` |
+
+## 21. download-source（下载源）
 
 | 项目 | 值 |
 |------|-----|
 | 路径 | `crates/download-source/` |
 | 用途 | npm 仓库地址/镜像源/代理配置 |
 
-## 21. browser（WebView 生命周期管理）
+## 22. browser（WebView 生命周期管理）
 
 | 项目 | 值 |
 |------|-----|
@@ -201,7 +211,7 @@
 
 **依赖:** `adl-errors`, `adl-kernel`, `serde_json`, `tokio`
 
-## 22. tauri-runtime-wry-patched（运行时补丁）
+## 23. tauri-runtime-wry-patched（运行时补丁，非 workspace member）
 
 | 项目 | 值 |
 |------|-----|

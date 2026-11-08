@@ -1,6 +1,6 @@
 # Zustand 状态管理模式（索引）
 
-> **体裁变更**：本文件原为实现快照，现已精简为索引。规范性约束以 `.agents/rules/` 为准；当前准确计数（32 切片 + 18 action 模块）见 `adlo/AGENTS.md`。
+> **体裁变更**：本文件原为实现快照，现已精简为索引。规范性约束以 `.agents/rules/` 为准；准确计数以 `slicedStore.ts` / `actions/` 实测为准（`adlo/AGENTS.md` 不复制计数）。
 > 源码路径：`adlo/frontend/src/app/stores/`
 
 ## 阅读地图

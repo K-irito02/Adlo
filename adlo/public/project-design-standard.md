@@ -2,7 +2,7 @@
 
 > **版本**：v3.0
 >
-> **说明**：v3.0 剥离已失效的自研 Agent 体系表述——Agent 对话、模型接入与编排交由第三方 harness（当前为 deepseek dsh）提供，本仓库仅做宿主集成；取消分阶段规划，当前实现即完整形态（桌面应用宿主 + 第三方 harness 集成）。自研 Agent 相关决策（02/03/04/05/06/08/09/11）标退役存档，仅保留决策记录；现行决策改写对齐宿主现状。本文件为项目架构真源之一，重大修改需同步评审。
+> **说明**：v3.1 对齐现状——Agent 对话、模型接入与编排交由第三方 harness（当前为 DSH 与 OpenCode CLI）提供，本仓库仅做宿主集成；安装包不预置任何 harness（按需下载，决策见 ADR-0004）。自研 Agent 相关决策（02/03/04/05/06/08/09/11）标退役存档，仅保留决策记录；现行决策改写对齐宿主现状。本文件为项目架构真源之一，重大修改需同步评审。
 >
 > **生成/升版时间**：2026-09-17
 >
@@ -30,21 +30,21 @@
 
 **选择**：分层宿主 + 第三方 harness 集成
 
-主体采用分层架构保证清晰可控：UI → Bridge → Backend 命令 → Domain crates → 存储，层间单向依赖。Agent 对话、模型接入与编排不由本仓库实现，宿主通过第三方 harness 集成提供 Agent 能力（当前为 deepseek dsh：`crates/webapp-host` 进程托管、`dsh-bundle` / `dsh-version` 版本管理、`download-source` 下载源/镜像、中心宿主渲染）。
+主体采用分层架构保证清晰可控：UI → Bridge → Backend 命令 → Domain crates → 存储，层间单向依赖。Agent 对话、模型接入与编排不由本仓库实现，宿主通过第三方 harness 集成提供 Agent 能力（当前为 DSH 与 OpenCode CLI：`crates/webapp-host` 进程托管、`crates/harness-version` 版本管理、`download-source` 下载源/镜像、中心宿主渲染）。
 
 | 分层宿主 | harness 集成 |
 |----------|--------------|
 | 层间单向依赖，结构清晰 | Agent 能力由外部 harness 提供 |
 | 上手快，调试方便 | 本仓库仅负责进程托管与宿主渲染 |
-| 双端一致（三桥接对齐） | 换 harness 不改宿主主体 |
+| 双端一致（四端桥接对齐） | 换 harness 不改宿主主体 |
 
-**为什么这样选**：分层保证宿主清晰可控、双端行为一致；Agent 体系自研成本高且与宿主正交，交由专业第三方 harness（deepseek dsh）提供，宿主只保留集成面（拉起、版本、渲染），避免"大泥球"。
+**为什么这样选**：分层保证宿主清晰可控、双端行为一致；Agent 体系自研成本高且与宿主正交，交由专业第三方 harness（DSH 与 OpenCode CLI）提供，宿主只保留集成面（拉起、版本、渲染），避免"大泥球"。
 
 ---
 
 ### 决策 02 · Agent 设计（⛔ 已退役·存档）
 
-> **退役原因**：自研 Agent 体系已随 dsh 剥离删除（状态持有 + 事件订阅式 Agent 不再由本仓库实现）。Agent 对话与编排能力由第三方 harness（当前为 deepseek dsh）提供，本仓库仅做宿主集成。以下为历史决策记录，不作为实现依据。
+> **退役原因**：自研 Agent 体系已随 dsh 剥离删除（状态持有 + 事件订阅式 Agent 不再由本仓库实现）。Agent 对话与编排能力由第三方 harness（当前为 DSH 与 OpenCode CLI）提供，本仓库仅做宿主集成。以下为历史决策记录，不作为实现依据。
 
 原选择（历史）：状态持有 + 事件订阅——Agent 持有 state（messages + 上下文），通过 `subscribe()` 对外通知，状态由事件驱动更新。
 
@@ -86,7 +86,7 @@
 
 **选择**：SQLite + 文件 + storage-locator 统一解析
 
-所有应用数据路径由 `adl-kernel::storage` 的 `StoragePaths` 统一解析，locator 文件记录指针；SQLite（rusqlite）存结构化状态（工作区、补丁快照索引、站点元数据、剪贴板等），文件存大体量内容（日志、dsh bundle）。路径变更走启动期迁移（复制 → 校验 → 切换指针 → 清理旧源），不做运行中热迁移。
+所有应用数据路径由 `adl-kernel::storage` 的 `StoragePaths` 统一解析，locator 文件记录指针；SQLite（rusqlite）存结构化状态（工作区、补丁快照索引、站点元数据、剪贴板等），文件存大体量内容（日志、harness 安装包）。路径变更走启动期迁移（复制 → 校验 → 切换指针 → 清理旧源），不做运行中热迁移。
 
 | 存储 | 恢复 |
 |------|------|
@@ -122,7 +122,7 @@
 
 充足留白、卡片化布局、流畅动画过渡，视觉层次清晰，强调品牌感和体验愉悦感。
 
-> ✅ **已落地**：CSS 设计 Token（亮暗主题）+ 自定义 Tooltip/滚动条 + i18n（22 领域）。
+> ✅ **已落地**：CSS 设计 Token（亮暗主题）+ 自定义 Tooltip/滚动条 + i18n（25 领域）。
 
 | 视觉原则 | 交互原则 |
 |----------|----------|
@@ -241,7 +241,7 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 宿主 = 工作区管理 + 交互式终端 + 编辑器/预览/差异 + 内置浏览器 + 存储治理 + 系统能力
 
 // Agent 能力（决定智能上限，由外部提供）
-智能层 = 第三方 harness（当前为 deepseek dsh：进程托管 + 版本管理 + 宿主渲染）
+智能层 = 第三方 harness（当前为 DSH 与 OpenCode CLI：进程托管 + 版本管理 + 宿主渲染）
 
 // 双端与质量（决定体验下限）
 体验层 = Tauri/浏览器双端行为一致 + 设计 Token + i18n + 双端结构化错误
@@ -258,7 +258,7 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 
 ### 👨‍💻 专业视角
 
-采用分层宿主架构。严格遵循层间单向依赖原则：**UI → Bridge → Backend Commands → Storage**。前端经三桥接（tauri-bridge / preview-bridge / mock-bridge）调用统一 IPC，经 `#[tauri::command]`（桌面）或 HTTP（浏览器预览）到达 Rust domain crates。第三方 harness（deepseek dsh）为外部进程：`webapp-host` 负责拉起与健康检查，`dsh-bundle` / `dsh-version` 管版本，中心负责渲染（Tauri 独立 WebView2 子窗口 / 浏览器 iframe）。关键契约（IPC 接口、共享类型）使用 TypeScript 类型作为单一真源（Rust→TS 自动生成）。
+采用分层宿主架构。严格遵循层间单向依赖原则：**UI → Bridge → Backend Commands → Storage**。前端经四端桥接（tauri-bridge / preview-bridge / httpBridge / mock-bridge）调用统一 IPC，到达 Rust domain crates 或 adl-server（HTTP 路由，与 Tauri 壳共用领域逻辑）。第三方 harness（DSH 与 OpenCode CLI）为外部进程：`webapp-host` 负责拉起与健康检查，`harness-version` 管版本，中心负责渲染（Tauri 独立 WebView2 子窗口 / 浏览器 iframe）。关键契约（IPC 接口、共享类型）使用 TypeScript 类型作为单一真源（Rust→TS 自动生成）。
 
 ### 🧑 通俗视角
 
@@ -277,30 +277,30 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 > ⬇️ 依赖方向：上层依赖下层，下层不得依赖上层
 
 **🎨 UI 表现层**
-`React 组件` `设计系统 Token` `工作区/终端/编辑器/浏览器面板` `设置（含存储组/dsh 设置）` `i18n`
+`React 组件` `设计系统 Token` `工作区/终端/编辑器/浏览器面板` `设置（含存储组/harness 设置）` `i18n`
 
 **🌉 桥接层**
-`Tauri Bridge (桌面)` `Preview Bridge (浏览器)` `Mock Bridge (测试)` `IPC 契约统一`
+`Tauri Bridge (桌面)` `Preview Bridge (浏览器预览，http 优先可回退)` `HTTP Bridge (httpBridge，ad-server 基底)` `Mock Bridge (测试)` `IPC 契约统一`
 
 **⚙️ 后端命令层**
-`Tauri Commands / HTTP handlers` `Domain Crates（workspace/command/pty/browser/clipboard/credential/storage…）` `结构化错误 (AppError)` `capabilities 白名单`
+`Tauri Commands / HTTP handlers` `Domain Crates（workspace/pty/browser/clipboard/credential/storage/change-engine…）` `结构化错误 (AppError)` `capabilities 白名单`
 
 **💾 存储层**
-`SQLite 状态（工作区/补丁快照索引/站点元数据/剪贴板…）` `文件（日志/dsh bundle）` `storage-locator 指针` `启动期迁移`
+`SQLite 状态（工作区/补丁快照索引/站点元数据/剪贴板…）` `文件（日志/harness 安装包）` `storage-locator 指针` `启动期迁移`
 
 **🤖 外部 harness（非层内，宿主集成）**
-`webapp-host 拉起 + 健康检查` `dsh-bundle 内嵌版本` `dsh-version 系统版本检测/升级回退` `download-source 下载源/镜像` `中心宿主渲染`
+`webapp-host 拉起 + 健康检查` `harness-version 版本管理（DSH + OpenCode）` `adl-hosted 原子换装/进度任务` `download-source 下载源/镜像` `中心宿主渲染`
 
 ### 🔌 宿主集成点（harness 相关）
 
 **🧩 进程托管**
 
-- `webapp-host` 拉起 dsh 进程，就绪探测 + 失败重试 + `.cmd` 回退（Windows）
+- `webapp-host` 拉起 harness 进程，就绪探测 + 失败重试 + `.cmd` 回退（Windows）
 - Tauri 独立 WebView2 子窗口承载，`browser_set_bounds` 跟随布局
 
 **📦 版本管理**
 
-- 内嵌版本（`dsh-bundle`：manifest + package 校验）与系统版本（PATH 检测）双源
+- 安装包不预置任何 harness（ADR-0004）：首启 harness 向导按需下载；系统版本（PATH 检测）与宿主版本（`harness-version`）双源
 - 查最新 / 升级 / 回退 / 卸载（npm registry + 可配镜像）
 
 **🖥️ 宿主渲染**
@@ -324,7 +324,7 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 
 - locator 是"新家地址卡"，所有东西按卡上的地址放
 - SQLite 是档案柜：工作区清单、补丁快照索引、网站元数据、剪贴板各就各位
-- 文件是仓库：日志、dsh 安装包放架子上
+- 文件是仓库：日志、harness 安装包放架子上
 - 搬家（迁移）只在开门前进行：先复印、再验货、再换地址卡，最后清理旧家；验货失败就不换卡，旧家东西完好
 
 ### 📦 存储布局
@@ -337,14 +337,14 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 ├── config              # 应用配置
 ├── clipboard           # 剪贴板历史
 ├── snapshot            # 补丁快照（原硬编码路径已收敛至此）
-├── dsh/                # dsh 相关
-│   ├── dsh-bundle/     # 内嵌版本（manifest.json + package/ + version.txt）
-│   └── …               # 版本管理数据
+├── harnesses/            # harness 版本目录
+│   ├── dsh/              # DSH（versions/installed/<v>/ + selected.txt）
+│   └── opencode/         # OpenCode（versions/ 多包线，同构布局）
 ├── logs/               # 日志（debug 构建另写仓库根 .adl-logs）
 └── credentials_fallback# keyring 不可用时的加密文件降级
 ```
 
-- 可迁移 9 分类（顺序与 `StorageCategory::key()` 一致）：`database`、`downloads_db`、`site_meta_db`、`config`、`clipboard`、`snapshot`、`dsh`、`logs`、`credentials_fallback`；另有 1 设置值路径（`downloads_default`，仅记录不迁移）与不可移动项（keyring、机器身份、localStorage、IndexedDB、WebView2、工作区缓存）
+- 可迁移 10 条（顺序与 `StorageCategory::key()` 一致）：`database`、`downloads_db`、`site_meta_db`、`tree_cache`、`config`、`clipboard`、`snapshot`、`harnesses`、`logs`、`credentials_fallback`；另有 1 设置值路径（`downloads_default`，仅记录不迁移）与不可移动项（keyring、机器身份、localStorage、IndexedDB、WebView2、工作区缓存）
 - 迁移语义：按分类复制 → 校验（尺寸 + SQLite `PRAGMA quick_check`）→ 切换 locator 指针并落盘 → 清理旧源（base-aware 白名单，外部文件永不删除）；失败不切换指针、不删源、不自动重试
 - 终端：一个终端标签可容纳多个窗格（各自独立 PTY 会话）；窗格为内存会话，不产生历史归档文件，应用重启后按标签恢复窗格结构/布局并逐窗格新建 shell
 
@@ -354,14 +354,14 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 
 > 宿主 + 外部 harness 形态下的主要风险。原 Agent 体系风险（事件树/压缩/钩子/Provider token）已随退役失效，不再列出。
 
-### 风险 01 · dsh 宿主进程托管可靠性
+### 风险 01 · harness 宿主进程托管可靠性
 
-dsh 为外部进程：拉起失败、端口占用、版本不匹配、进程意外退出都会让中心无内容可渲染。
+harness 为外部进程：拉起失败、端口占用、版本不匹配、进程意外退出都会让中心无内容可渲染。
 
 **✅ 应对策略**
 
 1. `webapp-host` 拉起后做就绪探测，失败重试；Windows 下先直调、失败回退 `.cmd`
-2. 系统 dsh 与内嵌 bundle 双源：优先可用源，检测经缓存避免重复探测
+2. 系统 harness（PATH 检测）与宿主安装（harness-version）双源：优先可用源，检测经缓存避免重复探测
 3. 版本管理支持查最新 / 升级 / 回退 / 卸载，升级失败保留旧版可用
 4. 浏览器模式 iframe 加载被拒（X-Frame-Options / CSP）时退化为"外部打开"按钮
 
@@ -418,7 +418,7 @@ WebView 若绕过 Tauri Command 直接触达系统能力，或 capabilities 使�
 
 ### ✅ 已实现（完整形态）
 
-- ✅ Tauri 桌面壳 + SQLite 状态 + 安全边界（capability 白名单）+ 双端一致（三桥接）
+- ✅ Tauri 桌面壳 + SQLite 状态 + 安全边界（capability 白名单）+ 双端一致（四端桥接）
 - ✅ 工作区管理、文件树、大纲解析、搜索、Git 可视化、补丁预览/应用/回滚、快照
 - ✅ xterm.js 交互式终端（多会话 PTY）+ 一个终端标签多终端窗口（独立 PTY、均分/自由布局引擎、自定义布局卡片）
 - ✅ CodeMirror 编辑器 + 文件预览 + 差异查看器
@@ -426,7 +426,7 @@ WebView 若绕过 Tauri Command 直接触达系统能力，或 capabilities 使�
 - ✅ 第三方 harness 宿主集成（进程托管、内嵌与系统版本管理、下载源/镜像、宿主渲染）
 - ✅ 存储治理（统一路径解析 + 启动期迁移 + 设置面板存储组）
 - ✅ 系统能力（剪贴板历史、系统监视器、CI 状态、GitHub 面板、凭据存储）
-- ✅ 设计 Token + 自定义 Tooltip/滚动条 + i18n（22 领域）
+- ✅ 设计 Token + 自定义 Tooltip/滚动条 + i18n（25 领域）
 
 ### ⛔ 本仓库不实现（由第三方 harness 或未立项）
 

@@ -48,8 +48,8 @@
 │  adl-hosted（版本托管/原子换装/进度任务）  │
 ├──────────────────────────────────────────┤
 │  dsh 宿主集成层（第三方 harness 由 dsh 提供）│
-│  webapp-host │ dsh-bundle │ dsh-version   │
-│  download-source                          │
+│  webapp-host │ harness-version               │
+│  download-source                              │
 ├──────────────────────────────────────────┤
 │  Tauri 壳 (src-tauri)                     │
 │  ├─ main.rs / lib.rs / setup.rs / state.rs│
@@ -82,7 +82,7 @@ App.tsx (根组件，TCopyProvider 注入)
 ## Zustand Store 切片依赖
 
 ```
-slicedStore.ts (合并入口，32 切片)
+slicedStore.ts (合并入口，切片数以本文件实测为准)
 ├── 核心切片 (基础数据)
 │   ├── uiSlice              # UI 状态（侧边栏/面板显隐/宽度）
 │   ├── workspaceSlice       # 工作区树
@@ -149,7 +149,7 @@ EnvironmentSettings / EnvWizard（features/environment、features/network）
 
 `EnvStatus` 返回六依赖状态 + 进行中任务快照（`task`）+ 数据根（`dataDir`）+ `dshReady`（= node 达标）；安装/卸载进度由前端 3s 轮询 `GET /env/status` 读取，响应有 2s TTL 且活动任务期间不触网。
 
-## IPC 三桥接契约
+## IPC 四端桥接契约
 
 ```
 shared/ipc/*.ts (接口定义)
@@ -157,8 +157,9 @@ shared/ipc/*.ts (接口定义)
   ├── `IpcResult<T>` 统一返回类型
   └── `AppError` 错误传播
 
-tauri-bridge.ts        # 真实实现：wrapper 调用 window.__TAURI__?.invoke()
-preview-bridge/        # 浏览器实现：HTTP 请求 → adl-server 真实后端（http 优先，可回退）
+tauri-bridge.ts        # Tauri 实现：wrapper 调用 window.__TAURI__?.invoke()（业务域经 ...http 继承）
+preview-bridge/        # 浏览器实现：spread http + 显式 override（http 优先，可回退 mock）
+httpBridge.ts          # HTTP 实现：fetch → adl-server 真实后端（业务域 1:1 映射 /）
 mock-bridge.ts         # 测试实现：纯内存对象，直接返回 mock 数据（+ mock/ 按域模块）
 ```
 
@@ -167,10 +168,10 @@ mock-bridge.ts         # 测试实现：纯内存对象，直接返回 mock 数�
 | 模式 | 描述 | 代码位置 |
 |------|------|----------|
 | **Zustand 切片合并** | 功能拆分为独立切片，通过 `slicedStore.ts` 合并 | `stores/slicedStore.ts` |
-| **IPC 三桥接** | 同一接口定义，tauri/preview/mock 三实现 | `shared/ipc/` |
+| **IPC 四端桥接** | 同一接口定义，tauri/preview/http/mock 四实现 | `shared/ipc/` |
 | **Action 模式** | 每个 mutation action 入口 clearError，结尾 catchError | `stores/cacheHelpers.ts` |
 | **AppError 统一错误** | Rust 端 AppError → IpcResult → 前端 typedErrors | `errors/src/` ←→ `shared/typedErrors.ts` |
-| **i18n 全覆盖** | useTCopy() hook + 22 域 x 2 语言 | `i18n/` |
+| **i18n 全覆盖** | useTCopy() hook + 25 域 x 2 语言 | `i18n/` |
 | **设计 Token 驱动** | tokens.ts → theme.ts → CSS Variables | `design-system/` |
 | **isFetching 模式** | Store 层 Record<string, boolean> 独立跟踪异步加载 | `StoreState.ts` |
 | **命令注册表** | 前端命令通过 defaultCommands.ts 统一注册/路由 | `commands/defaultCommands.ts` |

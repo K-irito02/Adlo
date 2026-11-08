@@ -20,7 +20,7 @@
 
 ## 项目形态
 
-当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入与编排由接入的外部 harness 提供，本仓只负责宿主集成（进程托管、版本管理、宿主渲染）。
+当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**（DSH 与 OpenCode CLI），详见根 [AGENTS.md#项目形态](../AGENTS.md#项目形态)。实现侧只保留差异：Agent 对话、模型接入与编排由接入的外部 harness 提供，本仓负责宿主集成（进程托管、版本管理、宿主渲染）。
 
 - 能力清单与实现落点：[system-overview.md](../docs/architecture/core/system-overview.md#已实现能力清单详细)（AGENTS 不复制清单，只保留边界与约束）。
 - 架构概念与文件落点：[CONTEXT.md](../CONTEXT.md)；并行/运行/调试：技能 [parallel-branch-development](../.agents/skills/parallel-branch-development/SKILL.md)（唯一真源）。
@@ -61,7 +61,7 @@ pnpm run e2e         # 必须经 e2e/run-e2e.mjs 包装器
 | ------- | ----------------------------------------------------------------------------------------------- |
 | 颜色    | 必须使用 CSS 自定义属性 `var(--…)`                                                              |
 | 图标    | SVG 格式，继承 `currentColor`，禁止 emoji。动画反馈场景可例外使用 `lucide-animated`（MIT 许可） |
-| Tooltip | 统一使用自定义 Tooltip 组件；原生 `title` 仅用于无交互的补充说明                                |
+| Tooltip | 自定义 Tooltip 组件与原生 `title` 均可使用，具体方案开发时由用户决策（见 [.agents/rules/design-system.md](../.agents/rules/design-system.md) 与 ui-patterns.md §9）                |
 | 窗口    | 最小宽度 640px                                                                                  |
 
 CSS 选择器/层叠/布局/主题变更：按 [desktop-ui-verification.md](../.agents/rules/desktop-ui-verification.md) 用 `ui-probe.mjs` 读取计算样式（亮暗两套）；主观 UI/UX 验收仍由用户完成。详见 [docs/design-system/](../docs/design-system/)。

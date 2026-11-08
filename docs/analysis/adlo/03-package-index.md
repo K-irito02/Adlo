@@ -1,16 +1,16 @@
 # Adlo 包索引
 
 > 每个 crate/包/目录的职责、关键文件、依赖。
-> 快照数字以源码为准（本页数字已按实测 24 crate / 13 命令文件 / 26 功能域 / 32 切片 / 25 IPC 文件核对）;
+> 快照数字以源码为准（本页实测：22 个 member crate（不含 src-tauri）/ 13 命令文件 / 30 功能域 / 29 切片 / IPC 域数以 `shared/ipc/` 实测为准）;
 > 规范约束见 `.agents/rules/`。
 
-## Rust 后端 Crates（24 个）
+## Rust 后端 Crates（22 个 member crates；另 `crates/tauri-runtime-wry-patched/` 为 vendored 补丁目录，不属于 workspace members）
 
 ### 基础设施层
 
 #### `kernel` — 共享内核
 - **路径**：`crates/kernel/src/`
-- **职责**：共享内核（app_info/config/events/storage/types 子模块；`storage::StoragePaths` 统一解析全部应用数据路径）
+- **职责**：共享内核（app_info/config/config_watcher/events/storage 子模块；`storage::StoragePaths` 统一解析全部应用数据路径）
 - **依赖**：`serde`, `serde_json`, `thiserror`
 
 #### `types` — 共享类型
@@ -104,15 +104,11 @@
 
 #### `webapp-host` — dsh 进程托管
 - **路径**：`crates/webapp-host/src/`
-- **职责**：第三方 harness（deepseek dsh）进程拉起与托管
+- **职责**：第三方 harness（DSH 与 OpenCode CLI）进程拉起与托管
 
-#### `dsh-bundle` — 内置 dsh 包
-- **路径**：`crates/dsh-bundle/src/`
-- **职责**：内置 dsh 预安装包（manifest + package 目录）
-
-#### `dsh-version` — dsh 版本管理
-- **路径**：`crates/dsh-version/src/`
-- **职责**：已安装版本列表/切换/npm 仓库查询/智能源选择/真安装引擎（`install.rs`）/任务进度与取消（`task.rs`）
+#### `harness-version` — harness 版本管理（宿主版本目录：已装/最新/回退/升级/重装）
+- **路径**：`crates/harness-version/src/`
+- **职责**：宿主版本目录管理（`installed/<v>/` + `selected.txt`）：已装版本枚举/查询最新/回退/卸载/升级/重装；npm registry 目录查询（正式版/预发布分桶，镜像优先，DSH 与 OpenCode 多包线合并）；真安装引擎（`install.rs`）/任务进度与取消（`task.rs`）；系统 PATH 探测
 
 #### `download-source` — 下载源
 - **路径**：`crates/download-source/src/`
@@ -126,7 +122,7 @@
 - **路径**：`crates/tauri-runtime-wry-patched/`
 - **职责**：Tauri 运行时补丁（wry 相关）
 
-> Agent 对话、模型接入与编排由第三方 harness（deepseek dsh）提供，本仓库不设 agent-runtime/model-gateway/mcp-client/lsp-client 等 crate。
+> Agent 对话、模型接入与编排由第三方 harness（DSH 与 OpenCode CLI）提供，本仓库不设 agent-runtime/model-gateway/mcp-client/lsp-client 等 crate。
 
 ## Tauri 入口（src-tauri，13 个命令文件）
 
@@ -148,11 +144,13 @@
 
 ## 前端包
 
-### Features（26 功能域）
+### Features（30 功能域）
 
 | 功能域 | 目录 |
 |--------|------|
+| 关于 | `features/about/`（关于页：AboutSettings / 开源致谢 creditsData） |
 | 内置浏览器 | `features/browser/` |
+| 书签 | `features/bookmarks/`（书签导入/导出、传输对话框） |
 | 浏览器设置 | `features/browser-settings/` |
 | 浏览器树 | `features/browser-tree/` |
 | 中心宿主 | `features/center/`（CenterEntryPage：dsh/浏览器/终端三入口） |
@@ -162,6 +160,8 @@
 | dsh 宿主 | `features/dsh/` |
 | 编辑器 | `features/editor/`（CodeMirror + FoldTooltipOverlay） |
 | 环境依赖 | `features/environment/`（7 依赖行 + 聚合条 + 首启向导 + `runbooks/` 6 份手册） |
+| harness 集成 | `features/harness/`（harness 版本卡：harnessVersionBridge、HarnessVersionCard 等） |
+| opencode 集成 | `features/opencode/`（opencode 版本设置：OpencodeSettings / opencodeVersionBridge） |
 | 网络设置 | `features/network/`（源/代理/测试连接，自 DSH 搬迁） |
 | 文件树 | `features/file-tree/` |
 | Git 可视化 | `features/git-visualization/` |
@@ -179,7 +179,7 @@
 | 工作区设置 | `features/workspace-settings/` |
 | 工作区终端 | `features/workspace-terminal/` |
 
-### Zustand Store（slicedStore.ts 实测 32 切片，AGENTS.md 已同步）
+### Zustand Store（slicedStore.ts 实测 29 切片；action 模块 18 个）
 
 | 切片 | 文件 |
 |------|------|
@@ -196,6 +196,8 @@
 | `browserFoldersSlice` 系列 | `slices/browserFoldersSlice.ts`（+ browserFoldersDeletion/Types/Utils） |
 | `centerTabsSlice` 系列 | `slices/centerTabsSlice.ts`（+ centerTabsTypes/tabLocation） |
 | `dshSlice` | `slices/dshSlice.ts` |
+| `envSlice` | `slices/envSlice.ts` |
+| `bookmarkTransferSlice` | `slices/bookmarkTransferSlice.ts` |
 | `referenceSlice` | `slices/referenceSlice.ts` |
 | `systemMonitorSlice` | `slices/systemMonitorSlice.ts` |
 | `notificationSlice` | `slices/notificationSlice.ts` |
@@ -203,22 +205,24 @@
 | `fileOpNoticeSlice` | `slices/fileOpNoticeSlice.ts` |
 | `toastSlice` | `slices/toastSlice.ts` |
 
-> 计数以 `slicedStore.ts` 实测为准（32 切片 / 18 action，AGENTS.md 已同步）。
+> 计数以 `slicedStore.ts` 实测为准（29 切片 / 18 action）。
 
-### IPC 接口域（`shared/ipc/` 25 个文件）
+### IPC 接口域（`shared/ipc/` 28 个文件）
 
 ```
 shared/ipc/app.ts            shared/ipc/browser.ts
 shared/ipc/clipboard.ts      shared/ipc/digital-life.ts
 shared/ipc/download.ts       shared/ipc/dsh.ts
-shared/ipc/durable.ts        shared/ipc/github.ts
-shared/ipc/index.ts          shared/ipc/patch.ts
-shared/ipc/preview-api.ts    shared/ipc/pty-ws.ts
-shared/ipc/pty.ts            shared/ipc/reference.ts
-shared/ipc/reserved.ts       shared/ipc/retrieval.ts
-shared/ipc/searchIgnore.ts   shared/ipc/searchWindow.ts
-shared/ipc/shared.ts         shared/ipc/snapshot.ts
-shared/ipc/storage.ts        shared/ipc/system_monitor.ts
-shared/ipc/window.ts         shared/ipc/workspace-events-ws.ts
+shared/ipc/durable.ts        shared/ipc/env.ts
+shared/ipc/fileSave.ts       shared/ipc/github.ts
+shared/ipc/index.ts          shared/ipc/opencode.ts
+shared/ipc/patch.ts          shared/ipc/preview-api.ts
+shared/ipc/pty-ws.ts         shared/ipc/pty.ts
+shared/ipc/reference.ts      shared/ipc/reserved.ts
+shared/ipc/retrieval.ts      shared/ipc/searchIgnore.ts
+shared/ipc/searchWindow.ts   shared/ipc/shared.ts
+shared/ipc/snapshot.ts       shared/ipc/storage.ts
+shared/ipc/system_monitor.ts shared/ipc/window.ts
+shared/ipc/workspace-events-ws.ts
 shared/ipc/workspace.ts
 ```

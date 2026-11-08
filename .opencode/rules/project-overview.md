@@ -10,7 +10,7 @@ alwaysApply: true
 | 维度 | 说明 |
 |------|------|
 | 项目名称 | Adlo（中文名：安洛） |
-| 项目类型 | 桌面应用宿主 + 第三方 Agent harness 集成（Agent 对话、模型接入与编排由外部 harness 提供，当前为 deepseek dsh） |
+| 项目类型 | 桌面应用宿主 + 第三方 Agent harness 集成（Agent 对话、模型接入与编排由外部 harness 提供，当前为 DSH 与 OpenCode CLI） |
 | 桌面框架 | Rust + Tauri 2.x |
 | 前端框架 | React 19 + Vite + TypeScript |
 | 状态管理 | Zustand（切片合并模式） |

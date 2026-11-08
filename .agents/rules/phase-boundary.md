@@ -5,11 +5,11 @@ alwaysApply: true
 
 # 项目形态与范围边界
 
-> 当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入、多 Agent 编排及其配套能力不由本仓库实现，交由接入的第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成（进程托管、版本管理、下载源/镜像、宿主渲染）。
+> 当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入、多 Agent 编排及其配套能力不由本仓库实现，交由接入的第三方 harness（当前为 DSH 与 OpenCode CLI）提供，本仓库仅负责宿主集成（进程托管、版本管理、下载源/镜像、宿主渲染）。
 
 ## 已实现范围
 
-- 架构底座：Rust + Tauri 2.x 桌面壳、SQLite 持久化、安全边界（capability 白名单）、双端一致（Tauri / 浏览器预览 / mock 三桥接）
+- 架构底座：Rust + Tauri 2.x 桌面壳、SQLite 持久化、安全边界（capability 白名单）、双端一致（Tauri / 浏览器预览（http 优先）/ Mock 四端桥接）
 - 工作区：多工作区管理、文件树、大纲解析、搜索、Git 可视化、补丁预览/应用/回滚、快照
 - 终端：xterm.js 多会话 PTY + 一个终端标签内多终端窗格（各窗格独立 PTY、数量无上限；均分/自由布局、比例与自由像素拖拽、卷帘门裁剪 + 自定义滚动条、恢复自动布局、自定义布局卡片：拖拽排序/交换位置/双击标注）
 - 编辑器：CodeMirror + 文件预览 + 差异查看器（inline/side-by-side）
@@ -18,7 +18,7 @@ alwaysApply: true
 - 存储治理：统一路径解析 + 启动期迁移 + 设置面板存储组
 - 系统能力：剪贴板历史、系统监视器、CI 状态、GitHub 面板、凭据存储、i18n 国际化
 
-功能清单真源见 [adlo/AGENTS.md](../../adlo/AGENTS.md)。
+功能清单真源见 [docs/architecture/core/system-overview.md](../../docs/architecture/core/system-overview.md)。
 
 ## 排除项（本仓库不实现）
 

@@ -23,21 +23,21 @@
 ## 架构模式
 
 ### 命名空间投影 (Namespace Projection)
-模块通过自己的导出命名空间暴露类型，消费者通过命名空间限定符访问：`import { Config } from "./config"` 后通过 `Config.ID`、`Config.Info` 引用。避免扁平化导入导致的命名冲突。对应本项目：`kernel/types/` 中 `Config`、`ConversationConfig` 等类型的组织方式。
+模块通过自己的导出命名空间暴露类型，消费者通过命名空间限定符访问：`import { Config } from "./config"` 后通过 `Config.ID`、`Config.Info` 引用。避免扁平化导入导致的命名冲突。对应本项目：`crates/types/src/types/`（adl-types）中共享类型的组织方式。
 
 ### Global 节点 vs Location 节点
 服务生命周期管理策略：
 - **Global 节点**：进程级单例，如 Database、Git、全局配置
 - **Location 节点**：每工作目录独立实例，如 Config、Permission
 
-对应本项目：进程级服务（`adl-logging`、`errors` crate）vs 工作区级服务（`workspace`、`pty` crate）。
+对应本项目：进程级单例（`adl-logging` 的 tracing 初始化、SQLite 连接池）vs 工作区级实例（`workspace`、`pty` 提供的工作区级能力）。errors crate 只是错误类型定义，并非服务节点。
 
 ### Service + Layer 依赖注入
 每个领域模块定义三要素：Service 接口声明（方法签名）、Layer 实现绑定（具体实现注入）、节点定义（依赖关系声明）。对应本项目：Rust 中 `trait` 定义 + Tauri `manage()` 状态注入模式。
 
 ### Schema 驱动类型系统
 使用结构化 Schema 定义公共数据模型作为前后端契约层：
-- 所有公共类型在一个独立层定义（本项目对应 `kernel/types/`）
+- 所有公共类型在一个独立层定义（本项目对应 `crates/types/`（adl-types）独立 crate）
 - 使用 branded types 增强类型安全（如工作区 ID 而非裸 `String`）
 - 契约默认只读，运行时可变性显式声明
 - 通过 serde 序列化/反序列化确保跨语言边界一致性
@@ -53,7 +53,7 @@ Tauri 的 IPC 调用机制。前端通过 `invoke()` 调用 Rust 后端函数，
 统一的错误枚举类型，位于 `crates/errors/`。所有 IPC 错误都通过此类型传播，禁止使用裸 `String` 错误。
 
 ### Kernel
-共享类型与常量 crate，包含 `domain` 模块，使用 `serde` 序列化。作为前后端之间的公共类型契约层。
+共享常量与存储/配置基础设施 crate（`app_info`、`config`、`config_watcher`、`events`、`storage/`），使用 `serde` 序列化。跨端公共类型契约在独立 crate `crates/types/`（adl-types），经 `ts-rs` 导出到前端 `kernel/` 桶导出。
 
 ### EntityTable
 `storage` crate 中的宏，用于自动生成 SQLite CRUD 操作代码，减少样板代码。
@@ -171,16 +171,11 @@ WebView2 的 `PreferredColorScheme` 在同一用户数据目录（UDF）会话�
 - `scheduleFlush(callback)` — 微任务级批量刷新
 
 ### ConfigTransform（可重放配置变换）
-前端 `frontend/src/app/stores/configStateMachine.ts` 和 Rust `crates/kernel/src/types/config.rs` 共同实现，采用可重放的配置变换模式：
+前端 `frontend/src/app/stores/configStateMachine.ts` 和 Rust `crates/kernel/src/config.rs` 共同实现，采用可重放的配置变换模式：
 - `createConfigState(base)` — 创建状态 + transform 日志
 - `applyTransform(state, transform)` — 应用变换并追加日志
 - `reloadFromBase(base, transforms)` — 在新基线上重放
 - `rollbackLastTransform(state)` — 撤销最后一次变换
-
-### PermissionEngine（三态权限引擎）
-Rust 端 `crates/kernel/src/command_risk.rs`，采用 deny/ask/allow 三态模型：
-- `PermissionDecision` 枚举：`Allow < Ask < Deny`（PartialOrd 优先级）
-- `PermissionRule` 结构：`pattern` 支持 `*`（单段）和 `**`（多段）通配符
 
 ### Design Token
 设计系统的基础原子值，定义在 `frontend/src/design-system/tokens.ts`。包含 ShadowToken、ColorToken、SpacingToken 等类型。
@@ -189,7 +184,7 @@ Rust 端 `crates/kernel/src/command_risk.rs`，采用 deny/ask/allow 三态模�
 
 ## 项目形态
 
-当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**。宿主侧包括架构底座（Rust crate 架构、Tauri 壳层、安全边界 capability 权限策略、SQLite 持久化、日志系统）、工作区、终端、编辑器、浏览器、存储治理与系统能力；Agent 对话、模型接入与编排能力由接入的第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成（进程托管、版本管理、宿主渲染）。
+当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**（DSH 与 OpenCode CLI），详见 [根 AGENTS.md#项目形态](./AGENTS.md#项目形态)。宿主侧包括架构底座（Rust crate 架构、Tauri 壳层、安全边界 capability 权限策略、SQLite 持久化、日志系统）、工作区、终端、编辑器、浏览器、存储治理与系统能力；Agent 对话、模型接入与编排能力由接入的第三方 harness 提供，本仓库仅负责宿主集成（进程托管、版本管理、宿主渲染）。
 
 ---
 

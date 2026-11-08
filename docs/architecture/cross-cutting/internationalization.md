@@ -9,7 +9,7 @@ The renderer currently supports:
 
 Language selection is owned by the Rust backend (default `system`, OS-following), persisted via the unified storage layer, and exposed to the WebView only through typed Tauri Commands.
 
-Current i18n coverage: **22 domains × zh-CN/en-US** (`frontend/src/app/i18n/{zh-CN,en-US}/`, 23 files each incl. `index.ts`).硬约束见 `docs/development/project-engineering-constraints.md`（国际化规则）与 `.agents/rules/`（i18n 相关规则）。
+Current i18n coverage: **25 domains × zh-CN/en-US** (`frontend/src/app/i18n/{zh-CN,en-US}/`, 26 files each incl. `index.ts`).硬约束见 `docs/development/project-engineering-constraints.md`（国际化规则）与 `.agents/rules/`（i18n 相关规则）。
 
 All UI text types are covered: buttons, tooltips, card content, aria-labels, placeholders, empty states, loading states, error messages, filter labels, relative time strings, date formatting.
 
@@ -37,6 +37,6 @@ All UI text types are covered: buttons, tooltips, card content, aria-labels, pla
 
 ## Domain Coverage
 
-22 domains under `frontend/src/app/i18n/{zh-CN,en-US}/` (see [frontend-structure.md](../../analysis/adlo/features/frontend-structure.md)). Dictionary organization (per-domain files + barrel) see [i18n-dictionary-domain-split-organization.md](../../../.agents/rules/i18n-dictionary-domain-split-organization.md).
+25 domains under `frontend/src/app/i18n/{zh-CN,en-US}/` (see [frontend-structure.md](../../analysis/adlo/features/frontend-structure.md)). Dictionary organization (per-domain files + barrel) see [i18n-dictionary-domain-split-organization.md](../../../.agents/rules/i18n-dictionary-domain-split-organization.md).
 
 Richer formatting/pluralization ideas are unscoped future thoughts (see `FUTURE-ROADMAP.md`), not planned phases.

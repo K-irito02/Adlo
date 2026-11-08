@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { DigitalLifeBridge } from '../../shared/ipc/digital-life';
 
 /**
- * 三端一致性（bridge-three-implementation）：浏览器模式 app 域的
+ * 四端一致性（bridge-four-implementation-pattern）：浏览器模式 app 域的
  * getInfo / updatePreferences 必须真实可用，而非 httpBridge 的
  * NOT_SUPPORTED 桩。设置面板（日志级别/终端日志模式/调试日志模式等）
  * 依赖 bootstrap 的 getInfo 提供 appInfo，依赖 updatePreferences 持久化。

@@ -17,14 +17,14 @@ frontend/src/app/
 │   ├── Toast.tsx           # Toast 通知
 │   ├── Tooltip.tsx         # 自定义 Tooltip
 │   └── ErrorBoundary.tsx   # 错误边界
-├── features/               # 25 个功能域（详见下表）
+├── features/               # 30 个功能域（详见下表）
 ├── hooks/                  # 通用 Hook（useKeyboardShortcuts/useKeyCapture/useEditorReveal…）
-├── i18n/                   # 国际化（22 领域 × 中英，详见下表）
+├── i18n/                   # 国际化（25 领域 × 中英，详见下表）
 ├── icons/                  # SVG 图标（actions/core/file/helper/status/terminal-nav/terminal-pane/terminal-profiles）
 ├── regions/                # 布局区域（详见下表）
 ├── stores/                 # Zustand 状态管理
 │   ├── actions/            # 18 个跨切片 action 模块
-│   ├── slices/             # 32 个状态切片（slicedStore.ts 实测）
+│   ├── slices/             # 状态切片（slicedStore.ts 实测 29 个）
 │   ├── persisted/registry.ts # 持久化中心登记表（唯一写盘入口）
 │   ├── StoreState.ts
 │   ├── slicedStore.ts
@@ -36,11 +36,13 @@ frontend/src/app/
 └── LazyComponents.tsx      # 懒加载组件注册
 ```
 
-## 25 个功能域 (features/)
+## 30 个功能域 (features/)
 
 | 功能域 | 目录 |
 |--------|------|
+| 关于 | `features/about/` |
 | 内置浏览器 | `features/browser/` |
+| 书签 | `features/bookmarks/` |
 | 浏览器设置 | `features/browser-settings/` |
 | 浏览器树 | `features/browser-tree/` |
 | 中心宿主 | `features/center/`（CenterEntryPage：dsh/浏览器/终端三入口） |
@@ -48,7 +50,11 @@ frontend/src/app/
 | 差异查看器 | `features/diff-viewer/` |
 | 分隔线桥接条 | `features/divider-strip/` |
 | dsh 宿主 | `features/dsh/` |
+| 环境依赖 | `features/environment/` |
 | 编辑器 | `features/editor/`（CodeMirror + FoldTooltipOverlay） |
+| harness 集成 | `features/harness/` |
+| 网络设置 | `features/network/` |
+| opencode 集成 | `features/opencode/` |
 | 文件树 | `features/file-tree/` |
 | Git 可视化 | `features/git-visualization/` |
 | 多工作区 | `features/multi-workspace/` |
@@ -83,12 +89,12 @@ App.tsx
 └── （无底部 StatusBar.tsx；状态信息位于各面板与标题栏）
 ```
 
-## 国际化 (i18n/，20 领域 × 中英）
+## 国际化 (i18n/，25 领域 × 中英）
 
 ```
 i18n/
-├── en-US/                  # 英文（21 文件含 index.ts）
-├── zh-CN/                  # 中文（21 文件含 index.ts）
+├── en-US/                  # 英文（26 文件含 index.ts）
+├── zh-CN/                  # 中文（26 文件含 index.ts）
 ├── TCopyContext.tsx        # TCopyProvider 上下文
 ├── useTCopy.ts             # useTCopy() hook（无 Provider 即抛错）
 ├── formatT.ts              # 模板插值（可单独导入）
@@ -99,10 +105,11 @@ i18n/
 └── types.ts
 ```
 
-### 20 个翻译域
+### 25 个翻译域
 
 | 域 | 说明 |
 |----|------|
+| about | 关于页文案 |
 | approval | 审批流程文案 |
 | browser | 浏览器面板文案 |
 | changes | 变更面板文案 |
@@ -110,13 +117,17 @@ i18n/
 | customAgent | 自定义 Agent 文案 |
 | dsh | dsh 宿主文案 |
 | durable | 持久会话文案 |
+| environment | 环境依赖文案 |
 | errors | 错误文案 |
 | file | 文件操作文案 |
+| harnessVersion | harness 版本管理文案 |
 | lsp | LSP 面板文案 |
 | mcp | MCP 管理文案 |
 | menu | 菜单文案 |
 | models | 模型选择文案 |
+| network | 网络设置文案 |
 | notification | 通知文案 |
+| opencode | opencode 版本文案 |
 | reference | 引用管理文案 |
 | settings | 设置面板文案 |
 | terminal | 终端文案 |

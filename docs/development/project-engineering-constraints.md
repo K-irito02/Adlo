@@ -1,13 +1,13 @@
-# AI数字生命 项目级工程规则与约束
+# Adlo 项目级工程规则与约束
 
 ## 目标与适用范围
 
-本文件定义 `AI数字生命` 桌面应用的项目级工程规则，适用于：
+本文件定义 `Adlo` 桌面应用的项目级工程规则，适用于：
 
 - `adlo/` 实现工作区（Rust + Tauri 2.x）中的实现、测试、打包与发布流程
 - 仓库根目录中的架构、规范、实施方案
 
-本文件是对 [AGENTS.md](../../AGENTS.md) 中项目治理规则的补充，聚焦产品与工程落地约束。优先级：根 `AGENTS.md`（项目治理）> `adlo/AGENTS.md`（实现工作区）> `.agents/rules/`（Agent 执行规则）；与规则文件重叠处以规则文件为准。
+本文件是对 [AGENTS.md](../../AGENTS.md) 中项目治理规则的补充，聚焦产品与工程落地约束。**重叠处理原则**：与 `.agents/rules/` 重叠的约束一律以 `.agents/rules/` 为准（本文件只作补充、不复述）；与规则文件冲突时修改本文件，不改规则。
 
 ## 技术与阶段基线
 
@@ -16,7 +16,7 @@
 当前阶段边界：
 
 - 当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**（见根 `AGENTS.md#项目形态` 与 `.agents/rules/phase-boundary.md`）
-- Agent 对话、模型接入与编排由第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成
+- Agent 对话、模型接入与编排由第三方 harness（当前为 DSH 与 OpenCode CLI）提供，本仓库仅负责宿主集成
 - 未来想法见 `FUTURE-ROADMAP.md`（未立项）
 - 未经显式决策，不得把未立项的复杂能力伪装成当前必需项
 
@@ -33,6 +33,8 @@
 
 ## 双端一致性约束
 
+> 与 `.agents/rules/`（tauri-shell、bridge-four-implementation-pattern、quality-gates）重叠处以规则文件为准；本节仅补充规则未覆盖的落地说明。
+
 应用同时支持两种运行模式，必须保持**功能行为一致性**：
 
 | 模式       | 桥接层                                      | 数据来源            | 测试价值              |
@@ -42,7 +44,7 @@
 
 **必须遵守的一致性规则：**
 
-1. 新增 Tauri Command 时，必须同步实现 `tauri-bridge/`、`preview-bridge/`、`mock-bridge.ts`（+ `mock/`）三端（新增清单见 `adlo/CONTRIBUTING.md`）
+1. 新增 Tauri Command 时，必须同步实现四端桥接（`httpBridge.ts`、`tauri-bridge/`、`preview-bridge/`、`mock-bridge.ts` + `mock/`），清单见 [adding-an-ipc-domain.md](./adding-an-ipc-domain.md) 与 `adlo/CONTRIBUTING.md`
 2. UI 组件的条件渲染只允许以下 4 种平台差异：
    - 窗口控制按钮（仅 Tauri）
    - 标题栏拖拽（仅 Tauri）
@@ -96,6 +98,8 @@
 
 ## 国际化规则
 
+> 规范真源见 `.agents/rules/usetcopy-i18n-context-pattern.md` 与 `i18n-dictionary-domain-split-organization.md`；本节与之重叠处以规则为准。
+
 首批正式支持语言：
 
 - `zh-CN`
@@ -141,9 +145,11 @@
 - 省略号统一使用 Unicode 字符 `…`（U+2026），不使用三个句点 `...`
 - 空态/提示消息末尾统一不加句点
 - aria-label 翻译应包含冠词（如 `"Toggle the left sidebar"`）
-- 翻译资源在 CI 前通过 `check:i18n` 脚本验证 key 完整性
+- 翻译资源通过 `check:i18n` 脚本验证 key 完整性（pre-commit 本地门禁，见 `adlo/CONTRIBUTING.md`）
 
 ## 主题系统规则
+
+> 与 `.agents/rules/design-system.md`、`hint-color-usage.md` 重叠处以规则为准。
 
 主题模式必须支持：
 
@@ -269,6 +275,8 @@
 
 ## 测试与质量门禁
 
+> 强制红绿测试与门禁执行标准见 `.agents/rules/mandatory-testing.md`、`quality-gates.md`；本节与之重叠处以规则为准。
+
 以下变更必须补齐测试计划与验证说明：
 
 - Tauri Command contract 或 capability 变更
@@ -296,7 +304,7 @@
 
 ## 文档与治理同步
 
-以下变化必须同步更新本文件及相关开发文档（同步清单以 `adlo/CONTRIBUTING.md` Must-Sync 为准：`docs/architecture/*`、CSP/capability 基线、SQLite/恢复策略、Workspace/Retrieval 边界、主题/i18n/真相源、双端三桥、Tauri 新增清单）：
+以下变化必须同步更新本文件及相关开发文档（同步清单以 `adlo/CONTRIBUTING.md` Must-Sync 为准：`docs/architecture/*`、CSP/capability 基线、SQLite/恢复策略、Workspace/Retrieval 边界、主题/i18n/真相源、双端四端桥接、Tauri 新增清单）：
 
 - 技术基线变化
 - 国际化策略变化
@@ -331,13 +339,13 @@
 
 ## 执行建议
 
-为使本文件可执行，后续实现仓库应补齐以下配套机制：
+本文件下列机制**已落地**（核验日期 2026-11-09），保留作为回归清单：
 
-- i18n 资源完整性检查
-- 主题令牌与主题快照检查
+- i18n 资源完整性检查（`check:i18n` / `check:i18n:orphans`，pre-commit）
+- 主题令牌与主题快照检查（`check-css-globals` 等样式门禁）
 - Tauri Command 类型检查（`serde` 派生）与输入校验
-- 配置 schema 校验与迁移测试
+- 配置 schema 校验与迁移测试（Migration/存储自测）
 - SQLite 迁移验收脚本
-- `cargo clippy --workspace --all-targets -- -D warnings` 与 `cargo fmt --all -- --check` 阻断
-- 前端 `lint`、`typecheck`（+ `typecheck:dev`）、`format:check`、`check:i18n`、`test` 阻断（见 CI）
+- `cargo clippy --workspace --all-targets -- -D warnings` 与 `cargo fmt --all -- --check` 阻断（并入 `cargo:clippy` / pre-commit 受影响范围）
+- 前端 `lint`、`typecheck`（+ `typecheck:dev`）、`format:check`、`check:i18n`、`test` 阻断（本地门禁，无远程 CI）
 - 发布前双语与三态主题 smoke checklist

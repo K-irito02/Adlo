@@ -1,8 +1,8 @@
 # IPC 桥接系统
 
-> 实现快照（细节以源码为准）；规范见 `.agents/rules/tauri-shell.md`、`bridge-three-implementation-pattern.md`。
+> 实现快照（细节以源码为准）；规范见 `.agents/rules/tauri-shell.md`、`bridge-four-implementation-pattern.md`。
 
-## 三层桥接架构
+## 四端桥接架构
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -12,31 +12,31 @@
 │       ▼                                                              │
 │  window.digitalLife.{domain}.{method}(input)                         │
 │       │                                                              │
-│       ├──→ DigitalLifeBridge 统一接口契约                             │
-│              │                                                       │
-│    ┌─────────┼─────────────┐                                         │
-│    ▼         ▼             ▼                                         │
-│ tauri-bridge  preview-bridge  mock-bridge                            │
-│ (Tauri 桌面)  (浏览器预览)    (纯内存测试)                            │
-│    │            │             │                                       │
-│    ▼            ▼             ▼                                       │
-│ invoke()    HTTP Fetch    内存模拟                                     │
-│ → Rust IPC  → adl-server  → 直接返回 mock 数据                       │
+│       ▼                                                              │
+│  DigitalLifeBridge 统一接口契约                                      │
+│       │                                                              │
+│    ┌──┼───────────┬─────────────┐                                    │
+│    ▼  ▼           ▼             ▼                                    │
+│ tauri preview  httpBridge  mock-bridge                               │
+│ inv() ...http   fetch()     内存模拟                                  │
+│ → Rust  → ad-server（浏览器/预览基底实现）  → 直接返回 mock 数据        │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 三个桥接层对比
+## 四个桥接实现对比
 
-| 维度 | tauri-bridge | preview-bridge | mock-bridge |
-|------|-------------|----------------|-------------|
-| 运行模式 | Tauri 桌面 WebView | 浏览器（Vite + adl-server 真实后端） | 单元测试 / 开发 |
-| 后端 | Rust (Tauri IPC) | adl-server（http 优先，可回退） | 无后端 |
-| 调用方式 | `invoke()` | HTTP Fetch → adl-server | 直接内存操作 |
-| 事件订阅 | `listen()` (Tauri Event) | 轮询 / 模拟 | 直接回调 |
-| 文件路径 | `tauri-bridge.ts`（入口，重导出 `tauri-bridge/` 8 领域） | `preview-bridge/`（11 实现文件 + 入口 `index.ts`） | `mock-bridge.ts`（入口 + `mock/` 按域模块） |
-| 能力覆盖 | 全部 IPC 方法 | 真实等效（非空实现）+ 回退 | 全部 IPC 方法 |
+| 维度 | tauri-bridge | preview-bridge | httpBridge | mock-bridge |
+|------|-------------|----------------|------------|-------------|
+| 运行模式 | Tauri 桌面 WebView | 浏览器（Vite + adl-server 真实后端） | 任意环境（ad-server HTTP API 基底实现） | 单元测试 / 开发 |
+| 后端 | Rust (Tauri IPC) | adl-server（http 优先，可回退） | ad-server HTTP（fetch，`IpcResult` 包络） | 无后端 |
+| 调用方式 | `invoke()`（经 `...http` 继承其 HTTP 域的同步语义） | HTTP Fetch（spread 自 http + 显式 override） | `fetch()` 直连 `crates/server` 的 `/` 路由 | 直接内存操作 |
+| 事件订阅 | `listen()` (Tauri Event) | 轮询 / 模拟 / SSE | ad-server SSE `/event`（EventSource）+ `/pty` WebSocket | 直接回调 |
+| 文件路径 | `tauri-bridge/index.ts`（组装，9 个域实现 + `tauri-shared.ts`） | `preview-bridge/`（12 实现文件 + 入口 `index.ts`） | `httpBridge.ts`（入口）+ `httpBridge/__tests__/` | `mock-bridge.ts`（入口 + `mock/` 按域模块） |
+| 能力覆盖 | 全部 IPC 方法 | 真实等效（非空实现）+ 回退 mock | 业务域全部 1:1 映射 `crates/server/src/router.rs`；系统域无路由（类型化回退） | 全部 IPC 方法 |
 
-## 接口定义层 (`shared/ipc/`，25 个文件)
+> `tauri-bridge` 以 `...http`（`createHttpBridge`）为基底继承 HTTP 域实现（同步返回方法的 `@see` 注释应写明"`...http` 继承"）；`preview-bridge` 在 spread 之后显式 override 回退行为；新增域时三端按 `adding-an-ipc-domain.md` 的四端清单接线，缺一即双端不一致。
+
+## 接口定义层 (`shared/ipc/`，数量以目录实测为准)
 
 | 域文件 | 说明 |
 |--------|------|
@@ -128,14 +128,15 @@ Rust Command
 | `captureTypedError(get, error)` | 类型化捕获（支持 AppError instance、IpcResult 错误、普通 Error/string 三级降级） |
 | `setError(get, message)` | 直接设置全局 error 消息 |
 
-## 三桥接一致性要求
+## 四端桥接一致性要求
 
 ### 一致性检查清单
 
 每条 IPC 方法变更后必须检查：
 
 - [ ] 接口定义在 `shared/ipc/index.ts`（或对应域文件 `shared/ipc/{domain}.ts`）更新
-- [ ] `tauri-bridge/` 同步实现（调用 `invoke()`）
+- [ ] `httpBridge.ts` 同步实现（fetch 直连 ad-server，业务域 1:1）
+- [ ] `tauri-bridge/` 同步实现（系统域调用 `invoke()`；业务域经 `...http` 继承，仅 override 系统域）
 - [ ] `preview-bridge/` 同步实现（HTTP 真实等效，禁空实现）
 - [ ] `mock-bridge.ts` + `mock/` 同步实现（内存模拟）
 - [ ] 返回类型统一为 `IpcResult<T>`
@@ -154,7 +155,7 @@ interface WorkspaceBridge {
   ): Promise<IpcResult<WorkspaceTreeNode[]>>;
 }
 
-// 三个实现都必须使用相同参数类型
+// 四端实现都必须使用相同参数类型
 // ❌ 不允许不同桥接层使用不同参数签名
 ```
 
@@ -166,8 +167,10 @@ tauri-bridge/
 ├── index.ts            # 组装入口（createTauriBridge）
 ├── tauri-app.ts        # 应用域
 ├── tauri-browser.ts    # 浏览器域
-├── tauri-clipboard.ts  # 剪贴板域
 ├── tauri-dsh.ts        # dsh 域
+├── tauri-env.ts        # 环境依赖域
+├── tauri-file-save.ts  # 文件保存域
+├── tauri-opencode.ts   # opencode 域
 ├── tauri-reserved.ts   # 保留域
 ├── tauri-shared.ts     # 共享
 ├── tauri-window.ts     # 窗口域
@@ -193,6 +196,7 @@ tauri-bridge/
 | `preview-events.ts` | 文件变更事件桥接 |
 | `preview-diagnostic.ts` | 诊断桥接 |
 | `preview-storage.ts` | 存储桥接（与 Tauri `storage_*` 对齐，`restartApp` 返回 NOT_SUPPORTED） |
+| `preview-file-save.ts` | 文件保存桥接 |
 | `preview-browser-audio.ts` | 浏览器音频监控 |
 | `preview-reachability.ts` | 后端可达性探测（`app` 域失败即失败，不静默回退） |
 
@@ -210,11 +214,12 @@ mock/                   # 按域模块（mock-app/mock-browser/mock-workspace/mo
 
 | 路径 | 说明 |
 |------|------|
-| `frontend/src/shared/ipc/index.ts` | 25 个 IPC 域统一导出（含 DigitalLifeBridge） |
+| `frontend/src/shared/ipc/index.ts` | IPC 域统一导出（DigitalLifeBridge，数量以目录实测为准） |
 | `frontend/src/shared/ipc/shared.ts` | IpcResult<T> 类型 + IpcErrorCode 枚举 |
 | `frontend/src/shared/typedErrors.ts` | 类型化错误类 + fromIpcErrorCode 工厂 |
 | `frontend/src/tauri-bridge.ts` | Tauri 模式桥接入口 |
 | `frontend/src/preview-bridge/index.ts` | 预览模式桥接入口 |
+| `frontend/src/httpBridge.ts` | HTTP 基底实现入口（业务域 1:1 映射 ad-server） |
 | `frontend/src/mock-bridge.ts` | Mock 模式桥接入口 |
 | `frontend/src/app/stores/cacheHelpers.ts` | 错误捕获工具函数 |
 | `crates/errors/src/lib.rs` | Rust 端 AppError 枚举定义 |

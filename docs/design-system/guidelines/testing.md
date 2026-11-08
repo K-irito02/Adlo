@@ -22,7 +22,7 @@ The file / diff viewers, outline navigation, and shared custom scroll shells rel
 When touching `FilesPanel`, `ChangesPanel`, `DiffViewer`, sticky navigation, minimap sizing, minimap context menus, or custom scrollbar ownership, run at least:
 
 ```bash
-pnpm --dir frontend test -- --run \
+pnpm --dir adlo/frontend test -- --run \
   src/app/regions/right-panel/cmPreviewStyling.test.ts \
   src/app/regions/right-panel/filesEditorOptions.test.ts \
   src/app/regions/right-panel/changesEditorOptions.test.ts \
@@ -31,12 +31,12 @@ pnpm --dir frontend test -- --run \
 
 ## 3. Build verification
 
-`pnpm --dir frontend run build` validates that:
+`pnpm --dir adlo/frontend run build` validates that:
 
 - All design-system imports type-check.
 - All CSS imports resolve and merge (styles 已拆 40+ 文件 + Tailwind，具体体积以构建输出为准）。
 
-`pnpm --dir frontend run typecheck` covers the WebView frontend; `pnpm run cargo:check` covers the Rust backend.
+`pnpm --dir adlo/frontend run typecheck` covers the WebView frontend; `pnpm run cargo:check` covers the Rust backend.
 
 ## 4. Visual regression
 
@@ -57,15 +57,15 @@ Visual regression 尚未自动化（未来想法，未立项）。以 `quality-g
 
 ```bash
 # Single test run (frontend)
-pnpm --dir frontend run test
+pnpm --dir adlo/frontend run test
 
 # Watch a specific design-system spec
-pnpm --dir frontend exec vitest src/design-system/__tests__/theme.test.ts
+pnpm --dir adlo/frontend exec vitest src/design-system/__tests__/theme.test.ts
 
 # Type check (frontend + Rust backend)
-pnpm --dir frontend run typecheck
+pnpm --dir adlo/frontend run typecheck
 pnpm run cargo:check
 
 # Build to verify CSS + JS bundle size
-pnpm --dir frontend run build
+pnpm --dir adlo/frontend run build
 ```

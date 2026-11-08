@@ -26,8 +26,8 @@ adlo/
 |------|------|
 | `src-tauri/` | 窗口、Rust 启动、invoke 处理、capabilities |
 | `frontend/src/` | React UI、Zustand、桥接 |
-| `frontend/src/shared/ipc/` | `DigitalLifeBridge` 类型契约域拆分（25 个文件，含文件操作：rename/delete/duplicate/getAbsolutePath） |
-| `frontend/src/shared/outline/` | 大纲解析模块化（9 个语言模块 + config + types + utils + index.ts barrel） |
+| `frontend/src/shared/ipc/` | `DigitalLifeBridge` 类型契约域拆分（数量以目录实测为准，含文件操作：rename/delete/duplicate/getAbsolutePath） |
+| `frontend/src/shared/outline/` | 大纲解析模块化（10 个语言模块：brace + css/html/json/markdown/python/shell/sql/vue/yaml，+ config + types + utils + index.ts barrel） |
 | `frontend/dev/previewWorkspaceService/` | 浏览器开发态服务端 API 目录（index + 按域模块，含文件操作、Git、工作区管理等） |
 | `frontend/dev/previewTerminalService.ts` | 浏览器开发态终端服务（Node.js `child_process.spawn` + `/pty/output-since` 增量输出接口） |
 
@@ -37,31 +37,28 @@ adlo/
 |-------|------|
 | `kernel` | 共享类型与常量（serde），含 `domain` 模块 |
 | `storage` / `migration` | SQLite（r2d2 连接池，`EntityTable` 宏生成，外部 SQL 文件 `sql/`） |
-| `config` | 配置分层与持久化 |
-| `logger` | tracing 初始化、结构化字段 |
-| `errors` | thiserror 错误类型 |
-| `events` | 跨 crate 事件总线 |
-| `workspace` | 业务域（拆分 fs/git/search/tree/outline×10 子模块, 文件 CRUD + 16+ 语言大纲解析） |
+| `types` | 纯类型定义（前后端公共契约 + doom_loop） |
+| `kernel` | 共享内核（app_info/config/config_watcher/events/storage） |
+| `storage` | SQLite 连接池 + CRUD（WAL 模式） |
+| `migration` | SQLite schema 版本化迁移 |
+| `adl-logging` | tracing 初始化、结构化字段 |
+| `errors` | thiserror 错误枚举（`AppError`） |
+| `workspace` | 工作区（fs/git/search/tree 子模块拆分 + 文件 CRUD + 16+ 语言大纲解析） |
 | `outline` | 大纲解析（从 workspace 抽出为独立 crate） |
-| `context` | 上下文选择（替代已拆除的 context-engine） |
-| `command` | 命令执行与治理 |
 | `pty` | 伪终端（PTY）进程管理 |
 | `fs-ops` | notify 监听、原子写、路径作用域 |
-| `task` | 任务状态机、审批 |
-| `conversation` | 会话 / 消息 |
-| `agent-runtime` | Agent 运行时（权限检查、Plan Mode、Compaction 摘要、ToolRegistry 统一注册） |
-| `model-gateway` | 多 Provider 路由（7 个 provider：DeepSeek/MiniMax/Anthropic/OpenAI/Google/Ollama/OpenRouter）+ 流式 |
-| `subagent` | 子代理管理（Task 工具、权限派生、后台执行） |
 | `change-engine` | patch 预览、应用、回滚、checkpoint |
 | `browser` | Tauri child WebView 生命周期管理（create/destroy/navigate/goBack/goForward/reload/setBounds/eval） |
 | `ci-status` | GitHub Actions CI 状态轮询、缓存、解析 |
 | `clipboard` | 系统剪贴板监听（clipboard-win monitor，写 `data.db` 的 `clipboard_items` 表，图片 PNG 落盘 + 缩略图 + digest 去重 + 硬删） |
 | `sysmon` | 系统资源快照（sysinfo：CPU/内存/磁盘/网络/进程 Top-N） |
-| `dsh-version` | DSH 版本管理（已安装版本列表、版本切换、npm 仓库查询、系统 dsh 检测、智能源选择） |
-| `dsh-bundle` | 内置 DSH 包管理（manifest 检测、版本查询、启动命令构建） |
+| `server` | adl-server 后端引擎（axum HTTP + WebSocket，与 Tauri 壳共用领域逻辑） |
+| `harness-version` | harness 版本管理（已装版本目录、最新查询、回退/升级/重装，DSH 与 OpenCode 多包线；registry 镜像优先） |
+| `webapp-host` | 第三方 harness 进程托管（进程拉起、健康检查、WebView 宿主） |
 | `download-source` | 下载源配置（npm 仓库/镜像源、代理设置、连通性测试） |
 | `adl-hosted` | 通用宿主版本托管（`env-hosted/<dep>/installed/<v>`、原子换装、adopt、安装锁、子进程宿主、进度任务） |
 | `adl-env` | 环境依赖（6 providers：node/git/bash/webview2/adlserver/netprobe；`env-sources.json` 来源偏好 + `env-baseline.json` 基线；`resolve()` 来源解析） |
+| `credential` | 凭据存储（keyring + 加密文件降级，禁入普通配置/日志） |
 
 ## 前端关键目录
 
@@ -82,7 +79,7 @@ adlo/
 
 ## Stores 架构（Zustand 切片合并模式）
 
-> 切片与 action 的权威清单以 [adlo/AGENTS.md](../../adlo/AGENTS.md) Stores 树为准（32 切片 + 18 action 模块，以 `slicedStore.ts` 实测为准）；此处仅保留目录结构说明，不重复维护逐项清单。
+> 切片与 action 的权威清单以 `slicedStore.ts` / `actions/` 实测为准；此处仅保留目录结构说明，不重复维护逐项清单。
 
 ```
 app/stores/

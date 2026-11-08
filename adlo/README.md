@@ -30,7 +30,7 @@ adlo/
 
 | 文档 | 内容 |
 |------|------|
-| [AGENTS.md](./AGENTS.md) | 实现工作区治理：技术栈、功能清单、Store 架构、安全边界 |
+| [AGENTS.md](./AGENTS.md) | 实现工作区治理：技术栈、边界与约束、安全边界（功能清单见 [system-overview.md](../docs/architecture/core/system-overview.md)） |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | 提交规范、双端一致性要求、Tauri Command 新增清单 |
 | [仓库根 AGENTS.md](../AGENTS.md) | 项目治理规则、双根结构、禁止项、真源定位 |
 | [docs/analysis/adlo/](../docs/analysis/adlo/) | ADL 源码地图 — 本项目的渐进式索引 |
@@ -92,4 +92,4 @@ const details = await invoke('browser_get_port_details', { port: 3000 });
 | 前端 | React 19 + Vite + Zustand + TypeScript |
 | 桥接 | `#[tauri::command]` + `@tauri-apps/api` |
 
-完整技术栈与已实现功能清单见 [AGENTS.md](./AGENTS.md)。
+完整技术栈与已实现功能清单见 [system-overview.md](../docs/architecture/core/system-overview.md)（AGENTS.md 只保留边界与约束，不复制清单）。

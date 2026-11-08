@@ -15,12 +15,12 @@ alwaysApply: false
 ```
 app/icons/
 ├── helper.tsx    # 基础类型（IconProps、IconSize、IconComponent）和 make() 工厂函数
-├── core.tsx      # 28 个基础 UI 图标（chevrons、arrows、panel 控制等）
-├── file.tsx      # 20 个文件类型图标（folder、file 变体）
-├── badges.tsx    # 19 个文件徽章图标（语言类型 badge）
-├── actions.tsx   # 29 个操作图标（plus、copy、edit、delete、search 等）
-├── status.tsx    # 47 个状态图标（check、alert、loading、theme、branch 等）
-└── index.ts      # 桶导出，按文件模块分组
+├── core.tsx      # 基础 UI 图标（chevrons、arrows、panel 控制等）
+├── file.tsx      # 文件类型图标（folder、file 变体）
+├── actions.tsx   # 操作图标（plus、copy、edit、delete、search 等）
+├── status.tsx    # 状态图标（check、alert、loading、theme、branch 等）
+├── terminal-nav.tsx / terminal-pane.tsx / terminal-profiles.tsx  # 终端专用图标
+└── index.ts      # 桶导出，按文件模块分组（各文件导出数以源码实测为准）
 ```
 
 ### 正确示例

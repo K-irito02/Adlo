@@ -32,12 +32,13 @@ crates/change-engine/src/       # 变更引擎（Patch/Snapshot/Revert）
 crates/server/src/              # adl-server 后端引擎（浏览器模式真实后端）
 ```
 
-### 第三方 harness 宿主集成（deepseek dsh）
+### 第三方 harness 宿主集成（DSH 与 OpenCode CLI）
 
 ```
-crates/webapp-host/src/         # dsh 进程托管与拉起
-crates/dsh-bundle/src/          # 内置 dsh 预安装包
-crates/dsh-version/src/         # dsh 版本管理（已安装列表/切换/仓库查询）
+crates/webapp-host/src/         # harness 进程托管与拉起
+crates/harness-version/src/     # harness 版本管理（已安装列表/切换/仓库查询）
+crates/adl-hosted/src/          # 宿主版本托管（版本目录/原子换装/进度任务）
+crates/adl-env/src/             # 环境依赖（node/git/bash/webview2/adlserver/netprobe）
 crates/download-source/src/     # 下载源与镜像配置
 ```
 
@@ -124,7 +125,7 @@ frontend/src/app/regions/left-sidebar/        # 左栏子模块
 frontend/src/app/regions/right-panel/        # 右面板子模块（含 editor-support/）
 ```
 
-### Zustand Store（32 切片，见 slicedStore.ts）
+### Zustand Store（切片数以 `slicedStore.ts` 实测为准）
 
 ```
 frontend/src/app/stores/slicedStore.ts    # Store 合并入口（32 个 create*Slice，含 8 浏览器 + 3 GitHub）
@@ -163,7 +164,7 @@ frontend/src/styles/tokens.css        # CSS 变量落点
 frontend/src/styles/themes.css        # light/dark 主题变量
 ```
 
-### 国际化（22 领域 × 中英）
+### 国际化（25 领域 × 中英）
 
 ```
 frontend/src/app/i18n/zh-CN/          # 中文（23 文件含 index.ts）

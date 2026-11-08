@@ -67,7 +67,7 @@ type StoreState = FullStoreState;
 // 合并所有切片并添加跨切片的 actions
 export const useSlicedAppStore = create<StoreState>((set, get) => ({
   // ════════════════════════════════════════════════════════
-  // 状态切片（23 个）— 纯状态 + 切片内 actions
+  // 状态切片（29 个，以本文件实测为准）— 纯状态 + 切片内 actions
   // ════════════════════════════════════════════════════════
   ...createUISlice(set, get), // UI 状态（侧边栏、工具栏、聊天模式）
   ...createWorkspaceSlice(set, get), // 工作区状态（appInfo, workspaceTree）

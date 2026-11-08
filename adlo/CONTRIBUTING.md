@@ -102,6 +102,6 @@ rustup target add x86_64-pc-windows-msvc
 1. 在 `crates/kernel` 定义请求/响应类型（`#[derive(Serialize, Deserialize)]`）。
 2. 在 `src-tauri/src/commands/<domain>.rs` 实现，返回 `Result<T, AppError>`。
 3. 在 `src-tauri/src/main.rs` 的 `invoke_handler` 注册。
-4. 在 `src-tauri/permissions/digital-life.toml` 的 `commands.allow` 登记该命令（`src-tauri/capabilities/default.json` 通过 `digital-life-commands` 权限集合引用；`src-tauri/src/main.rs` 的 `every_registered_command_is_allowlisted` 测试做机器校验，漏登记会在 CI 失败）。
+4. 在 `src-tauri/permissions/digital-life.toml` 的 `commands.allow` 登记该命令（`src-tauri/capabilities/default.json` 通过 `digital-life-commands` 权限集合引用；`src-tauri/src/main.rs` 的 `every_registered_command_is_allowlisted` 测试做机器校验，漏登记会在 `cargo test` 失败）。
 5. 在前端增加类型化调用：在 `src/shared/ipc.ts` 保持 `DigitalLifeBridge` 与后端一致；同时同步 `tauri-bridge.ts` 与浏览器开发态桥接（当前为 `preview-bridge.ts`，必要时再配合 `mock-bridge.ts`）并在入口统一挂载到 `window.digitalLife`。
 6. 补充单测（命令逻辑层）+ 集成测试（穿过 Tauri 调用层）。

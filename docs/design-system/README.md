@@ -23,6 +23,9 @@ This folder is the **implementation contract**: anything the renderer ships must
 ```
 docs/design-system/
 ├── README.md                # This file — overview & index
+├── action-flash-triad.md    # Action flash triad pattern
+├── allowlist-manage-dropdown.md  # Allowlist manage dropdown pattern
+├── button-loading-overlay.md     # Button loading overlay pattern
 ├── foundations/             # Core design primitives
 │   ├── README.md
 │   ├── tokens.md            # Design tokens (spacing/typography/radius/shadow/...)
@@ -46,13 +49,13 @@ frontend/src/
 ├── app/
 │   ├── App.tsx            # 根组件（TCopyProvider 注入）
 │   ├── stores/            # Zustand 切片合并状态管理
-│   │   ├── slicedStore.ts # 基于切片合并的完整 Store（真源，32 切片）
+│   │   ├── slicedStore.ts # 基于切片合并的完整 Store（真源，切片数以本文件实测为准）
 │   │   ├── StoreState.ts  # 完整类型接口
-│   │   ├── slices/        # 状态切片（含 8 浏览器 + 3 GitHub）
-│   │   └── actions/       # 约 18 个跨切片 action 模块
-│   ├── i18n/              # 国际化（22 领域 × 中英，TCopyContext + useTCopy 驱动）
+│   │   ├── slices/        # 状态切片（含浏览器 + GitHub 系列）
+│   │   └── actions/       # 跨切片 action 模块（数量以目录实测为准）
+│   ├── i18n/              # 国际化（25 领域 × 中英，TCopyContext + useTCopy 驱动）
 │   ├── icons/             # SVG 图标（actions/core/file/helper/status/terminal-*）
-│   ├── features/          # 功能模块（25 个，含 center/dsh/storage-settings）
+│   ├── features/          # 功能模块（30 个，含 center/dsh/storage-settings）
 │   └── regions/           # 布局区域（TitleBar/CenterPane/LeftSidebar/RightPanel）
 ├── styles/
 │   ├── tokens.css         # 1. Atomic CSS custom properties
@@ -93,6 +96,9 @@ const unsub = theme.subscribe((state) => console.log(state.resolvedTheme));
 
 | Document | Category | Topic |
 | --- | --- | --- |
+| [`action-flash-triad.md`](./action-flash-triad.md) | Patterns | 行级异步操作三态回显（loading → success/error，约 1.4s 复位） |
+| [`allowlist-manage-dropdown.md`](./allowlist-manage-dropdown.md) | Patterns | 白名单管理下拉（下拉 + 添加按钮固定布局） |
+| [`button-loading-overlay.md`](./button-loading-overlay.md) | Patterns | 按钮加载占位覆盖（文案隐藏占位 + 居中覆盖层） |
 | [`foundations/tokens.md`](./foundations/tokens.md) | Foundations | Spacing / typography / radius / shadow / z-index / motion tokens |
 | [`foundations/themes.md`](./foundations/themes.md) | Foundations | light/dark modes + system resolution rules |
 | [`components/components.md`](./components/components.md) | Components | Button / Input / Card / Pill / Banner / Modal / Tooltip / etc. |

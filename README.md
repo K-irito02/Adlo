@@ -11,7 +11,7 @@ Adlo 是一个本地桌面工作台：工作区、编辑器、终端与浏览器
 | [adlo/](./adlo/) | 实现工作区：Rust + Tauri 2.x 桌面应用 |
 | [docs/](./docs/) | 架构设计、开发约束、知识库 |
 | [docs/analysis/adlo/](./docs/analysis/adlo/) | Adlo 源码地图（渐进式索引） |
-| [references/](./references/) | 外部参考源码（本地拉取的开源项目） |
+| `references/`（需本地拉取，默认不入库） | 外部参考源码（本地拉取的开源项目） |
 
 ## 技术栈
 
@@ -41,7 +41,7 @@ Adlo 是一个本地桌面工作台：工作区、编辑器、终端与浏览器
 - [CONTEXT.md](./CONTEXT.md) — 架构与实现说明
 - [SECURITY.md](./SECURITY.md) — 安全策略
 - [adlo/README.md](./adlo/README.md) — 实现工作区快速开始
-- [adlo/AGENTS.md](./adlo/AGENTS.md) — 技术栈、功能清单、Store 架构
+- [adlo/AGENTS.md](./adlo/AGENTS.md) — 技术栈、边界与约束；功能清单见 [docs/architecture/core/system-overview.md](./docs/architecture/core/system-overview.md)
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
 - [docs/knowledge-base/README.md](./docs/knowledge-base/README.md) — 经验教训索引
 - [docs/analysis/adlo/README.md](./docs/analysis/adlo/README.md) — ADL 源码地图（渐进式索引）

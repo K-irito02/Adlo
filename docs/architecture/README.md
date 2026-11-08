@@ -12,6 +12,7 @@
 |------|------|
 | [system-overview.md](./core/system-overview.md) | 系统整体架构概览（桌面宿主 + dsh harness 集成） |
 | [tech-stack-alignment.md](./core/tech-stack-alignment.md) | 技术栈对齐方案 |
+| [storage-locations.md](./core/storage-locations.md) | 存储路径解析与存储设置组实现参考（locator / Plan B 迁移 / Plan C 分组） |
 
 ### features/ — 功能实现
 
@@ -35,6 +36,6 @@
 - [设计系统](../design-system/) — UI 设计系统规范
 - [开发规范](../development/) — 工程约束与治理规则
 - [知识沉淀](../knowledge-base/) — 实施过程中的经验教训
-- [adlo/AGENTS.md](../../adlo/AGENTS.md) — 实现工作区治理（技术栈、功能清单、Store 架构）
+- [adlo/AGENTS.md](../../adlo/AGENTS.md) — 实现工作区治理（技术栈、边界与约束；功能清单见 [core/system-overview.md](./core/system-overview.md)）
 - [phase-boundary.md](../../.agents/rules/phase-boundary.md) — 项目形态与范围边界
 - [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 未来想法（非分阶段规划）

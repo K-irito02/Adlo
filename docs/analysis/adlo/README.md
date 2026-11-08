@@ -4,7 +4,7 @@
 > 版本：0.1.0 | 许可：MIT
 > 前端：React 19 + Vite + TypeScript | 后端：Rust + Tauri 2.x
 >
-> **快照说明**：本目录为实现快照（只读索引），数字可能滞后；当前准确计数见 [adlo/AGENTS.md](../../../adlo/AGENTS.md)（32 切片 + 18 action 模块），规范约束见 `.agents/rules/`。
+> **快照说明**：本目录为实现快照（只读索引），数字可能滞后；准确计数以源码实测为准（`slicedStore.ts`、`shared/ipc/`、`i18n/` 等），规范约束见 `.agents/rules/`。
 
 ## 使用指南
 
@@ -34,13 +34,13 @@
 |----------|-----------|
 | Rust 后端所有 Crate 详解 | [features/rust-crates.md](./features/rust-crates.md)（22 个，以源码为准） |
 | 前端组件架构 | [features/frontend-structure.md](./features/frontend-structure.md) |
-| dsh 宿主集成（进程托管/版本管理/宿主渲染） | 中心多标签宿主 + `crates/webapp-host`、`dsh-bundle`、`dsh-version` |
+| dsh 宿主集成（进程托管/版本管理/宿主渲染） | 中心多标签宿主 + `crates/webapp-host`、`crates/harness-version`、`crates/adl-hosted` |
 | 内置浏览器 WebView 管理 | [features/builtin-browser.md](./features/builtin-browser.md) |
 | Zustand Store 架构 | [features/store-architecture.md](./features/store-architecture.md) |
 | 终端系统（PTY + xterm.js） | [features/terminal-system.md](./features/terminal-system.md) |
 | 工作区管理（多工作区 + Git） | [features/workspace-management.md](./features/workspace-management.md) |
 | Diff 查看器与 Patch 系统 | [features/diff-viewer.md](./features/diff-viewer.md) |
-| IPC 三桥接模式 | [features/ipc-bridge.md](./features/ipc-bridge.md)（Tauri/preview/mock + `shared/ipc/` 25 文件） |
+| IPC 四端桥接模式 | [features/ipc-bridge.md](./features/ipc-bridge.md)（Tauri/preview/http/mock，`shared/ipc/` 数量以目录实测为准） |
 | Rust 编码模式 | [patterns/rust-patterns.md](./patterns/rust-patterns.md) |
 | React 编码模式 | [patterns/react-patterns.md](./patterns/react-patterns.md) |
 | Zustand 状态管理模式 | [patterns/zustand-patterns.md](./patterns/zustand-patterns.md) |
@@ -58,15 +58,15 @@ Rust 后端:
 
 前端:
   frontend/src/app/
-    ├── features/   → 25 个功能域模块
+    ├── features/   → 30 个功能域模块
     ├── components/ → 通用组件（settings/terminal/drag/HintCard/UnderlineTabs）
-    ├── stores/     → Zustand（32 切片，见 slicedStore.ts）
+    ├── stores/     → Zustand（切片数以 slicedStore.ts 实测为准）
     ├── hooks/      → 通用 Hook
-    ├── i18n/       → 国际化（22 领域 × 中英）
+    ├── i18n/       → 国际化（25 领域 × 中英）
     ├── regions/    → 布局区域（TitleBar/CenterPane/LeftSidebar/RightPanel）
     └── commands/   → 命令注册表（defaultCommands.ts）
-  frontend/src/shared/ipc/ → 25 个 IPC 域接口文件
+  frontend/src/shared/ipc/ → IPC 域接口文件（数量以目录实测为准）
   frontend/src/design-system/ → 设计系统（tokens.ts 真源）
   frontend/src/styles/ → CSS 样式（tokens.css/themes.css + components/regions/ 分散文件）
-  frontend/src/preview-bridge/ → 浏览器模式桥接（11 实现文件 + 入口 index.ts）
+  frontend/src/preview-bridge/ → 浏览器模式桥接（12 个实现文件 + 入口 index.ts）
 ```

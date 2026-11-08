@@ -8,7 +8,7 @@ alwaysApply: false
 
 ## 规则描述
 
-本项目是一个**单仓库、多维度**的桌面应用：Rust 后端 + Tauri 2.x 桌面壳 + React 19 WebView 前端，业务形态为「桌面应用宿主 + 第三方 Agent harness（当前 deepseek dsh）集成」。本规则从六个维度（代码 / 数据 / 安全 / 部署 · 运行 / 接口 · 网络 / 性能 · 可维护性）给出架构**事实总览**，并作为各维度详细规则的汇聚入口。
+本项目是一个**单仓库、多维度**的桌面应用：Rust 后端 + Tauri 2.x 桌面壳 + React 19 WebView 前端，业务形态为「桌面应用宿主 + 第三方 Agent harness（当前 DSH 与 OpenCode CLI）集成」。本规则从六个维度（代码 / 数据 / 安全 / 部署 · 运行 / 接口 · 网络 / 性能 · 可维护性）给出架构**事实总览**，并作为各维度详细规则的汇聚入口。
 
 **核心约束**：本规则与 `agents/rules/*` 其它规则共同构成架构的单一事实来源。架构事实只在本规则（或对应维度详细规则）中维护一份，**禁止在其他规则文件中复制粘贴本节内容**；新增/修改架构后，同步更新本规则或对应维度规则，而非就地重复。
 
@@ -28,9 +28,9 @@ alwaysApply: false
 - **Rust crate 分层**：依赖方向固定 `kernel → errors/events → config/fs-ops/storage → business → business`，禁止反向；crate 统一 `adl-` 前缀；20+ workspace members（types/kernel/errors/storage/workspace/pty/change-engine/server/credential/...）。详见 [rust-patterns.md](./rust-patterns.md)、[rust-crate-adl-prefix-convention.md](./rust-crate-adl-prefix-convention.md)。
 - **前端分层**：`components/` + `hooks/` + `stores/`(slices+actions) + `features/` + `regions/`（region 布局壳）。
 - **共享纯逻辑层（依赖注入）**：被多处复用的「执行序列」下沉到 `shared/` 的纯模块（如 `shared/settings-reset/`），**禁止 import React / `@i18n` / `@stores`**，store action 与桥能力一律以参数注入；UI 组件与聚合编排器共用同一实现。约束来源：`stores → shared` 已存在运行时依赖，shared 反向 import stores 会成环。类型契约（step 码、deps 形状）集中声明在层内，消费方不得就地复写。
-- **状态**：Zustand 切片合并模式（32 切片 + 18 action 模块），选择器用 `useShallow`。详见 [zustand-patterns.md](./zustand-patterns.md)、[region-layout-shell-architecture.md](./region-layout-shell-architecture.md)。
-- **桥接**：`DigitalLifeBridge` 域拆分子接口 + Tauri/Preview/Mock 三实现一致。详见 [bridge-three-implementation-pattern.md](./bridge-three-implementation-pattern.md)。
-- **harness 集成**：进程托管与拉起（`crates/webapp-host`）、内嵌版本管理（`crates/dsh-bundle`）+ 系统版本检测/升级回退（`crates/dsh-version`）、下载源/镜像（`crates/download-source`）。
+- **状态**：Zustand 切片合并模式（切片与 action 数量以 `slicedStore.ts` 实测为准），选择器用 `useShallow`。详见 [zustand-patterns.md](./zustand-patterns.md)、[region-layout-shell-architecture.md](./region-layout-shell-architecture.md)。
+- **桥接**：`DigitalLifeBridge` 域拆分子接口 + Tauri/Preview/HTTP/Mock 四端一致。详见 [bridge-four-implementation-pattern.md](./bridge-four-implementation-pattern.md)。
+- **harness 集成**：进程托管与拉起（`crates/webapp-host`）、harness 版本管理（`crates/harness-version`）、环境依赖源模型（`crates/adl-env`）、宿主版本/进程原语（`crates/adl-hosted`）、下载源/镜像（`crates/download-source`）。
 
 ## 数据维度
 
@@ -57,7 +57,7 @@ alwaysApply: false
 
 - **Tauri invoke**：命令统一登记到 `capabilities/*.json`，返回 `Result<T, AppError>` 结构化错误，用 `ipc()`/`ipc_try()` 包装。详见 [tauri-command-ipc-wrapper-pattern.md](./tauri-command-ipc-wrapper-pattern.md)。
 - **HTTP 服务**：`adl-server`（axum）140+ handler，统一四步配方（State 提取 → body 解析 → `run_blocking` 阻塞 I/O → `ipc::to_response`）。详见 [rust-server-handler-recipe-pattern.md](./rust-server-handler-recipe-pattern.md)。
-- **契约对齐**：跨 IPC 边界 `DigitalLifeBridge` 三端（Tauri/Preview/Mock）一致；共享类型 serde 双注解 + 跨语言类型生成。UI 层（`src/app/**`）**不得直接 import `@adlo/kernel`**（含 type-only，由 ESLint 强制），需先在 `shared/ipc/` 补 re-export 再从 `@shared/ipc` 消费。详见 [bridge-three-implementation-pattern.md](./bridge-three-implementation-pattern.md)、[serde-default-rename-all-convention.md](./serde-default-rename-all-convention.md)、[ts-rs-type-generation-barrel-import.md](./ts-rs-type-generation-barrel-import.md)。
+- **契约对齐**：跨 IPC 边界 `DigitalLifeBridge` 四端（Tauri/Preview/HTTP/Mock）一致；共享类型 serde 双注解 + 跨语言类型生成。UI 层（`src/app/**`）**不得直接 import `@adlo/kernel`**（含 type-only，由 ESLint 强制），需先在 `shared/ipc/` 补 re-export 再从 `@shared/ipc` 消费。详见 [bridge-four-implementation-pattern.md](./bridge-four-implementation-pattern.md)、[serde-default-rename-all-convention.md](./serde-default-rename-all-convention.md)、[ts-rs-type-generation-barrel-import.md](./ts-rs-type-generation-barrel-import.md)。
 - **事件通道**（Tauri 模式）：`digital-life://model-stream`、`digital-life://pty-output`、`digital-life://workspace-file-changed`、`digital-life://browser-url-changed`。
 
 ## 性能 · 可维护性维度
@@ -70,11 +70,11 @@ alwaysApply: false
 
 | 维度 | 权威规则 |
 |------|----------|
-| 代码 | project-overview / codebase-map / rust-patterns / zustand-patterns / component-architecture / bridge-three-implementation |
+| 代码 | project-overview / codebase-map / rust-patterns / zustand-patterns / component-architecture / bridge-four-implementation |
 | 数据 | rust-patterns（数据库）/ localstorage-central-registry-persistence-architecture / migration |
 | 安全 | tauri-shell（安全基线） |
 | 部署·运行 | commands / quality-gates / mandatory-testing |
-| 接口·网络 | tauri-shell（IPC/事件）/ rust-server-handler-recipe / tauri-command-ipc-wrapper / serde / bridge-three-implementation |
+| 接口·网络 | tauri-shell（IPC/事件）/ rust-server-handler-recipe / tauri-command-ipc-wrapper / serde / bridge-four-implementation |
 | 性能·可维护性 | tauri-shell（async 规范）/ createlazyloader / css-architecture / component-architecture |
 
 ## 约束

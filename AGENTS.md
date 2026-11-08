@@ -34,7 +34,7 @@
 
 ## 磁盘空间
 
-第三方依赖 `debug=1`（自有 crate 白名单保留 `debug=2`）。`adlo/target/debug` 超过 30 GB → 运行 `adlo/.cargo/clean-target.ps1` 执行 `cargo clean` 全量删除（永久删除，不进回收站；`-WhatIf` 干跑预览）。细节见 [adlo/AGENTS.md#磁盘空间管理](./adlo/AGENTS.md#磁盘空间管理)。
+见 [adlo/AGENTS.md#磁盘空间管理](./adlo/AGENTS.md#磁盘空间管理)（第三方依赖 `debug=1`；`target/debug` 超阈值全量 `cargo clean`）。
 
 ## 禁止项
 
@@ -50,7 +50,7 @@
 - UI/UX 或功能变更后跳过红绿测试
 - 未获用户批准就执行全量测试 / 全量门禁（`check:full`、`cargo test --workspace`）或发布打包（`cargo tauri build`）；日常只跑受变更影响的测试
 - 功能或显示效果仅在 Tauri 或浏览器单一模式下可用（必须双端一致）
-- WebView URL 变化被动触发 Tauri navigateTab（必须由前端操作显式调用，见 `browserpanel.tsx:submitAddress`、`BrowserPanelActionsContext.ts:handleOpenTabFromTree`）
+- WebView URL 变化被动触发 Tauri navigateTab（必须由前端操作显式调用，见 `useBrowserPanelAddressSubmit.ts:submitAddress`（features/browser/）、`useBrowserPanelHandlers.ts:handleOpenTabFromTree`）
 - 任何 UI 展示文本硬编码（按钮/Tooltip/aria-label/占位符/过滤器标签/相对时间/日期格式/面包屑映射等），必须使用 i18n key
 - 语言切换时依赖 Zustand store 易变数据的渲染条件缺少 fallback 导致标题行/路径栏消失
 - 错误提示/状态提示常驻显示（必须仅在活跃错误状态下可见）

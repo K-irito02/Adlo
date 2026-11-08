@@ -25,7 +25,7 @@ alwaysApply: false
 
 | 文件 | 职责 |
 |------|------|
-| `frontend/src/shared/ipc/digital-life.ts` | `DigitalLifeBridge` 类型定义（域拆分见 `shared/ipc/*.ts`，共 25 个文件） |
+| `frontend/src/shared/ipc/digital-life.ts` | `DigitalLifeBridge` 类型定义（域拆分见 `shared/ipc/*.ts`，数量以该目录实测为准） |
 | `src-tauri/src/commands/*.rs` | `#[tauri::command]` 处理 |
 | `src-tauri/capabilities/*.json` | Command 白名单（经 `permissions/digital-life.toml` 的 `digital-life-commands` 集合引用） |
 | `crates/kernel` | `serde` 契约类型 |
@@ -133,12 +133,13 @@ pub async fn workspace_list_tree(
 ## IPC/Bridge 架构规范
 
 ### Bridge 接口设计
-- `DigitalLifeBridge` 接口必须按领域拆分为命名子接口（当前 26 个：`window`, `app`, `workspace`, `retrieval`, `conversation`, `agent`, `subagent`, `mcp`, `patch`, `provider`, `command`, `pty`, `task`, `run-activity`, `browser`, `github`, `snapshot`, `web-tools`, `commands-config`, `permission`, `compaction`, `session-fork`, `lsp`, `reference`, `durable`, `custom-agent`）
+- `DigitalLifeBridge` 接口必须按领域拆分为命名子接口（`window`, `app`, `workspace`, `retrieval`, `dsh`, `opencode`, `env`, `patch`, `pty`, `browser`, `github`, `snapshot`, `reference`, `durable`, `reserved`, `clipboard`, `fileSave`, `systemMonitor`, `storage`；数量与清单以 `shared/ipc/digital-life.ts` 实测为准）
 - 每个子接口对应 `shared/ipc/{domain}.ts` 一个域文件，新增域时同步增加子接口与文件
-- 每个子接口新增方法时，必须在 3 个实现层同步:
+- 每个子接口新增方法时，必须在 4 个实现层同步:
   1. Tauri Bridge (`tauri-bridge.ts`)
   2. Preview Bridge (`preview-bridge/`)
-  3. Mock Bridge (`mock-bridge.ts` + `mock/` 子模块)
+  3. HTTP Bridge (`httpBridge.ts`)
+  4. Mock Bridge (`mock-bridge.ts` + `mock/` 子模块)
 
 ### Bridge 文件组织
 - 命名约定：`<bridge>-<domain>.ts`（`index.ts` 作为目录入口豁免）

@@ -11,7 +11,7 @@ Adlo 是桌面端的应用宿主，基于 Rust + Tauri 2.x 构建。当前形态
 |------|------|
 | 桌面原生 | Rust + Tauri 2.x，原生性能与系统能力 |
 | 双端架构 | Tauri 桌面 + 浏览器预览双模式（功能行为一致） |
-| 第三方 harness 集成 | deepseek dsh：进程托管（webapp-host）、版本管理（dsh-bundle/dsh-version）、下载源与镜像（download-source）、中心多标签宿主渲染 |
+| 第三方 harness 集成 | DSH 与 OpenCode CLI：进程托管（webapp-host）、版本管理（harness-version）、下载源与镜像（download-source）、中心多标签宿主渲染 |
 | 工作区 | 多工作区管理、Git 操作、文件树、大纲解析、搜索 |
 | 终端 | xterm.js 交互式终端（多会话 PTY + 单标签多窗格布局） |
 | 编辑器 | CodeMirror 6 + 文件预览 + 差异查看器 |
@@ -28,7 +28,7 @@ Adlo 是桌面端的应用宿主，基于 Rust + Tauri 2.x 构建。当前形态
 | 后端 | Rust stable + tokio | 异步运行时 |
 | 数据库 | SQLite (rusqlite) | 本地持久化 |
 | 前端 | React 19 + Vite 8 | UI 层 |
-| 状态管理 | Zustand 5 | 切片合并模式（32 切片 + 18 action，见 `adlo/AGENTS.md`） |
+| 状态管理 | Zustand 5 | 切片合并模式（切片/action 数以 `slicedStore.ts`、`actions/` 实测为准） |
 | 编辑器 | CodeMirror 6 (@uiw/react-codemirror) | 代码显示/编辑 |
 | 终端 | xterm.js 6 + node-pty | 伪终端 |
 | 类型 | TypeScript 5.6 | 严格模式 |
@@ -40,17 +40,17 @@ Adlo 是桌面端的应用宿主，基于 Rust + Tauri 2.x 构建。当前形态
 
 | 指标 | 数量 |
 |------|------|
-| Rust Crates | 24 |
-| Tauri Commands | 见源码 `src-tauri/src/commands/`（约 74 个，截至 2026-10-13，按 `#[tauri::command]` 标注口径） |
-| Zustand 切片 | 32（slicedStore.ts 实测，`AGENTS.md` 已同步） |
-| Action 模块 | 18（`AGENTS.md` 已同步） |
-| 前端功能域 | 26（见 `frontend/src/app/features/`） |
-| IPC 接口域 | 25 个文件（见 `frontend/src/shared/ipc/`） |
-| i18n 文件 | 约 46（中英各约 23，以实现为准） |
-| Rust 测试 | 616（截至 2026-09-15，见 `adlo/AGENTS.md`） |
-| 前端测试 | 1947（截至 2026-09-15，见 adlo/AGENTS.md） |
+| Rust Crates | 22（`crates/` 实测；workspace members 含 src-tauri 为 23） |
+| Tauri Commands | 约 76（实测 `#[tauri::command]`，以源码为准） |
+| Zustand 切片 | 29（slicedStore.ts 实测） |
+| Action 模块 | 18（`actions/` 实测） |
+| 前端功能域 | 30（见 `frontend/src/app/features/`） |
+| IPC 接口域 | 19 个域文件（+ `digital-life.ts` 聚合，见 `frontend/src/shared/ipc/`） |
+| i18n 文件 | 中英各 26（25 领域 + `index.ts`，以实现为准） |
+| Rust 测试 | 616（截至 2026-09-15 的历史快照，以 `pnpm --dir adlo run cargo:test` 输出为准） |
+| 前端测试 | 1947（截至 2026-09-15 的历史快照，以 `pnpm --dir adlo/frontend run test` 输出为准） |
 
-> 快照数字可能滞后，当前准确计数以源码与 `adlo/AGENTS.md` 为准。
+> 快照数字可能滞后，当前准确计数以源码实测为准（`adlo/AGENTS.md` 不复制计数）。
 
 ## 项目形态
 
@@ -60,9 +60,9 @@ Adlo 是桌面端的应用宿主，基于 Rust + Tauri 2.x 构建。当前形态
 
 ```
 adlo/
-├── Cargo.toml              # Rust 工作区（24 crate）
+├── Cargo.toml              # Rust 工作区（22 crate + src-tauri）
 ├── crates/                 # 独立 crate
-│   ├── kernel/             # 共享内核（app_info/config/events/storage/types）
+│   ├── kernel/             # 共享内核（app_info/config/config_watcher/events/storage）
 │   ├── types/              # 共享类型
 │   ├── errors/             # AppError 枚举
 │   ├── storage/            # SQLite 持久化
@@ -79,8 +79,8 @@ adlo/
 │   ├── change-engine/      # 变更引擎
 │   ├── server/             # adl-server 后端引擎
 │   ├── webapp-host/        # dsh 进程托管
-│   ├── dsh-bundle/         # 内置 dsh 包
-│   ├── dsh-version/        # dsh 版本管理
+│   ├── browser/            # 内置浏览器（WebView 生命周期/下载/书签桥）
+│   ├── harness-version/    # harness 版本管理（已装/最新/回退/升级/重装）
 │   ├── download-source/    # 下载源与镜像
 │   ├── adl-hosted/         # 宿主版本托管（版本目录/原子换装/进程宿主/进度任务）
 │   ├── adl-env/            # 环境依赖（providers + 来源偏好 + 基线）
@@ -96,18 +96,19 @@ adlo/
 ├── frontend/               # React 前端
 │   └── src/
 │       ├── app/            # 应用主体
-│       │       ├── features/  # 26 功能域（含 center 中心宿主、dsh、storage-settings、environment、network）
+│       │       ├── features/  # 30 功能域（含 center 中心宿主、dsh、storage-settings、environment、network）
 │       │   ├── components/ # 通用组件
-│       │   ├── stores/    # Zustand 状态（32 切片，slicedStore.ts）
+│       │   ├── stores/    # Zustand 状态（切片数以 slicedStore.ts 实测为准）
 │       │   ├── hooks/     # 自定义 Hook
 │       │   ├── regions/   # 布局区域（TitleBar/CenterPane/LeftSidebar/RightPanel）
-│       │   ├── i18n/      # 国际化（22 领域 × 中英）
+│       │   ├── i18n/      # 国际化（25 领域 × 中英）
 │       │   └── App.tsx    # 根组件
-│       ├── shared/ipc/    # IPC 接口（25 文件）
+│       ├── shared/ipc/    # IPC 接口（19 域文件 + digital-life.ts 聚合）
 │       ├── design-system/ # 设计系统（tokens.ts 真源）
 │       ├── styles/        # CSS 样式
-│       ├── tauri-bridge/  # Tauri 桥接（8 领域）
-│       ├── preview-bridge/ # 浏览器桥接（11 实现文件 + 入口 index.ts）
+│       ├── tauri-bridge/  # Tauri 桥接（9 域实现 + tauri-shared）
+│       ├── preview-bridge/ # 浏览器桥接（12 实现文件 + 入口 index.ts）
+│       ├── httpBridge.ts  # HTTP 桥接（ad-server 基底实现）
 │       └── mock-bridge.ts # 纯内存模拟（+ mock/）
 └── pnpm-workspace.yaml    # pnpm 工作区
 ```
@@ -119,13 +120,13 @@ adlo/
 │  Frontend (React 19 + Vite + TypeScript)     │
 │  ├─ UI Layer: 组件/功能域/Hook               │
 │  ├─ State Layer: Zustand (切片/action)        │
-│  └─ Bridge Layer: IPC (tauri/preview/mock)   │
+│  └─ Bridge Layer: IPC (tauri/preview/http/mock) │
 ├─────────────────────────────────────────────┤
 │  Tauri IPC (invoke / #[tauri::command])      │
 ├─────────────────────────────────────────────┤
 │  Backend (Rust + Tokio)                      │
 │  ├─ Tauri Binary: 窗口/命令/capabilities     │
-│  ├─ 宿主集成 Crates: webapp-host/dsh-bundle/dsh-version/download-source │
+│  ├─ 宿主集成 Crates: webapp-host/harness-version/adl-hosted/download-source │
 │  ├─ 环境依赖: adl-env（providers/来源/基线）+ adl-hosted（版本托管/进度任务）│
 │  ├─ 领域服务: workspace/pty/fs-ops/outline/credential/ci-status/clipboard/sysmon/change-engine/server │
 │  └─ Infrastructure: storage/logger/errors   │
@@ -133,15 +134,16 @@ adlo/
 
 双端架构:
   Tauri 模式  → Tauri Bridge → invoke → Rust Command
-  浏览器模式  → Preview Bridge → HTTP Polling → Vite 中间件
+  浏览器模式  → Preview Bridge → http（优先，可回退 mock）→ adl-server
+  HTTP 模式   → httpBridge → fetch → adl-server（Tauri/Preview 的基底实现）
   Mock 模式   → Mock Bridge → 纯内存模拟
 ```
 
 ## 关键设计理念
 
-1. **Zustand 切片合并**：功能拆分为 32 切片 + 18 action 模块，通过 `slicedStore.ts` 合并导出
-2. **IPC 三桥接一致性**：Tauri/preview/mock 三桥接层必须保持接口一致
+1. **Zustand 切片合并**：功能拆分为切片（以 `slicedStore.ts` 实测为准）+ action 模块（以 `actions/` 实测为准），通过 `slicedStore.ts` 合并导出
+2. **IPC 四端桥接一致性**：Tauri/preview/http/mock 四桥接层必须保持接口一致
 3. **Crate 分离与依赖倒置**：每个 crate 有明确边界，通过 traits 解耦
 4. **Rust 错误统一**：通过 `AppError` 枚举跨 crate 传播，`captureTypedError` 前端消费
 5. **设计 Token 驱动**：`tokens.ts` 定义完整设计 Token，`theme.ts` 驱动主题切换
-6. **i18n 全覆盖**：所有 UI 文本使用 i18n key，中英双语各约 23 域文件（以实现为准）
+6. **i18n 全覆盖**：所有 UI 文本使用 i18n key，中英双语各 25 域文件（+ index.ts，以实现为准）
