@@ -235,7 +235,7 @@ ESLint/Clippy 的 `--fix` 自动修复和任何人工修复必须遵守以下约
 | ------------------------------ | -------------------------------------------------------- |
 | 连续运行 5 次，偶发失败 ≤ 2 次 | 标记为 flaky，记录日志，不阻塞验收                       |
 | 连续运行 5 次，失败 > 2 次     | 视为真实失败，按失败流程处理                             |
-| 已知 flaky test                | 在 `package.json` 的 `test:flaky` 脚本中登记，验收时排除 |
+| 已知 flaky test                | 在 `adlo/frontend/scripts/flaky-tests.json` 登记；`pnpm --dir frontend run test:flaky` 单独运行，`check:changed` 自动加 `--exclude` |
 
 ---
 

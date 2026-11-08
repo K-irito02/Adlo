@@ -21,6 +21,8 @@ const COMPAT_ALLOW_MARKER = "compat-allow";
 const COMPAT_PATTERN =
   /兼容历史|历史(?:数据)?格式|旧(?:数据)?格式|数据格式兼容|旧版本迁移|legacy (?:data )?(?:format|compat)/i; // compat-allow: detector pattern
 const MOJIBAKE_MARKERS = ["\u951f\u65a4\u62f7", "\u70eb\u70eb\u70eb", "\u5c6f\u5c6f\u5c6f"];
+/** 临时诊断日志前缀：留下即生产日志噪声，必须清理。 */
+const DEBUG_TAG_PATTERN = /\[(?:DBG-|ADL-DEBUG\])/;
 
 /** 返回注释行里含字面量 `\n` 的行（1-based 行号）。纯函数，供单测。hygiene-allow */
 export function findLiteralEscapedNewlines(text) {
@@ -57,6 +59,18 @@ export function findReplacementChars(text) {
 /** 文件头 UTF-8 BOM；仓库统一无 BOM，防止 shell 写入带回 BOM。 */
 export function hasBom(text) {
   return text.charCodeAt(0) === 0xfeff;
+}
+
+/** 临时诊断日志前缀 `[DBG-*]` / `[ADL-DEBUG]`。 hygiene-allow */
+export function findDebugTags(text) {
+  const hits = [];
+  text.split(/\r?\n/).forEach((line, index) => {
+    if (line.includes(ALLOW_MARKER) || !DEBUG_TAG_PATTERN.test(line)) {
+      return;
+    }
+    hits.push({ line: index + 1, text: line.trim() });
+  });
+  return hits;
 }
 
 /** 常见中文 mojibake 序列（GBK/UTF-8 错配或未初始化内存）。 */
@@ -175,6 +189,9 @@ function main() {
     if (SOURCE_EXTENSIONS.has(extension)) {
       for (const hit of findLiteralEscapedNewlines(text)) {
         offenders.push(`[literal \\n] ${relative}:${hit.line}  ${hit.text.slice(0, 160)}`);
+      }
+      for (const hit of findDebugTags(text)) {
+        offenders.push(`[debug-tag] ${relative}:${hit.line}  ${hit.text.slice(0, 160)}`);
       }
     }
     for (const hit of findReplacementChars(text)) {

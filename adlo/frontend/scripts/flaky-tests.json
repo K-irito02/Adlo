@@ -1,0 +1,4 @@
+{
+  "tests": [],
+  "note": "Known flaky test files (relative to adlo/frontend). They are excluded from check:changed and run separately via `pnpm run test:flaky`. Remove an entry once the test is stabilized; prefer fixing near-threshold timeouts over quarantine."
+}

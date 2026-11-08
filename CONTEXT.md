@@ -196,7 +196,7 @@ Rust 端 `crates/kernel/src/command_risk.rs`，采用 deny/ask/allow 三态模�
 ## 功能域
 
 ### 编辑器 (Editor)
-前端代码编辑器面板，基于 CodeMirror，支持多标签页、语法高亮、diff 对比。
+前端代码编辑器面板，基于 CodeMirror，支持多标签页、语法高亮、diff 对比。存盘链与外部变更跟手见 `adlo/frontend/src/app/stores/editorSavePipeline.ts` 与 `stores/actions/editorActions.ts`；决策见 [ADR-0016](./docs/adr/0016-editor-save-pipeline-boundary.md)，经验见 [编辑器自动保存竞态](./docs/knowledge-base/interaction/editor-autosave-watcher-race-2026-11-08.md)。
 
 ### 工作区 (Workspace)
 项目管理模块，支持 Git 操作（clone/commit/diff/worktree）、文件树、大纲解析、搜索。

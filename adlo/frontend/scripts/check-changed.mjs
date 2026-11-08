@@ -11,6 +11,7 @@
  * 修复循环可传 `--base HEAD` 只查本轮改动；最终提交前省略，按 upstream 全量受影响范围跑一次。
  */
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { i18nTestScopes } from './i18n-test-scope.mjs';
 import { isRustPath } from '../../scripts/check-rust-changed.mjs';
 
@@ -61,6 +62,18 @@ function capture(cmd, args, options = {}) {
 
 function quote(file) {
   return `"${file.replace(/"/g, '\\"')}"`;
+}
+
+/** Known-flaky files are excluded from the affected-range gate; see test:flaky. */
+function loadFlakyTests() {
+  try {
+    const parsed = JSON.parse(readFileSync(new URL('./flaky-tests.json', import.meta.url), 'utf8'));
+    return Array.isArray(parsed.tests)
+      ? parsed.tests.filter((entry) => typeof entry === 'string' && entry.length > 0)
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 function run(label, command) {
@@ -210,6 +223,12 @@ run(
   `git -C "${repoRoot}" diff --exit-code -- ${prefix}src/styles/vendor`,
 );
 
+const flakyTests = loadFlakyTests();
+const flakyExcludeArgs = flakyTests.map((test) => ` --exclude ${quote(test)}`).join('');
+if (flakyTests.length > 0) {
+  console.log(`[check:changed] excluding known flaky tests: ${flakyTests.join(', ')}`);
+}
+
 if (srcChanges.length > 0) {
   // i18n 字典被几乎所有组件引用：`vitest related` 会把整张导入图拉进来。
   // 仅当变更文件全部是**已知**字典域时才收窄，未知字典仍走 related（宁可多跑）。
@@ -217,12 +236,12 @@ if (srcChanges.length > 0) {
   if (i18nScopes) {
     runTests(
       `vitest scoped (i18n-only change -> ${i18nScopes.length} dirs)`,
-      `npx vitest run ${i18nScopes.map(quote).join(' ')} --passWithNoTests --reporter=dot --silent=passed-only`,
+      `npx vitest run ${i18nScopes.map(quote).join(' ')} --passWithNoTests --reporter=dot --silent=passed-only${flakyExcludeArgs}`,
     );
   } else {
     runTests(
       `vitest related (${srcChanges.length} changed source files)`,
-      `npx vitest related ${srcChanges.map(quote).join(' ')} --passWithNoTests --reporter=dot --silent=passed-only`,
+      `npx vitest related ${srcChanges.map(quote).join(' ')} --passWithNoTests --reporter=dot --silent=passed-only${flakyExcludeArgs}`,
     );
   }
 } else {

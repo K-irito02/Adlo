@@ -9,6 +9,7 @@ describe('removeSiteMetaIfUnreferenced', () => {
     vi.resetModules();
   });
 
+  // 动态导入整个 store 在完整并行门禁下约 4–5s；给足余量，避免慢测试被当成 flaky。
   it('keeps cache when url still referenced by a tab', async () => {
     const cleanup = await import('./siteMetaCleanup');
     const cache = await import('../../utils/siteMetaCache');
@@ -55,5 +56,5 @@ describe('removeSiteMetaIfUnreferenced', () => {
     // fire-and-forget backend removal is eventually issued (disk cache truly deleted)
     await new Promise((r) => setTimeout(r, 0));
     expect(removeSpy).toHaveBeenCalledWith(['https://a.com/']);
-  });
+  }, 15_000);
 });

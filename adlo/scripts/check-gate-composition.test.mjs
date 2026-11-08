@@ -24,6 +24,23 @@ test("daily check:changed wires affected Rust tests and accepts --base", () => {
   assert.match(text, /--base/);
 });
 
+test("known flaky tests are registered and excluded from check:changed", () => {
+  const frontendPkg = JSON.parse(
+    readFileSync(new URL("../frontend/package.json", import.meta.url), "utf8"),
+  );
+  assert.equal(frontendPkg.scripts["test:flaky"], "node scripts/run-flaky-tests.mjs");
+  const flaky = JSON.parse(
+    readFileSync(new URL("../frontend/scripts/flaky-tests.json", import.meta.url), "utf8"),
+  );
+  assert.ok(Array.isArray(flaky.tests), "flaky-tests.json must expose a tests array");
+  const changedGate = readFileSync(
+    new URL("../frontend/scripts/check-changed.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(changedGate, /flaky-tests\.json/);
+  assert.match(changedGate, /--exclude/);
+});
+
 test("check:all and pre-push share the repo-level gate (check:repo)", () => {
   // 曾经的缝隙：check:all 不含 scripts:format:check / e2e:typecheck，合并门禁全绿后
   // 仍会在 pre-push 被拦下。两处必须引用同一个聚合脚本，否则组合会再次漂移。

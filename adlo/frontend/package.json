@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:changed": "vitest run --changed",
+    "test:flaky": "node scripts/run-flaky-tests.mjs",
     "coverage": "vitest run --coverage",
     "build:analyze": "BUILD_ANALYZE=true vite build",
     "lint": "eslint .",
