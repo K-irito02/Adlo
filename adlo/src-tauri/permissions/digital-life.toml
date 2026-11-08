@@ -13,7 +13,7 @@ commands.allow = [
   "workspace_reveal_in_file_manager",
   "workspace_open_in_file_manager",
   "platform_open_path",
-  "clipboard_save_to_file",
+  "app_save_file",
   "browser_create_for_tab",
   "browser_activate_tab",
   "browser_destroy_tab",

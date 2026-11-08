@@ -75,6 +75,9 @@ function setClipboardBridge(overrides: Record<string, unknown> = {}) {
       getThumbUrl: () => 'thumb://thumb.png',
       getHtmlUrl: () => 'html://a.html',
       getRtfUrl: () => 'rtf://a.rtf',
+      ...overrides,
+    },
+    fileSave: {
       saveToFile: vi.fn().mockResolvedValue({ ok: true, data: {} }),
       ...overrides,
     },

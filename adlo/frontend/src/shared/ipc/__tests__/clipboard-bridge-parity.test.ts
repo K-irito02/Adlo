@@ -19,17 +19,8 @@ describe('clipboard bridge contract', () => {
     expect('writeImage' in bridge.clipboard).toBe(false);
   });
 
-  it('exposes saveToFile and reports it as NOT_SUPPORTED on httpBridge', async () => {
-    // 系统原生「另存为」是壳层能力：ad-server 只提供载荷（export 路由），
-    // 落盘由 tauri-bridge / preview-bridge 覆盖，httpBridge 恒 NOT_SUPPORTED。
-    const result = await bridge.clipboard.saveToFile({
-      suggestedName: 'clipboard-c1.txt',
-      dataBase64: 'aGk=',
-    });
-    expect(result.ok).toBe(false);
-    expect(result.ok === false && result.error.code).toBe('NOT_SUPPORTED');
-    // message 带方法名，排查时可定位到具体能力而非笼统 NOT_SUPPORTED。
-    expect(result.ok === false && result.error.message).toContain('clipboard.saveToFile');
+  it('no longer carries the save-to-file capability (moved to the fileSave domain)', () => {
+    expect('saveToFile' in bridge.clipboard).toBe(false);
   });
 
   it('builds asset urls from basename only', () => {

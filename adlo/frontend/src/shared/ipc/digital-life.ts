@@ -12,6 +12,7 @@ export type {
 
 import type { PtyOutputEvent } from './pty';
 import type { ClipboardBridge } from './clipboard';
+import type { FileSaveBridge } from './fileSave';
 import type { SystemMonitorBridge } from './system_monitor';
 import type { WindowBridge } from './window';
 import type { AppBridge } from './app';
@@ -152,6 +153,8 @@ export interface DigitalLifeBridge {
   reserved: ReservedBridge;
   /** 系统剪贴板历史子模块 */
   clipboard: ClipboardBridge;
+  /** 通用「另存为」壳层能力（剪贴板另存、书签导出等都走它）。 */
+  fileSave: FileSaveBridge;
   /** 系统状态监控子模块 */
   systemMonitor: SystemMonitorBridge;
   /** 存储路径管理子模块 (状态/预检/切换/重启) */

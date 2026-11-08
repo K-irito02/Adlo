@@ -297,7 +297,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
         item.kind === 'text'
           ? new TextEncoder().encode(editing ? editTextRef.current : draftRef.current)
           : new Uint8Array(await (await fetchExport(exportUrl)).arrayBuffer());
-      const result = await window.digitalLife.clipboard.saveToFile({
+      const result = await window.digitalLife.fileSave.saveToFile({
         suggestedName,
         dataBase64: bytesToBase64(bytes),
       });

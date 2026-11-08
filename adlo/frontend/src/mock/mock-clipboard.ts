@@ -16,7 +16,6 @@ export const mockClipboard: ClipboardBridge = {
     data: { id, kind: 'text', content, createdAt: Date.now() },
   }),
   exportUrl: () => '',
-  saveToFile: async () => ({ ok: true, data: {} }),
   getThumbUrl: () => '',
   getImageUrl: () => '',
   getHtmlUrl: (_htmlPath: string) => '',

@@ -7,11 +7,8 @@ import type { GitHubBridge } from '../shared/ipc/github';
 import type { ReferenceBridge } from '../shared/ipc/reference';
 import type { RetrievalBridge } from '../shared/ipc/retrieval';
 import type { SnapshotBridge } from '../shared/ipc/snapshot';
-import type {
-  ClipboardBridge,
-  ClipboardSaveToFileRequest,
-  ClipboardSaveToFileResult,
-} from '../shared/ipc/clipboard';
+import type { ClipboardBridge } from '../shared/ipc/clipboard';
+import { createPreviewFileSaveBridge } from './preview-file-save';
 import type { SystemMonitorBridge } from '../shared/ipc/system_monitor';
 import type { StorageBridge } from '../shared/ipc/storage';
 import type { EnvBridge } from '../shared/ipc/env';
@@ -266,6 +263,7 @@ export async function setupPreviewBridge(): Promise<void> {
       http.durable,
       mockDigitalLifeBridge.durable,
     ),
+    fileSave: createPreviewFileSaveBridge(),
     clipboard: {
       ...preferHttpWhenReachable<ClipboardBridge>(
         adlServerBaseUrl,
@@ -283,19 +281,6 @@ export async function setupPreviewBridge(): Promise<void> {
       // exportUrl 同样是纯 URL 构造器（返回 `/clipboard/export?id=…`，作为
       // `saveToFile` 的载荷来源），必须覆盖在 spread 之后，避免被 Proxy 异步包裹。
       exportUrl: http.clipboard.exportUrl,
-      // `clipboard.saveToFile`（系统原生「另存为」+ 写盘）是壳层能力，ad-server
-      // 无对应 HTTP 路由（httpBridge 侧恒为 NOT_SUPPORTED）。浏览器预览端由
-      // dev 预览服务实现（Windows SaveFileDialog / macOS choose file name /
-      // Linux zenity），与桌面端 Tauri 命令行为一致 —— 必须覆盖在 spread 之后。
-      // `requestPreviewApi` 自带 try/catch，失败恒返回结构化 IpcResult，不抛。
-      saveToFile: (request: ClipboardSaveToFileRequest) =>
-        requestPreviewApi<ClipboardSaveToFileResult>('/clipboard/save-file', {
-          method: 'POST',
-          body: JSON.stringify({
-            suggestedName: request.suggestedName,
-            dataBase64: request.dataBase64,
-          }),
-        }),
       // onChanged 返回同步 unsubscribe（与 workspace.onFilesChanged 同契约），
       // 必须放在 spread 之外：Proxy 会把方法异步包裹，破坏「同步返回 unsubscribe」。
       // 代价：离线预览下它恒绑定 http WS（不走可达性 / mock 回退），会按退避策略反复尝试

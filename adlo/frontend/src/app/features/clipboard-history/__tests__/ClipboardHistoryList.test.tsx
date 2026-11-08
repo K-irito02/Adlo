@@ -18,7 +18,6 @@ const fakeBridge = {
     getHtmlUrl: () => '',
     getRtfUrl: () => '',
     exportUrl: () => '',
-    saveToFile: vi.fn().mockResolvedValue({ ok: true, data: {} }),
     onChanged: (listener: () => void) => {
       clipboardListeners.add(listener);
       return () => clipboardListeners.delete(listener);

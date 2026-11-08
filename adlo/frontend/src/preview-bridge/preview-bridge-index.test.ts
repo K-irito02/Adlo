@@ -49,7 +49,7 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
       if (url.includes('/__adl_preview_api__/workspace/reveal')) {
         return Promise.resolve(okJson({ ok: true, data: true }));
       }
-      if (url.includes('/__adl_preview_api__/clipboard/save-file')) {
+      if (url.includes('/__adl_preview_api__/file/save')) {
         return Promise.resolve(okJson({ ok: true, data: { path: 'E:/out.txt' } }));
       }
       if (url.includes('/sidebar/list')) {
@@ -80,26 +80,23 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
   );
 
   it(
-    'clipboard.saveToFile routes to the dev preview service (not the NOT_SUPPORTED httpBridge stub)',
+    'fileSave.saveToFile routes to the dev preview service (not the NOT_SUPPORTED httpBridge stub)',
     { timeout: 10000 },
     async () => {
       const { bridge, fetchMock } = await setupBridge();
-      const res = await bridge.clipboard.saveToFile({
+      const res = await bridge.fileSave.saveToFile({
         suggestedName: 'clipboard-c1.txt',
         dataBase64: 'aGk=',
       });
 
       expect(res).toEqual({ ok: true, data: { path: 'E:/out.txt' } });
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('/__adl_preview_api__/clipboard/save-file'),
+        expect.stringContaining('/__adl_preview_api__/file/save'),
         expect.objectContaining({ method: 'POST' }),
       );
       const body = JSON.parse(
-        (
-          fetchMock.mock.calls.find((c) =>
-            String(c[0]).includes('/clipboard/save-file'),
-          )?.[1] as RequestInit
-        ).body as string,
+        (fetchMock.mock.calls.find((c) => String(c[0]).includes('/file/save'))?.[1] as RequestInit)
+          .body as string,
       );
       expect(body).toEqual({ suggestedName: 'clipboard-c1.txt', dataBase64: 'aGk=' });
     },

@@ -139,7 +139,7 @@ fn main() {
             commands::app::write_debug_logs_to_project,
             commands::app::app_get_server_info,
             commands::workspace::workspace_pick_directory,
-            commands::clipboard::clipboard_save_to_file,
+            commands::file_save::app_save_file,
             commands::platform::workspace_reveal_in_file_manager,
             commands::browser::browser_create_for_tab,
             commands::browser::browser_activate_tab,
@@ -219,7 +219,7 @@ mod tests {
     ///
     /// Tauri v2 在 invoke 层做能力校验：漏登记的命令会被直接拒绝，前端只会看到
     /// 一个没有原因的 `INVOKE_ERROR`（开发期表现为"点了没反应"）。白名单是手工维护的，
-    /// 新增命令极易漏登（`clipboard_save_to_file` 就这样漏过一次），故在此做机器校验。
+    /// 新增命令极易漏登（`app_save_file` 就这样漏过一次），故在此做机器校验。
     #[test]
     fn every_registered_command_is_allowlisted() {
         let main_src = include_str!("main.rs");

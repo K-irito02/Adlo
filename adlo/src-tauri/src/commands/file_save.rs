@@ -1,3 +1,9 @@
+//! 通用「另存为」壳层能力。
+//!
+//! 任何一个域（剪贴板、书签导出……）需要"让用户选路径并把字节写到那里"时都走这里，
+//! 而不是各自复制一份对话框逻辑。分工与 `workspace_pick_directory` 一致：数据由各域
+//! 自己产生，壳层只负责弹系统原生对话框并写盘。
+
 use std::path::Path;
 
 use base64::Engine;
@@ -8,23 +14,19 @@ use crate::commands::ipc;
 use adl_errors::AppError;
 use adl_types::IpcResult;
 
-/// 「保存为文件」的请求载荷。
-///
-/// 分工与 `workspace_pick_directory` 一致：ad-server 拥有剪贴板数据，前端已从
-/// `GET /clipboard/export?id=…` 取回条目字节（base64），壳层只负责弹系统原生
-/// 「另存为」对话框并把字节写到用户选定的位置。
+/// 「另存为」的请求载荷。字节以 base64 传输，避免 IPC 层对二进制载荷的额外约定。
 #[derive(serde::Deserialize)]
-pub struct SaveToFilePayload {
+pub struct SaveFilePayload {
     /// 对话框预填文件名（含扩展名）。用户可在对话框中改名与改位置。
     pub suggested_name: String,
-    /// 条目字节的 base64 编码（标准字母表 + padding）。
+    /// 待写入字节的 base64 编码（标准字母表 + padding）。
     pub data_base64: String,
 }
 
 /// 把预填文件名收敛为纯基名：剥掉任何目录成分，并把 Windows 文件名非法字符换成下划线。
 ///
-/// 预填名来自前端（由条目 id 派生），但对话框返回的落盘路径完全由用户决定；
-/// 这里只保证"预填"这一步不会把对话框带到意料之外的目录或因非法字符报错。
+/// 预填名来自前端，但对话框返回的落盘路径完全由用户决定；这里只保证"预填"这一步
+/// 不会把对话框带到意料之外的目录或因非法字符报错。
 ///
 /// 目录成分按 `/` 手工切分而非走 `Path::file_name()`：后者在 Windows 上会把 `a:` 当盘符前缀、
 /// 在 Unix 上不会，两端行为不一致，而本函数的输出会同时喂给两端的「另存为」对话框。
@@ -32,12 +34,15 @@ fn sanitize_suggested_name(raw: &str) -> String {
     let normalized = raw.trim().replace('\\', "/");
     // `rsplit` 恒产出至少一个子串，`next()` 永不返回 `None`；
     // 保留 `unwrap_or("")` 而不用 `expect`：后端禁止 panic 路径，
-    // 空结果自然落入下方 `"clipboard"` 兜底，语义不变。
+    // 空结果自然落入下方 `"file"` 兜底，语义不变。
     let base = normalized.rsplit('/').next().unwrap_or("");
     let cleaned: String = base
         .chars()
         .map(|c| {
-            if matches!(c, '\0' | '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
+            if matches!(
+                c,
+                '\0' | '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|'
+            ) {
                 '_'
             } else {
                 c
@@ -45,11 +50,15 @@ fn sanitize_suggested_name(raw: &str) -> String {
         })
         .collect();
     let cleaned = cleaned.trim().to_string();
-    if cleaned.is_empty() { "clipboard".to_string() } else { cleaned }
+    if cleaned.is_empty() {
+        "file".to_string()
+    } else {
+        cleaned
+    }
 }
 
 /// 按扩展名给出「另存为」对话框的文件类型过滤器。未知扩展名退化为按该扩展名单过滤，
-/// 不静默放宽为"所有文件"——避免用户误把条目存成无扩展名文件。无扩展名时返回 `None`
+/// 不静默放宽为"所有文件"——避免用户误把内容存成无扩展名文件。无扩展名时返回 `None`
 ///（不加过滤器），而不是塞一个空扩展名把对话框过滤成"只显示无扩展名文件"。
 fn filter_extensions(file_name: &str) -> Option<Vec<String>> {
     let ext = Path::new(file_name)
@@ -69,9 +78,9 @@ fn filter_extensions(file_name: &str) -> Option<Vec<String>> {
 /// 返回用户确认的绝对路径；取消对话框返回 `Ok(None)`。写盘放在
 /// `spawn_blocking` 中，避免阻塞异步运行时。
 #[tauri::command]
-pub async fn clipboard_save_to_file(
+pub async fn app_save_file(
     app: tauri::AppHandle,
-    payload: SaveToFilePayload,
+    payload: SaveFilePayload,
 ) -> IpcResult<Option<String>> {
     let suggested_name = sanitize_suggested_name(&payload.suggested_name);
 
@@ -81,7 +90,9 @@ pub async fn clipboard_save_to_file(
         match base64::engine::general_purpose::STANDARD.decode(payload.data_base64.as_bytes()) {
             Ok(bytes) => bytes,
             Err(err) => {
-                return ipc(Err(AppError::InvalidInput(format!("invalid base64 payload: {err}"))));
+                return ipc(Err(AppError::InvalidInput(format!(
+                    "invalid base64 payload: {err}"
+                ))));
             },
         };
 
@@ -100,7 +111,7 @@ pub async fn clipboard_save_to_file(
     let chosen = match rx.await {
         Ok(path) => path,
         Err(err) => {
-            tracing::warn!("clipboard_save_to_file dialog channel failed: {err}");
+            tracing::warn!("app_save_file dialog channel failed: {err}");
             None
         },
     };
@@ -143,8 +154,8 @@ mod tests {
 
     #[test]
     fn sanitize_falls_back_when_nothing_usable_remains() {
-        assert_eq!(sanitize_suggested_name("   "), "clipboard");
-        assert_eq!(sanitize_suggested_name("///"), "clipboard");
+        assert_eq!(sanitize_suggested_name("   "), "file");
+        assert_eq!(sanitize_suggested_name("///"), "file");
     }
 
     #[test]

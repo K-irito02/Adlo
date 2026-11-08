@@ -94,7 +94,8 @@ import type {
 import type { OpencodeSourceStatus } from './shared/ipc/opencode';
 import type { DurableSessionState } from './shared/ipc/durable';
 import type { EnvBridge, EnvSourceMode, EnvStatus } from './shared/ipc/env';
-import type { ClipboardBridge, ClipboardSaveToFileResult } from './shared/ipc/clipboard';
+import type { ClipboardBridge } from './shared/ipc/clipboard';
+import type { FileSaveBridge, FileSaveResult } from './shared/ipc/fileSave';
 import type { SystemMonitorBridge } from './shared/ipc/system_monitor';
 import type {
   StorageApplyResult,
@@ -1246,6 +1247,13 @@ export function createHttpBridge({
         call<boolean>(baseUrl, '/durable/recover', POST({ sessionId })),
     },
 
+    // ── 通用「另存为」：壳层能力，ad-server 无对应路由。
+    // 桌面由 tauri-bridge 用 Tauri invoke 覆盖，浏览器预览由 preview-bridge 走
+    // dev 预览服务覆盖（同 workspace.pickDirectory 的处理）。
+    fileSave: {
+      saveToFile: async () => notSupported<FileSaveResult>('fileSave.saveToFile'),
+    } as FileSaveBridge,
+
     // ── Clipboard domain.
     clipboard: {
       list: (limit?: number) =>
@@ -1260,10 +1268,6 @@ export function createHttpBridge({
       update: (id: string, content: string) =>
         call<ClipboardItem>(baseUrl, '/clipboard/update', POST({ id, content })),
       exportUrl: (id: string) => `${baseUrl}/clipboard/export?id=${encodeURIComponent(id)}`,
-      // 系统原生「另存为」是壳层能力，ad-server 无对应 HTTP 路由：
-      // 桌面由 tauri-bridge 用 Tauri invoke 覆盖，浏览器预览由 preview-bridge
-      // 走 dev 预览服务覆盖（同 workspace.pickDirectory 的处理）。
-      saveToFile: async () => notSupported<ClipboardSaveToFileResult>('clipboard.saveToFile'),
       getThumbUrl: (thumbPath: string) => clipboardAssetUrl(baseUrl, 'thumb', thumbPath),
       getImageUrl: (imagePath: string) => clipboardAssetUrl(baseUrl, 'image', imagePath),
       getHtmlUrl: (htmlPath: string) => clipboardAssetUrl(baseUrl, 'html', htmlPath),

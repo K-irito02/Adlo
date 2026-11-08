@@ -324,7 +324,7 @@ export function isValidBase64Payload(value: string): boolean {
 
 /**
  * 系统原生「另存为」对话框 —— 浏览器预览端的落盘通道，
- * 与桌面端 `clipboard_save_to_file` 命令行为一致（预填文件名、可改名改位置、
+ * 与桌面端 `app_save_file` 命令行为一致（预填文件名、可改名改位置、
  * 覆盖确认、取消返回 undefined）。
  */
 async function pickSavePath(suggestedName: string): Promise<string | undefined> {
@@ -570,7 +570,7 @@ const routes: Route[] = [
   },
   {
     method: 'POST',
-    pathname: makePath('/clipboard/save-file'),
+    pathname: makePath('/file/save'),
     handler: async (_req, body) => {
       const b = body as { suggestedName?: string; dataBase64?: string } | undefined;
       if (!b?.suggestedName?.trim()) return fail('suggestedName is required', 'INVALID_INPUT');

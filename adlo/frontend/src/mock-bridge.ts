@@ -35,6 +35,7 @@ import { mockOpencode } from './mock/mock-opencode';
 import { createMockEnv } from './mock/mock-env';
 import { mockReserved } from './mock/mock-reserved';
 import { mockClipboard } from './mock/mock-clipboard';
+import { mockFileSave } from './mock/mock-file-save';
 import { mockSystemMonitor } from './mock/mock-system-monitor';
 import { createMockStorage } from './mock/mock-storage';
 
@@ -132,6 +133,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   durable: mockDurable,
   reserved: mockReserved,
   clipboard: mockClipboard,
+  fileSave: mockFileSave,
   systemMonitor: mockSystemMonitor,
   storage: createMockStorage(),
 };

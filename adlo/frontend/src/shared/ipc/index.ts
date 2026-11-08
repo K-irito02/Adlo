@@ -23,6 +23,7 @@ export { toUserMessage } from '@adlo/kernel';
 export * from './app';
 export * from './clipboard';
 export * from './dsh';
+export * from './fileSave';
 export * from './opencode';
 export * from './system_monitor';
 export * from './workspace';
