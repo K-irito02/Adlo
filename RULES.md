@@ -32,12 +32,12 @@
 
 ### 1.3 规模
 
-当前 **45 条规则**（不含本目录的 `README.md` 索引）：
+当前 **48 条规则**（不含本目录的 `README.md` 索引）：
 
 | 应用方式 | 条数 | 含义 |
 |----------|------|------|
 | `alwaysApply: true` | 7 | 全局常驻，任何任务都生效 |
-| `alwaysApply: false` + `globs` | 38 | 命中指定路径时才注入，减少无关上下文 |
+| `alwaysApply: false` + `globs` | 41 | 命中指定路径时才注入，减少无关上下文 |
 
 > 条数以 `.agents/rules/` 实际文件为准；`scripts/check-agent-dirs.test.mjs` 会在 pre-commit 校验本表与目录一致。
 
@@ -160,13 +160,14 @@ alwaysApply: false
 | `dev-rules.md` | 始终 | 代理交互与执行规则：询问卡片、终端命令、代码修改、问题排查、编码风格、并行工作树约束 |
 | `preference-writes.md` | 始终 | 用户显式选择类配置只由用户操作写入，后台 effect/定时器不得静默改写偏好 |
 
-### 6.2 质量与验收（3）
+### 6.2 质量与验收（4）
 
 | 规则文件 | 应用方式 | 约束内容 |
 |----------|----------|----------|
 | `mandatory-testing.md` | 始终 | 结束验收流程与强制红绿测试（不涉及 UI 视觉验证） |
 | `quality-gates.md` | 测试 / 前端 / crates / src-tauri | 测试、类型检查、lint、格式化、迁移与合并前门禁 |
 | `error-handling.md` | 始终 | 错误处理、加载状态与前后端统一动作模式（`AppError` 体系） |
+| `governance-gate-script-ratchet.md` | `adlo/scripts/**`、`adlo/frontend/scripts/**` | 门禁脚本棘轮：diff-only 断言只拦新增、baseline 兜底存量、内联 `no-new-any-allow` opt-out |
 
 ### 6.3 操作与验证（3）
 
@@ -176,11 +177,12 @@ alwaysApply: false
 | `desktop-ui-verification.md` | `frontend/**` | 桌面端 UI 验证：改 UI 后必须重启应用确认双端一致 |
 | `shell-encoding.md` | 始终 | 终端中文编码与批量替换：禁止内联 CJK 替换、禁止根目录递归扫描 |
 
-### 6.4 Rust 后端（9）
+### 6.4 Rust 后端（10）
 
 | 规则文件 | 应用方式 | 约束内容 |
 |----------|----------|----------|
 | `rust-patterns.md` | `crates/**`、`src-tauri/**` | Rust 性能模式（`LazyLock` 缓存等）、crate 治理、数据库规范 |
+| `rust-cargo-workspace-central-config.md` | `Cargo.toml`、`crates/*/Cargo.toml`、`clippy.toml` | workspace 集中配置：`[workspace.package]`/`[workspace.lints]`/`[workspace.dependencies]`，成员 crate 只写继承指令 |
 | `rust-command-domain-action-naming.md` | `src-tauri/src/commands/**` | Tauri Command 函数 `{domain}_{action}` 蛇形命名 |
 | `rust-crate-adl-prefix-convention.md` | `crates/*/Cargo.toml` | 内部 crate 统一 `adl-` 前缀 |
 | `rust-crate-lib-barrel-export-pattern.md` | `crates/*/src/lib.rs` | lib.rs 公共 API 桶导出（模块声明 + 集中 `pub use`） |
@@ -190,11 +192,12 @@ alwaysApply: false
 | `serde-default-rename-all-convention.md` | `crates/**/types/**` | 跨 IPC 类型必须同时 `#[serde(default)]` 与 `#[serde(rename_all)]` |
 | `tagged-enum-camelcase-serde-pattern.md` | `crates/types/**` | 共享类型 `rename_all = "camelCase"` + `tag = "type"` 序列化 |
 
-### 6.5 跨端契约与桥接（6）
+### 6.5 跨端契约与桥接（7）
 
 | 规则文件 | 应用方式 | 约束内容 |
 |----------|----------|----------|
 | `tauri-shell.md` | `src-tauri/**`、`frontend/**`、`crates/**` | 后端 / 命令 / WebView 边界、安全基线、capability 白名单 |
+| `remote-webview-least-privilege-capabilities.md` | `src-tauri/capabilities/**`、`src-tauri/permissions/**`、`crates/browser/**` | 远端 WebView 最小权限分级：`browser-remote.json` 仅 `core:default`，业务命令逐条枚举 |
 | `tauri-command-ipc-wrapper-pattern.md` | `src-tauri/**` | 命令统一走 `ipc()` / `ipc_try()` 包装器 |
 | `tauri-event-subscription-lifecycle-pattern.md` | `tauri-bridge/**`、`app/**`、`shared/**` | 事件订阅生命周期：异步 unlisten 幂等清理、竞态守卫 |
 | `ts-rs-type-generation-barrel-import.md` | `crates/**`、`frontend/src/kernel/**` | ts-rs 自动生成 TS 类型 + kernel 桶导入 |
