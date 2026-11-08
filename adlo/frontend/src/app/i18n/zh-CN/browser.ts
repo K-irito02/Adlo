@@ -56,7 +56,7 @@ export const browserZh = {
   browserNoContent: '暂无内容',
   browserEmptyDirectory: '空目录',
   browserOpenTabsEmpty: '还没有打开的标签页',
-  browserTabDir: '标签目录',
+  browserTabDir: '书签目录',
   browserRenamePrompt: '重命名',
 
   // 新建标签对话框
@@ -194,7 +194,7 @@ export const browserZh = {
   browserDateYear: '年',
   browserDateMonth: '月',
   browserDateDay: '日',
-  browserNewTabFolder: '新建标签文件夹',
+  browserNewTabFolder: '新建书签文件夹',
   browserMenuNewTab: '新建标签',
   browserBookmarkSaveOnly: '仅保存',
   browserBookmarkSaveAndOpen: '保存并打开',

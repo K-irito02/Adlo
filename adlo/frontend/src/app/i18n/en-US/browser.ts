@@ -64,7 +64,7 @@ export const browserEn = {
   browserNoContent: 'No content',
   browserEmptyDirectory: 'Empty directory',
   browserOpenTabsEmpty: 'No open tabs yet',
-  browserTabDir: 'Tab Directory',
+  browserTabDir: 'Bookmark Directory',
   browserRenamePrompt: 'Rename',
 
   // Create tab dialog
@@ -208,7 +208,7 @@ export const browserEn = {
   browserDateYear: 'y',
   browserDateMonth: 'mo',
   browserDateDay: 'd',
-  browserNewTabFolder: 'New Tab Folder',
+  browserNewTabFolder: 'New Bookmark Folder',
   browserMenuNewTab: 'New tab',
   browserBookmarkSaveOnly: 'Save only',
   browserBookmarkSaveAndOpen: 'Save and open',
