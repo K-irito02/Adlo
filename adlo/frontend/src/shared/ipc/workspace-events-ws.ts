@@ -47,7 +47,13 @@ export function createWorkspaceEventsClient(
     Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 
   const handleFrame = (raw: string) => {
-    let frame: { kind?: string; changed?: unknown; removed?: unknown; overflow?: boolean };
+    let frame: {
+      kind?: string;
+      rootPath?: unknown;
+      changed?: unknown;
+      removed?: unknown;
+      overflow?: boolean;
+    };
     try {
       frame = JSON.parse(raw) as typeof frame;
     } catch {
@@ -64,6 +70,9 @@ export function createWorkspaceEventsClient(
       return;
     }
     const batch: WorkspaceFilesChangedBatch = {
+      ...(typeof frame.rootPath === 'string' && frame.rootPath.trim()
+        ? { rootPath: frame.rootPath }
+        : {}),
       changed: sanitizeList(frame.changed),
       removed: sanitizeList(frame.removed),
       overflow: frame.overflow === true,

@@ -32,7 +32,7 @@ const IGNORED_SUFFIXES = ['.tmp', '.ds_store'];
 const DEBOUNCE_MS = 400;
 const MAX_BATCH = 500;
 /** 注册表上限：超出即停掉最久未用的 watcher（dev 会话内句柄不泄漏）。 */
-const REGISTRY_LIMIT = 8;
+const REGISTRY_LIMIT = 32;
 
 function isIgnored(relativePath: string): boolean {
   const parts = relativePath.split('/');
@@ -58,8 +58,18 @@ export class WorkspaceWatcher {
   #pendingRemoved = new Set<string>();
   #timer: NodeJS.Timeout | null = null;
 
+  /** 当前是否有活跃的 fs.watch（首次 start 时目录不存在则为 false）。 */
+  isWatching(): boolean {
+    return this.#watcher !== null;
+  }
+
   start(root: string): void {
     this.stop();
+    // 侧栏可能保留已删除/暂时离线的路径：不进入 fs.watch（否则每次轮询都刷 ENOENT 堆栈），
+    // 该根保持空实现（无批次）；目录随后出现时由 `workspaceWatchers.ensure` 重新 start。
+    if (!existsSync(root)) {
+      return;
+    }
     // Linux 下 `recursive: true` 不受支持、缺失目录会同步抛：包住，失败即保持
     // 空实现可用（降级为无自动刷新），不把异常冒泡成路由 500。
     try {
@@ -183,6 +193,10 @@ export const workspaceWatchers = {
   ensure(rootPath: string): WorkspaceWatcher {
     const existing = registry.get(rootPath);
     if (existing) {
+      // 首次 ensure 时目录不存在 → 空实现；目录出现后在此恢复监听。
+      if (!existing.isWatching() && existsSync(rootPath)) {
+        existing.start(rootPath);
+      }
       // LRU 语义：命中即移到末尾，淘汰时停掉最久未用者。
       registry.delete(rootPath);
       registry.set(rootPath, existing);

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createStore } from 'zustand';
 import { createEditorActions, handleExternalBatch } from '../editorActions';
-import { clearWorkspaceCaches, dropPendingEditorText } from '../../shared';
+import { clearWorkspaceCaches, dropPendingEditorText, nextFileGen } from '../../shared';
 import { setPendingChangePreviewPath } from '../../cacheHelpers';
 
 function makeStore() {
@@ -36,6 +36,9 @@ function makeStore() {
       fetchGitStatus: vi.fn(async () => {}),
       refreshOneWorkspaceTree,
       refreshAllWorkspaceTrees,
+      workspaceTrees: { 'ws-1': [] },
+      workspaceChangesExpanded: { 'ws-1': true },
+      gitSnapshots: {},
       pushFileConflictNotice,
       dismissFileOpNotice,
       clearErrorToasts: vi.fn(),
@@ -649,9 +652,8 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
     expect(refreshOneWorkspaceTree).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
   });
 
-  it('溢出批次：树退化为刷全部已展开工作区，git 照常跟手当前工作区', async () => {
-    const { store, refreshGitSnapshot, refreshAllWorkspaceTrees, refreshOneWorkspaceTree } =
-      makeStore();
+  it('溢出批次（无归属根）：逐根静默补刷已加载的树与变更快照', async () => {
+    const { store, refreshGitSnapshot, refreshOneWorkspaceTree } = makeStore();
     bridge().readFile.mockResolvedValue({
       ok: true,
       data: { path: 'note.txt', content: 'v1\n', lastModifiedAt: 1 },
@@ -662,9 +664,67 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
       overflow: true,
     });
     await vi.advanceTimersByTimeAsync(500);
-    expect(refreshAllWorkspaceTrees).toHaveBeenCalledTimes(1);
-    expect(refreshOneWorkspaceTree).not.toHaveBeenCalled();
+    expect(refreshOneWorkspaceTree).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
     expect(refreshGitSnapshot).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
+  });
+
+  it('带归属根的批次：只刷新该工作区（非当前工作区也生效）', async () => {
+    const { store, refreshGitSnapshot, refreshOneWorkspaceTree } = makeStore();
+    store.setState({
+      recentWorkspaces: [
+        { id: 'ws-1', path: '/repo' },
+        { id: 'ws-2', path: '/repo-2' },
+      ],
+      workspaceTrees: { 'ws-1': [], 'ws-2': [] },
+      workspaceChangesExpanded: { 'ws-1': true, 'ws-2': true },
+    });
+    handleExternalBatch(() => store.getState() as never, {
+      rootPath: '/repo-2',
+      changed: ['other.txt'],
+      removed: [],
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(refreshOneWorkspaceTree).toHaveBeenCalledTimes(1);
+    expect(refreshOneWorkspaceTree).toHaveBeenCalledWith('ws-2', '/repo-2', { silent: true });
+    expect(refreshGitSnapshot).toHaveBeenCalledTimes(1);
+    expect(refreshGitSnapshot).toHaveBeenCalledWith('ws-2', '/repo-2', { silent: true });
+    // 选中文件属于当前工作区 ws-1：不被其它工作区的批次触发重读。
+    expect(bridge().readFile).not.toHaveBeenCalled();
+  });
+
+  it('带归属根的批次命中选中文件所属工作区：用该工作区通道重读', async () => {
+    const { store } = makeStore();
+    store.setState({
+      recentWorkspaces: [
+        { id: 'ws-1', path: '/repo' },
+        { id: 'ws-2', path: '/repo-2' },
+      ],
+      selectedFileWorkspaceId: 'ws-2',
+      workspaceTrees: { 'ws-1': [], 'ws-2': [] },
+      workspaceChangesExpanded: { 'ws-1': true, 'ws-2': true },
+    });
+    (
+      bridge() as unknown as {
+        readFileForWorkspace: ReturnType<typeof vi.fn>;
+      }
+    ).readFileForWorkspace = vi.fn(async () => ({
+      ok: true,
+      data: { path: 'note.txt', content: 'v-ws2\n', lastModifiedAt: 9 },
+    }));
+    handleExternalBatch(() => store.getState() as never, {
+      rootPath: '/repo-2',
+      changed: ['note.txt'],
+      removed: [],
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(
+      (
+        bridge() as unknown as {
+          readFileForWorkspace: ReturnType<typeof vi.fn>;
+        }
+      ).readFileForWorkspace,
+    ).toHaveBeenCalledWith('/repo-2', 'note.txt');
+    expect((store.getState() as unknown as { fileContent: string }).fileContent).toBe('v-ws2\n');
   });
 
   it('空批次：什么都不做', async () => {
@@ -693,6 +753,158 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
     };
     expect(after.fileContent).toBe('v-batch\n');
     expect(after.externalFileChange).toBeUndefined();
+  });
+
+  it('媒体预览：外部变更后重读字节并替换 fileMedia', async () => {
+    const { store } = makeStore();
+    store.setState({
+      selectedFilePath: 'pic.png',
+      fileMedia: {
+        path: 'pic.png',
+        mime: 'image/png',
+        base64: 'old',
+        size: 3,
+        lastModifiedAt: 1,
+      },
+      fileLastModifiedAt: 1,
+    });
+    const readMediaFile = vi.fn(async () => ({
+      ok: true as const,
+      data: {
+        path: 'pic.png',
+        mime: 'image/png',
+        base64: 'new',
+        size: 5,
+        lastModifiedAt: 9,
+      },
+    }));
+    (bridge() as unknown as { readMediaFile: typeof readMediaFile }).readMediaFile = readMediaFile;
+    handleExternalBatch(() => store.getState() as never, {
+      rootPath: '/repo',
+      changed: ['pic.png'],
+      removed: [],
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(readMediaFile).toHaveBeenCalledWith('pic.png');
+    expect(
+      (store.getState() as unknown as { fileMedia: { base64: string; lastModifiedAt: number } })
+        .fileMedia,
+    ).toMatchObject({ base64: 'new', lastModifiedAt: 9 });
+  });
+
+  it('媒体预览：文件消失时清空为 NOT_FOUND 错误视图', async () => {
+    const { store } = makeStore();
+    store.setState({
+      selectedFilePath: 'pic.png',
+      fileMedia: {
+        path: 'pic.png',
+        mime: 'image/png',
+        base64: 'old',
+        size: 3,
+        lastModifiedAt: 1,
+      },
+      fileLastModifiedAt: 1,
+    });
+    const readMediaFile = vi.fn(async () => ({
+      ok: false as const,
+      error: { code: 'NOT_FOUND', message: 'file gone' },
+    }));
+    (bridge() as unknown as { readMediaFile: typeof readMediaFile }).readMediaFile = readMediaFile;
+    handleExternalBatch(() => store.getState() as never, {
+      rootPath: '/repo',
+      changed: ['pic.png'],
+      removed: [],
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    const after = store.getState() as unknown as {
+      fileMedia: unknown;
+      fileOpenError: { code: string } | null;
+    };
+    expect(after.fileMedia).toBeNull();
+    expect(after.fileOpenError?.code).toBe('NOT_FOUND');
+  });
+
+  it('媒体预览：旧版 OLE 办公格式不重读字节', async () => {
+    const { store } = makeStore();
+    store.setState({ selectedFilePath: 'legacy.doc', fileMedia: null });
+    const readMediaFile = vi.fn();
+    (bridge() as unknown as { readMediaFile: typeof readMediaFile }).readMediaFile = readMediaFile;
+    handleExternalBatch(() => store.getState() as never, {
+      rootPath: '/repo',
+      changed: ['legacy.doc'],
+      removed: [],
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(readMediaFile).not.toHaveBeenCalled();
+  });
+
+  it('媒体重载：读盘期间切换选中时不写入旧文件', async () => {
+    const { store } = makeStore();
+    store.setState({ selectedFilePath: 'pic.png', fileMedia: null });
+    let resolveRead!: (value: unknown) => void;
+    const gate = new Promise((resolve) => {
+      resolveRead = resolve;
+    });
+    const readMediaFile = vi.fn(() => gate);
+    (bridge() as unknown as { readMediaFile: typeof readMediaFile }).readMediaFile = readMediaFile;
+
+    handleExternalBatch(() => store.getState() as never, {
+      rootPath: '/repo',
+      changed: ['pic.png'],
+      removed: [],
+    });
+    await vi.advanceTimersByTimeAsync(500);
+
+    store.setState({ selectedFilePath: 'other.png' });
+    resolveRead({
+      ok: true,
+      data: {
+        path: 'pic.png',
+        mime: 'image/png',
+        base64: 'new',
+        size: 5,
+        lastModifiedAt: 9,
+      },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect((store.getState() as unknown as { fileMedia: unknown }).fileMedia).toBeNull();
+  });
+
+  it('媒体重载：读盘期间新的媒体打开会作废旧结果', async () => {
+    const { store } = makeStore();
+    store.setState({ selectedFilePath: 'pic.png', fileMedia: null });
+    let resolveRead!: (value: unknown) => void;
+    const gate = new Promise((resolve) => {
+      resolveRead = resolve;
+    });
+    const readMediaFile = vi.fn(() => gate);
+    (bridge() as unknown as { readMediaFile: typeof readMediaFile }).readMediaFile = readMediaFile;
+
+    handleExternalBatch(() => store.getState() as never, {
+      rootPath: '/repo',
+      changed: ['pic.png'],
+      removed: [],
+    });
+    await vi.advanceTimersByTimeAsync(500);
+
+    // 读盘在途时同一文件发生新的媒体打开（代际推进）：旧结果必须丢弃。
+    nextFileGen('media:ws-1:pic.png');
+    resolveRead({
+      ok: true,
+      data: {
+        path: 'pic.png',
+        mime: 'image/png',
+        base64: 'stale',
+        size: 5,
+        lastModifiedAt: 9,
+      },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect((store.getState() as unknown as { fileMedia: unknown }).fileMedia).toBeNull();
   });
 
   it('命中且有草稿：磁盘内容不同才立外部旗 + 警告一次', async () => {

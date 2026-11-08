@@ -2,7 +2,11 @@ import type { StoreState } from '../StoreState';
 import type { GitSnapshot } from '@adlo/kernel';
 import type { StoreApi } from 'zustand';
 import { createLazyLoader, pendingChangePreviewPath } from '../shared';
-import { cancelPreviewLanding, scopedFileKey } from '../cacheHelpers';
+import {
+  cancelPreviewLanding,
+  invalidateCachedChangePreview,
+  scopedFileKey,
+} from '../cacheHelpers';
 import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
 import { buildGitSnapshotSyncPatch } from '../gitSnapshotSync';
 
@@ -78,6 +82,41 @@ function clearStaleChangePreview(
       changePreviewLoading: false,
     });
   }
+}
+
+/**
+ * 刷新"当前打开中的变更预览"：快照重拍后按新内容重开 diff，使内容与大纲同步。
+ * 预览只属于一个工作区；不归属本次刷新的工作区时不动。
+ */
+async function refreshSelectedChangePreviewForWorkspace(
+  get: () => StoreState,
+  workspaceId: string,
+): Promise<void> {
+  const state = get();
+  const selected = state.selectedChangePreviewPath;
+  if (!selected) {
+    return;
+  }
+  const ownerWorkspaceId =
+    state.selectedChangePreviewWorkspaceId ?? state.appInfo?.currentWorkspace?.id;
+  if (ownerWorkspaceId !== workspaceId) {
+    return;
+  }
+  // 用户发起的预览请求在途时让路（与 fetchGitStatus 同口径）。
+  if (pendingChangePreviewPath !== undefined) {
+    return;
+  }
+  const workspacePath =
+    state.recentWorkspaces.find((w) => w.id === workspaceId)?.path ??
+    state.appInfo?.currentWorkspace?.path;
+  if (!workspacePath) {
+    return;
+  }
+  // 与 `openChangePreviewForWorkspace` 用同一套键推导（按 path 反查 id；
+  // 查不到时两者同为 `global:` 键），否则失效打到另一个键，重开会读回旧缓存。
+  const reopenWorkspaceId = state.recentWorkspaces.find((w) => w.path === workspacePath)?.id;
+  invalidateCachedChangePreview(scopedFileKey(reopenWorkspaceId, selected));
+  await get().openChangePreviewForWorkspace(workspacePath, selected);
 }
 
 export function applyGitOperation(
@@ -371,6 +410,8 @@ export function createGitSnapshotActions(
       // 刷新后对账（事项2）：选中预览已不在新快照中（已推送/删除）则清空内容区，
       // 与 fetchGitStatus 的选中预览同步同语义（多工作区刷新路径此前缺失）。
       clearStaleChangePreview(get, set, workspaceId, result.data);
+      // 仍在快照中的选中预览按新内容重开：否则 diff 内容与大纲停在旧版本。
+      await refreshSelectedChangePreviewForWorkspace(get, workspaceId);
     },
 
     /**
@@ -408,8 +449,8 @@ export function createGitSnapshotActions(
     /**
      * [refreshAllGitSnapshotsSilent - 静默刷新所有可见已展开工作区的 Git 快照]
      * 手动"刷新全部"的静默版（范围语义与其一致：可见 + 导航器已展开）：
-     * 后端 watcher 只监听当前工作区根，非当前工作区的外部变更永远收不到批次，
-     * 靠窗口焦点回归/面板可见时的这次补刷进变更面板。不转刷新图标，
+     * watcher 已按侧栏全部工作区监听并按根推送批次；本函数是焦点回归/面板可见时的
+     * 兜底补刷（漏事件、断线、分批超限）。不转刷新图标，
      * 单个失败只记 workspaceChangesTreeErrors（与 refreshGitSnapshot 同口径）。
      * @reads workspaceSlice.recentWorkspaces, workspaceSlice.workspaceChangesExpanded
      * @writes gitSlice.gitSnapshots, workspaceSlice.workspaceChangesTreeErrors (经 refreshGitSnapshot)

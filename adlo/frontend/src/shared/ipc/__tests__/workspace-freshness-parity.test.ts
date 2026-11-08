@@ -26,7 +26,7 @@ describe('workspace freshness IPC parity', () => {
       ...createPreviewSearchBridge({
         currentWorkspace: undefined,
       }),
-      ...createPreviewEventsBridge({ currentWorkspace: undefined }),
+      ...createPreviewEventsBridge(),
     };
     const bridges = [
       createTauriBridge(TEST_BASE_URL).workspace,
@@ -37,6 +37,7 @@ describe('workspace freshness IPC parity', () => {
     for (const bridge of bridges) {
       expect(typeof bridge.searchInFiles).toBe('function');
       expect(typeof bridge.onFilesChanged).toBe('function');
+      expect(typeof bridge.setFilesChangedRoots).toBe('function');
     }
   });
 

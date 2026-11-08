@@ -44,6 +44,8 @@ function makeStore(overrides: Record<string, unknown> = {}) {
       refreshAllWorkspaceTrees,
       refreshWorkspaceTree,
       workspaceTrees: {},
+      workspaceChangesExpanded: { 'ws-1': true },
+      gitSnapshots: {},
       pushFileConflictNotice,
       dismissFileOpNotice,
       fetchGitStatus: vi.fn(async () => {}),
@@ -174,8 +176,8 @@ describe('editor autosave race regressions', () => {
       ok: true,
       data: { path: 'new.txt', content: 'hello', lastModifiedAt: 11 },
     });
-    // watcher 只监听当前工作区 ws-1，不会为 ws-2 的新建文件发回声；这里直接
-    // 验证首次自动保存必须写到 ws-2，而不是当前工作区。
+    // 本用例不注入 ws-2 的 watcher 回声批次；直接验证首次自动保存必须写到
+    // ws-2，而不是当前工作区。
     const ok = await state.saveFile('new.txt', undefined);
     expect(ok).toBe(true);
     expect(bridge().updateFileContent).toHaveBeenCalledWith('new.txt', 'hello', '/repo2');

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import type { AppInfo } from '@adlo/kernel';
 import type { CopyDict, Locale } from '../i18n/types';
 import { loadLocale } from '../i18n/i18nLoader';
@@ -8,6 +9,7 @@ import { useThemeSync } from './useThemeSync';
 import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '../../tauri-bridge';
 import { onAdServerReachabilityChange } from '../../preview-bridge/preview-reachability';
+import { sameWorkspacePath } from '../../shared/workspacePathMatch';
 import { initSiteMetaCache } from '@utils/siteMetaCache';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import { collectWarmupUrls } from '@utils/warmupUrls';
@@ -64,12 +66,30 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
     return actions.subscribeWorkspaceFilesChanged();
   }, [actions]);
 
+  // 监听根声明（浏览器预览轮询用；桌面代价为一次 no-op 调用）：
+  // 覆盖侧栏全部「已添加」工作区（与服务端 `watch_roots_with_db` 同口径：只排除
+  // removedFromSidebar），并补当前工作区兜底；新增/移除后即时重算。
+  const recentWorkspaces = useAppStore(useShallow((state) => state.recentWorkspaces));
+  const currentWorkspacePath = appInfo?.currentWorkspace?.path;
+  useEffect(() => {
+    const roots = (recentWorkspaces ?? [])
+      .filter((entry) => !entry.removedFromSidebar)
+      .map((entry) => entry.path)
+      .filter((path) => Boolean(path));
+    if (
+      currentWorkspacePath &&
+      !roots.some((path) => sameWorkspacePath(path, currentWorkspacePath))
+    ) {
+      roots.push(currentWorkspacePath);
+    }
+    window.digitalLife.workspace.setFilesChangedRoots(roots);
+  }, [recentWorkspaces, currentWorkspacePath]);
+
   useEffect(() => {
     // 焦点回归补刷（VSCode 对齐 `refresh on window focus`）：
-    // 覆盖三类盲区——非当前工作区的外部变更（watcher 只监听当前根）、
-    // 浏览器轮询间隙、watcher 漏事件/断线。树与 git 快照都按"可见已展开"
-    // 范围静默补刷（与手动刷新按钮同范围），无图标闪烁、无写循环。
-    // 去抖 1s：切窗口抖动与 HMR 重挂载不连刷。
+    // 兜底 watcher 漏事件 / 断线 / 浏览器轮询间隙（后端已按侧栏全部工作区监听）。
+    // 树与 git 快照都按"可见已展开"范围静默补刷（与手动刷新按钮同范围），
+    // 无图标闪烁、无写循环。去抖 1s：切窗口抖动与 HMR 重挂载不连刷。
     let timer: ReturnType<typeof setTimeout> | undefined;
     const refreshOnFocus = () => {
       if (timer !== undefined) {

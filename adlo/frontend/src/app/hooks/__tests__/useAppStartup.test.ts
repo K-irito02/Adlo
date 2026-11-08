@@ -49,6 +49,7 @@ function setupWindowDigitalLife() {
       listRecent: vi.fn().mockResolvedValue({ ok: true, data: [] }),
       onFileChanged: vi.fn(() => () => {}),
       onFilesChanged: vi.fn(() => () => {}),
+      setFilesChangedRoots: vi.fn(),
     },
   };
 }
@@ -122,6 +123,65 @@ describe('useAppStartup warmup', () => {
     const urls = vi.mocked(pageMetaClient.warmup).mock.calls[0]?.[0] ?? [];
     expect(urls.length).toBe(200);
     expect(new Set(urls).size).toBe(200);
+  });
+});
+
+describe('useAppStartup files-changed root declaration（浏览器多根轮询）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupWindowDigitalLife();
+    useAppStore.setState({ adServerReachable: null });
+  });
+
+  afterEach(() => {
+    (window as unknown as { digitalLife?: unknown }).digitalLife = undefined;
+  });
+
+  it('declares every added workspace (incl. active fallback) and skips removed entries', async () => {
+    useAppStore.setState({
+      recentWorkspaces: [
+        { id: 'a', path: '/a', removedFromSidebar: false, available: true },
+        { id: 'b', path: '/b', removedFromSidebar: false, available: true },
+        { id: 'offline', path: '/offline', removedFromSidebar: false, available: false },
+        { id: 'hidden', path: '/hidden', removedFromSidebar: true, available: true },
+      ] as never,
+    });
+    const appInfo = {
+      config: { language: 'zh-CN' },
+      currentWorkspace: { id: 'active', path: '/active' },
+    } as never;
+
+    renderHook(() => useAppStartup(appInfo));
+    await act(async () => {});
+
+    const setRoots = (
+      window as unknown as {
+        digitalLife: { workspace: { setFilesChangedRoots: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.workspace.setFilesChangedRoots;
+    expect(setRoots).toHaveBeenLastCalledWith(['/a', '/b', '/offline', '/active']);
+  });
+
+  it('does not duplicate the active workspace when it is already in the sidebar', async () => {
+    useAppStore.setState({
+      recentWorkspaces: [
+        { id: 'a', path: 'C:\\Repo', removedFromSidebar: false, available: true },
+      ] as never,
+    });
+    const appInfo = {
+      config: { language: 'zh-CN' },
+      currentWorkspace: { id: 'a', path: 'c:/repo/' },
+    } as never;
+
+    renderHook(() => useAppStartup(appInfo));
+    await act(async () => {});
+
+    const setRoots = (
+      window as unknown as {
+        digitalLife: { workspace: { setFilesChangedRoots: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.workspace.setFilesChangedRoots;
+    expect(setRoots).toHaveBeenLastCalledWith(['C:\\Repo']);
   });
 });
 

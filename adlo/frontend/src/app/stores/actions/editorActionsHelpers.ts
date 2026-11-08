@@ -219,7 +219,7 @@ export async function openMediaFileGeneric(
   beginFileOpen(set, get, relativePath);
   set({ fileMediaLoading: true });
 
-  // 已知旧格式短路（收尾 F-18）：`.doc/.dot/.ppt` 解析必失败，不读字节，
+  // 已知旧格式短路（收尾 F-18）：`.doc/.dot/.ppt` 解析必失败，不读字节， // compat-allow: OLE 办公文件是外部文件格式，不是本产品数据格式
   // 直接落占位文档；渲染层按 fileName 给转存指引。lastModifiedAt 取此刻
   // （占位文档不参与外部变更比对，可接受）。
   if (isLegacyOfficeFile(relativePath)) {
@@ -323,6 +323,9 @@ export async function openChangePreviewGeneric(
 
   const cachedPreview = getCachedChangePreview(config.cacheKey);
   if (cachedPreview) {
+    // 本请求是最新一次（调用方刚推进 seq）：缓存命中也必须收敛 pending，
+    // 否则被它超车的在途未命中请求会留下永久 pending，让所有"让路"守卫失效。
+    setPendingChangePreviewPath(undefined);
     set({
       selectedChangePreviewPath: relativePath,
       selectedChangePreviewWorkspaceId: config.workspaceId,
@@ -345,6 +348,8 @@ export async function openChangePreviewGeneric(
     return;
   }
   if (!isCurrentFileGen(`preview:${config.cacheKey}`, previewGen)) {
+    // 代际已被更新的操作取代：本次登记的 pending 由本请求负责回收（seq 仍最新）。
+    setPendingChangePreviewPath(undefined);
     return;
   }
   setPendingChangePreviewPath(undefined);

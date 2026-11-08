@@ -95,6 +95,20 @@ fn load_or_seed_sidebar_with_db(db: &Database) -> Result<Vec<RecentWorkspaceEntr
     Ok(all)
 }
 
+/// 侧栏里所有「已添加」工作区的根路径（含暂时不可用者：由调用方用 `is_dir()`
+/// 过滤，避免 `available` 字段陈旧导致漏监听）。顺序是 DB 存储顺序（不是呈现
+/// 顺序；呈现顺序由 `sort_and_filter_presentable` 的 pin/order 决定），
+/// 仅决定 watcher 数量超限时的截断优先级。
+pub(crate) fn watch_roots_with_db(db: &Database) -> Result<Vec<String>, AppError> {
+    let entries = load_or_seed_sidebar_with_db(db)?;
+    Ok(entries
+        .into_iter()
+        .filter(|entry| !entry.removed_from_sidebar)
+        .map(|entry| entry.path)
+        .filter(|path| !path.trim().is_empty())
+        .collect())
+}
+
 fn merge_workspace_meta_into_sidebar(
     all: &mut [RecentWorkspaceEntry],
     workspaces: &[WorkspaceMeta],
@@ -245,5 +259,9 @@ pub async fn remove_from_sidebar(
         presentable_recent_list_with_db(db)
     })
     .await;
+    // 移除后重算监听集合：其它工作区继续实时跟手，被移除者停止监听。
+    if result.is_ok() {
+        crate::engine::sync_workspace_watchers(&state).await;
+    }
     ipc::to_response(result)
 }

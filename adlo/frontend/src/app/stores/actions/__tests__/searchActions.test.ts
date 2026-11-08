@@ -198,6 +198,36 @@ describe('searchActions recompute guards (事项 45 Phase 4)', () => {
     expect(get().searchHasMore).toBe(true);
   });
 
+  it('ignores batches from a different workspace root', async () => {
+    const { searchInFiles, schedule } = setupRecompute({
+      recentWorkspaces: [
+        { id: 'ws-a', path: '/a', removedFromSidebar: false, available: true },
+        { id: 'ws-b', path: '/b', removedFromSidebar: false, available: true },
+      ],
+      searchTargetWorkspaceId: 'ws-a',
+      appInfo: { currentWorkspace: { id: 'ws-a', path: '/a' } },
+      workspaceTrees: {},
+      workspaceChangesExpanded: {},
+      gitSnapshots: {},
+      refreshOneWorkspaceTree: vi.fn(),
+      refreshGitSnapshot: vi.fn(),
+    });
+    const scheduleWithRoot = schedule as unknown as (batch: {
+      rootPath?: string;
+      changed: string[];
+      removed: string[];
+      overflow?: boolean;
+    }) => void;
+
+    scheduleWithRoot({ rootPath: '/b', changed: ['a.md'], removed: [] });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(searchInFiles).not.toHaveBeenCalled();
+
+    scheduleWithRoot({ rootPath: '/a', changed: ['a.md'], removed: [] });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(searchInFiles).toHaveBeenCalledTimes(1);
+  });
+
   it('cancelPendingSearch drops scheduled recomputes', async () => {
     const { searchInFiles, schedule, actions } = setupRecompute({});
     schedule({ changed: ['a.md'], removed: [] });

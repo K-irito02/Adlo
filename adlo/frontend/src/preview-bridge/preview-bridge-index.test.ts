@@ -65,6 +65,22 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
   }
 
   it(
+    'workspace.setFilesChangedRoots stays on the preview impl (sync) when reachable',
+    { timeout: 15000 },
+    async () => {
+      const { bridge } = await setupBridge();
+      const { collectPreviewWatchRoots } = await import('./preview-events');
+      expect(collectPreviewWatchRoots()).toEqual([]);
+
+      const result = bridge.workspace.setFilesChangedRoots(['/only-root']);
+
+      // 同步返回（非 async 包装）且落到预览实现：http 侧是 no-op，漏列会保持旧根集合。
+      expect(result).toBeUndefined();
+      expect(collectPreviewWatchRoots()).toEqual(['/only-root']);
+    },
+  );
+
+  it(
     'workspace.pickDirectory uses the real preview impl when the ad-server is reachable (not the NOT_SUPPORTED stub)',
     { timeout: 10000 },
     async () => {

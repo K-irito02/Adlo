@@ -2,6 +2,7 @@ import type { StoreState } from '../StoreState';
 import { createEditorTab } from '@utils/editorTabs';
 import { buildOutlineFromContent } from '@shared/outline';
 import { normalizeWorkspaceRelativePath, mergeDirtyEditorPaths } from '@utils/workspacePaths';
+import { sameWorkspacePath } from '@shared/workspacePathMatch';
 import {
   getWorkspaceScopedCacheKey,
   getNextFileRequestSeq,
@@ -48,7 +49,11 @@ import {
   openMediaFileGeneric,
   openChangePreviewGeneric,
 } from './editorActionsHelpers';
-import { categorizeFile, isMediaFileCategory } from '../../regions/right-panel/fileTypeRouter';
+import {
+  categorizeFile,
+  isLegacyOfficeFile,
+  isMediaFileCategory,
+} from '../../regions/right-panel/fileTypeRouter';
 import { refreshTreeByWorkspacePath } from './workspaceActions';
 import { insertTreeNode } from './workspaceTreeRename';
 import { asWorkspaceID } from '../../../shared/branded';
@@ -193,97 +198,211 @@ function baselineContentForTarget(
   return getCachedFileDocument(key)?.content;
 }
 
-function scheduleGitFollowQuietly(get: () => StoreState): void {
-  const currentWorkspace = get().appInfo?.currentWorkspace;
-  if (!currentWorkspace) {
+/**
+ * 媒体/办公预览的对账：外部变更后重读字节并刷新预览。
+ *
+ * 文本通道的草稿保护不适用于媒体（没有可编辑缓冲区）：只要磁盘 mtime/size
+ * 变了就整份替换；文件消失则清空为错误视图（与文本同语义）。旧的 OLE 办公格式
+ * 不读字节（打开时即为占位文档），直接跳过。
+ */
+async function reconcileSelectedMedia(
+  get: () => StoreState,
+  set: StoreApi<StoreState>['setState'],
+  selected: string,
+  targetWs: { id: string; path: string },
+): Promise<void> {
+  if (isLegacyOfficeFile(selected)) {
     return;
   }
-  const workspaceId = currentWorkspace.id;
-  const workspacePath = currentWorkspace.path;
+  const genKey = `media:${targetWs.id}:${selected}`;
+  const gen = nextFileGen(genKey);
+  const norm = normalizeWorkspaceRelativePath(selected);
+  try {
+    clearError(get, SCOPE);
+    const result =
+      targetWs.id === get().appInfo?.currentWorkspace?.id
+        ? await window.digitalLife.workspace.readMediaFile(selected)
+        : await window.digitalLife.workspace.readMediaFileForWorkspace(targetWs.path, selected);
+    if (!isCurrentFileGen(genKey, gen)) {
+      return;
+    }
+    if (get().selectedFilePath !== selected || get().selectedFileWorkspaceId !== targetWs.id) {
+      return;
+    }
+    if (!result.ok) {
+      set({
+        fileMedia: null,
+        fileMediaLoading: false,
+        fileContent: undefined,
+        fileLastModifiedAt: undefined,
+        outline: [],
+        fileOpenError: {
+          path: selected,
+          code: 'NOT_FOUND',
+          message: result.error.message,
+          workspaceId: targetWs.id,
+          workspacePath: targetWs.path,
+        },
+        ...(externalMatchesFlag(get, norm) ? { externalFileChange: undefined } : {}),
+      });
+      return;
+    }
+    const current = get().fileMedia;
+    if (
+      current &&
+      current.path === result.data.path &&
+      current.lastModifiedAt === result.data.lastModifiedAt &&
+      current.size === result.data.size
+    ) {
+      // 内容未变（仅 mtime/回声类事件）：不重设，避免预览重建闪烁。
+      return;
+    }
+    set({
+      fileMedia: result.data,
+      fileMediaLoading: false,
+      fileContent: undefined,
+      fileLastModifiedAt: result.data.lastModifiedAt,
+      fileOpenError: null,
+      outline: [],
+      ...(externalMatchesFlag(get, norm) ? { externalFileChange: undefined } : {}),
+    });
+  } catch (err) {
+    captureError(get, err, SCOPE);
+  } finally {
+    clearExternalSignal(scopedFileKey(targetWs.id, selected));
+  }
+}
+
+function scheduleGitFollowQuietly(
+  get: () => StoreState,
+  workspaceId: string,
+  workspacePath: string,
+): void {
   scheduleExternalFollow(get, `git:${workspaceId}`, () => {
     void get().refreshGitSnapshot(workspaceId, workspacePath, { silent: true });
   });
 }
 
-function scheduleTreeFollowQuietly(
-  get: () => StoreState,
-  batch: { changed: string[]; removed: string[]; overflow?: boolean },
-): void {
-  // 文件树跟手（文件面板自动实时刷新）：当前工作区是后端 watcher 唯一监听根，
-  // 批次路径即相对该根。silent 刷新不转刷新图标；溢出（批量改名/切分支/重连补发）
-  // 退化为刷全部已展开工作区，与 kernel 溢出退化契约对齐。
-  const currentWorkspace = get().appInfo?.currentWorkspace;
-  if (!currentWorkspace) {
-    return;
+interface WatchTarget {
+  id: string;
+  path: string;
+}
+
+/**
+ * 批次归属解析：把一条批次落到一个或多个已添加工作区上。
+ *
+ * - 带 `rootPath`：只命中路径相同的工作区（桌面/浏览器多根 watcher 的正常形态）。
+ * - 不带 `rootPath`（重连补发 / 慢订阅者 overflow）：视为"全部工作区"，
+ *   逐根静默补刷，避免断线窗口内的变更永久丢失。
+ */
+function resolveWatchTargets(get: () => StoreState, rootPath?: string): WatchTarget[] {
+  const state = get();
+  const targets: WatchTarget[] = [];
+  const seen = new Set<string>();
+  const push = (id: string | undefined, path: string | undefined) => {
+    if (!id || !path || seen.has(id)) {
+      return;
+    }
+    seen.add(id);
+    targets.push({ id, path });
+  };
+  for (const entry of state.recentWorkspaces ?? []) {
+    if (entry.removedFromSidebar) {
+      continue;
+    }
+    push(entry.id, entry.path);
   }
-  if (batch.overflow === true) {
-    scheduleExternalFollow(get, `tree:${currentWorkspace.id}:all`, () => {
-      void get().refreshAllWorkspaceTrees();
-    });
-    return;
+  // 当前工作区可能尚未出现在侧栏列表（首次打开/启动恢复的短暂窗口）：补上。
+  push(state.appInfo?.currentWorkspace?.id, state.appInfo?.currentWorkspace?.path);
+  if (!rootPath) {
+    return targets;
   }
-  if (batch.changed.length === 0 && batch.removed.length === 0) {
-    return;
-  }
-  const workspaceId = currentWorkspace.id;
-  const workspacePath = currentWorkspace.path;
-  scheduleExternalFollow(get, `tree:${workspaceId}`, () => {
-    void get().refreshOneWorkspaceTree(asWorkspaceID(workspaceId), workspacePath, {
-      silent: true,
-    });
+  const all = state.recentWorkspaces ?? [];
+  return targets.filter((target) => {
+    const entry = all.find((w) => w.id === target.id);
+    return sameWorkspacePath(target.path, rootPath) || sameWorkspacePath(entry?.rootPath, rootPath);
   });
+}
+
+function scheduleTreeFollowQuietly(get: () => StoreState, target: WatchTarget): void {
+  // 文件树跟手：只刷新"已有树数据"的工作区（未加载的没有陈旧数据，
+  // 首次展开时本来就会全量拉取）。silent 不转刷新图标。
+  if (get().workspaceTrees[target.id] === undefined) {
+    return;
+  }
+  scheduleExternalFollow(get, `tree:${target.id}`, () => {
+    void get().refreshOneWorkspaceTree(asWorkspaceID(target.id), target.path, { silent: true });
+  });
+}
+
+function scheduleChangesFollowQuietly(get: () => StoreState, target: WatchTarget): void {
+  const state = get();
+  // 变更面板已展开，或该工作区快照已加载过：静默重拍快照（含已打开的 diff 预览）。
+  if (state.gitSnapshots[target.id] === undefined && !state.workspaceChangesExpanded[target.id]) {
+    return;
+  }
+  scheduleGitFollowQuietly(get, target.id, target.path);
 }
 
 /**
  * 批次通道跟手（事项 13 补洞）：Tauri 下单事件 channel 无人 emit，
- * 唯一活路是 onFilesChanged 批次。命中选中文件即走同一调度器
+ * 主要通路是 onFilesChanged 批次。批次带 `rootPath` 时只刷新该工作区，
+ * 不带时按全部已添加工作区补刷；选中文件走同一调度器
  * （防抖 + 草稿保护 + 回声无害：重载/刷新均为只读，无循环）。
  */
 export function handleExternalBatch(
   get: () => StoreState,
-  batch: { changed: string[]; removed: string[]; overflow?: boolean },
+  batch: { rootPath?: string; changed: string[]; removed: string[]; overflow?: boolean },
 ): void {
-  // 树跟手先行：无选中文件时同样刷新（只改了未打开的文件也要实时变），
-  // 与选中重载/脏保护互不干扰。
-  scheduleTreeFollowQuietly(get, batch);
-  const selected = get().selectedFilePath;
-  const workspaceId = get().appInfo?.currentWorkspace?.id;
-  if (!workspaceId) {
+  const targets = resolveWatchTargets(get, batch.rootPath);
+  if (targets.length === 0) {
     return;
   }
-  // 记录 watcher 信号：保存前若信号仍新鲜，必须先读盘复核，避免信号尚未
-  // 调度到 reconcile 时自动保存抢先覆盖外部修改。非选中文件的草稿在
-  // 切换前 flush 时同样受保护。
-  for (const path of batch.changed) {
-    noteExternalSignal(scopedFileKey(workspaceId, path));
+  const hasPayload = batch.changed.length > 0 || batch.removed.length > 0;
+  if (!hasPayload && batch.overflow !== true) {
+    return;
   }
-  for (const path of batch.removed) {
-    noteExternalSignal(scopedFileKey(workspaceId, path));
+  for (const target of targets) {
+    // 树跟手先行：无选中文件时同样刷新（只改了未打开的文件也要实时变），
+    // 与选中重载/脏保护互不干扰。
+    scheduleTreeFollowQuietly(get, target);
+    scheduleChangesFollowQuietly(get, target);
+    // 记录 watcher 信号（按文件归属工作区落键）：保存前若信号仍新鲜，
+    // 必须先读盘复核，避免信号尚未调度到 reconcile 时自动保存抢先覆盖外部修改。
+    for (const path of batch.changed) {
+      noteExternalSignal(scopedFileKey(target.id, path));
+    }
+    for (const path of batch.removed) {
+      noteExternalSignal(scopedFileKey(target.id, path));
+    }
   }
-  if (batch.overflow === true && selected) {
-    noteExternalSignal(scopedFileKey(workspaceId, selected));
-  }
+
+  const selected = get().selectedFilePath;
   if (!selected) {
+    return;
+  }
+  const selectedWorkspaceId = get().selectedFileWorkspaceId ?? get().appInfo?.currentWorkspace?.id;
+  const selectedTarget = targets.find((target) => target.id === selectedWorkspaceId);
+  if (!selectedTarget) {
+    // 选中文件属于未被本批次覆盖的工作区：不动它（该工作区自己的批次会处理）。
+    return;
+  }
+  if (batch.overflow === true) {
+    // 溢出批次载荷为空但语义是「有变化」：选中文件同样要进 reconcile
+    // 读盘分类，否则外部修改只留下 3s 信号，之后自动保存可能静默覆盖。
+    noteExternalSignal(scopedFileKey(selectedTarget.id, selected));
+    scheduleSelectedAutoReload(get, selected);
     return;
   }
   const norm = normalizeWorkspaceRelativePath(selected);
   const hitPath = [...batch.changed, ...batch.removed].find(
     (p) => normalizeWorkspaceRelativePath(p) === norm,
   );
-  if (batch.overflow === true) {
-    // 溢出批次载荷为空但语义是「有变化」：选中文件同样要进 reconcile
-    // 读盘分类，否则外部修改只留下 3s 信号，之后自动保存可能静默覆盖。
-    scheduleSelectedAutoReload(get, selected);
-  } else if (hitPath !== undefined) {
+  if (hitPath !== undefined) {
     // 批次是浏览器/预览模式唯一的外部信号。是否有草稿、是自写回声还是
     // 真外部修改，统一交给 reconcile 读磁盘内容后判定（不能只看路径+脏标：
     // watcher 会回传应用自身的新建/保存写入）。
     scheduleSelectedAutoReload(get, hitPath);
-  }
-  // 溢出批次（重连补发/大批量截断）载荷为空但语义是"有变化"：
-  // 同样跟手 git，否则断线窗口内的变更永不进变更面板，只能靠手动刷新。
-  if (batch.changed.length > 0 || batch.removed.length > 0 || batch.overflow === true) {
-    scheduleGitFollowQuietly(get);
   }
 }
 
@@ -710,7 +829,10 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         noteExternalSignal(scopedFileKey(workspaceId, path));
       }
       if (!selected || selected !== incoming) {
-        scheduleGitFollowQuietly(get);
+        const currentWorkspace = get().appInfo?.currentWorkspace;
+        if (currentWorkspace) {
+          scheduleGitFollowQuietly(get, currentWorkspace.id, currentWorkspace.path);
+        }
         return;
       }
       /* external file changed.
@@ -720,7 +842,10 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
        * 交给 reconcile 读磁盘内容后完成（批次通道没有 mtime，单事件通道
        * 也不能只凭 mtime 区分应用自身写入）。 */
       scheduleSelectedAutoReload(get, path);
-      scheduleGitFollowQuietly(get);
+      const currentWorkspace = get().appInfo?.currentWorkspace;
+      if (currentWorkspace) {
+        scheduleGitFollowQuietly(get, currentWorkspace.id, currentWorkspace.path);
+      }
     },
 
     /**
@@ -1066,6 +1191,13 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       const targetWs =
         (get().recentWorkspaces ?? []).find((w) => w.id === selectedWsId) ?? currentWorkspace;
       const norm = normalizeWorkspaceRelativePath(selected);
+      if (isMediaFileCategory(categorizeFile(selected))) {
+        await reconcileSelectedMedia(get, set, selected, {
+          id: targetWs.id,
+          path: targetWs.path,
+        });
+        return;
+      }
       const key = scopedFileKey(targetWs.id, selected);
       try {
         invalidateCachedFileDocument(key);

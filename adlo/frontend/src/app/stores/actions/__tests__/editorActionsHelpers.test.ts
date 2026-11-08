@@ -5,7 +5,13 @@ import {
   openChangePreviewGeneric,
 } from '../editorActionsHelpers';
 import { getNextFileRequestSeq, getNextChangePreviewRequestSeq } from '../../cacheHelpers';
-import { pendingChangePreviewPath, getCachedChangePreview } from '../../cacheHelpers';
+import {
+  pendingChangePreviewPath,
+  getCachedChangePreview,
+  setCachedChangePreview,
+  setPendingChangePreviewPath,
+} from '../../cacheHelpers';
+import { nextFileGen } from '../../shared';
 import type { StoreState } from '../../StoreState';
 import type { WorkspaceChangePreview } from '@adlo/kernel';
 
@@ -737,5 +743,88 @@ describe('openChangePreviewGeneric failure (事项3：门被旧预览侵占）',
     );
     expect((get() as unknown as Snap).changePreview?.path).toBe('huge.json');
     expect(getCachedChangePreview(key)).toBeUndefined();
+  });
+});
+
+describe('openChangePreviewGeneric pending 收敛', () => {
+  function preview(path: string, currentContent: string): WorkspaceChangePreview {
+    return {
+      path,
+      changeKind: 'modified',
+      status: 'modified',
+      baseExists: true,
+      currentExists: true,
+      baseContent: 'base',
+      currentContent,
+    };
+  }
+
+  it('缓存命中超车在途未命中请求后不留下永久 pending', async () => {
+    setPendingChangePreviewPath(undefined);
+    const { set, get } = setup({});
+    const gate = deferred<{ ok: true; data: WorkspaceChangePreview }>();
+
+    const pendingX = openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'x.ts',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey: 'pending-x',
+        workspaceId: 'ws-1',
+        getPreview: () => gate.promise as never,
+      },
+    );
+    expect(pendingChangePreviewPath).toBe('x.ts');
+
+    // 用户改点一个已缓存文件：新 seq + 缓存同步命中，必须回收 pending。
+    const cachedKey = 'pending-y';
+    setCachedChangePreview(cachedKey, preview('y.ts', 'y'));
+    await openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'y.ts',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey: cachedKey,
+        workspaceId: 'ws-1',
+        getPreview: () =>
+          Promise.resolve({ ok: false, error: { code: 'X', message: 'x' } }) as never,
+      },
+    );
+
+    // 旧请求落定：被 seq 超车，直接丢弃。
+    gate.resolve({ ok: true, data: preview('x.ts', 'x') });
+    await pendingX;
+
+    expect(pendingChangePreviewPath).toBeUndefined();
+    expect((get() as unknown as Snap).selectedChangePreviewPath).toBe('y.ts');
+  });
+
+  it('代际失配时回收本次登记的 pending', async () => {
+    setPendingChangePreviewPath(undefined);
+    const { set, get } = setup({});
+    const gate = deferred<{ ok: true; data: WorkspaceChangePreview }>();
+    const cacheKey = 'gen-mismatch';
+
+    const pendingX = openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'x.ts',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey,
+        workspaceId: 'ws-1',
+        getPreview: () => gate.promise as never,
+      },
+    );
+    expect(pendingChangePreviewPath).toBe('x.ts');
+
+    nextFileGen(`preview:${cacheKey}`);
+    gate.resolve({ ok: true, data: preview('x.ts', 'x') });
+    await pendingX;
+
+    expect(pendingChangePreviewPath).toBeUndefined();
+    expect((get() as unknown as Snap).selectedChangePreviewPath).toBeUndefined();
   });
 });

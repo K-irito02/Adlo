@@ -7,9 +7,24 @@ import { useAppActions } from '@hooks/useAppActions';
 import { findPatchFileByPath } from '@features/patch-review';
 import { filterDiagnosticsForPath, detectEditorLanguage } from '@utils/workspacePaths';
 import { asWorkspaceID } from '@shared/branded';
+import { buildOutlineFromContent } from '@shared/outline';
+import { TEXT_HEAVY_PREVIEW_CHARS } from '../heavyPreviewLimits';
+import { createEditorOutlineFollow, type OutlineFollow } from './editorOutlineFollow';
 import type { FilesPanelProps } from '../types';
 import type { RightPanelProps } from '@regions/RightPanel';
 import type { EditorRef } from '@stores/types';
+
+/**
+ * 编辑器正文 → 大纲（与打开文件同口径：重型文本跳过大纲解析）。
+ * 导出以便单测直接覆盖"打字内容决定锚点"的语义；防抖与选区守卫见
+ * `editorOutlineFollow.ts`。
+ */
+export function outlineForEditorText(
+  relativePath: string,
+  text: string,
+): ReturnType<typeof buildOutlineFromContent> {
+  return text.length > TEXT_HEAVY_PREVIEW_CHARS ? [] : buildOutlineFromContent(text, relativePath);
+}
 
 export function useFilesPanelProps(
   panelProps: RightPanelProps,
@@ -56,6 +71,16 @@ export function useFilesPanelProps(
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
   const editorDirtyTimerRef = useRef<number | undefined>(undefined);
   const editorAutosaveTimerRef = useRef<number | undefined>(undefined);
+  // 大纲跟手：防抖/选区守卫抽到 `editorOutlineFollow.ts`（可用 fake timers 直接测）。
+  // 惰性初始化一次，回调内始终读 store 最新值（不捕获取渲染闭包）。
+  const editorOutlineFollowRef = useRef<OutlineFollow | undefined>(undefined);
+  if (editorOutlineFollowRef.current === undefined) {
+    editorOutlineFollowRef.current = createEditorOutlineFollow({
+      getState: () => useAppStore.getState(),
+      readDraft: (path, workspaceId) => peekPendingEditorText(path, workspaceId),
+      toOutline: outlineForEditorText,
+    });
+  }
 
   const allExpanded = useMemo(() => {
     const visible = recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available);
@@ -125,6 +150,9 @@ export function useFilesPanelProps(
         }
         void actions.saveFile(pathAtEdit, wsPathAtEdit);
       }, 1000);
+      // 大纲跟手（文档大纲锚点）：打字停顿后按最新正文重建，不等保存/外部对账。
+      // 重型文本与打开路径同口径跳过大纲解析（避免巨型文件输入卡顿）。
+      editorOutlineFollowRef.current?.schedule(pathAtEdit, wsIdAtEdit);
     },
     [actions, selectedFilePath, selectedFileWorkspaceId, recentWorkspaces, appInfo],
   );
@@ -246,11 +274,13 @@ export function useFilesPanelProps(
 
   useEffect(
     () => () => {
-      // P4 F13：切文件时两个定时器都清（此前只清脏定时器，自动保存靠守卫拦截）。
+      // 切文件/切工作区时三个跟手都清（大纲定时器此前只在路径变化时清，跨工作区
+      // 同相对路径切换会漏清）。
       window.clearTimeout(editorDirtyTimerRef.current);
       window.clearTimeout(editorAutosaveTimerRef.current);
+      editorOutlineFollowRef.current?.cancel();
     },
-    [selectedFilePath],
+    [selectedFilePath, selectedFileWorkspaceId],
   );
 
   // 关闭前 best-effort 落盘：异步桥接未必写完才退出，日常由空闲自动保存兜底。

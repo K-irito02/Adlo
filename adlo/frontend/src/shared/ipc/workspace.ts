@@ -324,6 +324,17 @@ export interface WorkspaceBridge {
    */
   onFilesChanged: (listener: (batch: WorkspaceFilesChangedBatch) => void) => () => void;
   /**
+   * 声明订阅者关心的文件监听根集合（侧栏全部已添加工作区）。
+   *
+   * 桌面/HTTP 实现为 no-op：adl-server 自行按侧栏数据库派生监听集合并以
+   * `rootPath` 标记批次。浏览器预览实现用它驱动多根轮询（预览模式没有
+   * adl-server 侧栏可读）。
+   * @param roots 工作区根路径数组（与 `recentWorkspaces[].path` 同源）
+   * @see mock-bridge.ts → workspace.setFilesChangedRoots
+   * @see preview-bridge/index.ts → workspace.setFilesChangedRoots
+   */
+  setFilesChangedRoots: (roots: string[]) => void;
+  /**
    * 获取文件大纲 (函数/类/结构等)
    * @param relativePath 相对于工作区的路径
    * @returns 文件大纲项列表

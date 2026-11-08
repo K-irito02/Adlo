@@ -258,6 +258,8 @@ export const mockWorkspace: WorkspaceBridge = {
   },
   // 空实现是刻意的：mock 内存文档无外部变更源，不存在需要推送的变更。
   onFilesChanged: () => () => {},
+  // mock 无 watcher，声明监听根为 no-op。
+  setFilesChangedRoots: () => {},
   outline: async (relativePath: string) => {
     const content = documents.get(relativePath) ?? "";
     const items: FileOutlineItem[] = buildOutlineFromContent(content, relativePath);

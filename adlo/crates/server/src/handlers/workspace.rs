@@ -156,7 +156,7 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
     }
     state.event_bus.emit(AppEvent::WorkspaceOpened(meta.id.clone()));
     state.event_bus.emit(AppEvent::RetrievalStatusChanged(meta.id.clone()));
-    crate::engine::restart_workspace_watcher(&state, std::path::Path::new(&meta.root_path));
+    crate::engine::sync_workspace_watchers(&state).await;
     tracing::warn!(
         workspace_id = %meta.id,
         "workspace_open: legacy 'digital-life://retrieval-status' UI emit has no SSE equivalent; \
@@ -202,18 +202,8 @@ pub async fn clear_current(State(state): State<ServerState>) -> impl IntoRespons
         {
             return ipc::to_response(Err(e));
         }
-        // 停止活动工作区的文件监听器（take 后显式 stop，保证工作线程退出）。
-        // poison 时恢复继续而非静默跳过，否则旧 watcher 泄漏并继续广播脏批次。
-        let previous = match state.workspace_watcher.lock() {
-            Ok(mut slot) => slot.take(),
-            Err(poisoned) => {
-                tracing::warn!("workspace watcher slot poisoned on clear; recovering");
-                poisoned.into_inner().take()
-            },
-        };
-        if let Some(previous) = previous {
-            previous.stop();
-        }
+        // clear-current 只清"当前活动工作区"指针；侧栏里的工作区仍然全部实时监听。
+        crate::engine::sync_workspace_watchers(&state).await;
     }
     ipc::to_response(result)
 }
