@@ -24,6 +24,7 @@ import {
   createBrowserBookmarkSlice,
   createBrowserHistorySlice,
   createBrowserBookmarkFoldersSlice,
+  createBookmarkTransferSlice,
   createBrowserLandingSlice,
   createBrowserSearchEnginesSlice,
   createBrowserSlice,
@@ -85,6 +86,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createBrowserBookmarkSlice(set, get), // 浏览器书签
   ...createBrowserHistorySlice(set, get), // 浏览器历史记录
   ...createBrowserBookmarkFoldersSlice(set, get), // 浏览器书签文件夹（自建目录）
+  ...createBookmarkTransferSlice(set, get), // 书签导入（批量写入）
   ...createBrowserLandingSlice(set, get), // 浏览器落地页（快捷站点、端口、背景）
   ...createBrowserSearchEnginesSlice(set, get), // 浏览器搜索引擎配置
   ...createBrowserSlice(set, get), // 浏览器核心状态（导航栏、视图模式、持久化）

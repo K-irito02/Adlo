@@ -17,6 +17,7 @@ const RightPanel = lazy(() =>
 );
 import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
 import { FirstRunProvisioningWizard } from './features/environment/FirstRunProvisioningWizard';
+import { BookmarkTransferDialogs } from './features/bookmarks/BookmarkTransferDialogs';
 import { shouldShowAutomaticFirstRunWizard } from './features/environment/firstRunGate';
 import { ToastContainer } from './components/Toast';
 import { ToastRegion } from './components/ToastRegion';
@@ -310,6 +311,7 @@ export function App() {
             onClose={() => setCreateWorkspaceModalOpen(false)}
           />
         </main>
+        <BookmarkTransferDialogs />
         <ToastContainer toasts={toasts} onRemove={removeToast} />
         <ToastRegion
           errorToasts={errorToasts}

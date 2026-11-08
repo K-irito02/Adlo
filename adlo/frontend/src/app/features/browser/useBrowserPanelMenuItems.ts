@@ -143,6 +143,19 @@ export function useBrowserPanelMenuItems({
           setZoomLevel(1.0);
         },
       },
+      { id: 'sep-3', separator: true as const },
+      {
+        id: 'import-bookmarks',
+        label: t.browserImportBookmarks,
+        hint: t.browserImportBookmarksHint,
+        action: () => useAppStore.getState().setBookmarkTransferDialog('import'),
+      },
+      {
+        id: 'export-bookmarks',
+        label: t.browserExportBookmarks,
+        hint: t.browserExportBookmarksHint,
+        action: () => useAppStore.getState().setBookmarkTransferDialog('export'),
+      },
     ],
     [activeTab, hardReload, t, isTauri, zoomLevel, setZoomLevel],
   );

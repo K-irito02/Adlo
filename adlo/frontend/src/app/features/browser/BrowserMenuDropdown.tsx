@@ -7,6 +7,8 @@ import {
   IconCpu,
   IconSearch,
   IconMoreVertical,
+  IconDownload,
+  IconUpload,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { BrowserMenuHintItem } from './BrowserMenuHintItem';
@@ -31,6 +33,8 @@ const menuItemIcons: Record<string, React.ReactNode> = {
   'zoom-in': <IconSearch size={14} decorative />,
   'zoom-out': <IconSearch size={14} decorative />,
   'zoom-reset': <IconRefreshCw size={14} decorative />,
+  'import-bookmarks': <IconDownload size={14} decorative />,
+  'export-bookmarks': <IconUpload size={14} decorative />,
 };
 
 export const BrowserMenuDropdown = React.memo(function BrowserMenuDropdown({

@@ -23,6 +23,7 @@ import type { BrowserTabsSlice } from './slices/browserTabsSlice';
 import type { BrowserBookmarkSlice } from './slices/browserBookmarkSlice';
 import type { BrowserHistorySlice } from './slices/browserHistorySlice';
 import type { BrowserBookmarkFoldersSlice } from './slices/browserFoldersSlice';
+import type { BookmarkTransferSlice } from './slices/bookmarkTransferSlice';
 import type { BrowserLandingSlice } from './slices/browserLandingSlice';
 import type { BrowserSearchEnginesSlice } from './slices/browserSearchEnginesSlice';
 import type { BrowserSlice } from './slices/browserSlice';
@@ -117,6 +118,7 @@ type AllSlices = [
   BrowserBookmarkSlice,
   BrowserHistorySlice,
   BrowserBookmarkFoldersSlice,
+  BookmarkTransferSlice,
   BrowserLandingSlice,
   BrowserSearchEnginesSlice,
   BrowserSlice,

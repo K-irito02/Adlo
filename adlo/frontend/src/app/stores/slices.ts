@@ -83,6 +83,12 @@ export {
   createBrowserBookmarkFoldersSlice,
 } from './slices/browserFoldersSlice';
 export {
+  type BookmarkTransferSlice,
+  type BookmarkImportTarget,
+  type BookmarkImportResult,
+  createBookmarkTransferSlice,
+} from './slices/bookmarkTransferSlice';
+export {
   type BrowserLandingSlice,
   type ShortcutSite,
   type LocalPort,
