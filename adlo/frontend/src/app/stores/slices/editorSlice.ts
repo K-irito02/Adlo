@@ -46,6 +46,14 @@ export interface EditorSlice {
   selectedChangePreviewWorkspaceId?: string;
   changePreview?: WorkspaceChangePreview;
   changePreviewLoading: boolean;
+  /**
+   * 磁盘基线，同时作为 CodeMirror 的受控 value。编辑中的实时文本在
+   * `pendingEditorText` 暂存缓冲（按工作区+路径键控），不在本字段。
+   *
+   * 有未存草稿时禁止把保存响应/对账读到的旧快照写回本字段：受控 value 变化会
+   * 让 @uiw/react-codemirror 用旧内容整体替换编辑器文档，表现为「瞬间回退」。
+   * 存盘代际、串行化与回声识别见 `stores/editorSavePipeline.ts`。
+   */
   fileContent?: string;
   fileLastModifiedAt?: number;
   /**
@@ -129,7 +137,6 @@ export interface EditorSlice {
   setFileMedia: (media: WorkspaceMediaDocument | null) => void;
   setFileOpenError: (error: FileOpenError | null) => void;
   setPositioningPath: (path: string | null) => void;
-  setExternalFileChange: (change: { path: string; lastModifiedAt: number } | undefined) => void;
   setOutline: (items: FileOutlineItem[]) => void;
   setDirtyEditorPaths: (paths: string[]) => void;
   addDirtyPath: (path: string) => void;
@@ -188,7 +195,6 @@ export const createEditorSlice = (
   setFileMedia: (fileMedia) => set({ fileMedia }),
   setFileOpenError: (fileOpenError) => set({ fileOpenError }),
   setPositioningPath: (positioningPath) => set({ positioningPath }),
-  setExternalFileChange: (externalFileChange) => set({ externalFileChange }),
   setOutline: (outline) => set({ outline }),
   setDirtyEditorPaths: (paths) => set({ dirtyEditorPaths: paths }),
   addDirtyPath: (path) =>

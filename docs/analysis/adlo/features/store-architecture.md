@@ -82,6 +82,12 @@ export const useAppStore = useSlicedAppStore;
 | `workspaceNaturalOrderSync.ts` | 工作区自然顺序同步 |
 | `preferencePatchMerge.ts` | 偏好合并类型/工具 |
 
+## stores/ 根模块（非 slice / action）
+
+| 文件 | 说明 |
+|------|------|
+| `editorSavePipeline.ts` | 编辑器存盘流水线（按文件串行、保存代际、自写回声指纹、watcher 信号） |
+
 ## cacheHelpers.ts 模式
 
 | 函数 | 用途 | 调用位置 |

@@ -8,6 +8,11 @@ import type { StoreState } from './StoreState';
 import type { StoreApi } from 'zustand';
 import { normalizeWorkspaceRelativePath } from '../utils/workspacePaths';
 import { AppError, errorCodeMap, fromIpcErrorCode } from '../../shared/typedErrors';
+import {
+  clearEditorSaveState,
+  clearEditorSaveStateForPrefix,
+  clearEditorSaveStateForWorkspace,
+} from './editorSavePipeline';
 
 /** 全局请求序列计数器 */
 export let workspaceRequestSeq = 0;
@@ -198,6 +203,7 @@ export function dropPendingEditorText(workspaceId: string, relativePath?: string
         lastSavedAt.delete(key);
       }
     }
+    clearEditorSaveStateForWorkspace(workspaceId);
     return;
   }
   const norm = normalizeWorkspaceRelativePath(relativePath);
@@ -215,6 +221,9 @@ export function dropPendingEditorText(workspaceId: string, relativePath?: string
       lastSavedAt.delete(key);
     }
   }
+  // 存盘流水线（本地写入回声/保存代际）同边界清理。
+  clearEditorSaveState(exact);
+  clearEditorSaveStateForPrefix(prefix);
 }
 
 /** 精确失效单个变更预览缓存 */
@@ -297,6 +306,7 @@ export function clearWorkspaceCaches(workspacePrefix: string) {
       changePreviewCache.delete(key);
     }
   }
+  clearEditorSaveStateForWorkspace(workspacePrefix);
 }
 
 /** 清除错误 toast（scope 提供时仅清除该作用域，缺省清空全部） */
