@@ -36,8 +36,8 @@
 
 | 应用方式 | 条数 | 含义 |
 |----------|------|------|
-| `alwaysApply: true` | 9 | 全局常驻，任何任务都生效 |
-| `alwaysApply: false` + `globs` | 36 | 命中指定路径时才注入，减少无关上下文 |
+| `alwaysApply: true` | 7 | 全局常驻，任何任务都生效 |
+| `alwaysApply: false` + `globs` | 38 | 命中指定路径时才注入，减少无关上下文 |
 
 > 条数以 `.agents/rules/` 实际文件为准；`scripts/check-agent-dirs.test.mjs` 会在 pre-commit 校验本表与目录一致。
 
@@ -128,21 +128,19 @@ alwaysApply: false
 | `alwaysApply: true` | 每次会话常驻注入 | 全域约束（项目形态、执行规则、验收门禁） |
 | `globs` 命中 | 仅当任务涉及匹配路径的文件时注入 | 语言 / 框架 / 目录级约定 |
 
-**始终应用的 9 条**（`alwaysApply: true`）：
+**始终应用的 7 条**（`alwaysApply: true`）：
 
 | 规则文件 | 覆盖内容 |
 |----------|----------|
 | `project-overview.md` | 项目总览、双根结构、技术栈 |
-| `multi-dimensional-architecture-design.md` | 多维度架构与架构事实真源 |
 | `phase-boundary.md` | 项目形态、范围边界与排除项 |
 | `dev-rules.md` | 代理交互与执行规则 |
 | `preference-writes.md` | 用户偏好只由用户操作写入，后台逻辑不得静默改写 |
 | `mandatory-testing.md` | 结束验收与强制红绿测试 |
 | `error-handling.md` | 错误处理与加载状态 |
-| `commands.md` | 常用命令速查 |
 | `shell-encoding.md` | 终端中文编码、只读场景与批量替换约束 |
 
-> 其余 36 条按 `globs` 生效，清单见 §6「应用方式」列。
+> 其余 38 条按 `globs` 生效，清单见 §6「应用方式」列。（`commands.md` 与 `multi-dimensional-architecture-design.md` 自 2026-11-09 起改为 `adlo/**` 命中才注入。）
 > `ui-patterns.md`（944 行速查表）自 2026-10-31 起改为**按需查阅**，入口见 `docs/design-system/README.md`。
 
 ---
@@ -156,7 +154,7 @@ alwaysApply: false
 | 规则文件 | 应用方式 | 约束内容 |
 |----------|----------|----------|
 | `project-overview.md` | 始终 | 项目总览：双根结构、技术栈、双端架构与真源位置 |
-| `multi-dimensional-architecture-design.md` | 始终 | 多维度架构（代码 / 部署 / 数据 / 安全 / 接口 / 性能）与架构事实的唯一真源 |
+| `multi-dimensional-architecture-design.md` | `adlo/**` | 多维度架构（代码 / 部署 / 数据 / 安全 / 接口 / 性能）与架构事实的唯一真源 |
 | `phase-boundary.md` | 始终 | 项目形态、范围边界与排除项，防止范围蔓延 |
 | `codebase-map.md` | `adlo/**` | 代码地图：Cargo 工作区、前端目录、包列表与索引策略 |
 | `dev-rules.md` | 始终 | 代理交互与执行规则：询问卡片、终端命令、代码修改、问题排查、编码风格、并行工作树约束 |
@@ -174,7 +172,7 @@ alwaysApply: false
 
 | 规则文件 | 应用方式 | 约束内容 |
 |----------|----------|----------|
-| `commands.md` | 始终 | 常用命令与环境设置速查（脚本入口） |
+| `commands.md` | `adlo/**` | 常用命令与环境设置速查（脚本入口） |
 | `desktop-ui-verification.md` | `frontend/**` | 桌面端 UI 验证：改 UI 后必须重启应用确认双端一致 |
 | `shell-encoding.md` | 始终 | 终端中文编码与批量替换：禁止内联 CJK 替换、禁止根目录递归扫描 |
 

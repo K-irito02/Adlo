@@ -11,7 +11,7 @@ alwaysApply: true
 
 任何代码变更完成后，必须自动触发结束验收流程。验收流程确保所有内部功能代码的完备性、真实性、有效性。**主观 UI/UX 验收由用户自行完成；但 CSS 选择器、层叠关系、主题 token 或布局变更必须做机械计算样式验证（见 [desktop-ui-verification.md](desktop-ui-verification.md) 与 `ui-probe.mjs`）。**
 
-验收流程**默认无需打开 Tauri 桌面应用**；涉及上述 CSS 变更时，启动浏览器预览并用 `ui-probe.mjs` 或环境内置 browser 工具读取目标元素的计算样式（亮暗两套），不把“肉眼看起来对”当作验证。桌面 E2E 是额外的 opt-in 层（见下方「桌面 E2E（按需）」），不属于默认验收。
+验收**默认不打开 Tauri 桌面应用**；CSS 变更时启动浏览器预览用 `ui-probe.mjs`（或内置 browser 工具）读目标元素计算样式（亮暗两套），不以肉眼代验证。桌面 E2E 是额外的 opt-in 层（见下方「桌面 E2E（按需）」），不属于默认验收。
 
 ---
 
@@ -27,7 +27,7 @@ Agent 完成以下任一操作后**自动触发**结束验收流程：
 | 重构完成       | 代码结构调整、模块迁移后         |
 | 依赖更新       | package.json / Cargo.toml 变更后 |
 
-用户**随时可以手动请求**触发验收流程（例如 "执行验收"）。
+用户**随时可手动请求**验收（如 "执行验收"）。
 
 ---
 
@@ -70,7 +70,7 @@ Agent 在触发验收时，先评估变更范围，确定测试层级：
 
 ### 材料检查
 
-验收前检查测试材料是否充足：
+验收前检查材料是否充足：
 
 1. 新代码是否被现有测试覆盖？
 2. 现有 mock/fixture 是否覆盖新增代码的类型定义？
@@ -78,10 +78,10 @@ Agent 在触发验收时，先评估变更范围，确定测试层级：
 
 ### 自动生成规则
 
-测试材料不足时，Agent 自动生成。生成规则：
+材料不足时 Agent 自动生成；规则：
 
 ```
-生成测试材料时，必须同时满足：
+生成材料时必须同时满足：
 ├─ ① 基于真实类型定义 — 使用代码中实际的 TS 类型/Rust 结构体生成数据
 ├─ ② 覆盖常规路径 — 正常业务逻辑路径的数据
 ├─ ③ 覆盖边界路径 — 边界值、空值、异常值
@@ -117,31 +117,14 @@ Agent 在触发验收时，先评估变更范围，确定测试层级：
     ├── ② clippy 检测并修复：      pnpm run stage:sidecar && cargo clippy --workspace --all-targets --fix -- -D warnings
     └── ③ 编译检查：               pnpm run cargo:check
 
-步骤 2（并行）：
-├── 前端测试：   pnpm --dir frontend run test
-└── Rust 测试：  pnpm run cargo:test
+步骤 2（并行）：前端 `pnpm --dir frontend run test`；Rust `pnpm run cargo:test`。
 
-步骤 3（可选，仅配置后可用）：
-├── 前端覆盖率： pnpm --dir frontend run coverage
-└── Rust 覆盖率： cargo llvm-cov --workspace
-    （覆盖率仅收集数据供参考，不设硬性门禁）
+步骤 3（可选）：前端 `pnpm --dir frontend run coverage`；Rust `cargo llvm-cov --workspace`（仅收集，不设硬性门禁）。
 ```
 
 ### 受影响测试优先执行
 
-日常开发中无需执行全量测试，优先执行受影响的测试：
-
-```
-Rust 受影响测试：
-├── cargo test -p <crate>              # 仅运行指定 crate 的测试
-├── cargo test -p adl-server --test reference_retrieval  # 运行指定集成测试文件
-└── cargo test -p <crate> <test_name>  # 运行匹配名称的测试（模糊匹配；限定 crate 以免编译壳层）
-
-前端受影响测试：
-├── pnpm --dir frontend run test -- <test-file-pattern>   # 运行匹配的测试文件
-├── pnpm --dir frontend run test -- --reporter=verbose    # 详细输出定位失败
-└── pnpm --dir frontend run test:watch                    # 开发时 watch 模式
-```
+日常开发无需执行全量测试；只跑受影响的测试：前端 `pnpm --dir frontend run test -- <pattern>`（或 `check:changed`），Rust `cargo test -p <crate> [filter]`；命令清单见 [commands.md](commands.md#测试命令)。
 
 **执行策略**：
 
@@ -203,15 +186,7 @@ ESLint/Clippy 的 `--fix` 自动修复和任何人工修复必须遵守以下约
 
 ## 覆盖率收集
 
-覆盖率收集工具配置后自动可用，但**不设硬性门禁**：
-
-| 工具     | 前端                  | Rust 后端        |
-| -------- | --------------------- | ---------------- |
-| 覆盖工具 | `@vitest/coverage-v8` | `cargo-llvm-cov` |
-| 输出格式 | lcov + text           | lcov + html      |
-| 门禁     | 无（仅参考）          | 无（仅参考）     |
-
-覆盖率数据供开发者了解测试盲区，不作为验收通过条件。
+覆盖率工具配置后自动可用，但**不设硬性门禁**（仅参考，不作验收通过条件）：前端 `@vitest/coverage-v8`（lcov + text），Rust `cargo llvm-cov`（lcov + html）。
 
 ---
 
@@ -279,7 +254,7 @@ ESLint/Clippy 的 `--fix` 自动修复和任何人工修复必须遵守以下约
 
 1. **焦点/键盘可达性/模态框契约**类的断言，必须在真实 Chromium 中验证（Playwright，`channel: msedge` 与 WebView2 同引擎）；jsdom 只用于锁「属性存在与否」与逻辑分支
 2. 验证真实浏览器行为时：注入**完整** `styles/index.css`（缺少某个 region 文件会因 `z-index`/定位缺失产生误报）、用 esbuild/vite 打包真实组件而非重写简化版
-3. 结论必须附实测输出（`activeElement`、`pointer-events`、`aria-disabled` 等计算值），不得仅凭 jsdom 通过即宣称"无障碍正确"
+3. 结论必须附实测输出（`activeElement` 等计算值），不得仅凭 jsdom 通过即宣称"无障碍正确"
 
 > 反面案例（2026-09-17 剪贴板历史收尾）：清空进行中把对话框按钮全部 `disabled`，jsdom 断言"焦点仍在 dialog 内"通过，真实 Chromium 实测焦点已逃到 `<body>` —— 修正为 `aria-disabled` + `pointer-events:none` 后实测 63/63 断言通过。
 

@@ -1,6 +1,7 @@
 ---
 description: Multi-dimensional architecture design overview (code, deployment, data, security, interface, performance) and the single source of truth for architecture facts
-alwaysApply: true
+globs: adlo/**
+alwaysApply: false
 ---
 
 # 多维度架构设计
@@ -35,7 +36,7 @@ alwaysApply: true
 
 - **SQLite**（rusqlite bundled + `r2d2` 连接池，`EntityTable` 宏，`PRAGMA journal_mode=WAL; foreign_keys=ON`）。核心实体表：`workspaces`/`sessions`/`tasks`/`approvals`/`patch_sets`/`file_patches`/`patch_hunks`/`checkpoints`/`audit_records`/`tool_invocations`/`clipboard_items`/`model_call_audit`/`run_activity_events`/`validation_results` + 站点元数据/剪贴板等。schema 变更必须带迁移脚本（`crates/migration/`）。详见 [rust-patterns.md](./rust-patterns.md)。
 - **本地非结构化**：`localStorage` 持久化走中心登记表（registry）架构（`stores/persisted/`），唯一写盘入口 + 构造期同步水合。详见 [localstorage-central-registry-persistence-architecture.md](./localstorage-central-registry-persistence-architecture.md)。
-- **存储治理**：`adl-kernel::storage` 统一路径解析 + `storage-locator.json` 指针 + 启动期迁移（Plan B）+ 设置面板存储组（Plan C；10 条可迁移路径 + 6 条不可移动项）。详见 `adlo/AGENTS.md#存储路径解析`。
+- **存储治理**：`adl-kernel::storage` 统一路径解析 + `storage-locator.json` 指针 + 启动期迁移（Plan B）+ 设置面板存储组（Plan C；10 条可迁移路径 + 6 条不可移动项）。详见 [storage-locations.md](../../docs/architecture/core/storage-locations.md)。
 
 ## 安全维度
 

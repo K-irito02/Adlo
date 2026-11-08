@@ -1,6 +1,7 @@
 ---
 description: Common commands quick reference, scripts entry points
-alwaysApply: true
+globs: adlo/**
+alwaysApply: false
 ---
 
 # 常用命令
