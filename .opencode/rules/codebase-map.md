@@ -113,7 +113,7 @@ app/stores/
 │   ├── browserTabsSlice.ts      # 浏览器标签页
 │   ├── browserBookmarkSlice.ts  # 浏览器书签（含 browserWorkspaceBookmarks 工作区书签）
 │   ├── browserHistorySlice.ts   # 浏览器历史记录
-│   ├── browserFoldersSlice.ts   # 浏览器标签文件夹（TabFolderState.tabs: BookmarkTabItem[] = { tabId, url, title }）
+│   ├── browserFoldersSlice.ts   # 浏览器书签文件夹（BookmarkFolder.entries: BookmarkEntry[] = { id, url, title, addedAt, lastModifiedAt })
 │   └── browserLandingSlice.ts   # 浏览器着陆页（快捷站点、端口、背景）
 │
 ├── actions/                     # 18 个跨切片 action 模块（*Actions.ts，+ helpers/类型文件，权威清单见 adlo/AGENTS.md）
@@ -203,7 +203,7 @@ features/browser/
 ├── BrowserPanelActionsContext.tsx # 面板操作上下文
 ├── BrowserNavigator.tsx      # 导航器壳（工具栏 + 模式切换，~120行）
 ├── BrowserNavOpenMode.tsx    # 已打开标签模式（封装 BrowserOpenTabFlatList）
-├── BrowserNavTabsMode.tsx    # 标签目录树模式（封装 BrowserTabTree）
+├── BrowserNavTabsMode.tsx    # 书签目录树模式（封装 BrowserTabTree）
 ├── BrowserNavListMode.tsx    # 列表视图模式（BrowserTabTree viewMode="list"）
 ├── BrowserNavSearchMode.tsx  # 搜索模式（搜索结果列表）
 ├── BrowserOpenTabFlatList.tsx# 已打开标签扁平列表（可拖拽）

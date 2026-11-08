@@ -88,8 +88,8 @@
 
 | 文件 | `slices/browserFoldersSlice.ts` |
 |------|------|
-| 关键字段 | `tabFolders: TabFolderState[]`, `bookmarkTabItems: BookmarkTabItem[]` |
-| 用途 | 标签文件夹（分类）管理、文件夹 CRUD、拖拽排序 |
+| 关键字段 | `browserBookmarkFolders: BookmarkFolder[]`, `entries: BookmarkEntry[]` |
+| 用途 | 书签文件夹（分类）管理、文件夹 CRUD、拖拽排序 |
 
 辅助文件: `slices/browserFoldersDeletion.ts`, `slices/browserFoldersTypes.ts`, `slices/browserFoldersUtils.ts`
 

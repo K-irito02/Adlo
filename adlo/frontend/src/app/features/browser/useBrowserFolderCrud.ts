@@ -98,7 +98,7 @@ export function useBrowserFolderCrud() {
             state.browserBookmarkFolders as {
               id: string;
               parentId?: string;
-              tabs?: { tabId: string }[];
+              entries?: { id: string }[];
             }[],
             folderId,
           );
@@ -107,7 +107,7 @@ export function useBrowserFolderCrud() {
             state.browserBookmarkFolders as {
               id: string;
               parentId?: string;
-              tabs?: { tabId: string; url: string }[];
+              entries?: { id: string; url: string }[];
             }[],
             folderId,
           );
@@ -156,7 +156,7 @@ export function useBrowserFolderCrud() {
             state.browserBookmarkFolders as {
               id: string;
               parentId?: string;
-              tabs?: { tabId: string }[];
+              entries?: { id: string }[];
             }[],
             folderId,
           );
@@ -168,7 +168,7 @@ export function useBrowserFolderCrud() {
             state.browserBookmarkFolders as {
               id: string;
               parentId?: string;
-              tabs?: { tabId: string; url: string }[];
+              entries?: { id: string; url: string }[];
             }[],
             folderId,
           );
@@ -240,7 +240,7 @@ export function useBrowserFolderCrud() {
             state.browserBookmarkFolders as {
               id: string;
               parentId?: string;
-              tabs?: { tabId: string }[];
+              entries?: { id: string }[];
             }[],
             folderId,
           );
@@ -399,7 +399,7 @@ export function useBrowserFolderCrud() {
               state.browserBookmarkFolders as {
                 id: string;
                 parentId?: string;
-                tabs?: { tabId: string }[];
+                entries?: { id: string }[];
               }[],
               actualId,
             ),
@@ -412,7 +412,7 @@ export function useBrowserFolderCrud() {
             state.browserBookmarkFolders as {
               id: string;
               parentId?: string;
-              tabs?: { tabId: string; url: string }[];
+              entries?: { id: string; url: string }[];
             }[],
             actualId,
           );

@@ -151,6 +151,7 @@ function buildFolderNode(
         resolveTitle,
       );
       node.isSavedBookmark = true;
+      node.bookmarkId = entry.id;
       // 使用书签条目自己的快照，保留收藏时的原始 URL/标题
       node.name = resolveTitle(entry.title || tab.title || '', displayUrl);
       node.url = displayUrl;

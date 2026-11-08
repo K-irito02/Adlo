@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
+import type { CopyDict } from '@i18n';
 import { IconCheck, IconChevronDown, IconChevronRight, IconClose } from '@icons';
 import { parseBookmarkHtml } from './bookmarkHtml';
 import type { TransferNode } from './bookmarkTransferTypes';
@@ -21,13 +22,17 @@ import {
 } from './useBookmarkTransfer';
 
 const INDENT = 14;
+const DIVIDER_MIN = 180;
+const DIVIDER_MAX = 480;
+
+type CheckState = 'checked' | 'partial' | 'none';
 
 function CheckBox({
   state,
   label,
   onToggle,
 }: {
-  state: 'checked' | 'partial' | 'none';
+  state: CheckState;
   label: string;
   onToggle: () => void;
 }) {
@@ -55,7 +60,102 @@ function CheckBox({
   );
 }
 
-/** 导出选择树的一行。 */
+/** 对话框通用键盘与焦点契约：Escape 关闭、Tab 循环、打开时聚焦、关闭归还焦点。 */
+function useDialogA11y(open: boolean, onClose: () => void) {
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panelRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab') {
+        return;
+      }
+      const panel = panelRef.current;
+      if (!panel) {
+        return;
+      }
+      const focusables = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusables.length === 0) {
+        return;
+      }
+      event.preventDefault();
+      const index = focusables.indexOf(document.activeElement as HTMLElement);
+      const step = event.shiftKey ? -1 : 1;
+      const next =
+        index === -1
+          ? event.shiftKey
+            ? focusables.length - 1
+            : 0
+          : (index + step + focusables.length) % focusables.length;
+      focusables[next].focus();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true);
+      previous?.focus?.();
+    };
+  }, [open, onClose]);
+  return panelRef;
+}
+
+/** 可拖拽分隔条：指针捕获 + rAF 节流 + 卸载清理，宽度限制 180–480。 */
+function useResizableSplit(initial = 240) {
+  const [width, setWidth] = useState(initial);
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const rafRef = useRef(0);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(
+    () => () => {
+      cleanupRef.current?.();
+      window.cancelAnimationFrame(rafRef.current);
+    },
+    [],
+  );
+
+  const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const frame = frameRef.current;
+    if (!frame) {
+      return;
+    }
+    const handle = event.currentTarget;
+    handle.setPointerCapture?.(event.pointerId);
+    const rect = frame.getBoundingClientRect();
+    const move = (ev: PointerEvent) => {
+      window.cancelAnimationFrame(rafRef.current);
+      rafRef.current = window.requestAnimationFrame(() => {
+        const raw = rect.right - ev.clientX;
+        setWidth(Math.max(DIVIDER_MIN, Math.min(DIVIDER_MAX, raw)));
+      });
+    };
+    const up = () => {
+      window.cancelAnimationFrame(rafRef.current);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      cleanupRef.current = null;
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    cleanupRef.current = up;
+    event.preventDefault();
+  }, []);
+
+  return { width, frameRef, onPointerDown };
+}
+
 function ExportRow({
   node,
   depth,
@@ -132,151 +232,33 @@ function flattenSelection(
   return rows;
 }
 
-/** 导入文件内容树的一行（只读预览 + 勾选）。 */
-function ImportRow({
-  node,
-  depth,
-  path,
-  excluded,
-  expanded,
-  onToggle,
-  onToggleExpand,
-}: {
-  node: TransferNode;
-  depth: number;
-  path: string;
-  excluded: ReadonlySet<string>;
-  expanded: ReadonlySet<string>;
-  onToggle: (key: string) => void;
-  onToggleExpand: (key: string) => void;
-}) {
-  const key = transferKey(node);
-  const isFolder = node.kind === 'folder';
-  const isOpen = expanded.has(key);
-  const leafIds = isFolder ? collectTransferLeafKeys(node) : [key];
-  const picked = leafIds.filter((id) => !excluded.has(id)).length;
-  const state = picked === 0 ? 'none' : picked === leafIds.length ? 'checked' : 'partial';
-  const count = leafIds.length;
-  return (
-    <li className="adl-search-ignore__item">
-      <div className="adl-search-ignore__row" title={path}>
-        <CheckBox state={state} label={path} onToggle={() => onToggle(key)} />
-        <div className="adl-search-ignore__row-body" style={{ paddingLeft: depth * INDENT }}>
-          {isFolder ? (
-            <button
-              type="button"
-              className="adl-search-ignore__toggle"
-              aria-label={path}
-              aria-expanded={isOpen ? 'true' : 'false'}
-              onClick={() => onToggleExpand(key)}
-            >
-              {isOpen ? (
-                <IconChevronDown size={12} decorative />
-              ) : (
-                <IconChevronRight size={12} decorative />
-              )}
-            </button>
-          ) : (
-            <span className="adl-search-ignore__toggle" aria-hidden="true" />
-          )}
-          <button
-            type="button"
-            className="adl-search-ignore__label"
-            title={path}
-            onClick={() => (isFolder ? onToggleExpand(key) : onToggle(key))}
-          >
-            <span className="adl-search-ignore__label-text">
-              {isFolder ? node.folder.name : node.title}
-            </span>
-          </button>
-          <span className="adl-search-ignore__label" style={{ flex: '0 0 auto', opacity: 0.6 }}>
-            {count}
-          </span>
-        </div>
-      </div>
-    </li>
-  );
+/** 「将导出」清单：整目录命中就停，未命中则下钻，最终每条都可单独移除。 */
+interface PickedItem {
+  id: string;
+  label: string;
+  count: number;
+  isDir: boolean;
 }
 
-function transferKey(node: TransferNode): string {
-  return node.kind === 'folder'
-    ? `f:${node.folder.name}:${node.folder.children.length}`
-    : `b:${node.url}`;
-}
-
-function collectTransferLeafKeys(node: TransferNode, out: string[] = []): string[] {
-  if (node.kind === 'bookmark') {
-    out.push(transferKey(node));
-    return out;
-  }
-  for (const child of node.folder.children) {
-    collectTransferLeafKeys(child, out);
-  }
-  return out;
-}
-
-function flattenTransfer(
-  nodes: TransferNode[],
-  expanded: ReadonlySet<string>,
-  depth: number,
-  prefix: string,
-): { node: TransferNode; depth: number; path: string }[] {
-  const rows: { node: TransferNode; depth: number; path: string }[] = [];
+function resolvePicked(
+  nodes: BookmarkSelectionNode[],
+  selected: ReadonlySet<string>,
+  out: PickedItem[] = [],
+  prefix = '',
+): PickedItem[] {
   for (const node of nodes) {
-    const name = node.kind === 'folder' ? node.folder.name : node.title;
-    const path = prefix ? `${prefix} / ${name}` : name;
-    rows.push({ node, depth, path });
-    if (node.kind === 'folder' && expanded.has(transferKey(node))) {
-      rows.push(...flattenTransfer(node.folder.children, expanded, depth + 1, path));
-    }
-  }
-  return rows;
-}
-
-/** 从导入树里剔掉被取消勾选的节点。 */
-function pruneTransfer(nodes: TransferNode[], excluded: ReadonlySet<string>): TransferNode[] {
-  const out: TransferNode[] = [];
-  for (const node of nodes) {
-    const key = transferKey(node);
-    if (node.kind === 'bookmark') {
-      if (!excluded.has(key)) {
-        out.push(node);
-      }
+    const state = selectionStateOf(node, selected);
+    if (state === 'none') {
       continue;
     }
-    if (excluded.has(key)) {
-      continue;
-    }
-    const children = pruneTransfer(node.folder.children, excluded);
-    if (children.length > 0) {
-      out.push({ kind: 'folder', folder: { name: node.folder.name, children } });
+    const label = prefix ? `${prefix} / ${node.name}` : node.name;
+    if (state === 'checked' || node.kind === 'bookmark') {
+      out.push({ id: node.id, label, count: node.bookmarkCount, isDir: node.kind !== 'bookmark' });
+    } else {
+      resolvePicked(node.children, selected, out, label);
     }
   }
   return out;
-}
-
-function useResizableSplit(initial = 240) {
-  const [width, setWidth] = useState(initial);
-  const frameRef = useRef<HTMLDivElement | null>(null);
-  const onPointerDown = useCallback((event: React.PointerEvent) => {
-    const frame = frameRef.current;
-    if (!frame) {
-      return;
-    }
-    const rect = frame.getBoundingClientRect();
-    const move = (ev: PointerEvent) => {
-      const raw = rect.right - ev.clientX;
-      setWidth(Math.max(180, Math.min(rect.width - 300, raw)));
-    };
-    const up = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    event.preventDefault();
-  }, []);
-  return { width, frameRef, onPointerDown };
 }
 
 function ExportDialog() {
@@ -297,11 +279,27 @@ function ExportDialog() {
   );
 
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const [expanded, setExpanded] = useState<Set<string>>(
-    () => new Set([workspaceRoot.id, folderRoot.id]),
-  );
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [busy, setBusy] = useState(false);
   const split = useResizableSplit();
+  const close = useCallback(() => setDialog(null), [setDialog]);
+  const panelRef = useDialogA11y(true, close);
+
+  const roots = useMemo(() => [workspaceRoot, folderRoot], [workspaceRoot, folderRoot]);
+  const allLeafIds = useMemo(() => roots.flatMap((root) => collectLeafIds(root)), [roots]);
+  const allDirIds = useMemo(() => {
+    const ids: string[] = [];
+    const walk = (nodes: BookmarkSelectionNode[]) => {
+      for (const node of nodes) {
+        if (node.kind !== 'bookmark') {
+          ids.push(node.id);
+          walk(node.children);
+        }
+      }
+    };
+    walk(roots);
+    return ids;
+  }, [roots]);
 
   const toggleSelect = useCallback((node: BookmarkSelectionNode) => {
     setSelected((prev) => {
@@ -350,6 +348,7 @@ function ExportDialog() {
   );
   const bookmarkCount = countBookmarks(exportNodes);
   const folderCount = countFolders(exportNodes);
+  const picked = useMemo(() => resolvePicked(roots, selected), [roots, selected]);
 
   const handleExport = useCallback(async () => {
     if (bookmarkCount === 0 || busy) {
@@ -359,20 +358,22 @@ function ExportDialog() {
     try {
       const ok = await exportBookmarks(exportNodes, t.bookmarkExportFileTitle as string);
       if (ok) {
-        setDialog(null);
+        close();
       }
     } finally {
       setBusy(false);
     }
-  }, [bookmarkCount, busy, exportBookmarks, exportNodes, setDialog, t]);
+  }, [bookmarkCount, busy, close, exportBookmarks, exportNodes, t]);
 
   return (
-    <div
-      className="adl-prompt-modal"
-      onClick={(e) => e.target === e.currentTarget && setDialog(null)}
-    >
+    <div className="adl-prompt-modal" onClick={(e) => e.target === e.currentTarget && close()}>
       <div
+        ref={panelRef}
         className="adl-prompt-modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.bookmarkExportTitle as string}
+        tabIndex={-1}
         style={{ width: 'min(94vw, 780px)', padding: '14px 0 0' }}
       >
         <div
@@ -388,19 +389,41 @@ function ExportDialog() {
             type="button"
             className="adl-prompt-modal__header-close"
             aria-label={t.close as string}
-            onClick={() => setDialog(null)}
+            onClick={close}
           >
             <IconClose size={14} decorative />
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 6, padding: '0 16px 8px' }}>
+        <div style={{ display: 'flex', gap: 6, padding: '0 16px 8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="adl-btn adl-btn--secondary"
+            onClick={() => setSelected(new Set(allLeafIds))}
+          >
+            {t.bookmarkExportSelectAll as string}
+          </button>
           <button
             type="button"
             className="adl-btn adl-btn--secondary"
             onClick={() => setSelected(new Set())}
           >
             {t.bookmarkExportClear as string}
+          </button>
+          <span style={{ flex: 1 }} />
+          <button
+            type="button"
+            className="adl-btn adl-btn--secondary"
+            onClick={() => setExpanded(new Set(allDirIds))}
+          >
+            {t.expandAll as string}
+          </button>
+          <button
+            type="button"
+            className="adl-btn adl-btn--secondary"
+            onClick={() => setExpanded(new Set())}
+          >
+            {t.collapseAll as string}
           </button>
         </div>
 
@@ -420,19 +443,7 @@ function ExportDialog() {
             style={{ margin: 0, border: 0, borderRadius: 0, flex: 1, maxHeight: 420 }}
           >
             <ul className="adl-search-ignore__tree" role="tree">
-              {workspaceRows.map(({ node, depth, path }) => (
-                <ExportRow
-                  key={node.id}
-                  node={node}
-                  depth={depth}
-                  path={path}
-                  selected={selected}
-                  expanded={expanded}
-                  onToggleSelect={toggleSelect}
-                  onToggleExpand={toggleExpand}
-                />
-              ))}
-              {folderRows.map(({ node, depth, path }) => (
+              {[...workspaceRows, ...folderRows].map(({ node, depth, path }) => (
                 <ExportRow
                   key={node.id}
                   node={node}
@@ -450,6 +461,10 @@ function ExportDialog() {
             role="separator"
             aria-orientation="vertical"
             aria-label={t.bookmarkExportResize as string}
+            aria-valuemin={DIVIDER_MIN}
+            aria-valuemax={DIVIDER_MAX}
+            aria-valuenow={split.width}
+            tabIndex={0}
             onPointerDown={split.onPointerDown}
             style={{
               flex: '0 0 7px',
@@ -467,12 +482,52 @@ function ExportDialog() {
             }}
           >
             <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingBottom: 6 }}>
-              {t.bookmarkExportPicked as string}
+              {t.bookmarkExportPicked as string} ({picked.length})
             </div>
-            <div style={{ fontSize: 12 }}>
-              {bookmarkCount} {t.bookmarkExportBookmarks as string} · {folderCount}{' '}
-              {t.bookmarkExportFolders as string}
-            </div>
+            {picked.length === 0 ? (
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {t.bookmarkExportNothingPicked as string}
+              </div>
+            ) : (
+              picked.map((item) => (
+                <div
+                  key={item.id}
+                  title={item.label}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 11,
+                    padding: '2px 0',
+                  }}
+                >
+                  <span
+                    style={{
+                      flex: 1,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)' }}>{item.isDir ? item.count : ''}</span>
+                  <button
+                    type="button"
+                    className="adl-icon-btn adl-icon-btn--xs"
+                    aria-label={t.browserContextDelete as string}
+                    onClick={() => {
+                      const node = findNodeById(roots, item.id);
+                      if (node) {
+                        toggleSelect(node);
+                      }
+                    }}
+                  >
+                    <IconClose size={12} decorative />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -480,11 +535,11 @@ function ExportDialog() {
           className="adl-prompt-modal__actions adl-prompt-modal__actions--fill"
           style={{ padding: '10px 16px' }}
         >
-          <button
-            type="button"
-            className="adl-btn adl-btn--secondary"
-            onClick={() => setDialog(null)}
-          >
+          <span style={{ flex: 1, fontSize: 11, color: 'var(--text-secondary)' }}>
+            {bookmarkCount} {t.bookmarkExportBookmarks as string} · {folderCount}{' '}
+            {t.bookmarkExportFolders as string}
+          </span>
+          <button type="button" className="adl-btn adl-btn--secondary" onClick={close}>
             {t.cancel as string}
           </button>
           <button
@@ -501,12 +556,59 @@ function ExportDialog() {
   );
 }
 
+function findNodeById(
+  nodes: BookmarkSelectionNode[],
+  id: string,
+): BookmarkSelectionNode | undefined {
+  for (const node of nodes) {
+    if (node.id === id) {
+      return node;
+    }
+    const found = findNodeById(node.children, id);
+    if (found) {
+      return found;
+    }
+  }
+  return undefined;
+}
+
+function collectTransferLeaves(node: TransferNode, out: TransferNode[] = []): TransferNode[] {
+  if (node.kind === 'bookmark') {
+    out.push(node);
+    return out;
+  }
+  for (const child of node.folder.children) {
+    collectTransferLeaves(child, out);
+  }
+  return out;
+}
+
+function pruneTransfer(nodes: TransferNode[], excluded: ReadonlySet<string>): TransferNode[] {
+  const out: TransferNode[] = [];
+  for (const node of nodes) {
+    if (node.kind === 'bookmark') {
+      if (!excluded.has(node.url)) {
+        out.push(node);
+      }
+      continue;
+    }
+    const children = pruneTransfer(node.folder.children, excluded);
+    if (children.length > 0) {
+      out.push({ kind: 'folder', folder: { name: node.folder.name, children } });
+    }
+  }
+  return out;
+}
+
 function ImportDialog() {
-  const { t } = useTCopy();
+  const { t, formatT } = useTCopy();
   const setDialog = useAppStore((s) => s.setBookmarkTransferDialog);
   const importBookmarks = useAppStore((s) => s.browserImportBookmarks);
   const { workspaces, folders } = useAppStore(
-    useShallow((s) => ({ workspaces: s.recentWorkspaces, folders: s.browserBookmarkFolders })),
+    useShallow((s) => ({
+      workspaces: s.recentWorkspaces,
+      folders: s.browserBookmarkFolders,
+    })),
   );
   const showToast = useAppStore((s) => s.showToast);
 
@@ -516,12 +618,19 @@ function ImportDialog() {
   const [rootName, setRootName] = useState('');
   const [invalidCount, setInvalidCount] = useState(0);
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [targetKind, setTargetKind] = useState<'new' | 'folder' | 'workspace'>('new');
   const [targetId, setTargetId] = useState('');
   const [folderName, setFolderName] = useState('');
   const [duplicatePolicy, setDuplicatePolicy] = useState<'skip' | 'allow'>('skip');
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const close = useCallback(() => setDialog(null), [setDialog]);
+  const panelRef = useDialogA11y(true, close);
+
+  const defaultFolderName = useMemo(() => {
+    const base = (t.bookmarkImportDefaultName as string) || 'bookmarks';
+    const now = new Date();
+    return `${base}_${now.getFullYear()}_${now.getMonth() + 1}_${now.getDate()}`;
+  }, [t]);
 
   const onPickFile = useCallback(
     async (file: File) => {
@@ -531,42 +640,40 @@ function ImportDialog() {
       }
       const html = await file.text();
       const parsed = parseBookmarkHtml(html);
-      if (parsed.nodes.length === 0) {
+      const validCount = countBookmarks(parsed.nodes);
+      if (validCount === 0) {
+        // 只含无效链接的文件按"解析失败"处理：不进入选择步骤
         showToast(t.bookmarkImportEmpty as string, 'error');
         return;
       }
-      const defaultName = parsed.rootName.trim() || file.name.replace(/\.[^.]+$/, '');
       setFileName(file.name);
-      setRootName(defaultName);
+      setRootName(parsed.rootName.trim());
       setNodes(parsed.nodes);
       setInvalidCount(parsed.invalidCount);
-      setFolderName(defaultName);
+      setFolderName(defaultFolderName);
       setExcluded(new Set());
-      setExpanded(new Set());
       setStep(1);
     },
-    [showToast, t],
+    [defaultFolderName, showToast, t],
   );
 
-  const toggleExcluded = useCallback((key: string) => {
+  // 勾选状态按**叶子 URL** 记账：文件夹的勾选即"其下全部叶子"，避免行状态与剪枝口径不一致
+  const toggleExcluded = useCallback((node: TransferNode) => {
     setExcluded((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }, []);
-
-  const toggleExpand = useCallback((key: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
+      const leaves = collectTransferLeaves(node);
+      const allIncluded = leaves.every((leaf) =>
+        leaf.kind === 'bookmark' ? !next.has(leaf.url) : false,
+      );
+      for (const leaf of leaves) {
+        if (leaf.kind !== 'bookmark') {
+          continue;
+        }
+        if (allIncluded) {
+          next.add(leaf.url);
+        } else {
+          next.delete(leaf.url);
+        }
       }
       return next;
     });
@@ -575,38 +682,43 @@ function ImportDialog() {
   const keptNodes = useMemo(() => pruneTransfer(nodes, excluded), [nodes, excluded]);
   const keptCount = countBookmarks(keptNodes);
   const keptFolders = countFolders(keptNodes);
-  const rows = flattenTransfer(nodes, expanded, 0, '');
+  const rows = useMemo(() => flattenTransfer(nodes, 0, ''), [nodes]);
 
   const handleImport = useCallback(() => {
     if (keptCount === 0) {
       return;
     }
-    const target =
-      targetKind === 'new'
-        ? ({ kind: 'new-folder', name: folderName.trim() || rootName } as const)
-        : targetKind === 'folder'
-          ? ({ kind: 'folder', id: targetId } as const)
-          : ({ kind: 'workspace', id: targetId } as const);
     if (targetKind !== 'new' && !targetId) {
       return;
     }
+    const target =
+      targetKind === 'new'
+        ? ({ kind: 'new-folder', name: folderName.trim() || defaultFolderName } as const)
+        : targetKind === 'folder'
+          ? ({ kind: 'folder', id: targetId } as const)
+          : ({ kind: 'workspace', id: targetId } as const);
     const result = importBookmarks({ nodes: keptNodes, target, duplicatePolicy });
     const skipped =
-      result.skipped > 0 ? `（${result.skipped} ${t.bookmarkImportSkipped as string}）` : '';
+      result.skipped > 0
+        ? ` ${formatT(t as CopyDict, 'bookmarkImportSkipped', { count: result.skipped })}`
+        : '';
     showToast(
-      `${t.bookmarkImportSuccess as string} ${result.importedBookmarks} ${t.bookmarkExportBookmarks as string}` +
-        `${skipped}`,
+      formatT(t as CopyDict, 'bookmarkImportSuccess', {
+        count: result.importedBookmarks,
+        folders: result.importedFolders,
+      }) + skipped,
       'success',
     );
-    setDialog(null);
+    close();
   }, [
+    close,
+    defaultFolderName,
     duplicatePolicy,
     folderName,
+    formatT,
     importBookmarks,
     keptCount,
     keptNodes,
-    rootName,
-    setDialog,
     showToast,
     t,
     targetId,
@@ -614,12 +726,14 @@ function ImportDialog() {
   ]);
 
   return (
-    <div
-      className="adl-prompt-modal"
-      onClick={(e) => e.target === e.currentTarget && setDialog(null)}
-    >
+    <div className="adl-prompt-modal" onClick={(e) => e.target === e.currentTarget && close()}>
       <div
+        ref={panelRef}
         className="adl-prompt-modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.bookmarkImportTitle as string}
+        tabIndex={-1}
         style={{ width: 'min(94vw, 560px)', padding: '14px 0 0' }}
       >
         <div
@@ -642,7 +756,7 @@ function ImportDialog() {
             type="button"
             className="adl-prompt-modal__header-close"
             aria-label={t.close as string}
-            onClick={() => setDialog(null)}
+            onClick={close}
           >
             <IconClose size={14} decorative />
           </button>
@@ -690,14 +804,12 @@ function ImportDialog() {
                   <ul className="adl-search-ignore__tree" role="tree">
                     {rows.map(({ node, depth, path }) => (
                       <ImportRow
-                        key={`${transferKey(node)}-${path}`}
+                        key={`${path}-${depth}`}
                         node={node}
                         depth={depth}
                         path={path}
                         excluded={excluded}
-                        expanded={expanded}
                         onToggle={toggleExcluded}
-                        onToggleExpand={toggleExpand}
                       />
                     ))}
                   </ul>
@@ -806,16 +918,16 @@ function ImportDialog() {
             >
               <span style={{ flex: 1, fontSize: 11, color: 'var(--text-secondary)' }}>
                 {step === 1
-                  ? `${t.bookmarkImportSelected as string} ${keptCount} / ${countBookmarks(nodes)}`
-                  : `${t.bookmarkImportWillImport as string} ${keptCount} ${
-                      t.bookmarkExportBookmarks as string
-                    } · ${keptFolders} ${t.bookmarkExportFolders as string}`}
+                  ? formatT(t as CopyDict, 'bookmarkImportSelected', {
+                      count: keptCount,
+                      total: countBookmarks(nodes),
+                    })
+                  : formatT(t as CopyDict, 'bookmarkImportWillImport', {
+                      count: keptCount,
+                      folders: keptFolders,
+                    })}
               </span>
-              <button
-                type="button"
-                className="adl-btn adl-btn--secondary"
-                onClick={() => setDialog(null)}
-              >
+              <button type="button" className="adl-btn adl-btn--secondary" onClick={close}>
                 {t.cancel as string}
               </button>
               {step === 1 ? (
@@ -852,6 +964,69 @@ function ImportDialog() {
       </div>
     </div>
   );
+}
+
+/** 导入预览行：勾选按叶子 URL 记账，目录行状态由叶子汇总而来。 */
+function ImportRow({
+  node,
+  depth,
+  path,
+  excluded,
+  onToggle,
+}: {
+  node: TransferNode;
+  depth: number;
+  path: string;
+  excluded: ReadonlySet<string>;
+  onToggle: (node: TransferNode) => void;
+}) {
+  const isFolder = node.kind === 'folder';
+  const leaves = collectTransferLeaves(node);
+  const included = leaves.filter(
+    (leaf) => leaf.kind === 'bookmark' && !excluded.has(leaf.url),
+  ).length;
+  const state: CheckState =
+    included === 0 ? 'none' : included === leaves.length ? 'checked' : 'partial';
+  return (
+    <li className="adl-search-ignore__item">
+      <div className="adl-search-ignore__row" title={path}>
+        <CheckBox state={state} label={path} onToggle={() => onToggle(node)} />
+        <div className="adl-search-ignore__row-body" style={{ paddingLeft: depth * INDENT }}>
+          <span className="adl-search-ignore__toggle" aria-hidden="true" />
+          <button
+            type="button"
+            className="adl-search-ignore__label"
+            title={path}
+            onClick={() => onToggle(node)}
+          >
+            <span className="adl-search-ignore__label-text">
+              {isFolder ? node.folder.name : node.title}
+            </span>
+          </button>
+          <span style={{ flex: '0 0 auto', fontSize: 10, color: 'var(--text-muted)' }}>
+            {leaves.length}
+          </span>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function flattenTransfer(
+  nodes: TransferNode[],
+  depth: number,
+  prefix: string,
+): { node: TransferNode; depth: number; path: string }[] {
+  const rows: { node: TransferNode; depth: number; path: string }[] = [];
+  for (const node of nodes) {
+    const name = node.kind === 'folder' ? node.folder.name : node.title;
+    const path = prefix ? `${prefix} / ${name}` : name;
+    rows.push({ node, depth, path });
+    if (node.kind === 'folder') {
+      rows.push(...flattenTransfer(node.folder.children, depth + 1, path));
+    }
+  }
+  return rows;
 }
 
 /** 对话框宿主：挂在 App 层，菜单项只负责开关。 */

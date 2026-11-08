@@ -34,6 +34,7 @@ function makeEntry(node: Extract<TransferNode, { kind: 'bookmark' }>): BookmarkE
     title: node.title,
     addedAt: node.addedAt,
     lastModifiedAt: node.lastModifiedAt,
+    ...(node.icon ? { iconUri: node.icon } : {}),
   };
 }
 
@@ -60,13 +61,10 @@ export const createBookmarkTransferSlice = (
       const now = Date.now();
       const nextFolders = [...state.browserBookmarkFolders];
       const nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
-      const indexTuples = new Set(state.browserBookmarks.map((b) => tupleKey(b.url, b.title)));
+      const addedEntries: BookmarkEntry[] = [];
 
       const addIndex = (entry: BookmarkEntry) => {
-        const key = tupleKey(entry.url, entry.title);
-        if (!indexTuples.has(key)) {
-          indexTuples.add(key);
-        }
+        addedEntries.push(entry);
       };
 
       /**
@@ -132,7 +130,7 @@ export const createBookmarkTransferSlice = (
       if (target.kind === 'new-folder') {
         const rootFolder: BookmarkFolder = {
           id: createUiId('bookmark-folder'),
-          name: target.name.trim() || 'Imported',
+          name: target.name.trim(),
           createdAt: now,
           isUserCreated: true,
           entries: [],
@@ -207,10 +205,9 @@ export const createBookmarkTransferSlice = (
       }
 
       const nextBookmarks = [...state.browserBookmarks];
-      for (const key of indexTuples) {
-        const [url, title] = JSON.parse(key) as [string, string];
-        if (!state.browserBookmarks.some((b) => b.url === url && b.title === title)) {
-          nextBookmarks.push({ url, title });
+      for (const entry of addedEntries) {
+        if (!nextBookmarks.some((b) => b.url === entry.url && b.title === entry.title)) {
+          nextBookmarks.push({ url: entry.url, title: entry.title });
         }
       }
 

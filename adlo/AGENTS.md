@@ -118,7 +118,7 @@ app/stores/
 │   ├── browserTabsSlice.ts          # 浏览器标签页
 │   ├── browserBookmarkSlice.ts      # 浏览器书签
 │   ├── browserHistorySlice.ts       # 浏览器历史记录
-│   ├── browserFoldersSlice.ts       # 浏览器标签文件夹
+│   ├── browserFoldersSlice.ts       # 浏览器书签文件夹（自建目录）
 │   ├── browserLandingSlice.ts       # 浏览器着陆页（快捷站点、端口、背景）
 │   ├── browserSearchEnginesSlice.ts # 搜索引擎管理
 │   └── browserDownloadsSlice.ts     # 下载记录与设置
@@ -137,7 +137,7 @@ app/stores/
 | ------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `frontend/src/app/stores/slicedStore.ts`                | 切片合并 Store（真源）                                                       |
 | `frontend/src/app/stores/StoreState.ts`                 | 完整类型接口                                                                 |
-| `frontend/src/app/stores/slices/browserFoldersSlice.ts` | `BookmarkTabItem`（`TabFolderState.tabs` 元素类型：`{ tabId, url, title }`） |
+| `frontend/src/app/stores/slices/browserFoldersSlice.ts` | `BookmarkEntry`（`BookmarkFolder.entries` 元素类型：`{ id, url, title, addedAt, lastModifiedAt, iconUri?, sourceTabId? }`） |
 | `frontend/src/app/stores/selectors.ts`                  | 性能选择器（useShallow）                                                     |
 
 ## 文档入口

@@ -16,6 +16,7 @@ export interface BookmarkSelectionNode {
   url?: string;
   addedAt?: number;
   lastModifiedAt?: number;
+  iconUri?: string;
   children: BookmarkSelectionNode[];
   /** 该子树下的书签条数（叶子恒为 1） */
   bookmarkCount: number;
@@ -29,6 +30,7 @@ function entryToNode(entry: BookmarkEntry): BookmarkSelectionNode {
     url: entry.url,
     addedAt: entry.addedAt,
     lastModifiedAt: entry.lastModifiedAt,
+    iconUri: entry.iconUri,
     children: [],
     bookmarkCount: 1,
   };
@@ -139,6 +141,19 @@ export function collectLeafIds(node: BookmarkSelectionNode, out: string[] = []):
 }
 
 /**
+ * 导出时只接受真实网页：`about:` / `file:` / `javascript:` / 空值都跳过。
+ * （导入侧有同一口径的白名单，见 `bookmarkHtml.ts`。）
+ */
+export function isExportableUrl(raw: string): boolean {
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 把勾选结果收敛成导出树：
  * - 只保留含勾选项的目录，且保留完整祖先链
  * - 工作区节点导出为同名目录
@@ -152,13 +167,15 @@ export function buildExportNodes(
   for (const child of node.children) {
     const childNodes = buildExportNodes(child, selected);
     if (child.kind === 'bookmark') {
-      if (selected.has(child.id) && child.url) {
+      // 只导出真实可打开的网页：about:blank / 空 URL / 非 http(s) 一律跳过
+      if (selected.has(child.id) && child.url && isExportableUrl(child.url)) {
         out.push({
           kind: 'bookmark',
           url: child.url,
           title: child.name,
           addedAt: child.addedAt ?? Date.now(),
           lastModifiedAt: child.lastModifiedAt ?? child.addedAt ?? Date.now(),
+          ...(child.iconUri ? { icon: child.iconUri } : {}),
         });
       }
       continue;
@@ -168,7 +185,7 @@ export function buildExportNodes(
     }
     out.push({
       kind: 'folder',
-      folder: { name: child.name || 'Folder', children: childNodes },
+      folder: { name: child.name, children: childNodes },
     });
   }
   return out;

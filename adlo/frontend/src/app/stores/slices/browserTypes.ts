@@ -41,6 +41,8 @@ export interface BookmarkEntry {
   addedAt: number;
   /** 内容（标题或 URL）最后一次被编辑的时间（毫秒时间戳） */
   lastModifiedAt: number;
+  /** 内联图标（`data:` URI）；来自导入文件或收藏时的站点元数据，可能缺失 */
+  iconUri?: string;
   /**
    * 收藏时对应的浏览器标签页 id（可选弱引用，不是身份）。
    * 只用于「取消收藏某个仍打开的标签页时，同步移除它带过来的那份收藏」。
@@ -56,7 +58,6 @@ export interface BookmarkFolder {
   createdAt: number;
   isUserCreated?: boolean;
   entries?: BookmarkEntry[];
-  children?: BookmarkFolder[];
   parentId?: string;
   parentType?: 'workspace' | 'folder';
 }

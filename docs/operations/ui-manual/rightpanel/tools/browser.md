@@ -185,7 +185,7 @@ await page.click('.adl-browser-audio-indicator');
 | 导航器模式 | aria-label | 点击行为 |
 |-----------|------------|----------|
 | 已打开的标签（open） | `新建标签页` | 直接打开一个空白新标签 |
-| 标签目录（tabs） | `新建标签` | 弹出 `CreateTabDialog`（需先选中目录，否则 toast 提示） |
+| 书签目录（tabs） | `新建标签` | 弹出 `CreateTabDialog`（需先选中目录，否则 toast 提示） |
 
 **触发入口**：
 
@@ -256,7 +256,7 @@ await page.fill('.adl-tool-search--navigator input', '关键词');
 
 浏览器面板采用多工作区布局，包含：
 - **工作区目录**：显示各工作区的标签
-- **自建目录**：用户自定义的标签文件夹
+- **自建目录**：用户自定义的书签文件夹
 - **历史目录**：自动记录的访问历史（最多 100 条，去重）
 
 > 2026-09-30 修订：三分类标题行为静态文本（常展开，无收起/展开按钮），标题与首目录间距收紧、分类之间距 16px。
@@ -314,7 +314,7 @@ await page.fill('.adl-tool-search--navigator input', '关键词');
 | `history` | `t.navigatorTitleHistory` | `browserHistory.length` |
 | `search` | `t.navigatorTitleSearch` | `browserSearchResults.length`（带 query 时回退到过滤后长度） |
 
-> 历史变更：第 28 轮之前固定显示"标签目录 N"——其中 N 仅 `browserTabs.length`，与标题"标签目录"语义不一致，且对 `bookmarks/history/search` 模式不适用。现已改为模式感知，由 `useBrowserPanel.computeNavigatorCount` 纯函数计算。
+> 历史变更：第 28 轮之前固定显示"书签目录 N"——其中 N 仅 `browserTabs.length`，与标题"书签目录"语义不一致，且对 `bookmarks/history/search` 模式不适用。现已改为模式感知，由 `useBrowserPanel.computeNavigatorCount` 纯函数计算。
 
 **自动化要点**：
 
