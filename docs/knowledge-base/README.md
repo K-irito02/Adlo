@@ -31,7 +31,7 @@
 
 - `navigation/` — URL 导航、地址栏、落地页、SPA 导航与后退（11）
 - `tab-management/` — 标签页创建/菜单/已打开标签（4）
-- `bookmark/` — 书签对话框、去重、文件夹删除清理（6）
+- `bookmark/` — 书签对话框、去重、文件夹删除清理（7）
 - `download/` — 下载链路、URL 检测与临时文件清理（3）
 - `favicon-meta/` — favicon/标题/站点元数据同步与缓存（12）
 - `history/` — 历史记录写入、导航与标签删除（4）

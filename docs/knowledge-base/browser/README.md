@@ -56,6 +56,7 @@ URL 导航、地址栏、落地页、SPA 导航与后退、导航模式切换。
 | [browser-folder-delete-bookmark-cleanup-2026-06-30.md](./bookmark/browser-folder-delete-bookmark-cleanup-2026-06-30.md) | 文件夹删除书签清理修复（17 问题：工作区过滤、scopeFolderId、tabId 分离、时序） |
 | [browser-bookmark-click-handler-fix-2026-07-02.md](./bookmark/browser-bookmark-click-handler-fix-2026-07-02.md) | 书签点击处理器修复 |
 | [browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md](./bookmark/browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md) | 书签去重 (网址,标题) 元组语义 + 标题隔离（store 与 UI 同步、统一去重规则） |
+| [browser-bookmark-import-dedupe-2026-11-10.md](./bookmark/browser-bookmark-import-dedupe-2026-11-10.md) | 导入判重目标树整体（collectSubtreeKeys）+ 同名同父复用 + 空子树不落位/不计数（UI/store 双剪枝成对落地） |
 
 ### [download/](./download/)
 

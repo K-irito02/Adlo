@@ -245,7 +245,8 @@ function flattenSelection(
 ): { node: BookmarkSelectionNode; depth: number; path: string }[] {
   const rows: { node: BookmarkSelectionNode; depth: number; path: string }[] = [];
   for (const node of nodes) {
-    const path = prefix ? `${prefix} / ${node.name}` : node.name;
+    // 分类根 name 为空，回退为 prefix（树行展开/折叠 aria-label 与 title 依赖此 path）
+    const path = node.name ? (prefix ? `${prefix} / ${node.name}` : node.name) : prefix;
     rows.push({ node, depth, path });
     if (node.kind !== 'bookmark' && expanded.has(node.id)) {
       rows.push(...flattenSelection(node.children, expanded, depth + 1, path));
@@ -488,7 +489,6 @@ function ExportDialog() {
               style={{ width: 28, height: 28 }}
               title={allExpanded ? (t.collapseAll as string) : (t.expandAll as string)}
               aria-label={allExpanded ? (t.collapseAll as string) : (t.expandAll as string)}
-              aria-pressed={allExpanded}
               onClick={
                 allExpanded ? () => setExpanded(new Set()) : () => setExpanded(new Set(allDirIds))
               }
@@ -719,7 +719,7 @@ function ImportDialog() {
   );
   const [invalidCount, setInvalidCount] = useState(draft?.invalidCount ?? 0);
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
-  // 第 2 步「目标与重复项」：B · 左右分栏（图标+标题+提示导航 + 右侧详情面板）
+  // 第 2 步「导入目标」：B · 左右分栏（图标+标题+提示导航 + 右侧详情面板）
   const [importMode, setImportMode] = useState<'original' | 'newTop' | 'existing'>('original');
   const [newDirName, setNewDirName] = useState(draft ? defaultFolderName : '');
   const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(null);
@@ -752,26 +752,31 @@ function ImportDialog() {
         showToast(t.bookmarkImportTooLarge as string, 'error');
         return;
       }
-      const html = await file.text();
-      const parsed = parseBookmarkHtml(html);
-      const validCount = countBookmarks(parsed.nodes);
-      if (validCount === 0) {
-        // 只含无效链接的文件按"解析失败"处理：不进入选择步骤
-        showToast(t.bookmarkImportEmpty as string, 'error');
-        return;
+      try {
+        const html = await file.text();
+        const parsed = parseBookmarkHtml(html);
+        const validCount = countBookmarks(parsed.nodes);
+        if (validCount === 0) {
+          // 只含无效链接的文件按"解析失败"处理：不进入选择步骤
+          showToast(t.bookmarkImportEmpty as string, 'error');
+          return;
+        }
+        setFileName(file.name);
+        setNodes(pruneEmptyTransfer(parsed.nodes));
+        setInvalidCount(parsed.invalidCount);
+        setNewDirName(defaultFolderName);
+        setImportMode('original');
+        setSelectedTargetKey(null);
+        setPendingNested(null);
+        setNesting(false);
+        setNestInputValue('');
+        setExcluded(new Set());
+        setExpanded(new Set(allFolderPaths(parsed.nodes)));
+        setStep(1);
+      } catch {
+        // 与菜单入口 startBookmarkImportPick 同一口径：读文件失败走错误提示
+        showToast(t.bookmarkImportFailed as string, 'error');
       }
-      setFileName(file.name);
-      setNodes(pruneEmptyTransfer(parsed.nodes));
-      setInvalidCount(parsed.invalidCount);
-      setNewDirName(defaultFolderName);
-      setImportMode('original');
-      setSelectedTargetKey(null);
-      setPendingNested(null);
-      setNesting(false);
-      setNestInputValue('');
-      setExcluded(new Set());
-      setExpanded(new Set(allFolderPaths(parsed.nodes)));
-      setStep(1);
     },
     [defaultFolderName, showToast, t],
   );
@@ -992,7 +997,7 @@ function ImportDialog() {
           )}
           {hasChildren ? (
             <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-muted)' }}>
-              {dirCount} 项
+              {formatT(t as CopyDict, 'bookmarkImportDirCount', { count: dirCount })}
             </span>
           ) : null}
           {isPending && (
@@ -1302,7 +1307,6 @@ function ImportDialog() {
                   style={{ width: 28, height: 28 }}
                   title={allExpanded ? (t.collapseAll as string) : (t.expandAll as string)}
                   aria-label={allExpanded ? (t.collapseAll as string) : (t.expandAll as string)}
-                  aria-pressed={allExpanded}
                   onClick={allExpanded ? collapseAll : expandAll}
                 >
                   {allExpanded ? (
@@ -1477,7 +1481,7 @@ function ImportDialog() {
                           border: active
                             ? '1px solid var(--border-strong)'
                             : '1px solid transparent',
-                          background: active ? 'var(--panel-inset)' : 'var(--panel-inset-2)',
+                          background: active ? 'var(--bg-active)' : 'transparent',
                           cursor: 'pointer',
                           textAlign: 'left',
                           color: 'inherit',
@@ -1535,7 +1539,7 @@ function ImportDialog() {
                     minHeight: 0,
                     border: '1px solid var(--border)',
                     borderRadius: 0,
-                    background: 'var(--panel-inset)',
+                    background: 'var(--surface-sunken)',
                     display: 'flex',
                     flexDirection: 'column',
                     overflow: 'hidden',
@@ -1751,7 +1755,7 @@ function ImportDialog() {
                             style={{ listStyle: 'none', padding: 4, margin: 0 }}
                           >
                             {renderSectionLabel(t.browserCategoryWorkspace as string)}
-                            {directoryRows.wsRows.map(renderDirRow)}
+                            {withPendingRow(directoryRows.wsRows).map(renderDirRow)}
                             {directoryRows.wsRows.length === 0 ? (
                               <div
                                 className="adl-bookmark-dir-empty"
@@ -2092,7 +2096,7 @@ function flattenDirectoryTree(
   return rows;
 }
 
-/** 目录及其后代的目录总数（含自身）：层级徽章"N 项"口径。 */
+/** 目录及其后代的目录总数（不含自身）：层级徽章"N 项"口径。 */
 function countDirectoryDescendants(node: FileTreeRenderableNode): number {
   let count = node.children.length;
   for (const child of node.children) {
@@ -2101,7 +2105,6 @@ function countDirectoryDescendants(node: FileTreeRenderableNode): number {
   return count;
 }
 
-/** 收集目录树全部目录 path：步骤 2 目录树"全部展开"口径。 */
 /** 结构预览文本（等宽多行树形）：根目录 + 文件顶层节点；rootName 存在时子节点整体缩进一层。 */
 function formatPreviewTree(rootLabel: string, nodes: TransferNode[], rootName?: string): string {
   const lines = [rootLabel];
@@ -2122,6 +2125,7 @@ function formatPreviewTree(rootLabel: string, nodes: TransferNode[], rootName?: 
   return lines.join('\n');
 }
 
+/** 收集目录树全部目录 path：步骤 2 目录树"全部展开"口径。 */
 function collectDirectoryPaths(sections: {
   workspaceNodes: FileTreeRenderableNode[];
   userFolderNodes: FileTreeRenderableNode[];

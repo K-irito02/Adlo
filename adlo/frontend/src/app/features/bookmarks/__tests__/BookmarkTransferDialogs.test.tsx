@@ -203,7 +203,7 @@ describe('BookmarkTransferDialogs / ImportDialog', () => {
     expect(document.body.textContent).toContain(`${zhCN.bookmarkImportPicked} (1)`);
   });
 
-  // ── 第 2 步「目标与重复项」：B · 左右分栏折叠后的新行为 ──
+  // ── 第 2 步「导入目标」：B · 左右分栏折叠后的新行为 ──
 
   const STEP2_NODES: TransferNode[] = [
     {

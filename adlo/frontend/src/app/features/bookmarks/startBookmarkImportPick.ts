@@ -17,7 +17,10 @@ export function startBookmarkImportPick(t: CopyDict): void {
   input.addEventListener('change', () => {
     const file = input.files?.[0] ?? null;
     input.remove();
-    void handleFile(file, t);
+    handleFile(file, t).catch(() => {
+      const { showToast } = useAppStore.getState();
+      showToast(t.bookmarkImportFailed as string, 'error');
+    });
   });
   input.addEventListener('cancel', () => input.remove());
   document.body.appendChild(input);

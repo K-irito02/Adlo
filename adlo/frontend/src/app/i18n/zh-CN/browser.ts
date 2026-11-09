@@ -324,6 +324,7 @@ export const browserZh = {
   bookmarkImportSkipped: '（跳过 {count} 条重复）',
   bookmarkImportTooLarge: '文件超过 10 MB，无法导入',
   bookmarkImportEmpty: '文件里没有可导入的书签',
+  bookmarkImportFailed: '导入失败，文件读取异常',
   bookmarkImportSelectAll: '全选',
   bookmarkImportClear: '清空选择',
   bookmarkImportPicked: '将导入',
@@ -349,6 +350,7 @@ export const browserZh = {
   bookmarkImportNestedPlaceholder: '嵌套目录名称，例如：参考资料',
   bookmarkImportNestedNameLabel: '嵌套目录名称',
   bookmarkImportNestedConfirm: '创建',
+  bookmarkImportDirCount: '{count} 项',
   bookmarkImportNestedNote: '将在「{parent}」下新建嵌套子目录，并作为本次导入的目标目录。',
   bookmarkImportRootFolderName: '顶层书签',
   bookmarkImportNestedBadge: '新建',
@@ -367,7 +369,7 @@ export const browserZh = {
 · 松散顶层书签归入一个自动创建的自建目录顶层文件夹
 · 新建顶层目录导入：在「自建目录」下新建顶层目录并移入
 · 选择已有目录导入：导入到某个工作区目录或自建目录
-· 重复项按「跳过重复项」处理`,
+· 重复项一律跳过`,
   bookmarkImportNestedHintPrefix: '在该目录下新建嵌套子目录，请点击',
   bookmarkImportNestedHintSuffix: '。',
   bookmarkImportHintAriaLabel: '导入书签说明',

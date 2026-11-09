@@ -6,6 +6,7 @@ import { startBookmarkImportPick } from '../startBookmarkImportPick';
 const t = {
   bookmarkImportTooLarge: '文件过大',
   bookmarkImportEmpty: '没有有效书签',
+  bookmarkImportFailed: '导入失败',
 } as unknown as CopyDict;
 
 const SAMPLE = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
@@ -97,6 +98,21 @@ describe('startBookmarkImportPick', () => {
 
     await vi.waitFor(() => {
       expect(toastSpy).toHaveBeenCalledWith('没有有效书签', 'error');
+    });
+    expect(useAppStore.getState().bookmarkTransferDialog).toBeNull();
+    expect(useAppStore.getState().bookmarkImportDraft).toBeNull();
+  });
+
+  it('shows a toast and opens no dialog when reading the file fails', async () => {
+    startBookmarkImportPick(t);
+    const file = new File(['<html></html>'], 'boom.html', { type: 'text/html' });
+    Object.defineProperty(file, 'text', {
+      value: () => Promise.reject(new Error('boom')),
+    });
+    pickFile(lastFileInput(), file);
+
+    await vi.waitFor(() => {
+      expect(toastSpy).toHaveBeenCalledWith('导入失败', 'error');
     });
     expect(useAppStore.getState().bookmarkTransferDialog).toBeNull();
     expect(useAppStore.getState().bookmarkImportDraft).toBeNull();
