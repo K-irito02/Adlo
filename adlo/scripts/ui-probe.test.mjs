@@ -24,14 +24,7 @@ test("parseArgs collects repeatable selectors and prop lists", () => {
 });
 
 test("parseArgs accepts a hover selector", () => {
-  const options = parseArgs([
-    "--url",
-    "http://x",
-    "--selector",
-    ".target",
-    "--hover",
-    ".trigger",
-  ]);
+  const options = parseArgs(["--url", "http://x", "--selector", ".target", "--hover", ".trigger"]);
   assert.equal(options.hover, ".trigger");
 });
 
