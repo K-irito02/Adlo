@@ -96,12 +96,22 @@ struct TerminalFileState {
     writer: BufWriter<File>,
     mode: LogMode,
     session_ts: Option<String>,
+    bytes_written: u64,
 }
 
 // ── LogManager ──
 
 /// prune 失败聚合日志上限：只打印前 N 条明细，避免权限风暴下刷屏 + 路径 PII 堆积。
 const MAX_PRUNE_LOG_SAMPLE: usize = 5;
+
+/// 单个会话日志文件上限：trace 级长会话实测可达数十 MB；超过后按 `_pN` 分片续写。
+const MAX_SESSION_LOG_BYTES: u64 = 10 * 1024 * 1024;
+
+fn should_rotate_session(mode: LogMode, written: u64, incoming: usize) -> bool {
+    mode == LogMode::Multi
+        && written > 0
+        && written.saturating_add(incoming as u64) > MAX_SESSION_LOG_BYTES
+}
 
 /// prune 失败聚合日志（必须在 sessions 锁外调用）：空失败静默，只记数 + 前 N 条明细。
 fn log_prune_failures(ctx: &str, report: &PruneReport) {
@@ -485,12 +495,28 @@ impl Write for TerminalWriter {
             .map_err(|_| std::io::Error::other("config lock poisoned"))?
             .terminal_log_mode;
 
-        let session_ts = self
-            .sessions
-            .lock()
-            .map_err(|_| std::io::Error::other("session lock poisoned"))?
-            .current_timestamp()
-            .to_string();
+        // 会话锁先于文件锁（与既有路径一致：sessions -> inner），判断当前分片是否触顶；
+        // 触顶则在同一会话基准下递增分片，后续 needs_reopen 会创建新文件。
+        let mut sessions =
+            self.sessions.lock().map_err(|_| std::io::Error::other("session lock poisoned"))?;
+        let mut session_ts = sessions.current_timestamp().to_string();
+        let rotate = {
+            let guard =
+                self.inner.lock().map_err(|_| std::io::Error::other("file lock poisoned"))?;
+            match &*guard {
+                Some(state)
+                    if state.mode == LogMode::Multi
+                        && state.session_ts.as_deref() == Some(session_ts.as_str()) =>
+                {
+                    should_rotate_session(mode, state.bytes_written, buf.len())
+                },
+                _ => false,
+            }
+        };
+        if rotate {
+            session_ts = sessions.rotate_session().to_string();
+        }
+        drop(sessions);
 
         let needs_reopen = {
             let guard =
@@ -513,13 +539,18 @@ impl Write for TerminalWriter {
                 writer: BufWriter::with_capacity(8192, file),
                 mode,
                 session_ts: Some(session_ts),
+                bytes_written: 0,
             });
         }
 
         let mut guard =
             self.inner.lock().map_err(|_| std::io::Error::other("file lock poisoned"))?;
         match guard.as_mut() {
-            Some(state) => state.writer.write(buf),
+            Some(state) => {
+                let written = state.writer.write(buf)?;
+                state.bytes_written = state.bytes_written.saturating_add(written as u64);
+                Ok(written)
+            },
             None => Err(std::io::Error::other("file state must be Some after needs_reopen check")),
         }
     }
@@ -571,6 +602,15 @@ mod tests {
 
     fn test_config(terminal: LogMode, debug: LogMode) -> LogConfig {
         LogConfig { terminal_log_mode: terminal, debug_log_mode: debug, log_level: LogLevel::Info }
+    }
+
+    #[test]
+    fn session_rotation_triggers_only_for_multi_after_limit() {
+        assert!(!should_rotate_session(LogMode::Multi, 0, MAX_SESSION_LOG_BYTES as usize));
+        assert!(!should_rotate_session(LogMode::Multi, MAX_SESSION_LOG_BYTES - 1, 1));
+        assert!(should_rotate_session(LogMode::Multi, MAX_SESSION_LOG_BYTES, 1));
+        assert!(!should_rotate_session(LogMode::Overwrite, MAX_SESSION_LOG_BYTES, 1024));
+        assert!(!should_rotate_session(LogMode::Append, MAX_SESSION_LOG_BYTES, 1024));
     }
 
     /// 直接构造 LogManager（跳过 `init` 的全局订阅者安装），并补齐 reload 句柄。

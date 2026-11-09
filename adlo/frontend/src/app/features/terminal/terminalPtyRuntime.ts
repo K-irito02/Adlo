@@ -13,6 +13,25 @@ const SHELL_MAP: Record<TerminalProfile, string> = {
   cmd: 'cmd',
 };
 
+/** Dev-only Performance 标记：不写 console、不进生产包，供 DevTools Performance 面板排查启动耗时。 */
+function devMark(name: string, id: string): void {
+  if (!import.meta.env.DEV || typeof performance === 'undefined') {
+    return;
+  }
+  performance.mark(`adl:terminal:${name}:${id}`);
+}
+
+function devMeasure(name: string, start: string, end: string): void {
+  if (!import.meta.env.DEV || typeof performance === 'undefined') {
+    return;
+  }
+  try {
+    performance.measure(`adl:terminal:${name}`, start, end);
+  } catch {
+    // 标记缺失（如生产裁剪/异常早退）时忽略，测量本身是诊断辅助
+  }
+}
+
 /**
  * 按**窗格身份**在其宿主容器内查找实时终端画布。
  *
@@ -74,6 +93,8 @@ export class TerminalPtyRuntime {
   private oscCarry = new Map<string, string>();
   /** 已退役/终止的会话：忽略其尾随输出，避免重新写入已释放或已复用的池条目。 */
   private retiredSessionIds = new Set<string>();
+  /** dev-only：首次输出已计时的会话（避免每次输出重复 measure）。 */
+  private devMeasuredFirstOutput = new Set<string>();
 
   private markRetired = (sessionId: string): void => {
     this.retiredSessionIds.add(sessionId);
@@ -158,6 +179,15 @@ export class TerminalPtyRuntime {
       // 原样写入 pool 中该会话的 xterm（所有会话，不仅限活动标签）。
       // 单例保证这里对每个输出事件只写一次；池条目尚未建立时交给 pool 缓冲，
       // 等 XtermTerminal acquire 时补写，避免 shell 首个提示符早于挂载而丢失。
+      if (import.meta.env.DEV && !this.devMeasuredFirstOutput.has(event.sessionId)) {
+        this.devMeasuredFirstOutput.add(event.sessionId);
+        devMark('first-output', event.sessionId);
+        devMeasure(
+          'first-output',
+          `adl:terminal:pty-return:${event.sessionId}`,
+          `adl:terminal:first-output:${event.sessionId}`,
+        );
+      }
       const pooled = terminalXtermPool.get(event.sessionId);
       if (pooled) {
         pooled.terminal.write(event.data);
@@ -197,6 +227,7 @@ export class TerminalPtyRuntime {
     this.tabCwdsLoaded = false;
     this.oscCarry.clear();
     this.retiredSessionIds.clear();
+    this.devMeasuredFirstOutput.clear();
   };
 
   // ---------------------------------------------------------------- 目录
@@ -284,6 +315,7 @@ export class TerminalPtyRuntime {
     workspaceId: string,
     options?: { cwdOverride?: string },
   ): Promise<void> => {
+    devMark('attach-start', paneId);
     const cwdOverride = options?.cwdOverride;
     const recentWorkspaces = useAppStore.getState().recentWorkspaces;
     const workspace = workspaceId ? recentWorkspaces.find((w) => w.id === workspaceId) : undefined;
@@ -352,6 +384,7 @@ export class TerminalPtyRuntime {
 
       let cols = 80;
       let rows = 24;
+      devMark('container-ready', paneId);
       if (container) {
         // 复用池内离屏测量终端（见 terminalXtermPool.measureDimensions）：
         // 不再每次建 PTY 都构造/销毁一整个临时 xterm，也不触发动态 import。
@@ -365,6 +398,7 @@ export class TerminalPtyRuntime {
         }
       }
 
+      devMark('measure-done', paneId);
       const result = await window.digitalLife.pty.create({
         shell: SHELL_MAP[profile],
         cwd,
@@ -382,6 +416,7 @@ export class TerminalPtyRuntime {
       }
 
       const sessionId = result.data.sessionId;
+      devMark('pty-return', sessionId);
       // PTY 创建期间窗格（或其标签）可能已被关闭：此时这个 PTY 已成孤儿，立即回收。
       const paneStillExists = useAppStore
         .getState()
@@ -403,6 +438,12 @@ export class TerminalPtyRuntime {
       // 出生尺寸同步给池：XtermTerminal 挂载时 acquire 消费。
       terminalXtermPool.setBirthDims(sessionId, cols, rows);
       useAppStore.getState().terminalUpdatePane(tabId, paneId, { sessionId, status: 'running' });
+      devMark('store-updated', paneId);
+      devMeasure(
+        'attach',
+        `adl:terminal:attach-start:${paneId}`,
+        `adl:terminal:store-updated:${paneId}`,
+      );
     } catch (err) {
       console.error('Terminal creation error:', err);
       if (replacedSessionId) {

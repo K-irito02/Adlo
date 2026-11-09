@@ -17,4 +17,5 @@
 | 2026-11-08 | [progress-2026-11-08-193000.md](./progress-2026-11-08-193000.md) | 多工作区文件变更实时刷新：后端多根 watcher + 批次带 `rootPath`（取代 ADR-0003）、前端按根刷新树/变更/选中文件、媒体与 diff 预览自动重载、大纲打字防抖跟手、浏览器多根轮询；P4 R1 3 轮 + 2 次定向 + R2 定向 |
 | 2026-11-09 | [progress-2026-11-09-165110.md](./progress-2026-11-09-165110.md) | 变更面板 commit/push 后仍显示「已暂存」：`.git` 被两级 watcher 整体忽略 → git 元数据通道（gitdir/commondir 双监听白名单 `refs/**`/`logs/**`/`HEAD`/`index`，linked worktree 指针解析，NUL 键域，布局漂移对账/rm+init btime 指纹），前端按 `.git/` 前缀分流只刷 git 快照；P4 R1 3 轮 + 4 次定向 + R2 4 轮均零问题 |
 | 2026-11-10 | [progress-2026-11-10-021543.md](./progress-2026-11-10-021543.md) | 终端启动与面板交互：测量终端复用、kill 后 xterm rekey/RIS 清屏、首屏输出缓冲、动作按钮仅按钮区显现、布局卡片主题深浅与居中、恢复自动布局图标改虚线四格、空显示区增加终端禁用、Shell 菜单移出即关（2px/6px 桥接）；启动占位试做后按用户验收删除；P4 R1 7 轮 + R2 2 轮零问题 |
+| 2026-11-10 | [progress-2026-11-10-054558.md](./progress-2026-11-10-054558.md) | retro 环境改进：P4 轻量门禁提示、终端架构文件地图、Playwright 验证配方与 `ui-probe --hover`、测试有效性前置规则、会话日志 10MB 分片、dev-only `performance.mark`、命名会话指引 |
 
