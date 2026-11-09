@@ -3,11 +3,7 @@ import type { TerminalProfile } from '@stores/types';
 import { activePaneOf } from '@stores/slices/terminalSliceTypes';
 import { normalizeReportedCwd, scanOsc99 } from './terminalCwdOsc';
 import { terminalCwdStore } from './terminalCwdStore';
-import {
-  terminalXtermPool,
-  readTerminalFontFamily,
-  readTerminalFontSize,
-} from './terminalXtermPool';
+import { terminalXtermPool } from './terminalXtermPool';
 import { shouldFitTerminal } from './terminalFitGuard';
 import { flushCrossSliceWrites } from '@stores/storageHelpers';
 
@@ -141,10 +137,13 @@ export class TerminalPtyRuntime {
       }
 
       // 原样写入 pool 中该会话的 xterm（所有会话，不仅限活动标签）。
-      // 单例保证这里对每个输出事件只写一次。
+      // 单例保证这里对每个输出事件只写一次；池条目尚未建立时交给 pool 缓冲，
+      // 等 XtermTerminal acquire 时补写，避免 shell 首个提示符早于挂载而丢失。
       const pooled = terminalXtermPool.get(event.sessionId);
       if (pooled) {
         pooled.terminal.write(event.data);
+      } else {
+        terminalXtermPool.write(event.sessionId, event.data);
       }
     });
     this.unsubPtyOutput = unsub;
@@ -239,6 +238,22 @@ export class TerminalPtyRuntime {
     this.oscCarry.delete(sessionId);
   };
 
+  /**
+   * 替换死会话前的“退役”出口：kill 旧 PTY、清运行时账本，但**保留 xterm 池条目**，
+   * 供新 PTY 成功后 `terminalXtermPool.rekey` 复用（同一窗格内的清屏重绑）。
+   * 与 `teardownPane` 的差别仅在最后不 release 池条目。
+   */
+  private retireSessionForReplacement = (paneId: string, sessionId: string): void => {
+    this.pendingInput.delete(paneId);
+    void window.digitalLife.pty
+      .kill(sessionId)
+      .catch((e) => console.warn('[pty] kill replaced-session failed:', e));
+    this.liveSessionIds.delete(sessionId);
+    this.ptyDims.delete(sessionId);
+    this.createdSessionIds.delete(sessionId);
+    this.oscCarry.delete(sessionId);
+  };
+
   private attachSession = async (
     tabId: string,
     paneId: string,
@@ -263,14 +278,16 @@ export class TerminalPtyRuntime {
     if (!existingPane) {
       return;
     }
+    let replacedSessionId: string | undefined;
     if (existingPane.sessionId) {
       if (this.liveSessionIds.has(existingPane.sessionId)) {
         return;
       }
-      // 死会话（kill → 再次点击，或后端 terminated → 再次点击）：先经唯一 teardown 出口
-      // 释放旧 xterm 池条目并清运行时账本，再创建新 PTY。否则每次替换都会泄漏一个
-      // xterm + 最多 5000 行缓冲。Ruling C-7 保留「杀死进程」后的缓冲直到本次重新激活。
-      this.teardownPane(paneId, existingPane.sessionId, 'replaced-session');
+      // 死会话（kill → 再次点击，或后端 terminated → 再次点击）：先退役旧 PTY
+      // 并清运行时账本；旧 xterm 实例保留待复用（见下方 rekey），创建失败才释放。
+      // Ruling C-7 保留「杀死进程」后的缓冲直到本次重新激活。
+      replacedSessionId = existingPane.sessionId;
+      this.retireSessionForReplacement(paneId, replacedSessionId);
       // 创建新 PTY 前先清掉 store 里残留的死会话 id：若创建失败（如 shell 不存在），
       // 失败分支置 status='terminated' 时 hasError（terminated 且无 sessionId）才成立，
       // 窗格显示「未找到终端程序」而非空白矩形。成功分支随后写入新 sessionId。
@@ -313,39 +330,15 @@ export class TerminalPtyRuntime {
       let cols = 80;
       let rows = 24;
       if (container) {
-        // 直接测量容器尺寸，不创建临时 pool entry（临时 entry 会导致 DOM 中有两个
-        // 重叠的 hostEl，干扰布局）。临时终端/dispose 进 finally：import/fit
-        // 抛异常也不泄漏隐藏 div。
-        const tempDiv = document.createElement('div');
-        tempDiv.style.cssText =
-          'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;visibility:hidden;';
-        container.appendChild(tempDiv);
-
-        const { Terminal } = await import('@xterm/xterm');
-        const { FitAddon } = await import('@xterm/addon-fit');
-        const tempTerminal = new Terminal({
-          fontSize: readTerminalFontSize(),
-          fontFamily: readTerminalFontFamily(),
-          rows: 24,
-          cols: 80,
-        });
-        try {
-          const tempFit = new FitAddon();
-          tempTerminal.loadAddon(tempFit);
-          tempTerminal.open(tempDiv);
-          tempFit.fit();
-          const dims = tempFit.proposeDimensions();
-          if (dims && dims.cols > 0 && dims.rows > 0) {
-            cols = dims.cols;
-            rows = dims.rows;
-          }
-        } finally {
-          try {
-            tempTerminal.dispose();
-          } catch {
-            // 构造期失败也尽力释放
-          }
-          tempDiv.remove();
+        // 复用池内离屏测量终端（见 terminalXtermPool.measureDimensions）：
+        // 不再每次建 PTY 都构造/销毁一整个临时 xterm，也不触发动态 import。
+        const dims = terminalXtermPool.measureDimensions(
+          container.clientWidth,
+          container.clientHeight,
+        );
+        if (dims) {
+          cols = dims.cols;
+          rows = dims.rows;
         }
       }
 
@@ -358,6 +351,9 @@ export class TerminalPtyRuntime {
       if (!result.ok) {
         const errorMsg = result.error?.message || 'Unknown error';
         console.error('Terminal creation failed:', errorMsg);
+        if (replacedSessionId) {
+          terminalXtermPool.release(replacedSessionId);
+        }
         useAppStore.getState().terminalUpdatePane(tabId, paneId, { status: 'terminated' });
         return;
       }
@@ -369,7 +365,14 @@ export class TerminalPtyRuntime {
         .terminalTabsById[tabId]?.panes.some((p) => p.id === paneId);
       if (!paneStillExists) {
         void window.digitalLife.pty.kill(sessionId);
+        if (replacedSessionId) {
+          terminalXtermPool.release(replacedSessionId);
+        }
         return;
+      }
+      if (replacedSessionId) {
+        // 复用旧 xterm（改名 + 清屏）；无旧实例时返回 false，走正常 acquire 新建。
+        terminalXtermPool.rekey(replacedSessionId, sessionId);
       }
       this.createdSessionIds.add(sessionId);
       this.liveSessionIds.add(sessionId);
@@ -379,6 +382,9 @@ export class TerminalPtyRuntime {
       useAppStore.getState().terminalUpdatePane(tabId, paneId, { sessionId, status: 'running' });
     } catch (err) {
       console.error('Terminal creation error:', err);
+      if (replacedSessionId) {
+        terminalXtermPool.release(replacedSessionId);
+      }
       useAppStore.getState().terminalUpdatePane(tabId, paneId, { status: 'terminated' });
     }
   };

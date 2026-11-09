@@ -248,6 +248,13 @@ html:not(.no-transition) [data-theme] {
   /* === Tooltip: light theme uses tokens.css defaults (same-theme mapping) ===
      Dark overrides live in the [data-theme='dark'] block below. */
 
+  /* === Custom layout card tiles (theme-aware identity colors) ===
+     身份色 `--pane-color-N` 保持不变，卡片方块再按主题向白/黑混合：
+     亮色主题向白提亮成淡彩，暗色主题向黑压深成暗彩；方块文字随之反色。 */
+  --layout-card-tile-tint: #ffffff;
+  --layout-card-tile-weight: 52%;
+  --text-on-pane: #1f1f1f;
+
   /* === Horizontal Scrollbar (dot indicator) === */
   --hscroll-thumb-bg: rgba(0, 0, 0, 1);
   --hscroll-thumb-hover-bg: rgba(0, 0, 0, 0.4);
@@ -314,6 +321,13 @@ html:not(.no-transition) [data-theme] {
   --bg-occlusion: #262626;
   --bg-occlusion-active: #313131;
   --bg-terminal: #0c0c0c;
+
+  /* === Custom layout card tiles (theme-aware identity colors) ===
+     暗色主题把身份色向黑压深，亮色主题（见上方 light 块）向白提亮；
+     方块文字在暗底上保持白色。 */
+  --layout-card-tile-tint: #000000;
+  --layout-card-tile-weight: 68%;
+  --text-on-pane: #ffffff;
 
   /* === Surface System === */
   --surface: #141414;

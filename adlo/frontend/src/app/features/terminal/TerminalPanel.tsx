@@ -75,6 +75,9 @@ export function TerminalPanel() {
   // （spec §8：均分/自由切换清空最大化，避免指向被模式切换改变几何的窗格）。
   const [maximizedPaneId, setMaximizedPaneId] = useState<string | null>(null);
   const paneCount = activeTab?.panes.length ?? 0;
+  // 显示区没有任何窗格时（无活动标签或空标签），「增加终端」无对象可加，
+  // 与均分/自由/恢复/自定义保持一致置灰禁用。
+  const canAddPane = hasActiveTab && paneCount > 0;
 
   // 布局容器：包裹终端网格的滚动区。C2 布局 Hook 拖拽期在其上写 CSS 变量
   // （`--adl-term-*`），并测量其尺寸换算拖拽比例；变量沿 DOM 继承到内层网格。
@@ -266,6 +269,7 @@ export function TerminalPanel() {
               className="adl-tool-context__iconbtn"
               onClick={() => terminalActions.handleAddPane()}
               aria-label={t.terminalAddPane}
+              disabled={!canAddPane}
             >
               <IconAddTerminal size={14} decorative />
             </button>

@@ -1,5 +1,5 @@
 // src/app/components/terminal/TerminalLayoutCard.tsx
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { IconClose, IconSwapPositions } from '@icons';
 import { paneColor } from '@features/terminal/paneColors';
 import { computeGrid } from '@features/terminal/terminalPaneLayout';
@@ -143,11 +143,15 @@ export function TerminalLayoutCard({
     const borderT = num(style.borderTopWidth) ?? 0;
     const gap = num(style.columnGap);
     // 首块实测宽（失败回退常量；jsdom 无样式时 rect 全 0，同样回退）。
+    // 原点取首块自身左上角而不是网格内边距：方块整体水平居中后，首块起点
+    // 会随列数/卡片宽度右移，若仍按内边距算会让拖拽落点整体偏移。
     const firstTile = grid.querySelector('.adl-layout-card__square');
-    const tileW = firstTile ? firstTile.getBoundingClientRect().width : 0;
+    const tileRect = firstTile?.getBoundingClientRect();
+    const tileW = tileRect?.width ?? 0;
+    const hasTile = tileRect !== undefined && tileRect.width > 0 && tileRect.height > 0;
     return {
-      originX: rect.left + padL + borderL,
-      originY: rect.top + padT + borderT,
+      originX: hasTile ? tileRect.left : rect.left + padL + borderL,
+      originY: hasTile ? tileRect.top : rect.top + padT + borderT,
       step: (tileW > 0 ? tileW : LAYOUT_CARD_TILE_PX) + (gap ?? TILE_GAP_PX),
     };
   };
@@ -444,7 +448,7 @@ export function TerminalLayoutCard({
                 }
               }}
               className={`adl-layout-card__square${selected ? ' is-selected' : ''}${isDragging ? ' is-dragging' : ''}`}
-              style={{ background: paneColor(pane.colorIndex) }}
+              style={{ '--pane-tile-color': paneColor(pane.colorIndex) } as CSSProperties}
               role="button"
               tabIndex={0}
               aria-pressed={selected}

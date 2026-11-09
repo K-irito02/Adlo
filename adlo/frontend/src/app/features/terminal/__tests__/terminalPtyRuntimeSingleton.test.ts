@@ -126,7 +126,7 @@ describe('terminalPtyRuntime 应用级单例', () => {
     expect(after?.sessionId).toBe('s1');
   });
 
-  it('handleSelectPane 重新激活已 kill 的窗格时先释放旧 xterm 池条目（修复池泄漏，H2）', async () => {
+  it('handleSelectPane 重新激活已 kill 的窗格时复用旧 xterm（rekey）而不是释放重建', async () => {
     useAppStore.getState().terminalCreateTab('powershell');
     const tabId = useAppStore.getState().terminalActiveTabId;
     await terminalPtyRuntime.handleCreatePane(tabId, 'bash');
@@ -138,8 +138,9 @@ describe('terminalPtyRuntime 应用级单例', () => {
     expect(terminalPtyRuntime.hasLiveSession('s1')).toBe(false);
 
     const releaseSpy = vi.spyOn(terminalXtermPool, 'release');
+    const rekeySpy = vi.spyOn(terminalXtermPool, 'rekey');
 
-    // 重新激活：attachSession 先经 teardown 释放旧池条目，再建新会话并写回新 sessionId。
+    // 重新激活：复用旧池实例（rekey 改名 + 清屏），不再 release 后重建。
     terminalPtyRuntime.handleSelectPane(tabId, pane.id);
 
     await waitFor(
@@ -147,11 +148,12 @@ describe('terminalPtyRuntime 应用级单例', () => {
         const after = useAppStore
           .getState()
           .terminalTabsById[tabId].panes.find((p) => p.id === pane.id);
-        expect(releaseSpy).toHaveBeenCalledWith('s1');
+        expect(rekeySpy).toHaveBeenCalledWith('s1', expect.any(String));
         expect(after?.sessionId).toBeTruthy();
       },
       { timeout: 5000 },
     );
+    expect(releaseSpy).not.toHaveBeenCalled();
   });
 
   it('会话替换时创建失败：旧 sessionId 已先清空，窗格回落错误态（H2 边界）', async () => {
