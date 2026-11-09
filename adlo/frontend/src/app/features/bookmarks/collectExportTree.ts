@@ -36,6 +36,26 @@ function entryToNode(entry: BookmarkEntry): BookmarkSelectionNode {
   };
 }
 
+/**
+ * 移除没有任何书签的目录（递归）：空目录、其下所有书签都为空的目录、以及空分类根。
+ * 树里只剩有书签的路径，"不显示 + 不勾选 + 不导出"口径由这里统一。
+ */
+export function pruneEmptySelection(nodes: BookmarkSelectionNode[]): BookmarkSelectionNode[] {
+  const out: BookmarkSelectionNode[] = [];
+  for (const node of nodes) {
+    if (node.kind === 'bookmark') {
+      out.push(node);
+      continue;
+    }
+    const children = pruneEmptySelection(node.children);
+    if (children.length === 0) {
+      continue;
+    }
+    out.push({ ...node, children });
+  }
+  return out;
+}
+
 function buildFolderNode(folder: BookmarkFolder, folders: BookmarkFolder[]): BookmarkSelectionNode {
   const children: BookmarkSelectionNode[] = [
     ...(folder.entries ?? []).map(entryToNode),

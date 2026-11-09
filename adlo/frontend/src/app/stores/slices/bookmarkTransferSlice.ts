@@ -7,7 +7,14 @@ import type { TransferNode } from '@features/bookmarks/bookmarkTransferTypes';
 export type BookmarkImportTarget =
   | { kind: 'new-folder'; name: string }
   | { kind: 'folder'; id: string }
-  | { kind: 'workspace'; id: string };
+  | { kind: 'workspace'; id: string }
+  /**
+   * 原目录结构：文件顶层的目录按原样创建为自建目录顶层用户文件夹（同名已存在则合并）；
+   * 文件顶层没有目录的松散书签归入 `looseFolderName` 指定的自建目录顶层文件夹（缺省「顶层书签」）。
+   */
+  | { kind: 'self-root'; looseFolderName?: string }
+  /** 在指定父目录（工作区或用户目录）下先新建嵌套目录再以之为导入目标。 */
+  | { kind: 'child-folder'; parentId: string; parentType: 'folder' | 'workspace'; name: string };
 
 export interface BookmarkImportResult {
   importedBookmarks: number;
@@ -192,6 +199,88 @@ export const createBookmarkTransferSlice = (
             },
           });
           nextFolders[targetIndex] = live;
+        }
+      } else if (target.kind === 'self-root') {
+        // 原目录结构：文件顶层目录 → 自建目录顶层用户文件夹（同名已有则合并）；
+        // 顶层松散书签（如有）→ 归入 `looseFolderName` 指定的顶层用户文件夹（缺省「顶层书签」）。
+        const importRoot = (rootName: string, list: TransferNode[]) => {
+          let rootFolder = nextFolders.find((f) => f.name === rootName && !f.parentId);
+          if (!rootFolder) {
+            rootFolder = {
+              id: createUiId('bookmark-folder'),
+              name: rootName,
+              createdAt: now,
+              isUserCreated: true,
+              entries: [],
+            };
+            result.importedFolders += 1;
+            nextFolders.push(rootFolder);
+          }
+          const entries = [...(rootFolder.entries ?? [])];
+          const idx = nextFolders.findIndex((f) => f.id === rootFolder!.id);
+          nextFolders[idx] = { ...nextFolders[idx], entries };
+          const live = nextFolders[idx];
+          const existingKeys = new Set(entries.map((e) => tupleKey(e.url, e.title)));
+          placeNodes(list, {
+            existingKeys,
+            pushEntry: (entry) => live.entries!.push(entry),
+            createChildFolder: (name) => {
+              const child: BookmarkFolder = {
+                id: createUiId('bookmark-folder'),
+                name,
+                createdAt: now,
+                isUserCreated: true,
+                parentId: rootFolder!.id,
+                parentType: 'folder',
+              };
+              return { folder: child, pushFolder: (f) => nextFolders.push(f) };
+            },
+          });
+        };
+        const rootFolders = nodes.filter((n) => n.kind === 'folder');
+        const looseBookmarks = nodes.filter((n) => n.kind === 'bookmark');
+        for (const root of rootFolders) {
+          if (root.kind === 'folder') {
+            importRoot(root.folder.name, root.folder.children);
+          }
+        }
+        if (looseBookmarks.length > 0) {
+          const looseName = (target.looseFolderName ?? '').trim() || '顶层书签';
+          importRoot(looseName, looseBookmarks);
+        }
+      } else if (target.kind === 'child-folder') {
+        // 在指定父目录（用户目录或工作区根）下新建嵌套目录并以之为导入目标
+        const name = target.name.trim();
+        if (name) {
+          const child: BookmarkFolder = {
+            id: createUiId('bookmark-folder'),
+            name,
+            createdAt: now,
+            isUserCreated: true,
+            parentId: target.parentId,
+            parentType: target.parentType,
+            entries: [],
+          };
+          result.importedFolders += 1;
+          const rootKeys = new Set<string>();
+          placeNodes(nodes, {
+            existingKeys: rootKeys,
+            pushEntry: (entry) => {
+              child.entries = [...(child.entries ?? []), entry];
+            },
+            createChildFolder: (childName) => {
+              const grandchild: BookmarkFolder = {
+                id: createUiId('bookmark-folder'),
+                name: childName,
+                createdAt: now,
+                isUserCreated: true,
+                parentId: child.id,
+                parentType: 'folder',
+              };
+              return { folder: grandchild, pushFolder: (f) => nextFolders.push(f) };
+            },
+          });
+          nextFolders.push(child);
         }
       } else {
         const wsId = target.id;

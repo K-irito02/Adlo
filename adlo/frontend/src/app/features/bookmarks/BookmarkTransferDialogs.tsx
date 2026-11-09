@@ -10,17 +10,27 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconClearDisplay,
+  IconCircleHelp,
   IconClose,
+  IconFileTree,
+  IconFolder,
+  IconFolderPlus,
   IconFoldVertical,
+  IconNewFolder,
   IconUnfoldVertical,
 } from '@icons';
+import { HintCardTrigger } from '../../components/HintCard';
 import { parseBookmarkHtml } from './bookmarkHtml';
 import type { TransferNode } from './bookmarkTransferTypes';
+import type { BookmarkImportTarget } from '@stores/slices/bookmarkTransferSlice';
+import type { FileTreeRenderableNode } from '@features/file-tree/fileTree.utils';
+import { buildBookmarkDirectoryTree } from '@features/browser/browserPanelHelpers';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import {
   buildBookmarkSelectionTree,
   buildExportNodes,
   collectLeafIds,
+  pruneEmptySelection,
   selectionStateOf,
   type BookmarkSelectionNode,
 } from './collectExportTree';
@@ -263,7 +273,8 @@ function resolvePicked(
     if (state === 'none') {
       continue;
     }
-    const label = prefix ? `${prefix} / ${node.name}` : node.name;
+    // 分类根（工作区目录 / 自建目录）name 为空，回退为 prefix 提供的分类名
+    const label = node.name ? (prefix ? `${prefix} / ${node.name}` : node.name) : prefix;
     if (state === 'checked' || node.kind === 'bookmark') {
       out.push({ id: node.id, label, count: node.bookmarkCount, isDir: node.kind !== 'bookmark' });
     } else {
@@ -274,7 +285,7 @@ function resolvePicked(
 }
 
 function ExportDialog() {
-  const { t } = useTCopy();
+  const { t, formatT } = useTCopy();
   const { exportBookmarks } = useBookmarkTransfer();
   const setDialog = useAppStore((s) => s.setBookmarkTransferDialog);
   const { workspaces, folders, workspaceBookmarks } = useAppStore(
@@ -285,19 +296,21 @@ function ExportDialog() {
     })),
   );
 
-  const { workspaceRoot, folderRoot } = useMemo(
-    () => buildBookmarkSelectionTree({ workspaces, folders, workspaceBookmarks }),
-    [workspaces, folders, workspaceBookmarks],
+  // 隐藏没有书签的目录/分类（递归剪枝后空子树直接不渲染；注意空分类可能从数组位置 1 消失，必须各自剪枝）
+  const { workspaceRoot, folderRoot } = useMemo(() => {
+    const raw = buildBookmarkSelectionTree({ workspaces, folders, workspaceBookmarks });
+    const prune = (root: BookmarkSelectionNode) => pruneEmptySelection([root])[0] ?? null;
+    return {
+      workspaceRoot: prune(raw.workspaceRoot),
+      folderRoot: prune(raw.folderRoot),
+    };
+  }, [workspaces, folders, workspaceBookmarks]);
+
+  const roots = useMemo(
+    () =>
+      [workspaceRoot, folderRoot].filter((root): root is BookmarkSelectionNode => root !== null),
+    [workspaceRoot, folderRoot],
   );
-
-  const [selected, setSelected] = useState<Set<string>>(() => new Set());
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  const [busy, setBusy] = useState(false);
-  const split = useResizableSplit();
-  const close = useCallback(() => setDialog(null), [setDialog]);
-  const panelRef = useDialogA11y(true, close);
-
-  const roots = useMemo(() => [workspaceRoot, folderRoot], [workspaceRoot, folderRoot]);
   const allLeafIds = useMemo(() => roots.flatMap((root) => collectLeafIds(root)), [roots]);
   const allDirIds = useMemo(() => {
     const ids: string[] = [];
@@ -312,6 +325,14 @@ function ExportDialog() {
     walk(roots);
     return ids;
   }, [roots]);
+
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  // 与导入第 1 步一致：目录默认全部展开
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(allDirIds));
+  const [busy, setBusy] = useState(false);
+  const split = useResizableSplit();
+  const close = useCallback(() => setDialog(null), [setDialog]);
+  const panelRef = useDialogA11y(true, close);
 
   const toggleSelect = useCallback((node: BookmarkSelectionNode) => {
     setSelected((prev) => {
@@ -341,26 +362,34 @@ function ExportDialog() {
     });
   }, []);
 
-  const workspaceRows = flattenSelection(
-    [workspaceRoot],
-    expanded,
-    0,
-    t.bookmarkExportWorkspaceRoot as string,
-  );
-  const folderRows = flattenSelection(
-    [folderRoot],
-    expanded,
-    0,
-    t.bookmarkExportFolderRoot as string,
-  );
+  const allExpanded = allDirIds.length > 0 && allDirIds.every((id) => expanded.has(id));
+
+  const workspaceRows = workspaceRoot
+    ? flattenSelection([workspaceRoot], expanded, 0, t.bookmarkExportWorkspaceRoot as string)
+    : [];
+  const folderRows = folderRoot
+    ? flattenSelection([folderRoot], expanded, 0, t.bookmarkExportFolderRoot as string)
+    : [];
 
   const exportNodes = useMemo(
-    () => [...buildExportNodes(workspaceRoot, selected), ...buildExportNodes(folderRoot, selected)],
+    () => [
+      ...(workspaceRoot ? buildExportNodes(workspaceRoot, selected) : []),
+      ...(folderRoot ? buildExportNodes(folderRoot, selected) : []),
+    ],
     [workspaceRoot, folderRoot, selected],
   );
   const bookmarkCount = countBookmarks(exportNodes);
   const folderCount = countFolders(exportNodes);
-  const picked = useMemo(() => resolvePicked(roots, selected), [roots, selected]);
+  const picked = useMemo(() => {
+    const out: PickedItem[] = [];
+    if (workspaceRoot) {
+      resolvePicked([workspaceRoot], selected, out, t.bookmarkExportWorkspaceRoot as string);
+    }
+    if (folderRoot) {
+      resolvePicked([folderRoot], selected, out, t.bookmarkExportFolderRoot as string);
+    }
+    return out;
+  }, [workspaceRoot, folderRoot, selected, t]);
 
   const handleExport = useCallback(async () => {
     if (bookmarkCount === 0 || busy) {
@@ -386,17 +415,38 @@ function ExportDialog() {
         aria-modal="true"
         aria-label={t.bookmarkExportTitle as string}
         tabIndex={-1}
-        style={{ width: 'min(94vw, 780px)', padding: '10px 0 0' }}
+        style={{
+          width: 'min(94vw, 780px)',
+          padding: '6px 0 0',
+          height: 600,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0,
+        }}
       >
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 16px 8px',
+            padding: '2px 8px 0',
           }}
         >
-          <span style={{ fontSize: 14, fontWeight: 600 }}>{t.bookmarkExportTitle as string}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0 }}>
+            <HintCardTrigger content={t.bookmarkExportHint as string}>
+              <button
+                type="button"
+                className="adl-iconstrip__button"
+                style={{ width: 20, height: 20 }}
+                aria-label={t.bookmarkExportHintAriaLabel as string}
+              >
+                <IconCircleHelp size={12} decorative />
+              </button>
+            </HintCardTrigger>
+            <span style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}>
+              {t.bookmarkExportTitle as string}
+            </span>
+          </span>
           <button
             type="button"
             className="adl-prompt-modal__header-close"
@@ -407,159 +457,183 @@ function ExportDialog() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 6, padding: '0 16px 8px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="adl-btn adl-btn--secondary"
-            onClick={() => setSelected(new Set(allLeafIds))}
-          >
-            {t.bookmarkExportSelectAll as string}
-          </button>
-          <button
-            type="button"
-            className="adl-btn adl-btn--secondary"
-            onClick={() => setSelected(new Set())}
-          >
-            {t.bookmarkExportClear as string}
-          </button>
-          <span style={{ flex: 1 }} />
-          <button
-            type="button"
-            className="adl-btn adl-btn--secondary"
-            onClick={() => setExpanded(new Set(allDirIds))}
-          >
-            {t.expandAll as string}
-          </button>
-          <button
-            type="button"
-            className="adl-btn adl-btn--secondary"
-            onClick={() => setExpanded(new Set())}
-          >
-            {t.collapseAll as string}
-          </button>
-        </div>
-
         <div
-          ref={split.frameRef}
-          style={{
-            display: 'flex',
-            margin: '0 16px',
-            border: '1px solid var(--border)',
-            borderRadius: 0,
-            overflow: 'hidden',
-            minHeight: 0,
-          }}
+          style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, paddingTop: 6 }}
         >
-          <CustomScrollArea
-            shellClassName="adl-search-ignore__scroll adl-search-ignore__scroll--flush"
-            scrollClassName="adl-search-ignore__scroll-area"
-            scrollbarClassName="adl-multitree-scrollbar"
-            thumbClassName="adl-multitree-scrollbar__thumb"
-          >
-            <ul className="adl-search-ignore__tree" role="tree">
-              {[...workspaceRows, ...folderRows].map(({ node, depth, path }) => (
-                <ExportRow
-                  key={node.id}
-                  node={node}
-                  depth={depth}
-                  path={path}
-                  selected={selected}
-                  expanded={expanded}
-                  onToggleSelect={toggleSelect}
-                  onToggleExpand={toggleExpand}
-                />
-              ))}
-            </ul>
-          </CustomScrollArea>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 16px 6px' }}>
+            <button
+              type="button"
+              className="adl-iconstrip__button"
+              style={{ width: 28, height: 28 }}
+              title={t.bookmarkExportSelectAll as string}
+              aria-label={t.bookmarkExportSelectAll as string}
+              onClick={() => setSelected(new Set(allLeafIds))}
+            >
+              <IconCheckCheck size={14} decorative />
+            </button>
+            <button
+              type="button"
+              className="adl-iconstrip__button"
+              style={{ width: 28, height: 28 }}
+              title={t.bookmarkExportClear as string}
+              aria-label={t.bookmarkExportClear as string}
+              onClick={() => setSelected(new Set())}
+            >
+              <IconClearDisplay size={14} decorative />
+            </button>
+            <span style={{ width: 1, height: 14, background: 'var(--border)', margin: '0 6px' }} />
+            <button
+              type="button"
+              className="adl-iconstrip__button"
+              style={{ width: 28, height: 28 }}
+              title={allExpanded ? (t.collapseAll as string) : (t.expandAll as string)}
+              aria-label={allExpanded ? (t.collapseAll as string) : (t.expandAll as string)}
+              aria-pressed={allExpanded}
+              onClick={
+                allExpanded ? () => setExpanded(new Set()) : () => setExpanded(new Set(allDirIds))
+              }
+            >
+              {allExpanded ? (
+                <IconFoldVertical size={14} decorative />
+              ) : (
+                <IconUnfoldVertical size={14} decorative />
+              )}
+            </button>
+            <span style={{ flex: 1 }} />
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {formatT(t as CopyDict, 'bookmarkExportSelected', {
+                count: bookmarkCount,
+                total: allLeafIds.length,
+                folders: folderCount,
+              })}
+            </span>
+          </div>
+
           <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label={t.bookmarkExportResize as string}
-            aria-valuemin={DIVIDER_MIN}
-            aria-valuemax={DIVIDER_MAX}
-            aria-valuenow={split.width}
-            tabIndex={0}
-            onPointerDown={split.onPointerDown}
+            ref={split.frameRef}
             style={{
-              flex: '0 0 6px',
-              cursor: 'col-resize',
-              borderLeft: '1px solid var(--border)',
-              background: 'transparent',
-            }}
-          />
-          <div
-            className="adl-bookmark-picklist"
-            style={{
-              flex: `0 0 ${split.width}px`,
-              padding: '6px 10px',
-              overflow: 'auto',
-              height: 420,
+              display: 'flex',
+              margin: '0 16px',
+              border: '1px solid var(--border)',
+              borderRadius: 0,
+              overflow: 'hidden',
+              minHeight: 0,
+              flex: 1,
             }}
           >
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingBottom: 6 }}>
-              {t.bookmarkExportPicked as string} ({picked.length})
-            </div>
-            {picked.length === 0 ? (
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                {t.bookmarkExportNothingPicked as string}
+            <CustomScrollArea
+              shellClassName="adl-search-ignore__scroll adl-search-ignore__scroll--fill"
+              scrollClassName="adl-search-ignore__scroll-area"
+              scrollbarClassName="adl-multitree-scrollbar"
+              thumbClassName="adl-multitree-scrollbar__thumb"
+            >
+              <ul className="adl-search-ignore__tree" role="tree">
+                {[...workspaceRows, ...folderRows].map(({ node, depth, path }) => (
+                  <ExportRow
+                    key={node.id}
+                    node={node}
+                    depth={depth}
+                    path={path}
+                    selected={selected}
+                    expanded={expanded}
+                    onToggleSelect={toggleSelect}
+                    onToggleExpand={toggleExpand}
+                  />
+                ))}
+              </ul>
+            </CustomScrollArea>
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t.bookmarkExportResize as string}
+              aria-valuemin={DIVIDER_MIN}
+              aria-valuemax={DIVIDER_MAX}
+              aria-valuenow={split.width}
+              tabIndex={0}
+              onPointerDown={split.onPointerDown}
+              style={{
+                flex: '0 0 6px',
+                cursor: 'col-resize',
+                borderLeft: '1px solid var(--border)',
+                background: 'transparent',
+              }}
+            />
+            <div
+              className="adl-bookmark-picklist"
+              style={{
+                flex: `0 0 ${split.width}px`,
+                padding: '6px 10px',
+                overflow: 'auto',
+                height: '100%',
+              }}
+            >
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingBottom: 6 }}>
+                {t.bookmarkExportPicked as string} ({picked.length})
               </div>
-            ) : (
-              picked.map((item) => (
-                <div
-                  key={item.id}
-                  title={item.label}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontSize: 11,
-                    padding: '2px 0',
-                  }}
-                >
-                  <span
-                    style={{
-                      flex: 1,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {item.label}
-                  </span>
-                  <span style={{ color: 'var(--text-muted)' }}>{item.isDir ? item.count : ''}</span>
-                  <button
-                    type="button"
-                    className="adl-icon-btn adl-icon-btn--xs"
-                    aria-label={t.browserContextDelete as string}
-                    onClick={() => {
-                      const node = findNodeById(roots, item.id);
-                      if (node) {
-                        toggleSelect(node);
-                      }
-                    }}
-                  >
-                    <IconClose size={12} decorative />
-                  </button>
+              {picked.length === 0 ? (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {t.bookmarkExportNothingPicked as string}
                 </div>
-              ))
-            )}
+              ) : (
+                picked.map((item) => (
+                  <div
+                    key={item.id}
+                    title={item.label}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 11,
+                      padding: '2px 0',
+                    }}
+                  >
+                    <span
+                      style={{
+                        flex: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      {item.isDir ? item.count : ''}
+                    </span>
+                    <button
+                      type="button"
+                      className="adl-icon-btn adl-icon-btn--xs"
+                      aria-label={t.browserContextDelete as string}
+                      onClick={() => {
+                        const node = findNodeById(roots, item.id);
+                        if (node) {
+                          toggleSelect(node);
+                        }
+                      }}
+                    >
+                      <IconClose size={12} decorative />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
 
         <div
           className="adl-prompt-modal__actions adl-prompt-modal__actions--fill"
-          style={{ padding: '10px 16px' }}
+          style={{ padding: '14px 16px 14px' }}
         >
-          <span style={{ flex: 1, fontSize: 11, color: 'var(--text-secondary)' }}>
-            {bookmarkCount} {t.bookmarkExportBookmarks as string} · {folderCount}{' '}
-            {t.bookmarkExportFolders as string}
-          </span>
-          <button type="button" className="adl-btn adl-btn--secondary" onClick={close}>
+          <button
+            type="button"
+            className="adl-btn adl-btn--secondary adl-btn--square"
+            onClick={close}
+          >
             {t.cancel as string}
           </button>
           <button
             type="button"
-            className="adl-btn adl-btn--primary"
+            className="adl-btn adl-btn--primary adl-btn--square"
             disabled={bookmarkCount === 0 || busy}
             onClick={() => void handleExport()}
           >
@@ -626,6 +700,10 @@ function ImportDialog() {
     })),
   );
   const showToast = useAppStore((s) => s.showToast);
+  const directoryTree = useMemo(
+    () => buildBookmarkDirectoryTree(workspaces, folders),
+    [workspaces, folders],
+  );
   // 菜单路径在挂载前已选完文件并暂存解析结果到 store；此处一次性消费，避免下次打开复用旧数据
   const [draft] = useState(() => useAppStore.getState().bookmarkImportDraft);
   const defaultFolderName = useMemo(() => {
@@ -636,13 +714,23 @@ function ImportDialog() {
 
   const [step, setStep] = useState<1 | 2>(1);
   const [fileName, setFileName] = useState(draft?.fileName ?? '');
-  const [nodes, setNodes] = useState<TransferNode[]>(draft?.nodes ?? []);
+  const [nodes, setNodes] = useState<TransferNode[]>(() =>
+    draft?.nodes ? pruneEmptyTransfer(draft.nodes) : [],
+  );
   const [invalidCount, setInvalidCount] = useState(draft?.invalidCount ?? 0);
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
-  const [targetKind, setTargetKind] = useState<'new' | 'folder' | 'workspace'>('new');
-  const [targetId, setTargetId] = useState('');
-  const [folderName, setFolderName] = useState(draft ? defaultFolderName : '');
-  const [duplicatePolicy, setDuplicatePolicy] = useState<'skip' | 'allow'>('skip');
+  // 第 2 步「目标与重复项」：B · 左右分栏（图标+标题+提示导航 + 右侧详情面板）
+  const [importMode, setImportMode] = useState<'original' | 'newTop' | 'existing'>('original');
+  const [newDirName, setNewDirName] = useState(draft ? defaultFolderName : '');
+  const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(null);
+  const [pendingNested, setPendingNested] = useState<{ parentKey: string; name: string } | null>(
+    null,
+  );
+  const [nesting, setNesting] = useState(false);
+  const [nestInputValue, setNestInputValue] = useState('');
+  const [treeExpanded, setTreeExpanded] = useState<Set<string>>(
+    () => new Set(collectDirectoryPaths(directoryTree)),
+  );
   // 目录展开状态：默认全部展开（与导入前全选一致），路径即 folder 的树行 path
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(draft ? allFolderPaths(draft.nodes) : []),
@@ -673,9 +761,14 @@ function ImportDialog() {
         return;
       }
       setFileName(file.name);
-      setNodes(parsed.nodes);
+      setNodes(pruneEmptyTransfer(parsed.nodes));
       setInvalidCount(parsed.invalidCount);
-      setFolderName(defaultFolderName);
+      setNewDirName(defaultFolderName);
+      setImportMode('original');
+      setSelectedTargetKey(null);
+      setPendingNested(null);
+      setNesting(false);
+      setNestInputValue('');
       setExcluded(new Set());
       setExpanded(new Set(allFolderPaths(parsed.nodes)));
       setStep(1);
@@ -746,6 +839,46 @@ function ImportDialog() {
   const keptFolders = countFolders(keptNodes);
   const rows = useMemo(() => flattenTransfer(nodes, expanded, 0, ''), [nodes, expanded]);
   const picked = useMemo(() => resolveImportPicked(nodes, excluded), [nodes, excluded]);
+  const topLevelUserFolderNames = useMemo(
+    () => new Set(folders.filter((f) => !f.parentId).map((f) => f.name)),
+    [folders],
+  );
+  const newDirNameError = useMemo(() => {
+    const name = newDirName.trim();
+    if (!name) {
+      return t.bookmarkImportNameEmpty as string;
+    }
+    if (topLevelUserFolderNames.has(name)) {
+      return formatT(t as CopyDict, 'bookmarkImportNameClash', { name });
+    }
+    return '';
+  }, [newDirName, topLevelUserFolderNames, t, formatT]);
+  const directoryRows = useMemo(
+    () => ({
+      wsRows: flattenDirectoryTree(directoryTree.workspaceNodes, treeExpanded, 0, ''),
+      folderRows: flattenDirectoryTree(directoryTree.userFolderNodes, treeExpanded, 0, ''),
+    }),
+    [directoryTree, treeExpanded],
+  );
+  const previewOriginal = useMemo(
+    () => formatPreviewTree(t.browserCategoryUserFolder as string, keptNodes),
+    [keptNodes, t],
+  );
+  const previewNewTop = useMemo(() => {
+    const name = newDirName.trim() || '…';
+    return formatPreviewTree(t.browserCategoryUserFolder as string, keptNodes, name);
+  }, [keptNodes, newDirName, t]);
+  const targetPathLabel = useMemo(() => {
+    const rows = [...directoryRows.wsRows, ...directoryRows.folderRows];
+    if (pendingNested) {
+      const parentRow = rows.find((r) => r.node.path === pendingNested.parentKey);
+      return `${parentRow?.path ?? pendingNested.parentKey} / ${pendingNested.name}`;
+    }
+    const selectedRow = selectedTargetKey
+      ? rows.find((r) => r.node.path === selectedTargetKey)
+      : null;
+    return selectedRow?.path ?? '';
+  }, [directoryRows, pendingNested, selectedTargetKey]);
   const goToStep = useCallback(
     (target: 1 | 2) => {
       if (target === 2 && keptCount === 0) {
@@ -756,20 +889,232 @@ function ImportDialog() {
     [keptCount],
   );
 
+  const modeOptions = [
+    {
+      id: 'original' as const,
+      title: t.bookmarkImportModeOriginal as string,
+      desc: t.bookmarkImportModeOriginalDesc as string,
+      icon: <IconFileTree size={16} decorative />,
+    },
+    {
+      id: 'newTop' as const,
+      title: t.bookmarkImportModeNewTop as string,
+      desc: t.bookmarkImportModeNewTopDesc as string,
+      icon: <IconFolderPlus size={16} decorative />,
+    },
+    {
+      id: 'existing' as const,
+      title: t.bookmarkImportModeExisting as string,
+      desc: t.bookmarkImportModeExistingDesc as string,
+      icon: <IconFolder size={16} decorative />,
+    },
+  ];
+  const renderDirRow = (row: {
+    node: FileTreeRenderableNode & { pending?: boolean };
+    depth: number;
+    path: string;
+  }) => {
+    const node = row.node;
+    const isPending = node.pending === true;
+    const hasChildren = node.children.length > 0;
+    const isOpen = hasChildren ? treeExpanded.has(node.path) : false;
+    const selected = selectedTargetKey === row.node.path;
+    const pendingSelected = pendingNested !== null && pendingNested.parentKey === row.node.path;
+    const showSelected = selected || (isPending && pendingSelected);
+    const dirCount = countDirectoryDescendants(node);
+    return (
+      <li key={row.node.path}>
+        <div
+          title={row.path}
+          role="option"
+          aria-selected={showSelected}
+          aria-expanded={hasChildren ? (isOpen ? 'true' : 'false') : undefined}
+          onClick={() => {
+            if (isPending) {
+              setSelectedTargetKey(pendingNested!.parentKey);
+              return;
+            }
+            if (hasChildren) {
+              setTreeExpanded((prev) => {
+                const next = new Set(prev);
+                if (next.has(node.path)) {
+                  next.delete(node.path);
+                } else {
+                  next.add(node.path);
+                }
+                return next;
+              });
+            }
+            setSelectedTargetKey(node.path);
+            if (pendingNested && pendingNested.parentKey !== node.path) {
+              setPendingNested(null);
+            }
+          }}
+          className={`adl-target-tree__row${showSelected ? ' is-selected' : ''}`}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            height: 28,
+            padding: `0 10px 0 ${10 + row.depth * 16}px`,
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{ flex: '0 0 16px', display: 'flex', color: 'var(--text-muted)' }}
+          >
+            {isPending ? null : hasChildren ? (
+              isOpen ? (
+                <IconChevronDown size={12} decorative />
+              ) : (
+                <IconChevronRight size={12} decorative />
+              )
+            ) : null}
+          </span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {node.name}
+          </span>
+          {isPending && (
+            <span
+              style={{
+                fontSize: 9,
+                color: 'var(--text-muted)',
+                border: '1px dashed rgba(255,255,255,0.18)',
+                borderRadius: 2,
+                padding: '0 5px',
+                marginLeft: 6,
+              }}
+            >
+              {t.bookmarkImportNestedBadge as string}
+            </span>
+          )}
+          {hasChildren ? (
+            <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-muted)' }}>
+              {dirCount} 项
+            </span>
+          ) : null}
+          {isPending && (
+            <button
+              type="button"
+              className="adl-icon-btn adl-icon-btn--xs"
+              aria-label={t.cancel as string}
+              style={{ marginLeft: 'auto' }}
+              onClick={(event) => {
+                event.stopPropagation();
+                setPendingNested(null);
+              }}
+            >
+              <IconClose size={12} decorative />
+            </button>
+          )}
+        </div>
+      </li>
+    );
+  };
+  const withPendingRow = (
+    rows: { node: FileTreeRenderableNode; depth: number; path: string }[],
+  ): { node: FileTreeRenderableNode & { pending?: boolean }; depth: number; path: string }[] => {
+    if (!pendingNested) {
+      return rows;
+    }
+    return rows.flatMap((row) => {
+      if (row.node.path !== pendingNested.parentKey) {
+        return [row];
+      }
+      const pendingRow = {
+        node: {
+          path: `${row.node.path}/${pendingNested.name}`,
+          name: pendingNested.name,
+          kind: 'directory' as const,
+          children: [],
+          pending: true as const,
+        },
+        depth: row.depth + 1,
+        path: `${row.path} / ${pendingNested.name}`,
+      };
+      return [row, pendingRow];
+    });
+  };
+  const renderSectionLabel = (label: string) => (
+    <div
+      key={`section-${label}`}
+      style={{
+        fontSize: 10,
+        color: 'var(--text-muted)',
+        letterSpacing: '0.08em',
+        padding: '6px 12px 2px',
+        textTransform: 'uppercase',
+      }}
+    >
+      {label}
+    </div>
+  );
+  const openNesting = () => {
+    setNesting(true);
+    setNestInputValue('');
+  };
+  const confirmNest = () => {
+    const name = nestInputValue.trim();
+    if (!name || !selectedTargetKey) {
+      return;
+    }
+    setPendingNested({ parentKey: selectedTargetKey, name });
+    setNesting(false);
+    setNestInputValue('');
+  };
+  const cancelNest = () => {
+    setNesting(false);
+    setNestInputValue('');
+  };
+  const buildImportTarget = useCallback((): BookmarkImportTarget | null => {
+    if (importMode === 'original') {
+      return { kind: 'self-root', looseFolderName: t.bookmarkImportRootFolderName as string };
+    }
+    if (importMode === 'newTop') {
+      const name = newDirName.trim();
+      if (!name || newDirNameError) {
+        return null;
+      }
+      return { kind: 'new-folder', name };
+    }
+    if (pendingNested) {
+      if (!pendingNested.name.trim()) {
+        return null;
+      }
+      const resolved = resolveSelectedKey(pendingNested.parentKey);
+      if (!resolved) {
+        return null;
+      }
+      return {
+        kind: 'child-folder',
+        parentId: resolved.id,
+        parentType: resolved.parentType,
+        name: pendingNested.name.trim(),
+      };
+    }
+    if (selectedTargetKey) {
+      const resolved = resolveSelectedKey(selectedTargetKey);
+      if (resolved) {
+        return resolved.parentType === 'workspace'
+          ? { kind: 'workspace', id: resolved.id }
+          : { kind: 'folder', id: resolved.id };
+      }
+    }
+    return null;
+  }, [importMode, newDirName, newDirNameError, pendingNested, selectedTargetKey, t]);
+  const canConfirm = keptCount > 0 && buildImportTarget() !== null;
+
   const handleImport = useCallback(() => {
     if (keptCount === 0) {
       return;
     }
-    if (targetKind !== 'new' && !targetId) {
+    const target = buildImportTarget();
+    if (!target) {
       return;
     }
-    const target =
-      targetKind === 'new'
-        ? ({ kind: 'new-folder', name: folderName.trim() || defaultFolderName } as const)
-        : targetKind === 'folder'
-          ? ({ kind: 'folder', id: targetId } as const)
-          : ({ kind: 'workspace', id: targetId } as const);
-    const result = importBookmarks({ nodes: keptNodes, target, duplicatePolicy });
+    const result = importBookmarks({ nodes: keptNodes, target, duplicatePolicy: 'skip' });
     const skipped =
       result.skipped > 0
         ? ` ${formatT(t as CopyDict, 'bookmarkImportSkipped', { count: result.skipped })}`
@@ -782,20 +1127,7 @@ function ImportDialog() {
       'success',
     );
     close();
-  }, [
-    close,
-    defaultFolderName,
-    duplicatePolicy,
-    folderName,
-    formatT,
-    importBookmarks,
-    keptCount,
-    keptNodes,
-    showToast,
-    t,
-    targetId,
-    targetKind,
-  ]);
+  }, [close, buildImportTarget, formatT, importBookmarks, keptCount, keptNodes, showToast, t]);
 
   return (
     <div className="adl-prompt-modal" onClick={(e) => e.target === e.currentTarget && close()}>
@@ -806,20 +1138,53 @@ function ImportDialog() {
         aria-modal="true"
         aria-label={t.bookmarkImportTitle as string}
         tabIndex={-1}
-        style={{ width: 'min(94vw, 780px)', padding: '10px 0 0' }}
+        style={{
+          width: 'min(94vw, 780px)',
+          padding: '6px 0 0',
+          height: 600,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0,
+        }}
       >
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 16px 6px',
+            padding: '2px 8px 0',
           }}
         >
-          <span style={{ fontSize: 14, fontWeight: 600 }}>
-            {t.bookmarkImportTitle as string}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0 }}>
+            <HintCardTrigger
+              content={
+                (step === 1 ? t.bookmarkImportHintStep1 : t.bookmarkImportHintStep2) as string
+              }
+            >
+              <button
+                type="button"
+                className="adl-iconstrip__button"
+                style={{ width: 20, height: 20 }}
+                aria-label={t.bookmarkImportHintAriaLabel as string}
+              >
+                <IconCircleHelp size={12} decorative />
+              </button>
+            </HintCardTrigger>
+            <span style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}>
+              {t.bookmarkImportTitle as string}
+            </span>
             {fileName ? (
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: 'var(--text-muted)',
+                  marginLeft: 6,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+                title={fileName}
+              >
                 {fileName}
               </span>
             ) : null}
@@ -857,9 +1222,9 @@ function ImportDialog() {
             </button>
           </div>
         ) : (
-          <>
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
             {/* 顶部两块区域（胜出方案 A · 分段控制器，按反馈落地） */}
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '0 16px 6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '0 16px 23px' }}>
               <div
                 role="tablist"
                 style={{
@@ -957,7 +1322,7 @@ function ImportDialog() {
             )}
 
             {step === 1 ? (
-              <>
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                 <div
                   ref={split.frameRef}
                   style={{
@@ -1000,10 +1365,10 @@ function ImportDialog() {
                     tabIndex={0}
                     onPointerDown={split.onPointerDown}
                     style={{
-                      flex: '0 0 7px',
+                      flex: '0 0 6px',
                       cursor: 'col-resize',
                       borderLeft: '1px solid var(--border)',
-                      background: 'var(--surface-subtle)',
+                      background: 'transparent',
                     }}
                   />
                   <div
@@ -1066,117 +1431,476 @@ function ImportDialog() {
                     {invalidCount} {t.bookmarkImportInvalid as string}
                   </p>
                 ) : null}
-              </>
+              </div>
             ) : (
-              <div style={{ padding: '4px 16px' }}>
-                <label
+              <div
+                style={{ display: 'flex', gap: 14, padding: '4px 16px 0', flex: 1, minHeight: 0 }}
+              >
+                <nav
+                  role="radiogroup"
+                  aria-label={t.bookmarkImportModeNavLabel as string}
                   style={{
+                    width: 232,
+                    flexShrink: 0,
                     display: 'flex',
-                    gap: 8,
-                    alignItems: 'center',
-                    fontSize: 12,
-                    padding: '6px 0',
+                    flexDirection: 'column',
+                    gap: 6,
+                    overflowY: 'auto',
                   }}
                 >
-                  <span style={{ flex: '0 0 76px', color: 'var(--text-secondary)', fontSize: 11 }}>
-                    {t.bookmarkImportTargetLabel as string}
-                  </span>
-                  <select
-                    className="pt-select"
-                    style={{ flex: 1 }}
-                    value={targetKind === 'new' ? 'new' : `${targetKind}:${targetId}`}
-                    onChange={(event) => {
-                      const value = event.currentTarget.value;
-                      if (value === 'new') {
-                        setTargetKind('new');
-                        setTargetId('');
-                        return;
-                      }
-                      const [kind, id] = value.split(':');
-                      setTargetKind(kind as 'folder' | 'workspace');
-                      setTargetId(id ?? '');
-                    }}
-                  >
-                    <option value="new">{t.bookmarkImportTargetNew as string}</option>
-                    {workspaces.map((ws) => (
-                      <option key={ws.id} value={`workspace:${ws.id}`}>
-                        {ws.name || ws.path}
-                      </option>
-                    ))}
-                    {folders.map((folder) => (
-                      <option key={folder.id} value={`folder:${folder.id}`}>
-                        {folder.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {targetKind === 'new' ? (
-                  <label
+                  <div
                     style={{
-                      display: 'flex',
-                      gap: 8,
-                      alignItems: 'center',
-                      fontSize: 12,
-                      padding: '6px 0',
+                      fontSize: 10,
+                      color: 'var(--text-muted)',
+                      letterSpacing: '0.09em',
+                      padding: '2px 2px 8px',
+                      textTransform: 'uppercase',
                     }}
                   >
-                    <span
-                      style={{ flex: '0 0 76px', color: 'var(--text-secondary)', fontSize: 11 }}
-                    >
-                      {t.bookmarkImportFolderName as string}
-                    </span>
-                    <input
-                      className="pt-input"
-                      style={{ flex: 1 }}
-                      value={folderName}
-                      onChange={(event) => setFolderName(event.currentTarget.value)}
-                    />
-                  </label>
-                ) : null}
-                <div style={{ display: 'flex', gap: 14, padding: '6px 0 6px 84px', fontSize: 12 }}>
-                  <label style={{ display: 'inline-flex', gap: 5, alignItems: 'center' }}>
-                    <input
-                      type="radio"
-                      name="bm-dup"
-                      checked={duplicatePolicy === 'skip'}
-                      onChange={() => setDuplicatePolicy('skip')}
-                    />
-                    {t.bookmarkImportSkip as string}
-                  </label>
-                  <label style={{ display: 'inline-flex', gap: 5, alignItems: 'center' }}>
-                    <input
-                      type="radio"
-                      name="bm-dup"
-                      checked={duplicatePolicy === 'allow'}
-                      onChange={() => setDuplicatePolicy('allow')}
-                    />
-                    {t.bookmarkImportAllow as string}
-                  </label>
+                    {t.bookmarkImportModeNavLabel as string}
+                  </div>
+                  {modeOptions.map((opt) => {
+                    const active = importMode === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setImportMode(opt.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 9,
+                          padding: 10,
+                          borderRadius: 6,
+                          border: active
+                            ? '1px solid var(--border-strong)'
+                            : '1px solid transparent',
+                          background: active ? 'var(--panel-inset)' : 'var(--panel-inset-2)',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          color: 'inherit',
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: 'flex',
+                            marginTop: 1,
+                            color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+                          }}
+                        >
+                          {opt.icon}
+                        </span>
+                        <span
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 2,
+                            minWidth: 0,
+                          }}
+                        >
+                          <span style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>
+                            {opt.title}
+                          </span>
+                          <span
+                            style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.45 }}
+                          >
+                            {opt.desc}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {/* 左侧底部锚定：与右侧详情面板底边同一水平线 */}
+                  <span
+                    style={{
+                      marginTop: 'auto',
+                      padding: '10px 2px 0',
+                      fontSize: 11,
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {formatT(t as CopyDict, 'bookmarkImportWillImport', {
+                      count: keptCount,
+                      folders: keptFolders,
+                    })}
+                  </span>
+                </nav>
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    minHeight: 0,
+                    border: '1px solid var(--border)',
+                    borderRadius: 0,
+                    background: 'var(--panel-inset)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 14px' }}>
+                    {importMode === 'original' && (
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: 'var(--text-muted)',
+                            letterSpacing: '0.09em',
+                            textTransform: 'uppercase',
+                            marginBottom: 6,
+                          }}
+                        >
+                          {t.bookmarkImportPreviewTitle as string}
+                        </div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <tbody>
+                            {[
+                              {
+                                key: 'target',
+                                k: t.bookmarkImportModeTarget as string,
+                                v: (
+                                  <>
+                                    <b>{t.browserCategoryUserFolder as string}</b>{' '}
+                                    <span
+                                      style={{
+                                        color: 'var(--text-secondary)',
+                                        fontSize: 11,
+                                      }}
+                                    >
+                                      （{t.bookmarkImportModeOriginalDesc as string}）
+                                    </span>
+                                  </>
+                                ),
+                              },
+                              {
+                                key: 'bookmarks',
+                                k: t.bookmarkImportTableBookmarks as string,
+                                v: countBookmarks(keptNodes),
+                              },
+                              {
+                                key: 'folders',
+                                k: t.bookmarkImportTableFolders as string,
+                                v: countFolders(keptNodes),
+                              },
+                            ].map((row) => (
+                              <tr key={row.key}>
+                                <td
+                                  style={{
+                                    padding: '8px 10px',
+                                    fontSize: 11.5,
+                                    borderBottom: '1px solid var(--border)',
+                                    color: 'var(--text-muted)',
+                                    whiteSpace: 'nowrap',
+                                    width: 88,
+                                    verticalAlign: 'top',
+                                    lineHeight: 1.5,
+                                  }}
+                                >
+                                  {row.k}
+                                </td>
+                                <td
+                                  style={{
+                                    padding: '8px 10px',
+                                    fontSize: 11.5,
+                                    borderBottom: '1px solid var(--border)',
+                                    verticalAlign: 'top',
+                                    lineHeight: 1.5,
+                                  }}
+                                >
+                                  {row.v}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <div style={{ marginTop: 10 }}>
+                          <CustomScrollArea
+                            shellClassName="adl-search-ignore__scroll adl-preview-tree-shell"
+                            scrollClassName="adl-search-ignore__scroll-area"
+                            scrollbarClassName="adl-multitree-scrollbar"
+                            thumbClassName="adl-multitree-scrollbar__thumb"
+                          >
+                            <pre
+                              style={{
+                                margin: 0,
+                                padding: '10px 12px',
+                                fontFamily: 'ui-monospace, Consolas, monospace',
+                                fontSize: 11,
+                                lineHeight: 1.9,
+                                color: 'var(--text-secondary)',
+                                whiteSpace: 'pre',
+                              }}
+                            >
+                              {previewOriginal}
+                            </pre>
+                          </CustomScrollArea>
+                        </div>
+                      </div>
+                    )}
+                    {importMode === 'newTop' && (
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: 'var(--text-muted)',
+                            letterSpacing: '0.09em',
+                            textTransform: 'uppercase',
+                            marginBottom: 6,
+                          }}
+                        >
+                          {t.bookmarkImportCreateTitle as string}
+                        </div>
+                        <label
+                          htmlFor="newDirName"
+                          style={{
+                            display: 'block',
+                            fontSize: 11,
+                            color: 'var(--text-secondary)',
+                            marginBottom: 5,
+                          }}
+                        >
+                          {t.bookmarkImportNameLabel as string}
+                        </label>
+                        <input
+                          id="newDirName"
+                          className={
+                            newDirNameError
+                              ? 'adl-prompt-modal__input adl-prompt-modal__input--error'
+                              : 'adl-prompt-modal__input'
+                          }
+                          aria-invalid={newDirNameError ? true : undefined}
+                          spellCheck={false}
+                          value={newDirName}
+                          onChange={(event) => setNewDirName(event.currentTarget.value)}
+                          placeholder={t.bookmarkImportNamePlaceholder as string}
+                          autoCorrect="off"
+                        />
+                        <div
+                          role="alert"
+                          style={{
+                            fontSize: 10.5,
+                            color: 'var(--danger)',
+                            minHeight: 15,
+                            marginTop: 5,
+                          }}
+                        >
+                          {newDirNameError}
+                        </div>
+                        <div style={{ marginTop: 12 }}>
+                          <CustomScrollArea
+                            shellClassName="adl-search-ignore__scroll adl-preview-tree-shell"
+                            scrollClassName="adl-search-ignore__scroll-area"
+                            scrollbarClassName="adl-multitree-scrollbar"
+                            thumbClassName="adl-multitree-scrollbar__thumb"
+                          >
+                            <pre
+                              style={{
+                                margin: 0,
+                                padding: '10px 12px',
+                                fontFamily: 'ui-monospace, Consolas, monospace',
+                                fontSize: 11,
+                                lineHeight: 1.9,
+                                color: 'var(--text-secondary)',
+                                whiteSpace: 'pre',
+                              }}
+                            >
+                              {previewNewTop}
+                            </pre>
+                          </CustomScrollArea>
+                        </div>
+                        <div
+                          className="hint"
+                          style={{ marginTop: 10, fontSize: 11, color: 'var(--text-secondary)' }}
+                        >
+                          {t.bookmarkImportCreateNote as string}
+                        </div>
+                      </div>
+                    )}
+                    {importMode === 'existing' && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          height: '100%',
+                          minHeight: 0,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: 'var(--text-muted)',
+                            letterSpacing: '0.09em',
+                            textTransform: 'uppercase',
+                            marginBottom: 6,
+                          }}
+                        >
+                          {t.bookmarkImportExistingTitle as string}
+                        </div>
+                        <CustomScrollArea
+                          shellClassName="adl-search-ignore__scroll adl-target-tree-shell"
+                          scrollClassName="adl-search-ignore__scroll-area"
+                          scrollbarClassName="adl-multitree-scrollbar"
+                          thumbClassName="adl-multitree-scrollbar__thumb"
+                        >
+                          <ul
+                            className="adl-search-ignore__tree"
+                            role="tree"
+                            style={{ listStyle: 'none', padding: 4, margin: 0 }}
+                          >
+                            {renderSectionLabel(t.browserCategoryWorkspace as string)}
+                            {directoryRows.wsRows.map(renderDirRow)}
+                            {directoryRows.wsRows.length === 0 ? (
+                              <div
+                                className="adl-bookmark-dir-empty"
+                                style={{ minHeight: 44, fontSize: 'var(--text-xs)' }}
+                              >
+                                {t.browserNoContent as string}
+                              </div>
+                            ) : null}
+                            {renderSectionLabel(t.browserCategoryUserFolder as string)}
+                            {directoryRows.folderRows.length === 0 ? (
+                              <div
+                                className="adl-bookmark-dir-empty"
+                                style={{ minHeight: 44, fontSize: 'var(--text-xs)' }}
+                              >
+                                {t.browserNoContent as string}
+                              </div>
+                            ) : null}
+                            {withPendingRow(directoryRows.folderRows).map(renderDirRow)}
+                          </ul>
+                        </CustomScrollArea>
+                        <div style={{ marginTop: 8 }}>
+                          <div
+                            className="hint"
+                            style={{
+                              margin: 0,
+                              fontSize: 11,
+                              color: 'var(--text-secondary)',
+                              lineHeight: 1.6,
+                            }}
+                          >
+                            {t.bookmarkImportModeTarget as string}：
+                            <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                              {targetPathLabel || (t.bookmarkImportModeNoSelection as string)}
+                            </strong>
+                            {pendingNested ? ` ${t.bookmarkImportNestedBadgePath as string}` : ''}
+                          </div>
+                          <div
+                            className="hint"
+                            style={{
+                              margin: '6px 0 0',
+                              fontSize: 11,
+                              color: 'var(--text-secondary)',
+                              lineHeight: 1.8,
+                            }}
+                          >
+                            {t.bookmarkImportNestedHintPrefix as string}{' '}
+                            <button
+                              type="button"
+                              className="adl-btn adl-btn--secondary adl-btn--sm adl-btn--square"
+                              style={{ verticalAlign: '-2px', margin: '0 2px' }}
+                              disabled={!selectedTargetKey || pendingNested !== null || nesting}
+                              onClick={openNesting}
+                            >
+                              <IconNewFolder size={12} decorative />{' '}
+                              {t.bookmarkImportNestedCreate as string}
+                            </button>{' '}
+                            {t.bookmarkImportNestedHintSuffix as string}
+                          </div>
+                        </div>
+                        {nesting && (
+                          <>
+                            <label
+                              htmlFor="nestedDirName"
+                              style={{
+                                display: 'block',
+                                fontSize: 11,
+                                color: 'var(--text-secondary)',
+                                marginBottom: 5,
+                                marginTop: 10,
+                              }}
+                            >
+                              {t.bookmarkImportNestedNameLabel as string}
+                            </label>
+                            <input
+                              id="nestedDirName"
+                              className="adl-prompt-modal__input"
+                              placeholder={t.bookmarkImportNestedPlaceholder as string}
+                              value={nestInputValue}
+                              onChange={(event) => setNestInputValue(event.currentTarget.value)}
+                              spellCheck={false}
+                              autoCorrect="off"
+                              autoFocus
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  confirmNest();
+                                } else if (event.key === 'Escape') {
+                                  cancelNest();
+                                }
+                              }}
+                            />
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 10,
+                                marginTop: 8,
+                              }}
+                            >
+                              <div
+                                className="hint"
+                                style={{
+                                  margin: 0,
+                                  flex: 1,
+                                  minWidth: 0,
+                                  fontSize: 11,
+                                  color: 'var(--text-secondary)',
+                                  lineHeight: 1.5,
+                                }}
+                              >
+                                {formatT(t as CopyDict, 'bookmarkImportNestedNote', {
+                                  parent:
+                                    directoryRows.folderRows.find(
+                                      (r) => r.node.path === selectedTargetKey,
+                                    )?.node.name ??
+                                    directoryRows.wsRows.find(
+                                      (r) => r.node.path === selectedTargetKey,
+                                    )?.node.name ??
+                                    '',
+                                })}
+                              </div>
+                              <button
+                                type="button"
+                                className="adl-btn adl-btn--secondary adl-btn--sm adl-btn--square"
+                                style={{ flexShrink: 0 }}
+                                onClick={cancelNest}
+                              >
+                                {t.cancel as string}
+                              </button>
+                              <button
+                                type="button"
+                                className="adl-btn adl-btn--primary adl-btn--sm adl-btn--square"
+                                style={{ flexShrink: 0 }}
+                                disabled={!nestInputValue.trim()}
+                                onClick={confirmNest}
+                              >
+                                {t.bookmarkImportNestedConfirm as string}
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <p style={{ margin: '0 0 0 84px', fontSize: 10, color: 'var(--text-muted)' }}>
-                  {t.bookmarkImportDupHint as string}
-                </p>
               </div>
             )}
-
-            {step === 2 ? (
-              <span
-                style={{
-                  display: 'block',
-                  padding: '2px 16px 6px',
-                  fontSize: 11,
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                {formatT(t as CopyDict, 'bookmarkImportWillImport', {
-                  count: keptCount,
-                  folders: keptFolders,
-                })}
-              </span>
-            ) : null}
             <div
               className="adl-prompt-modal__actions adl-prompt-modal__actions--fill"
-              style={{ padding: '0 16px 14px' }}
+              style={{ padding: '14px 16px 14px' }}
             >
               {step === 1 ? (
                 <>
@@ -1208,7 +1932,7 @@ function ImportDialog() {
                   <button
                     type="button"
                     className="adl-btn adl-btn--primary adl-btn--square"
-                    disabled={keptCount === 0 || (targetKind !== 'new' && !targetId)}
+                    disabled={!canConfirm}
                     onClick={handleImport}
                   >
                     {t.bookmarkImportConfirm as string}
@@ -1216,7 +1940,7 @@ function ImportDialog() {
                 </>
               )}
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -1320,6 +2044,23 @@ function allLeafUrls(nodes: TransferNode[], out = new Set<string>()): Set<string
   return out;
 }
 
+/** 移除不含任何书签的目录（递归）：空目录不显示也不导入。 */
+function pruneEmptyTransfer(nodes: TransferNode[]): TransferNode[] {
+  const out: TransferNode[] = [];
+  for (const node of nodes) {
+    if (node.kind === 'bookmark') {
+      out.push(node);
+      continue;
+    }
+    const children = pruneEmptyTransfer(node.folder.children);
+    if (children.length === 0) {
+      continue;
+    }
+    out.push({ ...node, folder: { ...node.folder, children } });
+  }
+  return out;
+}
+
 /** 全部文件夹路径（与树行 path 规则一致）：全部展开/折叠的口径。 */
 function allFolderPaths(nodes: TransferNode[], prefix = '', out: string[] = []): string[] {
   for (const node of nodes) {
@@ -1331,6 +2072,87 @@ function allFolderPaths(nodes: TransferNode[], prefix = '', out: string[] = []):
     allFolderPaths(node.folder.children, path, out);
   }
   return out;
+}
+
+/** 目录行展平：仅目录、带层级与 path，供第 2 步"选择已有目录"树渲染。 */
+function flattenDirectoryTree(
+  nodes: FileTreeRenderableNode[],
+  expanded: ReadonlySet<string>,
+  depth: number,
+  prefix: string,
+): { node: FileTreeRenderableNode; depth: number; path: string }[] {
+  const rows: { node: FileTreeRenderableNode; depth: number; path: string }[] = [];
+  for (const node of nodes) {
+    const path = prefix ? `${prefix} / ${node.name}` : node.name;
+    rows.push({ node, depth, path });
+    if (node.children.length > 0 && expanded.has(node.path)) {
+      rows.push(...flattenDirectoryTree(node.children, expanded, depth + 1, path));
+    }
+  }
+  return rows;
+}
+
+/** 目录及其后代的目录总数（含自身）：层级徽章"N 项"口径。 */
+function countDirectoryDescendants(node: FileTreeRenderableNode): number {
+  let count = node.children.length;
+  for (const child of node.children) {
+    count += countDirectoryDescendants(child);
+  }
+  return count;
+}
+
+/** 收集目录树全部目录 path：步骤 2 目录树"全部展开"口径。 */
+/** 结构预览文本（等宽多行树形）：根目录 + 文件顶层节点；rootName 存在时子节点整体缩进一层。 */
+function formatPreviewTree(rootLabel: string, nodes: TransferNode[], rootName?: string): string {
+  const lines = [rootLabel];
+  if (rootName !== undefined) {
+    lines.push(`└─ ${rootName}`);
+    nodes.forEach((node, i) => {
+      const branch = i === nodes.length - 1 ? '   └─' : '   ├─';
+      const name = node.kind === 'folder' ? node.folder.name : node.title;
+      lines.push(`${branch} ${name}`);
+    });
+    return lines.join('\n');
+  }
+  nodes.forEach((node, i) => {
+    const branch = i === nodes.length - 1 ? '└─' : '├─';
+    const name = node.kind === 'folder' ? node.folder.name : node.title;
+    lines.push(`${branch} ${name}`);
+  });
+  return lines.join('\n');
+}
+
+function collectDirectoryPaths(sections: {
+  workspaceNodes: FileTreeRenderableNode[];
+  userFolderNodes: FileTreeRenderableNode[];
+}): string[] {
+  const out: string[] = [];
+  const walk = (nodes: FileTreeRenderableNode[]) => {
+    for (const node of nodes) {
+      out.push(node.path);
+      walk(node.children);
+    }
+  };
+  walk(sections.workspaceNodes);
+  walk(sections.userFolderNodes);
+  return out;
+}
+
+/** 把选中 key 解析为 { id, parentType }；不支持的 key 返回 null。 */
+function resolveSelectedKey(key: string | null): {
+  id: string;
+  parentType: 'folder' | 'workspace';
+} | null {
+  if (!key) {
+    return null;
+  }
+  if (key.startsWith('workspace:')) {
+    return { id: key.slice('workspace:'.length), parentType: 'workspace' };
+  }
+  if (key.startsWith('folder:')) {
+    return { id: key.slice('folder:'.length), parentType: 'folder' };
+  }
+  return null;
 }
 
 /** 「将要导入」清单：整目录全选中就整条列出，否则下钻，最终每条都可单独移除。 */
