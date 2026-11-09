@@ -325,4 +325,9 @@ export const browserZh = {
   bookmarkImportSkipped: '（跳过 {count} 条重复）',
   bookmarkImportTooLarge: '文件超过 10 MB，无法导入',
   bookmarkImportEmpty: '文件里没有可导入的书签',
+  bookmarkImportSelectAll: '全选',
+  bookmarkImportClear: '清空选择',
+  bookmarkImportPicked: '将要导入',
+  bookmarkImportNothingPicked: '还没有选择书签',
+  bookmarkImportResize: '拖动调整两栏宽度',
 } as const;

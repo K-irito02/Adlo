@@ -341,4 +341,9 @@ export const browserEn = {
   bookmarkImportSkipped: ' ({count} duplicates skipped)',
   bookmarkImportTooLarge: 'File is larger than 10 MB and cannot be imported',
   bookmarkImportEmpty: 'No importable bookmarks found in this file',
+  bookmarkImportSelectAll: 'Select all',
+  bookmarkImportClear: 'Clear selection',
+  bookmarkImportPicked: 'Will import',
+  bookmarkImportNothingPicked: 'Nothing selected yet',
+  bookmarkImportResize: 'Drag to resize columns',
 } as const;

@@ -16,10 +16,19 @@ export interface BookmarkImportResult {
   skipped: number;
 }
 
+/** 菜单直接打开文件选择器选完文件后暂存的解析结果；导入对话框挂载时消费并清空。 */
+export interface BookmarkImportDraft {
+  fileName: string;
+  nodes: TransferNode[];
+  invalidCount: number;
+}
+
 export interface BookmarkTransferSlice {
   /** 当前打开的书签搬运对话框；`null` 表示关闭。 */
   bookmarkTransferDialog: 'export' | 'import' | null;
   setBookmarkTransferDialog: (value: 'export' | 'import' | null) => void;
+  bookmarkImportDraft: BookmarkImportDraft | null;
+  setBookmarkImportDraft: (draft: BookmarkImportDraft | null) => void;
   browserImportBookmarks: (input: {
     nodes: TransferNode[];
     target: BookmarkImportTarget;
@@ -49,6 +58,10 @@ export const createBookmarkTransferSlice = (
   bookmarkTransferDialog: null,
   setBookmarkTransferDialog: (value) => {
     set({ bookmarkTransferDialog: value });
+  },
+  bookmarkImportDraft: null,
+  setBookmarkImportDraft: (draft) => {
+    set({ bookmarkImportDraft: draft });
   },
   browserImportBookmarks: ({ nodes, target, duplicatePolicy }) => {
     const result: BookmarkImportResult = {

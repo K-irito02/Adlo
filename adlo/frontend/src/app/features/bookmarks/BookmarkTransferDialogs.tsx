@@ -4,9 +4,19 @@ import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { CopyDict } from '@i18n';
-import { IconCheck, IconChevronDown, IconChevronRight, IconClose } from '@icons';
+import {
+  IconCheck,
+  IconCheckCheck,
+  IconChevronDown,
+  IconChevronRight,
+  IconClearDisplay,
+  IconClose,
+  IconFoldVertical,
+  IconUnfoldVertical,
+} from '@icons';
 import { parseBookmarkHtml } from './bookmarkHtml';
 import type { TransferNode } from './bookmarkTransferTypes';
+import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import {
   buildBookmarkSelectionTree,
   buildExportNodes,
@@ -207,7 +217,9 @@ function ExportRow({
             title={path}
             onClick={() => (isLeaf ? onToggleSelect(node) : onToggleExpand(node.id))}
           >
-            <span className="adl-search-ignore__label-text">{node.name || path}</span>
+            <span className={`adl-search-ignore__label-text${isLeaf ? '' : ' is-folder'}`}>
+              {node.name || path}
+            </span>
           </button>
         </div>
       </div>
@@ -374,7 +386,7 @@ function ExportDialog() {
         aria-modal="true"
         aria-label={t.bookmarkExportTitle as string}
         tabIndex={-1}
-        style={{ width: 'min(94vw, 780px)', padding: '14px 0 0' }}
+        style={{ width: 'min(94vw, 780px)', padding: '10px 0 0' }}
       >
         <div
           style={{
@@ -433,14 +445,16 @@ function ExportDialog() {
             display: 'flex',
             margin: '0 16px',
             border: '1px solid var(--border)',
-            borderRadius: 4,
+            borderRadius: 0,
             overflow: 'hidden',
             minHeight: 0,
           }}
         >
-          <div
-            className="adl-search-ignore__scroll"
-            style={{ margin: 0, border: 0, borderRadius: 0, flex: 1, maxHeight: 420 }}
+          <CustomScrollArea
+            shellClassName="adl-search-ignore__scroll adl-search-ignore__scroll--flush"
+            scrollClassName="adl-search-ignore__scroll-area"
+            scrollbarClassName="adl-multitree-scrollbar"
+            thumbClassName="adl-multitree-scrollbar__thumb"
           >
             <ul className="adl-search-ignore__tree" role="tree">
               {[...workspaceRows, ...folderRows].map(({ node, depth, path }) => (
@@ -456,7 +470,7 @@ function ExportDialog() {
                 />
               ))}
             </ul>
-          </div>
+          </CustomScrollArea>
           <div
             role="separator"
             aria-orientation="vertical"
@@ -467,18 +481,19 @@ function ExportDialog() {
             tabIndex={0}
             onPointerDown={split.onPointerDown}
             style={{
-              flex: '0 0 7px',
+              flex: '0 0 6px',
               cursor: 'col-resize',
               borderLeft: '1px solid var(--border)',
-              background: 'var(--surface-subtle)',
+              background: 'transparent',
             }}
           />
           <div
+            className="adl-bookmark-picklist"
             style={{
               flex: `0 0 ${split.width}px`,
               padding: '6px 10px',
               overflow: 'auto',
-              maxHeight: 420,
+              height: 420,
             }}
           >
             <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingBottom: 6 }}>
@@ -611,26 +626,37 @@ function ImportDialog() {
     })),
   );
   const showToast = useAppStore((s) => s.showToast);
-
-  const [step, setStep] = useState<1 | 2>(1);
-  const [fileName, setFileName] = useState('');
-  const [nodes, setNodes] = useState<TransferNode[]>([]);
-  const [rootName, setRootName] = useState('');
-  const [invalidCount, setInvalidCount] = useState(0);
-  const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
-  const [targetKind, setTargetKind] = useState<'new' | 'folder' | 'workspace'>('new');
-  const [targetId, setTargetId] = useState('');
-  const [folderName, setFolderName] = useState('');
-  const [duplicatePolicy, setDuplicatePolicy] = useState<'skip' | 'allow'>('skip');
-  const fileRef = useRef<HTMLInputElement | null>(null);
-  const close = useCallback(() => setDialog(null), [setDialog]);
-  const panelRef = useDialogA11y(true, close);
-
+  // 菜单路径在挂载前已选完文件并暂存解析结果到 store；此处一次性消费，避免下次打开复用旧数据
+  const [draft] = useState(() => useAppStore.getState().bookmarkImportDraft);
   const defaultFolderName = useMemo(() => {
     const base = (t.bookmarkImportDefaultName as string) || 'bookmarks';
     const now = new Date();
     return `${base}_${now.getFullYear()}_${now.getMonth() + 1}_${now.getDate()}`;
   }, [t]);
+
+  const [step, setStep] = useState<1 | 2>(1);
+  const [fileName, setFileName] = useState(draft?.fileName ?? '');
+  const [nodes, setNodes] = useState<TransferNode[]>(draft?.nodes ?? []);
+  const [invalidCount, setInvalidCount] = useState(draft?.invalidCount ?? 0);
+  const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
+  const [targetKind, setTargetKind] = useState<'new' | 'folder' | 'workspace'>('new');
+  const [targetId, setTargetId] = useState('');
+  const [folderName, setFolderName] = useState(draft ? defaultFolderName : '');
+  const [duplicatePolicy, setDuplicatePolicy] = useState<'skip' | 'allow'>('skip');
+  // 目录展开状态：默认全部展开（与导入前全选一致），路径即 folder 的树行 path
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () => new Set(draft ? allFolderPaths(draft.nodes) : []),
+  );
+  const split = useResizableSplit();
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const close = useCallback(() => setDialog(null), [setDialog]);
+  const panelRef = useDialogA11y(true, close);
+
+  useEffect(() => {
+    if (draft) {
+      useAppStore.getState().setBookmarkImportDraft(null);
+    }
+  }, [draft]);
 
   const onPickFile = useCallback(
     async (file: File) => {
@@ -647,11 +673,11 @@ function ImportDialog() {
         return;
       }
       setFileName(file.name);
-      setRootName(parsed.rootName.trim());
       setNodes(parsed.nodes);
       setInvalidCount(parsed.invalidCount);
       setFolderName(defaultFolderName);
       setExcluded(new Set());
+      setExpanded(new Set(allFolderPaths(parsed.nodes)));
       setStep(1);
     },
     [defaultFolderName, showToast, t],
@@ -679,10 +705,56 @@ function ImportDialog() {
     });
   }, []);
 
+  const toggleExpand = useCallback((path: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  }, []);
+
+  const allDirPaths = useMemo(() => allFolderPaths(nodes), [nodes]);
+  const allExpanded = allDirPaths.length > 0 && allDirPaths.every((path) => expanded.has(path));
+  const selectAll = useCallback(() => setExcluded(new Set()), []);
+  const clearAll = useCallback(() => setExcluded(new Set(allLeafUrls(nodes))), [nodes]);
+  const expandAll = useCallback(() => setExpanded(new Set(allDirPaths)), [allDirPaths]);
+  const collapseAll = useCallback(() => setExpanded(new Set()), []);
+  // 节点无 id，按对象同一性分配稳定 key（同名同位置的重复书签路径相同，
+  // 用 path+depth 当 key 会撞，React 无法正确回收 DOM，折叠/展开会残留僵尸行）
+  const nodeKeys = useMemo(() => {
+    const map = new Map<TransferNode, string>();
+    let i = 0;
+    const walk = (list: TransferNode[]) => {
+      for (const node of list) {
+        map.set(node, `n${i}`);
+        i += 1;
+        if (node.kind === 'folder') {
+          walk(node.folder.children);
+        }
+      }
+    };
+    walk(nodes);
+    return map;
+  }, [nodes]);
+
   const keptNodes = useMemo(() => pruneTransfer(nodes, excluded), [nodes, excluded]);
   const keptCount = countBookmarks(keptNodes);
   const keptFolders = countFolders(keptNodes);
-  const rows = useMemo(() => flattenTransfer(nodes, 0, ''), [nodes]);
+  const rows = useMemo(() => flattenTransfer(nodes, expanded, 0, ''), [nodes, expanded]);
+  const picked = useMemo(() => resolveImportPicked(nodes, excluded), [nodes, excluded]);
+  const goToStep = useCallback(
+    (target: 1 | 2) => {
+      if (target === 2 && keptCount === 0) {
+        return;
+      }
+      setStep(target);
+    },
+    [keptCount],
+  );
 
   const handleImport = useCallback(() => {
     if (keptCount === 0) {
@@ -734,14 +806,14 @@ function ImportDialog() {
         aria-modal="true"
         aria-label={t.bookmarkImportTitle as string}
         tabIndex={-1}
-        style={{ width: 'min(94vw, 560px)', padding: '14px 0 0' }}
+        style={{ width: 'min(94vw, 780px)', padding: '10px 0 0' }}
       >
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 16px 8px',
+            padding: '0 16px 6px',
           }}
         >
           <span style={{ fontSize: 14, fontWeight: 600 }}>
@@ -786,33 +858,208 @@ function ImportDialog() {
           </div>
         ) : (
           <>
-            <div style={{ display: 'flex', gap: 8, padding: '0 16px 8px', fontSize: 11 }}>
-              <span style={{ color: step === 1 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                1. {t.bookmarkImportStepPick as string}
-              </span>
-              <span style={{ color: step === 2 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                2. {t.bookmarkImportStepTarget as string}
-              </span>
+            {/* 顶部两块区域（胜出方案 A · 分段控制器，按反馈落地） */}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '0 16px 6px' }}>
+              <div
+                role="tablist"
+                style={{
+                  display: 'flex',
+                  gap: 4,
+                  padding: 3,
+                  background: 'var(--surface-subtle)',
+                  borderRadius: 8,
+                }}
+              >
+                {[
+                  { n: 1 as const, label: t.bookmarkImportStepPick as string },
+                  { n: 2 as const, label: t.bookmarkImportStepTarget as string },
+                ].map((seg) => {
+                  const active = step === seg.n;
+                  const disabled = seg.n === 2 && keptCount === 0;
+                  return (
+                    <button
+                      key={seg.n}
+                      role="tab"
+                      aria-selected={active}
+                      disabled={disabled}
+                      onClick={() => goToStep(seg.n)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '4px 14px',
+                        fontSize: 12,
+                        border: 'none',
+                        borderRadius: 6,
+                        cursor: disabled ? 'default' : 'pointer',
+                        background: active ? 'var(--bg-elevated)' : 'transparent',
+                        color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+                        fontWeight: active ? 600 : 400,
+                        boxShadow: active ? '0 1px 2px rgb(0 0 0 / 0.18)' : 'none',
+                      }}
+                    >
+                      <span style={{ fontSize: 10, opacity: 0.7 }}>{seg.n}</span>
+                      {seg.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            {step === 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 16px 6px' }}>
+                <button
+                  type="button"
+                  className="adl-iconstrip__button"
+                  style={{ width: 28, height: 28 }}
+                  title={t.bookmarkImportSelectAll as string}
+                  aria-label={t.bookmarkImportSelectAll as string}
+                  onClick={selectAll}
+                >
+                  <IconCheckCheck size={14} decorative />
+                </button>
+                <button
+                  type="button"
+                  className="adl-iconstrip__button"
+                  style={{ width: 28, height: 28 }}
+                  title={t.bookmarkImportClear as string}
+                  aria-label={t.bookmarkImportClear as string}
+                  onClick={clearAll}
+                >
+                  <IconClearDisplay size={14} decorative />
+                </button>
+                <span
+                  style={{ width: 1, height: 14, background: 'var(--border)', margin: '0 6px' }}
+                />
+                <button
+                  type="button"
+                  className="adl-iconstrip__button"
+                  style={{ width: 28, height: 28 }}
+                  title={allExpanded ? (t.collapseAll as string) : (t.expandAll as string)}
+                  aria-label={allExpanded ? (t.collapseAll as string) : (t.expandAll as string)}
+                  aria-pressed={allExpanded}
+                  onClick={allExpanded ? collapseAll : expandAll}
+                >
+                  {allExpanded ? (
+                    <IconFoldVertical size={14} decorative />
+                  ) : (
+                    <IconUnfoldVertical size={14} decorative />
+                  )}
+                </button>
+                <span style={{ flex: 1 }} />
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {formatT(t as CopyDict, 'bookmarkImportSelected', {
+                    count: keptCount,
+                    total: countBookmarks(nodes),
+                  })}
+                </span>
+              </div>
+            )}
 
             {step === 1 ? (
               <>
                 <div
-                  className="adl-search-ignore__scroll"
-                  style={{ margin: '0 16px', maxHeight: 360 }}
+                  ref={split.frameRef}
+                  style={{
+                    display: 'flex',
+                    margin: '0 16px',
+                    border: '1px solid var(--border)',
+                    borderRadius: 0,
+                    overflow: 'hidden',
+                    minHeight: 0,
+                  }}
                 >
-                  <ul className="adl-search-ignore__tree" role="tree">
-                    {rows.map(({ node, depth, path }) => (
-                      <ImportRow
-                        key={`${path}-${depth}`}
-                        node={node}
-                        depth={depth}
-                        path={path}
-                        excluded={excluded}
-                        onToggle={toggleExcluded}
-                      />
-                    ))}
-                  </ul>
+                  <CustomScrollArea
+                    shellClassName="adl-search-ignore__scroll adl-search-ignore__scroll--flush"
+                    scrollClassName="adl-search-ignore__scroll-area"
+                    scrollbarClassName="adl-multitree-scrollbar"
+                    thumbClassName="adl-multitree-scrollbar__thumb"
+                  >
+                    <ul className="adl-search-ignore__tree" role="tree">
+                      {rows.map(({ node, depth, path }) => (
+                        <ImportRow
+                          key={nodeKeys.get(node) ?? `${path}-${depth}`}
+                          node={node}
+                          depth={depth}
+                          path={path}
+                          excluded={excluded}
+                          expanded={expanded}
+                          onToggleSelect={toggleExcluded}
+                          onToggleExpand={toggleExpand}
+                        />
+                      ))}
+                    </ul>
+                  </CustomScrollArea>
+                  <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label={t.bookmarkImportResize as string}
+                    aria-valuemin={DIVIDER_MIN}
+                    aria-valuemax={DIVIDER_MAX}
+                    aria-valuenow={split.width}
+                    tabIndex={0}
+                    onPointerDown={split.onPointerDown}
+                    style={{
+                      flex: '0 0 7px',
+                      cursor: 'col-resize',
+                      borderLeft: '1px solid var(--border)',
+                      background: 'var(--surface-subtle)',
+                    }}
+                  />
+                  <div
+                    className="adl-bookmark-picklist"
+                    style={{
+                      flex: `0 0 ${split.width}px`,
+                      padding: '6px 10px',
+                      overflow: 'auto',
+                      height: 420,
+                    }}
+                  >
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingBottom: 6 }}>
+                      {t.bookmarkImportPicked as string} ({picked.length})
+                    </div>
+                    {picked.length === 0 ? (
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {t.bookmarkImportNothingPicked as string}
+                      </div>
+                    ) : (
+                      picked.map((item) => (
+                        <div
+                          key={nodeKeys.get(item.node) ?? item.id}
+                          title={item.label}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            fontSize: 11,
+                            padding: '2px 0',
+                          }}
+                        >
+                          <span
+                            style={{
+                              flex: 1,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {item.label}
+                          </span>
+                          <span style={{ color: 'var(--text-muted)' }}>
+                            {item.isDir ? item.count : ''}
+                          </span>
+                          <button
+                            type="button"
+                            className="adl-icon-btn adl-icon-btn--xs"
+                            aria-label={t.browserContextDelete as string}
+                            onClick={() => toggleExcluded(item.node)}
+                          >
+                            <IconClose size={12} decorative />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
                 {invalidCount > 0 ? (
                   <p style={{ margin: '6px 16px 0', fontSize: 10, color: 'var(--text-muted)' }}>
@@ -912,45 +1159,55 @@ function ImportDialog() {
               </div>
             )}
 
+            {step === 2 ? (
+              <span
+                style={{
+                  display: 'block',
+                  padding: '2px 16px 6px',
+                  fontSize: 11,
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                {formatT(t as CopyDict, 'bookmarkImportWillImport', {
+                  count: keptCount,
+                  folders: keptFolders,
+                })}
+              </span>
+            ) : null}
             <div
               className="adl-prompt-modal__actions adl-prompt-modal__actions--fill"
-              style={{ padding: '10px 16px' }}
+              style={{ padding: '0 16px 14px' }}
             >
-              <span style={{ flex: 1, fontSize: 11, color: 'var(--text-secondary)' }}>
-                {step === 1
-                  ? formatT(t as CopyDict, 'bookmarkImportSelected', {
-                      count: keptCount,
-                      total: countBookmarks(nodes),
-                    })
-                  : formatT(t as CopyDict, 'bookmarkImportWillImport', {
-                      count: keptCount,
-                      folders: keptFolders,
-                    })}
-              </span>
-              <button type="button" className="adl-btn adl-btn--secondary" onClick={close}>
-                {t.cancel as string}
-              </button>
               {step === 1 ? (
-                <button
-                  type="button"
-                  className="adl-btn adl-btn--primary"
-                  disabled={keptCount === 0}
-                  onClick={() => setStep(2)}
-                >
-                  {t.bookmarkImportNext as string}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--secondary adl-btn--square"
+                    onClick={close}
+                  >
+                    {t.cancel as string}
+                  </button>
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--primary adl-btn--square"
+                    disabled={keptCount === 0}
+                    onClick={() => setStep(2)}
+                  >
+                    {t.bookmarkImportNext as string}
+                  </button>
+                </>
               ) : (
                 <>
                   <button
                     type="button"
-                    className="adl-btn adl-btn--secondary"
+                    className="adl-btn adl-btn--secondary adl-btn--square"
                     onClick={() => setStep(1)}
                   >
                     {t.bookmarkImportBack as string}
                   </button>
                   <button
                     type="button"
-                    className="adl-btn adl-btn--primary"
+                    className="adl-btn adl-btn--primary adl-btn--square"
                     disabled={keptCount === 0 || (targetKind !== 'new' && !targetId)}
                     onClick={handleImport}
                   >
@@ -966,21 +1223,26 @@ function ImportDialog() {
   );
 }
 
-/** 导入预览行：勾选按叶子 URL 记账，目录行状态由叶子汇总而来。 */
+/** 导入预览行：勾选按叶子 URL 记账；目录可折叠/展开；整行与标签均带完整路径 title。 */
 function ImportRow({
   node,
   depth,
   path,
   excluded,
-  onToggle,
+  expanded,
+  onToggleSelect,
+  onToggleExpand,
 }: {
   node: TransferNode;
   depth: number;
   path: string;
   excluded: ReadonlySet<string>;
-  onToggle: (node: TransferNode) => void;
+  expanded: ReadonlySet<string>;
+  onToggleSelect: (node: TransferNode) => void;
+  onToggleExpand: (path: string) => void;
 }) {
   const isFolder = node.kind === 'folder';
+  const isOpen = expanded.has(path);
   const leaves = collectTransferLeaves(node);
   const included = leaves.filter(
     (leaf) => leaf.kind === 'bookmark' && !excluded.has(leaf.url),
@@ -990,17 +1252,33 @@ function ImportRow({
   return (
     <li className="adl-search-ignore__item">
       <div className="adl-search-ignore__row" title={path}>
-        <CheckBox state={state} label={path} onToggle={() => onToggle(node)} />
+        <CheckBox state={state} label={path} onToggle={() => onToggleSelect(node)} />
         <div className="adl-search-ignore__row-body" style={{ paddingLeft: depth * INDENT }}>
-          <span className="adl-search-ignore__toggle" aria-hidden="true" />
+          {isFolder ? (
+            <button
+              type="button"
+              className="adl-search-ignore__toggle"
+              aria-label={path}
+              aria-expanded={isOpen ? 'true' : 'false'}
+              onClick={() => onToggleExpand(path)}
+            >
+              {isOpen ? (
+                <IconChevronDown size={12} decorative />
+              ) : (
+                <IconChevronRight size={12} decorative />
+              )}
+            </button>
+          ) : (
+            <span className="adl-search-ignore__toggle" aria-hidden="true" />
+          )}
           <button
             type="button"
             className="adl-search-ignore__label"
             title={path}
-            onClick={() => onToggle(node)}
+            onClick={() => (isFolder ? onToggleExpand(path) : onToggleSelect(node))}
           >
-            <span className="adl-search-ignore__label-text">
-              {isFolder ? node.folder.name : node.title}
+            <span className={`adl-search-ignore__label-text${isFolder ? ' is-folder' : ''}`}>
+              {(isFolder ? node.folder.name : node.title) || path}
             </span>
           </button>
           <span style={{ flex: '0 0 auto', fontSize: 10, color: 'var(--text-muted)' }}>
@@ -1014,6 +1292,7 @@ function ImportRow({
 
 function flattenTransfer(
   nodes: TransferNode[],
+  expanded: ReadonlySet<string>,
   depth: number,
   prefix: string,
 ): { node: TransferNode; depth: number; path: string }[] {
@@ -1022,11 +1301,74 @@ function flattenTransfer(
     const name = node.kind === 'folder' ? node.folder.name : node.title;
     const path = prefix ? `${prefix} / ${name}` : name;
     rows.push({ node, depth, path });
-    if (node.kind === 'folder') {
-      rows.push(...flattenTransfer(node.folder.children, depth + 1, path));
+    if (node.kind === 'folder' && expanded.has(path)) {
+      rows.push(...flattenTransfer(node.folder.children, expanded, depth + 1, path));
     }
   }
   return rows;
+}
+
+/** 全部叶子 URL（去重）：全选/清空的口径。 */
+function allLeafUrls(nodes: TransferNode[], out = new Set<string>()): Set<string> {
+  for (const node of nodes) {
+    if (node.kind === 'bookmark') {
+      out.add(node.url);
+      continue;
+    }
+    allLeafUrls(node.folder.children, out);
+  }
+  return out;
+}
+
+/** 全部文件夹路径（与树行 path 规则一致）：全部展开/折叠的口径。 */
+function allFolderPaths(nodes: TransferNode[], prefix = '', out: string[] = []): string[] {
+  for (const node of nodes) {
+    if (node.kind !== 'folder') {
+      continue;
+    }
+    const path = prefix ? `${prefix} / ${node.folder.name}` : node.folder.name;
+    out.push(path);
+    allFolderPaths(node.folder.children, path, out);
+  }
+  return out;
+}
+
+/** 「将要导入」清单：整目录全选中就整条列出，否则下钻，最终每条都可单独移除。 */
+interface ImportPickedItem {
+  id: string;
+  label: string;
+  count: number;
+  isDir: boolean;
+  node: TransferNode;
+}
+
+function resolveImportPicked(
+  nodes: TransferNode[],
+  excluded: ReadonlySet<string>,
+  out: ImportPickedItem[] = [],
+  prefix = '',
+): ImportPickedItem[] {
+  for (const node of nodes) {
+    const leaves = collectTransferLeaves(node);
+    const kept = leaves.filter((l) => l.kind === 'bookmark' && !excluded.has(l.url)).length;
+    if (kept === 0) {
+      continue;
+    }
+    const name = node.kind === 'folder' ? node.folder.name : node.title;
+    const label = prefix ? `${prefix} / ${name}` : name;
+    if (node.kind === 'folder' && kept < leaves.length) {
+      resolveImportPicked(node.folder.children, excluded, out, label);
+      continue;
+    }
+    out.push({
+      id: node.kind === 'folder' ? `dir:${label}` : `leaf:${label}`,
+      label,
+      count: leaves.length,
+      isDir: node.kind === 'folder',
+      node,
+    });
+  }
+  return out;
 }
 
 /** 对话框宿主：挂在 App 层，菜单项只负责开关。 */

@@ -138,7 +138,29 @@
   overflow: hidden;
 }
 
+/* 导出树分栏场景：去掉边框/外边距、占满剩余宽度并固定高度 420px（折叠/展开时对话框不跳动） */
+.adl-search-ignore__scroll--flush {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  flex: 1;
+  min-width: 0;
+  height: 420px;
+  max-height: 420px;
+}
+
+/* 右栏「将要导/出」列表：隐藏原生滚动条（与左树隐藏原生滚动条一致），滚轮/触控板照常滚动 */
+.adl-bookmark-picklist {
+  scrollbar-width: none;
+}
+.adl-bookmark-picklist::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 .adl-search-ignore__scroll-area {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
@@ -246,9 +268,15 @@ button.adl-search-ignore__toggle:hover,
 }
 
 .adl-search-ignore__label-text {
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 目录名比书签名大一点点 */
+.adl-search-ignore__label-text.is-folder {
+  font-size: 12.5px;
 }
 
 .adl-search-ignore__check {
