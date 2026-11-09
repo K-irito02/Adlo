@@ -10,9 +10,10 @@ export type BookmarkImportTarget =
   | { kind: 'workspace'; id: string }
   /**
    * 原目录结构：文件顶层的目录按原样创建为自建目录顶层用户文件夹（同名已存在则合并）；
-   * 文件顶层没有目录的松散书签归入 `looseFolderName` 指定的自建目录顶层文件夹（缺省「顶层书签」）。
+   * 文件顶层没有目录的松散书签归入 `looseFolderName` 指定的自建目录顶层文件夹。
+   * `looseFolderName` 必传：由调用方传 i18n 字典的 `bookmarkImportRootFolderName`。
    */
-  | { kind: 'self-root'; looseFolderName?: string }
+  | { kind: 'self-root'; looseFolderName: string }
   /** 在指定父目录（工作区或用户目录）下先新建嵌套目录再以之为导入目标。 */
   | { kind: 'child-folder'; parentId: string; parentType: 'folder' | 'workspace'; name: string };
 
@@ -283,7 +284,7 @@ export const createBookmarkTransferSlice = (
         }
       } else if (target.kind === 'self-root') {
         // 原目录结构：文件顶层目录 → 自建目录顶层用户文件夹（同名已有则合并）；
-        // 顶层松散书签（如有）→ 归入 `looseFolderName` 指定的顶层用户文件夹（缺省「顶层书签」）。
+        // 顶层松散书签（如有）→ 归入 `looseFolderName`（由调用方传入 i18n 字典的展示文案）
         // 判重范围 = 自建目录整体；每次导入前按当前 nextFolders（含本次已写入条目）重新收集，避免同批次跨根漏判
         const importRoot = (rootName: string, list: TransferNode[]) => {
           const seed = collectSubtreeKeys(
@@ -356,7 +357,7 @@ export const createBookmarkTransferSlice = (
           }
         }
         if (looseBookmarks.length > 0) {
-          const looseName = (target.looseFolderName ?? '').trim() || '顶层书签';
+          const looseName = target.looseFolderName.trim();
           importRoot(looseName, looseBookmarks);
         }
       } else if (target.kind === 'child-folder') {

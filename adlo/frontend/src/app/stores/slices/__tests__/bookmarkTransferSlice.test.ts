@@ -128,7 +128,7 @@ describe('browserImportBookmarks', () => {
 
     const result = store.getState().browserImportBookmarks({
       nodes: [folder('收藏夹栏', [folder('网页收藏', [bookmark('https://b.test/', 'B')])])],
-      target: { kind: 'self-root' },
+      target: { kind: 'self-root', looseFolderName: 'TOP' },
       duplicatePolicy: 'skip',
     });
 
@@ -206,7 +206,7 @@ describe('browserImportBookmarks', () => {
     ];
     const first = store.getState().browserImportBookmarks({
       nodes,
-      target: { kind: 'self-root' },
+      target: { kind: 'self-root', looseFolderName: 'TOP' },
       duplicatePolicy: 'skip',
     });
     // 收藏夹栏 + 网页收藏 + 顶层书签（松散书签容器）
@@ -214,7 +214,7 @@ describe('browserImportBookmarks', () => {
 
     const second = store.getState().browserImportBookmarks({
       nodes,
-      target: { kind: 'self-root' },
+      target: { kind: 'self-root', looseFolderName: 'TOP' },
       duplicatePolicy: 'skip',
     });
     expect(second).toEqual({ importedBookmarks: 0, importedFolders: 0, skipped: 2 });
@@ -243,7 +243,7 @@ describe('browserImportBookmarks', () => {
 
     const result = store.getState().browserImportBookmarks({
       nodes: [folder('新目录', [bookmark('https://a.test/', 'A')])],
-      target: { kind: 'self-root' },
+      target: { kind: 'self-root', looseFolderName: 'TOP' },
       duplicatePolicy: 'skip',
     });
 

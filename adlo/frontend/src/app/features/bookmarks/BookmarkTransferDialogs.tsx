@@ -1574,7 +1574,7 @@ function ImportDialog() {
                                         fontSize: 11,
                                       }}
                                     >
-                                      （{t.bookmarkImportModeOriginalDesc as string}）
+                                      ({t.bookmarkImportModeOriginalDesc as string})
                                     </span>
                                   </>
                                 ),
@@ -1786,7 +1786,7 @@ function ImportDialog() {
                               lineHeight: 1.6,
                             }}
                           >
-                            {t.bookmarkImportModeTarget as string}：
+                            {t.bookmarkImportModeTarget as string}:
                             <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
                               {targetPathLabel || (t.bookmarkImportModeNoSelection as string)}
                             </strong>
