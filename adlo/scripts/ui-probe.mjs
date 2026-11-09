@@ -10,6 +10,8 @@
  *   node scripts/ui-probe.mjs --url http://127.0.0.1:5174 \
  *     --selector ".adl-titlebar__drag-lane" --props width,position,cursor
  *   node scripts/ui-probe.mjs --url <url> --selector A --selector B --pseudo ::after
+ *   node scripts/ui-probe.mjs --url <url> --selector .adl-terminal-region-actions \
+ *     --props opacity --hover .adl-terminal-region-actions
  *
  * 输出：JSON（每个 selector 的计算样式；缺失的 selector 标记 missing）。
  */
@@ -27,6 +29,7 @@ export function parseArgs(argv) {
     selectors: [],
     props: [...DEFAULT_PROPS],
     pseudo: "",
+    hover: "",
     timeout: 60000,
     port: 9333,
     headless: true,
@@ -54,6 +57,9 @@ export function parseArgs(argv) {
         break;
       case "--pseudo":
         options.pseudo = next();
+        break;
+      case "--hover":
+        options.hover = next();
         break;
       case "--timeout":
         options.timeout = Number.parseInt(next(), 10);
@@ -209,6 +215,26 @@ async function waitForSelector(client, selector, timeout) {
   throw new Error(`selector not found within ${timeout}ms: ${selector}`);
 }
 
+/** 把真实指针移到目标元素中心，使 `:hover` / `:focus-within` 等状态生效后再读计算样式。 */
+async function hoverElement(client, selector) {
+  await client.send("DOM.enable");
+  const { root } = await client.send("DOM.getDocument", { depth: 1 });
+  const { nodeId } = await client.send("DOM.querySelector", { nodeId: root.nodeId, selector });
+  if (!nodeId) throw new Error(`hover selector not found: ${selector}`);
+  const { model } = await client.send("DOM.getBoxModel", { nodeId });
+  const quad = model.border;
+  const x = (quad[0] + quad[2] + quad[4] + quad[6]) / 4;
+  const y = (quad[1] + quad[3] + quad[5] + quad[7]) / 4;
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x,
+    y,
+    button: "none",
+    clickCount: 0,
+  });
+  await delay(150);
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const browser = resolveBrowserPath();
@@ -241,9 +267,12 @@ async function main() {
     client = await connectCdp(page.webSocketDebuggerUrl);
     await client.send("Runtime.enable");
 
-    // 等应用启动（dev 模式首屏可能 30s+）。
-    for (const selector of options.selectors) {
+    // 等应用启动（dev 模式首屏可能 30s+）；hover 目标也必须存在。
+    for (const selector of new Set([...options.selectors, options.hover].filter(Boolean))) {
       await waitForSelector(client, selector, options.timeout);
+    }
+    if (options.hover) {
+      await hoverElement(client, options.hover);
     }
 
     const result = await evaluate(

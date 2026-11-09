@@ -13,6 +13,27 @@
   position: relative;
 }
 
+/* 菜单卡片与 toggle/子卡片之间的 2px/6px 几何空隙：用透明桥接伪元素把空隙纳入
+   组合命中区，使「移出即关」不会在鼠标跨越空隙时误判为移出。
+   只在菜单/子菜单展开时生效，避免关闭态在工具栏下方留下透明命中带。 */
+.adl-terminal-shell-menu.is-open::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.adl-terminal-shell-dropdown .adl-menu__item--has-sub.is-open::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 100%;
+  width: 8px;
+  height: 100%;
+}
+
 .adl-menu__dropdown--right {
   position: absolute !important;
   top: 0 !important;
@@ -527,10 +548,11 @@
   transition: opacity var(--duration-150) var(--ease-default);
 }
 
-/* 悬停对应窗格时显露（含键盘 focus-within 可达性）；其余时间隐藏。
-   祖先取 `.adl-terminal-pane`（与自由手柄同级语义，见跟进 8）。 */
-.adl-terminal-pane:hover .adl-terminal-region-actions,
-.adl-terminal-pane:focus-within .adl-terminal-region-actions {
+/* 仅当指针悬停在这三颗按钮所在区域（或键盘焦点进入按钮）时显露；
+   悬停/聚焦窗格其它位置不再显示，避免动作按钮常驻遮挡终端内容。
+   隐藏态容器仍常驻可命中（见上），鼠标移到右上角即可触发。 */
+.adl-terminal-region-actions:hover,
+.adl-terminal-region-actions:focus-within {
   opacity: 1;
 }
 
@@ -656,11 +678,14 @@
 
 /* 方块网格：列数与终端实时显示区一致（computeGrid 行主序 cols×rows），
    组件以内联 gridTemplateColumns 注入固定列宽（LAYOUT_CARD_TILE_PX）；
-   此处仅保留兜底与间距。窗格数不足末行留空占位（--placeholder）。 */
+   此处仅保留兜底与间距。窗格数不足末行留空占位（--placeholder）。
+   方块整体水平居中：列数固定时，居中由 justify-content 完成（拖拽落点按布局坐标
+   换算——内容盒左缘 + 居中偏移，块宽取 offsetWidth，不读 tile 的 rect；
+   见 TerminalLayoutCard.readSlotMetrics）。 */
 .adl-layout-card__grid {
   display: grid;
   grid-template-columns: repeat(4, 40px);
-  justify-content: start;
+  justify-content: center;
   gap: var(--space-2, 8px);
 }
 
@@ -673,8 +698,15 @@
   height: 40px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  /* 方块底色为固定卡片色板（paneColors，非主题语义色）：亮暗主题下均需可读的
-     反色前景，故走专用 token `--text-on-pane`（定义于 tokens.css），不写裸色值。 */
+  /* 底色 = 身份色按主题向白/黑混合（亮色淡彩、暗色深彩）：首行是不支持
+     color-mix 时的回退，身份色由组件写成 `--pane-tile-color` 自定义属性。 */
+  background: var(--pane-tile-color);
+  background: color-mix(
+    in oklab,
+    var(--pane-tile-color) var(--layout-card-tile-identity-weight),
+    var(--layout-card-tile-tint)
+  );
+  /* 方块前景随主题反色（亮色淡彩用深字、暗色深彩用白字），定义于 themes.css。 */
   color: var(--text-on-pane);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);

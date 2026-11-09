@@ -166,6 +166,8 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
   // 用 useLayoutEffect 在 DOM 变更后、浏览器绘制前复位，避免切标签时出现一帧“空窗格”。
   const [maximizedPaneId, setMaximizedPaneId] = useState<string | null>(null);
   const paneCount = tab?.panes.length ?? 0;
+  // 防御性：标签契约保证至少 1 格；空值只会在异常态出现，仍按禁用处理。
+  const canAddPane = paneCount > 0;
   useLayoutEffect(() => {
     setMaximizedPaneId(null);
   }, [terminalTabId, paneCount, view.layout.mode]);
@@ -236,6 +238,7 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
               className="adl-tool-context__iconbtn"
               onClick={() => view.handleAddPane()}
               aria-label={t.terminalAddPane}
+              disabled={!canAddPane}
             >
               <IconAddTerminal size={14} decorative />
             </button>

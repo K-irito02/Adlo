@@ -1,5 +1,5 @@
 // src/app/components/terminal/TerminalLayoutCard.tsx
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { IconClose, IconSwapPositions } from '@icons';
 import { paneColor } from '@features/terminal/paneColors';
 import { computeGrid } from '@features/terminal/terminalPaneLayout';
@@ -123,9 +123,9 @@ export function TerminalLayoutCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey]);
 
-  // 落点换算度量：从 CSS 实测（原点扣内边距+边框、步长取实测块宽+列间距），
-  // 逻辑不再硬依赖 40/8 常量；无样式环境（测试）回退常量。拖拽中冻结一份，
-  // FLIP 每次现测（低频，无性能问题）。
+  // 落点换算度量：原点按“布局坐标”计算（居中后的内容盒左缘 + 网格内边距/边框），
+  // 不使用 tile 的 getBoundingClientRect——FLIP 300ms 过渡期间 rect 停在动画中途，
+  // 会让快速连拖的落点整体偏一格；块宽用 offsetWidth（不受 scale/transform 影响）。
   const readSlotMetrics = () => {
     const grid = gridRef.current;
     if (!grid) {
@@ -138,17 +138,23 @@ export function TerminalLayoutCard({
       return Number.isFinite(parsed) ? parsed : undefined;
     };
     const padL = num(style.paddingLeft) ?? 0;
+    const padR = num(style.paddingRight) ?? 0;
     const padT = num(style.paddingTop) ?? 0;
     const borderL = num(style.borderLeftWidth) ?? 0;
+    const borderR = num(style.borderRightWidth) ?? 0;
     const borderT = num(style.borderTopWidth) ?? 0;
-    const gap = num(style.columnGap);
-    // 首块实测宽（失败回退常量；jsdom 无样式时 rect 全 0，同样回退）。
-    const firstTile = grid.querySelector('.adl-layout-card__square');
-    const tileW = firstTile ? firstTile.getBoundingClientRect().width : 0;
+    const gap = num(style.columnGap) ?? TILE_GAP_PX;
+    const firstTile = grid.querySelector<HTMLElement>('.adl-layout-card__square');
+    const tileW = firstTile?.offsetWidth ?? 0;
+    const effectiveTileW = tileW > 0 ? tileW : LAYOUT_CARD_TILE_PX;
+    // `.adl-layout-card__grid` 使用 justify-content:center：按列数与间距反推内容宽度，
+    // 再求内容盒内的左缘偏移；rows 顶对齐，纵轴无需分配剩余空间。
+    const contentW = cols * effectiveTileW + Math.max(0, cols - 1) * gap;
+    const contentBoxW = rect.width - borderL - borderR - padL - padR;
     return {
-      originX: rect.left + padL + borderL,
-      originY: rect.top + padT + borderT,
-      step: (tileW > 0 ? tileW : LAYOUT_CARD_TILE_PX) + (gap ?? TILE_GAP_PX),
+      originX: rect.left + borderL + padL + Math.max(0, (contentBoxW - contentW) / 2),
+      originY: rect.top + borderT + padT,
+      step: effectiveTileW + gap,
     };
   };
 
@@ -444,7 +450,7 @@ export function TerminalLayoutCard({
                 }
               }}
               className={`adl-layout-card__square${selected ? ' is-selected' : ''}${isDragging ? ' is-dragging' : ''}`}
-              style={{ background: paneColor(pane.colorIndex) }}
+              style={{ '--pane-tile-color': paneColor(pane.colorIndex) } as CSSProperties}
               role="button"
               tabIndex={0}
               aria-pressed={selected}

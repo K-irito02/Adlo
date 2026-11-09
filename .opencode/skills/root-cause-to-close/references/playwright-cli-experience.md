@@ -20,6 +20,14 @@
 | 5 | Windows URL 含 `&` 时用 `playwright-cli --% goto "…&…"` | PowerShell 会把 `&` 当命令分隔符截断 URL（技能自带说明，照做） |
 | 6 | **禁止裸跑 `requests`** | 一次实测输出 3719 条静态请求（JS/CSS/字体），既截断又烧上下文。先 `--raw requests` 落盘再过滤，或只看单条 `request <n>`；静态资源会淹没业务请求 |
 
+### 2.1 Windows 下写复杂脚本（2026-11 实测）
+
+- PowerShell 内联 `run-code "async page => { … }"` 遇到嵌套引号/选择器极易被截断或转义错；**把 JS 写到 `$env:TEMP\verify-*.js`，用 `playwright-cli run-code --filename=...`**。文件末尾不要加分号（CLI 会当作表达式包装）。
+- 找元素优先 `page.evaluate(() => [...document.querySelectorAll('button')].find(...))` 或 `getByRole/getByLabel`；不要用全量 accessibility snapshot 找按钮，一次 depth 12–16 的树可能上千行。
+- 真实鼠标跨空隙（菜单 2px、子菜单 6px）必须 `page.mouse.move(x, y, { steps: 30 })`；缺省单步跳变会直接落到目标，自动化天然复现不了“移出即关”的误关。
+- 读取 `[DBG-*]` 调试日志用 `playwright-cli console debug`（默认 `console` 只显示 info 及以上）。
+- 长会话用命名会话：`playwright-cli -s=terminal open ...`，后续命令带 `-s=terminal`；默认会话可能在长空闲后被环境关闭，重开还要重建终端标签。
+
 ## 3. 与本仓库联动的实测经验
 
 - 按 `docs/development/log-system-manual.md` §1 启动：`pnpm dev:preview -- --log-level trace --terminal-log-mode multi`。**端口可能漂移**（实测 5173 被占 → 实际 5174），不要硬编码，以启动日志 `[adl-run]` / vite 输出的实际地址为准。

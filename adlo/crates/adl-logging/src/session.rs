@@ -26,19 +26,32 @@ pub struct PruneFailure {
 pub struct SessionTracker {
     prefix: String,
     log_dir: PathBuf,
+    base_ts: String,
     current_ts: String,
+    part: u32,
 }
 
 impl SessionTracker {
     pub fn new(log_dir: &Path, prefix: &str) -> Self {
+        let base_ts = session_timestamp();
         Self {
             prefix: prefix.to_string(),
             log_dir: log_dir.to_path_buf(),
-            current_ts: session_timestamp(),
+            base_ts: base_ts.clone(),
+            current_ts: base_ts,
+            part: 0,
         }
     }
 
     pub fn current_timestamp(&self) -> &str {
+        &self.current_ts
+    }
+
+    /// 当前会话文件达到大小上限时切换到下一分片：时间戳保持同一会话基准，
+    /// 追加 `_pN` 后缀（`.` 排在 `_` 前，prune 时基础文件先于分片删除）。
+    pub fn rotate_session(&mut self) -> &str {
+        self.part += 1;
+        self.current_ts = format!("{}-p{}", self.base_ts, self.part);
         &self.current_ts
     }
 
@@ -153,6 +166,16 @@ mod tests {
         assert_eq!(&ts[4..5], "-");
         assert_eq!(&ts[7..8], "-");
         assert_eq!(&ts[10..11], "_");
+    }
+
+    #[test]
+    fn rotate_session_keeps_base_and_increments_part() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut tracker = SessionTracker::new(dir.path(), "test");
+        let base = tracker.current_timestamp().to_string();
+        assert_eq!(tracker.rotate_session(), format!("{base}-p1"));
+        assert_eq!(tracker.rotate_session(), format!("{base}-p2"));
+        assert!(tracker.session_file_path().to_string_lossy().ends_with(&format!("{base}-p2.txt")));
     }
 
     #[test]

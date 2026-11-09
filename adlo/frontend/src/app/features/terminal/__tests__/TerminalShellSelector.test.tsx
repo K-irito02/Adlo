@@ -32,9 +32,11 @@ const shellItems: TerminalShellMenuItem[] = [
 function Harness({
   onToggleSpy,
   onCloseSpy,
+  items = shellItems,
 }: {
   onToggleSpy?: () => void;
   onCloseSpy?: () => void;
+  items?: TerminalShellMenuItem[];
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
@@ -42,7 +44,7 @@ function Harness({
       currentProfile="powershell"
       currentProfileLabel="PowerShell"
       menuOpen={menuOpen}
-      menuItems={shellItems}
+      menuItems={items}
       menuRef={createRef<HTMLDivElement | null>()}
       onCreateTab={vi.fn()}
       onToggle={() => {
@@ -109,7 +111,7 @@ describe('TerminalShellSelector hover open', () => {
     expect(onToggleSpy).not.toHaveBeenCalled();
   });
 
-  it('closes the menu 2s after leaving all zones', () => {
+  it('closes immediately when the pointer leaves the whole selector composite', () => {
     mockHoverCapable(true);
     const onCloseSpy = vi.fn();
     render(
@@ -119,17 +121,40 @@ describe('TerminalShellSelector hover open', () => {
     );
     // open via click (works on every device; click alone fires no mouseenter)
     fireEvent.click(screen.getByLabelText(/Select shell type/));
-    expect(screen.getByRole('menu')).toBeDefined();
-    // leave the menu card: its own 2s timer fires exactly once (idempotent close)
-    fireEvent.mouseLeave(screen.getByRole('menu'));
-    act(() => {
-      vi.advanceTimersByTime(1999);
-    });
-    expect(onCloseSpy).not.toHaveBeenCalled();
-    act(() => {
-      vi.advanceTimersByTime(1);
+    const menu = screen.getByRole('menu');
+    expect(menu).toBeDefined();
+    // 移出整体：无延迟立即关闭（组合内部的跨缝路径由 CSS 桥接伪元素覆盖，
+    // jsdom 无布局无法验证，改由 Playwright 真实鼠标补证据，见进度文件）。
+    fireEvent.mouseOut(menu.closest('.adl-menu') as Element, {
+      relatedTarget: document.body,
     });
     expect(onCloseSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides an open submenu immediately when the pointer leaves the submenu card', () => {
+    mockHoverCapable(true);
+    const items: TerminalShellMenuItem[] = [
+      {
+        id: 'workspace-section',
+        label: 'Bind workspace',
+        hasSubMenu: true,
+        subMenu: [{ id: 'workspace-independent', label: 'Independent', workspaceId: '' }],
+      },
+    ];
+    render(
+      <TestProvider>
+        <Harness items={items} />
+      </TestProvider>,
+    );
+    fireEvent.click(screen.getByLabelText(/Select shell type/));
+    const parentItem = screen.getByText('Bind workspace').closest('.adl-menu__item--has-sub');
+    expect(parentItem).not.toBeNull();
+    fireEvent.mouseEnter(parentItem as Element);
+    const menus = screen.getAllByRole('menu');
+    expect(menus).toHaveLength(2);
+    // 无 200ms 等待：指针离开子卡片（移回父项）立即收起子卡片，主菜单保留
+    fireEvent.mouseOut(menus[1], { relatedTarget: parentItem as Element });
+    expect(screen.getAllByRole('menu')).toHaveLength(1);
   });
 
   it('renders the full workspace name (width-driven truncation) and exposes it in the accessible name', () => {

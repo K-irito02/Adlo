@@ -97,7 +97,7 @@ function makePanelTab(id: string, count: number): TerminalTabState {
     title: 'PowerShell',
     profile: 'powershell',
     panes,
-    activePaneId: panes[0].id,
+    activePaneId: panes[0]?.id ?? '',
     isPinned: false,
     sortOrder: 1,
     location: 'panel',
@@ -138,6 +138,21 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+describe('TerminalPanel 增加终端禁用态', () => {
+  it('有窗格时可用', () => {
+    renderPanel();
+    const button = screen.getByRole('button', { name: '增加终端' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+  });
+
+  it('无活动标签时禁用', () => {
+    useAppStore.setState({ terminalTabs: [], terminalTabsById: {}, terminalActiveTabId: '' });
+    renderPanel();
+    const button = screen.getByRole('button', { name: '增加终端' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+  });
 });
 
 describe('TerminalPanel 自定义布局卡片接线', () => {

@@ -7,14 +7,10 @@ import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
 
-/** 无悬停 2s 后自动关闭菜单卡片（三区各自计时） */
-const AUTO_CLOSE_MS = 2000;
 /** 右半 toggle 悬停意图延迟：过滤路过误触 */
 const HOVER_OPEN_DELAY_MS = 120;
-/** 子卡片显隐延迟：管 activeSubMenuId，与 2s 整单自动关闭职责分离 */
-const SUBMENU_LEAVE_DELAY_MS = 200;
 
-/** 是否允许悬停超时关闭：仅悬停设备启用；未知环境默认可关闭（stuck-open 比误关更差） */
+/** 是否允许悬停开门：仅悬停设备启用；未知环境默认启用（触屏靠点击，鼠标靠悬停）。 */
 function canHoverDismiss(): boolean {
   return (
     typeof window === 'undefined' ||
@@ -95,139 +91,63 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
     }
   }, [activeSubMenuId, menuRef]);
 
-  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // menuOpen/onClose 的新鲜镜像：延迟回调读新鲜值，避免闭包拿到过期值
+  // menuOpen 的新鲜镜像：悬停开门回调读新鲜值，避免闭包拿到过期值
   //（hover 后 120ms 内若已通过点击开门，开门回调不再 toggle，保证语义恒为 open）
   const menuOpenRef = useRef(menuOpen);
-  const onCloseRef = useRef(onClose);
   useEffect(() => {
     menuOpenRef.current = menuOpen;
-    onCloseRef.current = onClose;
-  }, [menuOpen, onClose]);
-
-  // 三区独立自动关闭：右半 toggle / 菜单卡片 / 子卡片各持一个 2s 计时器。
-  // 触发时检查实时悬停位：任一区仍被悬停则跳过 —— 子卡片 DOM 嵌套在菜单容器内，
-  // 悬停子卡片即视为仍在菜单区内，主菜单不会被自己的计时器关掉。
-  const hoverZonesRef = useRef({ toggle: false, menu: false, sub: false });
-  const toggleCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const menuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const subCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const fireAutoClose = useCallback(
-    (timerRef: { current: ReturnType<typeof setTimeout> | null }) => {
-      timerRef.current = null;
-      const zones = hoverZonesRef.current;
-      if (!zones.toggle && !zones.menu && !zones.sub) {
-        onCloseRef.current();
-      } else if (canHoverDismiss()) {
-        // 跳过即重排：指针静止悬停时保持 2s 轮询，否则"计时器耗尽 + 指针不动"= 永久不关
-        timerRef.current = setTimeout(() => fireAutoClose(timerRef), AUTO_CLOSE_MS);
-      }
-    },
-    [],
-  );
-
-  const cancelAutoClose = useCallback(
-    (timerRef: { current: ReturnType<typeof setTimeout> | null }) => {
-      if (timerRef.current !== null) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    },
-    [],
-  );
-
-  const scheduleAutoClose = useCallback(
-    (timerRef: { current: ReturnType<typeof setTimeout> | null }) => {
-      if (!canHoverDismiss()) {
-        return;
-      }
-      cancelAutoClose(timerRef);
-      timerRef.current = setTimeout(() => fireAutoClose(timerRef), AUTO_CLOSE_MS);
-    },
-    [cancelAutoClose, fireAutoClose],
-  );
+  }, [menuOpen]);
 
   useEffect(() => {
     return () => {
-      if (leaveTimerRef.current !== null) {
-        clearTimeout(leaveTimerRef.current);
-        leaveTimerRef.current = null;
-      }
       if (openTimerRef.current !== null) {
         clearTimeout(openTimerRef.current);
         openTimerRef.current = null;
       }
-      for (const timerRef of [toggleCloseTimerRef, menuCloseTimerRef, subCloseTimerRef]) {
-        if (timerRef.current !== null) {
-          clearTimeout(timerRef.current);
-          timerRef.current = null;
-        }
-      }
     };
   }, []);
 
+  // 指针移出「toggle + 菜单 + 子菜单」整体才关闭；在整体内部移动不关。
+  // 子菜单 DOM 嵌套在菜单内，故离开子菜单回到父菜单属于内部移动。
+  const handleMenuContainerMouseLeave = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      const next = event.relatedTarget;
+      if (!(next instanceof Node) || !event.currentTarget.contains(next)) {
+        onClose();
+      }
+    },
+    [onClose],
+  );
+
   const handleMouseEnterSubMenu = useCallback((itemId: string) => {
-    if (leaveTimerRef.current) {
-      clearTimeout(leaveTimerRef.current);
-      leaveTimerRef.current = null;
-    }
     setActiveSubMenuId(itemId);
   }, []);
 
+  /** 父项离开时收起子卡片（子卡片自身离开也走同一出口）。 */
   const handleMouseLeaveSubMenu = useCallback(() => {
-    leaveTimerRef.current = setTimeout(() => {
-      setActiveSubMenuId(null);
-      leaveTimerRef.current = null;
-    }, SUBMENU_LEAVE_DELAY_MS);
+    setActiveSubMenuId(null);
   }, []);
 
-  const handleMouseEnterSubMenuContent = useCallback(() => {
-    hoverZonesRef.current.sub = true;
-    cancelAutoClose(subCloseTimerRef);
-    if (leaveTimerRef.current) {
-      clearTimeout(leaveTimerRef.current);
-      leaveTimerRef.current = null;
-    }
-  }, [cancelAutoClose]);
-
   const handleMouseLeaveSubMenuContent = useCallback(() => {
-    hoverZonesRef.current.sub = false;
-    scheduleAutoClose(subCloseTimerRef);
     setActiveSubMenuId(null);
-  }, [scheduleAutoClose]);
+  }, []);
 
   const handleWorkspaceSelect = useCallback(
     (workspaceId: string) => {
       setTerminalWorkspaceId(workspaceId);
       setActiveSubMenuId(null);
-      // 子卡片卸载不触发 mouseleave：不清 sub 位会导致 fireAutoClose 永久跳过、
-      // 主菜单此后再也不自动关闭
-      hoverZonesRef.current.sub = false;
-      cancelAutoClose(subCloseTimerRef);
     },
-    [setTerminalWorkspaceId, cancelAutoClose],
+    [setTerminalWorkspaceId],
   );
 
-  // 关菜单即清零全区悬停位并取消悬置计时：治愈选择即关 / 外部点击关后的
-  // 残留位（如 profile 选择时指针仍在菜单内）与悬置空计时器；
-  // openTimer 也一并取消：120ms 内双击 toggle（开→关）后悬置的开门计时不再误重开
+  // 关闭菜单时清空子菜单与悬置的开门计时（120ms 内双击 toggle 后不再误重开）。
   useEffect(() => {
     if (!menuOpen) {
-      hoverZonesRef.current.toggle = false;
-      hoverZonesRef.current.menu = false;
-      hoverZonesRef.current.sub = false;
-      for (const timerRef of [
-        toggleCloseTimerRef,
-        menuCloseTimerRef,
-        subCloseTimerRef,
-        openTimerRef,
-      ]) {
-        if (timerRef.current !== null) {
-          clearTimeout(timerRef.current);
-          timerRef.current = null;
-        }
+      setActiveSubMenuId(null);
+      if (openTimerRef.current !== null) {
+        clearTimeout(openTimerRef.current);
+        openTimerRef.current = null;
       }
     }
   }, [menuOpen]);
@@ -235,8 +155,6 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
   // 右半 toggle 的悬停开门：意图延迟过滤路过误触，离开即取消；
   // 无悬停能力设备（触屏）保持纯点击，避免 tap 的 mouseEnter+click 双触发把菜单闪关。
   const handleToggleMouseEnter = useCallback(() => {
-    hoverZonesRef.current.toggle = true;
-    cancelAutoClose(toggleCloseTimerRef);
     if (menuOpenRef.current) {
       return;
     }
@@ -252,29 +170,21 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
         onToggle();
       }
     }, HOVER_OPEN_DELAY_MS);
-  }, [onToggle, cancelAutoClose]);
+  }, [onToggle]);
 
   const handleToggleMouseLeave = useCallback(() => {
-    hoverZonesRef.current.toggle = false;
     if (openTimerRef.current !== null) {
       clearTimeout(openTimerRef.current);
       openTimerRef.current = null;
     }
-    scheduleAutoClose(toggleCloseTimerRef);
-  }, [scheduleAutoClose]);
-
-  const handleMenuMouseEnter = useCallback(() => {
-    hoverZonesRef.current.menu = true;
-    cancelAutoClose(menuCloseTimerRef);
-  }, [cancelAutoClose]);
-
-  const handleMenuMouseLeave = useCallback(() => {
-    hoverZonesRef.current.menu = false;
-    scheduleAutoClose(menuCloseTimerRef);
-  }, [scheduleAutoClose]);
+  }, []);
 
   return (
-    <div ref={menuRef} className="adl-menu adl-file-context__menu">
+    <div
+      ref={menuRef}
+      className={`adl-menu adl-file-context__menu adl-terminal-shell-menu${menuOpen ? ' is-open' : ''}`}
+      onMouseLeave={handleMenuContainerMouseLeave}
+    >
       <div className={`adl-split-pill${menuOpen ? ' is-open' : ''}`}>
         <TooltipSimple content={t.menuNewTerminal} placement="top">
           <button
@@ -312,8 +222,6 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
         <div
           className="adl-menu__dropdown adl-file-context__dropdown adl-terminal-shell-dropdown"
           role="menu"
-          onMouseEnter={handleMenuMouseEnter}
-          onMouseLeave={handleMenuMouseLeave}
         >
           {menuItems.map((item) =>
             'separator' in item ? (
@@ -332,7 +240,6 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
                     className="adl-menu__dropdown adl-menu__dropdown--sub adl-menu__dropdown--right"
                     role="menu"
                     ref={subMenuRef}
-                    onMouseEnter={handleMouseEnterSubMenuContent}
                     onMouseLeave={handleMouseLeaveSubMenuContent}
                   >
                     {item.subMenu.map((subItem: WorkspaceMenuItem) => (

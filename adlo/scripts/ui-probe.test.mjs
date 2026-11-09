@@ -20,6 +20,19 @@ test("parseArgs collects repeatable selectors and prop lists", () => {
   assert.deepEqual(options.props, ["width", "position"]);
   assert.equal(options.timeout, 1200);
   assert.equal(options.headless, true);
+  assert.equal(options.hover, "");
+});
+
+test("parseArgs accepts a hover selector", () => {
+  const options = parseArgs([
+    "--url",
+    "http://x",
+    "--selector",
+    ".target",
+    "--hover",
+    ".trigger",
+  ]);
+  assert.equal(options.hover, ".trigger");
 });
 
 test("parseArgs rejects missing url / selectors / unknown flags", () => {

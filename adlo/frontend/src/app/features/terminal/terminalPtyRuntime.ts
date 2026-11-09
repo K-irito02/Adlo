@@ -3,11 +3,7 @@ import type { TerminalProfile } from '@stores/types';
 import { activePaneOf } from '@stores/slices/terminalSliceTypes';
 import { normalizeReportedCwd, scanOsc99 } from './terminalCwdOsc';
 import { terminalCwdStore } from './terminalCwdStore';
-import {
-  terminalXtermPool,
-  readTerminalFontFamily,
-  readTerminalFontSize,
-} from './terminalXtermPool';
+import { terminalXtermPool } from './terminalXtermPool';
 import { shouldFitTerminal } from './terminalFitGuard';
 import { flushCrossSliceWrites } from '@stores/storageHelpers';
 
@@ -16,6 +12,25 @@ const SHELL_MAP: Record<TerminalProfile, string> = {
   bash: 'bash',
   cmd: 'cmd',
 };
+
+/** Dev-only Performance 标记：不写 console、不进生产包，供 DevTools Performance 面板排查启动耗时。 */
+function devMark(name: string, id: string): void {
+  if (!import.meta.env.DEV || typeof performance === 'undefined') {
+    return;
+  }
+  performance.mark(`adl:terminal:${name}:${id}`);
+}
+
+function devMeasure(name: string, start: string, end: string): void {
+  if (!import.meta.env.DEV || typeof performance === 'undefined') {
+    return;
+  }
+  try {
+    performance.measure(`adl:terminal:${name}`, start, end);
+  } catch {
+    // 标记缺失（如生产裁剪/异常早退）时忽略，测量本身是诊断辅助
+  }
+}
 
 /**
  * 按**窗格身份**在其宿主容器内查找实时终端画布。
@@ -76,6 +91,22 @@ export class TerminalPtyRuntime {
   private tabCwdsLoaded = false;
   /** sessionId → OSC 9;9 跨块尾部片段 */
   private oscCarry = new Map<string, string>();
+  /** 已退役/终止的会话：忽略其尾随输出，避免重新写入已释放或已复用的池条目。 */
+  private retiredSessionIds = new Set<string>();
+  /** dev-only：首次输出已计时的会话（避免每次输出重复 measure）。 */
+  private devMeasuredFirstOutput = new Set<string>();
+
+  private markRetired = (sessionId: string): void => {
+    this.retiredSessionIds.add(sessionId);
+    // 只保留最近 4096 条墓碑，超限按插入序淘汰最旧一条；不整表清空，
+    // 避免极端情况下把仍在产出尾随输出的旧会话放回缓冲路径。
+    if (this.retiredSessionIds.size > 4096) {
+      const oldest = this.retiredSessionIds.values().next().value;
+      if (oldest !== undefined) {
+        this.retiredSessionIds.delete(oldest);
+      }
+    }
+  };
 
   // 全局副作用只启动一次
   private started = false;
@@ -105,6 +136,8 @@ export class TerminalPtyRuntime {
       if (event.terminated) {
         this.liveSessionIds.delete(event.sessionId);
         this.ptyDims.delete(event.sessionId);
+        this.markRetired(event.sessionId);
+        terminalXtermPool.dropPending(event.sessionId);
         const state = useAppStore.getState();
         for (const tab of state.terminalTabs) {
           const pane = tab.panes.find((p) => p.sessionId === event.sessionId);
@@ -113,6 +146,9 @@ export class TerminalPtyRuntime {
             break;
           }
         }
+        return;
+      }
+      if (this.retiredSessionIds.has(event.sessionId)) {
         return;
       }
 
@@ -141,10 +177,22 @@ export class TerminalPtyRuntime {
       }
 
       // 原样写入 pool 中该会话的 xterm（所有会话，不仅限活动标签）。
-      // 单例保证这里对每个输出事件只写一次。
+      // 单例保证这里对每个输出事件只写一次；池条目尚未建立时交给 pool 缓冲，
+      // 等 XtermTerminal acquire 时补写，避免 shell 首个提示符早于挂载而丢失。
+      if (import.meta.env.DEV && !this.devMeasuredFirstOutput.has(event.sessionId)) {
+        this.devMeasuredFirstOutput.add(event.sessionId);
+        devMark('first-output', event.sessionId);
+        devMeasure(
+          'first-output',
+          `adl:terminal:pty-return:${event.sessionId}`,
+          `adl:terminal:first-output:${event.sessionId}`,
+        );
+      }
       const pooled = terminalXtermPool.get(event.sessionId);
       if (pooled) {
         pooled.terminal.write(event.data);
+      } else {
+        terminalXtermPool.write(event.sessionId, event.data);
       }
     });
     this.unsubPtyOutput = unsub;
@@ -178,6 +226,8 @@ export class TerminalPtyRuntime {
     this.tabCwds.clear();
     this.tabCwdsLoaded = false;
     this.oscCarry.clear();
+    this.retiredSessionIds.clear();
+    this.devMeasuredFirstOutput.clear();
   };
 
   // ---------------------------------------------------------------- 目录
@@ -237,6 +287,25 @@ export class TerminalPtyRuntime {
     this.ptyDims.delete(sessionId);
     this.createdSessionIds.delete(sessionId);
     this.oscCarry.delete(sessionId);
+    this.markRetired(sessionId);
+  };
+
+  /**
+   * 替换死会话前的“退役”出口：kill 旧 PTY、清运行时账本，但**保留 xterm 池条目**，
+   * 供新 PTY 成功后 `terminalXtermPool.rekey` 复用（同一窗格内的清屏重绑）。
+   * 与 `teardownPane` 的差别仅在最后不 release 池条目。
+   */
+  private retireSessionForReplacement = (paneId: string, sessionId: string): void => {
+    this.pendingInput.delete(paneId);
+    void window.digitalLife.pty
+      .kill(sessionId)
+      .catch((e) => console.warn('[pty] kill replaced-session failed:', e));
+    this.liveSessionIds.delete(sessionId);
+    this.ptyDims.delete(sessionId);
+    this.createdSessionIds.delete(sessionId);
+    this.oscCarry.delete(sessionId);
+    this.markRetired(sessionId);
+    terminalXtermPool.dropPending(sessionId);
   };
 
   private attachSession = async (
@@ -246,6 +315,7 @@ export class TerminalPtyRuntime {
     workspaceId: string,
     options?: { cwdOverride?: string },
   ): Promise<void> => {
+    devMark('attach-start', paneId);
     const cwdOverride = options?.cwdOverride;
     const recentWorkspaces = useAppStore.getState().recentWorkspaces;
     const workspace = workspaceId ? recentWorkspaces.find((w) => w.id === workspaceId) : undefined;
@@ -263,14 +333,16 @@ export class TerminalPtyRuntime {
     if (!existingPane) {
       return;
     }
+    let replacedSessionId: string | undefined;
     if (existingPane.sessionId) {
       if (this.liveSessionIds.has(existingPane.sessionId)) {
         return;
       }
-      // 死会话（kill → 再次点击，或后端 terminated → 再次点击）：先经唯一 teardown 出口
-      // 释放旧 xterm 池条目并清运行时账本，再创建新 PTY。否则每次替换都会泄漏一个
-      // xterm + 最多 5000 行缓冲。Ruling C-7 保留「杀死进程」后的缓冲直到本次重新激活。
-      this.teardownPane(paneId, existingPane.sessionId, 'replaced-session');
+      // 死会话（kill → 再次点击，或后端 terminated → 再次点击）：先退役旧 PTY
+      // 并清运行时账本；旧 xterm 实例保留待复用（见下方 rekey），创建失败、创建期间
+      // 窗格被关闭或抛异常时释放。Ruling C-7 保留「杀死进程」后的缓冲直到本次重新激活。
+      replacedSessionId = existingPane.sessionId;
+      this.retireSessionForReplacement(paneId, replacedSessionId);
       // 创建新 PTY 前先清掉 store 里残留的死会话 id：若创建失败（如 shell 不存在），
       // 失败分支置 status='terminated' 时 hasError（terminated 且无 sessionId）才成立，
       // 窗格显示「未找到终端程序」而非空白矩形。成功分支随后写入新 sessionId。
@@ -312,43 +384,21 @@ export class TerminalPtyRuntime {
 
       let cols = 80;
       let rows = 24;
+      devMark('container-ready', paneId);
       if (container) {
-        // 直接测量容器尺寸，不创建临时 pool entry（临时 entry 会导致 DOM 中有两个
-        // 重叠的 hostEl，干扰布局）。临时终端/dispose 进 finally：import/fit
-        // 抛异常也不泄漏隐藏 div。
-        const tempDiv = document.createElement('div');
-        tempDiv.style.cssText =
-          'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;visibility:hidden;';
-        container.appendChild(tempDiv);
-
-        const { Terminal } = await import('@xterm/xterm');
-        const { FitAddon } = await import('@xterm/addon-fit');
-        const tempTerminal = new Terminal({
-          fontSize: readTerminalFontSize(),
-          fontFamily: readTerminalFontFamily(),
-          rows: 24,
-          cols: 80,
-        });
-        try {
-          const tempFit = new FitAddon();
-          tempTerminal.loadAddon(tempFit);
-          tempTerminal.open(tempDiv);
-          tempFit.fit();
-          const dims = tempFit.proposeDimensions();
-          if (dims && dims.cols > 0 && dims.rows > 0) {
-            cols = dims.cols;
-            rows = dims.rows;
-          }
-        } finally {
-          try {
-            tempTerminal.dispose();
-          } catch {
-            // 构造期失败也尽力释放
-          }
-          tempDiv.remove();
+        // 复用池内离屏测量终端（见 terminalXtermPool.measureDimensions）：
+        // 不再每次建 PTY 都构造/销毁一整个临时 xterm，也不触发动态 import。
+        const dims = terminalXtermPool.measureDimensions(
+          container.clientWidth,
+          container.clientHeight,
+        );
+        if (dims) {
+          cols = dims.cols;
+          rows = dims.rows;
         }
       }
 
+      devMark('measure-done', paneId);
       const result = await window.digitalLife.pty.create({
         shell: SHELL_MAP[profile],
         cwd,
@@ -358,18 +408,29 @@ export class TerminalPtyRuntime {
       if (!result.ok) {
         const errorMsg = result.error?.message || 'Unknown error';
         console.error('Terminal creation failed:', errorMsg);
+        if (replacedSessionId) {
+          terminalXtermPool.release(replacedSessionId);
+        }
         useAppStore.getState().terminalUpdatePane(tabId, paneId, { status: 'terminated' });
         return;
       }
 
       const sessionId = result.data.sessionId;
+      devMark('pty-return', sessionId);
       // PTY 创建期间窗格（或其标签）可能已被关闭：此时这个 PTY 已成孤儿，立即回收。
       const paneStillExists = useAppStore
         .getState()
         .terminalTabsById[tabId]?.panes.some((p) => p.id === paneId);
       if (!paneStillExists) {
         void window.digitalLife.pty.kill(sessionId);
+        if (replacedSessionId) {
+          terminalXtermPool.release(replacedSessionId);
+        }
         return;
+      }
+      if (replacedSessionId) {
+        // 复用旧 xterm（改名 + 清屏）；无旧实例时返回 false，走正常 acquire 新建。
+        terminalXtermPool.rekey(replacedSessionId, sessionId);
       }
       this.createdSessionIds.add(sessionId);
       this.liveSessionIds.add(sessionId);
@@ -377,8 +438,17 @@ export class TerminalPtyRuntime {
       // 出生尺寸同步给池：XtermTerminal 挂载时 acquire 消费。
       terminalXtermPool.setBirthDims(sessionId, cols, rows);
       useAppStore.getState().terminalUpdatePane(tabId, paneId, { sessionId, status: 'running' });
+      devMark('store-updated', paneId);
+      devMeasure(
+        'attach',
+        `adl:terminal:attach-start:${paneId}`,
+        `adl:terminal:store-updated:${paneId}`,
+      );
     } catch (err) {
       console.error('Terminal creation error:', err);
+      if (replacedSessionId) {
+        terminalXtermPool.release(replacedSessionId);
+      }
       useAppStore.getState().terminalUpdatePane(tabId, paneId, { status: 'terminated' });
     }
   };
@@ -493,6 +563,8 @@ export class TerminalPtyRuntime {
     this.liveSessionIds.delete(sessionId);
     this.ptyDims.delete(sessionId);
     this.oscCarry.delete(sessionId);
+    this.markRetired(sessionId);
+    terminalXtermPool.dropPending(sessionId);
     // 按窗格更新：一个标签有多个窗格，必须只标记被 kill 的那个。
     useAppStore.getState().terminalUpdatePane(pane.tabId, pane.paneId, { status: 'terminated' });
   };

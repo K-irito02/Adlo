@@ -11,13 +11,11 @@ export const IconAddTerminal = makeFilledStroked(
 );
 
 /**
- * 「恢复自动布局」图标：用户提供的双向环绕箭头 SVG（24 viewBox）。
+ * 「恢复自动布局」图标：用户选定方案 B（虚线外框 + 2×2 四格）。
  *
- * 源 SVG 为白色描边/填充 + 一个 `opacity="0.4"` 分组；这里把 `#ffffff` 统一替换为
- * `currentColor` 以继承主题，并保留分组。结构逐项对齐源文件：根 `fill="none"`、
- * 各路径 `fill="currentColor"`、根 `stroke="currentColor"`，且**不**覆盖
- * `stroke-width` / `stroke-linecap` / `stroke-linejoin`（沿用 SVG 默认 1 / butt / miter，
- * 与源文件一致）。`makeFilled` 只接受单一路径节点、无法表达「分组 + 描边」结构，故手写组件。
+ * 虚线外框表示「自动/待排布」，内部四格是恢复后的结果；纯描边 24 viewBox。
+ * 1.6/24 的线宽比同排标准 stroke 图标（2/24）略细，视觉上更接近工具栏的填充+描边图标。
+ * 颜色继承 `currentColor`，亮暗自适应。
  */
 export function IconAutoLayout({ size = 16, ...rest }: IconProps) {
   const { title, decorative, className, ...other } = rest;
@@ -28,48 +26,18 @@ export function IconAutoLayout({ size = 16, ...rest }: IconProps) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={['adl-icon', className].filter(Boolean).join(' ')}
       {...resolveA11y(title, decorative)}
       {...other}
     >
-      <g opacity="0.4">
-        <path
-          fillRule="evenodd"
-          clipRule="evenodd"
-          fill="currentColor"
-          d="M16.25 3C16.25 2.58579 16.5858 2.25 17 2.25H21C21.4142 2.25 21.75 2.58579 21.75 3V7C21.75 7.41421 21.4142 7.75 21 7.75C20.5858 7.75 20.25 7.41421 20.25 7V3.75H17C16.5858 3.75 16.25 3.41421 16.25 3Z"
-        />
-        <path
-          fillRule="evenodd"
-          clipRule="evenodd"
-          fill="currentColor"
-          d="M21.5303 2.46967C21.8232 2.76256 21.8232 3.23744 21.5303 3.53033L15.5303 9.53033C15.2374 9.82322 14.7626 9.82322 14.4697 9.53033C14.1768 9.23744 14.1768 8.76256 14.4697 8.46967L20.4697 2.46967C20.7626 2.17678 21.2374 2.17678 21.5303 2.46967Z"
-        />
-        <path
-          fillRule="evenodd"
-          clipRule="evenodd"
-          fill="currentColor"
-          d="M3 16.25C3.41421 16.25 3.75 16.5858 3.75 17V20.25H7C7.41421 20.25 7.75 20.5858 7.75 21C7.75 21.4142 7.41421 21.75 7 21.75H3C2.58579 21.75 2.25 21.4142 2.25 21V17C2.25 16.5858 2.58579 16.25 3 16.25Z"
-        />
-        <path
-          fillRule="evenodd"
-          clipRule="evenodd"
-          fill="currentColor"
-          d="M9.53033 14.4697C9.82322 14.7626 9.82322 15.2374 9.53033 15.5303L3.53033 21.5303C3.23744 21.8232 2.76256 21.8232 2.46967 21.5303C2.17678 21.2374 2.17678 20.7626 2.46967 20.4697L8.46967 14.4697C8.76256 14.1768 9.23744 14.1768 9.53033 14.4697Z"
-        />
-      </g>
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        fill="currentColor"
-        d="M1.25 12C1.25 6.06579 6.06579 1.25 12 1.25C12.7404 1.25 13.4696 1.32508 14.1671 1.46458C14.5733 1.54581 14.8367 1.94093 14.7555 2.3471C14.6742 2.75327 14.2791 3.01668 13.8729 2.93545C13.2704 2.81494 12.6396 2.75 12 2.75C6.89421 2.75 2.75 6.89421 2.75 12C2.75 12.6393 2.81487 13.2593 2.935 13.8507C3.01746 14.2566 2.75523 14.6525 2.34931 14.735C1.94338 14.8174 1.54748 14.5552 1.46502 14.1493C1.32516 13.4607 1.25 12.7407 1.25 12Z"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        fill="currentColor"
-        d="M21.6535 9.26471C22.0597 9.18348 22.4548 9.44689 22.5361 9.85306C22.6753 10.5494 22.7506 11.2687 22.7506 12.0001C22.7506 17.9344 17.9348 22.7501 12.0006 22.7501C11.2603 22.7501 10.531 22.6751 9.83353 22.5356C9.42736 22.4543 9.16394 22.0592 9.24518 21.653C9.32641 21.2469 9.72153 20.9835 10.1277 21.0647C10.7302 21.1852 11.361 21.2501 12.0006 21.2501C17.1064 21.2501 21.2506 17.1059 21.2506 12.0001C21.2506 11.3716 21.1859 10.7509 21.0652 10.1472C20.984 9.74106 21.2474 9.34594 21.6535 9.26471Z"
-      />
+      <rect x="2.5" y="2.5" width="19" height="19" rx="3" strokeDasharray="3 3" />
+      <rect x="6" y="6" width="5" height="5" rx="1" />
+      <rect x="13" y="6" width="5" height="5" rx="1" />
+      <rect x="6" y="13" width="5" height="5" rx="1" />
+      <rect x="13" y="13" width="5" height="5" rx="1" />
     </svg>
   );
 }

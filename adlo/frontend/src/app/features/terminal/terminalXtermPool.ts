@@ -31,10 +31,25 @@ export class TerminalXtermPool {
    */
   private birthDims = new Map<string, { cols: number; rows: number }>();
 
+  /** 复用式尺寸测量终端：首次建实例，之后只改宿主尺寸再 fit，避免每次建 PTY
+   * 都构造/销毁一整个 xterm（见 `measureDimensions`）。 */
+  private measureEntry: {
+    terminal: Terminal;
+    fitAddon: FitAddon;
+    hostEl: HTMLDivElement;
+    fontSize: number;
+    fontFamily: string;
+  } | null = null;
+
+  /** 池条目尚未建立时的输出缓冲：shell 首次提示符可能早于 xterm 挂载，先暂存，
+   * acquire 时一次性写入，避免丢首屏输出。单条有上限；条目在 release/dropPending 时清理。 */
+  private pendingOutput = new Map<string, string>();
+  private static MAX_PENDING_OUTPUT = 256 * 1024;
+
   /**
    * 记录会话出生尺寸（PTY 创建后、XtermTerminal 挂载前调用，挂载时 acquire 消费）。
-   * 若该会话的实例已存在（挂载早于 PTY 创建），直接套用到例上，不写待消费表
-   * —— 否则该 key 永远不会被消费，只能等 release 才清理。
+   * 若该会话的实例已存在（kill→重新激活的 rekey 复用路径，或挂载早于 PTY 创建），
+   * 直接套用到例上，不写待消费表——否则该 key 会留在待消费表，直到 release 清理。
    */
   setBirthDims(sessionId: string, cols: number, rows: number): void {
     if (cols <= 0 || rows <= 0) {
@@ -42,8 +57,8 @@ export class TerminalXtermPool {
     }
     const existing = this.pool.get(sessionId);
     if (existing) {
-      // 实例先于本次 PTY 创建而存在（仅当 sessionId 被复用才会发生，属未来防御）：
-      // 直接套用出生尺寸以保证池与 PTY 同几何，不写真源给「待消费表」白留一份。
+      // 实例已存在：kill→重新激活的 rekey 复用路径会先改名再调用本方法，
+      // 必须就地 resize；acquire 命中分支不消费「待消费出生尺寸表」。
       try {
         existing.terminal.resize(cols, rows);
       } catch {
@@ -52,6 +67,125 @@ export class TerminalXtermPool {
       return;
     }
     this.birthDims.set(sessionId, { cols, rows });
+  }
+
+  /**
+   * 按目标容器尺寸测量终端列/行，供 PTY 出生尺寸使用。
+   *
+   * 复用同一个离屏终端：首次调用才构造 xterm，后续只改宿主宽高再 fit。
+   * 测量宿主与旧实现（容器内临时 div，宽高 100%）同尺寸口径，保持既有
+   * 初始 cols/rows 不变。
+   */
+  measureDimensions(width: number, height: number): { cols: number; rows: number } | null {
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return null;
+    }
+    const fontSize = readTerminalFontSize();
+    const fontFamily = readTerminalFontFamily();
+    if (
+      !this.measureEntry ||
+      this.measureEntry.fontSize !== fontSize ||
+      this.measureEntry.fontFamily !== fontFamily
+    ) {
+      this.measureEntry?.terminal.dispose();
+      this.measureEntry?.hostEl.remove();
+      const hostEl = document.createElement('div');
+      hostEl.setAttribute('aria-hidden', 'true');
+      hostEl.style.cssText =
+        'position:fixed;left:-10000px;top:0;visibility:hidden;pointer-events:none;overflow:hidden;';
+      const terminal = new Terminal({
+        fontSize,
+        fontFamily,
+        rows: 24,
+        cols: 80,
+        allowProposedApi: true,
+      });
+      const fitAddon = new FitAddon();
+      terminal.loadAddon(fitAddon);
+      document.body.appendChild(hostEl);
+      terminal.open(hostEl);
+      this.measureEntry = { terminal, fitAddon, hostEl, fontSize, fontFamily };
+    }
+    const entry = this.measureEntry;
+    entry.hostEl.style.width = `${width}px`;
+    entry.hostEl.style.height = `${height}px`;
+    try {
+      entry.fitAddon.fit();
+      const dims = entry.fitAddon.proposeDimensions();
+      if (dims && dims.cols > 0 && dims.rows > 0) {
+        return { cols: dims.cols, rows: dims.rows };
+      }
+    } catch {
+      // 隐藏/零尺寸等不可测场景：调用方回退默认 80×24
+    }
+    return null;
+  }
+
+  /** 向会话写入输出；池条目尚未建立时先缓冲，acquire 时补写。 */
+  write(sessionId: string, data: string): void {
+    const existing = this.pool.get(sessionId);
+    if (existing) {
+      existing.terminal.write(data);
+      return;
+    }
+    const buffered = (this.pendingOutput.get(sessionId) ?? '') + data;
+    if (buffered.length > TerminalXtermPool.MAX_PENDING_OUTPUT) {
+      // 首屏补写是尽力而为：超限时整段丢弃，避免按 UTF-16 码元截断切坏转义序列/代理对，
+      // 把后半段控制序列补进新终端造成错误状态。条目数由 release/dropPending 清理。
+      this.pendingOutput.delete(sessionId);
+      return;
+    }
+    this.pendingOutput.set(sessionId, buffered);
+  }
+
+  /** 丢弃某会话的待补写缓冲（退役/终止/复用失败时调用，避免死会话缓冲累积）。 */
+  dropPending(sessionId: string): void {
+    this.pendingOutput.delete(sessionId);
+  }
+
+  /**
+   * 把旧会话的 xterm 实例改名给新会话（kill → 重新激活复用同一窗格实例）：
+   * 用 RIS（`\x1bc`）排到写队列末尾，让旧会话已排队的字节先落完再清屏；xterm 的
+   * `reset()` 不清待处理写队列与 parser（上游 CoreBrowserTerminal 注释明确），
+   * 因此不能用它来承诺“旧字节不会落进新会话”。
+   * 返回 false 表示没有可复用实例，调用方按正常路径新建。
+   */
+  rekey(fromSessionId: string, toSessionId: string): boolean {
+    if (fromSessionId === toSessionId) {
+      return this.pool.has(toSessionId);
+    }
+    const entry = this.pool.get(fromSessionId);
+    if (!entry) {
+      this.dropPending(fromSessionId);
+      return false;
+    }
+    this.pool.delete(fromSessionId);
+    entry.sessionId = toSessionId;
+    this.pool.set(toSessionId, entry);
+    try {
+      entry.terminal.write('\x1bc');
+    } catch {
+      // 写入失败时放弃该实例，交给正常 acquire 重建；先 dispose 再摘 DOM。
+      try {
+        entry.terminal.dispose();
+      } catch {
+        // 实例已不可用，dispose 失败无需再处理
+      }
+      this.pool.delete(toSessionId);
+      entry.hostEl.remove();
+      return false;
+    }
+    return true;
+  }
+
+  /** 把池条目建立前缓冲的输出补写到目标条目（新建或已存在；无缓冲则空操作）。 */
+  private flushPending(sessionId: string, terminal: Terminal): void {
+    const pending = this.pendingOutput.get(sessionId);
+    if (!pending) {
+      return;
+    }
+    terminal.write(pending);
+    this.pendingOutput.delete(sessionId);
   }
 
   acquire(sessionId: string, container: HTMLDivElement): PooledXterm {
@@ -66,6 +200,7 @@ export class TerminalXtermPool {
 
     const existing = this.pool.get(sessionId);
     if (existing) {
+      this.flushPending(sessionId, existing.terminal);
       if (existing.hostEl.parentElement !== container) {
         container.appendChild(existing.hostEl);
         if (shouldFitTerminal(existing.hostEl)) {
@@ -130,6 +265,8 @@ export class TerminalXtermPool {
     };
     this.pool.set(sessionId, entry);
 
+    this.flushPending(sessionId, terminal);
+
     requestAnimationFrame(() => {
       if (!shouldFitTerminal(hostEl)) {
         return;
@@ -145,6 +282,7 @@ export class TerminalXtermPool {
   }
 
   release(sessionId: string): void {
+    this.dropPending(sessionId);
     const entry = this.pool.get(sessionId);
     if (!entry) {
       this.birthDims.delete(sessionId);
@@ -179,6 +317,10 @@ export class TerminalXtermPool {
           // 实例已释放：挂载侧会在可见时重新 fit
         }
       }
+    }
+    if (this.measureEntry) {
+      this.measureEntry.terminal.options.fontSize = effective;
+      this.measureEntry.fontSize = effective;
     }
   }
 

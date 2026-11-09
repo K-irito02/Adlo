@@ -46,7 +46,7 @@ description: 启动 Adlo 的三种运行模式（浏览器预览、Tauri 桌面�
 
 - **`dev:browser` 白屏**：该模式只起 Vite，不注入 `VITE_ADL_SERVER_URL`，前端会落到兜底 `http://127.0.0.1:61234`（见 `frontend/src/httpBridge.ts`），业务调用失败后可能只剩调试按钮。需要真实数据 / 设置 / 面板时用 `dev:preview`（会先起 adl-server 再绑 URL）。
 - **`dev:preview` 控制台的 CORS / `ERR_PROXY_CONNECTION_FAILED`**：adl-server 已对所有响应发送 `Access-Control-Allow-Origin: *`（`crates/server/src/router.rs`）。这类报错通常是本机系统代理拦截，先看 `[adl-bridge] … falls back` 警告判断业务域是否降级，不要据此改代码。
-- **取计算样式优先 `ui-probe.mjs`**：`node scripts/ui-probe.mjs --url <预览地址> --selector <css> --props <属性>`（无头 Edge/Chrome CDP，不占用 Review 面板）。内置 browser 工具用于点击/填表/网络/控制台；`screenshot` 需要桌面窗口可见，窗口不可见时会失败，不要把它当作样式取证手段。
+- **取计算样式优先 `ui-probe.mjs`**：`node scripts/ui-probe.mjs --url <预览地址> --selector <css> --props <属性>`（无头 Edge/Chrome CDP，不占用 Review 面板）。悬停/聚焦态加 `--hover <触发元素选择器>`，探针会先把真实指针移到元素中心再读 `getComputedStyle`。内置 browser 工具用于点击/填表/网络/控制台；`screenshot` 需要桌面窗口可见，窗口不可见时会失败，不要把它当作样式取证手段。
 - **首次运行准备挡住预览**：`dev:preview` 使用新数据目录时会弹出「首次运行准备」，可能卡在 Git/Node 下载。开发/视觉验证会话可在启动前设置 `$env:VITE_ADL_SKIP_FIRST_RUN='1'`（仅 `import.meta.env.DEV` 生效；显式「继续向导」仍会打开），或使用已准备好的数据目录。不要用手工 DOM 隐藏遮罩代替。
 - **长 HMR 后静态资源/图表不渲染**：长会话反复 HMR 后，可能出现动态导入 `ERR_PROXY_CONNECTION_FAILED`、右侧面板错误边界、或 `ParentSize` 高度为 0 导致热力图空白。先 `pnpm run dev:stop` 再重启 `dev:preview`、重开/刷新 tab，再判断是否为代码回归。
 - **`dev:preview` 首次构建**：没有预构建 `target/debug/adl-server.exe` 时会走 `cargo run` 冷编译（数分钟）；先看 `[adl-dev]` 日志确认 `adl-server bound` 与 `frontend ready at`，不要误判为启动失败。

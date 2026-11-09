@@ -135,7 +135,7 @@ await source.dragTo(target);
 ### 复合按钮交互（新建终端 + 绑定/类型菜单）
 
 - 左半为新建终端按钮（按当前类型 + 绑定工作区建 tab）；右半悬停 120ms 即展开菜单（点击同样可开关，仅悬停设备启用，触屏保持纯点击）
-- 菜单含工作区绑定子卡片与终端类型；三区（右半按钮/菜单卡片/子卡片）各自 2s 无悬停计时，超时自动关闭（悬停子卡片时主菜单不关）
+- 菜单含工作区绑定子卡片与终端类型；指针移出「右半按钮 + 菜单卡片 + 子卡片」整体时立即关闭（跨 2px/6px 空隙由透明桥接命中区承接，不会闪关）；子菜单离开即收起
 - 工作区绑定与终端类型选择持久化，重启应用后保持；绑定指向已删除/隐藏/不可用工作区时回退为独立
 - 该选择器同时决定「新建窗格」的默认 Shell
 
@@ -172,7 +172,7 @@ await source.dragTo(target);
 | `.adl-terminal-canvas`                                                                                      | 单个窗格内的 xterm.js 挂载容器                              |
 | `.adl-terminal-col-divider` / `.adl-terminal-row-divider`                                                   | 均分模式列/行边界线（`role="separator"`，可拖拽）           |
 | `.adl-terminal-free-handle`（`--n` / `--e` / `--s` / `--w` / `--ne` / `--nw` / `--se` / `--sw` / `--move`） | 自由模式八向缩放 + 专用移动手柄                             |
-| `.adl-terminal-region-actions`                                                                              | 单窗格右上角操作叠加层（仅悬停/聚焦对应窗格时显现）         |
+| `.adl-terminal-region-actions`                                                                              | 单窗格右上角操作叠加层（仅悬停/聚焦按钮区自身时显现）       |
 | `.adl-terminal-region-actions__btn` / `__btn--danger`                                                       | 叠加层按钮 / 「关闭窗口」危险色按钮                         |
 | `.adl-terminal-error-note`                                                                                  | Shell 启动失败的错误提示（仅活跃错误状态显示）              |
 
@@ -182,7 +182,7 @@ await source.dragTo(target);
 | ------------------ | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | 布局模式分段选择器 | `.adl-tool-context__diff-view`（`role="group"`，`aria-label`=终端布局模式）       | `均分` / `自由` 两键（`.adl-tool-context__toggle-btn`）切换布局模式          |
 | 恢复自动布局       | `.adl-tool-context__iconbtn`（`aria-label`=恢复自动布局）                         | 回到均分自动布局（比例归一均分 + 清空自由 rect）                             |
-| 增加终端           | `.adl-tool-context__iconbtn`（`aria-label`=增加终端）                             | 在当前标签追加一个独立 PTY 窗格，数量无上限                                  |
+| 增加终端           | `.adl-tool-context__iconbtn`（`aria-label`=增加终端）                             | 在当前标签追加一个独立 PTY 窗格，数量无上限；无活动标签时禁用（置灰）        |
 | 自定义布局         | `.adl-tool-context__iconbtn`（`aria-label`=自定义布局，`aria-haspopup="dialog"`） | 开合自定义布局卡片（仅均分模式显示入口）                                     |
 | 更多终端操作       | `.adl-tool-context__iconbtn`（`aria-label`=更多终端操作，`aria-haspopup="menu"`） | 开合下拉菜单：边界线 / 活动窗口高亮 / 增大字号 / 减小字号 / 杀死进程（见下） |
 
@@ -231,7 +231,7 @@ await page.mouse.up();
 | `.adl-layout-card`                                                      | 卡片容器（`role="dialog"`，`aria-label`=自定义布局）                                                               |
 | `.adl-layout-card__header` / `__title` / `__header-actions` / `__close` | 头部 / 标题 / 右侧动作（交换图标 + 关闭按钮）                                                                      |
 | `.adl-layout-card__grid`                                                | 方块网格                                                                                                           |
-| `.adl-layout-card__square`                                              | 单个窗格方块（背景 = `paneColor(colorIndex)`；`is-selected` 交换选中、`is-dragging` 拖拽提起）                     |
+| `.adl-layout-card__square`                                              | 单个窗格方块（背景 = 身份色 `--pane-tile-color` 经主题混合；`is-selected` 交换选中、`is-dragging` 拖拽提起）       |
 | `.adl-layout-card__label-input`                                         | 标注输入框（不限长，提交时按首个码点截断）                                                                         |
 | `.adl-layout-card__hint`                                                | 双击标注提示（限 1 字符；交换模式下切换为选块提示）                                                                |
 | `.adl-layout-card__actions--swap`                                       | 交换模式底部三按钮（`adl-btn adl-btn--ghost adl-btn--square`，与重命名对话框同款：全直角、无边框、常驻底色悬停灰） |

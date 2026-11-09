@@ -66,11 +66,9 @@ function renderCard(panes: TerminalPane[]) {
   };
 }
 
-// jsdom 会把 hex 归一化为 `rgb(...)`；两侧都过一遍同样的归一化再比对。
-function normalize(color: string): string {
-  const probe = document.createElement('div');
-  probe.style.background = color;
-  return probe.style.background;
+/** 方块身份色经 CSS 自定义属性 `--pane-tile-color` 交给主题混合（背景由 CSS 合成）。 */
+function tileColorOf(square: HTMLElement): string {
+  return square.style.getPropertyValue('--pane-tile-color').trim();
 }
 
 function squaresOf(container: HTMLElement): HTMLElement[] {
@@ -116,13 +114,11 @@ describe('TerminalLayoutCard', () => {
     expect(squaresOf(container)).toHaveLength(3);
   });
 
-  it('orders squares by pane order and paints each with paneColor(colorIndex)', () => {
+  it('orders squares by pane order and exposes paneColor(colorIndex) for theme mixing', () => {
     const panes = makePanes(4);
     const { container } = renderCard(panes);
     const squares = squaresOf(container);
-    expect(squares.map((square) => square.style.background)).toEqual(
-      panes.map((pane) => normalize(paneColor(pane.colorIndex))),
-    );
+    expect(squares.map(tileColorOf)).toEqual(panes.map((pane) => paneColor(pane.colorIndex)));
   });
 
   it('shows the pane label when present, else renders empty', () => {
@@ -165,6 +161,33 @@ describe('TerminalLayoutCard reorder (B 缝隙滑动)', () => {
     expect(onMove).toHaveBeenCalledWith(0, 2);
   });
 
+  it('居中后拖拽落点按布局坐标计算（不被 FLIP transform 污染）', () => {
+    const { container, onMove } = renderCard(makePanes(3));
+    const squares = squaresOf(container);
+    const grid = container.querySelector<HTMLElement>('.adl-layout-card__grid');
+    expect(grid).not.toBeNull();
+    const rect = {
+      left: 100,
+      top: 100,
+      width: 200,
+      height: 200,
+      right: 300,
+      bottom: 300,
+      x: 100,
+      y: 100,
+      toJSON: () => ({}),
+    } as DOMRect;
+    const rectSpy = vi.spyOn(grid as HTMLElement, 'getBoundingClientRect').mockReturnValue(rect);
+    Object.defineProperty(squares[0], 'offsetWidth', { value: 40, configurable: true });
+
+    // cols=2、tile=40、gap=8 → 内容宽 88；网格 200 宽居中 → 原点 x=156、y=100。
+    // 从首块中心拖到第二列中心：新算法 floor((224-156)/48)=1；旧算法 floor((224-100)/48)=2。
+    pointerDragSquare(squares[0], [224, 120], [176, 120]);
+    expect(onMove).toHaveBeenCalledWith(0, 1);
+
+    rectSpy.mockRestore();
+  });
+
   it('拖拽中本地顺序实时变化（其它方块让位），松手才提交一次', () => {
     const { container, onMove } = renderCard(makePanes(3));
     const panes = makePanes(3);
@@ -172,8 +195,8 @@ describe('TerminalLayoutCard reorder (B 缝隙滑动)', () => {
     dispatchPointer(squares[0], 'pointerdown', { button: 0, clientX: 20, clientY: 20 });
     dispatchPointer(document, 'pointermove', { clientX: 20, clientY: 68 });
     // 本地已重排为 [p2,p3,p1]，但尚未提交
-    expect(squaresOf(container).map((square) => square.style.background)).toEqual(
-      [panes[1], panes[2], panes[0]].map((pane) => normalize(paneColor(pane.colorIndex))),
+    expect(squaresOf(container).map(tileColorOf)).toEqual(
+      [panes[1], panes[2], panes[0]].map((pane) => paneColor(pane.colorIndex)),
     );
     expect(onMove).not.toHaveBeenCalled();
     dispatchPointer(document, 'pointerup');
@@ -204,8 +227,8 @@ describe('TerminalLayoutCard reorder (B 缝隙滑动)', () => {
     dispatchPointer(document, 'pointercancel');
     expect(onMove).not.toHaveBeenCalled();
     // 本地顺序已回退
-    expect(squaresOf(container).map((square) => square.style.background)).toEqual(
-      makePanes(3).map((pane) => normalize(paneColor(pane.colorIndex))),
+    expect(squaresOf(container).map(tileColorOf)).toEqual(
+      makePanes(3).map((pane) => paneColor(pane.colorIndex)),
     );
   });
 
@@ -295,8 +318,8 @@ describe('TerminalLayoutCard reorder (B 缝隙滑动)', () => {
       window.dispatchEvent(new Event('blur'));
     });
     expect(onMove).not.toHaveBeenCalled();
-    expect(squaresOf(container).map((square) => square.style.background)).toEqual(
-      makePanes(3).map((pane) => normalize(paneColor(pane.colorIndex))),
+    expect(squaresOf(container).map(tileColorOf)).toEqual(
+      makePanes(3).map((pane) => paneColor(pane.colorIndex)),
     );
   });
 
@@ -309,8 +332,8 @@ describe('TerminalLayoutCard reorder (B 缝隙滑动)', () => {
       document.dispatchEvent(new Event('scroll'));
     });
     expect(onMove).not.toHaveBeenCalled();
-    expect(squaresOf(container).map((square) => square.style.background)).toEqual(
-      makePanes(3).map((pane) => normalize(paneColor(pane.colorIndex))),
+    expect(squaresOf(container).map(tileColorOf)).toEqual(
+      makePanes(3).map((pane) => paneColor(pane.colorIndex)),
     );
   });
 
