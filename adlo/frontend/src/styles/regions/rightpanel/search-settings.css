@@ -138,7 +138,81 @@
   overflow: hidden;
 }
 
+/* 导出方框：填满右侧剩余高度（导入第 1 步沿用固定 420px 的 --flush） */
+.adl-search-ignore__scroll--fill {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+}
+
+/* 导入第 1 步树分栏场景：去掉边框/外边距、占满剩余宽度并固定高度 420px（折叠/展开时对话框不跳动） */
+.adl-search-ignore__scroll--flush {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  flex: 1;
+  min-width: 0;
+  height: 420px;
+  max-height: 420px;
+}
+
+/* 右栏「将要导/出」列表：隐藏原生滚动条（与左树隐藏原生滚动条一致），滚轮/触控板照常滚动 */
+.adl-bookmark-picklist {
+  scrollbar-width: none;
+}
+.adl-bookmark-picklist::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* ── 第 2 步「导入目标」面板的树形区与结构预览框（直角 + 细线滚动条） ──────── */
+
+/* 已有目录选择树：方框四角直角、填满剩余高度（flex 容器内），行级 hover/选中态 */
+.adl-target-tree-shell {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  border-radius: 0;
+}
+
+.adl-target-tree__row {
+  color: var(--text-secondary);
+  border-left: 2px solid transparent;
+  /* 与第 1 步左侧选择区树形的目录字号一致 */
+  font-size: 12.5px;
+}
+
+.adl-target-tree__row:hover {
+  background: var(--bg-hover);
+}
+
+.adl-target-tree__row.is-selected,
+.adl-target-tree__row.is-selected:hover {
+  background: var(--bg-active);
+  border-left-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+/* 结构预览框（原目录 / 新建顶层目录）：固定高度、直角、等宽字体 */
+.adl-preview-tree-shell {
+  height: 156px;
+  max-height: 156px;
+  border-radius: 0;
+}
+
+.adl-preview-tree-shell .adl-search-ignore__scroll-area {
+  padding: 0;
+  overflow-x: auto;
+}
+
 .adl-search-ignore__scroll-area {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
@@ -246,9 +320,15 @@ button.adl-search-ignore__toggle:hover,
 }
 
 .adl-search-ignore__label-text {
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 目录名比书签名大一点点 */
+.adl-search-ignore__label-text.is-folder {
+  font-size: 12.5px;
 }
 
 .adl-search-ignore__check {

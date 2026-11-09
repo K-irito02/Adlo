@@ -245,8 +245,10 @@ export function validateClaimAck(ackText, hints) {
 }
 
 /**
- * 写/补 ack 模板：同一 rev 重新生成时保留已勾选条目，只追加本轮新增的断言，
- * 避免「文件已存在就直接 return」导致新断言没有可勾选的行。
+ * 写/补 ack 模板：同一 rev 重新生成时保留已勾选条目，并跨 rev 携带——
+ * 本仓实测：同一条断言（DUP_NODES 注释中的「同名…path+depth 相同」）跨 rev1..rev8 措辞不变，
+ * 但 claims-ack 按 rev 独立落盘导致每轮都要重抄；改后按 `file:line` 与断言文本双向匹配前一轮 ack。
+ * 只补新增未勾选项，已勾选条目逐条保留。
  */
 export function writeClaimAckTemplate(ackPath, rev, hints) {
   let existing = "";
@@ -255,19 +257,51 @@ export function writeClaimAckTemplate(ackPath, rev, hints) {
   } catch {
     existing = "";
   }
-  const missing = hints.filter((hit) => !existing.includes(claimKey(hit)));
-  if (missing.length === 0) {
-    return;
+  const existingKeys = new Set();
+  const existingChecked = new Set();
+  for (const line of existing.split(/\r?\n/)) {
+    const m = /^-\s*\[(x| )\]\s+(\S+)/.exec(line);
+    if (m) {
+      existingKeys.add(m[2]);
+      if (/x/i.test(m[1])) {
+        existingChecked.add(m[2]);
+      }
+    }
   }
-  const header = [
-    `# Claims ack — rev${rev}`,
-    "",
-    "逐条核对注释与最终代码/测试；确认后把 `[ ]` 改成 `[x]`，并在 `—` 后写证据或降级措辞。",
-    "",
-  ].join("\n");
-  const appended = missing.map((hit) => `- [ ] ${claimKey(hit)} — ${hit.text}`).join("\n");
-  const body = existing.trim() ? `${existing.trimEnd()}\n${appended}\n` : `${header}${appended}\n`;
-  fs.writeFileSync(ackPath, body, "utf8");
+  const priorText = new Set();
+  const outDir = path.dirname(ackPath);
+  try {
+    for (const name of fs.readdirSync(outDir)) {
+      const m = /^claims-ack-rev(\d+)\.md$/.exec(name);
+      if (!m || Number(m[1]) === rev) {
+        continue;
+      }
+      for (const line of fs.readFileSync(path.join(outDir, name), "utf8").split(/\r?\n/)) {
+        const m2 = /^-\s*\[(x| )\].*?—\s*(.+)$/.exec(line);
+        if (m2 && /x/i.test(m2[1])) {
+          priorText.add(m2[2].trim());
+        }
+      }
+    }
+  } catch {
+    // outDir 不可读（部分测试场景）—— 退化为不跨 rev 携带
+  }
+  const body = [];
+  body.push(`# Claims ack — rev${rev}`);
+  body.push("");
+  body.push(
+    "派发审查前逐条自读：它与**最终代码**相符吗？能由某个测试或分支证明吗？不能就降级措辞或改成不写具体计数。跨 rev 同文案断言会自动沿用上一 rev 的勾选。",
+  );
+  body.push("");
+  for (const hit of hints) {
+    const key = claimKey(hit);
+    const carry = !existingChecked.has(key) && priorText.has(hit.text);
+    const checked = existingChecked.has(key) || carry;
+    const suffix = checked && !existingChecked.has(key) ? "（carried over from previous rev）" : "";
+    body.push(`- ${checked ? "[x]" : "[ ]"} ${key} — ${hit.text}${suffix}`);
+  }
+  body.push("");
+  fs.writeFileSync(ackPath, body.join("\n"), "utf8");
 }
 
 function main() {

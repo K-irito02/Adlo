@@ -312,26 +312,24 @@ export const browserEn = {
   bookmarkExportClear: 'Clear selection',
   bookmarkExportPicked: 'Will export',
   bookmarkExportNothingPicked: 'Nothing selected yet',
-  bookmarkExportBookmarks: 'bookmarks',
-  bookmarkExportFolders: 'folders',
   bookmarkExportResize: 'Drag to resize columns',
-  bookmarkExportConfirm: 'Export HTML…',
+  bookmarkExportConfirm: 'Export as HTML',
   bookmarkExportFileTitle: 'bookmarks',
+  bookmarkExportHint: `# Export bookmarks
+· Check the workspace or custom directories to export (empty ones are hidden)
+· Toolbar: select all, clear selection, expand or collapse all
+· The right pane lists what will be exported in real time; entries can be removed
+· Exports a .html bookmarks file`,
+  bookmarkExportHintAriaLabel: 'Bookmarks export guide',
+  bookmarkExportSelected: 'Selected {count} / {total} bookmarks · {folders} folders',
   bookmarkExportSuccess: 'Exported {count} bookmarks to {file}',
   bookmarkExportFailed: 'Export failed',
   bookmarkImportTitle: 'Import bookmarks',
   bookmarkImportPickFile: 'Choose .html file…',
   bookmarkImportStepPick: 'Pick content',
-  bookmarkImportStepTarget: 'Destination & duplicates',
+  bookmarkImportStepTarget: 'Import target',
   bookmarkImportInvalid: 'invalid links ignored',
-  bookmarkImportTargetLabel: 'Import into',
-  bookmarkImportTargetNew: 'New folder',
-  bookmarkImportFolderName: 'Folder name',
   bookmarkImportDefaultName: 'bookmarks',
-  bookmarkImportSkip: 'Skip duplicates',
-  bookmarkImportAllow: 'Allow duplicates',
-  bookmarkImportDupHint:
-    'Compared only inside the destination; the same link may exist in other folders.',
   bookmarkImportSelected: 'Selected {count} / {total} bookmarks',
   bookmarkImportWillImport: 'Will import {count} bookmarks · {folders} folders',
   bookmarkImportNext: 'Next',
@@ -341,4 +339,52 @@ export const browserEn = {
   bookmarkImportSkipped: ' ({count} duplicates skipped)',
   bookmarkImportTooLarge: 'File is larger than 10 MB and cannot be imported',
   bookmarkImportEmpty: 'No importable bookmarks found in this file',
+  bookmarkImportFailed: 'Import failed — could not read the file',
+  bookmarkImportSelectAll: 'Select all',
+  bookmarkImportClear: 'Clear selection',
+  bookmarkImportPicked: 'Will import',
+  bookmarkImportNothingPicked: 'Nothing selected yet',
+  bookmarkImportResize: 'Drag to resize columns',
+  bookmarkImportModeOriginal: 'Keep original structure',
+  bookmarkImportModeOriginalDesc: 'Import as-is into "Custom Directory"',
+  bookmarkImportModeNewTop: 'Import into new top-level folder',
+  bookmarkImportModeNewTopDesc: 'Create a top-level folder, import into it',
+  bookmarkImportModeExisting: 'Import into existing folder',
+  bookmarkImportModeExistingDesc: 'Pick a workspace or folder as target',
+  bookmarkImportPreviewTitle: 'Import preview',
+  bookmarkImportCreateTitle: 'New top-level folder',
+  bookmarkImportExistingTitle: 'Select target folder (folders only)',
+  bookmarkImportModeTarget: 'Destination',
+  bookmarkImportTableBookmarks: 'Bookmarks',
+  bookmarkImportTableFolders: 'Folders',
+  bookmarkImportNameLabel: 'Folder name',
+  bookmarkImportNamePlaceholder: 'e.g. imported_bookmarks_2026_11_9',
+  bookmarkImportNameEmpty: 'Folder name cannot be empty',
+  bookmarkImportNameClash: 'A top-level custom folder named "{name}" already exists',
+  bookmarkImportNestedCreate: 'New folder',
+  bookmarkImportNestedPlaceholder: 'Nested folder name, e.g. References',
+  bookmarkImportNestedNameLabel: 'Nested folder name',
+  bookmarkImportNestedConfirm: 'Create',
+  bookmarkImportDirCount: '{count} folders',
+  bookmarkImportNestedNote: 'Create a nested folder under "{parent}" and import into it.',
+  bookmarkImportRootFolderName: 'Top-level bookmarks',
+  bookmarkImportNestedBadge: 'New',
+  bookmarkImportNestedBadgePath: '(new nested folder)',
+  bookmarkImportModeNavLabel: 'Import mode',
+  bookmarkImportModeNoSelection: 'Select a folder',
+  bookmarkImportCreateNote:
+    'Created as a top-level folder under "Custom Directory" (same level as workspace roots); the .html structure is imported beneath it.',
+  bookmarkImportHintStep1: `# Pick content
+· Check the folders and bookmarks to import
+· Toolbar: select all, clear selection, expand or collapse all
+· Empty folders (no bookmarks) are hidden
+· The right pane lists what will be imported in real time`,
+  bookmarkImportHintStep2: `# Import target
+· Keep original structure: port the file tree into "Custom Directory" as-is
+· Loose top-level bookmarks go into a top-level folder auto-created under "Custom Directory"
+· Import into a new top-level folder or an existing workspace/custom folder
+· Duplicates are skipped automatically`,
+  bookmarkImportNestedHintPrefix: 'To nest a subfolder under it, click',
+  bookmarkImportNestedHintSuffix: 'here.',
+  bookmarkImportHintAriaLabel: 'Bookmarks import guide',
 } as const;

@@ -297,25 +297,24 @@ export const browserZh = {
   bookmarkExportClear: '清空选择',
   bookmarkExportPicked: '将导出',
   bookmarkExportNothingPicked: '还没有选择任何目录或书签',
-  bookmarkExportBookmarks: '书签',
-  bookmarkExportFolders: '目录',
   bookmarkExportResize: '拖动调整两栏宽度',
-  bookmarkExportConfirm: '导出 HTML…',
+  bookmarkExportConfirm: '导出为 HTML',
   bookmarkExportFileTitle: '书签',
+  bookmarkExportHint: `# 导出书签
+· 勾选要导出的工作区目录与自建目录（空目录不显示）
+· 工具栏可一键全选 / 清空选择 / 全部展开折叠
+· 右栏实时列出将要导出的条目，可单独移除
+· 导出为 .html 书签文件`,
+  bookmarkExportHintAriaLabel: '导出书签说明',
+  bookmarkExportSelected: '已选 {count} / {total} 个书签 · {folders} 个目录',
   bookmarkExportSuccess: '已导出 {count} 个书签到 {file}',
   bookmarkExportFailed: '导出失败',
   bookmarkImportTitle: '导入书签',
   bookmarkImportPickFile: '选择 .html 文件…',
   bookmarkImportStepPick: '选择内容',
-  bookmarkImportStepTarget: '目标与重复项',
+  bookmarkImportStepTarget: '导入目标',
   bookmarkImportInvalid: '条无效链接已忽略',
-  bookmarkImportTargetLabel: '导入到',
-  bookmarkImportTargetNew: '新建文件夹',
-  bookmarkImportFolderName: '文件夹名',
   bookmarkImportDefaultName: '书签',
-  bookmarkImportSkip: '跳过重复项',
-  bookmarkImportAllow: '允许重复',
-  bookmarkImportDupHint: '只与目标目录内已有书签比较；不同目标目录允许存在同一链接。',
   bookmarkImportSelected: '已选 {count} / {total} 个书签',
   bookmarkImportWillImport: '将导入 {count} 个书签 · {folders} 个目录',
   bookmarkImportNext: '下一步',
@@ -325,4 +324,53 @@ export const browserZh = {
   bookmarkImportSkipped: '（跳过 {count} 条重复）',
   bookmarkImportTooLarge: '文件超过 10 MB，无法导入',
   bookmarkImportEmpty: '文件里没有可导入的书签',
+  bookmarkImportFailed: '导入失败，文件读取异常',
+  bookmarkImportSelectAll: '全选',
+  bookmarkImportClear: '清空选择',
+  bookmarkImportPicked: '将导入',
+  bookmarkImportNothingPicked: '还没有选择书签',
+  bookmarkImportResize: '拖动调整两栏宽度',
+  bookmarkImportModeOriginal: '原目录结构导入',
+  bookmarkImportModeOriginalDesc: '原样移植到「自建目录」',
+  bookmarkImportModeNewTop: '新建顶层目录导入',
+  bookmarkImportModeNewTopDesc: '新建顶层目录后移入',
+  bookmarkImportModeExisting: '选择已有目录导入',
+  bookmarkImportModeExistingDesc: '选已有目录作为目标',
+  bookmarkImportPreviewTitle: '导入预览',
+  bookmarkImportCreateTitle: '新建顶层目录',
+  bookmarkImportExistingTitle: '选择目标目录（仅目录）',
+  bookmarkImportModeTarget: '移植目标',
+  bookmarkImportTableBookmarks: '书签',
+  bookmarkImportTableFolders: '目录',
+  bookmarkImportNameLabel: '目录名称',
+  bookmarkImportNamePlaceholder: '例如：导入的书签_2026_11_9',
+  bookmarkImportNameEmpty: '目录名称不能为空',
+  bookmarkImportNameClash: '「自建目录」下已存在同名顶层目录「{name}」',
+  bookmarkImportNestedCreate: '新建目录',
+  bookmarkImportNestedPlaceholder: '嵌套目录名称，例如：参考资料',
+  bookmarkImportNestedNameLabel: '嵌套目录名称',
+  bookmarkImportNestedConfirm: '创建',
+  bookmarkImportDirCount: '{count} 项',
+  bookmarkImportNestedNote: '将在「{parent}」下新建嵌套子目录，并作为本次导入的目标目录。',
+  bookmarkImportRootFolderName: '顶层书签',
+  bookmarkImportNestedBadge: '新建',
+  bookmarkImportNestedBadgePath: '（新建嵌套目录）',
+  bookmarkImportModeNavLabel: '导入方式',
+  bookmarkImportModeNoSelection: '请先选择',
+  bookmarkImportCreateNote:
+    '作为「自建目录」下最顶层目录创建（与工作区根目录同级），.html 结构移植其下。',
+  bookmarkImportHintStep1: `# 选择内容
+· 勾选你要导入的目录与书签；取消勾选即不导入
+· 工具栏可一键全选 / 清空选择 / 全部展开折叠
+· 空目录（没有书签）不会显示
+· 右栏实时显示将导入的条目`,
+  bookmarkImportHintStep2: `# 导入目标
+· 原目录结构导入：按 .html 文件原结构移植到「自建目录」
+· 松散顶层书签归入一个自动创建的自建目录顶层文件夹
+· 新建顶层目录导入：在「自建目录」下新建顶层目录并移入
+· 选择已有目录导入：导入到某个工作区目录或自建目录
+· 重复项一律跳过`,
+  bookmarkImportNestedHintPrefix: '在该目录下新建嵌套子目录，请点击',
+  bookmarkImportNestedHintSuffix: '。',
+  bookmarkImportHintAriaLabel: '导入书签说明',
 } as const;

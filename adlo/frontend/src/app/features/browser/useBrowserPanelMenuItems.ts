@@ -4,6 +4,7 @@ import { isTauriShell } from '@shared/env';
 import type { BrowserMenuItem } from './useBrowserMenus';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { useTCopy } from '@i18n/useTCopy';
+import { startBookmarkImportPick } from '@features/bookmarks/startBookmarkImportPick';
 
 interface UseBrowserPanelMenuItemsParams {
   activeTab: BrowserTabState | undefined;
@@ -148,7 +149,7 @@ export function useBrowserPanelMenuItems({
         id: 'import-bookmarks',
         label: t.browserImportBookmarks,
         hint: t.browserImportBookmarksHint,
-        action: () => useAppStore.getState().setBookmarkTransferDialog('import'),
+        action: () => startBookmarkImportPick(t),
       },
       {
         id: 'export-bookmarks',

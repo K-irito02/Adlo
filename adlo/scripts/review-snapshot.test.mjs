@@ -120,6 +120,32 @@ test("clears stale claims and ack files when a regenerated rev has no claims", (
   }
 });
 
+test("ack template carries forward claims with identical text from a prior rev", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adl-review-snapshot-"));
+  const ackPath = join(dir, "claims-ack-rev8.md");
+  try {
+    // 模拟上一 rev 的 ack：同文案被勾选、行号改过（代码插入行位移 +1）
+    writeFileSync(
+      join(dir, "claims-ack-rev7.md"),
+      "# Claims ack — rev7\n\n- [x] src/a.ts:30 — // always follows through even off the happy path\n",
+    );
+    writeClaimAckTemplate(ackPath, 8, [
+      {
+        file: "src/a.ts",
+        line: 31,
+        text: "// always follows through even off the happy path",
+      },
+      { file: "src/b.ts", line: 4, text: "// 3 个入口" },
+    ]);
+    const text = readFileSync(ackPath, "utf8");
+    assert.match(text, /\[x\] src\/a\.ts:31/);
+    assert.match(text, /\[ \] src\/b\.ts:4/);
+    assert.match(text, /carried over/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("ack template appends newly collected claims without losing checked ones", () => {
   const dir = mkdtempSync(join(tmpdir(), "adl-review-snapshot-"));
   const ackPath = join(dir, "claims-ack-rev7.md");
