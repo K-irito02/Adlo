@@ -13,6 +13,27 @@
   position: relative;
 }
 
+/* 菜单卡片与 toggle/子卡片之间的 2px/6px 几何空隙：用透明桥接伪元素把空隙纳入
+   组合命中区，使「移出即关」不会在鼠标跨越空隙时误判为移出。
+   只在菜单/子菜单展开时生效，避免关闭态在工具栏下方留下透明命中带。 */
+.adl-terminal-shell-menu.is-open::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.adl-terminal-shell-dropdown .adl-menu__item--has-sub.is-open::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 100%;
+  width: 8px;
+  height: 100%;
+}
+
 .adl-menu__dropdown--right {
   position: absolute !important;
   top: 0 !important;
@@ -658,8 +679,9 @@
 /* 方块网格：列数与终端实时显示区一致（computeGrid 行主序 cols×rows），
    组件以内联 gridTemplateColumns 注入固定列宽（LAYOUT_CARD_TILE_PX）；
    此处仅保留兜底与间距。窗格数不足末行留空占位（--placeholder）。
-   方块整体水平居中：列数固定时，居中由 justify-content 完成（拖拽落点已按
-   首块实测原点换算，见 TerminalLayoutCard.readSlotMetrics）。 */
+   方块整体水平居中：列数固定时，居中由 justify-content 完成（拖拽落点按布局坐标
+   换算——内容盒左缘 + 居中偏移，块宽取 offsetWidth，不读 tile 的 rect；
+   见 TerminalLayoutCard.readSlotMetrics）。 */
 .adl-layout-card__grid {
   display: grid;
   grid-template-columns: repeat(4, 40px);
@@ -681,7 +703,7 @@
   background: var(--pane-tile-color);
   background: color-mix(
     in oklab,
-    var(--pane-tile-color) var(--layout-card-tile-weight),
+    var(--pane-tile-color) var(--layout-card-tile-identity-weight),
     var(--layout-card-tile-tint)
   );
   /* 方块前景随主题反色（亮色淡彩用深字、暗色深彩用白字），定义于 themes.css。 */

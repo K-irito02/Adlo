@@ -42,14 +42,14 @@ export class TerminalXtermPool {
   } | null = null;
 
   /** 池条目尚未建立时的输出缓冲：shell 首次提示符可能早于 xterm 挂载，先暂存，
-   * acquire 时一次性写入，避免丢首屏输出。上限防止异常会话无限增长。 */
+   * acquire 时一次性写入，避免丢首屏输出。单条有上限；条目在 release/dropPending 时清理。 */
   private pendingOutput = new Map<string, string>();
   private static MAX_PENDING_OUTPUT = 256 * 1024;
 
   /**
    * 记录会话出生尺寸（PTY 创建后、XtermTerminal 挂载前调用，挂载时 acquire 消费）。
-   * 若该会话的实例已存在（挂载早于 PTY 创建），直接套用到例上，不写待消费表
-   * —— 否则该 key 永远不会被消费，只能等 release 才清理。
+   * 若该会话的实例已存在（kill→重新激活的 rekey 复用路径，或挂载早于 PTY 创建），
+   * 直接套用到例上，不写待消费表——否则该 key 会留在待消费表，直到 release 清理。
    */
   setBirthDims(sessionId: string, cols: number, rows: number): void {
     if (cols <= 0 || rows <= 0) {
@@ -57,8 +57,8 @@ export class TerminalXtermPool {
     }
     const existing = this.pool.get(sessionId);
     if (existing) {
-      // 实例先于本次 PTY 创建而存在（仅当 sessionId 被复用才会发生，属未来防御）：
-      // 直接套用出生尺寸以保证池与 PTY 同几何，不写真源给「待消费表」白留一份。
+      // 实例已存在：kill→重新激活的 rekey 复用路径会先改名再调用本方法，
+      // 必须就地 resize；acquire 命中分支不消费「待消费出生尺寸表」。
       try {
         existing.terminal.resize(cols, rows);
       } catch {
@@ -102,8 +102,8 @@ export class TerminalXtermPool {
       });
       const fitAddon = new FitAddon();
       terminal.loadAddon(fitAddon);
-      terminal.open(hostEl);
       document.body.appendChild(hostEl);
+      terminal.open(hostEl);
       this.measureEntry = { terminal, fitAddon, hostEl, fontSize, fontFamily };
     }
     const entry = this.measureEntry;
@@ -129,17 +129,25 @@ export class TerminalXtermPool {
       return;
     }
     const buffered = (this.pendingOutput.get(sessionId) ?? '') + data;
-    this.pendingOutput.set(
-      sessionId,
-      buffered.length > TerminalXtermPool.MAX_PENDING_OUTPUT
-        ? buffered.slice(-TerminalXtermPool.MAX_PENDING_OUTPUT)
-        : buffered,
-    );
+    if (buffered.length > TerminalXtermPool.MAX_PENDING_OUTPUT) {
+      // 首屏补写是尽力而为：超限时整段丢弃，避免按 UTF-16 码元截断切坏转义序列/代理对，
+      // 把后半段控制序列补进新终端造成错误状态。条目数由 release/dropPending 清理。
+      this.pendingOutput.delete(sessionId);
+      return;
+    }
+    this.pendingOutput.set(sessionId, buffered);
+  }
+
+  /** 丢弃某会话的待补写缓冲（退役/终止/复用失败时调用，避免死会话缓冲累积）。 */
+  dropPending(sessionId: string): void {
+    this.pendingOutput.delete(sessionId);
   }
 
   /**
    * 把旧会话的 xterm 实例改名给新会话（kill → 重新激活复用同一窗格实例）：
-   * 清屏/清缓冲后由 acquire 按新 id 命中，避免重建 canvas + xterm（实测约 60ms）。
+   * 用 RIS（`\x1bc`）排到写队列末尾，让旧会话已排队的字节先落完再清屏；xterm 的
+   * `reset()` 不清待处理写队列与 parser（上游 CoreBrowserTerminal 注释明确），
+   * 因此不能用它来承诺“旧字节不会落进新会话”。
    * 返回 false 表示没有可复用实例，调用方按正常路径新建。
    */
   rekey(fromSessionId: string, toSessionId: string): boolean {
@@ -148,15 +156,21 @@ export class TerminalXtermPool {
     }
     const entry = this.pool.get(fromSessionId);
     if (!entry) {
+      this.dropPending(fromSessionId);
       return false;
     }
     this.pool.delete(fromSessionId);
     entry.sessionId = toSessionId;
     this.pool.set(toSessionId, entry);
     try {
-      entry.terminal.reset();
+      entry.terminal.write('\x1bc');
     } catch {
-      // 实例已释放：新会话 acquire 会按正常路径新建
+      // 写入失败时放弃该实例，交给正常 acquire 重建；先 dispose 再摘 DOM。
+      try {
+        entry.terminal.dispose();
+      } catch {
+        // 实例已不可用，dispose 失败无需再处理
+      }
       this.pool.delete(toSessionId);
       entry.hostEl.remove();
       return false;
@@ -164,7 +178,7 @@ export class TerminalXtermPool {
     return true;
   }
 
-  /** 把池条目建立前缓冲的输出补写到新建条目（无缓冲则空操作）。 */
+  /** 把池条目建立前缓冲的输出补写到目标条目（新建或已存在；无缓冲则空操作）。 */
   private flushPending(sessionId: string, terminal: Terminal): void {
     const pending = this.pendingOutput.get(sessionId);
     if (!pending) {
@@ -268,7 +282,7 @@ export class TerminalXtermPool {
   }
 
   release(sessionId: string): void {
-    this.pendingOutput.delete(sessionId);
+    this.dropPending(sessionId);
     const entry = this.pool.get(sessionId);
     if (!entry) {
       this.birthDims.delete(sessionId);

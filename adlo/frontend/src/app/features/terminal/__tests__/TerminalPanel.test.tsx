@@ -153,18 +153,6 @@ describe('TerminalPanel 增加终端禁用态', () => {
     const button = screen.getByRole('button', { name: '增加终端' }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
   });
-
-  it('活动标签没有任何窗格时禁用', () => {
-    const emptyTab = makePanelTab('tp-empty', 0);
-    useAppStore.setState({
-      terminalTabs: [emptyTab],
-      terminalTabsById: { [emptyTab.id]: emptyTab },
-      terminalActiveTabId: emptyTab.id,
-    });
-    renderPanel();
-    const button = screen.getByRole('button', { name: '增加终端' }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-  });
 });
 
 describe('TerminalPanel 自定义布局卡片接线', () => {

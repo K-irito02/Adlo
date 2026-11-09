@@ -72,6 +72,20 @@ export class TerminalPtyRuntime {
   private tabCwdsLoaded = false;
   /** sessionId → OSC 9;9 跨块尾部片段 */
   private oscCarry = new Map<string, string>();
+  /** 已退役/终止的会话：忽略其尾随输出，避免重新写入已释放或已复用的池条目。 */
+  private retiredSessionIds = new Set<string>();
+
+  private markRetired = (sessionId: string): void => {
+    this.retiredSessionIds.add(sessionId);
+    // 只保留最近 4096 条墓碑，超限按插入序淘汰最旧一条；不整表清空，
+    // 避免极端情况下把仍在产出尾随输出的旧会话放回缓冲路径。
+    if (this.retiredSessionIds.size > 4096) {
+      const oldest = this.retiredSessionIds.values().next().value;
+      if (oldest !== undefined) {
+        this.retiredSessionIds.delete(oldest);
+      }
+    }
+  };
 
   // 全局副作用只启动一次
   private started = false;
@@ -101,6 +115,8 @@ export class TerminalPtyRuntime {
       if (event.terminated) {
         this.liveSessionIds.delete(event.sessionId);
         this.ptyDims.delete(event.sessionId);
+        this.markRetired(event.sessionId);
+        terminalXtermPool.dropPending(event.sessionId);
         const state = useAppStore.getState();
         for (const tab of state.terminalTabs) {
           const pane = tab.panes.find((p) => p.sessionId === event.sessionId);
@@ -109,6 +125,9 @@ export class TerminalPtyRuntime {
             break;
           }
         }
+        return;
+      }
+      if (this.retiredSessionIds.has(event.sessionId)) {
         return;
       }
 
@@ -177,6 +196,7 @@ export class TerminalPtyRuntime {
     this.tabCwds.clear();
     this.tabCwdsLoaded = false;
     this.oscCarry.clear();
+    this.retiredSessionIds.clear();
   };
 
   // ---------------------------------------------------------------- 目录
@@ -236,6 +256,7 @@ export class TerminalPtyRuntime {
     this.ptyDims.delete(sessionId);
     this.createdSessionIds.delete(sessionId);
     this.oscCarry.delete(sessionId);
+    this.markRetired(sessionId);
   };
 
   /**
@@ -252,6 +273,8 @@ export class TerminalPtyRuntime {
     this.ptyDims.delete(sessionId);
     this.createdSessionIds.delete(sessionId);
     this.oscCarry.delete(sessionId);
+    this.markRetired(sessionId);
+    terminalXtermPool.dropPending(sessionId);
   };
 
   private attachSession = async (
@@ -284,8 +307,8 @@ export class TerminalPtyRuntime {
         return;
       }
       // 死会话（kill → 再次点击，或后端 terminated → 再次点击）：先退役旧 PTY
-      // 并清运行时账本；旧 xterm 实例保留待复用（见下方 rekey），创建失败才释放。
-      // Ruling C-7 保留「杀死进程」后的缓冲直到本次重新激活。
+      // 并清运行时账本；旧 xterm 实例保留待复用（见下方 rekey），创建失败、创建期间
+      // 窗格被关闭或抛异常时释放。Ruling C-7 保留「杀死进程」后的缓冲直到本次重新激活。
       replacedSessionId = existingPane.sessionId;
       this.retireSessionForReplacement(paneId, replacedSessionId);
       // 创建新 PTY 前先清掉 store 里残留的死会话 id：若创建失败（如 shell 不存在），
@@ -499,6 +522,8 @@ export class TerminalPtyRuntime {
     this.liveSessionIds.delete(sessionId);
     this.ptyDims.delete(sessionId);
     this.oscCarry.delete(sessionId);
+    this.markRetired(sessionId);
+    terminalXtermPool.dropPending(sessionId);
     // 按窗格更新：一个标签有多个窗格，必须只标记被 kill 的那个。
     useAppStore.getState().terminalUpdatePane(pane.tabId, pane.paneId, { status: 'terminated' });
   };

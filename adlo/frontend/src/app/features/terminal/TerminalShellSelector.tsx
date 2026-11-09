@@ -124,7 +124,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
     setActiveSubMenuId(itemId);
   }, []);
 
-  /** 离开子菜单（含回到父菜单）：立即收起，不再等待 200ms。 */
+  /** 父项离开时收起子卡片（子卡片自身离开也走同一出口）。 */
   const handleMouseLeaveSubMenu = useCallback(() => {
     setActiveSubMenuId(null);
   }, []);
@@ -182,7 +182,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
   return (
     <div
       ref={menuRef}
-      className="adl-menu adl-file-context__menu"
+      className={`adl-menu adl-file-context__menu adl-terminal-shell-menu${menuOpen ? ' is-open' : ''}`}
       onMouseLeave={handleMenuContainerMouseLeave}
     >
       <div className={`adl-split-pill${menuOpen ? ' is-open' : ''}`}>

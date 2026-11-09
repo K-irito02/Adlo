@@ -140,7 +140,7 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
         window.removeEventListener('focus', scheduleFit);
         disposable.dispose();
         // 不释放 pool entry — 保留 xterm 实例和 buffer，切换标签时不丢失内容。
-        // pool entry 仅在标签关闭时由 handleCloseTab 释放。
+        // 常规路径由标签/窗格关闭释放；会话替换失败、创建期间窗格被关闭或抛异常时也会释放。
         entryRef.current = undefined;
       };
     }, [sessionId]);

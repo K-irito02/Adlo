@@ -13,8 +13,9 @@ export const IconAddTerminal = makeFilledStroked(
 /**
  * 「恢复自动布局」图标：用户选定方案 B（虚线外框 + 2×2 四格）。
  *
- * 虚线外框表示「自动/待排布」，内部四格是恢复后的结果；纯描边 24 viewBox，
- * 与工具栏其它 14px 图标同重量。颜色继承 `currentColor`，亮暗自适应。
+ * 虚线外框表示「自动/待排布」，内部四格是恢复后的结果；纯描边 24 viewBox。
+ * 1.6/24 的线宽比同排标准 stroke 图标（2/24）略细，视觉上更接近工具栏的填充+描边图标。
+ * 颜色继承 `currentColor`，亮暗自适应。
  */
 export function IconAutoLayout({ size = 16, ...rest }: IconProps) {
   const { title, decorative, className, ...other } = rest;

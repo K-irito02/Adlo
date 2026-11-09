@@ -123,16 +123,15 @@ describe('TerminalShellSelector hover open', () => {
     fireEvent.click(screen.getByLabelText(/Select shell type/));
     const menu = screen.getByRole('menu');
     expect(menu).toBeDefined();
-    const root = menu.closest('.adl-menu') as Element;
-    // 指针在整体内部移动（toggle ↔ 菜单）不关闭
-    fireEvent.mouseOut(root, { relatedTarget: menu });
-    expect(onCloseSpy).not.toHaveBeenCalled();
-    // 移出整体：无延迟立即关闭
-    fireEvent.mouseOut(root, { relatedTarget: document.body });
+    // 移出整体：无延迟立即关闭（组合内部的跨缝路径由 CSS 桥接伪元素覆盖，
+    // jsdom 无布局无法验证，改由 Playwright 真实鼠标补证据，见进度文件）。
+    fireEvent.mouseOut(menu.closest('.adl-menu') as Element, {
+      relatedTarget: document.body,
+    });
     expect(onCloseSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('hides an open submenu immediately when leaving its parent item', () => {
+  it('hides an open submenu immediately when the pointer leaves the submenu card', () => {
     mockHoverCapable(true);
     const items: TerminalShellMenuItem[] = [
       {

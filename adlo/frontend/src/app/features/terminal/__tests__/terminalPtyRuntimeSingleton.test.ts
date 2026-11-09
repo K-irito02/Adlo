@@ -73,6 +73,28 @@ describe('terminalPtyRuntime 应用级单例', () => {
     expect(writeSpy).toHaveBeenCalledWith('hello');
   });
 
+  it('池条目不存在时把输出交给 pool 缓冲（首屏提示符不丢）', () => {
+    renderHook(() => useTerminalPtyLifecycle({ activeTab: undefined }));
+    vi.mocked(terminalXtermPool.get).mockReturnValueOnce(undefined);
+    const bufferSpy = vi.spyOn(terminalXtermPool, 'write');
+
+    emitPtyOutput?.({ sessionId: 's-buffer', data: 'hello', terminated: false });
+
+    expect(bufferSpy).toHaveBeenCalledWith('s-buffer', 'hello');
+  });
+
+  it('terminated 事件后同一会话的尾随输出被忽略（retired 墓碑）', () => {
+    renderHook(() => useTerminalPtyLifecycle({ activeTab: undefined }));
+    const dropSpy = vi.spyOn(terminalXtermPool, 'dropPending');
+    emitPtyOutput?.({ sessionId: 's1', data: '', terminated: true });
+    writeSpy.mockClear();
+
+    emitPtyOutput?.({ sessionId: 's1', data: 'tail', terminated: false });
+
+    expect(dropSpy).toHaveBeenCalledWith('s1');
+    expect(writeSpy).not.toHaveBeenCalled();
+  });
+
   it('面板 + 中心双挂载时全局只订阅一次，单事件只写一次', () => {
     renderHook(() => useTerminalPtyLifecycle({ activeTab: undefined }));
     renderHook(() => useTerminalPtyLifecycle({ activeTab: undefined }));
@@ -104,6 +126,20 @@ describe('terminalPtyRuntime 应用级单例', () => {
     expect(useAppStore.getState().terminalTabsById[tabId]).toBeUndefined();
   });
 
+  it('handleClosePane 释放会话时清 pending 缓冲', async () => {
+    useAppStore.getState().terminalCreateTab('powershell');
+    const tabId = useAppStore.getState().terminalActiveTabId;
+    const first = useAppStore.getState().terminalTabsById[tabId].panes[0];
+    await terminalPtyRuntime.activatePane(tabId, first.id);
+    expect(useAppStore.getState().terminalTabsById[tabId].panes[0].sessionId).toBe('s1');
+    useAppStore.getState().terminalAddPane(tabId, 'bash');
+
+    const dropSpy = vi.spyOn(terminalXtermPool, 'dropPending');
+    terminalPtyRuntime.handleClosePane(tabId, first.id);
+
+    expect(dropSpy).toHaveBeenCalledWith('s1');
+  });
+
   it('handleKillPane 杀死 PTY、标记窗格 terminated，但不释放 xterm 池（保留缓冲，Ruling C-7）', async () => {
     useAppStore.getState().terminalCreateTab('powershell');
     const tabId = useAppStore.getState().terminalActiveTabId;
@@ -112,10 +148,12 @@ describe('terminalPtyRuntime 应用级单例', () => {
     expect(pane.sessionId).toBe('s1');
     expect(terminalPtyRuntime.hasLiveSession('s1')).toBe(true);
     const releaseSpy = vi.spyOn(terminalXtermPool, 'release');
+    const dropSpy = vi.spyOn(terminalXtermPool, 'dropPending');
 
     terminalPtyRuntime.handleKillPane({ tabId, paneId: pane.id, sessionId: pane.sessionId });
 
     expect(killSpy).toHaveBeenCalledWith('s1');
+    expect(dropSpy).toHaveBeenCalledWith('s1');
     // Ruling C-7：杀死进程 ≠ 关闭窗格，池条目（最后一段输出）必须保留。
     expect(releaseSpy).not.toHaveBeenCalled();
     expect(terminalPtyRuntime.hasLiveSession('s1')).toBe(false);
@@ -139,6 +177,7 @@ describe('terminalPtyRuntime 应用级单例', () => {
 
     const releaseSpy = vi.spyOn(terminalXtermPool, 'release');
     const rekeySpy = vi.spyOn(terminalXtermPool, 'rekey');
+    const dropSpy = vi.spyOn(terminalXtermPool, 'dropPending');
 
     // 重新激活：复用旧池实例（rekey 改名 + 清屏），不再 release 后重建。
     terminalPtyRuntime.handleSelectPane(tabId, pane.id);
@@ -153,6 +192,7 @@ describe('terminalPtyRuntime 应用级单例', () => {
       },
       { timeout: 5000 },
     );
+    expect(dropSpy).toHaveBeenCalledWith('s1');
     expect(releaseSpy).not.toHaveBeenCalled();
   });
 
@@ -257,6 +297,86 @@ describe('terminalPtyRuntime 应用级单例', () => {
     expect(notifications).toBe(1);
 
     unsub();
+  });
+
+  it('激活时使用 measureDimensions 的实测尺寸创建 PTY', async () => {
+    useAppStore.getState().terminalCreateTab('powershell');
+    const tabId = useAppStore.getState().terminalActiveTabId;
+    const pane = useAppStore.getState().terminalTabsById[tabId].panes[0];
+    const host = document.createElement('div');
+    host.dataset.paneId = pane.id;
+    const canvas = document.createElement('div');
+    canvas.className = 'adl-terminal-canvas';
+    Object.defineProperty(canvas, 'clientWidth', { value: 640, configurable: true });
+    Object.defineProperty(canvas, 'clientHeight', { value: 480, configurable: true });
+    host.appendChild(canvas);
+    document.body.appendChild(host);
+
+    const measureSpy = vi
+      .spyOn(terminalXtermPool, 'measureDimensions')
+      .mockReturnValue({ cols: 132, rows: 31 });
+    const createSpy = (
+      window as unknown as { digitalLife: { pty: { create: ReturnType<typeof vi.fn> } } }
+    ).digitalLife.pty.create;
+
+    await terminalPtyRuntime.activatePane(tabId, pane.id);
+
+    expect(measureSpy).toHaveBeenCalledWith(640, 480);
+    expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({ cols: 132, rows: 31 }));
+    host.remove();
+  });
+
+  it('创建期间窗格被关闭：释放旧池条目并 kill 新会话', async () => {
+    useAppStore.getState().terminalCreateTab('powershell');
+    const tabId = useAppStore.getState().terminalActiveTabId;
+    await terminalPtyRuntime.handleCreatePane(tabId, 'bash');
+    const pane = useAppStore.getState().terminalTabsById[tabId].panes[1];
+    expect(pane.sessionId).toBe('s1');
+    terminalPtyRuntime.handleKillPane({ tabId, paneId: pane.id, sessionId: 's1' });
+
+    const createSpy = (
+      window as unknown as { digitalLife: { pty: { create: ReturnType<typeof vi.fn> } } }
+    ).digitalLife.pty.create;
+    let resolveCreate!: (value: unknown) => void;
+    createSpy.mockReturnValueOnce(new Promise((resolve) => (resolveCreate = resolve)));
+    const releaseSpy = vi.spyOn(terminalXtermPool, 'release');
+
+    terminalPtyRuntime.handleSelectPane(tabId, pane.id);
+    await waitFor(() => expect(createSpy).toHaveBeenCalled(), { timeout: 5000 });
+    useAppStore.getState().terminalRemovePane(tabId, pane.id);
+    resolveCreate({ ok: true, data: { sessionId: 's-new' } });
+
+    await waitFor(() => expect(releaseSpy).toHaveBeenCalledWith('s1'), { timeout: 5000 });
+    expect(killSpy).toHaveBeenCalledWith('s-new');
+  });
+
+  it('创建抛异常：释放旧池条目并回落 terminated', async () => {
+    useAppStore.getState().terminalCreateTab('powershell');
+    const tabId = useAppStore.getState().terminalActiveTabId;
+    await terminalPtyRuntime.handleCreatePane(tabId, 'bash');
+    const pane = useAppStore.getState().terminalTabsById[tabId].panes[1];
+    terminalPtyRuntime.handleKillPane({ tabId, paneId: pane.id, sessionId: 's1' });
+
+    const createSpy = (
+      window as unknown as { digitalLife: { pty: { create: ReturnType<typeof vi.fn> } } }
+    ).digitalLife.pty.create;
+    createSpy.mockRejectedValueOnce(new Error('boom'));
+    const releaseSpy = vi.spyOn(terminalXtermPool, 'release');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    terminalPtyRuntime.handleSelectPane(tabId, pane.id);
+
+    await waitFor(
+      () => {
+        const after = useAppStore
+          .getState()
+          .terminalTabsById[tabId].panes.find((p) => p.id === pane.id);
+        expect(after?.status).toBe('terminated');
+      },
+      { timeout: 5000 },
+    );
+    expect(releaseSpy).toHaveBeenCalledWith('s1');
+    expect(errorSpy).toHaveBeenCalled();
   });
 
   it('handleSelectPane 激活无会话的窗格（点击空白窗格重建 shell）', async () => {

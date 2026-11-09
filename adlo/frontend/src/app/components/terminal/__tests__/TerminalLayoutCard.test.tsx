@@ -161,6 +161,33 @@ describe('TerminalLayoutCard reorder (B 缝隙滑动)', () => {
     expect(onMove).toHaveBeenCalledWith(0, 2);
   });
 
+  it('居中后拖拽落点按布局坐标计算（不被 FLIP transform 污染）', () => {
+    const { container, onMove } = renderCard(makePanes(3));
+    const squares = squaresOf(container);
+    const grid = container.querySelector<HTMLElement>('.adl-layout-card__grid');
+    expect(grid).not.toBeNull();
+    const rect = {
+      left: 100,
+      top: 100,
+      width: 200,
+      height: 200,
+      right: 300,
+      bottom: 300,
+      x: 100,
+      y: 100,
+      toJSON: () => ({}),
+    } as DOMRect;
+    const rectSpy = vi.spyOn(grid as HTMLElement, 'getBoundingClientRect').mockReturnValue(rect);
+    Object.defineProperty(squares[0], 'offsetWidth', { value: 40, configurable: true });
+
+    // cols=2、tile=40、gap=8 → 内容宽 88；网格 200 宽居中 → 原点 x=156、y=100。
+    // 从首块中心拖到第二列中心：新算法 floor((224-156)/48)=1；旧算法 floor((224-100)/48)=2。
+    pointerDragSquare(squares[0], [224, 120], [176, 120]);
+    expect(onMove).toHaveBeenCalledWith(0, 1);
+
+    rectSpy.mockRestore();
+  });
+
   it('拖拽中本地顺序实时变化（其它方块让位），松手才提交一次', () => {
     const { container, onMove } = renderCard(makePanes(3));
     const panes = makePanes(3);
