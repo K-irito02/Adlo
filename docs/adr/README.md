@@ -8,6 +8,7 @@
 - [0015 本地 Git 初始化必须显式指定工作区路径](./0015-local-git-init-explicit-workspace.md) — 只创建本地 `.git`，不联网
 - [0016 编辑器存盘分离草稿 / 已保存版本 / 外部版本](./0016-editor-save-pipeline-boundary.md) — 自写回声不触发冲突
 - [0018 为所有已添加工作区各建监听根](./0018-multi-root-workspace-watchers.md) — 批次携带批次归属，按根刷新
+- [0019 git 元数据通道：只改 `.git` 的操作也唤起刷新](./0019-git-metadata-watchers.md) — 多根盲区：gitdir/commondir 双监听，前端按 `.git/` 前缀只刷 git 快照
 
 ## 环境、Harness 与依赖
 

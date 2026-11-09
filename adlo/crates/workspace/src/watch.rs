@@ -1,7 +1,7 @@
 use adl_errors::AppError;
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::BTreeSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
@@ -53,6 +53,111 @@ fn is_ignored_path(relative: &Path) -> bool {
     EXTRA_IGNORED_SUFFIXES.iter().any(|suffix| file_name.ends_with(suffix))
 }
 
+/// 批次路径过滤器：相对路径 → 发出路径（None = 丢弃该事件）。
+type PathFilter = Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
+
+/// git 元数据白名单（gitdir/commondir 内相对路径，正斜杠，小写比较）：
+/// 合法则返回合成路径 `.git/<rel>`；其余（含 objects/**、hooks/**、info/**）返回 None。
+/// 前端按 `.git/` 前缀识别 git 批次：无 overflow 时只静默刷新 git 快照；
+/// overflow 批次无法归因，按整轮重扫 + 选中 reconcile 处理（契约既定）。
+pub(crate) fn normalize_git_meta(relative: &str) -> Option<String> {
+    const TOP_FILES: &[&str] = &[
+        "head",
+        "index",
+        "packed-refs",
+        "fetch_head",
+        "orig_head",
+        "merge_head",
+        "cherry_pick_head",
+        "revert_head",
+        "rebase_head",
+        "merge_msg",
+        "squash_msg",
+        "auto_merge",
+    ];
+    const PREFIXES: &[&str] = &["refs/", "logs/", "rebase-merge/", "rebase-apply/"];
+
+    let joined = relative.split('/').filter(|part| !part.is_empty()).collect::<Vec<_>>().join("/");
+    if joined.is_empty() {
+        return None;
+    }
+    let lowered = joined.to_lowercase();
+    if !joined.contains('/') && TOP_FILES.contains(&lowered.as_str()) {
+        return Some(format!(".git/{joined}"));
+    }
+    if PREFIXES.iter().any(|prefix| lowered.starts_with(prefix)) {
+        return Some(format!(".git/{joined}"));
+    }
+    None
+}
+
+/// 解析工作区根下的 git 元数据目录：
+/// - `.git` 是目录（普通仓库/主工作树）→ `[root/.git]`
+/// - `.git` 是文件（linked worktree/子模块）→ 解析 `gitdir: <path>` 指针（相对路径按根解析），
+///   再读 gitdir 内 `commondir` 文件（相对路径按 gitdir 解析）得到共享 commondir；
+///   返回 `[gitdir, commondir]` 去重
+/// - 非仓库 / 读取失败 → 空
+///
+/// 词法归一化：折叠 `.` / `..` 组件（不解析符号链接、不引入 `\\?\` 前缀）。
+/// git 指针里常出现 `gitdir: ../foo`、`commondir: ../..` 这类相对路径，
+/// 交给 watch 之前必须消掉 `..`，否则比较去重与 notify 注册都不稳。
+fn normalize_lexically(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {},
+            Component::Prefix(prefix) => out.push(prefix.as_os_str()),
+            Component::RootDir => out.push(std::path::MAIN_SEPARATOR_STR),
+            Component::ParentDir => {
+                out.pop();
+            },
+            Component::Normal(part) => out.push(part),
+        }
+    }
+    out
+}
+
+pub fn resolve_git_dirs(root: &Path) -> Vec<PathBuf> {
+    let dot_git = root.join(".git");
+    if dot_git.is_dir() {
+        return vec![dot_git];
+    }
+    let content = match std::fs::read_to_string(&dot_git) {
+        Ok(content) => content,
+        Err(_) => return Vec::new(),
+    };
+    let gitdir_raw = content
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("gitdir:").map(str::trim))
+        .filter(|line| !line.is_empty())
+        .map(PathBuf::from);
+    let Some(gitdir_raw) = gitdir_raw else {
+        return Vec::new();
+    };
+    let gitdir = normalize_lexically(&if gitdir_raw.is_absolute() {
+        gitdir_raw
+    } else {
+        root.join(gitdir_raw)
+    });
+    let mut dirs = vec![gitdir.clone()];
+    if let Ok(pointer) = std::fs::read_to_string(gitdir.join("commondir")) {
+        let pointer = pointer.trim();
+        if !pointer.is_empty() {
+            let common = PathBuf::from(pointer);
+            let common = normalize_lexically(&if common.is_absolute() {
+                common
+            } else {
+                gitdir.join(common)
+            });
+            if !dirs.contains(&common) {
+                dirs.push(common);
+            }
+        }
+    }
+    dirs
+}
+
 fn to_relative(root: &Path, absolute: &Path) -> Option<String> {
     let relative = absolute.strip_prefix(root).ok()?;
     Some(relative.to_string_lossy().replace('\\', "/"))
@@ -64,7 +169,20 @@ impl WorkspaceWatcher {
         root: &Path,
         on_batch: Arc<dyn Fn(FilesChangedBatch) + Send + Sync>,
     ) -> Result<Self, AppError> {
-        Self::start_with_debounce(root, on_batch, DEFAULT_DEBOUNCE)
+        let filter: PathFilter = Arc::new(|relative: &str| {
+            (!is_ignored_path(Path::new(relative))).then(|| relative.to_string())
+        });
+        Self::start_with_debounce(root, on_batch, DEFAULT_DEBOUNCE, filter)
+    }
+
+    /// 启动 git 元数据监听：只放行 `normalize_git_meta` 白名单，路径合成
+    /// `.git/<rel>` 进入同一批次契约（调用方负责把 batch 打上工作区根 tag）。
+    pub fn start_git_meta(
+        git_root: &Path,
+        on_batch: Arc<dyn Fn(FilesChangedBatch) + Send + Sync>,
+    ) -> Result<Self, AppError> {
+        let filter: PathFilter = Arc::new(normalize_git_meta);
+        Self::start_with_debounce(git_root, on_batch, DEFAULT_DEBOUNCE, filter)
     }
 
     /// 测试专用：允许指定去抖窗口（`#[cfg(test)]` 之外不可见，避免生产误用）。
@@ -74,13 +192,28 @@ impl WorkspaceWatcher {
         on_batch: Arc<dyn Fn(FilesChangedBatch) + Send + Sync>,
         debounce: Duration,
     ) -> Result<Self, AppError> {
-        Self::start_with_debounce(root, on_batch, debounce)
+        let filter: PathFilter = Arc::new(|relative: &str| {
+            (!is_ignored_path(Path::new(relative))).then(|| relative.to_string())
+        });
+        Self::start_with_debounce(root, on_batch, debounce, filter)
+    }
+
+    /// 测试专用：git 元数据监听 + 自定义去抖窗口。
+    #[cfg(test)]
+    pub(crate) fn start_git_meta_for_test(
+        git_root: &Path,
+        on_batch: Arc<dyn Fn(FilesChangedBatch) + Send + Sync>,
+        debounce: Duration,
+    ) -> Result<Self, AppError> {
+        let filter: PathFilter = Arc::new(normalize_git_meta);
+        Self::start_with_debounce(git_root, on_batch, debounce, filter)
     }
 
     fn start_with_debounce(
         root: &Path,
         on_batch: Arc<dyn Fn(FilesChangedBatch) + Send + Sync>,
         debounce: Duration,
+        filter: PathFilter,
     ) -> Result<Self, AppError> {
         if !root.is_dir() {
             return Err(AppError::NotFound(format!("watch root: {}", root.display())));
@@ -115,15 +248,15 @@ impl WorkspaceWatcher {
                             let Some(relative) = to_relative(&root_owned, &path) else {
                                 continue;
                             };
-                            if is_ignored_path(Path::new(&relative)) {
+                            let Some(mapped) = filter(&relative) else {
                                 continue;
-                            }
+                            };
                             if is_remove && !path.exists() {
-                                removed.insert(relative.clone());
-                                changed.remove(&relative);
+                                removed.insert(mapped.clone());
+                                changed.remove(&mapped);
                             } else {
-                                removed.remove(&relative);
-                                changed.insert(relative);
+                                removed.remove(&mapped);
+                                changed.insert(mapped);
                             }
                         }
                     },
@@ -394,6 +527,116 @@ mod tests {
             ),
             "watcher must survive the panic, got {:?}",
             batches.lock().unwrap()
+        );
+        watcher.stop();
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn normalize_git_meta_accepts_whitelisted_paths() {
+        assert_eq!(normalize_git_meta("index").as_deref(), Some(".git/index"));
+        assert_eq!(normalize_git_meta("HEAD").as_deref(), Some(".git/HEAD"));
+        assert_eq!(normalize_git_meta("packed-refs").as_deref(), Some(".git/packed-refs"));
+        assert_eq!(normalize_git_meta("refs/heads/main").as_deref(), Some(".git/refs/heads/main"));
+        assert_eq!(normalize_git_meta("logs/HEAD").as_deref(), Some(".git/logs/HEAD"));
+        assert_eq!(normalize_git_meta("rebase-merge/0").as_deref(), Some(".git/rebase-merge/0"));
+        assert_eq!(
+            normalize_git_meta("refs/remotes/origin/main").as_deref(),
+            Some(".git/refs/remotes/origin/main")
+        );
+    }
+
+    #[test]
+    fn normalize_git_meta_rejects_noise_and_directories() {
+        assert_eq!(normalize_git_meta("objects/pack/pack-1.idx"), None);
+        assert_eq!(normalize_git_meta("hooks/pre-commit.sample"), None);
+        assert_eq!(normalize_git_meta("info/refs"), None);
+        assert_eq!(normalize_git_meta("worktrees/other/HEAD"), None);
+        assert_eq!(normalize_git_meta("refs"), None);
+        assert_eq!(normalize_git_meta("logs"), None);
+        assert_eq!(normalize_git_meta("refs2/main"), None);
+        assert_eq!(normalize_git_meta("commondir"), None);
+        assert_eq!(normalize_git_meta(""), None);
+    }
+
+    #[test]
+    fn resolve_git_dirs_plain_repo_returns_single_dir() {
+        let tmp = unique_tmp_dir();
+        std::fs::create_dir_all(tmp.join(".git/refs")).unwrap();
+        let dirs = resolve_git_dirs(&tmp);
+        assert_eq!(dirs, vec![tmp.join(".git")]);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn resolve_git_dirs_linked_worktree_resolves_gitdir_and_commondir() {
+        let tmp = unique_tmp_dir();
+        let root = tmp.join("worktree");
+        let main = tmp.join("main");
+        let gitdir = main.join(".git").join("worktrees").join("slot-x");
+        std::fs::create_dir_all(&gitdir).unwrap();
+        std::fs::create_dir_all(main.join(".git").join("refs")).unwrap();
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(gitdir.join("commondir"), "../..").unwrap();
+        std::fs::write(root.join(".git"), format!("gitdir: {}\n", gitdir.display())).unwrap();
+
+        let dirs = resolve_git_dirs(&root);
+        assert_eq!(dirs.len(), 2, "expected gitdir + commondir, got {dirs:?}");
+        assert_eq!(dirs[0], gitdir);
+        let common = &dirs[1];
+        assert!(common.ends_with(".git"), "commondir should end with .git: {common:?}");
+        assert!(common.is_dir());
+        assert_ne!(&dirs[0], common, "gitdir and commondir must stay distinct");
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn resolve_git_dirs_non_repo_returns_empty() {
+        let tmp = unique_tmp_dir();
+        std::fs::create_dir_all(&tmp).unwrap();
+        assert!(resolve_git_dirs(&tmp).is_empty());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn watcher_git_meta_reports_synthetic_prefix_and_ignores_objects() {
+        let tmp = unique_tmp_dir();
+        let git_dir = tmp.join(".git");
+        std::fs::create_dir_all(git_dir.join("refs/heads")).unwrap();
+        std::fs::create_dir_all(git_dir.join("objects/pack")).unwrap();
+        let batches: Arc<Mutex<Vec<FilesChangedBatch>>> = Arc::new(Mutex::new(vec![]));
+        let sink = batches.clone();
+        let watcher = WorkspaceWatcher::start_git_meta_for_test(
+            &git_dir,
+            Arc::new(move |batch| sink.lock().unwrap().push(batch)),
+            Duration::from_millis(150),
+        )
+        .unwrap();
+
+        std::fs::write(git_dir.join("refs/heads").join("main"), b"sha").unwrap();
+        std::fs::write(git_dir.join("index"), b"idx").unwrap();
+        std::fs::write(git_dir.join("objects/pack").join("pack-1.idx"), b"pack").unwrap();
+
+        assert!(
+            wait_until(
+                || batches
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .any(|b| b.changed.contains(&".git/refs/heads/main".to_string())),
+                Duration::from_secs(5)
+            ),
+            "expected a batch containing .git/refs/heads/main, got {:?}",
+            batches.lock().unwrap()
+        );
+        std::thread::sleep(Duration::from_millis(400));
+        let all: Vec<String> =
+            batches.lock().unwrap().iter().flat_map(|b| b.changed.clone()).collect();
+        assert!(all.contains(&".git/index".to_string()), "expected .git/index in {all:?}");
+        assert!(
+            !all.iter().any(|p| p.contains("objects")),
+            "objects/** must be filtered out, got {all:?}"
         );
         watcher.stop();
         let _ = std::fs::remove_dir_all(&tmp);

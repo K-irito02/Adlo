@@ -12,6 +12,7 @@ import type { WorkspaceFilesChangedBatch, WorkspaceSearchFilter } from '@adlo/ke
 import { sameWorkspacePath } from '@shared/workspacePathMatch';
 import type { StoreApi } from 'zustand';
 import { handleExternalBatch } from './editorActions';
+import { partitionBatchPaths } from './gitMetaBatch';
 const SCOPE = 'search';
 
 const debouncedSearch = createDebouncedSearch(300);
@@ -391,7 +392,15 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
     /** [subscribeWorkspaceFilesChanged - 订阅后端 watcher 批次并调度局部重算] */
     subscribeWorkspaceFilesChanged: () => {
       const unsubscribe = window.digitalLife.workspace.onFilesChanged((batch) => {
-        scheduleRecompute(batch);
+        const { normal: normalChanged } = partitionBatchPaths(batch.changed);
+        const { normal: normalRemoved } = partitionBatchPaths(batch.removed);
+        const hasNormalPayload =
+          normalChanged.length > 0 || normalRemoved.length > 0 || batch.overflow === true;
+        // git 元数据批次跳过搜索重算（不清已有 pending——之前攒下的正常文件
+        // 重算必须保留到计时器触发，避免 git status 的 index 信号吞掉复位）。
+        if (hasNormalPayload) {
+          scheduleRecompute({ ...batch, changed: normalChanged, removed: normalRemoved });
+        }
         // 编辑器跟手（事项 13）：同一批次顺带驱动选中文件重载 + git 静默跟手。
         // 检索重算与编辑器对账互不干扰（均为读操作，无循环）。
         handleExternalBatch(get, batch);

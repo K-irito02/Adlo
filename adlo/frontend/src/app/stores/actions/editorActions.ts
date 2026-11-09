@@ -57,6 +57,7 @@ import {
 import { refreshTreeByWorkspacePath } from './workspaceActions';
 import { insertTreeNode } from './workspaceTreeRename';
 import { asWorkspaceID } from '../../../shared/branded';
+import { partitionBatchPaths } from './gitMetaBatch';
 import { TEXT_HEAVY_PREVIEW_CHARS } from '../../regions/right-panel/heavyPreviewLimits';
 import { fileZh } from '../../i18n/zh-CN/file';
 import { fileEn } from '../../i18n/en-US/file';
@@ -358,21 +359,30 @@ export function handleExternalBatch(
   if (targets.length === 0) {
     return;
   }
-  const hasPayload = batch.changed.length > 0 || batch.removed.length > 0;
-  if (!hasPayload && batch.overflow !== true) {
+  // git 元数据批次（HEAD/index/refs/logs 等 watcher 合成路径）：无 overflow 时只触发
+  // git 快照静默刷新，不做文件树全量重扫、不记外部信号、不打选中文件对账；
+  // overflow 批次无法归因，按整轮重扫 + 选中 reconcile 处理（契约既定）。
+  // 否则 `git status`（人写一次可能回写 index）会放大成树重扫风暴。
+  const { git: gitChanged, normal: normalChanged } = partitionBatchPaths(batch.changed);
+  const { git: gitRemoved, normal: normalRemoved } = partitionBatchPaths(batch.removed);
+  const hasNormalPayload =
+    batch.overflow === true || normalChanged.length > 0 || normalRemoved.length > 0;
+  const hasGitPayload = gitChanged.length > 0 || gitRemoved.length > 0;
+  if (!hasNormalPayload && !hasGitPayload) {
     return;
   }
   for (const target of targets) {
-    // 树跟手先行：无选中文件时同样刷新（只改了未打开的文件也要实时变），
-    // 与选中重载/脏保护互不干扰。
-    scheduleTreeFollowQuietly(get, target);
+    if (hasNormalPayload) {
+      scheduleTreeFollowQuietly(get, target);
+    }
     scheduleChangesFollowQuietly(get, target);
-    // 记录 watcher 信号（按文件归属工作区落键）：保存前若信号仍新鲜，
-    // 必须先读盘复核，避免信号尚未调度到 reconcile 时自动保存抢先覆盖外部修改。
-    for (const path of batch.changed) {
+    if (!hasNormalPayload) {
+      continue;
+    }
+    for (const path of normalChanged) {
       noteExternalSignal(scopedFileKey(target.id, path));
     }
-    for (const path of batch.removed) {
+    for (const path of normalRemoved) {
       noteExternalSignal(scopedFileKey(target.id, path));
     }
   }
@@ -395,7 +405,7 @@ export function handleExternalBatch(
     return;
   }
   const norm = normalizeWorkspaceRelativePath(selected);
-  const hitPath = [...batch.changed, ...batch.removed].find(
+  const hitPath = [...normalChanged, ...normalRemoved].find(
     (p) => normalizeWorkspaceRelativePath(p) === norm,
   );
   if (hitPath !== undefined) {

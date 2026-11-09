@@ -38,7 +38,7 @@ pub use tree::{
     list_tree_cached_stale_ok, list_tree_force, list_tree_fresh, remove_tree_cache_row,
     tree_cache_dir, tree_cache_dir_env_override,
 };
-pub use watch::{FilesChangedBatch, WorkspaceWatcher};
+pub use watch::{FilesChangedBatch, WorkspaceWatcher, resolve_git_dirs};
 
 use adl_errors::AppError;
 use adl_types::FileOutlineItem;

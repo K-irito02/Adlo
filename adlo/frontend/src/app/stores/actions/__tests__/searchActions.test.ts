@@ -155,6 +155,21 @@ describe('searchActions recompute guards (事项 45 Phase 4)', () => {
     expect(searchFiles).toHaveBeenCalledWith('foo');
   });
 
+  it('ignores pure git-metadata batches (no search recompute)', async () => {
+    const { searchInFiles, searchFiles, schedule } = setupRecompute({});
+    schedule({ changed: ['.git/index'], removed: ['.git/logs/HEAD'] });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(searchInFiles).not.toHaveBeenCalled();
+    expect(searchFiles).not.toHaveBeenCalled();
+  });
+
+  it('mixed batch keeps only normal paths in the search recompute', async () => {
+    const { searchInFiles, schedule } = setupRecompute({});
+    schedule({ changed: ['a.md', '.git/index'], removed: [] });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(searchInFiles.mock.calls[0][0]).toEqual(['a.md']);
+  });
+
   it('appends newly-matching files and replaces in place', async () => {
     const { searchInFiles, schedule, get } = setupRecompute({
       searchEntries: [

@@ -916,6 +916,70 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
   });
 });
 
+describe('handleExternalBatch git 元数据批次', () => {
+  beforeEach(() => {
+    clearWorkspaceCaches('ws-1');
+    dropPendingEditorText('ws-1');
+    vi.useFakeTimers();
+    vi.stubGlobal('digitalLife', {
+      workspace: {
+        updateFileContent: vi.fn(),
+        readFile: vi.fn(),
+        setEditorDirtyPaths: vi.fn(async () => ({ ok: true, data: true })),
+        readFileForWorkspace: readFileForWorkspaceMock,
+        readMediaFile: readMediaFileMock,
+      },
+    });
+    readFileForWorkspaceMock.mockReset();
+    readMediaFileMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('纯 git 批次：只刷新 git 快照，不做树重扫/文件对账', async () => {
+    const { store, refreshGitSnapshot, refreshOneWorkspaceTree } = makeStore();
+    bridge().readFile.mockResolvedValue({
+      ok: true,
+      data: { path: 'note.txt', content: 'v-git\n', lastModifiedAt: 3 },
+    });
+    handleExternalBatch(() => store.getState() as never, {
+      changed: ['.git/index', '.git/refs/heads/main'],
+      removed: [],
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(refreshGitSnapshot).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
+    expect(refreshOneWorkspaceTree).not.toHaveBeenCalled();
+    expect(bridge().readFile).not.toHaveBeenCalled();
+  });
+
+  it('混合批次：树照常刷新，选中文件仍对账，git 快照刷新照拿', async () => {
+    const { store, refreshGitSnapshot, refreshOneWorkspaceTree } = makeStore();
+    bridge().readFile.mockResolvedValue({
+      ok: true,
+      data: { path: 'note.txt', content: 'v-mix\n', lastModifiedAt: 4 },
+    });
+    handleExternalBatch(() => store.getState() as never, {
+      changed: ['note.txt', '.git/index'],
+      removed: [],
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(refreshGitSnapshot).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
+    expect(refreshOneWorkspaceTree).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
+    expect(bridge().readFile).toHaveBeenCalledWith('note.txt');
+  });
+
+  it('空批次照旧短路，reset 不触发', async () => {
+    const { store, refreshGitSnapshot, refreshOneWorkspaceTree } = makeStore();
+    handleExternalBatch(() => store.getState() as never, { changed: [], removed: [] });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(refreshGitSnapshot).not.toHaveBeenCalled();
+    expect(refreshOneWorkspaceTree).not.toHaveBeenCalled();
+  });
+});
+
 describe('saveFile 写前比对（外部已改 + 本地草稿 → 冲突拦截）', () => {
   beforeEach(() => {
     clearWorkspaceCaches('ws-1');

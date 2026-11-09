@@ -194,7 +194,7 @@ WebView2 的 `PreferredColorScheme` 在同一用户数据目录（UDF）会话�
 前端代码编辑器面板，基于 CodeMirror，支持多标签页、语法高亮、diff 对比。存盘链与外部变更跟手见 `adlo/frontend/src/app/stores/editorSavePipeline.ts` 与 `stores/actions/editorActions.ts`；决策见 [ADR-0016](./docs/adr/0016-editor-save-pipeline-boundary.md)，经验见 [编辑器自动保存竞态](./docs/knowledge-base/interaction/editor-autosave-watcher-race-2026-11-08.md)。
 
 ### 工作区 (Workspace)
-项目管理模块，支持 Git 操作（clone/commit/diff/worktree）、文件树、大纲解析、搜索。文件监听按「监听根」组织：当前工作区 + 侧栏全部已添加工作区各一个 watcher，批次带批次归属（`rootPath`）按工作区分发（决策见 [ADR-0018](./docs/adr/0018-multi-root-workspace-watchers.md)）。
+项目管理模块，支持 Git 操作（clone/commit/diff/worktree）、文件树、大纲解析、搜索。文件监听按「监听根」组织：当前工作区 + 侧栏全部已添加工作区各一个 watcher，批次带批次归属（`rootPath`）按工作区分发；只改 `.git` 而不动工作树的操作（commit/push 等）由 git 元数据通道覆盖（gitdir + commondir 双监听，白名单放行 HEAD/index/refs/logs，消费端按 `.git/` 前缀只刷 git 快照；决策见 [ADR-0018](./docs/adr/0018-multi-root-workspace-watchers.md) 与 [ADR-0019](./docs/adr/0019-git-metadata-watchers.md)）。
 
 ### 浏览器 (Browser)
 内嵌 WebView（Tauri 模式）和 iframe（浏览器模式）面板，支持多标签页、书签、历史记录。网站元数据缓存（favicon data-URI + 标题）为三层架构：Tauri 端 `crates/browser/src/site_meta_cache.rs`（SQLite）、浏览器端 preview JSON 文件（`.adl-cache/`）、前端内存层 `siteMetaCache.ts`（唯一渲染真源）。
