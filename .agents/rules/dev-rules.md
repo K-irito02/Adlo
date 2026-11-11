@@ -134,6 +134,7 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 - **分支命名**：kebab-case，最多 3 个单词，禁止斜杠/类型前缀
 - **Commit 信息**：`type(scope): summary`（feat/fix/docs/chore/refactor/test）
 - Scope 选项：`core` / `frontend` / `rust` / `stores` / `browser` / `terminal` / `ipc` / `docs` / `deps`
+- **含特殊字符的提交信息**：用 `write` 工具把消息写到临时文件（UTF-8 无 BOM），再 `git commit -F <文件>`；shell 内联写文件（`Set-Content` / `WriteAllText` / here-string）会被权限拒绝。
 
 ### 并行工作树约束
 - **隔离单位**：一分支 = 一工作树 = 一会话；并发会话各自在 `SourceWorkspace-worktrees/` 下的独立工作树中开发，禁止两个会话共用同一目录

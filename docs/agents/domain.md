@@ -12,7 +12,7 @@ If any of these files don't exist, **proceed silently**. Don't flag their absenc
 
 `GLOSSARY.md` shape is machine-checked by `pnpm --dir adlo/frontend check:glossary`: every term needs an `_Avoid_` line, and implementation tokens (paths, file names) or numeric counts are rejected. The same check rejects Markdown emphasis corruption in glossary bodies (`HTTP*PROXY`, `\_Avoid_`) — always wrap environment-variable names in backticks, otherwise Prettier turns bare underscores into emphasis and silently changes the definition.
 
-Backticked entries inside an `_Avoid_` line are **enforced**: `check:glossary` fails if they appear in `frontend/src/app/i18n/zh-CN/**` or `docs/operations/ui-manual/**`. Put a `glossary-allow` marker on a line for an intentional exception (for example, quoting a historical UI string). Plain `_Avoid_` entries are advisory only.
+Backticked entries inside an `_Avoid_` line are **enforced**: `check:glossary` fails if they appear in `frontend/src/app/i18n/zh-CN/**`, `docs/operations/**`, or `docs/architecture/**`（以 `adlo/frontend/scripts/check-glossary.ts` 的 `ENFORCED_SOURCES` 为准）. Put a `glossary-allow` marker on a line for an intentional exception (for example, quoting a historical UI string). Plain `_Avoid_` entries are advisory only.
 
 ## File structure
 

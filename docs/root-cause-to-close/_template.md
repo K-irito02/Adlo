@@ -1,0 +1,30 @@
+# 进度 — YYYY-MM-DD HH:mm:ss
+
+> 用法：复制本文件到 `docs/root-cause-to-close/YYYY-MM/progress-YYYY-MM-DD-HHmmss.md`。
+> 数字只从命令输出复制（禁止手算/凭记忆）；每轮结论原地替换旧文案，不并存互相矛盾的版本。
+
+## [ ] 事项 1：<简述>
+
+- 状态：待处理 | 类型：解决/优化/调整 | 流程：本技能 P0–P6
+- 根因：
+- 修复：
+- 验证：
+  - 命令：
+  - 输出汇总行（原样粘贴，勿改写）：
+  - 时间：
+- 审查报告（P6 归档到 `reviews/<progress-stem>/`）：
+  - R1 rev1：`<scope>-r1-rev1-report.md`（需修复 N：critical/high/medium/low）
+  - R1 rev2：…
+  - R2 revN：…
+  - 记录不修：…
+
+## [ ] 事项 2：<简述>
+
+- 状态：待处理 | 类型：解决/优化/调整 | 流程：本技能 P0–P6
+- 根因：
+- 修复：
+- 验证：
+  - 命令：
+  - 输出汇总行（原样粘贴，勿改写）：
+  - 时间：
+- 审查报告（P6 归档到 `reviews/<progress-stem>/`）：

@@ -35,6 +35,11 @@ alwaysApply: false
 1. 开发阶段：先用 `pnpm run dev:browser` 在浏览器中快速迭代（方便 Agent 测试）
 2. 验证阶段：用 `pnpm run dev:both` 同时验证两种模式的一致性
 
+> **启动前先查实例（Agent 自动化验证 P3 必做）**：跑 `dev:preview` / `dev:browser` / `playwright-cli` 前先执行 `pnpm run dev:status`。
+> 本工作树已有运行实例（含用户手动启动的 `dev:tauri`）时：优先复用其 URL；需要重启先征得用户同意。
+> **禁止并行起第二个 adl-server**——同一数据目录会 `database is locked`。
+> `pnpm run dev:stop` 会按工作树路径终止 `adlo.exe` / `adl-server.exe`，用户正在测试的窗口会被一并关闭；执行前先确认实例归属。
+
 ## 开发阶段日志 CLI 覆盖（session-only）
 
 在启动命令后用 `--` 透传日志 flag，可在本次运行中覆盖「日志级别 / 终端日志模式 / 调试日志模式」，**不写回 `config.json`**：
