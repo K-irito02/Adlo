@@ -1,8 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import { terminalSelectors } from '@stores/selectors';
-import { isPanelTab } from '@stores/slices/tabLocation';
+import { terminalSelectors, panelTabSelectors } from '@stores/selectors';
 import { activePaneOf, clampPaneLabel, type TerminalPane } from '@stores/slices/terminalSliceTypes';
 import { useTerminalDragDrop } from './useTerminalDragDrop';
 import { terminalPtyRuntime } from './terminalPtyRuntime';
@@ -128,8 +127,7 @@ export interface UseTerminalPanelReturn {
 export function useTerminalPanel(): UseTerminalPanelReturn {
   // 面板只拥有 location !== 'center' 的终端标签：转入中心的终端不得在面板列表/计数中
   // 重复显示，也不得由面板再次挂载同一 session（排他归属，spec 目标 #5）。
-  const allTerminalTabs = terminalSelectors.useTerminalTabs();
-  const terminalTabs = useMemo(() => allTerminalTabs.filter(isPanelTab), [allTerminalTabs]);
+  const terminalTabs = panelTabSelectors.usePanelTerminalTabs();
   const terminalActiveTabId = terminalSelectors.useTerminalActiveTabId();
 
   const { terminalReorderTabs, terminalReorderPanes, terminalSwapPanes, terminalUpdatePane } =

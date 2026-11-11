@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
-import { isPanelTab } from '@stores/slices/tabLocation';
+import { panelTabSelectors } from '@stores/selectors';
 import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 
 export type BrowserNavigatorMode = 'open' | 'tabs' | 'list' | 'search';
@@ -11,7 +11,7 @@ export type BrowserNavigatorMode = 'open' | 'tabs' | 'list' | 'search';
 export function computeNavigatorCount(
   navigatorMode: BrowserNavigatorMode,
   _query: string,
-  browserTabs: BrowserTabState[],
+  panelTabs: BrowserTabState[],
   _browserBookmarks: { title: string; url: string }[],
   _browserHistory: { title: string; url: string; visitedAt: number }[],
   searchResults: { title: string; url: string; source: string }[],
@@ -19,7 +19,7 @@ export function computeNavigatorCount(
   _filteredHistory: { title: string; url: string }[],
 ): number {
   if (navigatorMode === 'tabs' || navigatorMode === 'open' || navigatorMode === 'list') {
-    return browserTabs.length;
+    return panelTabs.length;
   }
   if (navigatorMode === 'search') {
     return searchResults.length;
@@ -48,7 +48,6 @@ export function useBrowserTabs() {
   const editInputRef = useRef<HTMLInputElement | null>(null);
 
   const {
-    browserTabs,
     browserActiveTabId,
     browserBookmarks,
     browserOpenTab,
@@ -61,7 +60,6 @@ export function useBrowserTabs() {
     browserClearAllFolderBookmarks,
   } = useAppStore(
     useShallow((state) => ({
-      browserTabs: state.browserTabs,
       browserActiveTabId: state.browserActiveTabId,
       browserBookmarks: state.browserBookmarks,
       browserOpenTab: state.browserOpenTab,
@@ -77,7 +75,7 @@ export function useBrowserTabs() {
 
   // 面板只拥有 location !== 'center' 的标签：转入中心的标签不得在面板列表/树/计数中
   // 重复显示，也不得由面板再次挂载同一 session（排他归属，spec 目标 #5）。
-  const panelBrowserTabs = useMemo(() => browserTabs.filter(isPanelTab), [browserTabs]);
+  const panelBrowserTabs = panelTabSelectors.usePanelBrowserTabs();
 
   const activeTab = useMemo(
     () => panelBrowserTabs.find((tab) => tab.id === browserActiveTabId) ?? panelBrowserTabs[0],

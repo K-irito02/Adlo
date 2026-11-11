@@ -142,6 +142,36 @@ export default tseslint.config(
     },
   },
   {
+    // 面板作用域计数唯一入口：panelTabSelectors（2026-11-11 徽章曾把中心标签重复计入）。
+    // 全量 `.length` 只允许出现在 stores（数据层）、divider-strip（排序指纹）与
+    // workspace-browser（未接线组件）内；其余位置请用 panelTabSelectors 派生。
+    files: ['src/app/**/*.{ts,tsx}'],
+    ignores: [
+      'src/app/stores/**',
+      'src/app/features/divider-strip/**',
+      'src/app/features/workspace-browser/**',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ImportNamespaceSpecifier',
+          message: '禁止 star import (import * as)。请使用具名导入。',
+        },
+        {
+          selector: "MemberExpression[property.name='length'][object.name='browserTabs']",
+          message:
+            '面板作用域计数请用 panelTabSelectors（中心标签不计入）；确需全量计数时请落到 stores 层。',
+        },
+        {
+          selector: "MemberExpression[property.name='length'][object.name='terminalTabs']",
+          message:
+            '面板作用域计数请用 panelTabSelectors（中心标签不计入）；确需全量计数时请落到 stores 层。',
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
     languageOptions: {
       globals: {

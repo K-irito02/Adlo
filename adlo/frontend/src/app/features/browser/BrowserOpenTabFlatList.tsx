@@ -14,7 +14,7 @@ interface BrowserOpenTabFlatListProps {
 }
 
 export function BrowserOpenTabFlatList({
-  browserTabs,
+  browserTabs: panelTabs,
   activeTabId,
   onSelectTab,
   onCloseTab,
@@ -24,7 +24,8 @@ export function BrowserOpenTabFlatList({
 }: BrowserOpenTabFlatListProps) {
   const { t } = useTCopy();
 
-  if (browserTabs.length === 0) {
+  // 该列表只承载面板标签（调用方已按 isPanelTab 过滤）。
+  if (panelTabs.length === 0) {
     return (
       <div className="adl-multitree__empty">
         <p className="adl-empty-hint">{t.browserOpenTabsEmpty}</p>
@@ -41,7 +42,7 @@ export function BrowserOpenTabFlatList({
     >
       <div className="adl-browser-entry__tree adl-browser-entry__tree--flat">
         <ul className="adl-filetree" role="tree">
-          {browserTabs.map((tab) => (
+          {panelTabs.map((tab) => (
             <BrowserOpenTabFlatListItem
               key={tab.id}
               tab={tab}

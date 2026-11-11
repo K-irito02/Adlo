@@ -10,12 +10,35 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from './slicedStore';
 import type { StoreState } from './StoreState';
+import { isPanelTab } from './slices/tabLocation';
 
 // 重新导出领域特定的 selector
 export { workspaceSelectors } from './workspaceSelectors';
 export { editorSelectors } from './editorSelectors';
 export { terminalSelectors } from './terminalSelectors';
 export { browserSelectors } from './browserSelectors';
+
+// ============================================
+// 面板归属选择器（面板作用域的列表/计数唯一入口）
+// ============================================
+/**
+ * 面板标签 = 归属右侧面板的浏览器/终端标签；中心标签（`location === 'center'`）由中心拥有。
+ * 面板内的列表、目录树、计数与工具切换器徽章都应经这里派生，不要再对全量数组取 `.length`
+ * （否则会像 2026-11-11 的徽章那样把中心标签重复计入）。
+ */
+export const panelTabSelectors = {
+  getPanelBrowserTabs: (state: StoreState) => state.browserTabs.filter(isPanelTab),
+  usePanelBrowserTabs: () => useAppStore(useShallow((s) => s.browserTabs.filter(isPanelTab))),
+
+  getPanelTerminalTabs: (state: StoreState) => state.terminalTabs.filter(isPanelTab),
+  usePanelTerminalTabs: () => useAppStore(useShallow((s) => s.terminalTabs.filter(isPanelTab))),
+
+  getPanelBrowserTabCount: (state: StoreState) => state.browserTabs.filter(isPanelTab).length,
+  usePanelBrowserTabCount: () => useAppStore((s) => s.browserTabs.filter(isPanelTab).length),
+
+  getPanelTerminalTabCount: (state: StoreState) => state.terminalTabs.filter(isPanelTab).length,
+  usePanelTerminalTabCount: () => useAppStore((s) => s.terminalTabs.filter(isPanelTab).length),
+};
 
 // ============================================
 // 补丁相关的选择器

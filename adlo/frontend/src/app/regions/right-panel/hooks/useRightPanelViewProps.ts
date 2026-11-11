@@ -4,7 +4,7 @@ import { DIFF_LAYOUT_STORAGE_KEY } from '@utils/constants';
 
 import { countGitChanges } from '../types';
 import { useAppStore } from '@stores/slicedStore';
-import { isPanelTab } from '@stores/slices/tabLocation';
+import { panelTabSelectors } from '@stores/selectors';
 
 function readDiffSideBySidePreference(): boolean {
   try {
@@ -21,8 +21,6 @@ export function useRightPanelViewProps() {
       setActiveRightTool: state.setActiveRightTool,
     })),
   );
-  const browserTabs = useAppStore(useShallow((state) => state.browserTabs));
-  const terminalTabs = useAppStore(useShallow((state) => state.terminalTabs));
   const dirtyEditorPaths = useAppStore(useShallow((s) => s.dirtyEditorPaths));
   const gitSnapshot = useAppStore(useShallow((s) => s.gitSnapshot));
   const appInfoForBadges = useAppStore(useShallow((s) => s.appInfo));
@@ -40,11 +38,8 @@ export function useRightPanelViewProps() {
 
   // 徽章只统计右侧面板归属的标签：中心（location === 'center'）的标签由中心标签本体拥有，
   // 面板列表/树/计数均不重复计入（与 useBrowserTabs / useTerminalPanel 同一口径）。
-  const panelBrowserTabCount = useMemo(() => browserTabs.filter(isPanelTab).length, [browserTabs]);
-  const panelTerminalTabCount = useMemo(
-    () => terminalTabs.filter(isPanelTab).length,
-    [terminalTabs],
-  );
+  const panelBrowserTabCount = panelTabSelectors.usePanelBrowserTabCount();
+  const panelTerminalTabCount = panelTabSelectors.usePanelTerminalTabCount();
 
   const badges = useMemo(
     () => ({
