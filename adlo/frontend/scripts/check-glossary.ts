@@ -15,13 +15,17 @@ const NUMERIC_COUNT = /\d+\s*个/;
 const ALLOW_MARKER = 'glossary-allow';
 
 /**
- * 只扫这些位置：中文 UI 文案、操作手册与架构/运维文档里的可见文案。
- * 代码注释不参与（避免 `viewer`、`工作区` 这类误报；注释用词由审查简报 §5.5 兜底）。
+ * 强制词（反引号包裹的 `_Avoid_`）扫描范围：中文 UI 文案、运维/架构文档，以及产品源码。
+ * 源码扫描覆盖注释与字符串——两者都是代理与用户可见的用词面；只查强制词（如 `中间区`），
+ * 不做全量 `_Avoid_` 词检查，避免 `viewer`、`工作区` 这类正常用词误报。
+ * 有意引用强制词时在该行加 `glossary-allow`。
  */
 const ENFORCED_SOURCES = [
-  { root: path.join(here, '../src/app/i18n/zh-CN'), extensions: ['.ts'] },
+  { root: path.join(here, '../src'), extensions: ['.ts', '.tsx'] },
   { root: path.join(repoRoot, 'docs/operations'), extensions: ['.md'] },
   { root: path.join(repoRoot, 'docs/architecture'), extensions: ['.md'] },
+  { root: path.join(repoRoot, 'adlo/crates'), extensions: ['.rs'] },
+  { root: path.join(repoRoot, 'adlo/src-tauri'), extensions: ['.rs'] },
 ];
 
 function fail(messages: string[]): never {

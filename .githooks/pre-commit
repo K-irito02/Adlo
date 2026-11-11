@@ -7,7 +7,18 @@ set -e
 ROOT="$(git rev-parse --show-toplevel)"
 STAGED="$(git diff --cached --name-only --diff-filter=ACMR)"
 
+# 失败步骤名：`set -e` 只给退出码，排障时必须能看出停在哪一步。
+STEP="init"
+on_exit() {
+  code=$?
+  if [ "$code" -ne 0 ]; then
+    echo "[pre-commit] FAILED at step: $STEP (exit $code)" >&2
+  fi
+}
+trap on_exit EXIT
+
 # 1) staged 前端源码：eslint（plain, no --fix：hook 内不改写文件）
+STEP="eslint"
 LINTABLE="$(echo "$STAGED" | grep -E '^adlo/frontend/.*\.(ts|tsx|js|jsx|mjs|cjs)$' || true)"
 if [ -n "$LINTABLE" ]; then
   echo "$LINTABLE" | sed 's|^adlo/frontend/||' | ( cd "$ROOT/adlo/frontend" && xargs -d '\n' -n 40 npx eslint )
@@ -16,6 +27,7 @@ else
 fi
 
 # 2) staged 可格式化文件：prettier --write 自动修复后重新暂存（只动暂存文件）
+STEP="prettier"
 PREFILES="$(echo "$STAGED" | grep -E '^adlo/frontend/.*\.(ts|tsx|js|jsx|mjs|cjs|css|json|md)$' || true)"
 if [ -n "$PREFILES" ]; then
   echo "$PREFILES" | sed 's|^adlo/frontend/||' | ( cd "$ROOT/adlo/frontend" && xargs -d '\n' -n 40 npx prettier --write )
@@ -38,6 +50,7 @@ else
 fi
 
 # 3) staged 脚本语法（dev tooling 在 eslint/tsc 范围外，pre-push 只在推送时查）
+STEP="node --check"
 MJSFILES="$(echo "$STAGED" | grep -E '^adlo/.*\.mjs$' || true)"
 if [ -n "$MJSFILES" ]; then
   echo "$MJSFILES" | xargs -d '\n' -I{} sh -c 'node --check "$1"' _ {}
@@ -46,15 +59,25 @@ else
 fi
 
 # 4) 仓库不变量（秒级）：i18n 对等、术语表、死代码、vite 配置冒烟、dev tooling 单测、删除 crate 术语
+STEP="check:i18n"
 ( cd "$ROOT/adlo/frontend" && pnpm run check:i18n )
+STEP="check:i18n:orphans"
 ( cd "$ROOT/adlo/frontend" && pnpm run check:i18n:orphans:changed )
+STEP="check:glossary"
 ( cd "$ROOT/adlo/frontend" && pnpm run check:glossary )
+STEP="check:dead-code"
 ( cd "$ROOT/adlo/frontend" && pnpm run check:dead-code )
+STEP="check:vite-config"
 ( cd "$ROOT/adlo/frontend" && pnpm run check:vite-config )
+STEP="check-brand"
 ( cd "$ROOT/adlo" && node scripts/check-brand.mjs )
+STEP="check-stale-terms"
 ( cd "$ROOT/adlo" && node scripts/check-stale-terms.mjs )
+STEP="check-deleted-crates"
 ( cd "$ROOT/adlo" && node scripts/check-deleted-crates.mjs )
+STEP="check-no-new-any"
 ( cd "$ROOT/adlo" && node scripts/check-no-new-any.mjs )
+STEP="dev tooling tests"
 ( cd "$ROOT/adlo" && node --test "scripts/*.test.mjs" )
 
 echo "[pre-commit] OK (tsc + vitest stay in check:changed / pre-push)"
