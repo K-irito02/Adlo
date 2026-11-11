@@ -4,6 +4,7 @@ import { DIFF_LAYOUT_STORAGE_KEY } from '@utils/constants';
 
 import { countGitChanges } from '../types';
 import { useAppStore } from '@stores/slicedStore';
+import { isPanelTab } from '@stores/slices/tabLocation';
 
 function readDiffSideBySidePreference(): boolean {
   try {
@@ -37,20 +38,28 @@ export function useRightPanelViewProps() {
     }
   }, []);
 
+  // 徽章只统计右侧面板归属的标签：中心（location === 'center'）的标签由中心标签本体拥有，
+  // 面板列表/树/计数均不重复计入（与 useBrowserTabs / useTerminalPanel 同一口径）。
+  const panelBrowserTabCount = useMemo(() => browserTabs.filter(isPanelTab).length, [browserTabs]);
+  const panelTerminalTabCount = useMemo(
+    () => terminalTabs.filter(isPanelTab).length,
+    [terminalTabs],
+  );
+
   const badges = useMemo(
     () => ({
       files: dirtyEditorPaths.length,
       changes: countGitChanges(gitSnapshot ?? appInfoForBadges?.currentWorkspace?.gitSnapshot),
-      browser: browserTabs.length,
-      terminal: terminalTabs.length,
+      browser: panelBrowserTabCount,
+      terminal: panelTerminalTabCount,
       settings: 0,
     }),
     [
       dirtyEditorPaths.length,
       gitSnapshot,
       appInfoForBadges?.currentWorkspace?.gitSnapshot,
-      browserTabs.length,
-      terminalTabs.length,
+      panelBrowserTabCount,
+      panelTerminalTabCount,
     ],
   );
 
