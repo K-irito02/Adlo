@@ -32,12 +32,12 @@
 
 ### 1.3 规模
 
-当前 **48 条规则**（不含本目录的 `README.md` 索引）：
+当前 **49 条规则**（不含本目录的 `README.md` 索引）：
 
 | 应用方式 | 条数 | 含义 |
 |----------|------|------|
 | `alwaysApply: true` | 7 | 全局常驻，任何任务都生效 |
-| `alwaysApply: false` | 41 | 40 条按 `globs` 命中才注入，1 条按需不注入（`ui-patterns.md`，见 §6 登记） |
+| `alwaysApply: false` | 42 | 40 条按 `globs` 命中才注入，2 条按需不注入（`ui-patterns.md`、`review-judgements.md`，见 §6 登记） |
 
 > 条数以 `.agents/rules/` 实际文件为准；`scripts/check-agent-dirs.test.mjs` 会在 pre-commit 校验本表与目录一致。
 
@@ -140,7 +140,7 @@ alwaysApply: false
 | `error-handling.md` | 错误处理与加载状态 |
 | `shell-encoding.md` | 终端中文编码、只读场景与批量替换约束 |
 
-> 其余 41 条为 `alwaysApply: false`：40 条按 `globs` 生效，`ui-patterns.md`（按需速查）不注入；清单见 §6「应用方式」列。（`commands.md` 与 `multi-dimensional-architecture-design.md` 自 2026-11-09 起改为 `adlo/**` 命中才注入。）
+> 其余 42 条为 `alwaysApply: false`：40 条按 `globs` 生效，`ui-patterns.md`（按需速查）与 `review-judgements.md`（按需审查）不注入；清单见 §6「应用方式」列。（`commands.md` 与 `multi-dimensional-architecture-design.md` 自 2026-11-09 起改为 `adlo/**` 命中才注入。）
 > `ui-patterns.md`（944 行速查表）自 2026-10-31 起改为**按需查阅**，入口见 `docs/design-system/README.md`。
 
 ---
@@ -160,7 +160,7 @@ alwaysApply: false
 | `dev-rules.md` | 始终 | 代理交互与执行规则：询问卡片、终端命令、代码修改、问题排查、编码风格、并行工作树约束 |
 | `preference-writes.md` | 始终 | 用户显式选择类配置只由用户操作写入，后台 effect/定时器不得静默改写偏好 |
 
-### 6.2 质量与验收（4）
+### 6.2 质量与验收（5）
 
 | 规则文件 | 应用方式 | 约束内容 |
 |----------|----------|----------|
@@ -168,6 +168,7 @@ alwaysApply: false
 | `quality-gates.md` | 测试 / 前端 / crates / src-tauri | 测试、类型检查、lint、格式化、迁移与合并前门禁 |
 | `error-handling.md` | 始终 | 错误处理、加载状态与前后端统一动作模式（`AppError` 体系） |
 | `governance-gate-script-ratchet.md` | `adlo/scripts/**`、`adlo/frontend/scripts/**` | 门禁脚本棘轮：diff-only 断言只拦新增、baseline 兜底存量、内联 `no-new-any-allow` opt-out |
+| `review-judgements.md` | 按需（审查代理逐条核对） | 跨域审查判断项：越权、分层、凭据、单端、i18n、iframe/WebView、面板归属计数等 |
 
 ### 6.3 操作与验证（3）
 

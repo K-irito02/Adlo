@@ -42,24 +42,7 @@
 
 「自动校验」集（pre-commit 拦截）：capability 通配、e2e 配置泄漏生产、`.agents`/`.opencode`/`.trae` 镜像不同步（`check-agent-dirs`）；标识符回潮（`check-stale-terms`）；store 新增 `as any` / `as unknown as`（`check-no-new-any`）；调试日志遗留生产（`check-source-hygiene`）；违反「工具选择」（shell 权限 + `check-source-hygiene`）。
 
-判断项（审查判断，不自动拦截）：
-
-- WebView 直接触达系统能力（必须通过 Tauri Command）
-- 低层 crate 依赖高层 crate
-- 凭据写入普通配置或日志（必须通过 `crates/credential/` 存储）
-- UI/UX 或功能变更后跳过红绿测试
-- 未获用户批准就执行全量测试 / 全量门禁（`check:full`、`cargo test --workspace`）或发布打包（`cargo tauri build`）；日常只跑受变更影响的测试
-- 功能或显示效果仅在 Tauri 或浏览器单一模式下可用（必须双端一致）
-- WebView URL 变化被动触发 Tauri navigateTab（必须由前端操作显式调用，见 `useBrowserPanelAddressSubmit.ts:submitAddress`（features/browser/）、`useBrowserPanelHandlers.ts:handleOpenTabFromTree`）
-- 任何 UI 展示文本硬编码（按钮/Tooltip/aria-label/占位符/过滤器标签/相对时间/日期格式/面包屑映射等），必须使用 i18n key
-- 语言切换时依赖 Zustand store 易变数据的渲染条件缺少 fallback 导致标题行/路径栏消失
-- 错误提示/状态提示常驻显示（必须仅在活跃错误状态下可见）
-- iframe 嵌入缺少前置检测（必须 checkEmbed HEAD 预检 + 同步 ref 门控 + attachShadow mode:closed 的 SafeIframe 沙箱保护）
-- Tauri 桌面模式下依赖 CSS z-index 覆盖浏览器原生 WebView（WebView2 是 OS 级渲染表面；浮动菜单/对话框出现时须 `browser_set_bounds` 移出画面，State + MutationObserver 双路检测；Resize Handle 被覆盖时用「区域逃逸」方案）
-- 未发布产品的开发阶段禁止添加/保留数据格式兼容或旧版本迁移代码（产品发布后需添加时须先与用户确认）
-- 禁止「向后兼容」重导出或类似仅为旧导入路径保留的兼容层
-- 未经用户允许禁止擅自使用蓝色（含 `var(--accent)` 系）作提示警醒/填充色等；此类场景一律用白/灰/黑中性色（见 [hint-color-usage.md](.agents/rules/hint-color-usage.md)）
-- 并行开发时两个会话共用同一工作树目录、共享 `CARGO_TARGET_DIR`、或在分支工作树写 `.workbuddy/memory`（见 [parallel-branch-development](.agents/skills/parallel-branch-development/SKILL.md)）
+判断项（审查判断，不自动拦截）：见 [review-judgements.md](.agents/rules/review-judgements.md)（按需加载，审查代理逐条核对越权、分层、凭据、单端、i18n、iframe/WebView、面板归属计数等）。
 
 ## 双端一致性
 

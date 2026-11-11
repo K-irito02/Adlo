@@ -16,7 +16,7 @@
 ## 2. 规约来源（先读再判断）
 
 - 仓库根 `AGENTS.md`、`adlo/AGENTS.md`
-- `.agents/rules/`（按范围选读）：`dev-rules.md`、`mandatory-testing.md`、`quality-gates.md`、`phase-boundary.md`、`hint-color-usage.md`、`rust-patterns.md`、`shell-encoding.md`
+- `.agents/rules/`（按范围选读）：`review-judgements.md`（判断项必读）、`dev-rules.md`、`mandatory-testing.md`、`quality-gates.md`、`phase-boundary.md`、`hint-color-usage.md`、`rust-patterns.md`、`shell-encoding.md`
 - `docs/development/project-engineering-constraints.md`
 - `docs/design-system/`（UI 变更）
 - `GLOSSARY.md`、`CONTEXT.md`
