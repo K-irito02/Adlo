@@ -22,8 +22,13 @@
    旧键数据直接丢弃。
 4. **文件格式只做 Netscape bookmarks HTML**，不做 JSON 私有格式——JSON 其它浏览器读不了，
    只会多一条只有本应用能用的维护路径。
-5. **导出写全三个属性**；`ICON` 在导出时按 URL 从站点元数据缓存取 `favicon_data_uri`，**不落书签**：
-   一条 data URI 可达数十 KB，而书签存在 localStorage 里、每次修改都要整体序列化。
+5. ~~**导出写全三个属性**；`ICON` 在导出时按 URL 从站点元数据缓存取 `favicon_data_uri`，**不落书签**：
+   一条 data URI 可达数十 KB，而书签存在 localStorage 里、每次修改都要整体序列化。~~
+   → **2026-11-12 修订**：`ICON` 仍随文件导入/导出，但**导入时写入书签条目**的
+   `iconUri`（跨会话唯一来源）；导出优先用条目自带快照，缺失时回退站点元数据缓存。
+   已知代价：导入文件里的图标快照会进 localStorage，受导入文件 10MB 上限约束；若后续遇到
+   配额问题，再评估按目录/大小裁剪。展示侧不直接读 `iconUri`，而是启动/导入时播种进共享
+   站点元数据镜像（见 [ADR-0020](./0020-site-icon-mirror-and-bookmark-snapshot.md)）。
 6. ~~导入判重按 `(url, title)`，只在目标容器内比较~~ → **2026-11-10 修订**：导入判重仍按
    `(url, title)` 元组，但范围扩大为**目标树整体**（`folder`/`self-root`/`workspace` 三类目标，
    含目标子树全部嵌套后代；`new-folder`/`child-folder` 新建目标保持空种子），「跳过重复项 /
