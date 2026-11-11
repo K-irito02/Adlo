@@ -1,6 +1,7 @@
 import type { StoreState } from '../StoreState';
 import { createUiId } from '../shared';
 import { persist } from '../persisted/persist';
+import { seedSnapshotFavicons } from '@utils/siteMetaCache';
 import type { BookmarkEntry, BookmarkFolder } from './browserTypes';
 import type { TransferNode } from '@features/bookmarks/bookmarkTransferTypes';
 
@@ -101,12 +102,13 @@ export const createBookmarkTransferSlice = (
       importedFolders: 0,
       skipped: 0,
     };
+    // 本次真正落位的条目（供导入后播种图标快照）；set 的 updater 同步执行
+    const addedEntries: BookmarkEntry[] = [];
 
     set((state) => {
       const now = Date.now();
       const nextFolders = [...state.browserBookmarkFolders];
       const nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
-      const addedEntries: BookmarkEntry[] = [];
 
       const addIndex = (entry: BookmarkEntry) => {
         addedEntries.push(entry);
@@ -465,6 +467,12 @@ export const createBookmarkTransferSlice = (
         browserBookmarks: nextBookmarks,
       };
     });
+
+    // 导入即播种：文件自带的 ICON 快照进共享镜像，书签树与搜索（收藏结果行）立刻可用。
+    // 快照只进内存镜像（真源仍是书签的 iconUri），真实抓取到的图标（以 data-URI 广播）会覆盖它。
+    seedSnapshotFavicons(
+      addedEntries.map((entry) => ({ url: entry.url, iconUri: entry.iconUri ?? '' })),
+    );
 
     return result;
   },

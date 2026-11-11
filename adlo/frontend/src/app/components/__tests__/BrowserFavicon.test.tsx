@@ -1,5 +1,5 @@
 import { render, act, fireEvent } from '@testing-library/react';
-import { it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BrowserFavicon } from '../BrowserFavicon';
 import * as cache from '../../utils/siteMetaCache';
 
@@ -219,4 +219,58 @@ it('renders the new-tab page icon for about:blank (事项 4)', () => {
 it('does NOT render the new-tab page icon for a real URL (事项 4)', () => {
   const { container } = render(<BrowserFavicon url="https://real.example" />);
   expect(container.querySelector('svg.adl-icon')).toBeNull();
+});
+
+describe('pending placeholder policy', () => {
+  it('passive (initial) mode shows the site initial immediately for a never-fetched URL', () => {
+    // 书签/历史等被动列表：没有在途抓取，不得用「加载中」占位
+    const { container } = render(
+      <BrowserFavicon url="https://imported.example/a" pending="initial" />,
+    );
+    expect(container.querySelector('.adl-spinner')).toBeNull();
+    const fallback = container.querySelector(
+      '.adl-browser-tree__link-fallback',
+    ) as HTMLElement | null;
+    expect(fallback).not.toBeNull();
+    expect(fallback?.style.display).not.toBe('none');
+    expect(fallback?.textContent).toBe('I');
+  });
+
+  it('passive (initial) mode keeps the initial across remounts (no spinner restart on expand)', () => {
+    // 回归拦截：树行折叠/展开会重新挂载，首字母必须保持，不得重新转圈
+    const first = render(<BrowserFavicon url="https://imported.example/b" pending="initial" />);
+    expect(first.container.querySelector('.adl-spinner')).toBeNull();
+    first.unmount();
+    const second = render(<BrowserFavicon url="https://imported.example/b" pending="initial" />);
+    expect(second.container.querySelector('.adl-spinner')).toBeNull();
+    const fallback = second.container.querySelector(
+      '.adl-browser-tree__link-fallback',
+    ) as HTMLElement | null;
+    expect(fallback?.textContent).toBe('I');
+  });
+
+  it('passive (initial) mode upgrades the initial to the real favicon when metadata arrives', () => {
+    // 真实图标到达（用户打开过书签/后台预热成功）后原地替换，无需重新挂载
+    const { container } = render(
+      <BrowserFavicon url="https://imported.example/c" pending="initial" />,
+    );
+    expect(
+      (container.querySelector('.adl-browser-tree__link-fallback') as HTMLElement | null)
+        ?.textContent,
+    ).toBe('I');
+    mirrorFavicon(
+      'https://imported.example/c',
+      'https://imported.example/favicon.ico',
+      'data:image/png;base64,CC',
+    );
+    const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    expect(img?.src).toContain('data:image/png;base64,CC');
+  });
+
+  it('spinner (default) mode still keeps the spinner while meta has not settled', () => {
+    // 活标签等场景保留原语义：确实有在途抓取时显示转圈
+    const { container } = render(<BrowserFavicon url="https://live-tab.example" />);
+    expect(container.querySelector('.adl-spinner')).not.toBeNull();
+  });
 });

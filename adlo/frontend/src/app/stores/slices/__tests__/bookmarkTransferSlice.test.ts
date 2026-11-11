@@ -294,4 +294,23 @@ describe('browserImportBookmarks', () => {
     const entry = store.getState().browserBookmarkFolders[0].entries[0];
     expect(entry.iconUri).toBe('data:image/png;base64,AAA');
   });
+
+  it('seeds imported icon snapshots into the shared site-meta mirror', async () => {
+    // 导入即灌共享镜像：书签树与搜索（收藏结果行）立刻有图标，不再等抓取
+    const mod = await import('@utils/siteMetaCache');
+    mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
+    await mod.initSiteMetaCache();
+    const store = makeStore();
+    store.getState().browserImportBookmarks({
+      nodes: [
+        {
+          ...bookmark('https://seeded.store/page', 'Seed'),
+          icon: 'data:image/png;base64,SEEDED',
+        },
+      ],
+      target: { kind: 'new-folder', name: 'F' },
+      duplicatePolicy: 'skip',
+    });
+    expect(mod.getCachedFavicon('https://seeded.store/page')).toBe('data:image/png;base64,SEEDED');
+  });
 });

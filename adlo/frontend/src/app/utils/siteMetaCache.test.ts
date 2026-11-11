@@ -302,7 +302,7 @@ describe('siteMetaCache memory layer', () => {
     expect(fired).toBe(1);
   });
 
-  it('applyBroadcastUpdate merge guard: partial broadcast keeps favicon only when url unchanged', async () => {
+  it('applyBroadcastUpdate merge guard: partial broadcast keeps the cached data-URI even when the favicon URL rotates', async () => {
     const mod = await import('./siteMetaCache');
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
@@ -592,6 +592,115 @@ describe('siteMetaCache redirect map', () => {
     expect(bTarget).toBeTruthy();
     // 环不产生自引用（A 的目标不能是 A 本身）
     expect(aTarget).not.toBe('https://a.com/');
+  });
+
+  it('seedSnapshotFavicons: writes a snapshot data-URI into the mirror without touching the backend', async () => {
+    // 导入书签自带的图标快照：真源是书签（iconUri），只在镜像里播种一次
+    const mod = await import('./siteMetaCache');
+    const backend: SiteMetaBackend = mod.createMockSiteMetaBackend();
+    const upsertSpy = vi.spyOn(backend, 'upsert');
+    mod.setSiteMetaBackendForTest(backend);
+    await mod.initSiteMetaCache();
+    let fired = 0;
+    mod.subscribeSiteMeta('https://seed.test/page', () => {
+      fired++;
+    });
+    const seeded = mod.seedSnapshotFavicons([
+      { url: 'https://seed.test/page', iconUri: 'data:image/png;base64,SEED' },
+    ]);
+    expect(seeded).toBe(1);
+    expect(mod.getCachedFavicon('https://seed.test/page')).toBe('data:image/png;base64,SEED');
+    expect(fired).toBe(1);
+    // 不写共享持久层：否则 data: URI 会被 should_replace_favicon 永久锁定
+    expect(upsertSpy).not.toHaveBeenCalled();
+  });
+
+  it('seedSnapshotFavicons: never overwrites an existing favicon or URL', async () => {
+    const mod = await import('./siteMetaCache');
+    mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
+    await mod.initSiteMetaCache();
+    mod.__mirrorUpsertForTest('https://seed-kept.test/', {
+      title: 'K',
+      titleSource: '',
+      faviconUrl: 'https://seed-kept.test/favicon.ico',
+      faviconDataUri: 'data:image/png;base64,REAL',
+      fetchedAt: 1,
+      lastOkAt: 2,
+      nextRetryAt: 0,
+      failCount: 0,
+    });
+    const seeded = mod.seedSnapshotFavicons([
+      { url: 'https://seed-kept.test/', iconUri: 'data:image/png;base64,SEED' },
+    ]);
+    expect(seeded).toBe(0);
+    expect(mod.getCachedFavicon('https://seed-kept.test/')).toBe('data:image/png;base64,REAL');
+  });
+
+  it('seedSnapshotFavicons: keeps an existing favicon URL (no data-URI) untouched', async () => {
+    // F4 回归：仅有 faviconUrl 时也必须跳过，否则会用快照覆盖真实 URL
+    const mod = await import('./siteMetaCache');
+    mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
+    await mod.initSiteMetaCache();
+    mod.__mirrorUpsertForTest('https://seed-url-only.test/', {
+      title: 'U',
+      titleSource: '',
+      faviconUrl: 'https://seed-url-only.test/favicon.ico',
+      faviconDataUri: '',
+      fetchedAt: 1,
+      lastOkAt: 2,
+      nextRetryAt: 0,
+      failCount: 0,
+    });
+    const seeded = mod.seedSnapshotFavicons([
+      { url: 'https://seed-url-only.test/', iconUri: 'data:image/png;base64,SEED' },
+    ]);
+    expect(seeded).toBe(0);
+    expect(mod.getCachedSiteMeta('https://seed-url-only.test/')?.faviconUrl).toBe(
+      'https://seed-url-only.test/favicon.ico',
+    );
+    expect(mod.getCachedFavicon('https://seed-url-only.test/')).toBe('');
+  });
+
+  it('seedSnapshotFavicons: ignores empty and non-image snapshots', async () => {
+    const mod = await import('./siteMetaCache');
+    mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
+    await mod.initSiteMetaCache();
+    const seeded = mod.seedSnapshotFavicons([
+      { url: 'https://seed-bad.test/a', iconUri: '' },
+      { url: 'https://seed-bad.test/b', iconUri: 'https://evil.test/icon.png' },
+      { url: 'https://seed-bad.test/c', iconUri: 'javascript:alert(1)' },
+      { url: '', iconUri: 'data:image/png;base64,AA' },
+    ]);
+    expect(seeded).toBe(0);
+    expect(mod.getCachedSiteMeta('https://seed-bad.test/b')).toBeUndefined();
+  });
+
+  it('seedSnapshotFavicons: skipped before hydration so persisted real icons win', async () => {
+    // 水合前播种会挡住持久层真实图标（initSiteMetaCache 只在 key 不存在时写入）
+    const mod = await import('./siteMetaCache');
+    mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
+    const seeded = mod.seedSnapshotFavicons([
+      { url: 'https://seed-early.test/', iconUri: 'data:image/png;base64,EARLY' },
+    ]);
+    expect(seeded).toBe(0);
+    expect(mod.getCachedSiteMeta('https://seed-early.test/')).toBeUndefined();
+  });
+
+  it('seedSnapshotFavicons: a later real broadcast data-URI replaces the seeded snapshot', async () => {
+    const mod = await import('./siteMetaCache');
+    mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
+    await mod.initSiteMetaCache();
+    mod.seedSnapshotFavicons([
+      { url: 'https://seed-upgrade.test/', iconUri: 'data:image/png;base64,SEED' },
+    ]);
+    mod.applyBroadcastUpdate({
+      url: 'https://seed-upgrade.test/',
+      title: 'S',
+      faviconUrl: 'https://seed-upgrade.test/favicon.ico',
+      faviconDataUri: 'data:image/png;base64,REAL',
+      source: 'com',
+    });
+    expect(mod.getCachedFavicon('https://seed-upgrade.test/')).toBe('data:image/png;base64,REAL');
   });
 
   it('caps redirect map size and evicts oldest entries (FIFO)', async () => {

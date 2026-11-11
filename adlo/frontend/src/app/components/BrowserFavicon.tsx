@@ -28,6 +28,15 @@ function siteInitial(url: string): string {
 interface BrowserFaviconProps {
   url: string;
   size?: IconSize;
+  /**
+   * 未结算（站点元数据镜像里既无条目也无图标）时的占位表现。
+   *
+   * - `'spinner'`（默认）：确实有在途抓取预期（打开的标签页、标签条）→ 转圈，
+   *   并在 5s 后仍无结果时降级为首字母。
+   * - `'initial'`：被动列表（书签/历史树行）→ 直接显示站点首字母，不转圈、
+   *   不挂 5s 计时器；真实图标到达后原地替换（书签树每次展开不再重复转圈）。
+   */
+  pending?: 'spinner' | 'initial';
 }
 
 /**
@@ -41,7 +50,7 @@ interface BrowserFaviconProps {
 const FAVICON_RETRY_MAX = 6;
 const FAVICON_RETRY_DELAY_MS = 2000;
 
-export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
+export function BrowserFavicon({ url, size = 14, pending = 'spinner' }: BrowserFaviconProps) {
   const [ready, setReady] = useState(isSiteMetaCacheReady());
   const [faviconUrl, setFaviconUrl] = useState('');
   const [degraded, setDegraded] = useState(false);
@@ -127,9 +136,10 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   }, [url, ready, applyMetaUpdate]);
 
   // 跨域重定向等场景：URL 永远不会被结算（元数据存储在重定向后的域名下），
-  // 超时后降级为兜底字母，避免 spinner 永久旋转
+  // 超时后降级为兜底字母，避免 spinner 永久旋转。
+  // 仅 spinner 模式需要：被动列表（initial）直接显示首字母，不挂计时器。
   useEffect(() => {
-    if (!url || resolvedFaviconEmpty || faviconUrlRef.current) {
+    if (pending !== 'spinner' || !url || resolvedFaviconEmpty || faviconUrlRef.current) {
       return;
     }
     const timer = setTimeout(() => {
@@ -140,16 +150,16 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
       }
     }, 5000);
     return () => clearTimeout(timer);
-  }, [url, resolvedFaviconEmpty]);
+  }, [pending, url, resolvedFaviconEmpty]);
 
   // 未命中/未就绪：显示占位图标（非空白）
   const current = faviconUrl;
   const showImg = Boolean(current) && !degraded;
-  // 已结算但 favicon URL 仍为空时继续显示 spinner，避免"加载中 → 兜底字母 → 真实图标"的闪烁
-  const isLoading = !current && !degraded && !resolvedFaviconEmpty;
-  // degraded（img 加载失败）时 current 非空但不可显示 → 需显示兜底字母，
-  // 否则图标槽位变空白（H1-A）。兜底字母条件：已确认无 favicon 或已降级。
-  const showLetter = resolvedFaviconEmpty || degraded;
+  // 转圈只在「确有在途抓取预期」的 spinner 模式出现；被动列表不再用加载态占位
+  const isLoading = pending === 'spinner' && !current && !degraded && !resolvedFaviconEmpty;
+  // degraded（img 加载失败）时 current 非空但不可显示 → 显示兜底字母，
+  // 否则图标槽位变空白（H1-A）。被动列表在未结算时同样直接显示首字母。
+  const showLetter = !showImg && !isLoading;
   const handleError = useCallback(() => {
     setDegraded(true);
     // 有限次重试：瞬时失败（本地服务未就绪等）可恢复；预算耗尽后才永久降级。
@@ -194,7 +204,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
         className="adl-browser-tree__link-fallback"
         style={showImg || isLoading ? { display: 'none' } : undefined}
       >
-        {showImg || isLoading ? '' : showLetter ? siteInitial(url) : ''}
+        {showLetter ? siteInitial(url) : ''}
       </span>
     </span>
   );

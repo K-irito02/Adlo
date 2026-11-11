@@ -10,6 +10,7 @@ import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTreeNode } from './types';
 import { buildBrowserNodeTitleMap } from './browserTreeTitle';
+import { faviconPropsForNode } from './browserTreeFavicon';
 import { buildFolderPathLabel } from '@stores/slices/browserFoldersUtils';
 import { resolveChildCount } from './useBrowserTreeData';
 import {
@@ -236,7 +237,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     const hasAudio = childNode.isPlayingAudio || childNode.isAudioMuted;
     return (
       <span className="adl-browser-tree__icon-wrapper">
-        <BrowserFavicon url={childNode.url || ''} />
+        <BrowserFavicon {...faviconPropsForNode(childNode)} />
         {hasAudio && (
           <BrowserAudioIndicator
             isPlaying={childNode.isPlayingAudio ?? false}

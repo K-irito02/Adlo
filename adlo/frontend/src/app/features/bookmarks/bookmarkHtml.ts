@@ -47,6 +47,15 @@ function readText(el: Element | null): string {
 }
 
 /**
+ * 只保留可安全用于 `<img>` 的内联图片图标（`data:image/*`）。
+ * 远程 URL 会在浏览时产生请求，`javascript:` 等脚本协议一律丢弃。
+ */
+function sanitizeInlineIcon(raw: string | null): string | undefined {
+  const value = raw?.trim() ?? '';
+  return /^data:image\//i.test(value) ? value : undefined;
+}
+
+/**
  * 解析一个 `<DL>` 的直接子项。
  *
  * 浏览器导出的结构是 `<DL><p><DT><A …></DT><DT><H3>…</H3><DL>…</DL></DT></DL>`：
@@ -72,7 +81,7 @@ function parseList(
         } else {
           const addedAt = parseTimestampAttr(anchor.getAttribute('ADD_DATE'), now);
           const lastModifiedAt = parseTimestampAttr(anchor.getAttribute('LAST_MODIFIED'), addedAt);
-          const icon = anchor.getAttribute('ICON')?.trim() || undefined;
+          const icon = sanitizeInlineIcon(anchor.getAttribute('ICON'));
           const title = readText(anchor) || fallbackTitle(href);
           result.nodes.push({
             kind: 'bookmark',

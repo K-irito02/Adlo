@@ -10,9 +10,10 @@ import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '../../tauri-bridge';
 import { onAdServerReachabilityChange } from '../../preview-bridge/preview-reachability';
 import { sameWorkspacePath } from '../../shared/workspacePathMatch';
-import { initSiteMetaCache } from '@utils/siteMetaCache';
+import { initSiteMetaCache, subscribeSiteMetaReady } from '@utils/siteMetaCache';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import { collectWarmupUrls } from '@utils/warmupUrls';
+import { syncBookmarkIconSnapshots } from '@features/bookmarks/bookmarkIconSnapshots';
 
 export function useAppStartup(appInfo: AppInfo | undefined) {
   const actions = useAppActions();
@@ -48,12 +49,18 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
 
   useEffect(() => {
     void initSiteMetaCache();
+    // 书签自带图标（导入文件的 ICON）在水合完成后播种进共享镜像：
+    // 水合前播种会挡住持久层里的真实图标，故挂在 ready 回调上。
+    const unsubReady = subscribeSiteMetaReady(() => {
+      syncBookmarkIconSnapshots();
+    });
     // 单次收集：store 构造期已同步水合（hydrateAll），首次收集即见全量持久化数据，
     // 无需等待延迟水合（requestIdleCallback/setTimeout 机制已由 T7/T9 删除）。
     const urls = collectWarmupUrls();
     if (urls.length > 0) {
       void pageMetaClient.warmup(urls);
     }
+    return unsubReady;
   }, []);
 
   useEffect(() => {

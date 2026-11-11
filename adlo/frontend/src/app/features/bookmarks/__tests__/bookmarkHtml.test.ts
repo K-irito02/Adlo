@@ -95,6 +95,23 @@ describe('parseBookmarkHtml', () => {
     expect(parsed.nodes[0]).toMatchObject({ icon: 'data:image/png;base64,AAA' });
   });
 
+  it('drops ICON values that are not inline images (remote/script protocols)', () => {
+    // ICON 会被渲染进 <img src>：只接受 data:image/*，远程 URL 会产生旁路请求，
+    // javascript:/data:text/html 等脚本载体一律丢弃。
+    const parsed = parseBookmarkHtml(
+      [
+        '<DL><p>',
+        '<DT><A HREF="https://a.test/" ICON="https://evil.test/icon.png">A</A>',
+        '<DT><A HREF="https://b.test/" ICON="javascript:alert(1)">B</A>',
+        '<DT><A HREF="https://c.test/" ICON="data:image/svg+xml;base64,CCC">C</A>',
+        '</DL><p>',
+      ].join(''),
+    );
+    expect(parsed.nodes[0]).not.toHaveProperty('icon');
+    expect(parsed.nodes[1]).not.toHaveProperty('icon');
+    expect(parsed.nodes[2]).toMatchObject({ icon: 'data:image/svg+xml;base64,CCC' });
+  });
+
   it('returns empty nodes for a file without any DL', () => {
     const parsed = parseBookmarkHtml('<html><head><title>X</title></head><body></body></html>');
     expect(parsed.rootName).toBe('X');

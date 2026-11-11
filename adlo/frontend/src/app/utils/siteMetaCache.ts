@@ -72,7 +72,16 @@ function recordRedirectMapEntry(from: string, to: string): void {
 let ready = false;
 let initPromise: Promise<void> | null = null;
 
-let backend: SiteMetaBackend = isTauriShell() ? tauriSiteMetaBackend : previewSiteMetaBackend;
+// 后端惰性解析：模块导入期不得有副作用（`isTauriShell()` 会在测试里被部分 mock 的
+// tauri-bridge 模块上暴露为缺失导出）。首次读写时才确定 Tauri / 预览实现。
+let backend: SiteMetaBackend | null = null;
+
+function resolveBackend(): SiteMetaBackend {
+  if (!backend) {
+    backend = isTauriShell() ? tauriSiteMetaBackend : previewSiteMetaBackend;
+  }
+  return backend;
+}
 
 export function setSiteMetaBackendForTest(b: SiteMetaBackend): void {
   backend = b;
@@ -148,7 +157,7 @@ export async function initSiteMetaCache(): Promise<void> {
   }
   initPromise = (async () => {
     try {
-      const persisted = await backend.getAll();
+      const persisted = await resolveBackend().getAll();
       for (const [url, entry] of Object.entries(persisted ?? {})) {
         if (!memoryCache.has(url)) {
           memoryCache.set(url, clamp(entry));
@@ -206,6 +215,67 @@ export function isFaviconConfirmed(url: string): boolean {
 
 export function getCachedFavicon(url: string): string {
   return memoryCache.get(normalizeUrlForCache(url))?.faviconDataUri ?? '';
+}
+
+const INLINE_IMAGE_ICON_RE = /^data:image\//i;
+
+/** 导入书签的 `ICON` 快照是否可安全用于 `<img>`（只接受内联图片，拒绝远程/脚本协议）。 */
+function isInlineImageIcon(value: string): boolean {
+  return INLINE_IMAGE_ICON_RE.test(value.trim());
+}
+
+export interface FaviconSnapshot {
+  url: string;
+  iconUri: string;
+}
+
+/**
+ * 把导入书签自带的图标快照播种到共享镜像（Chrome/Edge 式：书签图标与站点图标
+ * 同一处取用，书签树与搜索（收藏结果行）立即有图标）。
+ *
+ * 关键约束：
+ * - **不写后端持久层**：快照的真源是书签自身（`BookmarkEntry.iconUri`）。写进持久层
+ *   后 `should_replace_favicon` 会因 `data:` 前缀永久锁定，真实图标无法升级。
+ * - **只在没有图标时播种**：已有真实 favicon（data-URI 或 URL）一律不覆盖。
+ * - **水合前不播种**：`initSiteMetaCache` 只在 key 不存在时写入，提前播种会挡住
+ *   持久层里的真实图标；启动同步在 cache ready 之后执行。
+ *
+ * 真实图标到达（广播携带 data-URI）时由 `applyBroadcastUpdate` 覆盖，实现
+ * 「用户点开/后台抓取成功后才更新」。
+ *
+ * @returns 实际播种的条目数（0 表示镜像未就绪或全部被真实数据占位）。
+ */
+export function seedSnapshotFavicons(snapshots: Iterable<FaviconSnapshot>): number {
+  if (!ready) {
+    return 0;
+  }
+  let seeded = 0;
+  for (const { url, iconUri } of snapshots) {
+    const inline = iconUri.trim();
+    if (!url || !isInlineImageIcon(inline) || inline.length > FAVICON_MAX_DATA_URI_LEN) {
+      continue;
+    }
+    const key = normalizeUrlForCache(url);
+    if (!key) {
+      continue;
+    }
+    const existing = memoryCache.get(key);
+    if (existing?.faviconDataUri || existing?.faviconUrl) {
+      continue;
+    }
+    upsertMirror(key, {
+      title: existing?.title ?? '',
+      titleSource: existing?.titleSource ?? '',
+      faviconUrl: '',
+      faviconDataUri: inline,
+      fetchedAt: existing?.fetchedAt ?? Date.now(),
+      lastOkAt: existing?.lastOkAt ?? 0,
+      nextRetryAt: existing?.nextRetryAt ?? 0,
+      failCount: existing?.failCount ?? 0,
+    });
+    seeded += 1;
+  }
+  return seeded;
 }
 
 /** 解析 url 的 origin（scheme://host[:port]）；失败返回 ''。 */
@@ -408,7 +478,7 @@ export async function removeSiteMetaFromCache(url: string): Promise<void> {
   memoryCache.delete(key);
   notify(key);
   try {
-    await backend.remove([key]);
+    await resolveBackend().remove([key]);
   } catch (err) {
     console.warn('siteMetaCache: backend remove failed', err);
   }
@@ -427,11 +497,14 @@ export function __mirrorUpsertForTest(url: string, entry: SiteMetaCacheEntry): v
  * RC3 合并守卫：空/部分字段的广播（抓取失败、被限速、robots 拦截等瞬态）
  * 不得清空镜像中已有的真实数据 —— 否则真实图标被清后回落 DDG 代理图标、
  * 下次成功又恢复，导致图标在"兜底↔真实"之间来回切换。合并规则：
- * 空字段保留既有值；data-URI 优先保留广播新值，仅在广播 faviconUrl 变化
- * 且未携带新 data-URI 时丢弃既有 data-URI（避免新 URL 配上旧站点的陈旧
- * 图标）。与后端 `should_replace_favicon` 收敛：镜像 data-URI 非空 ⇒ 后端
- * `should_replace_favicon` 不会替换 faviconUrl ⇒ 广播 faviconUrl 实际不变
- * ⇒ 两分支在真实数据下结果一致。
+ * 空字段保留既有值；data-URI 以广播新值为准，未携带新 data-URI 时保留既有
+ * data-URI（即使 faviconUrl 轮换也不丢弃：YouTube 等 CDN 哈希变化但图片不变，
+ * 丢弃会触发重新下载；用例见 `applyBroadcastUpdate merge guard: partial broadcast
+ * keeps the cached data-URI ...`）。
+ *
+ * 与后端 `should_replace_favicon` 的关系：**已持久化到后端**的 data-URI 会让后端
+ * 不再替换 faviconUrl；仅存在于前端镜像的导入快照（`seedSnapshotFavicons`）不受此
+ * 约束——后端仍可能刷新 faviconUrl，镜像保留快照直到真实 data-URI 广播到达。
  */
 export function applyBroadcastUpdate(payload: PageMetaUpdatedPayload): void {
   const key = normalizeUrlForCache(payload.url);
@@ -484,7 +557,7 @@ export async function persistFaviconDataUri(url: string, dataUri: string): Promi
   };
   upsertMirror(key, next);
   try {
-    await backend.upsert({ [key]: next });
+    await resolveBackend().upsert({ [key]: next });
   } catch (err) {
     console.warn('siteMetaCache: persist favicon data-URI failed', err);
   }

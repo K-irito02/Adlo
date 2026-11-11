@@ -7,6 +7,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { BrowserTreeNode } from './types';
 import type { FlatItem } from './browserTreeEntryUtils';
+import { faviconPropsForNode } from './browserTreeFavicon';
 
 interface BrowserTreeEntryFlatListProps {
   flatItems: FlatItem[];
@@ -126,7 +127,7 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
                   className="adl-filetree__indent adl-filetree__indent--flat"
                   aria-hidden="true"
                 />
-                <BrowserFavicon url={item.node.url ?? ''} />
+                <BrowserFavicon {...faviconPropsForNode(item.node)} />
                 {(item.node.isPlayingAudio || item.node.isAudioMuted) && (
                   <BrowserAudioIndicator
                     isPlaying={item.node.isPlayingAudio ?? false}

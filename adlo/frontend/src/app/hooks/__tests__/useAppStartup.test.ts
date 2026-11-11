@@ -64,6 +64,7 @@ describe('useAppStartup warmup', () => {
       loading: false,
       browserTabs: [],
       browserBookmarks: [],
+      browserBookmarkFolders: [],
       browserWorkspaceBookmarks: {},
       browserHistory: [],
     });
@@ -130,6 +131,37 @@ describe('useAppStartup warmup', () => {
     const urls = vi.mocked(pageMetaClient.warmup).mock.calls[0]?.[0] ?? [];
     expect(urls.length).toBe(200);
     expect(new Set(urls).size).toBe(200);
+  });
+
+  it('seeds bookmark icon snapshots once the site-meta cache is ready', async () => {
+    // 回归拦截（F2）：删掉 useAppStartup 里的 subscribeSiteMetaReady → sync 接线时，
+    // 跨会话的导入图标会丢失，本断言必须变红。
+    useAppStore.setState({
+      browserBookmarkFolders: [
+        {
+          id: 'f',
+          name: 'F',
+          createdAt: 0,
+          entries: [
+            {
+              id: 'b',
+              url: 'https://startup-hook.test/',
+              title: 'S',
+              addedAt: 1,
+              lastModifiedAt: 1,
+              iconUri: 'data:image/png;base64,HOOK',
+            },
+          ],
+        },
+      ],
+    });
+
+    renderHook(() => useAppStartup(undefined));
+    await act(async () => {});
+
+    expect(siteMetaCache.getCachedFavicon('https://startup-hook.test/')).toBe(
+      'data:image/png;base64,HOOK',
+    );
   });
 });
 

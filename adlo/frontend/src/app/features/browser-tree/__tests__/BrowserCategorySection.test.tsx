@@ -44,14 +44,14 @@ function makeLeafNode(name: string): BrowserTreeNode {
   };
 }
 
-function renderSection(nodes: BrowserTreeNode[]) {
+function renderSection(nodes: BrowserTreeNode[], expandedPaths: Record<string, boolean> = {}) {
   const category: BrowserCategoryState = { label: 'Workspace', nodes };
   return render(
     <TCopyProvider t={t} locale="en-US">
       <BrowserCategorySection
         category={category}
         categoryType="workspace"
-        expandedPaths={{}}
+        expandedPaths={expandedPaths}
         selectedTreePath={null}
         onSelectTreePath={vi.fn()}
         onTogglePath={vi.fn()}
@@ -77,5 +77,60 @@ describe('BrowserCategorySection always-expanded', () => {
     renderSection([makeLeafNode('Example')]);
 
     expect(screen.getByRole('group', { name: 'Workspace' })).toBeInTheDocument();
+  });
+
+  it('renders expanded bookmark rows with the site initial instead of a spinner', () => {
+    // 回归拦截（F1）：树行必须把 pending='initial' 真正传给 BrowserFavicon；
+    // 改回 url-only 接线时这里会重新出现 .adl-spinner。
+    const { container } = renderSection(
+      [
+        {
+          path: 'folder:books',
+          name: '书籍资源网',
+          kind: 'directory',
+          nodeType: 'folder',
+          folderId: 'books',
+          children: [
+            {
+              path: 'bookmark:no-spinner-row',
+              name: '无图标书签',
+              kind: 'file',
+              children: [],
+              nodeType: 'bookmark',
+              bookmarkId: 'b-no-spinner-row',
+              url: 'https://no-spinner-row.example/page',
+              isSavedBookmark: true,
+            },
+          ],
+        },
+      ],
+      { 'folder:books': true },
+    );
+
+    const row = [...container.querySelectorAll('.adl-filetree__row')].find((r) =>
+      r.textContent?.includes('无图标书签'),
+    );
+    expect(row).toBeDefined();
+    expect(row?.querySelector('.adl-spinner')).toBeNull();
+    expect(row?.querySelector('.adl-browser-tree__link-fallback')?.textContent).toBe('N');
+  });
+
+  it('keeps the spinner on live tab rows', () => {
+    // 反向守护：活标签行仍走默认 spinner 策略（确有在途抓取）
+    const { container } = renderSection(
+      [
+        {
+          path: 'folder:live',
+          name: 'LiveFolder',
+          kind: 'directory',
+          nodeType: 'folder',
+          folderId: 'live',
+          children: [makeLeafNode('Live tab')],
+        },
+      ],
+      { 'folder:live': true },
+    );
+    expect(screen.getByText('Live tab')).toBeInTheDocument();
+    expect(container.querySelectorAll('.adl-spinner')).toHaveLength(1);
   });
 });
