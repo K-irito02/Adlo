@@ -113,6 +113,22 @@ describe('useBrowserPageMeta handlePageMeta http(s) guard (⑩)', () => {
     expect(useAppStore.getState().browserTabs[0].title).toBe('真实标题');
     expect(vi.mocked(pageMetaClient.report)).toHaveBeenCalledTimes(1);
   });
+
+  it('file:// meta updates the local tab title without hitting the HTTP meta cache', () => {
+    useAppStore.setState({
+      browserTabs: [{ ...useAppStore.getState().browserTabs[0], url: 'file:///D:/Desktop/a.html' }],
+    });
+    const { result } = renderHook(() => mod.useBrowserPageMeta());
+    act(() => {
+      result.current.handlePageMeta({
+        url: 'file:///D:/Desktop/a.html',
+        title: 'Bookmarks',
+        favicon: '',
+      });
+    });
+    expect(useAppStore.getState().browserTabs[0].title).toBe('Bookmarks');
+    expect(vi.mocked(pageMetaClient.report)).not.toHaveBeenCalled();
+  });
 });
 
 describe('applyBroadcastTitle (light app gate)', () => {

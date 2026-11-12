@@ -50,6 +50,8 @@ pub fn build(
             file_open_method: config.file_open_method,
             agent_link_intercept: config.agent_link_intercept,
             agent_site_whitelist: config.agent_site_whitelist.clone(),
+            agent_site_rules: crate::config::resolved_agent_site_rules(config),
+            agent_site_overrides: crate::config::resolved_agent_site_overrides(config),
             browser_suspend_whitelist_enabled: config.browser_suspend_whitelist_enabled,
             browser_suspend_whitelist: config.browser_suspend_whitelist.clone(),
         },

@@ -9,6 +9,7 @@ import type { MetaSource, PageMeta } from '@shared/ipc/browser';
 import type { CopyDict } from '@i18n';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
+import { isLocalFileInput, buildLocalFileUrl, isLocalViewableFileUrl } from './localFileInput';
 
 interface UseBrowserPanelAddressSubmitParams {
   address: string;
@@ -27,7 +28,10 @@ interface UseBrowserPanelAddressSubmitParams {
   submitVersionRef: MutableRefObject<number>;
   validatedUrlsRef: MutableRefObject<Set<string>>;
   /** 全量文案（调用点传入面板 `t`）：仅用于残留端口释放告知，缺省不提示。 */
-  t?: Pick<CopyDict, 'dshPortFreed'>;
+  t?: Pick<
+    CopyDict,
+    'dshPortFreed' | 'browserLocalFileDesktopOnly' | 'browserLocalFileUnsupported'
+  >;
 }
 
 export function useBrowserPanelAddressSubmit({
@@ -62,6 +66,35 @@ export function useBrowserPanelAddressSubmit({
     }
 
     addressSubmittedForTabRef.current = '';
+    if (isLocalFileInput(input)) {
+      // Tauri desktop only: browser preview cannot open local files from a web page.
+      // Show a toast instead of falling through to search/ensureProtocol.
+      const isTauri = useAppStore.getState().isTauri;
+      const fileUrl = buildLocalFileUrl(input);
+      if (!isTauri) {
+        useAppStore.getState().showToast(t?.browserLocalFileDesktopOnly ?? '', 'warning');
+        return;
+      }
+      if (!fileUrl || !isLocalViewableFileUrl(fileUrl)) {
+        useAppStore.getState().showToast(t?.browserLocalFileUnsupported ?? '', 'warning');
+        return;
+      }
+      setAddress(fileUrl);
+      setSearchQueryDisplay('');
+      handleNavigationStart(fileUrl);
+      const panelState = useAppStore.getState();
+      const panelTabsForBind = panelState.browserTabs.filter((t) => t.location !== 'center');
+      const panelBindTab =
+        panelTabsForBind.find((t) => t.id === panelState.browserActiveTabId) ?? panelTabsForBind[0];
+      expectedNavigationUrlRef.current = {
+        url: fileUrl,
+        at: Date.now(),
+        tabId: panelBindTab?.id ?? null,
+      };
+      browserNavigatePanelTab(fileUrl, undefined);
+      return;
+    }
+
     const matchedItem = findInBrowserLookupIndex(browserLookupIndex, input);
     let finalUrl: string;
     let searchInfo: { engineName: string; query: string } | undefined;

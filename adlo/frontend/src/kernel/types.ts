@@ -5,11 +5,18 @@ import type { APP_STATE_SCHEMA_VERSION } from './constants';
 // ════════════════════════════════════════════════════════
 
 // 本地导入 ConfigSnapshot/AgentSiteAllowEntry 供手写接口引用（re-export 不会把类型引入本地作用域）
-import type { AgentSiteAllowEntry, ConfigSnapshot } from '../shared/ipc-types.generated';
+import type {
+  AgentSiteAllowEntry,
+  AgentSiteOverride,
+  AgentSiteRule,
+  ConfigSnapshot,
+} from '../shared/ipc-types.generated';
 
 // 废弃手写类型，统一使用 ts-rs 生成类型作为真源
 export type {
   AgentSiteAllowEntry,
+  AgentSiteOverride,
+  AgentSiteRule,
   AppPreferencePatch,
   ConfigSnapshot,
   ModelCapability,
@@ -466,14 +473,39 @@ export type SettingsGroupId =
   | 'openMethod'
   | 'about';
 
-export type SettingValue = string | boolean | number | string[] | AgentSiteAllowEntry[];
+export interface AgentSiteRulesSettingValue {
+  rules: AgentSiteRule[];
+  overrides: AgentSiteOverride[];
+  sites: AgentSiteAllowEntry[];
+}
+
+export type AgentSiteRulesCommand =
+  | AgentSiteRulesSettingValue
+  | { kind: 'resetGlobal' }
+  | { kind: 'resetSite'; origin: string };
+
+export type SettingValue =
+  | string
+  | boolean
+  | number
+  | string[]
+  | AgentSiteAllowEntry[]
+  | AgentSiteRulesCommand;
 
 export interface SettingItem {
   id: string;
   groupId: SettingsGroupId;
   label: string;
   description?: string;
-  type: 'toggle' | 'select' | 'input' | 'password' | 'readonly' | 'font' | 'allowlist';
+  type:
+    | 'toggle'
+    | 'select'
+    | 'input'
+    | 'password'
+    | 'readonly'
+    | 'font'
+    | 'allowlist'
+    | 'agentSiteRules';
   value: SettingValue;
   options?: { value: string; label: string }[];
   cssVar?: '--font-sans-custom' | '--font-mono-custom';

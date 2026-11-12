@@ -130,6 +130,8 @@ mod tests {
                 file_open_method: Default::default(),
                 agent_link_intercept: false,
                 agent_site_whitelist: vec![],
+                agent_site_rules: vec![],
+                agent_site_overrides: vec![],
                 browser_suspend_whitelist_enabled: false,
                 browser_suspend_whitelist: vec![],
             },

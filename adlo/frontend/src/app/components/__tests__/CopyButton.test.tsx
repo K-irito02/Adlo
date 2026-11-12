@@ -57,6 +57,22 @@ describe('CopyButton', () => {
     await waitFor(() => expect(btn.getAttribute('aria-label')).toBe('已复制到剪贴板'));
   });
 
+  it('prevents default for copies nested inside a label', () => {
+    const onLabelClick = vi.fn();
+    render(
+      <TCopyProvider t={mockT} locale="zh-CN">
+        <label onClick={onLabelClick}>
+          <CopyButton text="hello" />
+        </label>
+      </TCopyProvider>,
+    );
+    const btn = screen.getByRole('button');
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    btn.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(onLabelClick).not.toHaveBeenCalled();
+  });
+
   it('does not mark copied when a custom onCopy resolves false', async () => {
     const onCopy = vi.fn().mockResolvedValue(false);
     const btn = renderButton({ onCopy });

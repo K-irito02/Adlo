@@ -171,7 +171,11 @@ describe('useBrowserPanelAddressSubmit', () => {
           addressSubmittedForTabRef: { current: '' },
           submitVersionRef: { current: 0 },
           validatedUrlsRef: { current: new Set<string>() },
-          t: { dshPortFreed: 'FREED' },
+          t: {
+            dshPortFreed: 'FREED',
+            browserLocalFileDesktopOnly: 'LOCAL_DESKTOP_ONLY',
+            browserLocalFileUnsupported: 'LOCAL_UNSUPPORTED',
+          },
         }),
       );
 

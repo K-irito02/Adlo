@@ -40,6 +40,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/app/log-settings", post(handlers::app::apply_log_settings))
         // Workspace domain
         .route("/workspace/open", post(handlers::workspace::open))
+        .route("/workspace/add", post(handlers::workspace::add))
         .route("/workspace/current", get(handlers::workspace::get_current))
         .route("/workspace/clear-current", post(handlers::workspace::clear_current))
         .route("/workspace/file", post(handlers::workspace::create_file))

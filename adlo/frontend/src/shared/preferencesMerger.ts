@@ -5,6 +5,11 @@ import type {
 } from './ipc-types.generated';
 import { resolveCurrentTheme } from './resolveTheme';
 import { normalizeAgentSiteEntries } from './originWhitelist';
+import {
+  defaultAgentSiteRules,
+  normalizeAgentSiteOverrides,
+  normalizeAgentSiteRules,
+} from './agentSiteRules';
 
 export function applyPreferencePatch(
   config: ConfigSnapshot,
@@ -95,6 +100,24 @@ export function applyPreferencePatch(
     // 与设置变更路径同源归一（去 path/query、去非法、去重），后端推送/批量恢复
     // 的脏数据不在此落盘（见事项 5 审查 S-F3）。
     nextConfig.agentSiteWhitelist = normalizeAgentSiteEntries(patch.agentSiteWhitelist);
+  }
+  if (patch.resetAgentSiteRules === true) {
+    // Reset means "use built-ins from now on". Materialize a fresh default copy so
+    // the UI has an unambiguous list to render until the next backend snapshot.
+    nextConfig.agentSiteRules = defaultAgentSiteRules();
+  } else if (patch.agentSiteRules !== undefined) {
+    nextConfig.agentSiteRules = normalizeAgentSiteRules(patch.agentSiteRules);
+  }
+  if (patch.resetAgentSiteOverrides === true) {
+    nextConfig.agentSiteOverrides = [];
+  } else if (patch.resetAgentSiteOverride !== undefined) {
+    nextConfig.agentSiteOverrides = normalizeAgentSiteOverrides(
+      (nextConfig.agentSiteOverrides ?? []).filter(
+        (entry) => entry.origin !== patch.resetAgentSiteOverride,
+      ),
+    );
+  } else if (patch.agentSiteOverrides !== undefined) {
+    nextConfig.agentSiteOverrides = normalizeAgentSiteOverrides(patch.agentSiteOverrides);
   }
   if (patch.browserSuspendWhitelistEnabled !== undefined) {
     nextConfig.browserSuspendWhitelistEnabled = patch.browserSuspendWhitelistEnabled;

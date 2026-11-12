@@ -7,6 +7,11 @@ import type { CopyDict } from '@i18n';
 import { checkEmbed, isEmbedBlocked } from '@features/browser/checkEmbed';
 import { isSearchQuery, buildSearchUrl, ensureProtocol } from '@features/browser/browserUrlUtils';
 import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
+import {
+  isLocalFileInput,
+  buildLocalFileUrl,
+  isLocalViewableFileUrl,
+} from '@features/browser/localFileInput';
 
 interface UseCenterBrowserAddressSubmitParams {
   /** 被中心宿主承载的浏览器标签 id（导航目标）。 */
@@ -24,7 +29,10 @@ interface UseCenterBrowserAddressSubmitParams {
   setIframeBlockedDetected: Dispatch<SetStateAction<boolean>>;
   validatedUrlsRef: MutableRefObject<Set<string>>;
   /** 全量文案（调用点传入中心 `t`）：仅用于残留端口释放告知，缺省不提示。 */
-  t?: Pick<CopyDict, 'dshPortFreed'>;
+  t?: Pick<
+    CopyDict,
+    'dshPortFreed' | 'browserLocalFileDesktopOnly' | 'browserLocalFileUnsupported'
+  >;
 }
 
 /**
@@ -57,6 +65,31 @@ export function useCenterBrowserAddressSubmit({
   const submitAddress = useCallback(async () => {
     const state = useAppStore.getState();
     const input = address.trim();
+
+    if (isLocalFileInput(input)) {
+      const fileUrl = buildLocalFileUrl(input);
+      if (!state.isTauri) {
+        state.showToast(t?.browserLocalFileDesktopOnly ?? '', 'warning');
+        return;
+      }
+      if (!fileUrl || !isLocalViewableFileUrl(fileUrl)) {
+        state.showToast(t?.browserLocalFileUnsupported ?? '', 'warning');
+        return;
+      }
+      setAddress(fileUrl);
+      setSearchQueryDisplay('');
+      state.browserUpdateTab(browserTabId, {
+        url: fileUrl,
+        title: '',
+        titleResolved: false,
+      });
+      if (state.isTauri && isTabInPool(browserTabId)) {
+        await navigateTabInPool(browserTabId, fileUrl).catch((err) => {
+          console.warn('[centerAddressSubmit] navigateTabInPool failed:', err);
+        });
+      }
+      return;
+    }
 
     if (!input) {
       const tab = state.browserTabsById[browserTabId];

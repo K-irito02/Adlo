@@ -26,7 +26,8 @@
         "shadow": true,
         "resizable": true,
         "fullscreen": false,
-        "visible": false
+        "visible": false,
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --allow-file-access-from-files"
       }
     ],
     "security": {

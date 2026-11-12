@@ -1,5 +1,6 @@
 use tauri::{Emitter, Manager};
 
+use crate::commands::browser_webview_setup::WEBVIEW_ADDITIONAL_ARGS;
 use crate::commands::ipc;
 use crate::error::CommandError;
 use adl_browser::webview_handle::{Bounds, sanitize_strip_bounds};
@@ -63,6 +64,10 @@ pub async fn divider_strip_show(
             .transparent(true)
             .focused(false)
             .initialization_script(config_script)
+            // Same WebView2 environment options as the main/panel webviews: they
+            // share the default user data directory, and mismatched options make
+            // `CreateCoreWebView2EnvironmentWithOptions` fail with 0x8007139F.
+            .additional_browser_args(WEBVIEW_ADDITIONAL_ARGS)
             .on_navigation(|url| {
                 // The strip is a local control surface: only the app page may
                 // load — the asset protocol host differs per platform

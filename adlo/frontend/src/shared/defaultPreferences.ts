@@ -67,6 +67,8 @@ export function getDefaultPreferences(): AppPreferencePatch {
     fileOpenMethod: DEFAULT_FILE_OPEN_METHOD,
     agentLinkIntercept: DEFAULT_AGENT_LINK_INTERCEPT,
     agentSiteWhitelist: [...DEFAULT_AGENT_SITE_WHITELIST],
+    resetAgentSiteRules: true,
+    resetAgentSiteOverrides: true,
     browserSuspendWhitelistEnabled: DEFAULT_BROWSER_SUSPEND_WHITELIST_ENABLED,
     browserSuspendWhitelist: [...DEFAULT_BROWSER_SUSPEND_WHITELIST],
   };

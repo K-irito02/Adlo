@@ -44,6 +44,10 @@ export const browserEn = {
   browserSavedLocalShell: 'Saved as a local tab shell until real webview wiring lands.',
   browserOpenExternal: 'Open external',
   browserCopyLink: 'Copy link',
+  browserLocalFileDesktopOnly: 'Local files are only supported in the desktop app',
+  browserLocalFileUnsupported: 'Only local files that the browser can render are supported',
+  browserFileOutsideWorkspace:
+    'This file is outside every known workspace, so it cannot open in the file panel. It has been revealed in the file manager',
   browserCategoryWorkspace: 'Workspace Directory',
   browserCategoryUserFolder: 'Custom Directory',
   browserCategoryHistory: 'History Directory',

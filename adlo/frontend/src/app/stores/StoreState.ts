@@ -133,6 +133,13 @@ type AllSlices = [
 
 interface WorkspaceActions {
   openWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * 把路径登记为侧栏工作区但不切换当前工作区。
+   * 供智能体文件链接指向未知工作区时“先登记、再在文件面板打开”。
+   */
+  addWorkspaceToSidebar: (
+    workspacePath: string,
+  ) => Promise<{ ok: boolean; workspaceId?: string; rootPath?: string; error?: string }>;
   clearWorkspaceContext: () => Promise<void>;
   pickWorkspaceDirectory: () => Promise<string | undefined>;
   removeWorkspaceFromSidebar: (workspaceId: WorkspaceID) => Promise<void>;

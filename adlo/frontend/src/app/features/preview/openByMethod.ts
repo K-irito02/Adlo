@@ -1,7 +1,11 @@
 import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '@shared/env';
+import { asWorkspaceID } from '@shared/branded';
 import { joinPathSegments } from '@utils/workspacePaths';
 import type { WorkspaceTreeNode } from '../../../kernel/types-workspace-files';
+import { resolveAppLanguage } from '../../i18n/resolveLanguage';
+import { browserZh } from '../../i18n/zh-CN/browser';
+import { browserEn } from '../../i18n/en-US/browser';
 
 function openExternal(url: string): void {
   if (isTauriShell()) {
@@ -151,25 +155,111 @@ export function resolveLinkWorkspace(workspaceId?: string): LinkWorkspaceTarget 
   return { id: current.id, root };
 }
 
-/** 按「文件」设置打开一个本地绝对路径。 */
-export function openFileByMethod(absPath: string, workspaceId?: string): void {
+/** 在最近工作区中找出实际包含该绝对路径的工作区（最长根优先，处理嵌套根）。 */
+export function resolveOwningWorkspace(absPath: string): LinkWorkspaceTarget | null {
+  const state = useAppStore.getState();
+  const candidates = (state.recentWorkspaces ?? [])
+    .map((workspace) => {
+      const root = workspace.rootPath ?? workspace.path;
+      return root ? { id: workspace.id, root } : null;
+    })
+    .filter((target): target is LinkWorkspaceTarget => target !== null)
+    .filter((target) => isWithinRoot(target.root, absPath))
+    .sort((a, b) => b.root.length - a.root.length);
+  return candidates[0] ?? null;
+}
+
+/** 「按文件设置打开」的结果：调用方据此决定是否提示用户。 */
+export type OpenFileOutcome = 'opened' | 'external' | 'outside-workspace' | 'opening';
+
+/** 提示「文件不在已知工作区」——路径越界时不能静默失败。 */
+function notifyOutsideWorkspace(): void {
+  const state = useAppStore.getState();
+  const dict =
+    resolveAppLanguage(state.appInfo?.config?.language) === 'en-US' ? browserEn : browserZh;
+  state.showToast(dict.browserFileOutsideWorkspace, 'warning');
+}
+
+/**
+ * 路径不属于任何已知工作区时的兜底：提示并在文件管理器中定位。
+ *
+ * 不能静默落到外部打开——Tauri shell 插件的作用域只允许 http(s)/mailto/tel，
+ * `file://` 会直接抛错且没有任何 UI 反馈。
+ */
+function revealOutsideWorkspace(absPath: string): OpenFileOutcome {
+  notifyOutsideWorkspace();
+  if (isTauriShell() && window.digitalLife?.workspace?.revealInFileManager) {
+    void window.digitalLife.workspace.revealInFileManager(absPath).catch(() => {});
+    return 'outside-workspace';
+  }
+  openExternal(toFileUrl(absPath));
+  return 'external';
+}
+
+/**
+ * 未知工作区文件：先把它所在文件夹登记为侧栏工作区（不切换当前工作区），
+ * 再在右侧文件面板打开。
+ *
+ * 智能体 harness 维护自己的工作区列表，链接里的绝对路径通常不属于应用侧栏；
+ * 文件面板按工作区隔离，登记后树/预览/保存都走既有链路。
+ */
+async function openFileInNewWorkspace(absPath: string): Promise<void> {
+  const state = useAppStore.getState();
+  const folder = parentDirectory(toForwardSlashes(absPath));
+  if (!folder) {
+    revealOutsideWorkspace(absPath);
+    return;
+  }
+  try {
+    const added = await state.addWorkspaceToSidebar(folder);
+    if (!added.ok || !added.workspaceId || !added.rootPath) {
+      revealOutsideWorkspace(absPath);
+      return;
+    }
+    // 服务端 detect_root 可能上溯到仓库根：相对路径必须按返回的根计算。
+    const rel = workspaceRelative(added.rootPath, absPath);
+    if (!rel) {
+      revealOutsideWorkspace(absPath);
+      return;
+    }
+    await state.refreshOneWorkspaceTree(asWorkspaceID(added.workspaceId), added.rootPath, {
+      silent: true,
+    });
+    await state.openFileForWorkspace(added.workspaceId, added.rootPath, rel);
+    state.navigateRightTool('files');
+  } catch {
+    revealOutsideWorkspace(absPath);
+  }
+}
+
+export function openFileByMethod(absPath: string, workspaceId?: string): OpenFileOutcome {
   const state = useAppStore.getState();
   const method = state.appInfo?.config?.fileOpenMethod ?? 'panel';
   if (method === 'external') {
     openExternal(toFileUrl(absPath));
-    return;
+    return 'external';
   }
-  const target = resolveLinkWorkspace(workspaceId);
+  // Agent links often carry an absolute path without a workspace id. Prefer the
+  // recent workspace that actually contains the file over the current workspace.
+  const explicit = resolveLinkWorkspace(workspaceId);
+  const explicitRel = explicit ? workspaceRelative(explicit.root, absPath) : null;
+  const owner = resolveOwningWorkspace(absPath);
+  const target =
+    explicit && explicitRel !== null
+      ? explicit
+      : (owner ?? (explicitRel !== null ? explicit : null));
   if (!target) {
-    openExternal(toFileUrl(absPath));
-    return;
+    // 未知工作区：登记所在文件夹后异步打开（不阻塞链接点击的调用方）。
+    void openFileInNewWorkspace(absPath);
+    return 'opening';
   }
   const rel = workspaceRelative(target.root, absPath);
   if (!rel) {
-    openExternal(toFileUrl(absPath));
-    return;
+    void openFileInNewWorkspace(absPath);
+    return 'opening';
   }
   void state.openFileForWorkspace(target.id, target.root, rel);
+  return 'opened';
 }
 
 /**

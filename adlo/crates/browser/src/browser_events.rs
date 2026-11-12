@@ -65,7 +65,7 @@ fn should_emit_history_changed_at(tab_id: &str, url: &str, now: Instant) -> bool
 }
 
 pub fn navigation_handler<F: Fn(&str)>(url: &url::Url, emit_url: &F) -> bool {
-    if url.scheme() != "http" && url.scheme() != "https" {
+    if url.scheme() != "http" && url.scheme() != "https" && url.scheme() != "file" {
         tracing::debug!(
             scheme = url.scheme(),
             "navigation_handler: non-http(s) scheme, returning false"
@@ -111,6 +111,13 @@ pub fn navigation_handler<F: Fn(&str)>(url: &url::Url, emit_url: &F) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn navigation_handler_allows_file_scheme_for_tauri_local_files() {
+        let url = url::Url::parse("file:///D:/Desktop/a.html").expect("file url should parse");
+        let allowed = navigation_handler(&url, &|_| {});
+        assert!(allowed);
+    }
 
     #[test]
     fn history_dedup_suppresses_rapid_same_url() {

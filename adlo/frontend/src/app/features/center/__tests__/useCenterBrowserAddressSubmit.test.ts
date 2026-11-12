@@ -60,7 +60,11 @@ describe('useCenterBrowserAddressSubmit 需认证本地端口分流（事项 2�
         setIframeLoadError: vi.fn(),
         setIframeBlockedDetected: vi.fn(),
         validatedUrlsRef: { current: new Set<string>() },
-        t: { dshPortFreed: 'FREED' },
+        t: {
+          dshPortFreed: 'FREED',
+          browserLocalFileDesktopOnly: 'LOCAL_DESKTOP_ONLY',
+          browserLocalFileUnsupported: 'LOCAL_UNSUPPORTED',
+        },
       }),
     );
 

@@ -9,6 +9,7 @@ import {
   isProbablySameSite,
   extractSearchQueryFromUrl,
   isPoolTabEvent,
+  shouldSyncPanelAddressForTab,
 } from './browserUrlUtils';
 import type { ExpectedNavigationRef } from './browserUrlUtils';
 import {
@@ -249,6 +250,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       const eventTab = tabId
         ? state.browserTabs.find((t: BrowserTabState) => t.id === tabId)
         : undefined;
+      const syncPanelAddress = shouldSyncPanelAddressForTab(eventTab);
 
       // 身份键：保留 modal_id 等"页面身份"参数（historyDedupKey 语义），用于历史写入门槛。
       // 刷视频（仅 modal_id 变化）时 normalizedUrl 剥离 modal_id 后恒相等，会误判为"未变化"
@@ -266,7 +268,9 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
       if (noTabExists || urlChanged || missingHistoryEntry) {
         if (noTabExists && pendingPrefetchRef.current.has(normalizedUrl)) {
-          setAddress(normalizedUrl);
+          if (syncPanelAddress) {
+            setAddress(normalizedUrl);
+          }
           return;
         }
         pendingPrefetchRef.current.add(normalizedUrl);
@@ -290,8 +294,10 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           );
 
         if (suppressBase) {
-          setAddress(normalizedUrl);
-          onNavigationStart?.(normalizedUrl);
+          if (syncPanelAddress) {
+            setAddress(normalizedUrl);
+            onNavigationStart?.(normalizedUrl);
+          }
           return;
         }
 
@@ -386,7 +392,12 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             });
         };
 
-        tryPrefetch();
+        // 本地文件（file://）没有远端元数据可抓：跳过 prefetch，避免一次注定被
+        // 后端拒绝的 IPC（静默抓取只接受 http(s)）；标题由原生
+        // DocumentTitleChanged 事件（App 根订阅）直接落地。
+        if (/^https?:/i.test(normalizedUrl)) {
+          tryPrefetch();
+        }
 
         const fallbackDelay = noTabExists
           ? URL_CHANGE_FALLBACK_MS_NO_TAB
@@ -422,6 +433,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
       const expected = expectedNavigationUrlRef.current;
       if (
+        syncPanelAddress &&
         expected &&
         // 事件 tab 与发起导航的 tab 匹配，或为"新建 tab"场景（tabId 为 null）。
         // 非发起 tab 的 URL 变化（后台 tab 的 onUrlChanged）不消费期望，等待
@@ -448,14 +460,16 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         }
       }
 
-      setAddress(normalizedUrl);
+      if (syncPanelAddress) {
+        setAddress(normalizedUrl);
 
-      // 从搜索结果 URL 中提取查询文本显示在地址栏
-      const engines = useAppStore.getState().searchEngines;
-      const query = normalizedUrl ? extractSearchQueryFromUrl(normalizedUrl, engines) : '';
-      setSearchQueryDisplay(query);
+        // 从搜索结果 URL 中提取查询文本显示在地址栏
+        const engines = useAppStore.getState().searchEngines;
+        const query = normalizedUrl ? extractSearchQueryFromUrl(normalizedUrl, engines) : '';
+        setSearchQueryDisplay(query);
 
-      onNavigationStart?.(normalizedUrl);
+        onNavigationStart?.(normalizedUrl);
+      }
     });
 
     return () => {

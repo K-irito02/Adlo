@@ -45,9 +45,9 @@ export function useBrowserAgentLinkSubscription(): void {
     return bridge.onAgentLink(({ kind, url }) => {
       if (kind === 'url') {
         openUrlByMethod(url);
-      } else {
-        openFileByMethod(fileUrlToLocalPath(url));
+        return;
       }
+      openFileByMethod(fileUrlToLocalPath(url));
     });
   }, []);
 }

@@ -3,7 +3,8 @@ use adl_logging::LogMode;
 use adl_types::CommandConfig;
 use adl_types::types::ThemeMode;
 use adl_types::types::config::{
-    AgentSiteAllowEntry, AppPreferencePatch, FileOpenMethod, LinkOpenMethod, LogLevel,
+    AgentSiteAllowEntry, AgentSiteInterceptAction, AgentSiteOverride, AgentSiteRule,
+    AgentSiteRulePathPreset, AppPreferencePatch, FileOpenMethod, LinkOpenMethod, LogLevel,
 };
 use adl_types::types::reference::ReferenceConfig;
 use serde::{Deserialize, Serialize};
@@ -82,6 +83,12 @@ pub struct AppConfig {
     /// 需拦截的智能体站点白名单（别称选填 + 整站匹配 origin）。
     #[serde(default)]
     pub agent_site_whitelist: Vec<AgentSiteAllowEntry>,
+    /// 可选的用户覆盖规则集合。`None` = 使用内置默认值；恢复默认时删除此字段。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_site_rules: Option<Vec<AgentSiteRule>>,
+    /// 可选的按 origin 覆盖规则集合。`None` = 全部站点使用全局规则。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_site_overrides: Option<Vec<AgentSiteOverride>>,
     /// 标签挂起白名单总开关（默认关；开 + 名单非空才豁免）。
     #[serde(default)]
     pub browser_suspend_whitelist_enabled: bool,
@@ -183,6 +190,23 @@ impl AppConfig {
         if let Some(v) = patch.agent_site_whitelist.as_ref() {
             self.agent_site_whitelist = normalize_allowlist(v);
         }
+        if patch.reset_agent_site_rules == Some(true) {
+            self.agent_site_rules = None;
+        } else if let Some(v) = patch.agent_site_rules.as_ref() {
+            self.agent_site_rules = Some(normalize_agent_site_rules(v));
+        }
+        if patch.reset_agent_site_overrides == Some(true) {
+            self.agent_site_overrides = None;
+        } else if let Some(origin) = patch.reset_agent_site_override.as_ref() {
+            if let Some(overrides) = &mut self.agent_site_overrides {
+                overrides.retain(|entry| entry.origin != *origin);
+                if overrides.is_empty() {
+                    self.agent_site_overrides = None;
+                }
+            }
+        } else if let Some(v) = patch.agent_site_overrides.as_ref() {
+            self.agent_site_overrides = Some(normalize_agent_site_overrides(v));
+        }
         if let Some(v) = patch.browser_suspend_whitelist_enabled {
             self.browser_suspend_whitelist_enabled = v;
         }
@@ -215,6 +239,145 @@ pub fn resolve_persisted_config(
     }
     if patch.debug_log_mode.is_none() && overrides.debug_log_mode.is_some() {
         out.debug_log_mode = disk.debug_log_mode;
+    }
+    out
+}
+
+pub fn default_agent_site_rules() -> Vec<AgentSiteRule> {
+    vec![AgentSiteRule {
+        id: "builtin-file-like-attribute".into(),
+        name: "builtin-file-like-attribute".into(),
+        enabled: true,
+        match_selector: "button, a, [role=\"button\"], [role=\"link\"]".into(),
+        attributes: vec![
+            "title".into(),
+            "aria-label".into(),
+            "data-path".into(),
+            "data-file-path".into(),
+            "data-file".into(),
+            "data-url".into(),
+            "data-src".into(),
+        ],
+        path_preset: AgentSiteRulePathPreset::FileLike,
+        value_regex: None,
+        regex_flags: None,
+        action: AgentSiteInterceptAction::File,
+    }]
+}
+
+pub fn resolved_agent_site_rules(config: &AppConfig) -> Vec<AgentSiteRule> {
+    config
+        .agent_site_rules
+        .as_ref()
+        .map(|rules| normalize_agent_site_rules(rules))
+        .unwrap_or_else(default_agent_site_rules)
+}
+
+pub fn resolved_agent_site_overrides(config: &AppConfig) -> Vec<AgentSiteOverride> {
+    config
+        .agent_site_overrides
+        .as_ref()
+        .map(|overrides| normalize_agent_site_overrides(overrides))
+        .unwrap_or_default()
+}
+
+fn normalize_agent_site_rules(rules: &[AgentSiteRule]) -> Vec<AgentSiteRule> {
+    let mut ids = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for rule in rules {
+        let id = rule.id.trim();
+        if id.is_empty() || !ids.insert(id.to_string()) {
+            continue;
+        }
+        // Empty regex cannot participate safely; drop rather than silently wildcard-match.
+        if matches!(rule.path_preset, AgentSiteRulePathPreset::Regex)
+            && rule.value_regex.as_deref().unwrap_or("").trim().is_empty()
+        {
+            continue;
+        }
+        if rule.value_regex.as_deref().is_some_and(|regex| regex::Regex::new(regex).is_err()) {
+            continue;
+        }
+        let match_selector = {
+            let selector = rule.match_selector.trim();
+            if selector.is_empty() {
+                "button, a, [role=\"button\"], [role=\"link\"]".to_string()
+            } else {
+                selector.to_string()
+            }
+        };
+        let attributes = {
+            let mut seen = std::collections::HashSet::new();
+            rule.attributes
+                .iter()
+                .filter_map(|attr| {
+                    let attr = attr.trim();
+                    if attr.is_empty() || !seen.insert(attr.to_string()) {
+                        None
+                    } else {
+                        Some(attr.to_string())
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+        out.push(AgentSiteRule {
+            id: id.to_string(),
+            name: if rule.name.trim().is_empty() {
+                id.to_string()
+            } else {
+                rule.name.trim().to_string()
+            },
+            enabled: rule.enabled,
+            match_selector,
+            attributes,
+            path_preset: rule.path_preset,
+            value_regex: rule
+                .value_regex
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(str::to_string),
+            regex_flags: rule
+                .regex_flags
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(str::to_string),
+            action: rule.action,
+        });
+    }
+    out
+}
+
+fn normalize_agent_site_overrides(overrides: &[AgentSiteOverride]) -> Vec<AgentSiteOverride> {
+    let mut out = Vec::new();
+    for entry in overrides {
+        let origin = entry.origin.trim();
+        if origin.is_empty()
+            || out.iter().any(|candidate: &AgentSiteOverride| candidate.origin == origin)
+        {
+            continue;
+        }
+        let disabled_rule_ids = {
+            let mut seen = std::collections::HashSet::new();
+            entry
+                .disabled_rule_ids
+                .iter()
+                .filter_map(|id| {
+                    let id = id.trim();
+                    if id.is_empty() || !seen.insert(id.to_string()) {
+                        None
+                    } else {
+                        Some(id.to_string())
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+        out.push(AgentSiteOverride {
+            origin: origin.to_string(),
+            disabled_rule_ids,
+            site_rules: normalize_agent_site_rules(&entry.site_rules),
+        });
     }
     out
 }
@@ -261,6 +424,8 @@ impl Default for AppConfig {
             file_open_method: FileOpenMethod::default(),
             agent_link_intercept: false,
             agent_site_whitelist: Vec::new(),
+            agent_site_rules: None,
+            agent_site_overrides: None,
             browser_suspend_whitelist_enabled: false,
             browser_suspend_whitelist: Vec::new(),
         }
@@ -284,6 +449,11 @@ pub fn load_from(config_dir: &Path) -> Result<AppConfig, AppError> {
             // 脏条目不进内存与注入层（事项 5 复审 N2）。
             cfg.agent_site_whitelist = normalize_allowlist(&cfg.agent_site_whitelist);
             cfg.browser_suspend_whitelist = normalize_allowlist(&cfg.browser_suspend_whitelist);
+            cfg.agent_site_rules =
+                cfg.agent_site_rules.map(|rules| normalize_agent_site_rules(&rules));
+            cfg.agent_site_overrides = cfg
+                .agent_site_overrides
+                .map(|overrides| normalize_agent_site_overrides(&overrides));
             cfg
         })
         .map_err(|e| {

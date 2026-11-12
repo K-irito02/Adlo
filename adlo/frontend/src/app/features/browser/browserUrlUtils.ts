@@ -167,6 +167,14 @@ export function isPoolTabEvent(
   return tabs.some((t) => t.id === tabId);
 }
 
+/**
+ * 右侧面板地址栏同步归属：中心宿主承载的浏览器标签也会在池中触发导航事件，
+ * 但那些事件不得覆盖面板地址栏。无法解析到标签时保持旧行为（放行）。
+ */
+export function shouldSyncPanelAddressForTab(tab?: { location?: 'panel' | 'center' }): boolean {
+  return !tab || tab.location !== 'center';
+}
+
 export interface BrowserSearchItem {
   title: string;
   url: string;

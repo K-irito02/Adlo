@@ -282,6 +282,18 @@ describe('init_script.js agent-link interception', () => {
     return event;
   }
 
+  function clickButtonWithAttrs(attrs: Record<string, string>): MouseEvent {
+    const button = document.createElement('button');
+    for (const [name, value] of Object.entries(attrs)) {
+      button.setAttribute(name, value);
+    }
+    document.body.appendChild(button);
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+    button.dispatchEvent(event);
+    button.remove();
+    return event;
+  }
+
   function agentLinks(): Record<string, unknown>[] {
     return posted.filter((m) => m.type === 'adl-agent-link');
   }
@@ -292,6 +304,47 @@ describe('init_script.js agent-link interception', () => {
     expect(agentLinks()).toEqual([
       { type: 'adl-agent-link', kind: 'url', url: 'https://example.com/x' },
     ]);
+  });
+
+  it('stops page click handlers after agent-link interception (no duplicate window.open)', () => {
+    setAgent([window.location.origin], true);
+    const href = 'https://www.deepseek.com/harness/';
+    const a = document.createElement('a');
+    a.href = href;
+    a.target = '_blank';
+    let pageHandlerCalls = 0;
+    a.addEventListener('click', () => {
+      pageHandlerCalls += 1;
+      window.open(href, '_blank');
+    });
+    document.body.appendChild(a);
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+    a.dispatchEvent(event);
+    a.remove();
+    expect(pageHandlerCalls).toBe(0);
+    expect(agentLinks()).toEqual([{ type: 'adl-agent-link', kind: 'url', url: href }]);
+  });
+
+  it('intercepts a file-like title on a clickable button on a whitelisted agent host', () => {
+    setAgent([window.location.origin], true);
+    clickButtonWithAttrs({
+      title: 'E:\\Test-Workspace-1\\current-time.md',
+      class: '_fileMention_1ypvv_85 _fileLink_1ypvv_59',
+    });
+    expect(agentLinks()).toEqual([
+      {
+        type: 'adl-agent-link',
+        kind: 'file',
+        url: 'E:\\Test-Workspace-1\\current-time.md',
+      },
+    ]);
+  });
+
+  it('does not intercept a button without a local-file attribute value', () => {
+    setAgent([window.location.origin], true);
+    const event = clickButtonWithAttrs({ title: 'Something else' });
+    expect(agentLinks()).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it('intercepts a file:// link on a whitelisted agent host as kind=file', () => {

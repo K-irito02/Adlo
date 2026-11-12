@@ -9,6 +9,7 @@ workspace = true
 [dependencies]
 adl-errors = { path = "../errors" }
 adl-storage = { path = "../storage" }
+adl-types = { path = "../types" }
 rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true

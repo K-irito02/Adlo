@@ -29,18 +29,26 @@ pub fn init_script_with_background(color_scheme: &str) -> String {
 /// Generate the init script with the background color **and** the agent-site
 /// link-interception parameters baked into an injected prefix.
 ///
-/// The prefix sets `window.__adlAgentOrigins` / `window.__adlAgentInterceptEnabled`
-/// before `init_script.js` runs, so the first click on a whitelisted agent site
-/// is intercepted without waiting for a runtime refresh.
+/// The prefix sets `window.__adlAgentOrigins`, `window.__adlAgentInterceptEnabled`,
+/// `window.__adlAgentRules`, and `window.__adlAgentOverridesByOrigin` before
+/// `init_script.js` runs, so the first click on a whitelisted agent site
+/// intercepts from its first navigation.
 pub fn init_script_with_background_and_agent(
     color_scheme: &str,
     agent_origins: &[String],
     agent_intercept_enabled: bool,
+    agent_site_rules: &[adl_types::types::config::AgentSiteRule],
+    agent_site_overrides: &[adl_types::types::config::AgentSiteOverride],
 ) -> String {
     let origins = serde_json::to_string(agent_origins).unwrap_or_else(|_| "[]".to_string());
+    let rules = serde_json::to_string(agent_site_rules).unwrap_or_else(|_| "[]".to_string());
+    let overrides =
+        serde_json::to_string(agent_site_overrides).unwrap_or_else(|_| "[]".to_string());
     let prefix = format!(
-        "(function() {{ window.__adlAgentOrigins = {origins}; window.__adlAgentInterceptEnabled = {enabled}; }})();\n",
+        "(function() {{ window.__adlAgentOrigins = {origins}; window.__adlAgentInterceptEnabled = {enabled}; window.__adlAgentRules = {rules}; window.__adlAgentOverridesByOrigin = {overrides}; }})();\n",
         enabled = agent_intercept_enabled,
+        rules = rules,
+        overrides = overrides,
     );
     format!("{prefix}{}", init_script_with_background(color_scheme))
 }

@@ -6,6 +6,7 @@ import { IconEye, IconEyeOff, IconResetDefaults } from '../../icons';
 import { FontControl } from './FontControl';
 import { SettingsSelect } from './SettingsSelect';
 import { AgentAllowlistControl } from './AgentAllowlistControl';
+import { AgentSiteRulesControl } from './AgentSiteRulesControl';
 import { normalizeAgentSiteEntries } from '../../../shared/originWhitelist';
 import { getDefaultForSetting } from '../../../shared/defaultPreferences';
 import { isStringArrayEqual } from './settingsGroups';
@@ -246,6 +247,9 @@ export function SettingsControls({ items, onChange }: SettingsControlsProps) {
                 )}
                 {item.type === 'allowlist' && (
                   <AgentAllowlistControl item={item} t={t} onChange={(v) => onChange(item.id, v)} />
+                )}
+                {item.type === 'agentSiteRules' && (
+                  <AgentSiteRulesControl item={item} t={t} onChange={onChange} />
                 )}
               </div>
             </div>

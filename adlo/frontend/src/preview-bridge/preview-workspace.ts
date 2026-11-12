@@ -104,6 +104,17 @@ export function createPreviewWorkspaceBridge(
       data: ctx.recentWorkspaces,
     }),
     open: async (workspacePath: string) => openWorkspaceFromPreviewApi(workspacePath),
+    addToSidebar: async (workspacePath: string) => {
+      const result = await requestPreviewApi<RecentWorkspaceEntry>('/workspace/add', {
+        method: 'POST',
+        body: JSON.stringify({ workspacePath }),
+      });
+      if (result.ok) {
+        ctx.recentWorkspaces = [...ctx.recentWorkspaces, result.data];
+        persistRecentWorkspaces(ctx.recentWorkspaces);
+      }
+      return result;
+    },
     clearCurrent: async () => {
       ctx.currentWorkspace = undefined;
       ctx.retrievalStatus = undefined;

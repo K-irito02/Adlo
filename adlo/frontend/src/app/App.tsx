@@ -23,6 +23,8 @@ import { ToastContainer } from './components/Toast';
 import { ToastRegion } from './components/ToastRegion';
 import { ConflictModal } from './components/ConflictModal';
 import { StartupOverlayWrapper } from './components/StartupOverlayWrapper';
+import { useBrowserAgentLinkSubscription } from './features/browser/useBrowserAgentLinkSubscription';
+import { useGlobalBrowserMeta } from './features/browser/useGlobalBrowserMeta';
 
 export function App() {
   const errorToasts = useAppStore((state) => state.errorToasts);
@@ -55,6 +57,8 @@ export function App() {
   );
 
   useDragDropWorkspace(actions);
+  useBrowserAgentLinkSubscription();
+  useGlobalBrowserMeta();
 
   const { locale, t } = useAppStartup(appInfo);
 

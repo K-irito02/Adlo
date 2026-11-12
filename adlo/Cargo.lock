@@ -9,6 +9,7 @@ dependencies = [
  "adl-errors",
  "adl-migration",
  "adl-storage",
+ "adl-types",
  "chrono",
  "dirs 5.0.1",
  "fs2",

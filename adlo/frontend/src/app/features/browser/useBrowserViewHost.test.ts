@@ -111,6 +111,8 @@ describe('useBrowserViewHost', () => {
       'panel',
       [],
       false,
+      undefined,
+      undefined,
     );
     expect(browser.activateTab).toHaveBeenCalledWith('tab-1');
 

@@ -91,6 +91,19 @@ export interface WorkspaceBridge {
    */
   open: (workspacePath: string) => Promise<IpcResult<WorkspaceMeta>>;
   /**
+   * 将指定路径登记为侧栏工作区（不切换当前工作区）。
+   *
+   * 智能体文件链接可能指向未知工作区（智能体 harness 有自己的工作区列表）。
+   * 文件面板按工作区隔离，需先登记所在文件夹才能在面板中打开该文件。
+   * @param workspacePath 文件所在文件夹的绝对路径
+   * @returns 登记后的侧栏条目（含稳定工作区 id 与根路径）
+   * @command workspace_add_to_sidebar
+   * @see tauri-bridge.ts → workspace.addToSidebar
+   * @see mock-bridge.ts → workspace.addToSidebar
+   * @see preview-bridge/index.ts → workspace.addToSidebar
+   */
+  addToSidebar: (workspacePath: string) => Promise<IpcResult<RecentWorkspaceEntry>>;
+  /**
    * 关闭/清除当前工作区
    * @returns 是否成功清除当前工作区
    * @command workspace_clear_current

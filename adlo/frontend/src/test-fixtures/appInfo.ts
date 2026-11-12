@@ -25,6 +25,8 @@ const BASE_CONFIG: AppInfo['config'] = {
   fileOpenMethod: 'panel',
   agentLinkIntercept: false,
   agentSiteWhitelist: [],
+  agentSiteRules: [],
+  agentSiteOverrides: [],
   browserSuspendWhitelistEnabled: false,
   browserSuspendWhitelist: [],
 };

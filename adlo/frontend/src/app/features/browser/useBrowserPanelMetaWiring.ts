@@ -1,8 +1,7 @@
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { MetaSource, PageMeta } from '@shared/ipc/browser';
 import type { ExpectedNavigationRef } from './browserUrlUtils';
-import { useBrowserPageMeta } from './useBrowserPageMeta';
-import { useBrowserMetaSubscription } from './useBrowserMetaSubscription';
+import { handlePageMeta } from './useBrowserPageMeta';
 import { useBrowserUrlChange } from './useBrowserUrlChange';
 
 export interface UseBrowserPanelMetaWiringParams {
@@ -32,11 +31,11 @@ export function useBrowserPanelMetaWiring(
   // Task 9: useBrowserPageMeta 已重写为广播处理器，签名无参。
   // pendingNavigationsRef/markUrlSeen 参数保留在接口中（BrowserPanel.tsx 调用处不变），
   // 但不再传递给 useBrowserPageMeta——去重已由服务端 3s 窗口承担（Task 10 收尾时评估移除）。
-  const { handlePageMeta: _handlePageMeta } = useBrowserPageMeta();
-
-  useBrowserMetaSubscription((meta) => {
-    _handlePageMeta(meta, 'com');
-  });
+  //
+  // 元数据订阅（onMetaChanged / page-meta-updated）统一由 App 根的
+  // useGlobalBrowserMeta 承担：面板未挂载或右侧展示其它工具时，中心宿主标签
+  // 也必须能收到标题/图标事件（否则标题停在"新建标签页"）。
+  const _handlePageMeta = handlePageMeta;
 
   const { handleIframeLoad, handleIframeError } = useBrowserUrlChange({
     activeTab: params.activeTab,

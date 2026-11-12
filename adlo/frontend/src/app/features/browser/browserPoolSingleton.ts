@@ -99,6 +99,8 @@ async function createForTab(
           location,
           allowlistOrigins(config?.agentSiteWhitelist ?? []),
           config?.agentLinkIntercept ?? false,
+          config?.agentSiteRules,
+          config?.agentSiteOverrides,
         );
         // 新建原生子窗口盖在最上层，通知透明桥接条重建回到最上层。
         useAppStore.getState().bumpSiblingWebviewNonce();

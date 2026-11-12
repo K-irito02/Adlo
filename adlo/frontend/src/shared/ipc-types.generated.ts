@@ -12,6 +12,8 @@ export type ModelCapability = "text" | "vision" | "tooluse" | "streaming" | "rea
 export type ModelTier = "free" | "lowcost" | "standard" | "premium";
 export type LinkOpenMethod = "middle" | "panel" | "external";
 export type FileOpenMethod = "panel" | "external";
+export type AgentSiteRulePathPreset = "fileLike" | "regex";
+export type AgentSiteInterceptAction = "file" | "url";
 
 export interface ModelDefinition {
   id: string;
@@ -58,6 +60,24 @@ export interface AgentSiteAllowEntry {
   origin: string;
 }
 
+export interface AgentSiteRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  matchSelector: string;
+  attributes: string[];
+  pathPreset: AgentSiteRulePathPreset;
+  valueRegex?: string;
+  regexFlags?: string;
+  action: AgentSiteInterceptAction;
+}
+
+export interface AgentSiteOverride {
+  origin: string;
+  disabledRuleIds: string[];
+  siteRules: AgentSiteRule[];
+}
+
 export interface ModelPreferences {
   providers: Record<string, ModelProviderPreference>;
 }
@@ -80,6 +100,11 @@ export interface AppPreferencePatch {
   fileOpenMethod?: FileOpenMethod;
   agentLinkIntercept?: boolean;
   agentSiteWhitelist?: AgentSiteAllowEntry[];
+  agentSiteRules?: AgentSiteRule[];
+  agentSiteOverrides?: AgentSiteOverride[];
+  resetAgentSiteRules?: boolean;
+  resetAgentSiteOverrides?: boolean;
+  resetAgentSiteOverride?: string;
   browserSuspendWhitelistEnabled?: boolean;
   browserSuspendWhitelist?: AgentSiteAllowEntry[];
 }
@@ -104,6 +129,8 @@ export interface ConfigSnapshot {
   fileOpenMethod: FileOpenMethod;
   agentLinkIntercept: boolean;
   agentSiteWhitelist: AgentSiteAllowEntry[];
+  agentSiteRules: AgentSiteRule[];
+  agentSiteOverrides: AgentSiteOverride[];
   browserSuspendWhitelistEnabled: boolean;
   browserSuspendWhitelist: AgentSiteAllowEntry[];
 }

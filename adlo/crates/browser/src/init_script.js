@@ -60,6 +60,80 @@
         return /^[A-Za-z]:[\\/]/.test(href);
     }
 
+    // Agent-site local-file interception rules. The built-in default is intentionally
+    // broad (clickable element with a local-path attribute value) instead of relying on
+    // third-party class names such as DSH's `_fileLink_*`, which change between builds.
+    var __adlDefaultAgentRules = [{
+        id: 'builtin-file-like-attribute',
+        name: 'Built-in local-file attribute',
+        enabled: true,
+        matchSelector: 'button, a, [role="button"], [role="link"]',
+        attributes: ['title', 'aria-label', 'data-path', 'data-file-path', 'data-file', 'data-url', 'data-src'],
+        pathPreset: 'fileLike',
+        action: 'file'
+    }];
+
+    function __adlGetActiveAgentRules() {
+        var configured = window.__adlAgentRules;
+        var globalRules = (configured && configured.length !== undefined) ? configured : __adlDefaultAgentRules;
+        var overrides = window.__adlAgentOverridesByOrigin || [];
+        var currentOverride = null;
+        if (Array.isArray(overrides)) {
+            for (var k = 0; k < overrides.length; k += 1) {
+                if (overrides[k] && overrides[k].origin === location.origin) {
+                    currentOverride = overrides[k];
+                    break;
+                }
+            }
+        } else {
+            currentOverride = overrides[location.origin] || null;
+        }
+        currentOverride = currentOverride || {};
+        var disabled = currentOverride.disabledRuleIds || [];
+        var siteRules = currentOverride.siteRules || [];
+        return globalRules.concat(siteRules).filter(function(rule) {
+            return rule && rule.enabled !== false && disabled.indexOf(rule.id) === -1;
+        });
+    }
+
+    function __adlRuleValueMatches(rule, value) {
+        if (!value) return false;
+        if (rule.pathPreset === 'regex' || rule.valueRegex) {
+            if (!rule.valueRegex) return false;
+            try {
+                return new RegExp(rule.valueRegex, rule.regexFlags || '').test(value);
+            } catch (e) {
+                return false;
+            }
+        }
+        // Default and custom fileLike preset.
+        return isFileLikeHref(value);
+    }
+
+    function __adlFindAgentFileLinkMatch(target) {
+        if (!__adlIsAgentHost()) return null;
+        var el = target;
+        while (el && el !== document.documentElement) {
+            var rules = __adlGetActiveAgentRules();
+            for (var i = 0; i < rules.length; i += 1) {
+                var rule = rules[i];
+                var selector = rule.matchSelector || 'button, a, [role="button"], [role="link"]';
+                var matched = false;
+                try { matched = el.matches && el.matches(selector); } catch (e) { matched = false; }
+                if (!matched) continue;
+                var attrs = rule.attributes && rule.attributes.length ? rule.attributes : ['title'];
+                for (var j = 0; j < attrs.length; j += 1) {
+                    var value = el.getAttribute(attrs[j]);
+                    if (__adlRuleValueMatches(rule, value)) {
+                        return { kind: rule.action || 'file', url: value, ruleId: rule.id };
+                    }
+                }
+            }
+            el = el.parentElement;
+        }
+        return null;
+    }
+
     // Download-URL extensions shared across the stack. Keep in sync with
     // src-tauri/src/commands/browser_webview_setup.rs (Rust is_download_url) and
     // frontend/src/app/utils/downloadUrl.ts (TS isDownloadUrl).
@@ -297,6 +371,7 @@
 
                 if (isValidWebUrl(href) && __adlIsAgentHost() && __adlSendAgentLink('url', href)) {
                     event.preventDefault();
+                    event.stopImmediatePropagation();
                     return;
                 }
 
@@ -315,6 +390,7 @@
                     return;
                 } else if (__adlIsAgentHost() && isFileLikeHref(href) && __adlSendAgentLink('file', href)) {
                     event.preventDefault();
+                    event.stopImmediatePropagation();
                     return;
                 } else {
                     // 点击路径诊断：只需在 devtools 的 Verbose 级按需查看（生产默认级别不可见），
@@ -341,6 +417,13 @@
                     }
                     return;
                 }
+            }
+
+            var agentRuleMatch = __adlFindAgentFileLinkMatch(target);
+            if (agentRuleMatch && __adlSendAgentLink(agentRuleMatch.kind || 'file', agentRuleMatch.url)) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                return;
             }
 
             target = target.parentElement;
