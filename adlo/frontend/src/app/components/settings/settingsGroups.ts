@@ -83,6 +83,8 @@ export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPrefe
     fileOpenMethod: 'panel',
     agentLinkIntercept: false,
     agentSiteWhitelist: [],
+    resetAgentSiteRules: true,
+    resetAgentSiteOverrides: true,
   }),
 };
 

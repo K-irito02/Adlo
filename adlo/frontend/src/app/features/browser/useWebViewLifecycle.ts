@@ -6,6 +6,7 @@ import { shouldHostHideTab } from './browserPoolSingleton';
 import { getResolvedTheme } from './useBrowserThemeSync';
 import { HIDDEN_WEBVIEW_OFFSCREEN_COORD } from './useWebViewVisibility';
 import { isDownloadUrl } from '@utils/downloadUrl';
+import { isLocalViewableFileUrl } from './localFileInput';
 import { isLoopbackHttpUrl, waitForLoopbackReachable } from './loopbackReadiness';
 import { clearRevealPending, isRevealPending, markRevealPending } from './browserRevealGate';
 
@@ -227,7 +228,7 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
           if (isFresh) {
             freshTabIdsRef.current.delete(currentTabId);
           }
-          if (!isFresh && isDownloadUrl(tab.url)) {
+          if (!isFresh && isDownloadUrl(tab.url) && !isLocalViewableFileUrl(tab.url)) {
             webViewActiveRef.current = false;
             return;
           }

@@ -9,6 +9,7 @@ import {
   isProbablySameSite,
   extractSearchQueryFromUrl,
   isPoolTabEvent,
+  shouldSyncPanelAddressForTab,
 } from './browserUrlUtils';
 import type { ExpectedNavigationRef } from './browserUrlUtils';
 import {
@@ -222,7 +223,10 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
     }
 
     const unsubUrl = browser.onUrlChanged((tabId, url) => {
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      // `file:` 也必须进入本链路：本地页内跳转 / 前进后退需要同步 tab.url 与
+      // 地址栏，并消费地址栏提交写入的 expectedNavigationUrlRef（否则残留的
+      // file 期望会把之后一次 http 导航误判为跨域重定向）。
+      if (!/^(?:https?|file):\/\//i.test(url)) {
         return;
       }
 
@@ -249,6 +253,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       const eventTab = tabId
         ? state.browserTabs.find((t: BrowserTabState) => t.id === tabId)
         : undefined;
+      const syncPanelAddress = shouldSyncPanelAddressForTab(eventTab);
 
       // 身份键：保留 modal_id 等"页面身份"参数（historyDedupKey 语义），用于历史写入门槛。
       // 刷视频（仅 modal_id 变化）时 normalizedUrl 剥离 modal_id 后恒相等，会误判为"未变化"
@@ -266,7 +271,9 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
       if (noTabExists || urlChanged || missingHistoryEntry) {
         if (noTabExists && pendingPrefetchRef.current.has(normalizedUrl)) {
-          setAddress(normalizedUrl);
+          if (syncPanelAddress) {
+            setAddress(normalizedUrl);
+          }
           return;
         }
         pendingPrefetchRef.current.add(normalizedUrl);
@@ -290,8 +297,10 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           );
 
         if (suppressBase) {
-          setAddress(normalizedUrl);
-          onNavigationStart?.(normalizedUrl);
+          if (syncPanelAddress) {
+            setAddress(normalizedUrl);
+            onNavigationStart?.(normalizedUrl);
+          }
           return;
         }
 
@@ -318,11 +327,16 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           } else {
             s.browserAddToHistory(url, url);
           }
-        } else if (existingEntry) {
-          s.browserNavigateActiveTab(normalizedUrl);
-        } else {
-          s.browserAddToHistory(url, url);
-          s.browserNavigateActiveTab(normalizedUrl);
+        } else if (!tabId) {
+          // 无 tabId 的历史事件才回落到全局活动标签。tabId 已给出却解析不到
+          // 标签（事件到达前标签被关闭）时直接跳过：全局活动 id 可能指向中心
+          // 标签，写回会把面板 URL 灌进中心标签的状态（WebView 并未导航）。
+          if (existingEntry) {
+            s.browserNavigateActiveTab(normalizedUrl);
+          } else {
+            s.browserAddToHistory(url, url);
+            s.browserNavigateActiveTab(normalizedUrl);
+          }
         }
 
         // Cancel all pending fallback/prefetch timers for previous URLs
@@ -386,7 +400,12 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             });
         };
 
-        tryPrefetch();
+        // 本地文件（file://）没有远端元数据可抓：跳过 prefetch，避免一次注定被
+        // 后端拒绝的 IPC（静默抓取只接受 http(s)）；标题由原生
+        // DocumentTitleChanged 事件（App 根订阅）直接落地。
+        if (/^https?:/i.test(normalizedUrl)) {
+          tryPrefetch();
+        }
 
         const fallbackDelay = noTabExists
           ? URL_CHANGE_FALLBACK_MS_NO_TAB
@@ -412,7 +431,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             } else if (!curTab.title) {
               s.browserUpdateTab(curTab.id, { title: normalizedUrl, titleResolved: true });
             }
-          } else {
+          } else if (!tabId) {
             s.browserNavigateActiveTab(normalizedUrl);
           }
           fallbackTimeoutsRef.current.delete(normalizedUrl);
@@ -422,6 +441,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
       const expected = expectedNavigationUrlRef.current;
       if (
+        syncPanelAddress &&
         expected &&
         // 事件 tab 与发起导航的 tab 匹配，或为"新建 tab"场景（tabId 为 null）。
         // 非发起 tab 的 URL 变化（后台 tab 的 onUrlChanged）不消费期望，等待
@@ -448,14 +468,16 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         }
       }
 
-      setAddress(normalizedUrl);
+      if (syncPanelAddress) {
+        setAddress(normalizedUrl);
 
-      // 从搜索结果 URL 中提取查询文本显示在地址栏
-      const engines = useAppStore.getState().searchEngines;
-      const query = normalizedUrl ? extractSearchQueryFromUrl(normalizedUrl, engines) : '';
-      setSearchQueryDisplay(query);
+        // 从搜索结果 URL 中提取查询文本显示在地址栏
+        const engines = useAppStore.getState().searchEngines;
+        const query = normalizedUrl ? extractSearchQueryFromUrl(normalizedUrl, engines) : '';
+        setSearchQueryDisplay(query);
 
-      onNavigationStart?.(normalizedUrl);
+        onNavigationStart?.(normalizedUrl);
+      }
     });
 
     return () => {

@@ -68,6 +68,19 @@
 | `Alt+Right` | 前进 |
 | `F5` | 刷新 |
 
+## 2026-11 增量（智能体站点链接与本地文件）
+
+| 能力 | 契约 |
+|------|------|
+| 智能体站点链接拦截 | 仅白名单 origin + 拦截开启时生效；`<a>` / `window.open` / 可配置规则（`button, a, [role]` 的 `title`/`data-*` 等）三条入口统一走 agent-link 事件；`<a>` 命中后 `preventDefault + stopImmediatePropagation`，避免页面自身 `window.open` 再发一条（重复标签）。 |
+| 规则配置 | 设置组 `openMethod:agentSiteRules`：全局规则增删改/恢复默认；白名单站点条目下覆盖（增删改/停用全局规则/恢复站点默认）。规则随 `setAgentIntercept` 与新 WebView 创建流注入 `window.__adlAgentRules`（JS 不保留副本）。 |
+| 未知工作区文件 | agent-link 的绝对路径若不属于任何已知工作区，先经 `POST /workspace/add` 把所在文件夹登记为侧栏工作区（不切换当前工作区、不建检索快照），再在右侧文件面板打开；失败时提示并在文件管理器定位。 |
+| 本地文件地址栏 | 支持 `file:///`、Windows 盘符与 UNC；路径段百分号编码（`#`/`?`/`%` 不再被当 URL 语法）；可渲染扩展（HTML/图片/文本/Markdown/JSON/XML/CSV/PDF/音视频）内嵌打开；浏览器预览模式只 toast。 |
+| WebView2 环境 | 同一 UDF 的所有 WebView 必须使用逐字一致的 `WEBVIEW_ADDITIONAL_ARGS`（含 wry 默认 `--disable-features` + `--allow-file-access-from-files`），否则 `0x8007139F`。主窗口、面板、中心、静默、分隔条同源。 |
+| 本地页元数据 | App 根 `useGlobalBrowserMeta` 单点订阅原生 meta 与广播；`file:` 允许更新标签标题且不写 HTTP 元数据缓存；`browser-page-ready` 对 `file:` 放行，本地页加载完成即揭示。 |
+
+
+
 ## 已知限制
 
 | 限制 | 影响范围 |
@@ -94,3 +107,4 @@
 - [browser-meta-sync-mechanism-2026-06-25.md](../../knowledge-base/browser/favicon-meta/browser-meta-sync-mechanism-2026-06-25.md) — WebView2 原生标题/favicon 事件 + 多源去重
 - [browser-navigation-mode-toggle-2026-06-20.md](../../knowledge-base/browser/navigation/browser-navigation-mode-toggle-2026-06-20.md) — 导航模式切换 + 自动刷新修复
 - [browser-url-sync-fix-2026-06-04.md](../../knowledge-base/browser/navigation/browser-url-sync-fix-2026-06-04.md) — 地址栏 URL 同步
+- [webview2-udf-environment-conflict-2026-11-12.md](../../knowledge-base/browser/navigation/webview2-udf-environment-conflict-2026-11-12.md) — WebView2 同一 UDF 环境参数必须逐字一致（0x8007139F）

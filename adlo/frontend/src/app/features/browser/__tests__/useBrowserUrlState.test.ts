@@ -29,7 +29,7 @@ function setup() {
 }
 
 describe('useBrowserUrlState', () => {
-  it('Enter 提交时收起地址栏并 blur（事项 8：避免 overlay 卡住 WebView 创建/揭示）', () => {
+  it('Enter 提交时收起地址栏并 blur（标准浏览器行为，不依赖 overlay 门控）', () => {
     const { result, setAddressExpanded, submitAddress, input } = setup();
     const blurSpy = vi.spyOn(input, 'blur');
     act(() => {

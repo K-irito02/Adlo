@@ -889,6 +889,8 @@ export function createHttpBridge({
       listRecent: () => call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/list', POST({})),
       open: (workspacePath: string) =>
         call<WorkspaceMeta>(baseUrl, '/workspace/open', POST({ workspacePath })),
+      addToSidebar: (workspacePath: string) =>
+        call<RecentWorkspaceEntry>(baseUrl, '/workspace/add', POST({ workspacePath })),
       clearCurrent: () => call<boolean>(baseUrl, '/workspace/clear-current', POST({})),
       pickDirectory: () => taskNotSupported<string | undefined>('workspace.pickDirectory'),
       removeFromSidebar: (workspaceId: string) =>

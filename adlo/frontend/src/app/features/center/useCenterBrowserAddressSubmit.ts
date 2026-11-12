@@ -1,4 +1,10 @@
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useRef,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { isRealTitle } from '@utils/browserDisplayUtils';
 import { findInBrowserLookupIndex } from '@features/browser/useBrowserSearch';
@@ -7,6 +13,11 @@ import type { CopyDict } from '@i18n';
 import { checkEmbed, isEmbedBlocked } from '@features/browser/checkEmbed';
 import { isSearchQuery, buildSearchUrl, ensureProtocol } from '@features/browser/browserUrlUtils';
 import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
+import {
+  isLocalFileInput,
+  buildLocalFileUrl,
+  isLocalViewableFileUrl,
+} from '@features/browser/localFileInput';
 
 interface UseCenterBrowserAddressSubmitParams {
   /** 被中心宿主承载的浏览器标签 id（导航目标）。 */
@@ -23,8 +34,11 @@ interface UseCenterBrowserAddressSubmitParams {
   setIframeLoadError: Dispatch<SetStateAction<boolean>>;
   setIframeBlockedDetected: Dispatch<SetStateAction<boolean>>;
   validatedUrlsRef: MutableRefObject<Set<string>>;
-  /** 全量文案（调用点传入中心 `t`）：仅用于残留端口释放告知，缺省不提示。 */
-  t?: Pick<CopyDict, 'dshPortFreed'>;
+  /** 提示文案（本地文件桌面端限制 + 残留端口释放告知）；缺省时不提示。 */
+  t?: Pick<
+    CopyDict,
+    'dshPortFreed' | 'browserLocalFileDesktopOnly' | 'browserLocalFileUnsupported'
+  >;
 }
 
 /**
@@ -54,9 +68,42 @@ export function useCenterBrowserAddressSubmit({
   validatedUrlsRef,
   t,
 }: UseCenterBrowserAddressSubmitParams): { submitAddress: () => Promise<void> } {
+  // 与面板同款的提交代际：本地文件分支同步完成，必须让更早的在途提交
+  // （DSH 认证 / checkEmbed）落定后失效，否则会覆盖后一次本地文件提交。
+  const submitVersionRef = useRef(0);
   const submitAddress = useCallback(async () => {
+    const version = ++submitVersionRef.current;
     const state = useAppStore.getState();
     const input = address.trim();
+
+    if (isLocalFileInput(input)) {
+      const fileUrl = buildLocalFileUrl(input);
+      if (!state.isTauri) {
+        if (t) {
+          state.showToast(t.browserLocalFileDesktopOnly, 'warning');
+        }
+        return;
+      }
+      if (!fileUrl || !isLocalViewableFileUrl(fileUrl)) {
+        if (t) {
+          state.showToast(t.browserLocalFileUnsupported, 'warning');
+        }
+        return;
+      }
+      setAddress(fileUrl);
+      setSearchQueryDisplay('');
+      state.browserUpdateTab(browserTabId, {
+        url: fileUrl,
+        title: '',
+        titleResolved: false,
+      });
+      if (state.isTauri && isTabInPool(browserTabId)) {
+        await navigateTabInPool(browserTabId, fileUrl).catch((err) => {
+          console.warn('[centerAddressSubmit] navigateTabInPool failed:', err);
+        });
+      }
+      return;
+    }
 
     if (!input) {
       const tab = state.browserTabsById[browserTabId];
@@ -92,6 +139,9 @@ export function useCenterBrowserAddressSubmit({
     let authed: { url: string; freedPort: boolean } | null = null;
     if (routeLocalUrl(finalUrl)?.opener === 'dsh') {
       authed = await resolveDshAuthUrl(finalUrl);
+      if (submitVersionRef.current !== version) {
+        return;
+      }
       if (authed?.freedPort && t) {
         notifyDshFreedPort(t);
       }
@@ -114,6 +164,10 @@ export function useCenterBrowserAddressSubmit({
       }
     }
 
+    if (submitVersionRef.current !== version) {
+      return;
+    }
+
     setAddress(targetUrl);
     setSearchQueryDisplay(searchInfo ? searchInfo.query : '');
     const title = searchInfo ? `${searchInfo.engineName}: ${searchInfo.query}` : undefined;
@@ -123,9 +177,8 @@ export function useCenterBrowserAddressSubmit({
     }
 
     // 中心恒就地：直接更新当前中心标签并导航其 WebView/iframe，不新建标签。
-    // 注：此处刻意不用 submitVersionRef 丢弃过期提交（面板侧有）——中心提交恒以
-    // 当前中心标签为目标，用户连击即“后一次覆盖前一次”，last-wins 本身就是正确语义
-    // （R1-LOW，有据保留）。
+    // 连续的主路径提交仍是 last-wins（后一次覆盖前一次）；代际守卫只用于丢弃
+    // 更早的在途提交，避免它们覆盖之后同步完成的本地文件提交。
     useAppStore.getState().browserUpdateTab(browserTabId, {
       url: targetUrl,
       ...(title ? { title, titleResolved: isRealTitle(title, targetUrl) } : {}),

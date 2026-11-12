@@ -14,11 +14,19 @@ export function fileUrlToLocalPath(raw: string): string {
   if (!/^file:\/\//i.test(raw)) {
     return raw;
   }
-  let path = raw;
+  let url: URL | null = null;
   try {
-    path = decodeURIComponent(new URL(raw).pathname);
+    url = new URL(raw);
   } catch {
-    path = decodeURIComponent(raw.replace(/^file:\/\//i, ''));
+    url = null;
+  }
+  if (!url) {
+    return decodeURIComponent(raw.replace(/^file:\/\//i, ''));
+  }
+  let path = decodeURIComponent(url.pathname);
+  // UNC form: `file://server/share/a.md` -> `\\server\share\a.md`.
+  if (url.host) {
+    return `\\\\${url.host}${path.replace(/\//g, '\\')}`;
   }
   // Windows drive form produced by `new URL()`: `/C:/ws/a.md` -> `C:/ws/a.md`.
   if (/^\/[a-zA-Z]:/.test(path)) {
@@ -45,9 +53,9 @@ export function useBrowserAgentLinkSubscription(): void {
     return bridge.onAgentLink(({ kind, url }) => {
       if (kind === 'url') {
         openUrlByMethod(url);
-      } else {
-        openFileByMethod(fileUrlToLocalPath(url));
+        return;
       }
+      openFileByMethod(fileUrlToLocalPath(url));
     });
   }, []);
 }

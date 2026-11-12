@@ -61,6 +61,20 @@ export const mockWorkspace: WorkspaceBridge = {
       return next;
     })()
   }),
+  addToSidebar: async (workspacePath: string) => {
+    const next = buildMockWorkspaceMeta(workspacePath);
+    ensureRecentWorkspace(next);
+    const entry = recentWorkspaces.find((item) => item.id === next.id);
+    return entry
+      ? { ok: true as const, data: entry }
+      : {
+          ok: false as const,
+          error: {
+            code: IpcErrorCode.INTERNAL_ERROR,
+            message: 'mock sidebar entry not created'
+          }
+        };
+  },
   clearCurrent: async () => {
     setMockCurrentWorkspace(undefined);
     return { ok: true, data: true };

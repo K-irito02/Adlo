@@ -1,4 +1,5 @@
 use adl_errors::AppError;
+use adl_types::{AgentSiteOverride, AgentSiteRule};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -306,11 +307,17 @@ impl BrowserManager {
         &self,
         origins: &[String],
         enabled: bool,
+        rules: &[AgentSiteRule],
+        overrides: &[AgentSiteOverride],
     ) -> Result<(), AppError> {
         let origins_json = serde_json::to_string(origins)
             .map_err(|e| AppError::Internal(format!("serialize origins: {e}")))?;
+        let rules_json = serde_json::to_string(rules)
+            .map_err(|e| AppError::Internal(format!("serialize agent site rules: {e}")))?;
+        let overrides_json = serde_json::to_string(overrides)
+            .map_err(|e| AppError::Internal(format!("serialize agent site overrides: {e}")))?;
         let js = format!(
-            "window.__adlAgentOrigins = {origins_json}; window.__adlAgentInterceptEnabled = {enabled};"
+            "window.__adlAgentOrigins = {origins_json}; window.__adlAgentInterceptEnabled = {enabled}; window.__adlAgentRules = {rules_json}; window.__adlAgentOverridesByOrigin = {overrides_json};"
         );
         // 单 tab 缺失/刷新失败不中断其余 tab（事项 5 审查 R-F5）：逐个 warn 留痕，
         // 有失败仅汇总告警，仍返回 Ok（部分成功即生效）。

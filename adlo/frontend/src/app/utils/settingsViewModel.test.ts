@@ -35,6 +35,8 @@ const mockAppInfo: AppInfo = {
     fileOpenMethod: 'panel',
     agentLinkIntercept: false,
     agentSiteWhitelist: [],
+    agentSiteRules: [],
+    agentSiteOverrides: [],
     browserSuspendWhitelistEnabled: false,
     browserSuspendWhitelist: [],
   },
@@ -184,6 +186,44 @@ describe('buildSettingsItems', () => {
       { alias: '工作台', origin: 'http://127.0.0.1:3080' },
       { origin: 'https://my-agent.example.com' },
     ]);
+
+    const rules = buildSettingsItems(mockT, {
+      ...appInfo,
+      config: {
+        ...appInfo.config,
+        agentSiteRules: [
+          {
+            id: 'custom-rule',
+            name: 'Custom',
+            enabled: true,
+            matchSelector: '.file-card',
+            attributes: ['title'],
+            pathPreset: 'fileLike',
+            action: 'file',
+          },
+        ],
+        agentSiteOverrides: [
+          {
+            origin: 'http://127.0.0.1:3080',
+            disabledRuleIds: ['builtin-file-like-attribute'],
+            siteRules: [],
+          },
+        ],
+      },
+    }).find((item) => item.id === 'openMethod:agentSiteRules');
+    expect(rules?.value).toEqual({
+      rules: [expect.objectContaining({ id: 'custom-rule' })],
+      overrides: [
+        expect.objectContaining({
+          origin: 'http://127.0.0.1:3080',
+          disabledRuleIds: ['builtin-file-like-attribute'],
+        }),
+      ],
+      sites: [
+        { alias: '工作台', origin: 'http://127.0.0.1:3080' },
+        { origin: 'https://my-agent.example.com' },
+      ],
+    });
   });
 });
 
@@ -337,5 +377,54 @@ describe('preferencePatchFromSettingChange', () => {
     expect(preferencePatchFromSettingChange('openMethod:agentSiteWhitelist', [])).toEqual({
       agentSiteWhitelist: [],
     });
+  });
+
+  it('normalizes agentSiteRules commands into a settings patch', () => {
+    const rule = {
+      id: 'custom-rule',
+      name: ' Custom ',
+      enabled: true,
+      matchSelector: ' .file-card ',
+      attributes: [' title ', 'title', ''],
+      pathPreset: 'fileLike' as const,
+      action: 'file' as const,
+    };
+    expect(
+      preferencePatchFromSettingChange('openMethod:agentSiteRules', {
+        rules: [rule],
+        overrides: [
+          {
+            origin: ' http://127.0.0.1:3080 ',
+            disabledRuleIds: [' builtin-file-like-attribute ', 'builtin-file-like-attribute'],
+            siteRules: [],
+          },
+        ],
+        sites: [],
+      }),
+    ).toEqual({
+      agentSiteRules: [
+        expect.objectContaining({
+          id: 'custom-rule',
+          name: 'Custom',
+          matchSelector: '.file-card',
+          attributes: ['title'],
+        }),
+      ],
+      agentSiteOverrides: [
+        expect.objectContaining({
+          origin: 'http://127.0.0.1:3080',
+          disabledRuleIds: ['builtin-file-like-attribute'],
+        }),
+      ],
+    });
+    expect(
+      preferencePatchFromSettingChange('openMethod:agentSiteRules', { kind: 'resetGlobal' }),
+    ).toEqual({ resetAgentSiteRules: true, resetAgentSiteOverrides: true });
+    expect(
+      preferencePatchFromSettingChange('openMethod:agentSiteRules', {
+        kind: 'resetSite',
+        origin: 'http://127.0.0.1:3080 ',
+      }),
+    ).toEqual({ resetAgentSiteOverride: 'http://127.0.0.1:3080' });
   });
 });

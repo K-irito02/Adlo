@@ -238,9 +238,90 @@ pub struct AppPreferencePatch {
     #[ts(optional)]
     pub agent_site_whitelist: Option<Vec<AgentSiteAllowEntry>>,
     #[ts(optional)]
+    pub agent_site_rules: Option<Vec<AgentSiteRule>>,
+    #[ts(optional)]
+    pub agent_site_overrides: Option<Vec<AgentSiteOverride>>,
+    #[ts(optional)]
+    pub reset_agent_site_rules: Option<bool>,
+    #[ts(optional)]
+    pub reset_agent_site_overrides: Option<bool>,
+    #[ts(optional)]
+    pub reset_agent_site_override: Option<String>,
+    #[ts(optional)]
     pub browser_suspend_whitelist_enabled: Option<bool>,
     #[ts(optional)]
     pub browser_suspend_whitelist: Option<Vec<AgentSiteAllowEntry>>,
+}
+
+/// How a rule's `value` should be matched against the clicked element attribute.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSiteRulePathPreset {
+    /// Built-in local path forms (file://, drive letters, UNC). Attribute values
+    /// are not URL-resolved, so a single leading `/` is site-relative and does not match.
+    #[default]
+    FileLike,
+    /// User-supplied regular expression matched against the attribute value.
+    Regex,
+}
+
+/// What the intercepted agent-site link should open in the app.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSiteInterceptAction {
+    /// Open the matched value in the right-side file panel, based on FileOpenMethod.
+    #[default]
+    File,
+    /// Open the matched value as a normal URL in the built-in browser.
+    Url,
+}
+
+/// One agent-site interception rule. Users can copy/edit even the built-in default.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentSiteRule {
+    pub id: String,
+    pub name: String,
+    pub enabled: bool,
+    #[serde(default = "default_agent_site_match_selector")]
+    pub match_selector: String,
+    #[serde(default = "default_agent_site_attributes")]
+    pub attributes: Vec<String>,
+    #[serde(default)]
+    pub path_preset: AgentSiteRulePathPreset,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value_regex: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub regex_flags: Option<String>,
+    #[serde(default)]
+    pub action: AgentSiteInterceptAction,
+}
+
+/// Per-site override stored beside the global rules.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentSiteOverride {
+    pub origin: String,
+    #[serde(default)]
+    pub disabled_rule_ids: Vec<String>,
+    #[serde(default)]
+    pub site_rules: Vec<AgentSiteRule>,
+}
+
+fn default_agent_site_match_selector() -> String {
+    "button, a, [role=\"button\"], [role=\"link\"]".to_string()
+}
+
+fn default_agent_site_attributes() -> Vec<String> {
+    vec![
+        "title".to_string(),
+        "aria-label".to_string(),
+        "data-path".to_string(),
+        "data-file-path".to_string(),
+        "data-file".to_string(),
+        "data-url".to_string(),
+        "data-src".to_string(),
+    ]
 }
 
 /// Agent-site allowlist entry: optional display alias plus a normalized origin.
@@ -295,6 +376,10 @@ pub struct ConfigSnapshot {
     pub agent_link_intercept: bool,
     #[serde(default)]
     pub agent_site_whitelist: Vec<AgentSiteAllowEntry>,
+    #[serde(default)]
+    pub agent_site_rules: Vec<AgentSiteRule>,
+    #[serde(default)]
+    pub agent_site_overrides: Vec<AgentSiteOverride>,
     /// 标签挂起白名单总开关（默认关；开 + 名单非空才豁免）。
     #[serde(default)]
     pub browser_suspend_whitelist_enabled: bool,

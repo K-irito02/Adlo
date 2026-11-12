@@ -93,6 +93,43 @@ async fn open_workspace_returns_meta_and_activates() {
     let _ = std::fs::remove_dir_all(ws);
 }
 
+/// POST /workspace/add registers a workspace in the sidebar **without**
+/// activating it (agent file links outside every known workspace rely on this).
+#[tokio::test]
+async fn add_workspace_registers_without_activating() {
+    let state = common::state("ws-add").await;
+    let ws = common::make_workspace("ws-add-src");
+    let (status, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/add",
+        Some(serde_json::json!({ "workspacePath": ws.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
+    assert_eq!(body["ok"], true, "body: {body}");
+    let id = body["data"]["id"].as_str().expect("workspace id").to_string();
+    assert!(!id.is_empty());
+
+    // 不激活当前工作区。
+    let (status, current) =
+        common::send_request(state.clone(), Method::GET, "/workspace/current", None).await;
+    assert_eq!(status, axum::http::StatusCode::OK, "body: {current}");
+    assert!(current["data"].is_null(), "add must not activate: {current}");
+
+    // 侧栏列表包含新条目。
+    let (status, sidebar) =
+        common::send_request(state, Method::POST, "/sidebar/list", Some(serde_json::json!({})))
+            .await;
+    assert_eq!(status, axum::http::StatusCode::OK, "body: {sidebar}");
+    let entries = sidebar["data"].as_array().expect("sidebar array");
+    assert!(
+        entries.iter().any(|entry| entry["id"] == id),
+        "sidebar should contain {id}: {sidebar}"
+    );
+    let _ = std::fs::remove_dir_all(ws);
+}
+
 /// POST /workspace/open on a non-existent path → non-2xx with an error code.
 #[tokio::test]
 async fn open_workspace_nonexistent_returns_error() {

@@ -62,6 +62,7 @@ export function CopyButton({
     : (tooltip ?? t.fileCopyBranchName);
 
   const handleClick = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     if (resetTimerRef.current !== undefined) {
       clearTimeout(resetTimerRef.current);

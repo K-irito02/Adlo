@@ -113,6 +113,8 @@ function seedStore() {
         fileOpenMethod: 'panel',
         agentLinkIntercept: false,
         agentSiteWhitelist: [],
+        agentSiteRules: [],
+        agentSiteOverrides: [],
         // 挂起白名单行仅开关开时渲染：种子开开关，使行标记恒可断言（同 storageRootLabel 处理）。
         browserSuspendWhitelistEnabled: true,
         browserSuspendWhitelist: [],

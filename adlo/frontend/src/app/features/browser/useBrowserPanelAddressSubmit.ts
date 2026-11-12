@@ -9,6 +9,7 @@ import type { MetaSource, PageMeta } from '@shared/ipc/browser';
 import type { CopyDict } from '@i18n';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
+import { isLocalFileInput, buildLocalFileUrl, isLocalViewableFileUrl } from './localFileInput';
 
 interface UseBrowserPanelAddressSubmitParams {
   address: string;
@@ -26,8 +27,11 @@ interface UseBrowserPanelAddressSubmitParams {
   addressSubmittedForTabRef: MutableRefObject<string>;
   submitVersionRef: MutableRefObject<number>;
   validatedUrlsRef: MutableRefObject<Set<string>>;
-  /** 全量文案（调用点传入面板 `t`）：仅用于残留端口释放告知，缺省不提示。 */
-  t?: Pick<CopyDict, 'dshPortFreed'>;
+  /** 提示文案（本地文件桌面端限制 + 残留端口释放告知）；缺省时不提示。 */
+  t?: Pick<
+    CopyDict,
+    'dshPortFreed' | 'browserLocalFileDesktopOnly' | 'browserLocalFileUnsupported'
+  >;
 }
 
 export function useBrowserPanelAddressSubmit({
@@ -49,6 +53,9 @@ export function useBrowserPanelAddressSubmit({
 }: UseBrowserPanelAddressSubmitParams): { submitAddress: () => Promise<void> } {
   const submitAddress = useCallback(async () => {
     const input = address.trim();
+    // 每次提交（含空回车与本地文件同步分支）都推进代际：在途的异步提交
+    // （DSH 认证 / checkEmbed）落定后不得再导航、覆盖本次结果。
+    const version = ++submitVersionRef.current;
     if (!input) {
       const state = useAppStore.getState();
       // 面板归属回填（P1）：空回车只回填面板标签 URL；全局活动指向中心时不回填，
@@ -62,6 +69,45 @@ export function useBrowserPanelAddressSubmit({
     }
 
     addressSubmittedForTabRef.current = '';
+    if (isLocalFileInput(input)) {
+      // Tauri desktop only: browser preview cannot open local files from a web page.
+      // Show a toast instead of falling through to search/ensureProtocol.
+      const isTauri = useAppStore.getState().isTauri;
+      const fileUrl = buildLocalFileUrl(input);
+      if (!isTauri) {
+        if (t) {
+          useAppStore.getState().showToast(t.browserLocalFileDesktopOnly, 'warning');
+        }
+        return;
+      }
+      if (!fileUrl || !isLocalViewableFileUrl(fileUrl)) {
+        if (t) {
+          useAppStore.getState().showToast(t.browserLocalFileUnsupported, 'warning');
+        }
+        return;
+      }
+      setAddress(fileUrl);
+      setSearchQueryDisplay('');
+      handleNavigationStart(fileUrl);
+      const panelState = useAppStore.getState();
+      const panelTabsForBind = panelState.browserTabs.filter((t) => t.location !== 'center');
+      const panelBindTab =
+        panelTabsForBind.find((t) => t.id === panelState.browserActiveTabId) ?? panelTabsForBind[0];
+      expectedNavigationUrlRef.current = {
+        url: fileUrl,
+        at: Date.now(),
+        tabId: panelBindTab?.id ?? null,
+      };
+      browserNavigatePanelTab(fileUrl, undefined);
+      // 与主路径同款回绑：无面板标签时上面会新建标签，若不回读 id，期望仍是
+      // null（任意池事件可消费），可能把本地文件历史误改成并发导航的 URL。
+      const createdTabId = useAppStore.getState().browserActiveTabId;
+      if (createdTabId) {
+        expectedNavigationUrlRef.current = { url: fileUrl, at: Date.now(), tabId: createdTabId };
+      }
+      return;
+    }
+
     const matchedItem = findInBrowserLookupIndex(browserLookupIndex, input);
     let finalUrl: string;
     let searchInfo: { engineName: string; query: string } | undefined;
@@ -82,8 +128,6 @@ export function useBrowserPanelAddressSubmit({
     } else {
       finalUrl = ensureProtocol(input);
     }
-
-    const version = ++submitVersionRef.current;
 
     // 需认证本地端口分流（事项 2）：裸 3080 必 401，先经后端取真实入口
     // （含 `?token=`，首次访问种 cookie）。命中则就地面板 tab 导航到真实

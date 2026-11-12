@@ -280,6 +280,7 @@ await page.click('button:has-text("前往修改")');
 | 文件 | 二选一：右侧文件面板 / 系统默认应用 |
 | 智能体站点链接拦截 | 默认关闭（opt-in）；关闭时白名单行隐藏且两行间无分隔线（同一视觉组） |
 | 智能体网址白名单 | 仅拦截开启时显示；卡片式新增（别称选填、站点必填归一为整站 origin）；浏览器模式整行置灰（跨域 iframe 不可注入） |
+| 智能体站点规则 | 仅拦截开启时显示；管理全局规则（增删改 / 恢复全局默认），白名单站点条目下可管理站点覆盖（增删改 / 停用全局规则 / 恢复站点默认） |
 
 ### 定位选择器
 
@@ -289,6 +290,7 @@ await page.click('button:has-text("前往修改")');
 | `[data-settings-anchor="openMethod:fileOpenMethod"]` | 文件下拉行 |
 | `[data-settings-anchor="openMethod:agentLinkIntercept"]` | 拦截开关行 |
 | `[data-settings-anchor="openMethod:openMethod:agentSiteWhitelist"]` | 白名单行（拦截开启时） |
+| `[data-settings-anchor="openMethod:openMethod:agentSiteRules"]` | 站点规则行（拦截开启时） |
 | `.adl-settings-allowlist` | 白名单列表控件（条目支持按 origin 移除） |
 | `.adl-prompt-modal`（Portal 挂 body） | 添加卡片对话框（别称/站点输入 + 取消/添加） |
 

@@ -1,3 +1,5 @@
+import type { AgentSiteOverride, AgentSiteRule } from '../ipc-types.generated';
+
 export type MetaSource = 'com' | 'http' | 'iframe' | 'google';
 
 export interface PageMeta {
@@ -40,6 +42,10 @@ export interface BrowserBridge {
     agentOrigins?: string[],
     /** 是否启用智能体站点链接拦截。 */
     agentInterceptEnabled?: boolean,
+    /** 全局 agent-site 拦截规则（调用方必须传已解析规则；缺省不注入规则 → 不拦截）。 */
+    agentSiteRules?: AgentSiteRule[],
+    /** 按 origin 的 agent-site 规则覆盖。 */
+    agentSiteOverrides?: AgentSiteOverride[],
   ) => Promise<string | null>;
   // 注：非 Tauri 宿主（mock/preview/http）当前忽略 location（无原生 WebView2/UDF
   // 概念），签名保留以便将来按宿主分区前端缓存时直接复用。
@@ -109,7 +115,12 @@ export interface BrowserBridge {
    * WebViews (Tauri only; no-op in mock/preview/http). Called after settings
    * change so already-loaded agent pages pick up the new whitelist.
    */
-  setAgentIntercept: (origins: string[], enabled: boolean) => Promise<void>;
+  setAgentIntercept: (
+    origins: string[],
+    enabled: boolean,
+    rules?: AgentSiteRule[],
+    overrides?: AgentSiteOverride[],
+  ) => Promise<void>;
   /** Set the preferred color scheme on all browser WebViews (Tauri mode) */
   setBrowserColorScheme: (resolvedTheme: 'light' | 'dark') => Promise<void>;
   /** Set zoom level for a specific tab's WebView */

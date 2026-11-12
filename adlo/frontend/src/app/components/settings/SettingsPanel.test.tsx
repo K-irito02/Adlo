@@ -2041,6 +2041,24 @@ describe('SettingsPanel open-method group', () => {
     envState.tauri = false;
   });
 
+  it('opens the global agent-site rules dialog from the rules row', () => {
+    setupStore();
+    envState.tauri = true;
+    const appInfo = openMethodAppInfo({ agentLinkIntercept: true });
+    useAppStore.setState({ appInfo, activeSettingsGroup: 'openMethod' });
+    render(
+      <TestProvider>
+        <SettingsPanel settings={buildSettingsItems(mockT, appInfo)} onChangeSetting={() => {}} />
+      </TestProvider>,
+    );
+    const manage = screen.getByRole('button', { name: /settingsAgentRulesGlobalManage/ });
+    fireEvent.click(manage);
+    expect(
+      screen.getByRole('dialog', { name: 'settingsAgentRulesDialogTitleGlobal' }),
+    ).not.toBeNull();
+    envState.tauri = false;
+  });
+
   it('hides the whitelist while interception is off; gates it by environment when on', () => {
     setupStore();
     const renderOpenMethod = (appInfo: AppInfo) => {

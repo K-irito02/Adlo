@@ -17,6 +17,25 @@ use adl_browser::webview_handle::{EventBridgeRef, WebViewHandle};
 use adl_errors::AppError;
 use tauri::{Emitter, Manager};
 
+/// WebView2 environment options shared by every webview in the app.
+///
+/// WebView2 allows only ONE environment per user data directory; creating a
+/// second one with different options fails with `HRESULT 0x8007139F`. The main
+/// window (configured in `tauri.conf.json`), panel webviews and the divider
+/// strip all share the default UDF, so they must pass the exact same string.
+/// It must also include wry's own defaults (`--disable-features=...`), because
+/// wry uses this string verbatim instead of appending to them.
+///
+/// Keep in sync with `app.windows[0].additionalBrowserArgs` in `tauri.conf.json`.
+///
+/// `--allow-file-access-from-files` is intentional: local HTML opened from the
+/// address bar must be able to read sibling local resources (`fetch`/module
+/// scripts) per the "trusted local document" product decision. The flag also
+/// applies to remote pages, but Chromium still forbids non-file origins from
+/// reading `file:` URLs, so the exposure is limited to user-opened local files.
+pub(crate) const WEBVIEW_ADDITIONAL_ARGS: &str =
+    "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --allow-file-access-from-files";
+
 /// Download-URL heuristics shared across the stack. This extension list must be
 /// kept in sync with `crates/browser/src/init_script.js` (JS `isDownloadUrl`) and
 /// `frontend/src/app/utils/downloadUrl.ts` (TS `isDownloadUrl`).
@@ -197,6 +216,7 @@ pub(super) fn webview_data_directory(
     }
 }
 
+#[allow(clippy::too_many_arguments)] // WebView builder assembles all per-tab creation options.
 pub(super) fn build_webview_builder(
     label: &str,
     tab_id: &str,
@@ -206,6 +226,8 @@ pub(super) fn build_webview_builder(
     is_silent: bool,
     agent_origins: &[String],
     agent_intercept_enabled: bool,
+    agent_site_rules: &[adl_types::AgentSiteRule],
+    agent_site_overrides: &[adl_types::AgentSiteOverride],
 ) -> tauri::webview::WebviewBuilder<tauri::Wry> {
     let app_nav = app_handle.clone();
     let tab_id_owned = tab_id.to_string();
@@ -213,6 +235,8 @@ pub(super) fn build_webview_builder(
         color_scheme,
         agent_origins,
         agent_intercept_enabled,
+        agent_site_rules,
+        agent_site_overrides,
     );
     let (r, g, b) = adl_browser::theme_to_rgb(color_scheme);
     tracing::debug!(color_scheme, "build_webview_builder: generated init_script with background");
@@ -236,6 +260,7 @@ pub(super) fn build_webview_builder(
         // 消除 WebView2 首帧白闪的机制），避免创建新子 WebView 时共享合成面短暂露出默认色。
         .background_color(tauri::utils::config::Color(r, g, b, 255))
         .initialization_script(init_script)
+        .additional_browser_args(WEBVIEW_ADDITIONAL_ARGS)
         .on_navigation(move |url| {
             // Skip about:blank — used as the initial URL during WebView creation
             // to allow background color and CDP color scheme to be applied before
@@ -883,13 +908,15 @@ pub(super) fn build_silent_webview_builder(
 ) -> tauri::webview::WebviewBuilder<tauri::Wry> {
     // Silent/background webviews never render agent sites to the user, so agent
     // link interception is always off for them (`&[]` / `false`).
-    let init_script = adl_browser::init_script_with_background_and_agent(color_scheme, &[], false);
+    let init_script =
+        adl_browser::init_script_with_background_and_agent(color_scheme, &[], false, &[], &[]);
     tracing::debug!(
         color_scheme,
         "build_silent_webview_builder: generated init_script with background"
     );
     let builder = tauri::webview::WebviewBuilder::new(label, tauri::WebviewUrl::External(target))
-        .initialization_script(init_script);
+        .initialization_script(init_script)
+        .additional_browser_args(WEBVIEW_ADDITIONAL_ARGS);
     if is_silent {
         // Silent webviews: cancel ALL downloads unconditionally.
         // This is the ONLY download interception point for silent webviews —
@@ -1063,6 +1090,16 @@ mod tests {
         assert_eq!(data_subdir_for_location(Some("panel")), None);
         assert_eq!(data_subdir_for_location(None), None);
         assert_eq!(data_subdir_for_location(Some("unknown")), None);
+    }
+
+    #[test]
+    fn main_window_shares_webview_additional_args() {
+        // 同一 UDF 的 WebView2 环境选项必须逐字一致：主窗口（配置）与面板/分隔条
+        // 子 WebView（常量）不一致时，CreateCoreWebView2EnvironmentWithOptions
+        // 会返回 0x8007139F，表现为面板标签空白。
+        let config = include_str!("../../tauri.conf.json");
+        let expected = format!("\"additionalBrowserArgs\": \"{WEBVIEW_ADDITIONAL_ARGS}\"");
+        assert!(config.contains(&expected), "tauri.conf.json main window must declare {expected}");
     }
 
     #[test]

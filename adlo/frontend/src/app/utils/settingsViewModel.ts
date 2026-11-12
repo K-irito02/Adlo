@@ -2,7 +2,9 @@ import type { AppPreferencePatch, LogLevel, ThemeMode } from '../../shared/ipc-t
 import { isLogMode } from './debugLogMode';
 import type { AppInfo, SettingItem, SettingValue } from '../../kernel/types';
 import type { CopyDict } from '../i18n';
+import type { AgentSiteOverride, AgentSiteRule } from '@shared/ipc-types.generated';
 import { normalizeAgentSiteEntries } from '@shared/originWhitelist';
+import { normalizeAgentSiteOverrides, normalizeAgentSiteRules } from '@shared/agentSiteRules';
 import { isTauriShell } from '@shared/env';
 
 const LOG_LEVELS: readonly string[] = ['error', 'warn', 'info', 'debug', 'trace'];
@@ -147,6 +149,19 @@ export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[
       value: config.agentSiteWhitelist,
       disabled: !agentInterceptAvailable,
     });
+    items.push({
+      id: 'openMethod:agentSiteRules',
+      groupId: 'openMethod',
+      label: t.settingsAgentRules,
+      description: `${t.settingsAgentRulesDesc}${agentDesktopOnlyHint}`,
+      type: 'agentSiteRules',
+      value: {
+        rules: config.agentSiteRules,
+        overrides: config.agentSiteOverrides,
+        sites: config.agentSiteWhitelist,
+      },
+      disabled: !agentInterceptAvailable,
+    });
   }
 
   if (config.fonts) {
@@ -230,6 +245,29 @@ export function preferencePatchFromSettingChange(
       return undefined;
     }
     return { agentSiteWhitelist: normalizeAgentSiteEntries(value) };
+  }
+  if (id === 'openMethod:agentSiteRules') {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return undefined;
+    }
+    const command = value as Record<string, unknown>;
+    if (command.kind === 'resetGlobal') {
+      return { resetAgentSiteRules: true, resetAgentSiteOverrides: true };
+    }
+    if (
+      command.kind === 'resetSite' &&
+      typeof command.origin === 'string' &&
+      command.origin.trim()
+    ) {
+      return { resetAgentSiteOverride: command.origin.trim() };
+    }
+    if (Array.isArray(command.rules) && Array.isArray(command.overrides)) {
+      return {
+        agentSiteRules: normalizeAgentSiteRules(command.rules as AgentSiteRule[]),
+        agentSiteOverrides: normalizeAgentSiteOverrides(command.overrides as AgentSiteOverride[]),
+      };
+    }
+    return undefined;
   }
   if (id === 'maxConcurrentWorkspaces') {
     return { maxConcurrentWorkspaces: value as number };

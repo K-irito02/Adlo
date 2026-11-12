@@ -12,6 +12,10 @@ const expandFileTreePathChain = vi.fn();
 const setFileTreeClickedNode = vi.fn();
 const requestFileTreeReveal = vi.fn();
 const setFileTreePathExpanded = vi.fn();
+const addWorkspaceToSidebar = vi.fn();
+const refreshOneWorkspaceTree = vi.fn();
+const navigateRightTool = vi.fn();
+const showToast = vi.fn();
 
 vi.mock('@stores/slicedStore', () => ({
   useAppStore: {
@@ -27,6 +31,10 @@ vi.mock('@stores/slicedStore', () => ({
       centerShowBrowserTab,
       openFile,
       openFileForWorkspace,
+      addWorkspaceToSidebar,
+      refreshOneWorkspaceTree,
+      navigateRightTool,
+      showToast,
       browserActiveTabId: 't1',
     }),
   },
@@ -46,6 +54,7 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  addWorkspaceToSidebar.mockReset();
   recentWorkspaces = [];
   trees = {};
 });
@@ -92,6 +101,40 @@ describe('openFileByMethod', () => {
     openFileByMethod('C:/ws2/src/a.md', 'ws2');
     expect(openFileForWorkspace).toHaveBeenCalledWith('ws2', 'C:/ws2', 'src/a.md');
     recentWorkspaces = [];
+  });
+
+  it('infers the owning recent workspace from an absolute agent-link path', () => {
+    config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
+    recentWorkspaces = [
+      { id: 'ws2', path: 'E:/Test-Workspace-1', rootPath: 'E:/Test-Workspace-1' },
+      { id: 'ws3', path: 'E:/Test-Workspace-1/nested', rootPath: 'E:/Test-Workspace-1/nested' },
+    ];
+    openFileByMethod('E:\\Test-Workspace-1\\current-time.md');
+    expect(openFileForWorkspace).toHaveBeenCalledWith(
+      'ws2',
+      'E:/Test-Workspace-1',
+      'current-time.md',
+    );
+    recentWorkspaces = [];
+  });
+
+  it('registers an unknown folder and opens the file in the panel', async () => {
+    config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
+    addWorkspaceToSidebar.mockResolvedValue({
+      ok: true,
+      workspaceId: 'ws-ext',
+      rootPath: 'E:/Test-Workspace-1',
+    });
+    openFileByMethod('E:\\Test-Workspace-1\\current-time.md');
+    await vi.waitFor(() =>
+      expect(openFileForWorkspace).toHaveBeenCalledWith(
+        'ws-ext',
+        'E:/Test-Workspace-1',
+        'current-time.md',
+      ),
+    );
+    expect(addWorkspaceToSidebar).toHaveBeenCalledWith('E:/Test-Workspace-1');
+    expect(navigateRightTool).toHaveBeenCalledWith('files');
   });
 });
 

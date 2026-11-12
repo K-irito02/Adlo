@@ -56,6 +56,8 @@ describe('getGroupResetPatch(openMethod)', () => {
       fileOpenMethod: 'panel',
       agentLinkIntercept: false,
       agentSiteWhitelist: [],
+      resetAgentSiteRules: true,
+      resetAgentSiteOverrides: true,
     });
   });
 });

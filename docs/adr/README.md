@@ -35,6 +35,8 @@
 - [0017 书签为独立实体，导入导出保留来源标签弱引用](./0017-bookmark-transfer-and-identity.md) — 书签条目与活标签页解耦
 - [0020 网站图标以共享镜像为真源，书签图标快照只播种不落持久层](./0020-site-icon-mirror-and-bookmark-snapshot.md) — 快照不写持久层，真实图标可覆盖；被动行首字母占位
 - [0021 站点元数据失败墓碑持久化 + 请求键别名回写](./0021-site-meta-failure-tombstone-and-alias-backfill.md) — 失败不再零缓存；重定向站点请求键别名回写
+- [0022 本地文件按可信文档打开，WebView2 环境参数全应用一致](./0022-local-file-trust-and-webview2-environment.md) — 同 UDF 参数逐字一致，可渲染扩展白名单
+- [0023 智能体文件链接的未知工作区按需登记](./0023-agent-link-unknown-workspace-registration.md) — 登记为已添加工作区但不切换当前工作区
 
 ## 品牌、工具链与 Git 可视化
 

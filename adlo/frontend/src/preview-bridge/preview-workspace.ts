@@ -104,6 +104,26 @@ export function createPreviewWorkspaceBridge(
       data: ctx.recentWorkspaces,
     }),
     open: async (workspacePath: string) => openWorkspaceFromPreviewApi(workspacePath),
+    addToSidebar: async (workspacePath: string) => {
+      const result = await requestPreviewApi<RecentWorkspaceEntry>('/workspace/add', {
+        method: 'POST',
+        body: JSON.stringify({ workspacePath }),
+      });
+      if (!result.ok) {
+        // 登记未知工作区是桌面端能力（预览 dev 服务无该路由）；明确降级而不是
+        // 让调用方误以为成功。
+        return {
+          ok: false as const,
+          error: {
+            code: IpcErrorCode.INTERNAL_ERROR,
+            message: 'workspace.addToSidebar is only available in the desktop app',
+          },
+        };
+      }
+      ctx.recentWorkspaces = updateRecentWorkspaces(ctx.recentWorkspaces, result.data);
+      persistRecentWorkspaces(ctx.recentWorkspaces);
+      return result;
+    },
     clearCurrent: async () => {
       ctx.currentWorkspace = undefined;
       ctx.retrievalStatus = undefined;

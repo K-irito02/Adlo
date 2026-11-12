@@ -239,6 +239,24 @@ describe('init_script.js new-tab interception markers', () => {
 
 describe('init_script.js agent-link interception', () => {
   const posted: Record<string, unknown>[] = [];
+  const DEFAULT_TEST_RULES = [
+    {
+      id: 'builtin-file-like-attribute',
+      enabled: true,
+      matchSelector: 'button, a, [role="button"], [role="link"]',
+      attributes: [
+        'title',
+        'aria-label',
+        'data-path',
+        'data-file-path',
+        'data-file',
+        'data-url',
+        'data-src',
+      ],
+      pathPreset: 'fileLike',
+      action: 'file',
+    },
+  ];
 
   beforeAll(() => {
     (window as unknown as Record<string, unknown>).chrome = {
@@ -264,12 +282,24 @@ describe('init_script.js agent-link interception', () => {
 
   beforeEach(() => {
     posted.length = 0;
+    const w = window as unknown as Record<string, unknown>;
+    w.__adlAgentRules = DEFAULT_TEST_RULES;
+    delete w.__adlAgentOverridesByOrigin;
   });
 
   function setAgent(origins: string[], enabled: boolean) {
     const w = window as unknown as Record<string, unknown>;
     w.__adlAgentOrigins = origins;
     w.__adlAgentInterceptEnabled = enabled;
+  }
+
+  function setAgentRules(
+    rules: Record<string, unknown>[],
+    overrides: Record<string, unknown>[] = [],
+  ) {
+    const w = window as unknown as Record<string, unknown>;
+    w.__adlAgentRules = rules;
+    w.__adlAgentOverridesByOrigin = overrides;
   }
 
   function clickAnchor(href: string): MouseEvent {
@@ -279,6 +309,18 @@ describe('init_script.js agent-link interception', () => {
     const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
     a.dispatchEvent(event);
     a.remove();
+    return event;
+  }
+
+  function clickButtonWithAttrs(attrs: Record<string, string>): MouseEvent {
+    const button = document.createElement('button');
+    for (const [name, value] of Object.entries(attrs)) {
+      button.setAttribute(name, value);
+    }
+    document.body.appendChild(button);
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+    button.dispatchEvent(event);
+    button.remove();
     return event;
   }
 
@@ -292,6 +334,69 @@ describe('init_script.js agent-link interception', () => {
     expect(agentLinks()).toEqual([
       { type: 'adl-agent-link', kind: 'url', url: 'https://example.com/x' },
     ]);
+  });
+
+  it('stops page click handlers after agent-link interception (no duplicate window.open)', () => {
+    setAgent([window.location.origin], true);
+    const href = 'https://www.deepseek.com/harness/';
+    const a = document.createElement('a');
+    a.href = href;
+    a.target = '_blank';
+    let pageHandlerCalls = 0;
+    a.addEventListener('click', () => {
+      pageHandlerCalls += 1;
+      window.open(href, '_blank');
+    });
+    // 后注册的 document 捕获监听器：只有 stopImmediatePropagation 能阻止它
+    // （stopPropagation 仍会执行同节点后续监听器）。
+    let documentCaptureCalls = 0;
+    const documentHandler = () => {
+      documentCaptureCalls += 1;
+    };
+    document.addEventListener('click', documentHandler, true);
+    document.body.appendChild(a);
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+    a.dispatchEvent(event);
+    a.remove();
+    document.removeEventListener('click', documentHandler, true);
+    expect(pageHandlerCalls).toBe(0);
+    expect(documentCaptureCalls).toBe(0);
+    expect(agentLinks()).toEqual([{ type: 'adl-agent-link', kind: 'url', url: href }]);
+  });
+
+  it('does not treat a site-relative attribute path as a local file', () => {
+    setAgent([window.location.origin], true);
+    const event = clickButtonWithAttrs({ 'data-src': '/assets/hero.png' });
+    expect(agentLinks()).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('intercepts a file-like title on a clickable button on a whitelisted agent host', () => {
+    setAgent([window.location.origin], true);
+    clickButtonWithAttrs({
+      title: 'E:\\Test-Workspace-1\\current-time.md',
+      class: '_fileMention_1ypvv_85 _fileLink_1ypvv_59',
+    });
+    expect(agentLinks()).toEqual([
+      {
+        type: 'adl-agent-link',
+        kind: 'file',
+        url: 'E:\\Test-Workspace-1\\current-time.md',
+      },
+    ]);
+  });
+
+  it('trims surrounding whitespace before sending a matched local path', () => {
+    setAgent([window.location.origin], true);
+    clickButtonWithAttrs({ title: '  E:\\ws\\a.md  ' });
+    expect(agentLinks()).toEqual([{ type: 'adl-agent-link', kind: 'file', url: 'E:\\ws\\a.md' }]);
+  });
+
+  it('does not intercept a button without a local-file attribute value', () => {
+    setAgent([window.location.origin], true);
+    const event = clickButtonWithAttrs({ title: 'Something else' });
+    expect(agentLinks()).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it('intercepts a file:// link on a whitelisted agent host as kind=file', () => {
@@ -325,6 +430,107 @@ describe('init_script.js agent-link interception', () => {
   it('does not intercept when the site origin is not whitelisted', () => {
     setAgent(['https://other.example'], true);
     clickAnchor('file:///C:/ws/a.md');
+    expect(agentLinks()).toHaveLength(0);
+  });
+
+  it('applies a configured regex rule', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules([
+      {
+        id: 'custom-regex',
+        enabled: true,
+        matchSelector: 'button',
+        attributes: ['data-path'],
+        pathPreset: 'regex',
+        valueRegex: '^https://cdn\\.example/',
+        action: 'url',
+      },
+    ]);
+    clickButtonWithAttrs({ 'data-path': 'https://cdn.example/x.md' });
+    expect(agentLinks()).toEqual([
+      { type: 'adl-agent-link', kind: 'url', url: 'https://cdn.example/x.md' },
+    ]);
+
+    posted.length = 0;
+    clickButtonWithAttrs({ 'data-path': 'https://other.example/x' });
+    expect(agentLinks()).toHaveLength(0);
+  });
+
+  it('honors disabledRuleIds from a site override', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules(
+      [
+        {
+          id: 'custom-regex',
+          enabled: true,
+          matchSelector: 'button',
+          attributes: ['data-path'],
+          pathPreset: 'regex',
+          valueRegex: '^E:\\\\',
+          action: 'file',
+        },
+      ],
+      [{ origin: window.location.origin, disabledRuleIds: ['custom-regex'], siteRules: [] }],
+    );
+    const event = clickButtonWithAttrs({ 'data-path': 'E:\\ws\\a.md' });
+    expect(agentLinks()).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('appends site-specific rules from an override', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules(
+      [],
+      [
+        {
+          origin: window.location.origin,
+          disabledRuleIds: [],
+          siteRules: [
+            {
+              id: 'site-rule',
+              enabled: true,
+              matchSelector: 'button',
+              attributes: ['data-file'],
+              pathPreset: 'fileLike',
+              action: 'file',
+            },
+          ],
+        },
+      ],
+    );
+    clickButtonWithAttrs({ 'data-file': 'D:\\ws\\b.md' });
+    expect(agentLinks()).toEqual([{ type: 'adl-agent-link', kind: 'file', url: 'D:\\ws\\b.md' }]);
+  });
+
+  it('ignores invalid attribute names without breaking the click chain', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules([
+      {
+        id: 'bad-attr',
+        enabled: true,
+        matchSelector: 'button',
+        attributes: ['data file'],
+        pathPreset: 'fileLike',
+        action: 'file',
+      },
+    ]);
+    expect(() => clickButtonWithAttrs({ title: 'E:\\ws\\a.md' })).not.toThrow();
+    expect(agentLinks()).toHaveLength(0);
+  });
+
+  it('treats an empty attribute list as matching nothing', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules([
+      {
+        id: 'empty-attrs',
+        enabled: true,
+        matchSelector: 'button',
+        attributes: [],
+        pathPreset: 'fileLike',
+        action: 'file',
+      },
+    ]);
+    clickButtonWithAttrs({ title: 'E:\\ws\\a.md' });
     expect(agentLinks()).toHaveLength(0);
   });
 

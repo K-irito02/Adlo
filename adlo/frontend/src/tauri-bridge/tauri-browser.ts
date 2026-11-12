@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { BrowserBridge } from '../shared/ipc/browser';
+import type { AgentSiteOverride, AgentSiteRule } from '../shared/ipc-types.generated';
 import { invokeIpc } from './tauri-shared';
 
 export function createTauriBrowserBridge(): BrowserBridge {
@@ -12,6 +13,8 @@ export function createTauriBrowserBridge(): BrowserBridge {
       location?: 'panel' | 'center',
       agentOrigins?: string[],
       agentInterceptEnabled?: boolean,
+      agentSiteRules?: AgentSiteRule[],
+      agentSiteOverrides?: AgentSiteOverride[],
     ) =>
       invokeIpc<string | null>('browser_create_for_tab', {
         tabId,
@@ -20,6 +23,8 @@ export function createTauriBrowserBridge(): BrowserBridge {
         location,
         agentOrigins,
         agentInterceptEnabled,
+        agentSiteRules,
+        agentSiteOverrides,
       }).then((r) => (r.ok ? r.data : null)),
     activateTab: (tabId: string) =>
       invokeIpc<void>('browser_activate_tab', { tabId }).then(() => undefined),
@@ -165,8 +170,13 @@ export function createTauriBrowserBridge(): BrowserBridge {
         void Promise.resolve(ul?.()).catch(() => {});
       };
     },
-    setAgentIntercept: (origins: string[], enabled: boolean) =>
-      invoke<void>('browser_set_agent_intercept', { origins, enabled }).then(
+    setAgentIntercept: (
+      origins: string[],
+      enabled: boolean,
+      rules?: AgentSiteRule[],
+      overrides?: AgentSiteOverride[],
+    ) =>
+      invoke<void>('browser_set_agent_intercept', { origins, enabled, rules, overrides }).then(
         () => undefined,
         () => undefined,
       ),

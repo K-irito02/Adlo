@@ -16,11 +16,12 @@ use adl_browser::{
     is_placeholder_title, is_unsafe_title, normalize_color_scheme, webview_label,
 };
 use adl_errors::AppError;
-use adl_types::IpcResult;
+use adl_types::{AgentSiteOverride, AgentSiteRule, IpcResult};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use tauri::{Manager, State};
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // IPC boundary mirrors the frontend create call fields.
 pub async fn browser_create_for_tab(
     app: tauri::AppHandle,
     tab_id: String,
@@ -29,6 +30,8 @@ pub async fn browser_create_for_tab(
     location: Option<String>,
     agent_origins: Vec<String>,
     agent_intercept_enabled: bool,
+    agent_site_rules: Option<Vec<AgentSiteRule>>,
+    agent_site_overrides: Option<Vec<AgentSiteOverride>>,
 ) -> Result<IpcResult<Option<String>>, CommandError> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     let app_inner = app.clone();
@@ -78,6 +81,8 @@ pub async fn browser_create_for_tab(
                 false,
                 &agent_origins,
                 agent_intercept_enabled,
+                &agent_site_rules.unwrap_or_default(),
+                &agent_site_overrides.unwrap_or_default(),
             );
             let webview_builder = match data_directory {
                 Some(dir) => builder.data_directory(dir),
@@ -1106,13 +1111,22 @@ pub fn browser_set_agent_intercept(
     state: State<'_, AppState>,
     origins: Vec<String>,
     enabled: bool,
+    rules: Option<Vec<AgentSiteRule>>,
+    overrides: Option<Vec<AgentSiteOverride>>,
 ) -> Result<(), adl_errors::AppError> {
     tracing::info!(
         origin_count = origins.len(),
         enabled,
+        rule_count = rules.as_ref().map(Vec::len).unwrap_or(0),
+        override_count = overrides.as_ref().map(Vec::len).unwrap_or(0),
         "browser_set_agent_intercept command invoked"
     );
-    state.browser_manager.set_agent_intercept_for_all(&origins, enabled)
+    state.browser_manager.set_agent_intercept_for_all(
+        &origins,
+        enabled,
+        &rules.unwrap_or_default(),
+        &overrides.unwrap_or_default(),
+    )
 }
 
 #[tauri::command]

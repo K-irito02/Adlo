@@ -98,8 +98,10 @@ fn main() {
             tracing::info!(url = %payload.url(), "browser page finished loading");
             // 通知前端该标签页面已加载完成（用于把新建的屏外 WebView2 在内容就绪后揭示，
             // 避免空白首帧闪烁）。标签格式 `adl-browser-view-{tabId}`。
-            // 只对真实 http(s) 页面发（跳过初始 about:blank，否则会在真实页面加载前就揭示）。
-            if matches!(payload.url().scheme(), "http" | "https") {
+            // 只对真实可渲染页面发（跳过初始 about:blank，否则会在真实页面加载前就揭示）。
+            // `file` 也必须发：本地文件没有 page-ready 时只能等兜底定时器揭示，
+            // 表现为"打开本地文件明显变慢"。
+            if matches!(payload.url().scheme(), "http" | "https" | "file") {
                 if let Some(tab_id) = webview.label().strip_prefix("adl-browser-view-") {
                     let _ = webview.app_handle().emit(
                         "digital-life://browser-page-ready",

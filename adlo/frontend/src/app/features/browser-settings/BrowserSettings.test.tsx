@@ -77,6 +77,8 @@ function setConfig(
         fileOpenMethod: 'panel',
         agentLinkIntercept: false,
         agentSiteWhitelist: [],
+        agentSiteRules: [],
+        agentSiteOverrides: [],
         browserSuspendWhitelistEnabled: whitelist?.enabled ?? false,
         browserSuspendWhitelist: whitelist?.list ?? [],
       },

@@ -170,6 +170,53 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
     ipc::to_response(Ok(value))
 }
 
+/// POST `/workspace/add` — register a workspace path in the sidebar **without**
+/// making it the active workspace.
+///
+/// Agent file links can point at files outside every known workspace (the agent
+/// harness keeps its own workspace list). The file panel is workspace-scoped, so
+/// the containing folder must exist as a workspace before the file can be shown;
+/// this endpoint performs the registration half of `open` (DB entity + sidebar
+/// upsert + watcher sync) and skips activation/indexing.
+pub async fn add(State(state): State<ServerState>, body: axum::body::Bytes) -> impl IntoResponse {
+    let input: WorkspacePathBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let path = PathBuf::from(input.workspace_path);
+    let (meta, recent) =
+        match run_blocking(move || adl_workspace::open_workspace(path.as_path())).await {
+            Ok(v) => v,
+            Err(e) => return ipc::to_response(Err(e)),
+        };
+
+    let db = state.db.clone();
+    let meta_for_db = meta.clone();
+    if let Err(e) = run_blocking(move || -> Result<(), AppError> {
+        db.save_entity(
+            EntityTable::Workspaces,
+            &meta_for_db.id,
+            Some(&meta_for_db.id),
+            None,
+            Some("ready"),
+            &meta_for_db,
+        )?;
+        crate::handlers::workspace_sidebar::upsert_sidebar_after_open(&db, &meta_for_db)?;
+        Ok(())
+    })
+    .await
+    {
+        return ipc::to_response(Err(e));
+    }
+
+    // 新增侧栏根后立即纳入文件变更监听（不激活工作区，索引/快照留给真正 open）。
+    crate::engine::sync_workspace_watchers(&state).await;
+    match serde_json::to_value(&recent) {
+        Ok(value) => ipc::to_response(Ok(value)),
+        Err(e) => ipc::to_response(Err(AppError::from(e))),
+    }
+}
+
 /// GET `/workspace/current` — read the active workspace metadata (None when no
 /// workspace is open). The desktop shell's `app_get_info` sources its
 /// `current_workspace` field from here so the converged shell (which no longer

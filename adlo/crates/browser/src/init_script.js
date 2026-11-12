@@ -60,6 +60,88 @@
         return /^[A-Za-z]:[\\/]/.test(href);
     }
 
+    // Attribute values are NOT resolved by the browser (unlike anchor `href`), so a
+    // single leading `/` is a site-relative URL, not a local file. Only accept
+    // explicit file://, drive-letter and UNC forms for attribute-based matching.
+    function isAbsoluteLocalPath(value) {
+        if (!value || typeof value !== 'string') return false;
+        var v = value.trim();
+        if (v.toLowerCase().indexOf('file://') === 0) return true;
+        if (v.indexOf('\\\\') === 0) return true;
+        return /^[A-Za-z]:[\\/]/.test(v);
+    }
+
+    // Agent-site local-file interception rules are injected by the Rust shell as
+    // `window.__adlAgentRules` before this script runs (see
+    // `init_script_with_background_and_agent`). This script keeps no JS-side copy;
+    // the built-in defaults are owned by the Rust/TS configuration layer.
+
+    function __adlGetActiveAgentRules() {
+        var configured = window.__adlAgentRules;
+        var globalRules = Array.isArray(configured) ? configured : [];
+        var overrides = Array.isArray(window.__adlAgentOverridesByOrigin) ? window.__adlAgentOverridesByOrigin : [];
+        var currentOverride = null;
+        for (var k = 0; k < overrides.length; k += 1) {
+            if (overrides[k] && overrides[k].origin === location.origin) {
+                currentOverride = overrides[k];
+                break;
+            }
+        }
+        currentOverride = currentOverride || {};
+        var disabled = currentOverride.disabledRuleIds || [];
+        var siteRules = currentOverride.siteRules || [];
+        return globalRules.concat(siteRules).filter(function(rule) {
+            return rule && rule.enabled !== false && disabled.indexOf(rule.id) === -1;
+        });
+    }
+
+    function __adlRuleValueMatches(rule, value) {
+        if (!value) return false;
+        if (rule.pathPreset === 'regex') {
+            if (!rule.valueRegex) return false;
+            try {
+                return new RegExp(rule.valueRegex, rule.regexFlags || '').test(value);
+            } catch (e) {
+                return false;
+            }
+        }
+        // Default and custom fileLike preset: attribute values must be explicit
+        // local paths (site-relative `/assets/...` is not a local file).
+        return isAbsoluteLocalPath(value);
+    }
+
+    function __adlFindAgentFileLinkMatch(target) {
+        if (!__adlIsAgentHost()) return null;
+        var el = target;
+        while (el && el !== document.documentElement) {
+            var rules = __adlGetActiveAgentRules();
+            for (var i = 0; i < rules.length; i += 1) {
+                var rule = rules[i];
+                var selector = rule.matchSelector || 'button, a, [role="button"], [role="link"]';
+                var matched = false;
+                try { matched = el.matches && el.matches(selector); } catch (e) { matched = false; }
+                if (!matched) continue;
+                var attrs = Array.isArray(rule.attributes) ? rule.attributes : ['title'];
+                if (!attrs.length) continue;
+                for (var j = 0; j < attrs.length; j += 1) {
+                    var value = null;
+                    try {
+                        value = el.getAttribute(attrs[j]);
+                    } catch (e) {
+                        // Invalid attribute names are rejected at normalize time, but a
+                        // corrupted config must not break every click on the page.
+                        continue;
+                    }
+                    if (__adlRuleValueMatches(rule, value)) {
+                        return { kind: rule.action || 'file', url: value.trim(), ruleId: rule.id };
+                    }
+                }
+            }
+            el = el.parentElement;
+        }
+        return null;
+    }
+
     // Download-URL extensions shared across the stack. Keep in sync with
     // src-tauri/src/commands/browser_webview_setup.rs (Rust is_download_url) and
     // frontend/src/app/utils/downloadUrl.ts (TS isDownloadUrl).
@@ -297,6 +379,7 @@
 
                 if (isValidWebUrl(href) && __adlIsAgentHost() && __adlSendAgentLink('url', href)) {
                     event.preventDefault();
+                    event.stopImmediatePropagation();
                     return;
                 }
 
@@ -315,6 +398,7 @@
                     return;
                 } else if (__adlIsAgentHost() && isFileLikeHref(href) && __adlSendAgentLink('file', href)) {
                     event.preventDefault();
+                    event.stopImmediatePropagation();
                     return;
                 } else {
                     // 点击路径诊断：只需在 devtools 的 Verbose 级按需查看（生产默认级别不可见），
@@ -341,6 +425,13 @@
                     }
                     return;
                 }
+            }
+
+            var agentRuleMatch = __adlFindAgentFileLinkMatch(target);
+            if (agentRuleMatch && __adlSendAgentLink(agentRuleMatch.kind || 'file', agentRuleMatch.url)) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                return;
             }
 
             target = target.parentElement;

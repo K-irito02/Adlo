@@ -157,6 +157,8 @@ function seedStore(runtime: AppInfo['runtime'] = tauriRuntime()) {
         fileOpenMethod: 'panel',
         agentLinkIntercept: false,
         agentSiteWhitelist: [],
+        agentSiteRules: [],
+        agentSiteOverrides: [],
         browserSuspendWhitelistEnabled: false,
         browserSuspendWhitelist: [],
       },

@@ -34,6 +34,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import { useCenterBrowserAddressSubmit } from './useCenterBrowserAddressSubmit';
 import { checkEmbed, isEmbedBlocked } from '@features/browser/checkEmbed';
 import { useCenterObscured } from './useCenterObscured';
+import { computeCenterOverlayActive } from './centerOverlay';
 import './CenterBrowserView.css';
 
 interface CenterBrowserViewProps {
@@ -151,14 +152,17 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
     watchStorePending: false,
   });
 
-  // 中心视图自己的浮层（菜单 / 地址栏展开 / 搜索引擎设置 / 收藏目录对话框）必须回传作为
+  // 中心视图自己的浮层（菜单 / 搜索引擎设置 / 收藏目录对话框）必须回传作为
   // overlayActive，否则这些浮层会被中心原生 WebView2 盖住（与面板宿主同语义）。
-  const centerOverlayActive =
-    browserMenuOpen ||
-    addressExpanded ||
-    searchEnginePopoverOpen ||
-    bookmarkDialogOpen ||
-    createDirDialog.open;
+  // 地址栏展开是工具栏内联展开、不覆盖内容区，不得计入 overlayActive——否则
+  // 展开地址栏就会把中心 WebView2 移到屏外。
+  const centerOverlayActive = computeCenterOverlayActive({
+    browserMenuOpen,
+    searchEnginePopoverOpen,
+    bookmarkDialogOpen,
+    createDirDialogOpen: createDirDialog.open,
+    addressExpanded,
+  });
 
   // 右侧面板进入浮层态时会以 absolute 盖住中心 —— DOM 盖不住原生 WebView2，
   // 必须主动把中心 WebView2 移出画面（否则原生表面反过来盖住右侧面板）。
