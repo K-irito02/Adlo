@@ -86,6 +86,8 @@ favicon、标题、站点元数据的同步/缓存/时序问题。
 | [browser-favicon-proxy-removal-and-merge-guard-2026-08-18.md](./favicon-meta/browser-favicon-proxy-removal-and-merge-guard-2026-08-18.md) | DDG/Google 代理图标移除 + 镜像合并守卫（外部兜底"合法但错误"图标） |
 | [browser-favicon-timing-race-2026-08-22.md](./favicon-meta/browser-favicon-timing-race-2026-08-22.md) | 静默抓取 title-only 时序竞争根因与双层防御修复（waitForFavicon 事件监听） |
 | [browser-tab-loading-redirect-favicon-2026-08-24.md](./favicon-meta/browser-tab-loading-redirect-favicon-2026-08-24.md) | 标签加载重定向与 favicon 修复 |
+| [browser-bookmark-favicon-snapshot-2026-11-12.md](./favicon-meta/browser-bookmark-favicon-snapshot-2026-11-12.md) | 书签 favicon 重复转圈与导入图标快照：占位语义由调用方声明、快照只进镜像不写后端 |
+| [browser-silent-warmup-tombstone-2026-11-12.md](./favicon-meta/browser-silent-warmup-tombstone-2026-11-12.md) | 启动预热重复静默抓取：失败零缓存 + 重定向键分叉（墓碑退避 + 请求键别名回写） |
 
 ### [history/](./history/)
 

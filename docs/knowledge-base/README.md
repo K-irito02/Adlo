@@ -13,7 +13,7 @@
 
 | 目录 | 内容 | 文件数 |
 |------|------|--------|
-| [browser](./browser/) | 内置浏览器实现与修复（导航、标签、书签、下载、favicon/元数据、历史、WebView 嵌入） | 54 |
+| [browser](./browser/) | 内置浏览器实现与修复（导航、标签、书签、下载、favicon/元数据、历史、WebView 嵌入） | 58 |
 | [interaction](./interaction/) | 跨功能面板交互/UX 修复（GitHub 面板、终端、检索、Git 可视化、指针事件、toast、编辑器自动保存竞态） | 48 |
 | [refactoring](./refactoring/) | 重构方法论、执行记录与架构改进（process / store-ui / architecture） | 25 |
 | [code-quality](./code-quality/) | 代码质量检测与修复、工具链门禁（diff-viewer / git-vis-charts / toolchain-lint / 审计） | 33 |
@@ -33,7 +33,7 @@
 - `tab-management/` — 标签页创建/菜单/已打开标签（4）
 - `bookmark/` — 书签对话框、去重、文件夹删除清理（7）
 - `download/` — 下载链路、URL 检测与临时文件清理（3）
-- `favicon-meta/` — favicon/标题/站点元数据同步与缓存（12）
+- `favicon-meta/` — favicon/标题/站点元数据同步与缓存（14）
 - `history/` — 历史记录写入、导航与标签删除（4）
 - `webview-embed/` — WebView 池、iframe 嵌入、覆盖层级（7）
 - 根目录 — 综合参考（内置浏览器实现、链接拦截、树/子目录修复等）

@@ -85,6 +85,7 @@
 - [browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md](../../knowledge-base/browser/bookmark/browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md) — 书签 (url, title) 元组语义 + 标题隔离
 - [browser-history-navigation-2026-08-14.md](../../knowledge-base/browser/history/browser-history-navigation-2026-08-14.md) — 历史导航归一化 + 智能回退 + 标题来源门控
 - [browser-site-meta-cache-2026-08-13.md](../../knowledge-base/browser/favicon-meta/browser-site-meta-cache-2026-08-13.md) — 网站元数据三层持久化缓存
+- [browser-silent-warmup-tombstone-2026-11-12.md](../../knowledge-base/browser/favicon-meta/browser-silent-warmup-tombstone-2026-11-12.md) — 启动预热重复静默抓取：失败零缓存 + 重定向键分叉
 - [browser-bookmark-favicon-snapshot-2026-11-12.md](../../knowledge-base/browser/favicon-meta/browser-bookmark-favicon-snapshot-2026-11-12.md) — 书签网站图标重复转圈 + 导入图标快照播种（配 ADR-0020）
 - [browser-folder-delete-bookmark-cleanup-2026-06-30.md](../../knowledge-base/browser/bookmark/browser-folder-delete-bookmark-cleanup-2026-06-30.md) — 书签删除跨域污染修复
 - [browser-spa-navigation-title-sync-fix-2026-06-28.md](../../knowledge-base/browser/navigation/browser-spa-navigation-title-sync-fix-2026-06-28.md) — SPA 导航标题同步

@@ -19,3 +19,4 @@
 | [browser-favicon-timing-race-2026-08-22.md](./browser-favicon-timing-race-2026-08-22.md) | 静默抓取 title-only 时序竞争根因与双层防御修复（waitForFavicon 事件监听） |
 | [browser-tab-loading-redirect-favicon-2026-08-24.md](./browser-tab-loading-redirect-favicon-2026-08-24.md) | 浏览器面板标签加载状态与跨域重定向 favicon 处理 |
 | [browser-bookmark-favicon-snapshot-2026-11-12.md](./browser-bookmark-favicon-snapshot-2026-11-12.md) | 书签 favicon 重复转圈与导入图标快照：占位语义由调用方声明、快照只进镜像不写后端 |
+| [browser-silent-warmup-tombstone-2026-11-12.md](./browser-silent-warmup-tombstone-2026-11-12.md) | 启动预热重复静默抓取：失败零缓存 + 重定向键分叉（墓碑退避 + 请求键别名回写） |
