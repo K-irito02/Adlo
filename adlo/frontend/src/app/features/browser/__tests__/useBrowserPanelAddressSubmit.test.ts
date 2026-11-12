@@ -318,6 +318,38 @@ describe('useBrowserPanelAddressSubmit', () => {
       expect(browserNavigatePanelTab).not.toHaveBeenCalled();
     });
 
+    it('rebinds the expected navigation to the panel tab created by the submit', async () => {
+      useAppStore.setState({ isTauri: true, browserActiveTabId: '' });
+      const expectedNavigationUrlRef: {
+        current: { url: string; at: number; tabId: string | null } | null;
+      } = { current: null };
+      const browserNavigatePanelTab = vi.fn(() => {
+        useAppStore.setState({ browserActiveTabId: 'new-panel-tab' });
+      });
+      const { result } = renderHook(() =>
+        useBrowserPanelAddressSubmit({
+          address: 'D:\\Desktop\\a.html',
+          setAddress: vi.fn(),
+          setSearchQueryDisplay: vi.fn(),
+          browserLookupIndex: [],
+          handleNavigationStart: vi.fn(),
+          expectedNavigationUrlRef,
+          navigateBrowser: vi.fn(),
+          browserNavigatePanelTab,
+          setIframeLoadError: vi.fn(),
+          setIframeBlockedDetected: vi.fn(),
+          handlePageMeta: vi.fn(),
+          addressSubmittedForTabRef: { current: '' },
+          submitVersionRef: { current: 0 },
+          validatedUrlsRef: { current: new Set<string>() },
+        }),
+      );
+      await act(async () => {
+        await result.current.submitAddress();
+      });
+      expect(expectedNavigationUrlRef.current?.tabId).toBe('new-panel-tab');
+    });
+
     it('advances the submit generation so in-flight submissions are invalidated', async () => {
       const { result, submitVersionRef } = renderSubmit('D:\\Desktop\\a.html', true);
       await act(async () => {

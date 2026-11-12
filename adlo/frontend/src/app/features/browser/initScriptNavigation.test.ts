@@ -368,6 +368,12 @@ describe('init_script.js agent-link interception', () => {
     ]);
   });
 
+  it('trims surrounding whitespace before sending a matched local path', () => {
+    setAgent([window.location.origin], true);
+    clickButtonWithAttrs({ title: '  E:\\ws\\a.md  ' });
+    expect(agentLinks()).toEqual([{ type: 'adl-agent-link', kind: 'file', url: 'E:\\ws\\a.md' }]);
+  });
+
   it('does not intercept a button without a local-file attribute value', () => {
     setAgent([window.location.origin], true);
     const event = clickButtonWithAttrs({ title: 'Something else' });
@@ -418,12 +424,18 @@ describe('init_script.js agent-link interception', () => {
         matchSelector: 'button',
         attributes: ['data-path'],
         pathPreset: 'regex',
-        valueRegex: '^E:\\\\',
+        valueRegex: '^https://cdn\\.example/',
         action: 'file',
       },
     ]);
-    clickButtonWithAttrs({ 'data-path': 'E:\\ws\\a.md' });
-    expect(agentLinks()).toEqual([{ type: 'adl-agent-link', kind: 'file', url: 'E:\\ws\\a.md' }]);
+    clickButtonWithAttrs({ 'data-path': 'https://cdn.example/x.md' });
+    expect(agentLinks()).toEqual([
+      { type: 'adl-agent-link', kind: 'file', url: 'https://cdn.example/x.md' },
+    ]);
+
+    posted.length = 0;
+    clickButtonWithAttrs({ 'data-path': 'https://other.example/x' });
+    expect(agentLinks()).toHaveLength(0);
   });
 
   it('honors disabledRuleIds from a site override', () => {

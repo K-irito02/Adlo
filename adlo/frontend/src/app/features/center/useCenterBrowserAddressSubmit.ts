@@ -1,4 +1,10 @@
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useRef,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { isRealTitle } from '@utils/browserDisplayUtils';
 import { findInBrowserLookupIndex } from '@features/browser/useBrowserSearch';
@@ -62,18 +68,26 @@ export function useCenterBrowserAddressSubmit({
   validatedUrlsRef,
   t,
 }: UseCenterBrowserAddressSubmitParams): { submitAddress: () => Promise<void> } {
+  // 与面板同款的提交代际：本地文件分支同步完成，必须让更早的在途提交
+  // （DSH 认证 / checkEmbed）落定后失效，否则会覆盖后一次本地文件提交。
+  const submitVersionRef = useRef(0);
   const submitAddress = useCallback(async () => {
+    const version = ++submitVersionRef.current;
     const state = useAppStore.getState();
     const input = address.trim();
 
     if (isLocalFileInput(input)) {
       const fileUrl = buildLocalFileUrl(input);
       if (!state.isTauri) {
-        state.showToast(t?.browserLocalFileDesktopOnly ?? '', 'warning');
+        if (t) {
+          state.showToast(t.browserLocalFileDesktopOnly, 'warning');
+        }
         return;
       }
       if (!fileUrl || !isLocalViewableFileUrl(fileUrl)) {
-        state.showToast(t?.browserLocalFileUnsupported ?? '', 'warning');
+        if (t) {
+          state.showToast(t.browserLocalFileUnsupported, 'warning');
+        }
         return;
       }
       setAddress(fileUrl);
@@ -125,6 +139,9 @@ export function useCenterBrowserAddressSubmit({
     let authed: { url: string; freedPort: boolean } | null = null;
     if (routeLocalUrl(finalUrl)?.opener === 'dsh') {
       authed = await resolveDshAuthUrl(finalUrl);
+      if (submitVersionRef.current !== version) {
+        return;
+      }
       if (authed?.freedPort && t) {
         notifyDshFreedPort(t);
       }
@@ -147,6 +164,10 @@ export function useCenterBrowserAddressSubmit({
       }
     }
 
+    if (submitVersionRef.current !== version) {
+      return;
+    }
+
     setAddress(targetUrl);
     setSearchQueryDisplay(searchInfo ? searchInfo.query : '');
     const title = searchInfo ? `${searchInfo.engineName}: ${searchInfo.query}` : undefined;
@@ -156,9 +177,8 @@ export function useCenterBrowserAddressSubmit({
     }
 
     // 中心恒就地：直接更新当前中心标签并导航其 WebView/iframe，不新建标签。
-    // 注：此处刻意不用 submitVersionRef 丢弃过期提交（面板侧有）——中心提交恒以
-    // 当前中心标签为目标，用户连击即“后一次覆盖前一次”，last-wins 本身就是正确语义
-    // （R1-LOW，有据保留）。
+    // 连续的主路径提交仍是 last-wins（后一次覆盖前一次）；代际守卫只用于丢弃
+    // 更早的在途提交，避免它们覆盖之后同步完成的本地文件提交。
     useAppStore.getState().browserUpdateTab(browserTabId, {
       url: targetUrl,
       ...(title ? { title, titleResolved: isRealTitle(title, targetUrl) } : {}),

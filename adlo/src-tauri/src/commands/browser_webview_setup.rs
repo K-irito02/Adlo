@@ -27,6 +27,12 @@ use tauri::{Emitter, Manager};
 /// wry uses this string verbatim instead of appending to them.
 ///
 /// Keep in sync with `app.windows[0].additionalBrowserArgs` in `tauri.conf.json`.
+///
+/// `--allow-file-access-from-files` is intentional: local HTML opened from the
+/// address bar must be able to read sibling local resources (`fetch`/module
+/// scripts) per the "trusted local document" product decision. The flag also
+/// applies to remote pages, but Chromium still forbids non-file origins from
+/// reading `file:` URLs, so the exposure is limited to user-opened local files.
 pub(crate) const WEBVIEW_ADDITIONAL_ARGS: &str =
     "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --allow-file-access-from-files";
 

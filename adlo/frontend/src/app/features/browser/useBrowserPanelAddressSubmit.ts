@@ -27,7 +27,7 @@ interface UseBrowserPanelAddressSubmitParams {
   addressSubmittedForTabRef: MutableRefObject<string>;
   submitVersionRef: MutableRefObject<number>;
   validatedUrlsRef: MutableRefObject<Set<string>>;
-  /** 全量文案（调用点传入面板 `t`）：仅用于残留端口释放告知，缺省不提示。 */
+  /** 提示文案（本地文件桌面端限制 + 残留端口释放告知）；缺省时不提示。 */
   t?: Pick<
     CopyDict,
     'dshPortFreed' | 'browserLocalFileDesktopOnly' | 'browserLocalFileUnsupported'
@@ -75,11 +75,15 @@ export function useBrowserPanelAddressSubmit({
       const isTauri = useAppStore.getState().isTauri;
       const fileUrl = buildLocalFileUrl(input);
       if (!isTauri) {
-        useAppStore.getState().showToast(t?.browserLocalFileDesktopOnly ?? '', 'warning');
+        if (t) {
+          useAppStore.getState().showToast(t.browserLocalFileDesktopOnly, 'warning');
+        }
         return;
       }
       if (!fileUrl || !isLocalViewableFileUrl(fileUrl)) {
-        useAppStore.getState().showToast(t?.browserLocalFileUnsupported ?? '', 'warning');
+        if (t) {
+          useAppStore.getState().showToast(t.browserLocalFileUnsupported, 'warning');
+        }
         return;
       }
       setAddress(fileUrl);
