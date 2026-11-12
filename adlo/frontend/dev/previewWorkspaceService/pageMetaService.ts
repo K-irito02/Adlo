@@ -1,11 +1,11 @@
 /**
  * pageMetaService.ts —— 浏览器预览模式的 PageMeta 集中式服务层（JS 同构实现）。
  *
- * 语义说明：预览模式刻意保留旧的"完整缓存策略"语义（TTL 7 天 /
- * 失败指数退避 5min×2^n≤2h / get 的 TTL 短路 / 占位标题门控 /
- * 失败不删缓存 / 单飞行）——Rust `crates/browser/src/page_meta_service.rs`
- * 已简化为"仅缓存 + report 上报"实现（无 TTL/退避/单飞行），二者语义不一致
- * 是刻意保留的预览行为，非 bug。合并引擎语义真源仍为
+ * 语义说明：双端对齐项 = 失败指数退避（5min×2^n≤2h）+ 墓碑持久化 + get/warmup 退避短路
+ * （preview markFailure 经 schedulePersist 写 JSON；Rust note_failure 写 SQLite）。
+ * 预览模式自持、Rust 无对应实现的：TTL 7 天 / get 的 TTL 短路 / 单飞行 / 域名限速
+ * （preview 侧自行保留，刻意实现，非双端对齐项）。占位标题门控 / 失败不删缓存与 Rust 同构。
+ * 合并引擎语义真源仍为
  * `crates/browser/src/meta_merge.rs`（is_placeholder_title /
  * should_apply_exact_match_title / get_favicon_quality_score /
  * should_replace_favicon）。
@@ -25,7 +25,10 @@ import { readSiteMetaCache, upsertSiteMetaCache } from './siteMetaCache';
 import type { SiteMetaCacheEntry } from './siteMetaCache';
 import type { MetaSource, PageMeta, PageMetaUpdatedPayload } from '../../src/shared/ipc/browser';
 
-// --- 常量（合并引擎与 Rust meta_merge.rs 一致；缓存策略常量预览模式自持）---
+// --- 常量（合并引擎与 Rust meta_merge.rs 一致；缓存策略：退避+墓碑双端同构）---
+// 双端墓碑持久化对齐：Rust `PageMetaService::note_failure` 与本文件 `markFailure` 语义同构
+// （failCount+1、指数退避 cap 2h、持久化到各自 store）；get/warmup 的退避短路双端同构。
+// 预览模式自持（Rust 无对应）：TTL 7 天、单飞行、域名限速。实现细节不要求逐行同构。
 export const META_SOURCE_COM: MetaSource = 'com';
 export const META_SOURCE_HTTP: MetaSource = 'http';
 export const META_SOURCE_IFRAME: MetaSource = 'iframe';
@@ -295,7 +298,7 @@ export function createPreviewPageMetaService(
     return memory.get(normalizeCacheKey(url));
   }
 
-  /** 失败退避：failCount+1、nextRetryAt 指数退避；不删缓存、不写持久层（与 Rust 一致）。 */
+  /** 失败退避：failCount+1、nextRetryAt 指数退避；不删缓存；墓碑持久化（跨重启仍生效，与 Rust note_failure 同构）。 */
   function markFailure(key: string): void {
     const now = Date.now();
     const existing = memory.get(key);
@@ -318,6 +321,7 @@ export function createPreviewPageMetaService(
     }
     const delay = Math.min(RETRY_BASE_MS * Math.pow(2, Math.min(entry.failCount, 5)), RETRY_MAX_MS);
     entry.nextRetryAt = now + delay;
+    schedulePersist(key, entry);
   }
 
   /**

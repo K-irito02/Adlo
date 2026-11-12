@@ -279,6 +279,47 @@ fn favicon_downloading() -> &'static std::sync::Mutex<std::collections::HashSet<
     FAVICON_DOWNLOADING.get_or_init(|| std::sync::Mutex::new(std::collections::HashSet::new()))
 }
 
+/// 退避短路判定（与预览端 `backedOff` 同构）：无成功记录（`last_ok_at == 0`）
+/// 且仍在退避窗口（`now < next_retry_at`）→ 后台不再静默抓取。
+/// 有成功记录的条目由缓存命中/TTL 语义管辖，backoff 不介入。
+fn silent_backoff_active(e: &SiteMetaCacheEntry, now_ms: i64) -> bool {
+    e.last_ok_at == 0 && now_ms < e.next_retry_at
+}
+
+/// 后台静默抓取抑制判定（warmup / get 共用）：有效缓存（真实标题或 favicon）
+/// 或退避期中的条目 → 跳过 WebView2 静默渲染。
+fn silent_fetch_suppressed(e: &SiteMetaCacheEntry, url: &str, now_ms: i64) -> bool {
+    silent_cache_hit(e, url) || silent_backoff_active(e, now_ms)
+}
+
+fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+/// 静默抓取结束后的请求键回写（消除重定向分叉）：
+///
+/// - full-empty meta（无标题/图标/data-URI）→ `note_failure` 落墓碑（fail_count+1、
+///   指数退避、持久化），该站点后续启动不再重抓；
+/// - 非空 meta → 按**请求键** `report`（复用占位/质量/data-URI 既有门控），与 poll
+///   期间写在上报键下的条目并存。重定向站点从此在 warmup/get 的请求键 peek 上命中。
+///
+/// 无重定向（请求键 == 上报键，poll 已按请求键 report）时重复 report 为无变更 no-op。
+async fn backfill_request_meta(svc: &PageMetaService, req_url: &str, meta: &PageMeta) {
+    if meta.title.is_empty() && meta.favicon.is_empty() && meta.favicon_data_uri.is_empty() {
+        if let Err(e) = svc.note_failure(req_url) {
+            tracing::warn!(url = %req_url, error = %e, "backfill_request_meta: note_failure failed");
+        }
+        return;
+    }
+    let source = if meta.source.is_empty() { META_SOURCE_COM } else { meta.source.as_str() };
+    if let Err(e) = svc.report(req_url, &meta.title, &meta.favicon, source).await {
+        tracing::warn!(url = %req_url, error = %e, "backfill_request_meta: report failed");
+    }
+}
+
 /// 缓存命中判定：缓存条目含有效标题（非空且过 unsafe/placeholder 检查）或非空
 /// favicon 视为有效缓存 → 可直接返回（零 WebView 创建）。
 fn silent_cache_hit(e: &SiteMetaCacheEntry, url: &str) -> bool {
@@ -689,6 +730,10 @@ async fn fetch_silent_meta(
 
     destroy_silent_webview(&app, &tab_id);
 
+    // 请求键回写（消除重定向分叉）：非空 meta 按请求键 report，空 meta 落墓碑。
+    // poll 只保证上报键命中，本步补齐请求键——否则重定向站点 warmup/get 永远 miss。
+    backfill_request_meta(state.browser_manager.page_meta_service(), url, &page_meta).await;
+
     // 静默路径补全 data-URI（M2）：WebView2 只给出 favicon URL，若前端直接跨域 <img>
     // 加载会命中 CDN 防盗链（bilibili/runoob 等），导致渲染回退到兜底图标。以页面自身
     // 为 Referer 下载 favicon 字节内嵌为 data-URI，使渲染不受跨域/防盗链影响。
@@ -888,6 +933,11 @@ pub async fn browser_page_meta_get(
     // 不再保留任何 HTTP 爬虫回退。
     if !force.unwrap_or(false) {
         if let Some(e) = svc.peek(&url) {
+            // 退避期中的墓碑条目（从未成功过且仍在 next_retry_at 窗口）：不创建
+            // WebView，直接返回空 meta；不 emit——避免空 meta 广播清空前端镜像。
+            if !silent_cache_hit(&e, &url) && silent_backoff_active(&e, now_ms()) {
+                return Ok(ipc(Ok(PageMeta { url: url.clone(), ..PageMeta::default() })));
+            }
             if silent_cache_hit(&e, &url) {
                 let meta = PageMeta {
                     title: e.title,
@@ -961,18 +1011,24 @@ pub async fn browser_page_meta_warmup(
         ))));
     }
     let svc = state.browser_manager.page_meta_service();
-    // 静默预热：去重；仅对尚无有效缓存（真实标题或非空 favicon）的 URL 触发
-    // WebView2 静默渲染抓取（复用主路径 fetch_silent_meta）。每路都会创建一个
-    // 隐藏 WebView2，故用信号量限制并发，避免一次性实例化过多浏览器。
+    // 静默预热：去重；仅对「有效缓存命中（真实标题或非空 favicon）」与「退避期中的
+    // 失败墓碑」均未覆盖的 URL 触发 WebView2 静默渲染抓取（复用主路径 fetch_silent_meta）。
+    // 每路都会创建一个隐藏 WebView2，故用信号量限制并发，避免一次性实例化过多浏览器。
+    // 消除 preload 竞态：入口显式等待一次（幂等——get_all + or_insert），
+    // 保证下方 peek 过滤读到磁盘全量条目，而不是只有空内存镜像。
+    if let Err(e) = svc.preload().await {
+        tracing::warn!(error = %e, "browser_page_meta_warmup: preload failed (继续，过滤可能偏保守)");
+    }
     let mut seen = std::collections::HashSet::new();
+    let now = now_ms();
     let targets: Vec<String> = urls
         .into_iter()
         .filter(|u| {
             let key = adl_browser::normalize_cache_key(u);
-            seen.insert(key.clone()) && !svc.peek(&key).is_some_and(|e| silent_cache_hit(&e, u))
+            seen.insert(key.clone())
+                && !svc.peek(&key).is_some_and(|e| silent_fetch_suppressed(&e, u, now))
         })
         .collect();
-
     let sem = std::sync::Arc::new(tokio::sync::Semaphore::new(3));
     let mut handles = Vec::with_capacity(targets.len());
     for url in targets {
@@ -1769,6 +1825,101 @@ mod silent_meta_tests {
             "https://cdn.example/x.ico",
         );
         assert_eq!(key, "https://x.example/");
+    }
+
+    #[test]
+    fn silent_backoff_active_scopes_to_never_succeeded_entries() {
+        // 退避短路只约束 last_ok_at==0（从未成功过）的墓碑条目；已有成功记录的条目
+        // 由 TTL/缓存命中语义管辖，backoff 不介入。
+        let url_entry = |last_ok_at: i64, next_retry_at: i64| SiteMetaCacheEntry {
+            title: String::new(),
+            title_source: String::new(),
+            favicon_url: String::new(),
+            favicon_data_uri: String::new(),
+            fetched_at: 0,
+            last_ok_at,
+            next_retry_at,
+            fail_count: 1,
+        };
+        let now = 1_800_000_000_000_i64;
+        assert!(silent_backoff_active(&url_entry(0, now + 60_000), now), "未来退避期应短路");
+        assert!(!silent_backoff_active(&url_entry(0, now - 1), now), "退避期已过应放行");
+        assert!(
+            !silent_backoff_active(&url_entry(now, now + 60_000), now),
+            "已成功条目不受 backoff 约束"
+        );
+        assert!(!silent_backoff_active(&url_entry(0, 0), now), "无退避记录放行");
+    }
+
+    #[test]
+    fn silent_fetch_suppressed_union_of_cache_hit_and_backoff() {
+        // 统一的「跳过后台静默抓取」判定：有效缓存（标题/图标）或退避期 → 抑制。
+        let mut e = SiteMetaCacheEntry {
+            title: String::new(),
+            title_source: String::new(),
+            favicon_url: String::new(),
+            favicon_data_uri: String::new(),
+            fetched_at: 0,
+            last_ok_at: 0,
+            next_retry_at: 0,
+            fail_count: 1,
+        };
+        let now = 1_800_000_000_000_i64;
+        // 全空且无退避 → 不抑制（正常抓取）
+        assert!(!silent_fetch_suppressed(&e, "https://a.example/", now));
+        // 有 favicon → 有效缓存命中 → 抑制
+        e.favicon_url = "https://cdn.example/i.ico".into();
+        assert!(silent_fetch_suppressed(&e, "https://a.example/", now));
+        // 全空 + 退避中 → 抑制
+        e.favicon_url.clear();
+        e.next_retry_at = now + 60_000;
+        assert!(silent_fetch_suppressed(&e, "https://a.example/", now));
+    }
+
+    #[tokio::test]
+    async fn backfill_request_meta_writes_request_key_alias() {
+        // 重定向分叉：poll 把条目写在上报键（final），fetch 结束后按请求键（request）
+        // 回写别名——使 warmup/get 的请求键 peek 能命中，消除每次启动重抓。
+        let svc = empty_svc();
+        // 模拟 poll 阶段已写入上报键
+        svc.report(
+            "https://final.example/page",
+            "跳转后标题",
+            "https://cdn.example/i.ico",
+            META_SOURCE_COM,
+        )
+        .await
+        .unwrap();
+        let meta = PageMeta {
+            title: "跳转后标题".into(),
+            favicon: "https://cdn.example/i.ico".into(),
+            favicon_data_uri: String::new(),
+            url: "https://final.example/page".into(),
+            source: META_SOURCE_COM.into(),
+        };
+        backfill_request_meta(&svc, "https://request.example/", &meta).await;
+        let entry = svc.peek("https://request.example/").expect("请求键应有别名条目");
+        assert_eq!(entry.title, "跳转后标题");
+        assert_eq!(entry.favicon_url, "https://cdn.example/i.ico");
+        assert!(silent_cache_hit(&entry, "https://request.example/"), "别名条目应计为有效缓存");
+    }
+
+    #[tokio::test]
+    async fn backfill_request_meta_empty_writes_tombstone() {
+        // 抓取全空 → 请求键落墓碑（fail_count+1、退避），重启后不再重抓。
+        let svc = empty_svc();
+        let meta = PageMeta {
+            title: String::new(),
+            favicon: String::new(),
+            favicon_data_uri: String::new(),
+            url: "https://fail.example/".into(),
+            source: String::new(),
+        };
+        backfill_request_meta(&svc, "https://fail.example/", &meta).await;
+        let entry = svc.peek("https://fail.example/").expect("失败应落墓碑");
+        assert_eq!(entry.fail_count, 1);
+        assert!(entry.next_retry_at > 0);
+        assert!(silent_backoff_active(&entry, entry.fetched_at + 1));
     }
 
     #[tokio::test]

@@ -101,6 +101,49 @@ impl PageMetaService {
         Ok(true)
     }
 
+    /// 失败退避基数（与预览端 `RETRY_BASE_MS` 同构）：5 分钟。
+    const RETRY_BASE_MS: i64 = 5 * 60 * 1000;
+    /// 失败退避上限（与预览端 `RETRY_MAX_MS` 同构）：2 小时。
+    const RETRY_MAX_MS: i64 = 2 * 3600 * 1000;
+
+    /// 抓取失败落「墓碑」：fail_count+1、`next_retry_at` 指数退避
+    /// （`min(BASE * 2^min(fail_count,5), MAX)`，与预览端 `markFailure` 同构）。
+    /// 双端墓碑均持久化（预览端 markFailure 经 schedulePersist 写 JSON 持久层），
+    /// 跨重启仍生效。既有条目（含已有标题/图标）保留字段不清空；无成功记录
+    /// （last_ok_at==0）的条目才受退避约束（backoff 判定侧负责）。全程持有
+    /// memory 锁，与 report/upsert/clear/update_favicon_data_uri 串行化；
+    /// store 写失败仅 warn（尽力持久化，尽力项失败不阻塞调用方）。
+    pub fn note_failure(&self, url: &str) -> Result<(), AppError> {
+        let key = normalize_cache_key(url);
+        let now = chrono_now_ms();
+        let mut memory = self.memory.lock().unwrap_or_else(|e| e.into_inner());
+        let existing = memory.get(&key).cloned();
+        let fail_count =
+            existing.as_ref().map(|e| e.fail_count.saturating_add(1)).unwrap_or(1).max(1);
+        let shift = fail_count.clamp(1, 5);
+        let delay = Self::RETRY_BASE_MS.saturating_mul(1_i64 << shift).min(Self::RETRY_MAX_MS);
+        let entry = SiteMetaCacheEntry {
+            title: existing.as_ref().map(|e| e.title.clone()).unwrap_or_default(),
+            title_source: existing.as_ref().map(|e| e.title_source.clone()).unwrap_or_default(),
+            favicon_url: existing.as_ref().map(|e| e.favicon_url.clone()).unwrap_or_default(),
+            favicon_data_uri: existing
+                .as_ref()
+                .map(|e| e.favicon_data_uri.clone())
+                .unwrap_or_default(),
+            fetched_at: now,
+            last_ok_at: existing.as_ref().map(|e| e.last_ok_at).unwrap_or(0),
+            next_retry_at: now + delay,
+            fail_count,
+        };
+        let mut map = HashMap::new();
+        map.insert(key.clone(), entry.clone());
+        if let Err(e) = self.store.upsert(&map) {
+            tracing::warn!(url = %key, error = %e, "persist site meta failure tombstone failed");
+        }
+        memory.insert(key, entry);
+        Ok(())
+    }
+
     pub async fn report(
         &self,
         url: &str,
@@ -397,6 +440,57 @@ mod tests {
             !warns.lock().unwrap().is_empty(),
             "upsert 失败必须记录 warn 日志（当前被静默吞掉）"
         );
+    }
+
+    #[tokio::test]
+    async fn note_failure_backs_off_and_persists_across_restart() {
+        // 静默抓取全空（超时/登录墙/反爬）时落「墓碑」条目：fail_count+1、
+        // next_retry_at 指数退避，并持久化到 store —— 重启后（preload 载入）
+        // 仍处于退避态，失败站点不再每次启动都重抓。
+        let (svc, dir) = open_service("note-failure-persist");
+        svc.note_failure("https://fail.example/").unwrap();
+        let e = svc.peek("https://fail.example/").unwrap();
+        assert_eq!(e.fail_count, 1);
+        assert_eq!(e.last_ok_at, 0, "失败不得伪造成功");
+        assert_eq!(e.title, "");
+        assert!(e.next_retry_at > chrono_now_ms(), "退避期必须在未来");
+        // 跨重启：新实例从同一目录 preload，墓碑仍在
+        let store = crate::site_meta_cache::SiteMetaCacheStore::open(&dir).unwrap();
+        let svc2 = PageMetaService::new(store);
+        svc2.preload().await.unwrap();
+        let e2 = svc2.peek("https://fail.example/").unwrap();
+        assert_eq!(e2.fail_count, 1);
+        assert!(e2.next_retry_at > 0);
+        // 再次失败：退避时长不下降、fail_count 递增
+        svc2.note_failure("https://fail.example/").unwrap();
+        let e3 = svc2.peek("https://fail.example/").unwrap();
+        assert_eq!(e3.fail_count, 2);
+        assert!(e3.next_retry_at >= e2.next_retry_at);
+    }
+
+    #[tokio::test]
+    async fn note_failure_preserves_good_entry_and_report_resets() {
+        // 已有成功条目（last_ok_at>0）被失败不清空标题/图标；退避仅约束无成功记录的条目。
+        // 之后一次成功 report 清零 fail_count / next_retry_at。
+        let (svc, _) = open_service("note-failure-preserve");
+        svc.report(
+            "https://ok.example/",
+            "真实标题",
+            "https://cdn.ok.example/i.ico",
+            META_SOURCE_COM,
+        )
+        .await
+        .unwrap();
+        svc.note_failure("https://ok.example/").unwrap();
+        let e = svc.peek("https://ok.example/").unwrap();
+        assert_eq!(e.fail_count, 1);
+        assert_eq!(e.title, "真实标题", "失败不得清空既有标题");
+        assert_eq!(e.favicon_url, "https://cdn.ok.example/i.ico");
+        assert!(e.last_ok_at > 0);
+        svc.report("https://ok.example/", "新标题", "", META_SOURCE_COM).await.unwrap();
+        let e = svc.peek("https://ok.example/").unwrap();
+        assert_eq!(e.fail_count, 0, "成功后退避清零");
+        assert_eq!(e.next_retry_at, 0);
     }
 
     #[tokio::test]

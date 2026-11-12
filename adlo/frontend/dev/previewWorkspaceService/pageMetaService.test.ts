@@ -228,6 +228,42 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     expect(r2?.title).toBe('X');
   });
 
+  it('failure tombstone persists across restarts; warmup skips backed-off keys', async () => {
+    // 失败站点墓碑（failCount/nextRetryAt）持久化到 site-meta-cache.json：
+    // 新实例 preload 后处于退避态，get 不再发起抓取、warmup 不再纳入任务。
+    let calls = 0;
+    const failingFetch = async (url: string) => {
+      calls += 1;
+      return emptyMeta(url);
+    };
+    const svc = createPreviewPageMetaService({
+      baseDir: dir,
+      gateAllows: allowGate,
+      fetchOnce: failingFetch,
+    });
+    await svc.get('https://fail.com/');
+    expect(calls).toBe(1);
+    await new Promise((r) => setTimeout(r, 700)); // 等防抖 500ms 持久化落盘
+
+    const all = await readSiteMetaCache(dir);
+    const e = all['https://fail.com/'];
+    expect(e).toBeDefined();
+    expect(e?.failCount).toBe(1);
+    expect(e?.nextRetryAt).toBeGreaterThan(Date.now());
+
+    const svc2 = createPreviewPageMetaService({
+      baseDir: dir,
+      gateAllows: allowGate,
+      fetchOnce: failingFetch,
+    });
+    const meta = await svc2.get('https://fail.com/');
+    expect(calls).toBe(1); // 未重抓
+    expect(meta?.title).toBe('');
+    const warmed = await svc2.warmup(['https://fail.com/']);
+    expect(calls).toBe(1); // warmup 跳过退避中的墓碑
+    expect(warmed).toHaveLength(0);
+  });
+
   it('get success persists the merged entry to the json cache (debounced)', async () => {
     const svc = createPreviewPageMetaService({
       baseDir: dir,
