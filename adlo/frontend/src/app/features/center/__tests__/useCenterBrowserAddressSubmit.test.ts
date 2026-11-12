@@ -197,5 +197,69 @@ describe('useCenterBrowserAddressSubmit 需认证本地端口分流（事项 2�
       expect(showToast).toHaveBeenCalledWith('LOCAL_UNSUPPORTED', 'warning');
       expect(navigateTabInPool).not.toHaveBeenCalled();
     });
+
+    it('a later local-file submit invalidates an in-flight DSH submit', async () => {
+      const tab = makeCenterTab('center-1', 'about:blank');
+      useAppStore.setState({
+        browserTabs: [tab],
+        browserTabsById: { 'center-1': tab },
+        isTauri: true,
+      });
+      let resolveOpen!: (value: unknown) => void;
+      const open = vi.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveOpen = resolve;
+          }),
+      );
+      (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
+
+      const setAddress = vi.fn();
+      const navigateTabInPool = vi.fn(async () => {});
+      const { result, rerender } = renderHook(
+        ({ address }: { address: string }) =>
+          useCenterBrowserAddressSubmit({
+            browserTabId: 'center-1',
+            address,
+            setAddress,
+            setSearchQueryDisplay: vi.fn(),
+            browserLookupIndex: [],
+            navigateBrowser: vi.fn(),
+            navigateTabInPool,
+            isTabInPool: () => true,
+            setIframeLoadError: vi.fn(),
+            setIframeBlockedDetected: vi.fn(),
+            validatedUrlsRef: { current: new Set<string>() },
+          }),
+        { initialProps: { address: 'http://127.0.0.1:3080' } },
+      );
+
+      let pendingA: Promise<void> = Promise.resolve();
+      act(() => {
+        pendingA = result.current.submitAddress();
+      });
+
+      rerender({ address: 'D:\\Desktop\\a.html' });
+      await act(async () => {
+        await result.current.submitAddress();
+      });
+
+      resolveOpen({
+        ok: true,
+        data: { url: 'http://127.0.0.1:3080/?token=OLD', freedPort: false },
+      });
+      await act(async () => {
+        await pendingA;
+      });
+
+      expect(setAddress).not.toHaveBeenCalledWith('http://127.0.0.1:3080/?token=OLD');
+      expect(navigateTabInPool).not.toHaveBeenCalledWith(
+        'center-1',
+        'http://127.0.0.1:3080/?token=OLD',
+      );
+      expect(useAppStore.getState().browserTabsById['center-1'].url).toBe(
+        'file:///D:/Desktop/a.html',
+      );
+    });
   });
 });

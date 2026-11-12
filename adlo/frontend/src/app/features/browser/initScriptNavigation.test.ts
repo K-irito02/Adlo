@@ -425,12 +425,12 @@ describe('init_script.js agent-link interception', () => {
         attributes: ['data-path'],
         pathPreset: 'regex',
         valueRegex: '^https://cdn\\.example/',
-        action: 'file',
+        action: 'url',
       },
     ]);
     clickButtonWithAttrs({ 'data-path': 'https://cdn.example/x.md' });
     expect(agentLinks()).toEqual([
-      { type: 'adl-agent-link', kind: 'file', url: 'https://cdn.example/x.md' },
+      { type: 'adl-agent-link', kind: 'url', url: 'https://cdn.example/x.md' },
     ]);
 
     posted.length = 0;
