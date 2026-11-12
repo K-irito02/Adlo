@@ -239,6 +239,24 @@ describe('init_script.js new-tab interception markers', () => {
 
 describe('init_script.js agent-link interception', () => {
   const posted: Record<string, unknown>[] = [];
+  const DEFAULT_TEST_RULES = [
+    {
+      id: 'builtin-file-like-attribute',
+      enabled: true,
+      matchSelector: 'button, a, [role="button"], [role="link"]',
+      attributes: [
+        'title',
+        'aria-label',
+        'data-path',
+        'data-file-path',
+        'data-file',
+        'data-url',
+        'data-src',
+      ],
+      pathPreset: 'fileLike',
+      action: 'file',
+    },
+  ];
 
   beforeAll(() => {
     (window as unknown as Record<string, unknown>).chrome = {
@@ -265,7 +283,7 @@ describe('init_script.js agent-link interception', () => {
   beforeEach(() => {
     posted.length = 0;
     const w = window as unknown as Record<string, unknown>;
-    delete w.__adlAgentRules;
+    w.__adlAgentRules = DEFAULT_TEST_RULES;
     delete w.__adlAgentOverridesByOrigin;
   });
 

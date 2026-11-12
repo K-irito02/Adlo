@@ -71,10 +71,29 @@ function normalizeMetaUrl(url: string): string {
 }
 
 /**
+ * 把标题按来源门控落到一组标签上（广播与原生 meta 共用）。
+ */
+function applyTitleToTabs(
+  tabs: { id: string; title: string }[],
+  cleanUrl: string,
+  title: string,
+  source: MetaSource,
+): void {
+  const state = useAppStore.getState();
+  for (const tab of tabs) {
+    const applied = applyBroadcastTitle(tab, cleanUrl, title, source, titleSourceRef.get(tab.id));
+    if (applied) {
+      state.browserUpdateTab(tab.id, { title, titleResolved: true });
+      titleSourceRef.set(tab.id, source);
+    }
+  }
+}
+
+/**
  * 广播（服务端 meta 缓存更新）→ 标签/历史标题。
  *
- * 模块级函数：广播处理器与原生 meta 接线共用同一实现；订阅只在 App 根挂载
- * 一次（`useGlobalBrowserMeta`）。函数只读写 store，不依赖 React 状态。
+ * 模块级函数：广播处理器与原生 meta 接线共用 `applyTitleToTabs`；订阅只在
+ * App 根挂载一次（`useGlobalBrowserMeta`）。函数只读写 store，不依赖 React 状态。
  */
 export function applyMetaBroadcast(p: PageMetaUpdatedPayload): void {
   applyBroadcastUpdate(p); // 镜像更新（Task 7）
@@ -83,14 +102,7 @@ export function applyMetaBroadcast(p: PageMetaUpdatedPayload): void {
   const matchingTabs = state.browserTabs.filter(
     (t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl),
   );
-  for (const tab of matchingTabs) {
-    const curSource = titleSourceRef.get(tab.id);
-    const applied = applyBroadcastTitle(tab, cleanUrl, p.title, p.source, curSource);
-    if (applied) {
-      state.browserUpdateTab(tab.id, { title: p.title, titleResolved: true });
-      titleSourceRef.set(tab.id, p.source);
-    }
-  }
+  applyTitleToTabs(matchingTabs, cleanUrl, p.title, p.source);
   if (
     matchingTabs.length > 0 ||
     state.browserHistory.some((h) => historyDedupKey(h.url) === historyDedupKey(cleanUrl))
@@ -123,24 +135,14 @@ export function handlePageMeta(meta: PageMeta, source: MetaSource = 'http'): voi
     (t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl),
   );
   if (exact) {
-    for (const t of state.browserTabs.filter(
-      (x) => normalizeUrlForDedup(normalizeMetaUrl(x.url)) === normalizeUrlForDedup(cleanUrl),
-    )) {
-      // 门控与 titleSourceRef 均用 effectiveSource：调用方硬编码 'http' 时，
-      // effectiveSource 取 get 返回的真实来源（如 com）——否则 titleSourceRef=http
-      // 会冻结后续合法 com 更新（R2 回归）。
-      const applied = applyBroadcastTitle(
-        t,
-        cleanUrl,
-        meta.title,
-        effectiveSource,
-        titleSourceRef.get(t.id),
-      );
-      if (applied) {
-        state.browserUpdateTab(t.id, { title: meta.title, titleResolved: true });
-        titleSourceRef.set(t.id, effectiveSource);
-      }
-    }
+    applyTitleToTabs(
+      state.browserTabs.filter(
+        (x) => normalizeUrlForDedup(normalizeMetaUrl(x.url)) === normalizeUrlForDedup(cleanUrl),
+      ),
+      cleanUrl,
+      meta.title,
+      effectiveSource,
+    );
     state.browserUpdateHistoryTitle(cleanUrl, meta.title || getCachedTitle(cleanUrl));
   } else if (activeTab) {
     const urlChanged =

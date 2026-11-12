@@ -94,7 +94,10 @@ function normalizeAbsolutePath(absPath: string): string | null {
   return `${match[1]}/${resolved.join('/')}`;
 }
 
-/** 本地绝对路径转 `file://` URL（外部打开兜底用：只传良构 URL，不传裸 Windows 路径）。 */
+/**
+ * 本地绝对路径转 `file://` URL（外部打开兜底用）。
+ * 调用方只会在已识别为本地路径时调用；极端非法输入回退正斜杠原串。
+ */
 function toFileUrl(absPath: string): string {
   return toLocalFileUrl(absPath) ?? toForwardSlashes(absPath);
 }
@@ -163,8 +166,7 @@ export function resolveOwningWorkspace(absPath: string): LinkWorkspaceTarget | n
   return candidates[0] ?? null;
 }
 
-/** 「按文件设置打开」的结果：调用方据此决定是否提示用户。 */
-export type OpenFileOutcome = 'opened' | 'external' | 'outside-workspace' | 'opening';
+/** 按「文件」设置打开一个本地绝对路径。 */
 
 /** 提示「文件不在已知工作区」——路径越界时不能静默失败。 */
 function notifyOutsideWorkspace(): void {
@@ -180,14 +182,13 @@ function notifyOutsideWorkspace(): void {
  * 不能静默落到外部打开——Tauri shell 插件的作用域只允许 http(s)/mailto/tel，
  * `file://` 会直接抛错且没有任何 UI 反馈。
  */
-function revealOutsideWorkspace(absPath: string): OpenFileOutcome {
+function revealOutsideWorkspace(absPath: string): void {
   notifyOutsideWorkspace();
   if (isTauriShell() && window.digitalLife?.workspace?.revealInFileManager) {
     void window.digitalLife.workspace.revealInFileManager(absPath).catch(() => {});
-    return 'outside-workspace';
+    return;
   }
   openExternal(toFileUrl(absPath));
-  return 'external';
 }
 
 /**
@@ -226,12 +227,12 @@ async function openFileInNewWorkspace(absPath: string): Promise<void> {
   }
 }
 
-export function openFileByMethod(absPath: string, workspaceId?: string): OpenFileOutcome {
+export function openFileByMethod(absPath: string, workspaceId?: string): void {
   const state = useAppStore.getState();
   const method = state.appInfo?.config?.fileOpenMethod ?? 'panel';
   if (method === 'external') {
     openExternal(toFileUrl(absPath));
-    return 'external';
+    return;
   }
   // Agent links often carry an absolute path without a workspace id. Prefer the
   // recent workspace that actually contains the file over the current workspace.
@@ -242,15 +243,15 @@ export function openFileByMethod(absPath: string, workspaceId?: string): OpenFil
   if (!target) {
     // 未知工作区：登记所在文件夹后异步打开（不阻塞链接点击的调用方）。
     void openFileInNewWorkspace(absPath);
-    return 'opening';
+    return;
   }
   const rel = workspaceRelative(target.root, absPath);
   if (!rel) {
+    // 类型守卫：target 的选取已保证包含关系，正常不可达。
     void openFileInNewWorkspace(absPath);
-    return 'opening';
+    return;
   }
   void state.openFileForWorkspace(target.id, target.root, rel);
-  return 'opened';
 }
 
 /**

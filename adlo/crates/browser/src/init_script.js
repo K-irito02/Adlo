@@ -71,22 +71,14 @@
         return /^[A-Za-z]:[\\/]/.test(v);
     }
 
-    // Agent-site local-file interception rules. The built-in default is intentionally
-    // broad (clickable element with a local-path attribute value) instead of relying on
-    // third-party class names such as DSH's `_fileLink_*`, which change between builds.
-    var __adlDefaultAgentRules = [{
-        id: 'builtin-file-like-attribute',
-        name: 'Built-in local-file attribute',
-        enabled: true,
-        matchSelector: 'button, a, [role="button"], [role="link"]',
-        attributes: ['title', 'aria-label', 'data-path', 'data-file-path', 'data-file', 'data-url', 'data-src'],
-        pathPreset: 'fileLike',
-        action: 'file'
-    }];
+    // Agent-site local-file interception rules are injected by the Rust shell as
+    // `window.__adlAgentRules` before this script runs (see
+    // `init_script_with_background_and_agent`). Keep no JS-side copy: the built-in
+    // defaults live in Rust/TS so there is a single source of truth.
 
     function __adlGetActiveAgentRules() {
         var configured = window.__adlAgentRules;
-        var globalRules = (configured && configured.length !== undefined) ? configured : __adlDefaultAgentRules;
+        var globalRules = Array.isArray(configured) ? configured : [];
         var overrides = Array.isArray(window.__adlAgentOverridesByOrigin) ? window.__adlAgentOverridesByOrigin : [];
         var currentOverride = null;
         for (var k = 0; k < overrides.length; k += 1) {

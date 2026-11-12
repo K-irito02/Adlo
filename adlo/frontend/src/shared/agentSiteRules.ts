@@ -123,10 +123,3 @@ export function normalizeAgentSiteOverrides(
   }
   return out;
 }
-
-export function overrideForOrigin(
-  overrides: AgentSiteOverride[] | undefined,
-  origin: string,
-): AgentSiteOverride | undefined {
-  return (overrides ?? []).find((entry) => entry.origin === origin);
-}
