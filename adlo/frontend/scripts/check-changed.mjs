@@ -179,7 +179,11 @@ const rustChanged = repoChanged.some((file) => isRustPath(file));
 
 const lintable = changed.filter((f) => /\.(ts|tsx|js|jsx)$/.test(f));
 const prettierable = changed.filter((f) => /\.(ts|tsx|js|jsx|mjs|css|json|md)$/.test(f));
-const srcChanges = changed.filter((f) => f.startsWith('src/') && /\.(ts|tsx|js|jsx)$/.test(f));
+// 可跑相关测试的变更：`src/**`（应用源码）+ `dev/**`（dev 工具链/预览服务，
+// 也有它自己的测试，如 dev/previewWorkspaceService/*.test.ts——此前只跑 src/，
+// 导致 15 个 dev 测试文件完全在门禁之外，2026-11-12 retro 修正）。
+// i18n 字典收窄仍只认已知字典路径（i18nTestScopes 对未知路径返回 null → 走 related）。
+const srcChanges = changed.filter((f) => /^(src|dev)\//.test(f) && /\.(ts|tsx|js|jsx)$/.test(f));
 
 console.log(
   `[check:changed] base=${base} changed(frontend)=${changed.length} src=${srcChanges.length}`,
@@ -253,7 +257,7 @@ if (options.skipTests) {
     );
   }
 } else {
-  console.log('[check:changed] tests skipped (no src changes)');
+  console.log('[check:changed] tests skipped (no testable src/dev changes)');
 }
 
 console.log('\n[check:changed] OK');

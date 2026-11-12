@@ -304,6 +304,59 @@ export function writeClaimAckTemplate(ackPath, rev, hints) {
   fs.writeFileSync(ackPath, body.join("\n"), "utf8");
 }
 
+/**
+ * 与上一 rev 的 claims 比对并打印：identical → 提示 ack carry-over 有效，无需重新勾选；
+ * 有新增/变更行 → 列出，提醒逐条重验（line 漂移、措辞变化都会使 carry 失配，模板会漏勾）。
+ * 这是「绑定 claims 与 ack」的可见性补充——carry 本身已由 writeClaimAckTemplate 按 file:line+文本双向匹配。
+ */
+function reportClaimsDelta(outDir, rev) {
+  let prev = 0;
+  try {
+    for (const name of fs.readdirSync(outDir)) {
+      const m = /^claims-rev(\d+)\.md$/.exec(name);
+      if (m && Number(m[1]) < rev) {
+        prev = Math.max(prev, Number(m[1]));
+      }
+    }
+  } catch {
+    return;
+  }
+  if (prev === 0) {
+    return;
+  }
+  const readBullets = (revNo) => {
+    try {
+      return new Set(
+        fs
+          .readFileSync(path.join(outDir, `claims-rev${revNo}.md`), "utf8")
+          .split(/\r?\n/)
+          .filter((line) => line.startsWith("- "))
+          .map((line) => line.trim()),
+      );
+    } catch {
+      return null;
+    }
+  };
+  const prevSet = readBullets(prev);
+  const curSet = readBullets(rev);
+  if (!prevSet || !curSet) {
+    return;
+  }
+  if (prevSet.size === curSet.size && [...curSet].every((b) => prevSet.has(b))) {
+    console.log(
+      `[review-snapshot] claims identical to rev${prev} — carried ack applies; no new [x] required`,
+    );
+    return;
+  }
+  const added = [...curSet].filter((b) => !prevSet.has(b));
+  console.warn(
+    `[review-snapshot] claims changed vs rev${prev}: ${added.length} new/changed line(s) — re-check ack:`,
+  );
+  for (const b of added) {
+    console.warn(`  + ${b}`);
+  }
+}
+
 function main() {
   let options;
   try {
@@ -399,6 +452,7 @@ function main() {
   console.log(`[review-snapshot] manifest=${path.relative(repoRoot, manifestPath)}`);
   if (claims > 0) {
     console.log(`[review-snapshot] claims=${claims} (见 claims-rev${rev}.md，派发前自读)`);
+    reportClaimsDelta(outDir, rev);
     if (!options.allowClaims) {
       const ackPath = path.join(outDir, `claims-ack-rev${rev}.md`);
       writeClaimAckTemplate(ackPath, rev, claimResult.hints);
