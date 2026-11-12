@@ -73,8 +73,8 @@ function normalizeMetaUrl(url: string): string {
 /**
  * 广播（服务端 meta 缓存更新）→ 标签/历史标题。
  *
- * 模块级而非 hook 内：App 根与右侧面板可能同时挂载本模块的使用方，单例语义
- * 避免重复订阅；函数本身只读写 store，不依赖 React 状态。
+ * 模块级函数：广播处理器与原生 meta 接线共用同一实现；订阅只在 App 根挂载
+ * 一次（`useGlobalBrowserMeta`）。函数只读写 store，不依赖 React 状态。
  */
 export function applyMetaBroadcast(p: PageMetaUpdatedPayload): void {
   applyBroadcastUpdate(p); // 镜像更新（Task 7）

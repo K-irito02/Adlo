@@ -236,4 +236,78 @@ describe('useBrowserPanelAddressSubmit', () => {
       delete (window as unknown as { digitalLife?: unknown }).digitalLife;
     }
   });
+
+  describe('local file address', () => {
+    function renderSubmit(address: string, isTauri: boolean) {
+      const showToast = vi.fn();
+      useAppStore.setState({ isTauri, showToast });
+      const setAddress = vi.fn();
+      const browserNavigatePanelTab = vi.fn();
+      const handleNavigationStart = vi.fn();
+      const { result } = renderHook(() =>
+        useBrowserPanelAddressSubmit({
+          address,
+          setAddress,
+          setSearchQueryDisplay: vi.fn(),
+          browserLookupIndex: [],
+          handleNavigationStart,
+          expectedNavigationUrlRef: { current: null },
+          navigateBrowser: vi.fn(),
+          browserNavigatePanelTab,
+          setIframeLoadError: vi.fn(),
+          setIframeBlockedDetected: vi.fn(),
+          handlePageMeta: vi.fn(),
+          addressSubmittedForTabRef: { current: '' },
+          submitVersionRef: { current: 0 },
+          validatedUrlsRef: { current: new Set<string>() },
+          t: {
+            dshPortFreed: 'FREED',
+            browserLocalFileDesktopOnly: 'LOCAL_DESKTOP_ONLY',
+            browserLocalFileUnsupported: 'LOCAL_UNSUPPORTED',
+          },
+        }),
+      );
+      return { result, setAddress, browserNavigatePanelTab, handleNavigationStart, showToast };
+    }
+
+    it('browser mode only shows a desktop-only toast', async () => {
+      const { result, browserNavigatePanelTab, showToast } = renderSubmit(
+        'file:///D:/Desktop/a.html',
+        false,
+      );
+      await act(async () => {
+        await result.current.submitAddress();
+      });
+      expect(showToast).toHaveBeenCalledWith('LOCAL_DESKTOP_ONLY', 'warning');
+      expect(browserNavigatePanelTab).not.toHaveBeenCalled();
+    });
+
+    it('desktop opens a Windows drive path as an encoded file URL', async () => {
+      const { result, setAddress, browserNavigatePanelTab, handleNavigationStart } = renderSubmit(
+        'D:\\Desktop\\a b.html',
+        true,
+      );
+      await act(async () => {
+        await result.current.submitAddress();
+      });
+      expect(setAddress).toHaveBeenCalledWith('file:///D:/Desktop/a%20b.html');
+      expect(handleNavigationStart).toHaveBeenCalledWith('file:///D:/Desktop/a%20b.html');
+      expect(browserNavigatePanelTab).toHaveBeenCalledWith(
+        'file:///D:/Desktop/a%20b.html',
+        undefined,
+      );
+    });
+
+    it('desktop rejects non-viewable extensions', async () => {
+      const { result, browserNavigatePanelTab, showToast } = renderSubmit(
+        'D:\\Desktop\\setup.exe',
+        true,
+      );
+      await act(async () => {
+        await result.current.submitAddress();
+      });
+      expect(showToast).toHaveBeenCalledWith('LOCAL_UNSUPPORTED', 'warning');
+      expect(browserNavigatePanelTab).not.toHaveBeenCalled();
+    });
+  });
 });

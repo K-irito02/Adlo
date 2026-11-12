@@ -2,6 +2,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '@shared/env';
 import { asWorkspaceID } from '@shared/branded';
 import { joinPathSegments } from '@utils/workspacePaths';
+import { toLocalFileUrl } from '@shared/localFilePath';
 import type { WorkspaceTreeNode } from '../../../kernel/types-workspace-files';
 import { resolveAppLanguage } from '../../i18n/resolveLanguage';
 import { browserZh } from '../../i18n/zh-CN/browser';
@@ -95,14 +96,7 @@ function normalizeAbsolutePath(absPath: string): string | null {
 
 /** 本地绝对路径转 `file://` URL（外部打开兜底用：只传良构 URL，不传裸 Windows 路径）。 */
 function toFileUrl(absPath: string): string {
-  const forward = toForwardSlashes(absPath);
-  // UNC `//server/share` 本身即合法 file URL 的 host 形：`file:` + 原样拼接
-  // 得 `file://server/share`（复审 N3）；盘符路径补前导 `/` 得 `file:///C:/…`。
-  if (forward.startsWith('//')) {
-    return `file:${forward}`;
-  }
-  const withSlash = /^[a-zA-Z]:\//.test(forward) ? `/${forward}` : forward;
-  return `file://${withSlash}`;
+  return toLocalFileUrl(absPath) ?? toForwardSlashes(absPath);
 }
 
 /** 取路径的父目录（去掉最后一个分隔符之后的部分）；无分隔符时返回 ''。 */
@@ -244,10 +238,7 @@ export function openFileByMethod(absPath: string, workspaceId?: string): OpenFil
   const explicit = resolveLinkWorkspace(workspaceId);
   const explicitRel = explicit ? workspaceRelative(explicit.root, absPath) : null;
   const owner = resolveOwningWorkspace(absPath);
-  const target =
-    explicit && explicitRel !== null
-      ? explicit
-      : (owner ?? (explicitRel !== null ? explicit : null));
+  const target = explicit && explicitRel !== null ? explicit : owner;
   if (!target) {
     // 未知工作区：登记所在文件夹后异步打开（不阻塞链接点击的调用方）。
     void openFileInNewWorkspace(absPath);

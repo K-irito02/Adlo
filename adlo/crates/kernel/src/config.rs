@@ -281,6 +281,17 @@ pub fn resolved_agent_site_overrides(config: &AppConfig) -> Vec<AgentSiteOverrid
         .unwrap_or_default()
 }
 
+fn is_valid_attribute_name(attr: &str) -> bool {
+    let mut chars = attr.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(first.is_ascii_alphabetic() || first == '_' || first == ':') {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | ':' | '.'))
+}
+
 fn normalize_agent_site_rules(rules: &[AgentSiteRule]) -> Vec<AgentSiteRule> {
     let mut ids = std::collections::HashSet::new();
     let mut out = Vec::new();
@@ -295,9 +306,10 @@ fn normalize_agent_site_rules(rules: &[AgentSiteRule]) -> Vec<AgentSiteRule> {
         {
             continue;
         }
-        if rule.value_regex.as_deref().is_some_and(|regex| regex::Regex::new(regex).is_err()) {
-            continue;
-        }
+        // Do not validate the pattern with the Rust `regex` crate: the matching
+        // engine is JS `RegExp`, which supports lookaround/backrefs that Rust
+        // rejects. Dropping such rules here silently erased user configuration.
+        let is_regex = matches!(rule.path_preset, AgentSiteRulePathPreset::Regex);
         let match_selector = {
             let selector = rule.match_selector.trim();
             if selector.is_empty() {
@@ -312,7 +324,10 @@ fn normalize_agent_site_rules(rules: &[AgentSiteRule]) -> Vec<AgentSiteRule> {
                 .iter()
                 .filter_map(|attr| {
                     let attr = attr.trim();
-                    if attr.is_empty() || !seen.insert(attr.to_string()) {
+                    if attr.is_empty()
+                        || !is_valid_attribute_name(attr)
+                        || !seen.insert(attr.to_string())
+                    {
                         None
                     } else {
                         Some(attr.to_string())
@@ -331,18 +346,24 @@ fn normalize_agent_site_rules(rules: &[AgentSiteRule]) -> Vec<AgentSiteRule> {
             match_selector,
             attributes,
             path_preset: rule.path_preset,
-            value_regex: rule
-                .value_regex
-                .as_deref()
-                .map(str::trim)
-                .filter(|v| !v.is_empty())
-                .map(str::to_string),
-            regex_flags: rule
-                .regex_flags
-                .as_deref()
-                .map(str::trim)
-                .filter(|v| !v.is_empty())
-                .map(str::to_string),
+            value_regex: if is_regex {
+                rule.value_regex
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|v| !v.is_empty())
+                    .map(str::to_string)
+            } else {
+                None
+            },
+            regex_flags: if is_regex {
+                rule.regex_flags
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|v| !v.is_empty())
+                    .map(str::to_string)
+            } else {
+                None
+            },
             action: rule.action,
         });
     }
@@ -594,6 +615,82 @@ mod tests {
                 origin: "http://127.0.0.1:3080".to_string(),
             }]
         );
+    }
+
+    #[test]
+    fn normalize_agent_site_rules_keeps_js_regex_and_filters_invalid_attributes() {
+        let base = AgentSiteRule {
+            id: "a".into(),
+            name: String::new(),
+            enabled: true,
+            match_selector: String::new(),
+            attributes: vec!["title".into(), "data file".into(), "title".into()],
+            path_preset: AgentSiteRulePathPreset::FileLike,
+            value_regex: Some("leftover".into()),
+            regex_flags: Some("g".into()),
+            action: AgentSiteInterceptAction::File,
+        };
+        let duplicate = base.clone();
+        let lookaround = AgentSiteRule {
+            id: "look".into(),
+            path_preset: AgentSiteRulePathPreset::Regex,
+            value_regex: Some("(?<=a)b".into()),
+            attributes: vec!["title".into()],
+            ..base.clone()
+        };
+        let empty_regex = AgentSiteRule {
+            id: "empty".into(),
+            path_preset: AgentSiteRulePathPreset::Regex,
+            value_regex: Some("   ".into()),
+            ..base.clone()
+        };
+        let out = normalize_agent_site_rules(&[base, duplicate, lookaround, empty_regex]);
+        assert_eq!(out.len(), 2, "duplicate/empty-regex rules must be dropped");
+        assert_eq!(out[0].id, "a");
+        assert_eq!(out[0].attributes, vec!["title"], "invalid XML names are dropped");
+        assert!(out[0].value_regex.is_none(), "fileLike drops leftover regex");
+        assert!(out[0].regex_flags.is_none());
+        assert_eq!(out[1].id, "look");
+        assert_eq!(
+            out[1].value_regex.as_deref(),
+            Some("(?<=a)b"),
+            "JS-only regex syntax must be preserved"
+        );
+    }
+
+    #[test]
+    fn apply_patch_resets_agent_site_rules_and_overrides() {
+        let rule = AgentSiteRule {
+            id: "custom".into(),
+            name: "custom".into(),
+            enabled: true,
+            match_selector: "a".into(),
+            attributes: vec!["title".into()],
+            path_preset: AgentSiteRulePathPreset::FileLike,
+            value_regex: None,
+            regex_flags: None,
+            action: AgentSiteInterceptAction::File,
+        };
+        let mut c = AppConfig::default();
+        c.apply_patch(&AppPreferencePatch {
+            agent_site_rules: Some(vec![rule]),
+            agent_site_overrides: Some(vec![AgentSiteOverride {
+                origin: "http://127.0.0.1:3080".into(),
+                disabled_rule_ids: vec![],
+                site_rules: vec![],
+            }]),
+            ..Default::default()
+        });
+        assert_eq!(resolved_agent_site_rules(&c).len(), 1);
+
+        c.apply_patch(&AppPreferencePatch {
+            reset_agent_site_rules: Some(true),
+            reset_agent_site_overrides: Some(true),
+            ..Default::default()
+        });
+        assert!(c.agent_site_rules.is_none());
+        assert!(c.agent_site_overrides.is_none());
+        assert_eq!(resolved_agent_site_rules(&c), default_agent_site_rules());
     }
 
     #[test]

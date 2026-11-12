@@ -351,6 +351,7 @@ export const settingsZh = {
   settingsAgentRulesSave: '保存',
   settingsAgentRulesCancel: '取消',
   settingsAgentRulesEmptyGlobal: '暂无全局规则',
+  settingsAgentRulesDisabled: '已停用',
   settingsAgentRulesOverridden: '已启用站点覆盖',
   settingsAgentRulesRuleError: '正则无法识别，请检查语法',
 } as const;

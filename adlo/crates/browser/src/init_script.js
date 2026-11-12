@@ -60,6 +60,17 @@
         return /^[A-Za-z]:[\\/]/.test(href);
     }
 
+    // Attribute values are NOT resolved by the browser (unlike anchor `href`), so a
+    // single leading `/` is a site-relative URL, not a local file. Only accept
+    // explicit file://, drive-letter and UNC forms for attribute-based matching.
+    function isAbsoluteLocalPath(value) {
+        if (!value || typeof value !== 'string') return false;
+        var v = value.trim();
+        if (v.toLowerCase().indexOf('file://') === 0) return true;
+        if (v.indexOf('\\\\') === 0) return true;
+        return /^[A-Za-z]:[\\/]/.test(v);
+    }
+
     // Agent-site local-file interception rules. The built-in default is intentionally
     // broad (clickable element with a local-path attribute value) instead of relying on
     // third-party class names such as DSH's `_fileLink_*`, which change between builds.
@@ -76,17 +87,13 @@
     function __adlGetActiveAgentRules() {
         var configured = window.__adlAgentRules;
         var globalRules = (configured && configured.length !== undefined) ? configured : __adlDefaultAgentRules;
-        var overrides = window.__adlAgentOverridesByOrigin || [];
+        var overrides = Array.isArray(window.__adlAgentOverridesByOrigin) ? window.__adlAgentOverridesByOrigin : [];
         var currentOverride = null;
-        if (Array.isArray(overrides)) {
-            for (var k = 0; k < overrides.length; k += 1) {
-                if (overrides[k] && overrides[k].origin === location.origin) {
-                    currentOverride = overrides[k];
-                    break;
-                }
+        for (var k = 0; k < overrides.length; k += 1) {
+            if (overrides[k] && overrides[k].origin === location.origin) {
+                currentOverride = overrides[k];
+                break;
             }
-        } else {
-            currentOverride = overrides[location.origin] || null;
         }
         currentOverride = currentOverride || {};
         var disabled = currentOverride.disabledRuleIds || [];
@@ -98,7 +105,7 @@
 
     function __adlRuleValueMatches(rule, value) {
         if (!value) return false;
-        if (rule.pathPreset === 'regex' || rule.valueRegex) {
+        if (rule.pathPreset === 'regex') {
             if (!rule.valueRegex) return false;
             try {
                 return new RegExp(rule.valueRegex, rule.regexFlags || '').test(value);
@@ -106,8 +113,9 @@
                 return false;
             }
         }
-        // Default and custom fileLike preset.
-        return isFileLikeHref(value);
+        // Default and custom fileLike preset: attribute values must be explicit
+        // local paths (site-relative `/assets/...` is not a local file).
+        return isAbsoluteLocalPath(value);
     }
 
     function __adlFindAgentFileLinkMatch(target) {
@@ -123,7 +131,14 @@
                 if (!matched) continue;
                 var attrs = rule.attributes && rule.attributes.length ? rule.attributes : ['title'];
                 for (var j = 0; j < attrs.length; j += 1) {
-                    var value = el.getAttribute(attrs[j]);
+                    var value = null;
+                    try {
+                        value = el.getAttribute(attrs[j]);
+                    } catch (e) {
+                        // Invalid attribute names are rejected at normalize time, but a
+                        // corrupted config must not break every click on the page.
+                        continue;
+                    }
                     if (__adlRuleValueMatches(rule, value)) {
                         return { kind: rule.action || 'file', url: value, ruleId: rule.id };
                     }

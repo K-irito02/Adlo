@@ -109,10 +109,19 @@ export function createPreviewWorkspaceBridge(
         method: 'POST',
         body: JSON.stringify({ workspacePath }),
       });
-      if (result.ok) {
-        ctx.recentWorkspaces = [...ctx.recentWorkspaces, result.data];
-        persistRecentWorkspaces(ctx.recentWorkspaces);
+      if (!result.ok) {
+        // 登记未知工作区是桌面端能力（预览 dev 服务无该路由）；明确降级而不是
+        // 让调用方误以为成功。
+        return {
+          ok: false as const,
+          error: {
+            code: IpcErrorCode.INTERNAL_ERROR,
+            message: 'workspace.addToSidebar is only available in the desktop app',
+          },
+        };
       }
+      ctx.recentWorkspaces = updateRecentWorkspaces(ctx.recentWorkspaces, result.data);
+      persistRecentWorkspaces(ctx.recentWorkspaces);
       return result;
     },
     clearCurrent: async () => {

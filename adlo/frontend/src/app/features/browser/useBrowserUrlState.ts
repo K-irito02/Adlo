@@ -38,11 +38,9 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
   const handleAddressKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === 'Enter') {
-        // 回车提交即收起地址栏并 blur（事项 8）：地址展开态属于 overlay，
-        // 中心 overlay 会让 lifecycle 同 id 重入整跳过（WebView 根本不创建）
-        // 或让揭示期的边界同步被跳过（WebView 停在屏外），直到切换/缩放才恢复。
-        // 回车后收起是标准浏览器行为（Chrome 回车即聚焦回页面），面板不受影响
-        // （面板 overlay 本就不含地址展开态）。
+        // 回车提交即收起地址栏并 blur（事项 8）：这是标准浏览器行为
+        // （Chrome 回车后聚焦回页面）。地址展开是工具栏内联展开，不再计入
+        // overlayActive，因此收起动作本身不再影响中心 WebView2 的可见性。
         // 时序说明：blur 的恢复写（旧 URL）先跑，提交写（finalUrl）后跑覆盖，
         // 最终一致；中间闪一次旧值可接受（L4）。
         setAddressExpanded(false);

@@ -117,4 +117,85 @@ describe('useCenterBrowserAddressSubmit 需认证本地端口分流（事项 2�
     expect(open).not.toHaveBeenCalled();
     expect(navigateTabInPool).toHaveBeenCalledWith('center-1', 'https://example.com');
   });
+
+  describe('local file address', () => {
+    function renderSubmit(address: string, isTauri: boolean) {
+      const showToast = vi.fn();
+      useAppStore.setState({ isTauri, showToast });
+      const setAddress = vi.fn();
+      const navigateTabInPool = vi.fn(async () => {});
+      const { result } = renderHook(() =>
+        useCenterBrowserAddressSubmit({
+          browserTabId: 'center-1',
+          address,
+          setAddress,
+          setSearchQueryDisplay: vi.fn(),
+          browserLookupIndex: [],
+          navigateBrowser: vi.fn(),
+          navigateTabInPool,
+          isTabInPool: () => true,
+          setIframeLoadError: vi.fn(),
+          setIframeBlockedDetected: vi.fn(),
+          validatedUrlsRef: { current: new Set<string>() },
+          t: {
+            dshPortFreed: 'FREED',
+            browserLocalFileDesktopOnly: 'LOCAL_DESKTOP_ONLY',
+            browserLocalFileUnsupported: 'LOCAL_UNSUPPORTED',
+          },
+        }),
+      );
+      return { result, setAddress, navigateTabInPool, showToast };
+    }
+
+    it('browser mode only shows a desktop-only toast', async () => {
+      const tab = makeCenterTab('center-1', 'about:blank');
+      useAppStore.setState({
+        browserTabs: [tab],
+        browserTabsById: { 'center-1': tab },
+        isTauri: false,
+      });
+      const { result, navigateTabInPool, showToast } = renderSubmit(
+        'file:///D:/Desktop/a.html',
+        false,
+      );
+      await act(async () => {
+        await result.current.submitAddress();
+      });
+      expect(showToast).toHaveBeenCalledWith('LOCAL_DESKTOP_ONLY', 'warning');
+      expect(navigateTabInPool).not.toHaveBeenCalled();
+    });
+
+    it('desktop opens a Windows drive path as an encoded file URL', async () => {
+      const tab = makeCenterTab('center-1', 'about:blank');
+      useAppStore.setState({
+        browserTabs: [tab],
+        browserTabsById: { 'center-1': tab },
+        isTauri: true,
+      });
+      const { result, setAddress, navigateTabInPool } = renderSubmit('D:\\Desktop\\a b.html', true);
+      await act(async () => {
+        await result.current.submitAddress();
+      });
+      expect(setAddress).toHaveBeenCalledWith('file:///D:/Desktop/a%20b.html');
+      expect(useAppStore.getState().browserTabsById['center-1'].url).toBe(
+        'file:///D:/Desktop/a%20b.html',
+      );
+      expect(navigateTabInPool).toHaveBeenCalledWith('center-1', 'file:///D:/Desktop/a%20b.html');
+    });
+
+    it('desktop rejects non-viewable extensions', async () => {
+      const tab = makeCenterTab('center-1', 'about:blank');
+      useAppStore.setState({
+        browserTabs: [tab],
+        browserTabsById: { 'center-1': tab },
+        isTauri: true,
+      });
+      const { result, navigateTabInPool, showToast } = renderSubmit('D:\\Desktop\\setup.exe', true);
+      await act(async () => {
+        await result.current.submitAddress();
+      });
+      expect(showToast).toHaveBeenCalledWith('LOCAL_UNSUPPORTED', 'warning');
+      expect(navigateTabInPool).not.toHaveBeenCalled();
+    });
+  });
 });

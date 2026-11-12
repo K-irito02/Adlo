@@ -53,6 +53,9 @@ export function useBrowserPanelAddressSubmit({
 }: UseBrowserPanelAddressSubmitParams): { submitAddress: () => Promise<void> } {
   const submitAddress = useCallback(async () => {
     const input = address.trim();
+    // 每次提交（含空回车与本地文件同步分支）都推进代际：在途的异步提交
+    // （DSH 认证 / checkEmbed）落定后不得再导航、覆盖本次结果。
+    const version = ++submitVersionRef.current;
     if (!input) {
       const state = useAppStore.getState();
       // 面板归属回填（P1）：空回车只回填面板标签 URL；全局活动指向中心时不回填，
@@ -115,8 +118,6 @@ export function useBrowserPanelAddressSubmit({
     } else {
       finalUrl = ensureProtocol(input);
     }
-
-    const version = ++submitVersionRef.current;
 
     // 需认证本地端口分流（事项 2）：裸 3080 必 401，先经后端取真实入口
     // （含 `?token=`，首次访问种 cookie）。命中则就地面板 tab 导航到真实

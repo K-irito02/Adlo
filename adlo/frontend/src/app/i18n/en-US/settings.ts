@@ -385,6 +385,7 @@ export const settingsEn = {
   settingsAgentRulesSave: 'Save',
   settingsAgentRulesCancel: 'Cancel',
   settingsAgentRulesEmptyGlobal: 'No global rules',
+  settingsAgentRulesDisabled: 'Off',
   settingsAgentRulesOverridden: 'Site override enabled',
   settingsAgentRulesRuleError: 'Invalid regular expression',
 } as const;

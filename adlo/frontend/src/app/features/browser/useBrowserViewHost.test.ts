@@ -141,6 +141,30 @@ describe('useBrowserViewHost', () => {
     });
   });
 
+  it('本地可渲染文件在非 fresh 恢复路径仍创建 WebView', async () => {
+    envState.tauri = true;
+    const browser = setMockBrowser();
+    // .pdf 命中下载扩展名；非 fresh（新 hook 实例）时旧逻辑会跳过创建。
+    const tab = makeTab('tab-pdf', 'file:///D:/Desktop/a.pdf');
+
+    const { result } = renderHook(() =>
+      useBrowserViewHost({
+        hostId: 'panel',
+        activeTab: tab,
+        isVisible: true,
+        overlayActive: false,
+      }),
+    );
+    result.current.containerRef.current = makeContainer(10, 20, 300, 200);
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(browser.createForTab).toHaveBeenCalled();
+    expect(browser.createForTab.mock.calls[0][1]).toBe('file:///D:/Desktop/a.pdf');
+  });
+
   it('page-ready 缺失时，兜底定时器仍应用边界（F1 回归）', async () => {
     vi.useFakeTimers();
     try {

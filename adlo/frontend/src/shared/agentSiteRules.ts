@@ -12,6 +12,9 @@ export const DEFAULT_AGENT_SITE_ATTRIBUTES: string[] = [
   'data-src',
 ];
 
+/** XML Name 子集：`getAttribute` 对非法名字会抛 InvalidCharacterError。 */
+const ATTRIBUTE_NAME_RE = /^[A-Za-z_:][-A-Za-z0-9_:.]*$/;
+
 export function defaultAgentSiteRules(): AgentSiteRule[] {
   return [
     {
@@ -41,8 +44,10 @@ export function normalizeAgentSiteRules(rules: AgentSiteRule[] | undefined): Age
     if (!id || seen.has(id)) {
       continue;
     }
-    const valueRegex = typeof raw.valueRegex === 'string' ? raw.valueRegex.trim() : undefined;
-    if (raw.pathPreset === 'regex' && !valueRegex) {
+    const isRegex = raw.pathPreset === 'regex';
+    const valueRegex =
+      isRegex && typeof raw.valueRegex === 'string' ? raw.valueRegex.trim() : undefined;
+    if (isRegex && !valueRegex) {
       continue;
     }
     if (valueRegex) {
@@ -58,7 +63,7 @@ export function normalizeAgentSiteRules(rules: AgentSiteRule[] | undefined): Age
     const attrSeen = new Set<string>();
     for (const attr of isStringArray(raw.attributes) ? raw.attributes : []) {
       const trimmed = attr.trim();
-      if (!trimmed || attrSeen.has(trimmed)) {
+      if (!trimmed || attrSeen.has(trimmed) || !ATTRIBUTE_NAME_RE.test(trimmed)) {
         continue;
       }
       attrSeen.add(trimmed);
@@ -73,12 +78,13 @@ export function normalizeAgentSiteRules(rules: AgentSiteRule[] | undefined): Age
           ? raw.matchSelector.trim()
           : DEFAULT_AGENT_SITE_MATCH_SELECTOR,
       attributes,
-      pathPreset: raw.pathPreset === 'regex' ? 'regex' : 'fileLike',
+      pathPreset: isRegex ? 'regex' : 'fileLike',
       valueRegex,
-      regexFlags:
-        typeof raw.regexFlags === 'string' && raw.regexFlags.trim()
+      regexFlags: isRegex
+        ? typeof raw.regexFlags === 'string' && raw.regexFlags.trim()
           ? raw.regexFlags.trim()
-          : undefined,
+          : undefined
+        : undefined,
       action: raw.action === 'url' ? 'url' : 'file',
     });
   }

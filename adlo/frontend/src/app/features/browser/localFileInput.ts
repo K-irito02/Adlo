@@ -1,8 +1,11 @@
 /**
  * Local file address handling for the built-in browser (Tauri desktop).
  * Browser mode shows a toast instead of attempting navigation.
+ *
+ * Path parsing/URL building lives in `shared/localFilePath` so the address bar,
+ * agent-link fallback and file panel all share one implementation.
  */
-const WINDOWS_DRIVE_RE = /^[a-zA-Z]:[\\/]/;
+import { isLocalFilePath, toLocalFileUrl } from '../../../shared/localFilePath';
 
 const VIEWABLE_EXTENSIONS = new Set([
   'html',
@@ -34,27 +37,9 @@ const VIEWABLE_EXTENSIONS = new Set([
   'mov',
 ]);
 
+/** 是否为本地文件输入（`file://` URL、Windows 盘符路径或 UNC 路径）。 */
 export function isLocalFileInput(input: string): boolean {
-  const raw = input.trim();
-  if (!raw) {
-    return false;
-  }
-  if (/^file:\/\//i.test(raw)) {
-    try {
-      return new URL(raw).protocol === 'file:';
-    } catch {
-      return false;
-    }
-  }
-  return WINDOWS_DRIVE_RE.test(raw);
-}
-
-function normalizeWindowsDriveInput(raw: string): string {
-  const normalized = raw.trim().replace(/\\/g, '/');
-  // Remove `.`/`..` segments before parsing; local file addresses are absolute.
-  // Keep the trailing/leading slashes as typed.
-  const url = new URL(`file:///${normalized}`);
-  return url.href;
+  return isLocalFilePath(input);
 }
 
 /**
@@ -62,22 +47,7 @@ function normalizeWindowsDriveInput(raw: string): string {
  * Returns null for non-local input.
  */
 export function buildLocalFileUrl(input: string): string | null {
-  const raw = input.trim();
-  if (!raw || !isLocalFileInput(raw)) {
-    return null;
-  }
-  if (/^file:\/\//i.test(raw)) {
-    try {
-      return new URL(raw).href;
-    } catch {
-      return null;
-    }
-  }
-  try {
-    return normalizeWindowsDriveInput(raw);
-  } catch {
-    return null;
-  }
+  return toLocalFileUrl(input);
 }
 
 export function isLocalViewableFileUrl(rawUrl: string): boolean {
@@ -86,7 +56,13 @@ export function isLocalViewableFileUrl(rawUrl: string): boolean {
     if (url.protocol !== 'file:') {
       return false;
     }
-    const pathname = decodeURIComponent(url.pathname || '');
+    // `%` in a file name is legal; a malformed escape must not hide the extension.
+    let pathname = url.pathname || '';
+    try {
+      pathname = decodeURIComponent(pathname);
+    } catch {
+      pathname = url.pathname || '';
+    }
     const match = /\.([a-z0-9]+)$/i.exec(pathname);
     if (!match) {
       return false;

@@ -21,6 +21,18 @@ type DialogState = { kind: 'global' } | { kind: 'site'; origin: string } | null;
 
 const DEFAULT_SELECTOR = 'button, a, [role="button"], [role="link"]';
 
+function cloneRules(rules: AgentSiteRule[]): AgentSiteRule[] {
+  return rules.map((rule) => ({ ...rule, attributes: [...rule.attributes] }));
+}
+
+function cloneOverrides(overrides: AgentSiteOverride[]): AgentSiteOverride[] {
+  return overrides.map((entry) => ({
+    ...entry,
+    disabledRuleIds: [...entry.disabledRuleIds],
+    siteRules: cloneRules(entry.siteRules),
+  }));
+}
+
 function createRule(t: CopyDict): AgentSiteRule {
   const id = `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   return {
@@ -50,9 +62,14 @@ function RuleListEditor({
 
   useEffect(() => {
     const selected = rules.find((rule) => rule.id === selectedId) ?? rules[0];
-    setSelectedId(selected?.id ?? '');
+    if (selected?.id !== selectedId) {
+      setSelectedId(selected?.id ?? '');
+    }
     setAttributesText(selected ? selected.attributes.join(', ') : '');
-  }, [rules, selectedId]);
+    // 只在切换/增删规则时回填文本：若依赖 rules 本身，用户每次输入都会触发
+    // 父层新数组 → 文本被 join 覆盖，导致无法输入逗号。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, rules.length]);
 
   const selected = rules.find((rule) => rule.id === selectedId);
 
@@ -109,7 +126,9 @@ function RuleListEditor({
                 : rule.name}
             </span>
             {!rule.enabled ? (
-              <span className="adl-agent-site-rules__list-disabled">off</span>
+              <span className="adl-agent-site-rules__list-disabled">
+                {t.settingsAgentRulesDisabled}
+              </span>
             ) : null}
           </button>
         ))}
@@ -196,11 +215,14 @@ function RuleListEditor({
                   id="adl-rule-preset"
                   className="adl-prompt-modal__input"
                   value={selected.pathPreset}
-                  onChange={(event) =>
-                    updateSelected({
-                      pathPreset: event.currentTarget.value as 'fileLike' | 'regex',
-                    })
-                  }
+                  onChange={(event) => {
+                    const pathPreset = event.currentTarget.value as 'fileLike' | 'regex';
+                    updateSelected(
+                      pathPreset === 'fileLike'
+                        ? { pathPreset, valueRegex: undefined, regexFlags: undefined }
+                        : { pathPreset },
+                    );
+                  }}
                   disabled={disabled}
                 >
                   <option value="fileLike">{t.settingsAgentRulesPresetFileLike}</option>
@@ -299,35 +321,35 @@ export function AgentSiteRulesControl({
   const [confirmGlobalReset, setConfirmGlobalReset] = useState(false);
   const [confirmSiteReset, setConfirmSiteReset] = useState<string | null>(null);
 
-  const closeDialog = () => setDialog(null);
+  const closeDialog = () => {
+    // 取消/关闭一律丢弃草稿：两个弹窗的草稿不得在之后保存另一个弹窗时被写回。
+    setGlobalDraft(cloneRules(value.rules));
+    setSiteDraft(cloneOverrides(value.overrides));
+    setDialog(null);
+  };
 
   const [globalDraft, setGlobalDraft] = useState<AgentSiteRule[]>(value.rules);
   const [siteDraft, setSiteDraft] = useState<AgentSiteOverride[]>(value.overrides);
 
   useEffect(() => {
     if (dialog?.kind === 'global') {
-      setGlobalDraft(value.rules.map((rule) => ({ ...rule, attributes: [...rule.attributes] })));
+      setGlobalDraft(cloneRules(value.rules));
     } else if (dialog?.kind === 'site') {
-      setSiteDraft(
-        value.overrides.map((entry) => ({
-          ...entry,
-          disabledRuleIds: [...entry.disabledRuleIds],
-          siteRules: entry.siteRules.map((rule) => ({ ...rule, attributes: [...rule.attributes] })),
-        })),
-      );
+      setSiteDraft(cloneOverrides(value.overrides));
     }
     // Reset draft only when a dialog opens, not on every backend refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialog?.kind === 'global' ? 'global' : dialog?.kind === 'site' ? dialog.origin : '']);
 
   const saveGlobal = useCallback(() => {
+    // 只提交全局规则：站点覆盖取当前值，避免用另一弹窗的陈旧草稿静默覆盖。
     onChange(item.id, {
       rules: normalizeAgentSiteRules(globalDraft),
-      overrides: normalizeAgentSiteOverrides(siteDraft),
+      overrides: normalizeAgentSiteOverrides(value.overrides),
       sites: value.sites,
     });
     setDialog(null);
-  }, [globalDraft, item.id, onChange, siteDraft, value.sites]);
+  }, [globalDraft, item.id, onChange, value.overrides, value.sites]);
 
   const currentSiteOverride = useMemo(() => {
     if (dialog?.kind !== 'site') {
@@ -386,13 +408,14 @@ export function AgentSiteRulesControl({
   );
 
   const saveSite = useCallback(() => {
+    // 只提交站点覆盖：全局规则取当前值，避免用另一弹窗的陈旧草稿静默覆盖。
     onChange(item.id, {
-      rules: normalizeAgentSiteRules(globalDraft),
+      rules: normalizeAgentSiteRules(value.rules),
       overrides: normalizeAgentSiteOverrides(siteDraft),
       sites: value.sites,
     });
     setDialog(null);
-  }, [globalDraft, item.id, onChange, siteDraft, value.sites]);
+  }, [item.id, onChange, siteDraft, value.rules, value.sites]);
 
   const siteLabel = useCallback(
     (origin: string) => {

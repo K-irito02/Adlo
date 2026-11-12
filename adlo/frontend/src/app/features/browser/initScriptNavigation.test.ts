@@ -317,12 +317,28 @@ describe('init_script.js agent-link interception', () => {
       pageHandlerCalls += 1;
       window.open(href, '_blank');
     });
+    // 后注册的 document 捕获监听器：只有 stopImmediatePropagation 能阻止它
+    // （stopPropagation 仍会执行同节点后续监听器）。
+    let documentCaptureCalls = 0;
+    const documentHandler = () => {
+      documentCaptureCalls += 1;
+    };
+    document.addEventListener('click', documentHandler, true);
     document.body.appendChild(a);
     const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
     a.dispatchEvent(event);
     a.remove();
+    document.removeEventListener('click', documentHandler, true);
     expect(pageHandlerCalls).toBe(0);
+    expect(documentCaptureCalls).toBe(0);
     expect(agentLinks()).toEqual([{ type: 'adl-agent-link', kind: 'url', url: href }]);
+  });
+
+  it('does not treat a site-relative attribute path as a local file', () => {
+    setAgent([window.location.origin], true);
+    const event = clickButtonWithAttrs({ 'data-src': '/assets/hero.png' });
+    expect(agentLinks()).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it('intercepts a file-like title on a clickable button on a whitelisted agent host', () => {

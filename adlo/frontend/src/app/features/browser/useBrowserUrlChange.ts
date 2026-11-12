@@ -223,7 +223,10 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
     }
 
     const unsubUrl = browser.onUrlChanged((tabId, url) => {
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      // `file:` 也必须进入本链路：本地页内跳转 / 前进后退需要同步 tab.url 与
+      // 地址栏，并消费地址栏提交写入的 expectedNavigationUrlRef（否则残留的
+      // file 期望会把之后一次 http 导航误判为跨域重定向）。
+      if (!/^(?:https?|file):\/\//i.test(url)) {
         return;
       }
 
@@ -324,11 +327,16 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           } else {
             s.browserAddToHistory(url, url);
           }
-        } else if (existingEntry) {
-          s.browserNavigateActiveTab(normalizedUrl);
-        } else {
-          s.browserAddToHistory(url, url);
-          s.browserNavigateActiveTab(normalizedUrl);
+        } else if (!tabId) {
+          // 无 tabId 的历史事件才回落到全局活动标签。tabId 已给出却解析不到
+          // 标签（事件到达前标签被关闭）时直接跳过：全局活动 id 可能指向中心
+          // 标签，写回会把面板 URL 灌进中心标签的状态（WebView 并未导航）。
+          if (existingEntry) {
+            s.browserNavigateActiveTab(normalizedUrl);
+          } else {
+            s.browserAddToHistory(url, url);
+            s.browserNavigateActiveTab(normalizedUrl);
+          }
         }
 
         // Cancel all pending fallback/prefetch timers for previous URLs
@@ -423,7 +431,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             } else if (!curTab.title) {
               s.browserUpdateTab(curTab.id, { title: normalizedUrl, titleResolved: true });
             }
-          } else {
+          } else if (!tabId) {
             s.browserNavigateActiveTab(normalizedUrl);
           }
           fallbackTimeoutsRef.current.delete(normalizedUrl);

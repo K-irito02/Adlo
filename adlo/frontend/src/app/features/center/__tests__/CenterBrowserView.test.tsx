@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CenterBrowserView } from '../CenterBrowserView';
+import { computeCenterOverlayActive } from '../centerOverlay';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
 import { browserPool } from '@features/browser/browserPoolSingleton';
@@ -79,6 +80,27 @@ afterEach(() => {
 });
 
 describe('CenterBrowserView', () => {
+  it('地址栏展开不计入中心 overlay（展开不得隐藏 WebView2）', () => {
+    expect(
+      computeCenterOverlayActive({
+        browserMenuOpen: false,
+        searchEnginePopoverOpen: false,
+        bookmarkDialogOpen: false,
+        createDirDialogOpen: false,
+        addressExpanded: true,
+      }),
+    ).toBe(false);
+    expect(
+      computeCenterOverlayActive({
+        browserMenuOpen: true,
+        searchEnginePopoverOpen: false,
+        bookmarkDialogOpen: false,
+        createDirDialogOpen: false,
+        addressExpanded: true,
+      }),
+    ).toBe(true);
+  });
+
   it('渲染地址栏', () => {
     renderView('');
     expect(screen.getByRole('textbox')).toBeTruthy();
