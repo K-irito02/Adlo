@@ -372,6 +372,22 @@ _Avoid_: 浏览器 UA, 机器人 UA, 机器人标识, User-Agent（泛称）
 爬虫 UA 中供 robots.txt 的 `User-agent` 规则匹配的名称部分（当前为 `Adlo`）；UA 与匹配口径必须同步变更，否则 robots 门控会失效。
 _Avoid_: UA 名, bot 名, 产品名（那是 Adlo 本身）
 
+**启动预热 (Startup Warm-up)**:
+应用启动时为被动条目批量补齐站点元数据的后台预取动作；失败条目按失败墓碑的退避规则重试，不因展开或展示等交互触发。
+_Avoid_: 启动抓取, 冷启动同步, 预取（笼统）
+
+**失败墓碑 (Failure Tombstone)**:
+抓取失败（无标题且无图标）的站点写入缓存的一条记录：只携带失败计数与下次可重试时间（指数退避），不携带标题与图标；跨重启生效，避免永久失败站点每次启动都重抓。
+_Avoid_: 失败缓存, 负缓存, 错误墓碑
+
+**重定向分叉 (Redirect Fork)**:
+书签 URL 跳转后：WebView2 上报的是跳转后 URL，元数据会键写在上报 URL 下，而启动预热按请求 URL 键查询；两键分叉导致该书签永远无法命中缓存。
+_Avoid_: 别名回写（那是修复手段，不是概念）, redirect fork
+
+**静默抓取 (Silent Fetch)**:
+不创建可见 UI、后台建一个隐藏 WebView2 渲染页面以提取站点元数据的抓取方式；区别于用户可见的刷新与打开标签。
+_Avoid_: 后台抓取（笼统）, silent fetch
+
 ### 书签导入与导出
 
 **原目录结构导入 (Import with Original Structure)**:

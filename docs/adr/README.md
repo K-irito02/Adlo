@@ -34,6 +34,7 @@
 - [0002 文件预览用无文字扫光占位并按文件身份缓存](./0002-preview-loading-and-cache.md)
 - [0017 书签为独立实体，导入导出保留来源标签弱引用](./0017-bookmark-transfer-and-identity.md) — 书签条目与活标签页解耦
 - [0020 网站图标以共享镜像为真源，书签图标快照只播种不落持久层](./0020-site-icon-mirror-and-bookmark-snapshot.md) — 快照不写持久层，真实图标可覆盖；被动行首字母占位
+- [0021 站点元数据失败墓碑持久化 + 请求键别名回写](./0021-site-meta-failure-tombstone-and-alias-backfill.md) — 失败不再零缓存；重定向站点请求键别名回写
 
 ## 品牌、工具链与 Git 可视化
 
