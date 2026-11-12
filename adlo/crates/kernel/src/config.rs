@@ -243,7 +243,7 @@ pub fn resolve_persisted_config(
     out
 }
 
-pub fn default_agent_site_rules() -> Vec<AgentSiteRule> {
+pub(crate) fn default_agent_site_rules() -> Vec<AgentSiteRule> {
     vec![AgentSiteRule {
         id: "builtin-file-like-attribute".into(),
         name: "builtin-file-like-attribute".into(),
@@ -265,7 +265,7 @@ pub fn default_agent_site_rules() -> Vec<AgentSiteRule> {
     }]
 }
 
-pub fn resolved_agent_site_rules(config: &AppConfig) -> Vec<AgentSiteRule> {
+pub(crate) fn resolved_agent_site_rules(config: &AppConfig) -> Vec<AgentSiteRule> {
     config
         .agent_site_rules
         .as_ref()
@@ -273,7 +273,7 @@ pub fn resolved_agent_site_rules(config: &AppConfig) -> Vec<AgentSiteRule> {
         .unwrap_or_else(default_agent_site_rules)
 }
 
-pub fn resolved_agent_site_overrides(config: &AppConfig) -> Vec<AgentSiteOverride> {
+pub(crate) fn resolved_agent_site_overrides(config: &AppConfig) -> Vec<AgentSiteOverride> {
     config
         .agent_site_overrides
         .as_ref()
@@ -691,6 +691,55 @@ mod tests {
         assert!(c.agent_site_rules.is_none());
         assert!(c.agent_site_overrides.is_none());
         assert_eq!(resolved_agent_site_rules(&c), default_agent_site_rules());
+    }
+
+    #[test]
+    fn apply_patch_reset_single_override_and_empty_list_semantics() {
+        let rule = AgentSiteRule {
+            id: "custom".into(),
+            name: "custom".into(),
+            enabled: true,
+            match_selector: "a".into(),
+            attributes: vec!["title".into()],
+            path_preset: AgentSiteRulePathPreset::FileLike,
+            value_regex: None,
+            regex_flags: None,
+            action: AgentSiteInterceptAction::File,
+        };
+        let override_for = |origin: &str| AgentSiteOverride {
+            origin: origin.into(),
+            disabled_rule_ids: vec![],
+            site_rules: vec![],
+        };
+        let mut c = AppConfig::default();
+        c.apply_patch(&AppPreferencePatch {
+            agent_site_overrides: Some(vec![override_for("a"), override_for("b")]),
+            ..Default::default()
+        });
+        c.apply_patch(&AppPreferencePatch {
+            reset_agent_site_override: Some("a".into()),
+            ..Default::default()
+        });
+        let remaining = c.agent_site_overrides.as_ref().expect("b remains");
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].origin, "b");
+        c.apply_patch(&AppPreferencePatch {
+            reset_agent_site_override: Some("b".into()),
+            ..Default::default()
+        });
+        assert!(c.agent_site_overrides.is_none());
+
+        // Some([]) means "no rules", not "fall back to built-ins".
+        c.apply_patch(&AppPreferencePatch { agent_site_rules: Some(vec![]), ..Default::default() });
+        assert!(resolved_agent_site_rules(&c).is_empty());
+
+        // reset wins over set in the same patch.
+        c.apply_patch(&AppPreferencePatch {
+            agent_site_rules: Some(vec![rule]),
+            reset_agent_site_rules: Some(true),
+            ..Default::default()
+        });
+        assert!(c.agent_site_rules.is_none());
     }
 
     #[test]

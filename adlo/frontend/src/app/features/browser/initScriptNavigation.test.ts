@@ -264,12 +264,24 @@ describe('init_script.js agent-link interception', () => {
 
   beforeEach(() => {
     posted.length = 0;
+    const w = window as unknown as Record<string, unknown>;
+    delete w.__adlAgentRules;
+    delete w.__adlAgentOverridesByOrigin;
   });
 
   function setAgent(origins: string[], enabled: boolean) {
     const w = window as unknown as Record<string, unknown>;
     w.__adlAgentOrigins = origins;
     w.__adlAgentInterceptEnabled = enabled;
+  }
+
+  function setAgentRules(
+    rules: Record<string, unknown>[],
+    overrides: Record<string, unknown>[] = [],
+  ) {
+    const w = window as unknown as Record<string, unknown>;
+    w.__adlAgentRules = rules;
+    w.__adlAgentOverridesByOrigin = overrides;
   }
 
   function clickAnchor(href: string): MouseEvent {
@@ -394,6 +406,101 @@ describe('init_script.js agent-link interception', () => {
   it('does not intercept when the site origin is not whitelisted', () => {
     setAgent(['https://other.example'], true);
     clickAnchor('file:///C:/ws/a.md');
+    expect(agentLinks()).toHaveLength(0);
+  });
+
+  it('applies a configured regex rule', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules([
+      {
+        id: 'custom-regex',
+        enabled: true,
+        matchSelector: 'button',
+        attributes: ['data-path'],
+        pathPreset: 'regex',
+        valueRegex: '^E:\\\\',
+        action: 'file',
+      },
+    ]);
+    clickButtonWithAttrs({ 'data-path': 'E:\\ws\\a.md' });
+    expect(agentLinks()).toEqual([{ type: 'adl-agent-link', kind: 'file', url: 'E:\\ws\\a.md' }]);
+  });
+
+  it('honors disabledRuleIds from a site override', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules(
+      [
+        {
+          id: 'custom-regex',
+          enabled: true,
+          matchSelector: 'button',
+          attributes: ['data-path'],
+          pathPreset: 'regex',
+          valueRegex: '^E:\\\\',
+          action: 'file',
+        },
+      ],
+      [{ origin: window.location.origin, disabledRuleIds: ['custom-regex'], siteRules: [] }],
+    );
+    const event = clickButtonWithAttrs({ 'data-path': 'E:\\ws\\a.md' });
+    expect(agentLinks()).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('appends site-specific rules from an override', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules(
+      [],
+      [
+        {
+          origin: window.location.origin,
+          disabledRuleIds: [],
+          siteRules: [
+            {
+              id: 'site-rule',
+              enabled: true,
+              matchSelector: 'button',
+              attributes: ['data-file'],
+              pathPreset: 'fileLike',
+              action: 'file',
+            },
+          ],
+        },
+      ],
+    );
+    clickButtonWithAttrs({ 'data-file': 'D:\\ws\\b.md' });
+    expect(agentLinks()).toEqual([{ type: 'adl-agent-link', kind: 'file', url: 'D:\\ws\\b.md' }]);
+  });
+
+  it('ignores invalid attribute names without breaking the click chain', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules([
+      {
+        id: 'bad-attr',
+        enabled: true,
+        matchSelector: 'button',
+        attributes: ['data file'],
+        pathPreset: 'fileLike',
+        action: 'file',
+      },
+    ]);
+    expect(() => clickButtonWithAttrs({ title: 'E:\\ws\\a.md' })).not.toThrow();
+    expect(agentLinks()).toHaveLength(0);
+  });
+
+  it('treats an empty attribute list as matching nothing', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules([
+      {
+        id: 'empty-attrs',
+        enabled: true,
+        matchSelector: 'button',
+        attributes: [],
+        pathPreset: 'fileLike',
+        action: 'file',
+      },
+    ]);
+    clickButtonWithAttrs({ title: 'E:\\ws\\a.md' });
     expect(agentLinks()).toHaveLength(0);
   });
 

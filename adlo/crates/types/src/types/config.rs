@@ -257,7 +257,8 @@ pub struct AppPreferencePatch {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum AgentSiteRulePathPreset {
-    /// Built-in local path forms (file://, drive letters, UNC, absolute POSIX paths).
+    /// Built-in local path forms (file://, drive letters, UNC). Attribute values
+    /// are not URL-resolved, so a single leading `/` is site-relative and does not match.
     #[default]
     FileLike,
     /// User-supplied regular expression matched against the attribute value.

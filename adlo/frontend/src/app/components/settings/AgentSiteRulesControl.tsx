@@ -51,11 +51,13 @@ function RuleListEditor({
   setRules,
   t,
   disabled,
+  emptyHint,
 }: {
   rules: AgentSiteRule[];
   setRules: (next: AgentSiteRule[]) => void;
   t: CopyDict;
   disabled: boolean;
+  emptyHint: string;
 }) {
   const [selectedId, setSelectedId] = useState(rules[0]?.id ?? '');
   const [attributesText, setAttributesText] = useState('');
@@ -292,7 +294,7 @@ function RuleListEditor({
             </label>
           </>
         ) : (
-          <div className="adl-empty-hint">{t.settingsAgentRulesEmptyGlobal}</div>
+          <div className="adl-empty-hint">{emptyHint}</div>
         )}
       </div>
     </div>
@@ -513,6 +515,7 @@ export function AgentSiteRulesControl({
                 setRules={setGlobalDraft}
                 t={t}
                 disabled={!!item.disabled}
+                emptyHint={t.settingsAgentRulesEmptyGlobal}
               />
               <div className="adl-prompt-modal__actions">
                 <button type="button" className="adl-btn adl-btn--secondary" onClick={closeDialog}>
@@ -582,6 +585,7 @@ export function AgentSiteRulesControl({
                   setRules={setSiteSpecificRules}
                   t={t}
                   disabled={!!item.disabled}
+                  emptyHint={t.settingsAgentRulesEmptySite}
                 />
               </section>
               <div className="adl-prompt-modal__actions">

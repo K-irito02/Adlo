@@ -57,24 +57,22 @@ describe('CopyButton', () => {
     await waitFor(() => expect(btn.getAttribute('aria-label')).toBe('已复制到剪贴板'));
   });
 
-  it('prevents label activation when nested inside a label', () => {
+  it('prevents default for copies nested inside a label', () => {
     const onLabelClick = vi.fn();
-    const onInputClick = vi.fn();
     render(
       <TCopyProvider t={mockT} locale="zh-CN">
         <label onClick={onLabelClick}>
-          <input onClick={onInputClick} readOnly />
           <CopyButton text="hello" />
         </label>
       </TCopyProvider>,
     );
     const btn = screen.getByRole('button');
-    fireEvent.click(btn);
-    // 复制语义保持
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('hello');
-    // 没有 preventDefault 时，label 的原生激活会向 input 转发 click
-    expect(onInputClick).not.toHaveBeenCalled();
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    btn.dispatchEvent(event);
+    // 没有 preventDefault 时 label 的原生激活会执行（defaultPrevented=false）。
+    expect(event.defaultPrevented).toBe(true);
     expect(onLabelClick).not.toHaveBeenCalled();
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('hello');
   });
 
   it('does not mark copied when a custom onCopy resolves false', async () => {

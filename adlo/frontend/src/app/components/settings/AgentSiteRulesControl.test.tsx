@@ -54,6 +54,9 @@ describe('AgentSiteRulesControl drafts', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /settingsAgentRulesGlobalManage/ }));
     const attributes = screen.getAllByRole('textbox')[2];
+    // 逐次输入：旧实现会把 'title,' 回写成 'title'，导致无法继续输入逗号。
+    fireEvent.change(attributes, { target: { value: 'title,' } });
+    expect((attributes as HTMLInputElement).value).toBe('title,');
     fireEvent.change(attributes, { target: { value: 'title, aria-label' } });
     fireEvent.click(screen.getByText('settingsAgentRulesSave'));
 

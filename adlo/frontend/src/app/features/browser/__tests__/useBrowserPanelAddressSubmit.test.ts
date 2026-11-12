@@ -244,6 +244,7 @@ describe('useBrowserPanelAddressSubmit', () => {
       const setAddress = vi.fn();
       const browserNavigatePanelTab = vi.fn();
       const handleNavigationStart = vi.fn();
+      const submitVersionRef = { current: 0 };
       const { result } = renderHook(() =>
         useBrowserPanelAddressSubmit({
           address,
@@ -258,7 +259,7 @@ describe('useBrowserPanelAddressSubmit', () => {
           setIframeBlockedDetected: vi.fn(),
           handlePageMeta: vi.fn(),
           addressSubmittedForTabRef: { current: '' },
-          submitVersionRef: { current: 0 },
+          submitVersionRef,
           validatedUrlsRef: { current: new Set<string>() },
           t: {
             dshPortFreed: 'FREED',
@@ -267,7 +268,14 @@ describe('useBrowserPanelAddressSubmit', () => {
           },
         }),
       );
-      return { result, setAddress, browserNavigatePanelTab, handleNavigationStart, showToast };
+      return {
+        result,
+        setAddress,
+        browserNavigatePanelTab,
+        handleNavigationStart,
+        showToast,
+        submitVersionRef,
+      };
     }
 
     it('browser mode only shows a desktop-only toast', async () => {
@@ -308,6 +316,14 @@ describe('useBrowserPanelAddressSubmit', () => {
       });
       expect(showToast).toHaveBeenCalledWith('LOCAL_UNSUPPORTED', 'warning');
       expect(browserNavigatePanelTab).not.toHaveBeenCalled();
+    });
+
+    it('advances the submit generation so in-flight submissions are invalidated', async () => {
+      const { result, submitVersionRef } = renderSubmit('D:\\Desktop\\a.html', true);
+      await act(async () => {
+        await result.current.submitAddress();
+      });
+      expect(submitVersionRef.current).toBe(1);
     });
   });
 });

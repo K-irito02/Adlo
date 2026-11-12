@@ -97,8 +97,8 @@ export interface WorkspaceBridge {
    * 文件面板按工作区隔离，需先登记所在文件夹才能在面板中打开该文件。
    * @param workspacePath 文件所在文件夹的绝对路径
    * @returns 登记后的侧栏条目（含稳定工作区 id 与根路径）
-   * @command workspace_add_to_sidebar
-   * @see tauri-bridge.ts → workspace.addToSidebar
+   * @command POST /workspace/add (adl-server HTTP; no Tauri invoke)
+   * @see httpBridge.ts → workspace.addToSidebar
    * @see mock-bridge.ts → workspace.addToSidebar
    * @see preview-bridge/index.ts → workspace.addToSidebar
    */

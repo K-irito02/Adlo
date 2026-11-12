@@ -95,6 +95,12 @@ export function useBrowserPanelAddressSubmit({
         tabId: panelBindTab?.id ?? null,
       };
       browserNavigatePanelTab(fileUrl, undefined);
+      // 与主路径同款回绑：无面板标签时上面会新建标签，若不回读 id，期望仍是
+      // null（任意池事件可消费），可能把本地文件历史误改成并发导航的 URL。
+      const createdTabId = useAppStore.getState().browserActiveTabId;
+      if (createdTabId) {
+        expectedNavigationUrlRef.current = { url: fileUrl, at: Date.now(), tabId: createdTabId };
+      }
       return;
     }
 

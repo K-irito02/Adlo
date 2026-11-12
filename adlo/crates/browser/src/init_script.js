@@ -129,7 +129,8 @@
                 var matched = false;
                 try { matched = el.matches && el.matches(selector); } catch (e) { matched = false; }
                 if (!matched) continue;
-                var attrs = rule.attributes && rule.attributes.length ? rule.attributes : ['title'];
+                var attrs = Array.isArray(rule.attributes) ? rule.attributes : ['title'];
+                if (!attrs.length) continue;
                 for (var j = 0; j < attrs.length; j += 1) {
                     var value = null;
                     try {
@@ -140,7 +141,7 @@
                         continue;
                     }
                     if (__adlRuleValueMatches(rule, value)) {
-                        return { kind: rule.action || 'file', url: value, ruleId: rule.id };
+                        return { kind: rule.action || 'file', url: value.trim(), ruleId: rule.id };
                     }
                 }
             }

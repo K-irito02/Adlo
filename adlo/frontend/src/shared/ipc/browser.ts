@@ -42,7 +42,7 @@ export interface BrowserBridge {
     agentOrigins?: string[],
     /** 是否启用智能体站点链接拦截。 */
     agentInterceptEnabled?: boolean,
-    /** 全局 agent-site 拦截规则（未传则使用内置默认）。 */
+    /** 全局 agent-site 拦截规则（调用方必须传已解析规则；缺省不注入规则 → 不拦截）。 */
     agentSiteRules?: AgentSiteRule[],
     /** 按 origin 的 agent-site 规则覆盖。 */
     agentSiteOverrides?: AgentSiteOverride[],

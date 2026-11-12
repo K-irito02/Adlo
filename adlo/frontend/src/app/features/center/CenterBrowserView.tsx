@@ -432,9 +432,6 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
                 className="adl-copy-btn"
                 aria-label={isBookmarked ? t.unbookmark : t.bookmark}
                 onClick={(e) => {
-                  // 与 CopyButton 同理：label 的原生激活会在派发后向被标注的
-                  // input 转发 click，再冒泡回 label 触发地址栏展开/抢占焦点。
-                  e.preventDefault();
                   e.stopPropagation();
                   handleBookmarkClick();
                 }}

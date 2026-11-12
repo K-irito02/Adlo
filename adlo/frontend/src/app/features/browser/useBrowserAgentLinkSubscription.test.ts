@@ -34,6 +34,10 @@ describe('fileUrlToLocalPath', () => {
     expect(fileUrlToLocalPath('file:///C:/ws/my%20doc.md')).toBe('C:/ws/my doc.md');
   });
 
+  it('restores the UNC host instead of dropping it', () => {
+    expect(fileUrlToLocalPath('file://server/share/a.md')).toBe('\\\\server\\share\\a.md');
+  });
+
   it('returns non-file inputs unchanged', () => {
     expect(fileUrlToLocalPath('https://example.com/x')).toBe('https://example.com/x');
   });
