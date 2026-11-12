@@ -73,8 +73,8 @@
 
     // Agent-site local-file interception rules are injected by the Rust shell as
     // `window.__adlAgentRules` before this script runs (see
-    // `init_script_with_background_and_agent`). Keep no JS-side copy: the built-in
-    // defaults live in Rust/TS so there is a single source of truth.
+    // `init_script_with_background_and_agent`). This script keeps no JS-side copy;
+    // the built-in defaults are owned by the Rust/TS configuration layer.
 
     function __adlGetActiveAgentRules() {
         var configured = window.__adlAgentRules;

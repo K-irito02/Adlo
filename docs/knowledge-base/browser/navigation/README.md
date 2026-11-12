@@ -17,3 +17,4 @@
 | [browser-navigate-tab-explicit-2026-06-29.md](./browser-navigate-tab-explicit-2026-06-29.md) | navigateTab 反馈循环修复：被动触发→前端显式调用，来源分离原则 |
 | [spa-history-back-double-click-2026-06-30.md](./spa-history-back-double-click-2026-06-30.md) | SPA 后退需双击问题：eval("history.back()") 与多层 pushState 历史栈，非应用 bug |
 | [browser-bilibili-double-reload-fix-2026-07-15.md](./browser-bilibili-double-reload-fix-2026-07-15.md) | Bilibili 页面双重重载问题修复 |
+| [webview2-udf-environment-conflict-2026-11-12.md](./webview2-udf-environment-conflict-2026-11-12.md) | WebView2 同一 UDF 环境参数必须逐字一致（0x8007139F） |
