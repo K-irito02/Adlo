@@ -49,7 +49,13 @@ test("check:all and pre-push share the repo-level gate (check:repo)", () => {
   // 仍会在 pre-push 被拦下。两处必须引用同一个聚合脚本，否则组合会再次漂移。
   const repo = pkg.scripts["check:repo"];
   assert.equal(typeof repo, "string", "package.json 缺少 check:repo");
-  for (const gate of ["test:scripts", "scripts:format:check", "e2e:typecheck"]) {
+  for (const gate of [
+    "check:css-globals",
+    "check:css-vars",
+    "test:scripts",
+    "scripts:format:check",
+    "e2e:typecheck",
+  ]) {
     assert.match(repo, new RegExp(gate));
   }
   assert.match(pkg.scripts["check:all"], /check:repo/);

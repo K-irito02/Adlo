@@ -13,7 +13,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const SOURCE_EXTENSIONS = new Set([".rs", ".ts", ".tsx", ".mjs", ".css"]);
-const CHECK_EXTENSIONS = new Set([...SOURCE_EXTENSIONS, ".md"]);
+const CHECK_EXTENSIONS = new Set([...SOURCE_EXTENSIONS, ".json", ".md"]);
 const COMMENT_PREFIX = /^\s*(\/\/|\/\*|\*)/;
 const ALLOW_MARKER = "hygiene-allow";
 const COMPAT_ALLOW_MARKER = "compat-allow";
@@ -104,6 +104,30 @@ export function findDebugTags(text) {
       return;
     }
     hits.push({ line: index + 1, text: line.trim() });
+  });
+  return hits;
+}
+
+/**
+ * 调试用 CDP 端口不得写进 Tauri 源码/配置：它会把 WebView 页面暴露给本机其它
+ * 进程。桌面验证请用一次性环境变量 `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`
+ * （见 `.agents/rules/desktop-ui-verification.md`），不要提交到仓库。
+ */
+export function findDebugPortLeaks(relative, text) {
+  if (
+    !relative.startsWith("adlo/src-tauri/src/") &&
+    relative !== "adlo/src-tauri/tauri.conf.json"
+  ) {
+    return [];
+  }
+  const hits = [];
+  text.split(/\r?\n/).forEach((line, index) => {
+    if (line.includes(ALLOW_MARKER)) {
+      return;
+    }
+    if (line.includes("--remote-debugging-port")) {
+      hits.push({ line: index + 1, text: line.trim() });
+    }
   });
   return hits;
 }
@@ -264,6 +288,9 @@ function main() {
     }
     if (hasBom(text)) {
       offenders.push(`[BOM] ${relative}:1  UTF-8 BOM (write UTF-8 without BOM)`);
+    }
+    for (const hit of findDebugPortLeaks(relative, text)) {
+      offenders.push(`[debug-port] ${relative}:${hit.line}  ${hit.text.slice(0, 160)}`);
     }
     if (isCompatibilityScope(relative)) {
       const hits = findLegacyCompatibility(

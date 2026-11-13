@@ -26,13 +26,13 @@
   font-size: 13px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: var(--bg-primary);
+  background: var(--bg-input);
   color: var(--text-primary);
   outline: none;
 }
 
 .adl-port-config__input:focus {
-  border-color: var(--color-accent);
+  border-color: var(--accent);
 }
 
 .adl-port-config__input::placeholder {
@@ -41,7 +41,7 @@
 
 .adl-port-config__error {
   font-size: 12px;
-  color: var(--color-error);
+  color: var(--color-danger);
   margin-bottom: 8px;
 }
 
@@ -85,7 +85,7 @@
 }
 
 .adl-port-config__item-remove:hover {
-  color: var(--color-error);
+  color: var(--color-danger);
   background: var(--bg-hover);
 }
 

@@ -82,7 +82,7 @@
 .adl-sticky-context__arrow {
   display: inline-flex;
   align-items: center;
-  color: var(--accent-primary);
+  color: var(--accent);
 }
 
 .adl-sticky-context__label {

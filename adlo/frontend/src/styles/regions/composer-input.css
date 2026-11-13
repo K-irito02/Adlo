@@ -30,7 +30,7 @@
   height: 28px;
   background: transparent;
   border: none;
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 13px;
   cursor: pointer;
   font-family: inherit;
@@ -57,7 +57,7 @@
   background: transparent;
   border: none;
   border-left: 1px solid var(--border);
-  color: var(--text-dim);
+  color: var(--text-secondary);
   cursor: pointer;
   font-size: 10px;
   font-family: inherit;
@@ -101,7 +101,7 @@
   padding: 7px 10px;
   font-size: 13px;
   line-height: 1.4;
-  color: var(--text);
+  color: var(--text-primary);
   cursor: pointer;
   background: none;
   border: none;
@@ -133,7 +133,7 @@
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 13px;
   font-family: inherit;
   outline: none;
@@ -165,7 +165,7 @@
   background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  color: var(--text-dim);
+  color: var(--text-secondary);
   cursor: pointer;
   font-size: 13px;
   line-height: 1;
@@ -182,7 +182,7 @@
 .adl-split-btn__settings-title {
   display: block;
   font-size: 12px;
-  color: var(--text-bright);
+  color: var(--text-primary);
   margin-bottom: 6px;
 }
 
@@ -192,12 +192,12 @@
   border-top: 1px solid var(--border);
   font-size: 11px;
   line-height: 1.7;
-  color: var(--text-dim);
+  color: var(--text-secondary);
   text-align: left;
 }
 
 .adl-split-btn__settings-desc strong {
-  color: var(--text);
+  color: var(--text-primary);
   display: block;
   margin-top: 4px;
 }

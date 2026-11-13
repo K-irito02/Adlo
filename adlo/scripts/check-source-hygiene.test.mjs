@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  findDebugPortLeaks,
   findDebugTags,
   findFixedTempDirLines,
   findLegacyCompatibility,
@@ -125,4 +126,18 @@ test("flags fixed-name test temp dirs on added lines only", () => {
     findFixedTempDirLines(lines).map((hit) => hit.line),
     [3],
   );
+});
+
+test("flags committed CDP debug ports in Tauri sources/config but not docs or scripts", () => {
+  const leak = 'let args = "--remote-debugging-port=9222";';
+  assert.deepEqual(
+    findDebugPortLeaks("adlo/src-tauri/src/commands/browser_webview_setup.rs", leak).map(
+      (hit) => hit.line,
+    ),
+    [1],
+  );
+  assert.equal(findDebugPortLeaks("adlo/src-tauri/tauri.conf.json", leak).length, 1);
+  assert.deepEqual(findDebugPortLeaks("adlo/scripts/ui-probe.mjs", leak), []);
+  assert.deepEqual(findDebugPortLeaks(".agents/rules/desktop-ui-verification.md", leak), []);
+  assert.deepEqual(findDebugPortLeaks("adlo/src-tauri/src/x.rs", `// hygiene-allow: ${leak}`), []);
 });

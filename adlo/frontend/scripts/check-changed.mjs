@@ -209,6 +209,7 @@ run('vite config load', 'node scripts/check-vite-config.mjs');
 
 // 源码卫生：注释里出现字面反斜杠加 n 通常意味着一次失败的批量替换（静默失效，无其它门禁可查）。
 run('source hygiene', 'node ../scripts/check-source-hygiene.mjs');
+run('css variables', 'node ../scripts/check-css-vars.mjs');
 run('dead code (changed files only)', 'node scripts/check-dead-code.mjs');
 
 run('typecheck', 'npx tsc --noEmit');

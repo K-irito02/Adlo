@@ -485,6 +485,21 @@ function lastPathSegment(relativePath: string): string {
   return relativePath.split('/').filter(Boolean).pop() ?? relativePath;
 }
 
+/**
+ * 编辑器动作集合（导航索引，按 action 名定位；文件较大，优先用 grep/索引）：
+ *
+ * - 打开与恢复：openFile / openFileForWorkspace / openFileOutsideWorkspaces /
+ *   rememberLastOpenedFile / restoreLastOpenedFile
+ * - 变更预览：openChangePreview / openChangePreviewForWorkspace /
+ *   prefetchChangePreviewForWorkspace
+ * - 新建：createWorkspaceFile / createWorkspaceFolder
+ * - 草稿与保存：markExternalFileChange / notifyEditorBufferDirty / noteEditorText /
+ *   saveFile / resolveFileConflict / saveDirtyEditors
+ * - 对账：reconcileSelectedFile / reconcileSelectedFileAfterWorkspaceSwitch
+ *
+ * 外部文件的根解析与隐藏工作区身份在 ./externalWorkspace.ts；保存目标按
+ * `saveFile(rel, path, { workspaceId })` 显式定向，不要按“当前选中文件”反推。
+ */
 export function createEditorActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     /**

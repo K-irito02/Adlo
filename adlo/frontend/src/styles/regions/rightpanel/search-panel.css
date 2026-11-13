@@ -428,7 +428,7 @@
 }
 
 .adl-search-limit__action:focus-visible {
-  outline: 1px solid var(--accent, var(--primary));
+  outline: 1px solid var(--accent);
   outline-offset: 1px;
 }
 
