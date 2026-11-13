@@ -654,6 +654,72 @@ describe('init_script.js agent-link interception', () => {
     ]);
   });
 
+  it('does not fall back to a global rule when the same-id site rule is disabled', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules(
+      [
+        {
+          id: 'dup-disabled',
+          enabled: true,
+          matchSelector: 'button',
+          attributes: ['title'],
+          pathPreset: 'fileLike',
+          action: 'file',
+        },
+      ],
+      [
+        {
+          origin: window.location.origin,
+          disabledRuleIds: [],
+          siteRules: [
+            {
+              id: 'dup-disabled',
+              enabled: false,
+              matchSelector: 'button',
+              attributes: ['title'],
+              pathPreset: 'fileLike',
+              action: 'file',
+            },
+          ],
+        },
+      ],
+    );
+    clickButtonWithAttrs({ title: 'E:\\ws\\a.md' });
+    // 站点规则替换全局同 id；自身停用后该 id 在该站点不再生效，不回退到全局。
+    expect(agentLinks()).toHaveLength(0);
+  });
+
+  it('skips a matched rule whose target cannot be opened and tries the next rule', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules([
+      {
+        id: 'unopenable-url',
+        enabled: true,
+        matchSelector: 'button',
+        attributes: ['data-bad'],
+        pathPreset: 'regex',
+        valueRegex: '^ftp://',
+        action: 'url',
+      },
+      {
+        id: 'openable-url',
+        enabled: true,
+        matchSelector: 'button',
+        attributes: ['data-good'],
+        pathPreset: 'regex',
+        valueRegex: '^https://cdn\\.example/',
+        action: 'url',
+      },
+    ]);
+    clickButtonWithAttrs({
+      'data-bad': 'ftp://example.com/x.md',
+      'data-good': 'https://cdn.example/x.md',
+    });
+    expect(agentLinks()).toEqual([
+      { type: 'adl-agent-link', kind: 'url', url: 'https://cdn.example/x.md' },
+    ]);
+  });
+
   it('resolves a relative url-action match against the page URL', () => {
     setAgent([window.location.origin], true);
     setAgentRules([
