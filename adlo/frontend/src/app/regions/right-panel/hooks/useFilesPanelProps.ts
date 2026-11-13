@@ -7,6 +7,7 @@ import { useAppActions } from '@hooks/useAppActions';
 import { findPatchFileByPath } from '@features/patch-review';
 import { filterDiagnosticsForPath, detectEditorLanguage } from '@utils/workspacePaths';
 import { asWorkspaceID } from '@shared/branded';
+import { isExternalWorkspaceId } from '@stores/actions/externalWorkspace';
 import { buildOutlineFromContent } from '@shared/outline';
 import { TEXT_HEAVY_PREVIEW_CHARS } from '../heavyPreviewLimits';
 import { createEditorOutlineFollow, type OutlineFollow } from './editorOutlineFollow';
@@ -57,6 +58,7 @@ export function useFilesPanelProps(
   const outline = useAppStore(useShallow((s) => s.outline));
   const workspaceTrees = useAppStore(useShallow((s) => s.workspaceTrees));
   const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
+  const externalFileRoots = useAppStore(useShallow((s) => s.externalFileRoots));
   const workspaceTreeExpandedInFileNav = useAppStore(
     useShallow((s) => s.workspaceTreeExpandedInFileNav),
   );
@@ -126,8 +128,13 @@ export function useFilesPanelProps(
       // P4 F13/N1：击键时刻锁定文件所属工作区（含路径，供自动保存显式传递，
       // 跨工作区同名文件场景下守卫、键、落盘目标都不漂移）。
       const wsIdAtEdit = selectedFileWorkspaceId;
+      const editingWorkspace = recentWorkspaces.find((w) => w.id === wsIdAtEdit);
+      // 外部文件的隐藏根以 externalFileRoots 为准（recentWorkspaces 会被整体替换）；
+      // 根不可解析时不得回退当前工作区，否则会写错同名文件。
       const wsPathAtEdit =
-        recentWorkspaces.find((w) => w.id === wsIdAtEdit)?.path ?? appInfo?.currentWorkspace?.path;
+        editingWorkspace?.path ??
+        (wsIdAtEdit ? externalFileRoots[wsIdAtEdit] : undefined) ??
+        (isExternalWorkspaceId(wsIdAtEdit) ? undefined : appInfo?.currentWorkspace?.path);
       // 存盘链内容来源：typing 文本同步暂存（Ctrl+S / 自动保存消费）。
       actions.noteEditorText(pathAtEdit, value ?? '', wsIdAtEdit);
       window.clearTimeout(editorDirtyTimerRef.current);
@@ -148,13 +155,24 @@ export function useFilesPanelProps(
         if (useAppStore.getState().selectedFilePath !== pathAtEdit) {
           return;
         }
-        void actions.saveFile(pathAtEdit, wsPathAtEdit);
+        // 工作区根不可解析（外部隐藏工作区被刷新掉）时宁可不存，也不写错位置。
+        if (!wsPathAtEdit) {
+          return;
+        }
+        void actions.saveFile(pathAtEdit, wsPathAtEdit, { workspaceId: wsIdAtEdit });
       }, 1000);
       // 大纲跟手（文档大纲锚点）：打字停顿后按最新正文重建，不等保存/外部对账。
       // 重型文本与打开路径同口径跳过大纲解析（避免巨型文件输入卡顿）。
       editorOutlineFollowRef.current?.schedule(pathAtEdit, wsIdAtEdit);
     },
-    [actions, selectedFilePath, selectedFileWorkspaceId, recentWorkspaces, appInfo],
+    [
+      actions,
+      selectedFilePath,
+      selectedFileWorkspaceId,
+      recentWorkspaces,
+      externalFileRoots,
+      appInfo,
+    ],
   );
 
   const handleOpenFile = useCallback(

@@ -110,8 +110,8 @@ export function createPreviewWorkspaceBridge(
         body: JSON.stringify({ workspacePath }),
       });
       if (!result.ok) {
-        // 登记未知工作区是桌面端能力（预览 dev 服务无该路由）；明确降级而不是
-        // 让调用方误以为成功。
+        // 该能力仅桌面端提供；应用内当前无调用方（未知工作区改用内存隐藏工作区，
+        // 见 ADR 0023），预览模式保持明确降级而不是假装成功。
         return {
           ok: false as const,
           error: {

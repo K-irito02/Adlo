@@ -85,7 +85,7 @@ export function normalizeAgentSiteRules(rules: AgentSiteRule[] | undefined): Age
           ? raw.regexFlags.trim()
           : undefined
         : undefined,
-      action: raw.action === 'url' ? 'url' : 'file',
+      action: isRegex && raw.action === 'url' ? 'url' : 'file',
     });
   }
   return out;
@@ -122,4 +122,22 @@ export function normalizeAgentSiteOverrides(
     });
   }
   return out;
+}
+
+/**
+ * 「拦截规则」是否已处于产品默认状态：全局规则等于内置默认集合，且没有任何
+ * 有效的站点覆盖（空覆盖条目等同不存在，保存路径会丢弃它们）。
+ * 行级恢复按钮据此置灰；顺序不同视为用户改动（不擅自判等）。
+ */
+export function isAgentSiteRulesAtDefault(
+  rules: AgentSiteRule[] | undefined,
+  overrides: AgentSiteOverride[] | undefined,
+): boolean {
+  const normalizedRules = normalizeAgentSiteRules(rules);
+  if (JSON.stringify(normalizedRules) !== JSON.stringify(defaultAgentSiteRules())) {
+    return false;
+  }
+  return normalizeAgentSiteOverrides(overrides).every(
+    (entry) => entry.disabledRuleIds.length === 0 && entry.siteRules.length === 0,
+  );
 }

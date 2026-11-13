@@ -73,8 +73,9 @@
 | 能力 | 契约 |
 |------|------|
 | 智能体站点链接拦截 | 仅白名单 origin + 拦截开启时生效；`<a>` / `window.open` / 可配置规则（`button, a, [role]` 的 `title`/`data-*` 等）三条入口统一走 agent-link 事件；`<a>` 命中后 `preventDefault + stopImmediatePropagation`，避免页面自身 `window.open` 再发一条（重复标签）。 |
-| 规则配置 | 设置组 `openMethod:agentSiteRules`：全局规则增删改/恢复默认；白名单站点条目下覆盖（增删改/停用全局规则/恢复站点默认）。规则随 `setAgentIntercept` 与新 WebView 创建流注入 `window.__adlAgentRules`（JS 不保留副本）。 |
-| 未知工作区文件 | agent-link 的绝对路径若不属于任何已知工作区，先经 `POST /workspace/add` 把所在文件夹登记为侧栏工作区（不切换当前工作区、不建检索快照），再在右侧文件面板打开；失败时提示并在文件管理器定位。 |
+| 规则配置 | 设置组 `openMethod:agentSiteRules`：全局规则增删改/恢复默认；白名单站点条目下覆盖（增删改/停用全局规则/恢复站点默认）。站点规则先于全局规则合并，同 id 时站点规则替换全局；`disabledRuleIds` 只作用于全局规则。规则随 `setAgentIntercept` 与新 WebView 创建流注入 `window.__adlAgentRules`（JS 不保留副本）。`fileLike` 预设固定 `action=file`，`regex` 可选 `file`/`url`；`url` 相对值按页面解析且只收 http(s)，`file` 只收 `file://`/盘符/UNC。 |
+| 打开落点 | 链接打开后主动切换可见宿主：文件（面板方式）→ 右侧「文件」面板；网址（面板方式）→ 右侧「浏览器」面板；网址（中心方式）→ 中心新标签并激活；外部打开不经应用面板。 |
+| 未知工作区文件 | agent-link 的绝对路径若不属于任何已知工作区，**不登记侧栏工作区**：为文件所在目录创建内存隐藏工作区（`removedFromSidebar`，不落盘、不进侧栏），读取/保存按该目录解析；磁盘变更不监听，选中且有文档基线时保存前读盘比对并走冲突卡片。 |
 | 本地文件地址栏 | 支持 `file:///`、Windows 盘符与 UNC；路径段百分号编码（`#`/`?`/`%` 不再被当 URL 语法）；可渲染扩展（HTML/图片/文本/Markdown/JSON/XML/CSV/PDF/音视频）内嵌打开；浏览器预览模式只 toast。 |
 | WebView2 环境 | 同一 UDF 的所有 WebView 必须使用逐字一致的 `WEBVIEW_ADDITIONAL_ARGS`（含 wry 默认 `--disable-features` + `--allow-file-access-from-files`），否则 `0x8007139F`。主窗口、面板、中心、静默、分隔条同源。 |
 | 本地页元数据 | App 根 `useGlobalBrowserMeta` 单点订阅原生 meta 与广播；`file:` 允许更新标签标题且不写 HTTP 元数据缓存；`browser-page-ready` 对 `file:` 放行，本地页加载完成即揭示。 |

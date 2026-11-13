@@ -90,8 +90,28 @@
         currentOverride = currentOverride || {};
         var disabled = currentOverride.disabledRuleIds || [];
         var siteRules = currentOverride.siteRules || [];
-        return globalRules.concat(siteRules).filter(function(rule) {
-            return rule && rule.enabled !== false && disabled.indexOf(rule.id) === -1;
+        // 站点规则优先于全局规则：先 push 站点规则、再 push 全局规则，pushRule 按 id
+        // 去重，因此同 id 时站点规则替换全局规则，命中顺序也靠前；否则全局规则会
+        // 抢占同元素上的站点规则。disabledRuleIds 只作用于全局规则（见下方 global 循环），
+        // 站点规则用自己的 enabled 表达开关。
+        var merged = [];
+        var seen = {};
+        function pushRule(rule) {
+            if (!rule) return;
+            var id = typeof rule.id === 'string' ? rule.id : '';
+            if (id && seen[id]) return;
+            if (id) seen[id] = true;
+            merged.push(rule);
+        }
+        for (var s = 0; s < siteRules.length; s += 1) pushRule(siteRules[s]);
+        for (var g = 0; g < globalRules.length; g += 1) {
+            var globalRule = globalRules[g];
+            if (!globalRule) continue;
+            if (globalRule.id && disabled.indexOf(globalRule.id) !== -1) continue;
+            pushRule(globalRule);
+        }
+        return merged.filter(function(rule) {
+            return rule && rule.enabled !== false;
         });
     }
 
@@ -110,11 +130,35 @@
         return isAbsoluteLocalPath(value);
     }
 
+    /**
+     * Normalize a matched attribute value into the `{kind, url}` pair the Rust
+     * side accepts. Sending a value the backstop will reject turns the click into
+     * a dead link (the event is already prevented), so validate here instead:
+     * - `url`: resolve relative values against the page and require http(s).
+     * - `file`: require an explicit local path (file:// / drive / UNC).
+     * Returns null when the rule/value combination is not openable.
+     */
+    function __adlResolveRuleTarget(rule, value) {
+        if (!value || typeof value !== 'string') return null;
+        var v = value.trim();
+        if (!v) return null;
+        if (rule.action === 'url') {
+            try {
+                var resolved = new URL(v, location.href).href;
+                if (/^https?:\/\//i.test(resolved)) {
+                    return { kind: 'url', url: resolved };
+                }
+            } catch (e) {}
+            return null;
+        }
+        return isAbsoluteLocalPath(v) ? { kind: 'file', url: v } : null;
+    }
+
     function __adlFindAgentFileLinkMatch(target) {
         if (!__adlIsAgentHost()) return null;
+        var rules = __adlGetActiveAgentRules();
         var el = target;
         while (el && el !== document.documentElement) {
-            var rules = __adlGetActiveAgentRules();
             for (var i = 0; i < rules.length; i += 1) {
                 var rule = rules[i];
                 var selector = rule.matchSelector || 'button, a, [role="button"], [role="link"]';
@@ -133,7 +177,14 @@
                         continue;
                     }
                     if (__adlRuleValueMatches(rule, value)) {
-                        return { kind: rule.action || 'file', url: value.trim(), ruleId: rule.id };
+                        var resolvedTarget = __adlResolveRuleTarget(rule, value);
+                        if (resolvedTarget) {
+                            return {
+                                kind: resolvedTarget.kind,
+                                url: resolvedTarget.url,
+                                ruleId: rule.id,
+                            };
+                        }
                     }
                 }
             }

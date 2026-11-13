@@ -4,7 +4,17 @@ import { AgentSiteRulesControl } from './AgentSiteRulesControl';
 import type { CopyDict } from '@i18n/types';
 import type { AgentSiteRule, SettingItem } from '../../../kernel/types';
 
-const t = new Proxy({}, { get: (_target, key) => String(key) }) as CopyDict;
+const t = new Proxy(
+  {},
+  {
+    get: (_target, key) => {
+      if (key === 'settingsAgentRulesSummary') {
+        return '{rules} 条全局 · {sites} 个站点覆盖';
+      }
+      return String(key);
+    },
+  },
+) as CopyDict;
 
 const rule: AgentSiteRule = {
   id: 'rule-a',
@@ -18,49 +28,49 @@ const rule: AgentSiteRule = {
 
 const origin = 'http://127.0.0.1:3080';
 
-function renderControl(onChange: (id: string, value: unknown) => void) {
-  const item = {
+function buildItem(disabled = false): SettingItem {
+  return {
     id: 'openMethod:agentSiteRules',
+    groupId: 'openMethod',
+    label: 'settingsAgentRules',
+    type: 'agentSiteRules',
     value: {
       rules: [rule],
-      overrides: [{ origin, disabledRuleIds: [], siteRules: [] }],
+      overrides: [{ origin, disabledRuleIds: ['g1'], siteRules: [] }],
       sites: [{ origin, alias: 'dsh' }],
     },
-    disabled: false,
+    disabled,
   } as unknown as SettingItem;
-  render(<AgentSiteRulesControl item={item} t={t} onChange={onChange} />);
 }
 
-describe('AgentSiteRulesControl drafts', () => {
-  it('cancelled global edits are not written when saving a site override', () => {
-    const onChange = vi.fn();
-    renderControl(onChange);
-
-    fireEvent.click(screen.getByRole('button', { name: /settingsAgentRulesGlobalManage/ }));
-    fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'Changed name' } });
-    fireEvent.click(screen.getByText('settingsAgentRulesCancel'));
-
-    fireEvent.click(screen.getByRole('button', { name: /dsh/ }));
-    fireEvent.click(screen.getByText('settingsAgentRulesSave'));
-
-    expect(onChange).toHaveBeenCalledTimes(1);
-    const payload = onChange.mock.calls[0][1] as { rules: AgentSiteRule[] };
-    expect(payload.rules.map((entry) => entry.name)).toEqual(['Rule A']);
+describe('AgentSiteRulesControl summary', () => {
+  it('shows global and overridden-site counts', () => {
+    render(<AgentSiteRulesControl item={buildItem()} t={t} open={false} onToggle={vi.fn()} />);
+    expect(screen.getByText('1 条全局 · 1 个站点覆盖')).toBeTruthy();
   });
 
-  it('keeps typed commas in the attributes input', () => {
-    const onChange = vi.fn();
-    renderControl(onChange);
+  it('reflects the open state and notifies the parent', () => {
+    const onToggle = vi.fn();
+    const { rerender } = render(
+      <AgentSiteRulesControl item={buildItem()} t={t} open={false} onToggle={onToggle} />,
+    );
+    const button = screen.getByRole('button', { name: /settingsAgentRulesEdit/ });
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(button);
+    expect(onToggle).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole('button', { name: /settingsAgentRulesGlobalManage/ }));
-    const attributes = screen.getAllByRole('textbox')[2];
-    // 逐次输入：旧实现会把 'title,' 回写成 'title'，导致无法继续输入逗号。
-    fireEvent.change(attributes, { target: { value: 'title,' } });
-    expect((attributes as HTMLInputElement).value).toBe('title,');
-    fireEvent.change(attributes, { target: { value: 'title, aria-label' } });
-    fireEvent.click(screen.getByText('settingsAgentRulesSave'));
+    rerender(<AgentSiteRulesControl item={buildItem()} t={t} open onToggle={onToggle} />);
+    // 可访问名保持恒定（与 aria-expanded 同用），视觉文案仍随状态变化。
+    const expandedButton = screen.getByRole('button', { name: /settingsAgentRulesEdit/ });
+    expect(expandedButton.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('settingsAgentRulesCollapse')).toBeTruthy();
+  });
 
-    const payload = onChange.mock.calls[0][1] as { rules: AgentSiteRule[] };
-    expect(payload.rules[0].attributes).toEqual(['title', 'aria-label']);
+  it('disables the entry when the setting is unavailable', () => {
+    render(<AgentSiteRulesControl item={buildItem(true)} t={t} open={false} onToggle={vi.fn()} />);
+    expect(
+      (screen.getByRole('button', { name: /settingsAgentRulesEdit/ }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   });
 });

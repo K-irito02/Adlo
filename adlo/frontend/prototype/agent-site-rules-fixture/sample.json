@@ -1,0 +1,5 @@
+{
+  "fixture": "agent-site-rules",
+  "purpose": "local file target for the built-in browser interception test",
+  "openWith": "file panel"
+}

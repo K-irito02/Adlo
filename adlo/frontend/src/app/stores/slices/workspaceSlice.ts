@@ -22,6 +22,15 @@ export interface WorkspaceSlice {
   workspaceTreeExpandedInFileNav: Record<string, boolean>;
   refreshingAllWorkspaces: boolean;
   /**
+   * 外部文件（不属于任何侧栏工作区）的隐藏工作区根：`Record<externalId, rootPath>`。
+   *
+   * 独立于 `recentWorkspaces`：后者会被 `setRecentWorkspaces` 整体替换（添加/移除
+   * 工作区、切换、启动都会），若外部文件的根只存在数组条目里，一次刷新就会让
+   * 保存/对账/绝对路径全部失去目标。这里的内存映射不参与侧栏渲染、不落盘，
+   * 只在应用会话内有效（重启即消失，草稿本身也只活在内存里）。
+   */
+  externalFileRoots: Record<string, string>;
+  /**
    * 所有工作区的 Git 快照映射表（Source B）
    * 用途：多工作区视图（文件树、变更树、Git 可视化）需要按工作区 ID 获取快照
    * 更新时机：bootstrap()、loadGitSnapshot()、refreshGitSnapshot()、fetchGitStatus()、
@@ -76,6 +85,7 @@ export const createWorkspaceSlice = (
 ): WorkspaceSlice => {
   return {
     recentWorkspaces: [],
+    externalFileRoots: {},
     workspaceTrees: {},
     workspaceTreeLoading: {},
     workspaceTreeRefreshing: {},

@@ -93,14 +93,15 @@ export interface WorkspaceBridge {
   /**
    * 将指定路径登记为侧栏工作区（不切换当前工作区）。
    *
-   * 智能体文件链接可能指向未知工作区（智能体 harness 有自己的工作区列表）。
-   * 文件面板按工作区隔离，需先登记所在文件夹才能在面板中打开该文件。
-   * @param workspacePath 文件所在文件夹的绝对路径
+   * 保留能力：智能体文件链接**不再**走这条路径——未知工作区改用内存隐藏工作区
+   * （见 ADR 0023），应用内当前无调用方。前后端契约仍保留（server route +
+   * 三桥对齐），后续若确认无外部消费者可单独立项移除。
+   * @param workspacePath 要登记为侧栏工作区的目录绝对路径
    * @returns 登记后的侧栏条目（含稳定工作区 id 与根路径）
    * @command POST /workspace/add (adl-server HTTP; no Tauri invoke)
    * @see httpBridge.ts → workspace.addToSidebar
-   * @see mock-bridge.ts → workspace.addToSidebar
-   * @see preview-bridge/index.ts → workspace.addToSidebar
+   * @see mock/mock-workspace.ts → workspace.addToSidebar
+   * @see preview-bridge/preview-workspace.ts → workspace.addToSidebar
    */
   addToSidebar: (workspacePath: string) => Promise<IpcResult<RecentWorkspaceEntry>>;
   /**

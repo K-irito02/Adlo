@@ -364,7 +364,7 @@ fn normalize_agent_site_rules(rules: &[AgentSiteRule]) -> Vec<AgentSiteRule> {
             } else {
                 None
             },
-            action: rule.action,
+            action: if is_regex { rule.action } else { adl_types::AgentSiteInterceptAction::File },
         });
     }
     out
@@ -656,6 +656,32 @@ mod tests {
             Some("(?<=a)b"),
             "JS-only regex syntax must be preserved"
         );
+    }
+
+    #[test]
+    fn normalize_agent_site_rules_forces_file_action_for_file_like() {
+        let file_like_url = AgentSiteRule {
+            id: "contradictory".into(),
+            name: "contradictory".into(),
+            enabled: true,
+            match_selector: "button".into(),
+            attributes: vec!["title".into()],
+            path_preset: AgentSiteRulePathPreset::FileLike,
+            value_regex: None,
+            regex_flags: None,
+            action: AgentSiteInterceptAction::Url,
+        };
+        let regex_url = AgentSiteRule {
+            id: "regex-url".into(),
+            path_preset: AgentSiteRulePathPreset::Regex,
+            value_regex: Some("^/docs/".into()),
+            action: AgentSiteInterceptAction::Url,
+            ..file_like_url.clone()
+        };
+        let out = normalize_agent_site_rules(&[file_like_url, regex_url]);
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0].action, AgentSiteInterceptAction::File);
+        assert_eq!(out[1].action, AgentSiteInterceptAction::Url);
     }
 
     #[test]

@@ -12,16 +12,17 @@ const expandFileTreePathChain = vi.fn();
 const setFileTreeClickedNode = vi.fn();
 const requestFileTreeReveal = vi.fn();
 const setFileTreePathExpanded = vi.fn();
-const addWorkspaceToSidebar = vi.fn();
-const refreshOneWorkspaceTree = vi.fn();
+const openFileOutsideWorkspaces = vi.fn(async () => true);
 const navigateRightTool = vi.fn();
 const showToast = vi.fn();
+let externalFileRoots: Record<string, string> = {};
 
 vi.mock('@stores/slicedStore', () => ({
   useAppStore: {
     getState: () => ({
       appInfo: { config, currentWorkspace: { id: 'ws1', path: 'C:/ws', rootPath: 'C:/ws' } },
       recentWorkspaces,
+      externalFileRoots,
       workspaceTrees: trees,
       expandFileTreePathChain,
       setFileTreeClickedNode,
@@ -31,8 +32,7 @@ vi.mock('@stores/slicedStore', () => ({
       centerShowBrowserTab,
       openFile,
       openFileForWorkspace,
-      addWorkspaceToSidebar,
-      refreshOneWorkspaceTree,
+      openFileOutsideWorkspaces,
       navigateRightTool,
       showToast,
       browserActiveTabId: 't1',
@@ -49,13 +49,15 @@ import {
   openUrlByMethod,
   resolveLinkWorkspace,
   resolveMarkdownFileLink,
+  resolveOwningWorkspace,
   revealWorkspaceDirectory,
 } from '../openByMethod';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  addWorkspaceToSidebar.mockReset();
+  openFileOutsideWorkspaces.mockResolvedValue(true);
   recentWorkspaces = [];
+  externalFileRoots = {};
   trees = {};
 });
 
@@ -65,25 +67,30 @@ describe('openUrlByMethod', () => {
     openUrlByMethod('https://a.com');
     expect(browserOpenTab).toHaveBeenCalledWith('https://a.com');
     expect(centerShowBrowserTab).toHaveBeenCalledWith('t1');
+    expect(navigateRightTool).not.toHaveBeenCalled();
   });
-  it('opens in panel as new tab', () => {
+  it('opens in the right panel as a new tab and switches to it', () => {
     config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
     openUrlByMethod('https://a.com');
     expect(browserOpenTab).toHaveBeenCalledWith('https://a.com');
     expect(centerShowBrowserTab).not.toHaveBeenCalled();
+    expect(navigateRightTool).toHaveBeenCalledWith('browser');
   });
   it('opens externally', () => {
     config = { linkOpenMethod: 'external', fileOpenMethod: 'panel' };
     openUrlByMethod('https://a.com');
     expect(openExternal).toHaveBeenCalledWith('https://a.com');
+    expect(navigateRightTool).not.toHaveBeenCalled();
   });
 });
 
 describe('openFileByMethod', () => {
-  it('opens in file panel within workspace', () => {
+  it('opens in the visible file panel within the workspace', () => {
     config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
     openFileByMethod('C:/ws/src/a.md');
     expect(openFileForWorkspace).toHaveBeenCalledWith('ws1', 'C:/ws', 'src/a.md');
+    expect(navigateRightTool).toHaveBeenCalledWith('files');
+    expect(openFileOutsideWorkspaces).not.toHaveBeenCalled();
   });
   it('opens externally as a file:// URL, not a raw Windows path', () => {
     config = { linkOpenMethod: 'panel', fileOpenMethod: 'external' };
@@ -100,6 +107,7 @@ describe('openFileByMethod', () => {
     recentWorkspaces = [{ id: 'ws2', path: 'C:/ws2', rootPath: 'C:/ws2' }];
     openFileByMethod('C:/ws2/src/a.md', 'ws2');
     expect(openFileForWorkspace).toHaveBeenCalledWith('ws2', 'C:/ws2', 'src/a.md');
+    expect(navigateRightTool).toHaveBeenCalledWith('files');
     recentWorkspaces = [];
   });
 
@@ -118,23 +126,33 @@ describe('openFileByMethod', () => {
     recentWorkspaces = [];
   });
 
-  it('registers an unknown folder and opens the file in the panel', async () => {
+  it('opens a file outside every workspace through the hidden workspace', async () => {
     config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
-    addWorkspaceToSidebar.mockResolvedValue({
-      ok: true,
-      workspaceId: 'ws-ext',
-      rootPath: 'E:/Test-Workspace-1',
+    openFileByMethod('E:\\Downloads\\photo.png');
+    expect(openFileForWorkspace).not.toHaveBeenCalled();
+    expect(openFileOutsideWorkspaces).toHaveBeenCalledWith('E:\\Downloads\\photo.png');
+    await vi.waitFor(() => expect(navigateRightTool).toHaveBeenCalledWith('files'));
+  });
+
+  it('does not switch the panel and warns when the path cannot be parsed', async () => {
+    openFileOutsideWorkspaces.mockResolvedValueOnce(false);
+    config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
+    openFileByMethod('docs\\relative.md');
+    await vi.waitFor(() => expect(showToast).toHaveBeenCalledWith(expect.any(String), 'warning'));
+    expect(navigateRightTool).not.toHaveBeenCalled();
+  });
+});
+
+describe('resolveOwningWorkspace', () => {
+  it('ignores hidden external workspaces so real workspaces always win', () => {
+    recentWorkspaces = [
+      { id: 'workspace_real', path: 'E:/Downloads', rootPath: 'E:/Downloads' },
+      { id: 'external-abc-123', path: 'E:/Downloads/sub', rootPath: 'E:/Downloads/sub' },
+    ];
+    expect(resolveOwningWorkspace('E:/Downloads/sub/photo.png')).toEqual({
+      id: 'workspace_real',
+      root: 'E:/Downloads',
     });
-    openFileByMethod('E:\\Test-Workspace-1\\current-time.md');
-    await vi.waitFor(() =>
-      expect(openFileForWorkspace).toHaveBeenCalledWith(
-        'ws-ext',
-        'E:/Test-Workspace-1',
-        'current-time.md',
-      ),
-    );
-    expect(addWorkspaceToSidebar).toHaveBeenCalledWith('E:/Test-Workspace-1');
-    expect(navigateRightTool).toHaveBeenCalledWith('files');
   });
 });
 

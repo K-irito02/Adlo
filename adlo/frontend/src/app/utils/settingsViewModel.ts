@@ -4,7 +4,11 @@ import type { AppInfo, SettingItem, SettingValue } from '../../kernel/types';
 import type { CopyDict } from '../i18n';
 import type { AgentSiteOverride, AgentSiteRule } from '@shared/ipc-types.generated';
 import { normalizeAgentSiteEntries } from '@shared/originWhitelist';
-import { normalizeAgentSiteOverrides, normalizeAgentSiteRules } from '@shared/agentSiteRules';
+import {
+  isAgentSiteRulesAtDefault,
+  normalizeAgentSiteOverrides,
+  normalizeAgentSiteRules,
+} from '@shared/agentSiteRules';
 import { isTauriShell } from '@shared/env';
 
 const LOG_LEVELS: readonly string[] = ['error', 'warn', 'info', 'debug', 'trace'];
@@ -161,6 +165,12 @@ export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[
         sites: config.agentSiteWhitelist,
       },
       disabled: !agentInterceptAvailable,
+      resetValue: { kind: 'resetGlobal' },
+      resetDisabled: isAgentSiteRulesAtDefault(config.agentSiteRules, config.agentSiteOverrides),
+      resetConfirm: {
+        title: t.settingsAgentRulesResetConfirmTitle,
+        message: t.settingsAgentRulesResetConfirmMessage,
+      },
     });
   }
 
