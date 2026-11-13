@@ -189,6 +189,9 @@ describe('HarnessVersionCard old-DSH structure', () => {
       ':scope > .adl-settings-row[data-settings-row="harnessVersionSourceTitle"]',
     ) as HTMLElement;
     expect(sourceRow).not.toBeNull();
+    // 行级垂直居中：OpenCode 组没有组级 `align-items: center`（settings.css 只给了
+    // 浏览器/DSH 组），该行靠 `--center` 修饰类在各组内保持一致居中。
+    expect(sourceRow.classList.contains('adl-settings-row--center')).toBe(true);
     // 旧实现是自定义下拉（SettingsSelect），不是原生 select。
     expect(sourceRow.querySelector('select')).toBeNull();
     expect(

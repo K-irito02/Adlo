@@ -40,7 +40,10 @@ export function SourceRow({
 }: SourceRowProps) {
   const { t } = useTCopy();
   return (
-    <div className="adl-settings-row" data-settings-row={t.harnessVersionSourceTitle}>
+    <div
+      className="adl-settings-row adl-settings-row--center"
+      data-settings-row={t.harnessVersionSourceTitle}
+    >
       <div className="adl-settings-row__label">
         <div className="adl-settings-row__label-text">
           <SettingsHintButton content={hint} />
