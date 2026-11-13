@@ -47,7 +47,7 @@ html:not(.no-transition) [data-theme] {
   --bg-occlusion-active: #e2e2e2;
   --bg-terminal: #f8f8f8;
 
-  /* === Splash（启动覆盖层）===
+  /* === Splash（开屏）===
      开屏是品牌面：纯白/纯黑底与 index.html 的 #preload-overlay 同值，
      React 接管瞬间不闪色。网格与掠光只允许中性色。 */
   --splash-bg: #ffffff;
@@ -331,7 +331,7 @@ html:not(.no-transition) [data-theme] {
   --bg-occlusion-active: #313131;
   --bg-terminal: #0c0c0c;
 
-  /* === Splash（启动覆盖层）===
+  /* === Splash（开屏）===
      开屏是品牌面：纯白/纯黑底与 index.html 的 #preload-overlay 同值，
      React 接管瞬间不闪色。网格与掠光只允许中性色。 */
   --splash-bg: #000000;

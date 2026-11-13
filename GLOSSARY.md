@@ -7,7 +7,7 @@
 ### 产品与边界
 
 **Adlo（安洛）**:
-产品名；英文名 Adlo，中文名安洛，并列书写为「Adlo · 安洛」。旧名 AI Digital Life、AIDigitalLife、可燃、Kora 一律不再使用。<!-- brand-allow: legacy names are the point -->
+产品名；英文名 Adlo，中文名安洛，并列书写为「Adlo · 安洛」。旧名 AI Digital Life、AIDigitalLife、可燃、Kora 一律不再使用。该并列写法不随界面语言变化，固定出现处不进入 i18n 字典。<!-- brand-allow: legacy names are the point -->
 _Avoid_: AI Digital Life, AIDigitalLife, 可燃, Kora <!-- brand-allow: legacy names are the point -->
 
 **Harness（第三方 harness）**:
@@ -45,6 +45,20 @@ _Avoid_: 工作树池, 副本目录, 克隆
 **开发实例 (Dev Instance)**:
 以开发模式从某个工作树启动的应用实例；不同工作树的实例身份与数据互不影响（主工作树的实例沿用默认身份，与正式安装共用数据）。
 _Avoid_: 调试实例, dev 环境, 本地服务
+
+### 启动与外壳
+
+**开屏 (Startup Overlay)**:
+应用启动时覆盖整个窗口的品牌层，在应用可交互之前遮挡界面并阻断输入；不含它之前的静态预加载底色，也不决定自身何时撤下。
+_Avoid_: `启动覆盖层`, 启动动画, 开屏动画, 加载动画, splash
+
+**启动门槛 (Startup Gate)**:
+决定开屏何时撤下的规则：最短停留保证品牌层被看见，最长兜底避免加载卡死时界面永不出现；与开屏画面本身无关。
+_Avoid_: 开屏时长, 超时时间, 加载时长
+
+**预加载底色 (Preload Overlay)**:
+React 接管前就存在的纯色遮挡层，用于避免首帧白闪；React 挂载后移除，不属于开屏，也不受启动门槛控制。
+_Avoid_: 静态开屏, 启动页, 加载页
 
 ### 工作区与变更
 
@@ -289,10 +303,6 @@ _Avoid_: 头部元数据, YAML 头, front matter
 **属性表 (Property Table)**:
 文档头在预览中的键值呈现，作为正文之前的独立属性区。
 _Avoid_: 元数据卡片, frontmatter 卡片, 属性面板
-
-**设置块 (Settings Block)**:
-设置组内由「块头 + 卡片」组成的一组同主题设置项；卡片内以设置行承载具体项。
-_Avoid_: 设置分区, 子面板, 折叠区
 
 ### 浏览器
 
@@ -667,6 +677,18 @@ _Avoid_: 自动关闭代理, 降级直连, 自动切换无代理
 _Avoid_: 代理白名单, 例外名单, no_proxy 名单, 逗号分隔直连名单
 
 ### 设置面板操作
+
+**设置组 (Settings Group)**:
+设置面板中的一个功能分组，如通用、浏览器、DSH 与 OpenCode CLI；每组由若干设置块组成。
+_Avoid_: 设置分区, 设置页, 设置分类, 选项卡
+
+**设置块 (Settings Block)**:
+设置组内由「块头 + 卡片」组成的一组同主题设置项；卡片内以设置行承载具体项。
+_Avoid_: 设置分区, 子面板, 折叠区
+
+**设置行 (Settings Row)**:
+设置块内承载单个设置项的横向单元：左侧为标题与说明，右侧为控件。
+_Avoid_: 设置项（指整行时）, 配置行, 表单项
 
 **关于组 (About Group)**:
 设置面板的最后一组，只陈述应用自身的可核验事实：版本、应用运行时、官方链接、许可证、致谢与打开日志目录；不重复环境依赖版本或存储路径明细，也不承担导航职责。

@@ -159,7 +159,7 @@ export function App() {
   }, [t, appReady]);
 
   // 同步 overlayHidden 到 UI store，供 BrowserPanel 纳入 hasOverlayActive 计算
-  // 确保启动覆盖层显示期间 WebView2 保持离屏
+  // 确保开屏显示期间 WebView2 保持离屏
   useEffect(() => {
     setStartupOverlayHidden(overlayHidden);
   }, [overlayHidden, setStartupOverlayHidden]);

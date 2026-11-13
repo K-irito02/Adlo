@@ -41,7 +41,7 @@
 - 内容宽 280px 上限，右面板 320px 起仍成立。
 - 组件：`app/features/about/AboutSettings.tsx`；样式：`styles/regions/about-settings.css`。
 - 图标：`public/adlo-icon.png` 是 `src-tauri/icons/128x128.png` 的副本（Vite 不能直接引用 `src-tauri`），
-  同时用于关于页、启动覆盖层与窗口图标；更换应用图标时两处同时替换（发布清单含该项复核）。
+  同时用于关于页、开屏与窗口图标；更换应用图标时两处同时替换（发布清单含该项复核）。
 - 组位置：设置导航最后一项（环境之后）；不参与「恢复全部默认」，不进设置搜索索引。
 
 ## 3. 数据来源

@@ -6,7 +6,7 @@ import './StartupOverlay.css';
 const BRAND_LOCKUP = 'Adlo · 安洛'; // cjk-source-allow: 品牌常量，非可本地化 UI 文案
 
 /**
- * 启动覆盖层（开屏）：品牌图标 + 掠光 + 网格背景。
+ * 开屏：品牌图标 + 掠光 + 网格背景。
  *
  * 时序（总长 2320ms 演完，3.5s 最短停留由 App.tsx 控制，剩余由网格漂移
  * 与弱掠光填充）：

@@ -114,7 +114,7 @@
   --ease-editorial: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-editorial: 600ms;
 
-  /* --- Motion: Splash（启动覆盖层编排） ---
+  /* --- Motion: Splash（开屏编排） ---
      开屏是有 3.5s 最短停留预算的多段式动画，各段时长与延迟集中在此，
      `StartupOverlay.css` 只消费变量。时间线总长 2320ms 演完，其余由
      网格漂移与弱掠光填充停留段。reduced-motion 下整段停用（媒体查询见组件 CSS）。 */
@@ -244,7 +244,7 @@
     --duration-700: 1ms;
     --duration-1000: 1ms;
     --duration-editorial: 1ms;
-    /* 启动覆盖层的 `--splash-*` 时长不在此塌缩：该组件的媒体查询直接
+    /* 开屏的 `--splash-*` 时长不在此塌缩：该组件的媒体查询直接
        `animation: none`（1ms 塌缩不会取消 delay，仍会产生跳变）。 */
   }
 }
