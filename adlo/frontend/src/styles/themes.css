@@ -47,6 +47,14 @@ html:not(.no-transition) [data-theme] {
   --bg-occlusion-active: #e2e2e2;
   --bg-terminal: #f8f8f8;
 
+  /* === Splash（启动覆盖层）===
+     开屏是品牌面：纯白/纯黑底与 index.html 的 #preload-overlay 同值，
+     React 接管瞬间不闪色。网格与掠光只允许中性色。 */
+  --splash-bg: #ffffff;
+  --splash-fg: #000000;
+  --splash-grid: rgba(0, 0, 0, 0.07);
+  --splash-sweep: rgba(255, 255, 255, 0.72);
+
   /* === Surface System === */
   --surface: #f8f8f8;
   --surface-elevated: #fafafa;
@@ -322,6 +330,14 @@ html:not(.no-transition) [data-theme] {
   --bg-occlusion: #262626;
   --bg-occlusion-active: #313131;
   --bg-terminal: #0c0c0c;
+
+  /* === Splash（启动覆盖层）===
+     开屏是品牌面：纯白/纯黑底与 index.html 的 #preload-overlay 同值，
+     React 接管瞬间不闪色。网格与掠光只允许中性色。 */
+  --splash-bg: #000000;
+  --splash-fg: #ffffff;
+  --splash-grid: rgba(255, 255, 255, 0.07);
+  --splash-sweep: rgba(255, 255, 255, 0.72);
 
   /* === Custom layout card tiles (theme-aware identity colors) ===
      暗色主题身份色占 68%（其余 32% 混黑），亮色主题（见上方 light 块）

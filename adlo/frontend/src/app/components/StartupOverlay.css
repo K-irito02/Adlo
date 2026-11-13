@@ -1,0 +1,173 @@
+/* 启动覆盖层（Splash）——A 字标掠光 + B 网格背景。
+ *
+ * 约定：基础样式 = 动画终态，`@keyframes` 只描述起始态。
+ * 因此 `prefers-reduced-motion: reduce` 下停用动画即自动呈现静态成品，
+ * 无需为每个元素另写终态覆盖。时序变量见 tokens.css `Motion: Splash`。 */
+
+.adl-splash {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-max);
+  overflow: hidden;
+  background: var(--splash-bg);
+  cursor: default;
+}
+
+/* 网格背景：32px 方格，中心可见、边缘淡出；入场生长后极慢漂移。 */
+.adl-splash__grid {
+  position: absolute;
+  inset: -12%;
+  background-image:
+    linear-gradient(to right, var(--splash-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--splash-grid) 1px, transparent 1px);
+  background-size: 32px 32px;
+  -webkit-mask-image: radial-gradient(closest-side, #000 12%, transparent 76%);
+  mask-image: radial-gradient(closest-side, #000 12%, transparent 76%);
+  animation:
+    adl-splash-grid-in var(--splash-grid-in-duration) var(--ease-enter) both,
+    adl-splash-grid-drift var(--splash-grid-drift-duration) var(--ease-linear)
+      var(--splash-grid-drift-delay) infinite;
+}
+
+.adl-splash__brand {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  pointer-events: none;
+}
+
+.adl-splash__mark {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  flex: none;
+  overflow: hidden;
+  border-radius: var(--radius-2xl);
+  animation: adl-splash-mark-in var(--splash-mark-duration) var(--ease-editorial) both;
+}
+
+.adl-splash__mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 掠光：图标副本上的移动高光带（纯装饰，不改变图标本身）。 */
+.adl-splash__sweep {
+  position: absolute;
+  inset: -25%;
+  background: linear-gradient(100deg, transparent 34%, var(--splash-sweep) 50%, transparent 66%);
+  mix-blend-mode: screen;
+  transform: translateX(130%);
+  pointer-events: none;
+  animation: adl-splash-sweep var(--splash-sweep-duration) var(--ease-editorial)
+    var(--splash-sweep-delay) both;
+}
+
+/* 停留段的弱掠光：幅度更低，只为让静止画面保持"活着"。 */
+.adl-splash__sweep--idle {
+  opacity: 0;
+  animation: adl-splash-sweep-idle var(--splash-idle-sweep-duration) linear
+    var(--splash-idle-sweep-delay) infinite;
+}
+
+.adl-splash__rule {
+  width: 96px;
+  height: 1px;
+  background: var(--splash-fg);
+  transform-origin: center;
+  animation: adl-splash-rule var(--splash-rule-duration) var(--ease-snap) var(--splash-rule-delay)
+    both;
+}
+
+.adl-splash__name {
+  color: var(--splash-fg);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-widest);
+  padding-left: var(--tracking-widest);
+  text-align: center;
+  white-space: nowrap;
+  user-select: none;
+  animation: adl-splash-name var(--splash-name-duration) var(--ease-enter) var(--splash-name-delay)
+    both;
+}
+
+@keyframes adl-splash-grid-in {
+  from {
+    opacity: 0;
+    transform: scale(0.62);
+  }
+}
+
+@keyframes adl-splash-grid-drift {
+  from {
+    background-position:
+      0 0,
+      0 0;
+  }
+  to {
+    background-position:
+      32px 32px,
+      32px 32px;
+  }
+}
+
+@keyframes adl-splash-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+    filter: blur(6px);
+  }
+}
+
+@keyframes adl-splash-sweep {
+  from {
+    transform: translateX(-130%);
+  }
+}
+
+@keyframes adl-splash-sweep-idle {
+  0% {
+    transform: translateX(-130%);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.35;
+  }
+  55% {
+    opacity: 0.35;
+  }
+  68%,
+  100% {
+    transform: translateX(130%);
+    opacity: 0;
+  }
+}
+
+@keyframes adl-splash-rule {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes adl-splash-name {
+  from {
+    opacity: 0;
+    /* 起始字距只服务于"收拢"编排，不参与设计取值（终态见 .adl-splash__name）。 */
+    letter-spacing: 0.28em;
+    padding-left: 0.28em;
+  }
+}
+
+/* 减少动效：直接呈现静态成品（基础样式即终态）。 */
+@media (prefers-reduced-motion: reduce) {
+  .adl-splash,
+  .adl-splash * {
+    animation: none !important;
+  }
+}

@@ -1,111 +1,44 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
-import { motion } from 'motion/react';
-import { systemPrefersDark, type ResolvedTheme } from '../../design-system';
-import FlowFieldBackground from './flow-field-background';
+import { useLayoutEffect } from 'react';
+import './StartupOverlay.css';
 
-function getThemeFromRoot(): ResolvedTheme {
-  if (typeof document !== 'undefined') {
-    const t = document.documentElement.dataset.theme;
-    if (t === 'dark' || t === 'light') {
-      return t;
-    }
-  }
-  return systemPrefersDark() ? 'dark' : 'light';
-}
+// 品牌锁定文案（GLOSSARY：产品名并列书写为「Adlo · 安洛」）。
+// 开屏在 i18n 字典加载完成前就必须渲染，且该串不随语言切换，故不进 i18n 字典。
+const BRAND_LOCKUP = 'Adlo · 安洛'; // cjk-source-allow: 品牌常量，非可本地化 UI 文案
 
-const THEME_COLORS: Record<
-  ResolvedTheme,
-  { bgHex: string; trail: string; particle: string; stroke: string }
-> = {
-  dark: { bgHex: '#000', trail: '0, 0, 0', particle: '#818cf8', stroke: '#fff' },
-  light: { bgHex: '#fff', trail: '255, 255, 255', particle: '#000', stroke: '#000' },
-};
-
+/**
+ * 启动覆盖层（开屏）：品牌图标 + 字标掠光 + 网格背景。
+ *
+ * 时序（总长 2320ms 演完，3.5s 最短停留由 App.tsx 控制，剩余由网格漂移
+ * 与弱掠光填充）：
+ *   0–620ms     图标落定（scale 0.96→1，blur 6px→0）
+ *   0–900ms     网格自中心生长，随后 9s 周期极慢漂移
+ *   560–1460ms  柔光带扫过字标
+ *   1420–1940ms 细线由中心展开
+ *   1700–2320ms 名称收字距淡入
+ *   2600ms+     每 2.6s 一次弱掠光
+ *
+ * 主题不在此读取 `data-theme`：覆盖层颜色与动画全部由 CSS 变量
+ * （themes.css 的 `--splash-*` + tokens.css 的 `--splash-*` 时长）驱动，
+ * `prefers-reduced-motion` 下由 CSS 直接呈现静态成品。
+ */
 export default function StartupOverlay() {
-  const [theme, setTheme] = useState<ResolvedTheme>(getThemeFromRoot);
-
-  // 移除 index.html 中的静态预加载覆盖层，让 React 覆盖层接管
+  // 移除 index.html 中的静态预加载覆盖层，让 React 覆盖层接管。
+  // 两者底色同值（#preload-overlay 的 #fff/#000 对应 --splash-bg），替换瞬间不闪色。
   useLayoutEffect(() => {
-    const preload = document.getElementById('preload-overlay');
-    if (preload) {
-      preload.remove();
-    }
+    document.getElementById('preload-overlay')?.remove();
   }, []);
-
-  // 监听 data-theme 属性变化——ThemeController 是主题真源，
-  // 系统主题变化时（themeMode === 'system'）ThemeController 会更新 data-theme，
-  // 此处 MutationObserver 会捕获到变化并同步覆盖层主题。
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setTheme(getThemeFromRoot());
-    });
-    observer.observe(document.documentElement, { attributeFilter: ['data-theme'] });
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-
-  const colors = THEME_COLORS[theme];
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 'var(--z-max)',
-        backgroundColor: colors.bgHex,
-        cursor: 'default',
-      }}
-    >
-      <FlowFieldBackground
-        particleCount={520}
-        color={colors.particle}
-        trailOpacity={0.1}
-        trailColor={colors.trail}
-        bgColor={colors.bgHex}
-        speed={0.1}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          userSelect: 'none',
-          pointerEvents: 'none',
-        }}
-      >
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 18,
-          }}
-        >
-          <img
-            src="/adlo-icon.png"
-            alt=""
-            width={88}
-            height={88}
-            style={{ borderRadius: 20 }}
-            aria-hidden="true"
-          />
-          <div
-            style={{
-              color: colors.stroke,
-              fontSize: 26,
-              fontWeight: 600,
-              letterSpacing: '0.14em',
-            }}
-          >
-            Adlo · 安洛
-          </div>
-        </motion.div>
+    <div aria-hidden="true" className="adl-splash">
+      <div aria-hidden="true" className="adl-splash__grid" />
+      <div className="adl-splash__brand">
+        <div className="adl-splash__mark">
+          <img alt="" height={88} src="/adlo-icon.png" width={88} />
+          <span className="adl-splash__sweep" />
+          <span className="adl-splash__sweep adl-splash__sweep--idle" />
+        </div>
+        <div className="adl-splash__rule" />
+        <div className="adl-splash__name">{BRAND_LOCKUP}</div>
       </div>
     </div>
   );
