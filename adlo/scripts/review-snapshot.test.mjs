@@ -101,6 +101,29 @@ test("collects absolute and numeric claims with new-file line numbers", () => {
   }
 });
 
+test("collects Chinese universal-quantifier claims (所有…都 / 全部…都)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adl-review-snapshot-"));
+  const file = "adlo/frontend/src/foo.ts";
+  try {
+    writeFileSync(
+      join(dir, `${safeSnapshotName(file)}-rev9.diff`),
+      [
+        "@@ -1,0 +1,3 @@",
+        "+// 所有可见列表都会过滤掉隐藏工作区",
+        "+// 全部入口都在这里",
+        "+// 遍历所有工作区",
+      ].join("\n"),
+    );
+    const result = collectClaimHints([file], dir, 9);
+    assert.deepEqual(
+      result.hints.map((hit) => hit.line),
+      [1, 2],
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("clears stale claims and ack files when a regenerated rev has no claims", () => {
   const dir = mkdtempSync(join(tmpdir(), "adl-review-snapshot-"));
   const file = "adlo/frontend/src/foo.ts";

@@ -2041,7 +2041,7 @@ describe('SettingsPanel open-method group', () => {
     envState.tauri = false;
   });
 
-  it('opens the global agent-site rules dialog from the rules row', () => {
+  it('opens the inline agent-site rules editor from the rules row', () => {
     setupStore();
     envState.tauri = true;
     const appInfo = openMethodAppInfo({ agentLinkIntercept: true });
@@ -2051,11 +2051,9 @@ describe('SettingsPanel open-method group', () => {
         <SettingsPanel settings={buildSettingsItems(mockT, appInfo)} onChangeSetting={() => {}} />
       </TestProvider>,
     );
-    const manage = screen.getByRole('button', { name: /settingsAgentRulesGlobalManage/ });
+    const manage = screen.getByRole('button', { name: /settingsAgentRulesEdit/ });
     fireEvent.click(manage);
-    expect(
-      screen.getByRole('dialog', { name: 'settingsAgentRulesDialogTitleGlobal' }),
-    ).not.toBeNull();
+    expect(screen.getByRole('region', { name: 'settingsAgentRules' })).not.toBeNull();
     envState.tauri = false;
   });
 

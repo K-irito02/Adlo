@@ -146,7 +146,8 @@ function stageIntentToAdd(allowUntracked) {
 }
 
 /** 注释里的「绝对断言」：默认门控，确认后由 claims-ack 放行。 */
-const CLAIM_PATTERN = /必然|总是|永远|从不|唯一|一定|不可达|不会走到|always|never|unreachable/i;
+const CLAIM_PATTERN =
+  /必然|总是|永远|从不|唯一|一定|不可达|不会走到|所有[^，。；]*都|全部[^，。；]*都|都会|一律|always|never|unreachable/i;
 /** 「数字断言」：注释/文案里的计数容易随代码漂移（本次实测 3 处），与绝对断言同等门控。 */
 const NUMERIC_CLAIM_PATTERN =
   /\b\d+\s*(?:files?|tests?|passed)\b|\d+\s*个(?:用例|测试|文件|入口|步骤)|上限\s*\d+/i;

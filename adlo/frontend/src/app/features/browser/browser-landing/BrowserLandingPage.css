@@ -77,7 +77,7 @@
 }
 
 .adl-browser-landing__port-details-value--closed {
-  color: var(--color-error);
+  color: var(--color-danger);
 }
 
 .adl-browser-landing__port-details-section {

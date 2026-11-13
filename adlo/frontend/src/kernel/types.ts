@@ -510,6 +510,15 @@ export interface SettingItem {
   options?: { value: string; label: string }[];
   cssVar?: '--font-sans-custom' | '--font-mono-custom';
   disabled?: boolean;
+  /**
+   * 行级「恢复默认」按钮的提交值。设置后该行左侧出现标准恢复按钮；
+   * 不设置时回退到 `getDefaultForSetting(id)` 的默认值语义。
+   */
+  resetValue?: SettingValue;
+  /** 已处于默认状态（恢复按钮置灰）。用于无法用 `===` 比较的结构化值。 */
+  resetDisabled?: boolean;
+  /** 需要二次确认的恢复动作（破坏性重置，如清空自定义规则）。 */
+  resetConfirm?: { title: string; message: string };
 }
 
 export type GitFileStatus =

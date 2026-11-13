@@ -359,34 +359,149 @@ export const settingsEn = {
   settingsAgentRules: 'Interception rules',
   settingsAgentRulesDesc:
     'Global rules and site overrides. When enabled, whitelisted agent sites try these rules before links open in the app',
-  settingsAgentRulesGlobalManage: 'Manage global rules',
-  settingsAgentRulesGlobalReset: 'Restore global defaults',
-  settingsAgentRulesSiteManage: 'Manage site rules',
   settingsAgentRulesSiteReset: 'Restore site defaults',
   settingsAgentRulesSiteResetConfirm: 'Restore site defaults: {site}',
-  settingsAgentRulesBuiltinFileLike: 'Built-in local-file attribute',
-  settingsAgentRulesDialogTitleGlobal: 'Manage global interception rules',
-  settingsAgentRulesDialogTitleSite: 'Manage {site} site override',
+  settingsAgentRulesBuiltinFileLike: 'Local file attribute',
   settingsAgentRulesAdd: 'Add rule',
   settingsAgentRulesName: 'Rule name',
   settingsAgentRulesSelector: 'Match selector',
   settingsAgentRulesAttributes: 'Attributes',
   settingsAgentRulesAttributesHint: 'Separate with commas, e.g. title, data-file-path, aria-label',
   settingsAgentRulesPreset: 'Match mode',
-  settingsAgentRulesPresetFileLike: 'Built-in local file',
+  settingsAgentRulesPresetFileLike: 'Local file',
   settingsAgentRulesPresetRegex: 'Custom regex',
   settingsAgentRulesRegex: 'Value regex',
   settingsAgentRulesRegexFlags: 'Regex flags',
   settingsAgentRulesAction: 'Action',
   settingsAgentRulesActionFile: 'Open file',
   settingsAgentRulesActionUrl: 'Open URL',
+  settingsAgentRulesActionFileOnly: 'Local-file mode always opens a file',
   settingsAgentRulesEnabled: 'Rule enabled',
-  settingsAgentRulesDelete: 'Delete rule',
   settingsAgentRulesSave: 'Save',
   settingsAgentRulesCancel: 'Cancel',
   settingsAgentRulesEmptyGlobal: 'No global rules',
   settingsAgentRulesEmptySite: 'No site rules',
-  settingsAgentRulesDisabled: 'Off',
-  settingsAgentRulesOverridden: 'Site override enabled',
   settingsAgentRulesRuleError: 'Invalid regular expression',
+  settingsAgentRulesOtherRuleInvalid: 'Another rule has an invalid regex — fix it before saving',
+  settingsAgentRulesSummary: '{rules} global · {sites} site overrides',
+  settingsAgentRulesEdit: 'Edit rules',
+  settingsAgentRulesCollapse: 'Collapse rules',
+  settingsAgentRulesGlobalTab: 'Global rules',
+  settingsAgentRulesSiteTab: 'Site overrides',
+  settingsAgentRulesSiteRules: 'Site rules',
+  settingsAgentRulesGlobalEnabled: 'Globally enabled rules',
+  settingsAgentRulesDeleteSelected: 'Delete selected rule',
+  settingsAgentRulesNoSites: 'No allowlisted sites yet',
+  settingsAgentRulesNoSitesHint:
+    'Add a site under "Agent site allowlist" first, then come back to configure its overrides.',
+  settingsAgentRulesResetConfirmTitle: 'Restore interception rule defaults?',
+  settingsAgentRulesResetConfirmMessage:
+    'Restores the default global rules and removes every site override. This cannot be undone.',
+  settingsAgentRulesHelpShow: 'How it works',
+  settingsAgentRulesHelpGlobalTitle: 'How global rules work',
+  settingsAgentRulesHelpGlobalIntro:
+    'Global rules apply to every site in "{whitelist}". When you click a link or button, Adlo checks the element attributes in list order and then follows the rule action (open file or open URL).',
+  settingsAgentRulesHelpGlobalStep1:
+    'Make sure "{intercept}" is on, then add the target site under "{whitelist}" below it.',
+  settingsAgentRulesHelpGlobalStep2:
+    'Write the clickable element selector under "{selector}", then list the path attributes under "{attributes}" (for example title, data-file-path).',
+  settingsAgentRulesHelpGlobalStep3:
+    'Under "{preset}", choose "{fileLike}" or "{regex}". After saving, verify with a real click; when it fails, check the attribute value shape first.',
+  settingsAgentRulesHelpSiteTitle: 'How site overrides work',
+  settingsAgentRulesHelpSiteIntro:
+    'A site override only affects the selected site in "{whitelist}": you can disable some global rules and add rules that exist only for this site. Site rules take precedence over global rules.',
+  settingsAgentRulesHelpSiteStep1:
+    'Add the target site under "{whitelist}", then select it under "{siteTab}".',
+  settingsAgentRulesHelpSiteStep2:
+    'Turn off the rules you do not need under "{globalEnabled}"; add site rules for extra behavior.',
+  settingsAgentRulesHelpSiteStep3:
+    'Verify on that site only. A site rule with the same id replaces the global rule.',
+  settingsAgentRulesHelpFileLike:
+    'Local file: accepts file://, drive paths (C:\\ or C:/) and UNC paths only. A site-relative path is not a local file.',
+  settingsAgentRulesHelpRegex:
+    'Custom regex: matches the raw attribute value with JS RegExp. For "Open URL", relative values are resolved against the page and only http(s) is accepted.',
+  settingsAgentRulesHelpNote:
+    'Rules are evaluated top to bottom and the first match wins. If a click does nothing, check "{intercept}" and "{whitelist}" first, then the attribute name and value.',
+  settingsAgentRulesCopyPrompt: 'Copy agent prompt',
+  settingsAgentRulesPromptNoSite: '(not selected)',
+  settingsAgentRulesPromptNoAlias: '(no alias)',
+  settingsAgentRulesPromptTestTarget:
+    'the test page provided by the user (ask the user for its URL)',
+  settingsAgentRulesCopyPromptShort: 'Copy prompt',
+  settingsAgentRulesCopied: 'Copied',
+  settingsAgentRulesCopyFailed: 'Copy failed. Please try again.',
+  settingsAgentRulesCopyFailedShort: 'Copy failed',
+  settingsAgentRulesExternalChanged:
+    'The configuration changed externally. Saving will overwrite that change.',
+  settingsAgentRulesPromptGlobal: `You are the maintainer assistant for Adlo's "Agent site link interception rules". Inspect the real behavior first, then edit the configuration by the rules below and confirm it took effect.
+
+UI: Adlo -> Settings -> Open with -> Intercept agent-site links (master toggle) / Agent site allowlist / Interception rules.
+
+## Goal
+1. Use your product's built-in browser, browser automation skill, or equivalent to open and inspect: {testTarget}
+2. Click through and record: local file paths, local audio/video, file:// links, relative paths, http(s) links, mailto:, regex rule hits and misses.
+3. Find elements that do not open as expected and decide why: missing rule, selector mismatch, wrong attribute name, invalid regex, or wrong action.
+4. Change only Adlo's interception rule configuration. After saving, confirm the app reloaded the config and verify again.
+
+## Configuration file
+- Location: {configPath} (installs may use <install-dir-name>-data next to the app; the data root shown in Settings → Storage is authoritative)
+- If the default path does not exist: ask the user for the data directory shown in Adlo "Settings -> Storage", then append config/config.json. Do not edit a guessed file.
+- Only change these top-level fields: agent_link_intercept, agent_site_whitelist, agent_site_rules, agent_site_overrides. Keep every other field untouched.
+- agent_link_intercept must be true for the rules to run; agent_site_whitelist entries use a full origin (scheme + host + port, no path).
+- To restore the product defaults, remove agent_site_rules and agent_site_overrides; an empty array means "no rules", not "defaults".
+- Top-level fields use snake_case; rule objects use camelCase: matchSelector, pathPreset, valueRegex, regexFlags, disabledRuleIds, siteRules.
+- Back up to config.json.bak-<timestamp> before writing; write a temp file and replace atomically; keep UTF-8.
+- Never write secrets, tokens, or personal data unrelated to interception rules.
+
+## Current configuration snapshot
+{configJson}
+
+## Rule semantics
+- pathPreset=fileLike: the attribute value must be file://, a drive path (C:\\ or C:/), or a UNC path (\\\\server\\share). A site-relative /assets/x is not a local file.
+- pathPreset=regex: valueRegex is matched against the raw attribute value with JS RegExp; regexFlags such as i are supported.
+- action=file: follow the "File open method"; action=url: resolve relative values against the page and accept http(s) only.
+- Site rules take precedence over global rules; a site rule with the same id replaces the global rule; disabledRuleIds only disables global rules.
+- Rules are evaluated in array order and the first match wins; enabled=false skips a rule.
+
+## Deliverable
+- List the scenarios you checked and the result (pass / fail / reason).
+- Show the before/after JSON fragments (rule-related fields only).
+- State that the config was saved and the app reloaded it. If you cannot access the file or drive a browser, say so explicitly; never fake success.`,
+  settingsAgentRulesPromptSite: `You are the maintainer assistant for Adlo's "Agent site link interception rules". Inspect the real behavior first, then edit the configuration by the rules below and confirm it took effect.
+
+UI: Adlo -> Settings -> Open with -> Intercept agent-site links (master toggle) / Agent site allowlist / Interception rules.
+
+## Target site
+Only handle the site override whose origin is {site} ({alias}); confirm it is listed in agent_site_whitelist and only change its entry in agent_site_overrides.
+
+## Goal
+1. Use your product's built-in browser, browser automation skill, or equivalent to open and inspect: {testTarget}
+2. Click through and record: local file paths, local audio/video, file:// links, relative paths, http(s) links, mailto:, regex rule hits and misses.
+3. Find elements that do not open as expected and decide why: missing rule, selector mismatch, wrong attribute name, invalid regex, or wrong action.
+4. Change only this site's override configuration. After saving, confirm the app reloaded the config and verify again.
+
+## Configuration file
+- Location: {configPath} (installs may use <install-dir-name>-data next to the app; the data root shown in Settings → Storage is authoritative)
+- If the default path does not exist: ask the user for the data directory shown in Adlo "Settings -> Storage", then append config/config.json. Do not edit a guessed file.
+- Only change these top-level fields: agent_link_intercept, agent_site_whitelist, agent_site_rules, agent_site_overrides. Keep every other field untouched.
+- agent_link_intercept must be true for the rules to run; agent_site_whitelist entries use a full origin (scheme + host + port, no path).
+- To restore the product defaults, remove agent_site_rules and agent_site_overrides; an empty array means "no rules", not "defaults".
+- Top-level fields use snake_case; rule objects use camelCase: matchSelector, pathPreset, valueRegex, regexFlags, disabledRuleIds, siteRules.
+- Back up to config.json.bak-<timestamp> before writing; write a temp file and replace atomically; keep UTF-8.
+- Never write secrets, tokens, or personal data unrelated to interception rules.
+
+## Current configuration snapshot
+{configJson}
+
+## Rule semantics
+- pathPreset=fileLike: the attribute value must be file://, a drive path (C:\\ or C:/), or a UNC path (\\\\server\\share). A site-relative /assets/x is not a local file.
+- pathPreset=regex: valueRegex is matched against the raw attribute value with JS RegExp; regexFlags such as i are supported.
+- action=file: follow the "File open method"; action=url: resolve relative values against the page and accept http(s) only.
+- Site rules take precedence over global rules; a site rule with the same id replaces the global rule; disabledRuleIds only disables global rules.
+- Rules are evaluated in array order and the first match wins; enabled=false skips a rule.
+
+## Deliverable
+- List the scenarios you checked and the result (pass / fail / reason).
+- Show the before/after JSON fragments (rule-related fields only).
+- State that the config was saved and the app reloaded it. If you cannot access the file or drive a browser, say so explicitly; never fake success.`,
 } as const;

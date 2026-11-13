@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { buildSettingsItems, preferencePatchFromSettingChange } from './settingsViewModel';
 import type { AppInfo } from '../../kernel/types';
+import { defaultAgentSiteRules } from '../../shared/agentSiteRules';
 import type { CopyDict } from '../i18n';
 
 const envState = vi.hoisted(() => ({ tauri: false }));
@@ -59,6 +60,8 @@ const mockT = {
   settingsAgentInterceptDesc: 'settingsAgentInterceptDesc',
   settingsAgentWhitelistDesc: 'settingsAgentWhitelistDesc',
   settingsAgentDesktopOnlyHint: 'settingsAgentDesktopOnlyHint',
+  settingsAgentRulesResetConfirmTitle: '恢复拦截规则默认？',
+  settingsAgentRulesResetConfirmMessage: '将恢复内置全局规则并清除全部站点覆盖。',
 } as unknown as CopyDict;
 
 describe('buildSettingsItems', () => {
@@ -224,6 +227,25 @@ describe('buildSettingsItems', () => {
         { origin: 'https://my-agent.example.com' },
       ],
     });
+    expect(rules?.resetValue).toEqual({ kind: 'resetGlobal' });
+    expect(rules?.resetConfirm?.title).toBe('恢复拦截规则默认？');
+    expect(rules?.resetDisabled).toBe(false);
+  });
+
+  it('marks the rules reset as disabled when the item is at the product defaults', () => {
+    const appInfo: AppInfo = {
+      ...mockAppInfo,
+      config: {
+        ...mockAppInfo.config,
+        agentLinkIntercept: true,
+        agentSiteRules: defaultAgentSiteRules(),
+        agentSiteOverrides: [],
+      },
+    };
+    const rules = buildSettingsItems(mockT, appInfo).find(
+      (item) => item.id === 'openMethod:agentSiteRules',
+    );
+    expect(rules?.resetDisabled).toBe(true);
   });
 });
 

@@ -534,6 +534,233 @@ describe('init_script.js agent-link interception', () => {
     expect(agentLinks()).toHaveLength(0);
   });
 
+  it('prefers site-specific rules over global rules for the same element', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules(
+      [
+        {
+          id: 'global-file',
+          enabled: true,
+          matchSelector: 'button',
+          attributes: ['title'],
+          pathPreset: 'fileLike',
+          action: 'file',
+        },
+      ],
+      [
+        {
+          origin: window.location.origin,
+          disabledRuleIds: [],
+          siteRules: [
+            {
+              id: 'site-url',
+              enabled: true,
+              matchSelector: 'button',
+              attributes: ['data-url'],
+              pathPreset: 'regex',
+              valueRegex: '^https://cdn\\.example/',
+              action: 'url',
+            },
+          ],
+        },
+      ],
+    );
+    clickButtonWithAttrs({
+      title: 'E:\\ws\\a.md',
+      'data-url': 'https://cdn.example/x.md',
+    });
+    expect(agentLinks()).toEqual([
+      { type: 'adl-agent-link', kind: 'url', url: 'https://cdn.example/x.md' },
+    ]);
+  });
+
+  it('applies disabledRuleIds to global rules only, never to same-id site rules', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules(
+      [
+        {
+          id: 'shared-id',
+          enabled: true,
+          matchSelector: 'button',
+          attributes: ['title'],
+          pathPreset: 'fileLike',
+          action: 'file',
+        },
+      ],
+      [
+        {
+          origin: window.location.origin,
+          disabledRuleIds: ['shared-id'],
+          siteRules: [
+            {
+              id: 'shared-id',
+              enabled: true,
+              matchSelector: 'button',
+              attributes: ['data-url'],
+              pathPreset: 'regex',
+              valueRegex: '^https://cdn\\.example/',
+              action: 'url',
+            },
+          ],
+        },
+      ],
+    );
+    clickButtonWithAttrs({
+      title: 'E:\\ws\\a.md',
+      'data-url': 'https://cdn.example/x.md',
+    });
+    expect(agentLinks()).toEqual([
+      { type: 'adl-agent-link', kind: 'url', url: 'https://cdn.example/x.md' },
+    ]);
+  });
+
+  it('replaces a global rule with the same id by the site rule', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules(
+      [
+        {
+          id: 'dup',
+          enabled: true,
+          matchSelector: 'button',
+          attributes: ['title'],
+          pathPreset: 'fileLike',
+          action: 'file',
+        },
+      ],
+      [
+        {
+          origin: window.location.origin,
+          disabledRuleIds: [],
+          siteRules: [
+            {
+              id: 'dup',
+              enabled: true,
+              matchSelector: 'button',
+              attributes: ['data-url'],
+              pathPreset: 'regex',
+              valueRegex: '^https://cdn\\.example/',
+              action: 'url',
+            },
+          ],
+        },
+      ],
+    );
+    clickButtonWithAttrs({
+      title: 'E:\\ws\\a.md',
+      'data-url': 'https://cdn.example/x.md',
+    });
+    expect(agentLinks()).toEqual([
+      { type: 'adl-agent-link', kind: 'url', url: 'https://cdn.example/x.md' },
+    ]);
+  });
+
+  it('does not fall back to a global rule when the same-id site rule is disabled', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules(
+      [
+        {
+          id: 'dup-disabled',
+          enabled: true,
+          matchSelector: 'button',
+          attributes: ['title'],
+          pathPreset: 'fileLike',
+          action: 'file',
+        },
+      ],
+      [
+        {
+          origin: window.location.origin,
+          disabledRuleIds: [],
+          siteRules: [
+            {
+              id: 'dup-disabled',
+              enabled: false,
+              matchSelector: 'button',
+              attributes: ['title'],
+              pathPreset: 'fileLike',
+              action: 'file',
+            },
+          ],
+        },
+      ],
+    );
+    clickButtonWithAttrs({ title: 'E:\\ws\\a.md' });
+    // 站点规则替换全局同 id；自身停用后该 id 在该站点不再生效，不回退到全局。
+    expect(agentLinks()).toHaveLength(0);
+  });
+
+  it('skips a matched rule whose target cannot be opened and tries the next rule', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules([
+      {
+        id: 'unopenable-url',
+        enabled: true,
+        matchSelector: 'button',
+        attributes: ['data-bad'],
+        pathPreset: 'regex',
+        valueRegex: '^ftp://',
+        action: 'url',
+      },
+      {
+        id: 'openable-url',
+        enabled: true,
+        matchSelector: 'button',
+        attributes: ['data-good'],
+        pathPreset: 'regex',
+        valueRegex: '^https://cdn\\.example/',
+        action: 'url',
+      },
+    ]);
+    clickButtonWithAttrs({
+      'data-bad': 'ftp://example.com/x.md',
+      'data-good': 'https://cdn.example/x.md',
+    });
+    expect(agentLinks()).toEqual([
+      { type: 'adl-agent-link', kind: 'url', url: 'https://cdn.example/x.md' },
+    ]);
+  });
+
+  it('resolves a relative url-action match against the page URL', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules([
+      {
+        id: 'relative-url',
+        enabled: true,
+        matchSelector: 'button',
+        attributes: ['data-href'],
+        pathPreset: 'regex',
+        valueRegex: '^/docs/',
+        action: 'url',
+      },
+    ]);
+    clickButtonWithAttrs({ 'data-href': '/docs/a.md' });
+    expect(agentLinks()).toEqual([
+      {
+        type: 'adl-agent-link',
+        kind: 'url',
+        url: new URL('/docs/a.md', window.location.href).href,
+      },
+    ]);
+  });
+
+  it('does not send an unopenable file-kind payload for a web URL match', () => {
+    setAgent([window.location.origin], true);
+    setAgentRules([
+      {
+        id: 'bad-file-action',
+        enabled: true,
+        matchSelector: 'button',
+        attributes: ['data-href'],
+        pathPreset: 'regex',
+        valueRegex: '^https://',
+        action: 'file',
+      },
+    ]);
+    const event = clickButtonWithAttrs({ 'data-href': 'https://cdn.example/x.md' });
+    expect(agentLinks()).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it('defines the agent-link helper and postMessage payload', () => {
     expect(initScript).toContain('__adlIsAgentHost');
     expect(initScript).toContain('__adlSendAgentLink');

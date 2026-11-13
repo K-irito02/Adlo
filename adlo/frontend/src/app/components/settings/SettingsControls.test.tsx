@@ -211,4 +211,122 @@ describe('SettingsControls reset button', () => {
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith('font:ui', '');
   });
+
+  it('asks for confirmation before resetting structured agent rules', () => {
+    const onChange = vi.fn();
+    const items: SettingItem[] = [
+      {
+        id: 'openMethod:agentSiteRules',
+        groupId: 'openMethod',
+        label: 'settingsAgentRules',
+        type: 'agentSiteRules',
+        value: { rules: [], overrides: [], sites: [] },
+        resetValue: { kind: 'resetGlobal' },
+        resetConfirm: { title: 'Reset rules?', message: 'This cannot be undone.' },
+      },
+    ];
+    render(
+      <TestProvider>
+        <SettingsControls items={items} onChange={onChange} />
+      </TestProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetToDefault' }));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByText('Reset rules?')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    expect(onChange).toHaveBeenCalledWith('openMethod:agentSiteRules', { kind: 'resetGlobal' });
+  });
+
+  it('disables the structured reset when it is already at defaults', () => {
+    const items: SettingItem[] = [
+      {
+        id: 'openMethod:agentSiteRules',
+        groupId: 'openMethod',
+        label: 'settingsAgentRules',
+        type: 'agentSiteRules',
+        value: { rules: [], overrides: [], sites: [] },
+        resetValue: { kind: 'resetGlobal' },
+        resetDisabled: true,
+        resetConfirm: { title: 'Reset rules?', message: 'This cannot be undone.' },
+      },
+    ];
+    render(
+      <TestProvider>
+        <SettingsControls items={items} onChange={() => {}} />
+      </TestProvider>,
+    );
+    expect(
+      screen.getByRole('button', { name: 'settingsResetToDefault' }).hasAttribute('disabled'),
+    ).toBe(true);
+  });
+
+  it('renders the agent rules editor as a sibling of the setting row', () => {
+    const items: SettingItem[] = [
+      {
+        id: 'openMethod:agentSiteRules',
+        groupId: 'openMethod',
+        label: 'settingsAgentRules',
+        type: 'agentSiteRules',
+        value: { rules: [], overrides: [], sites: [] },
+        resetValue: { kind: 'resetGlobal' },
+        resetConfirm: { title: 'Reset rules?', message: 'This cannot be undone.' },
+      },
+    ];
+    render(
+      <TestProvider>
+        <SettingsControls items={items} onChange={() => {}} />
+      </TestProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /settingsAgentRulesEdit/ }));
+    const panel = document.getElementById('adl-agent-site-rules-panel');
+    expect(panel).not.toBeNull();
+    expect(panel?.closest('.adl-settings-row')).toBeNull();
+  });
+
+  it('does not auto-save a dirty rules draft over a confirmed structure reset', () => {
+    const onChange = vi.fn();
+    const items: SettingItem[] = [
+      {
+        id: 'openMethod:agentSiteRules',
+        groupId: 'openMethod',
+        label: 'settingsAgentRules',
+        type: 'agentSiteRules',
+        value: {
+          rules: [
+            {
+              id: 'rule-a',
+              name: 'Rule A',
+              enabled: true,
+              matchSelector: 'button',
+              attributes: ['title'],
+              pathPreset: 'fileLike',
+              action: 'file',
+            },
+          ],
+          overrides: [],
+          sites: [],
+        },
+        resetValue: { kind: 'resetGlobal' },
+        resetConfirm: { title: 'Reset rules?', message: 'This cannot be undone.' },
+      },
+    ];
+    render(
+      <TestProvider>
+        <SettingsControls items={items} onChange={onChange} />
+      </TestProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /settingsAgentRulesEdit/ }));
+    fireEvent.change(screen.getByLabelText('settingsAgentRulesName'), {
+      target: { value: 'Dirty name' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetToDefault' }));
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('openMethod:agentSiteRules', { kind: 'resetGlobal' });
+  });
 });

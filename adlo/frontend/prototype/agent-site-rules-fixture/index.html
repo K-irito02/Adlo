@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>拦截规则测试页 — Agent Site Rules Fixture</title>
+    <link rel="stylesheet" href="../../src/styles/index.css" />
+    <style>
+      :root {
+        --fixture-local: #9ad0a5;
+        --fixture-negative: #d3a45f;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+      }
+      .fixture {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 40px 28px 120px;
+      }
+      .fixture__eyebrow {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+      .fixture h1 {
+        font-family: var(--font-serif, Georgia, serif);
+        font-size: 30px;
+        font-weight: 500;
+        margin: 10px 0 8px;
+      }
+      .fixture__lead {
+        max-width: 70ch;
+        font-size: 13px;
+        line-height: 1.75;
+        color: var(--text-secondary);
+        margin: 0 0 18px;
+      }
+      .fixture__setup {
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        background: var(--bg-muted);
+        padding: 14px 16px;
+        margin: 0 0 28px;
+        font-size: 12px;
+        line-height: 1.7;
+        color: var(--text-secondary);
+      }
+      .fixture__setup code {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        padding: 1px 5px;
+        border-radius: 3px;
+        background: var(--bg-elevated);
+        color: var(--text-primary);
+      }
+      .fixture h2 {
+        font-size: 13px;
+        font-weight: 600;
+        margin: 30px 0 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .fixture h2 small {
+        margin-left: 8px;
+        font-weight: 400;
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+      .fixture__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 10px;
+      }
+      .fixture__item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        min-height: 86px;
+        padding: 12px;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        background: var(--surface-raised);
+        text-align: left;
+      }
+      .fixture__item:hover {
+        border-color: var(--border);
+      }
+      .fixture__item strong {
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .fixture__item code {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        line-height: 1.5;
+        color: var(--text-secondary);
+        word-break: break-all;
+      }
+      .fixture__expect {
+        margin-top: auto;
+        font-size: 10px;
+        line-height: 1.5;
+        color: var(--fixture-local);
+      }
+      .fixture__expect--negative {
+        color: var(--fixture-negative);
+      }
+      a.fixture__item {
+        color: inherit;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      button.fixture__item {
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+      }
+      .fixture__legend {
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+        margin: 8px 0 0;
+        font-size: 10px;
+        color: var(--text-muted);
+      }
+      .fixture__legend span::before {
+        content: '●';
+        margin-right: 6px;
+      }
+      .fixture__legend .ok::before {
+        color: var(--fixture-local);
+      }
+      .fixture__legend .no::before {
+        color: var(--fixture-negative);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="fixture">
+      <div class="fixture__eyebrow">Adlo · Agent Site Rules · Fixture</div>
+      <h1>拦截规则测试页</h1>
+      <p class="fixture__lead">
+        用 Adlo 内置浏览器打开本页，并把它加入「Agent 网址白名单」。逐项点击，核对右侧面板是否按预期打开文件 /
+        网址；负向用例应保持浏览器原生行为。
+      </p>
+      <div class="fixture__setup">
+        <strong>准备：</strong>设置 → 打开方式 → 开启「Agent 链接拦截」→ 白名单加入
+        <code>http://127.0.0.1:5200</code> → 在「拦截规则」里确认全局规则已启用。本页由
+        <code>pnpm run prototype:serve</code> 提供；直接双击打开时 origin 是 <code>file://</code>，白名单不匹配。
+        <br />
+        本地文件目标：本页同目录的 <code>sample.md</code> / <code>sample.txt</code> /
+        <code>sample.json</code>，以及 Windows 自带的音频 / 壁纸。
+      </div>
+
+      <div class="fixture__legend">
+        <span class="ok">应由拦截规则接管</span>
+        <span class="no">应保持原生行为 / 不拦截</span>
+      </div>
+
+      <h2>1. 网站链接 <small>http(s)</small></h2>
+      <div class="fixture__grid">
+        <a class="fixture__item" href="https://example.com/" target="_blank">
+          <strong>普通网站链接</strong>
+          <code>https://example.com/</code>
+          <span class="fixture__expect">按「链接打开方式」打开</span>
+        </a>
+        <a class="fixture__item" href="https://www.w3schools.com/html/mov_bbb.mp4">
+          <strong>远程视频 URL</strong>
+          <code>https://www.w3schools.com/html/mov_bbb.mp4</code>
+          <span class="fixture__expect">按下载 / 链接打开方式处理</span>
+        </a>
+        <a class="fixture__item" href="https://example.com/docs/guide.md">
+          <strong>文档链接</strong>
+          <code>https://example.com/docs/guide.md</code>
+          <span class="fixture__expect">按「链接打开方式」打开</span>
+        </a>
+      </div>
+
+      <h2>2. 本地文件 / 媒体 <small>file:// 与本地路径</small></h2>
+      <div class="fixture__grid">
+        <a
+          class="fixture__item"
+          href="file:///E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/slot-1/adlo/frontend/prototype/agent-site-rules-fixture/sample.md"
+        >
+          <strong>本地 markdown</strong>
+          <code>file:///.../sample.md</code>
+          <span class="fixture__expect">应由拦截规则以「打开文件」接管</span>
+        </a>
+        <a
+          class="fixture__item"
+          href="file:///E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/slot-1/adlo/frontend/prototype/agent-site-rules-fixture/sample.txt"
+        >
+          <strong>本地文本</strong>
+          <code>file:///.../sample.txt</code>
+          <span class="fixture__expect">应由拦截规则以「打开文件」接管</span>
+        </a>
+        <a class="fixture__item" href="file:///C:/Windows/Media/Alarm01.wav">
+          <strong>本地音频</strong>
+          <code>file:///C:/Windows/Media/Alarm01.wav</code>
+          <span class="fixture__expect">应由拦截规则以「打开文件」接管</span>
+        </a>
+        <a class="fixture__item" href="file:///C:/Windows/Web/Wallpaper/Windows/img19.jpg">
+          <strong>本地图片</strong>
+          <code>file:///C:/Windows/Web/Wallpaper/Windows/img19.jpg</code>
+          <span class="fixture__expect">应由拦截规则以「打开文件」接管</span>
+        </a>
+        <a class="fixture__item" href="file:///C:/no-such-folder/sample-video.mp4">
+          <strong>本地视频（不存在的负向样本）</strong>
+          <code>file:///C:/no-such-folder/sample-video.mp4</code>
+          <span class="fixture__expect fixture__expect--negative">应尝试打开并给出错误，不得静默无响应</span>
+        </a>
+      </div>
+
+      <h2>3. 属性规则 <small>title / aria-label / data-* / 正则</small></h2>
+      <div class="fixture__grid">
+        <button
+          type="button"
+          class="fixture__item"
+          title="E:\AI-DIGITAL-LIFE\SourceWorkspace-worktrees\slot-1\adlo\frontend\prototype\agent-site-rules-fixture\sample.md"
+        >
+          <strong>title 属性</strong>
+          <code>title="E:\...\sample.md"</code>
+          <span class="fixture__expect">本地文件规则应命中</span>
+        </button>
+        <button
+          type="button"
+          class="fixture__item"
+          aria-label="E:\AI-DIGITAL-LIFE\SourceWorkspace-worktrees\slot-1\adlo\frontend\prototype\agent-site-rules-fixture\sample.txt"
+        >
+          <strong>aria-label 属性</strong>
+          <code>aria-label="E:\...\sample.txt"</code>
+          <span class="fixture__expect">本地文件规则应命中</span>
+        </button>
+        <button
+          type="button"
+          class="fixture__item"
+          data-file-path="E:\AI-DIGITAL-LIFE\SourceWorkspace-worktrees\slot-1\adlo\frontend\prototype\agent-site-rules-fixture\sample.json"
+        >
+          <strong>data-file-path 属性</strong>
+          <code>data-file-path="E:\...\sample.json"</code>
+          <span class="fixture__expect">本地文件规则应命中</span>
+        </button>
+        <button type="button" class="fixture__item" data-url="https://example.com/from-data-url">
+          <strong>data-url 属性</strong>
+          <code>data-url="https://example.com/from-data-url"</code>
+          <span class="fixture__expect">需自定义规则（正则 / 打开网址）</span>
+        </button>
+        <button type="button" class="fixture__item" data-href="/docs/guide.md">
+          <strong>相对网址（正则）</strong>
+          <code>data-href="/docs/guide.md"</code>
+          <span class="fixture__expect">自定义正则 <code>^/docs/</code> + 打开网址</span>
+        </button>
+        <button type="button" class="fixture__item" data-src="/assets/hero.png">
+          <strong>站点相对路径（负向）</strong>
+          <code>data-src="/assets/hero.png"</code>
+          <span class="fixture__expect fixture__expect--negative">不是本地文件，不应被 fileLike 命中</span>
+        </button>
+      </div>
+
+      <h2>4. 原生行为 <small>不应被拦截</small></h2>
+      <div class="fixture__grid">
+        <a class="fixture__item" href="mailto:test@example.com">
+          <strong>mailto</strong>
+          <code>mailto:test@example.com</code>
+          <span class="fixture__expect fixture__expect--negative">交给系统邮件客户端</span>
+        </a>
+        <a class="fixture__item" href="#section-anchor" id="section-anchor">
+          <strong>页内锚点</strong>
+          <code>#section-anchor</code>
+          <span class="fixture__expect fixture__expect--negative">页面内滚动，不新建标签</span>
+        </a>
+        <button type="button" class="fixture__item" title="这只是一个普通按钮">
+          <strong>普通按钮</strong>
+          <code>title="这只是一个普通按钮"</code>
+          <span class="fixture__expect fixture__expect--negative">不应被拦截</span>
+        </button>
+      </div>
+
+      <h2>5. 媒体元素 <small>直接播放，不经点击拦截</small></h2>
+      <div class="fixture__grid">
+        <div class="fixture__item">
+          <strong>本地音频播放</strong>
+          <audio controls src="file:///C:/Windows/Media/Alarm01.wav"></audio>
+          <span class="fixture__expect">WebView2 可能因安全策略禁止 http 页面直接加载 file:// 媒体（属预期）；点击用例才是拦截路径</span>
+        </div>
+        <div class="fixture__item">
+          <strong>远程视频播放</strong>
+          <video controls width="220" src="https://www.w3schools.com/html/mov_bbb.mp4"></video>
+          <span class="fixture__expect">用于确认媒体渲染未被拦截逻辑影响</span>
+        </div>
+      </div>
+    </main>
+    <script>
+      // 桌面 E2E 用：?auto=file / ?auto=url 时自动点击对应项，避免自动化
+      // 需要进入原生子 WebView 才能触发点击。?file=... 可把「本地 markdown」
+      // 指向临时小文件，避免首次打开时把整个工作树登记为工作区。
+      (() => {
+        const params = new URLSearchParams(location.search);
+        const mode = params.get('auto');
+        const overrideFile = params.get('file');
+        if (overrideFile) {
+          const local = [...document.querySelectorAll('.fixture__item')].find((element) =>
+            (element.textContent || '').includes('本地 markdown'),
+          );
+          if (local && local.tagName === 'A') {
+            local.setAttribute('href', overrideFile);
+          }
+        }
+        if (!mode) return;
+        window.addEventListener('load', () => {
+          setTimeout(() => {
+            const label = mode === 'url' ? '普通网站链接' : '本地 markdown';
+            const item = [...document.querySelectorAll('.fixture__item')].find((element) =>
+              (element.textContent || '').includes(label),
+            );
+            item?.click();
+          }, 700);
+        });
+      })();
+    </script>
+  </body>
+</html>

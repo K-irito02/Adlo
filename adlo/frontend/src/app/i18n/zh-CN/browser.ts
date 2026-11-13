@@ -43,7 +43,7 @@ export const browserZh = {
   browserCopyLink: '复制链接',
   browserLocalFileDesktopOnly: '本地文件仅支持桌面版打开',
   browserLocalFileUnsupported: '仅支持浏览器可直接渲染的本地文件类型',
-  browserFileOutsideWorkspace: '该文件不在任何已知工作区，无法在文件面板打开',
+  browserFileOutsideWorkspace: '链接路径无法解析为本地文件，未能打开',
   browserCategoryWorkspace: '工作区目录',
   browserCategoryUserFolder: '自建目录',
   browserCategoryHistory: '历史目录',

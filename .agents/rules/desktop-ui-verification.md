@@ -37,6 +37,22 @@ alwaysApply: false
   中间帧无法测量。开屏已提供 dev-only 钩子：`?adl-splash-at=<ms>` 定格时间轴、
   `?adl-motion=reduce` 复现 reduced-motion；新增其它长动画时按同样方式加钩子再验证。
 
+### 真实 WebView2 的 CDP 验证（不改源码）
+
+需要读取真实 Tauri 窗口的计算样式、点击链路或控制台时，用 WebView2 官方环境变量打开 CDP 端口：
+
+```powershell
+$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9222'
+pnpm --dir adlo run dev:tauri
+# 另一个终端
+Invoke-RestMethod http://127.0.0.1:9222/json
+```
+
+- WebView2 运行时会把该变量**追加**到每个 WebView 的 additionalBrowserArguments；主窗口、面板、中心区与静默 WebView 仍共享同一份参数，不会触发 `0x8007139F`。
+- 只在需要时设置；验证完执行 `Remove-Item Env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` 并重启应用。
+- **不要把 `--remote-debugging-port` 写进源码或 `tauri.conf.json`**：CDP 端口会把页面暴露给本机其它进程；`check:changed` 的 source hygiene 会拦截这类提交。
+- 端口被占用时换一个；连接后仍按核心规则读 `getComputedStyle` / 真实点击，不要用截图或肉眼代替。
+
 ## 验证清单
 
 修改 UI 后必须在 Tauri 桌面和浏览器模式下分别验证：

@@ -58,6 +58,11 @@ import { refreshTreeByWorkspacePath } from './workspaceActions';
 import { insertTreeNode } from './workspaceTreeRename';
 import { asWorkspaceID } from '../../../shared/branded';
 import { partitionBatchPaths } from './gitMetaBatch';
+import {
+  createExternalWorkspaceEntry,
+  isExternalWorkspaceId,
+  splitAbsolutePath,
+} from './externalWorkspace';
 import { TEXT_HEAVY_PREVIEW_CHARS } from '../../regions/right-panel/heavyPreviewLimits';
 import { fileZh } from '../../i18n/zh-CN/file';
 import { fileEn } from '../../i18n/en-US/file';
@@ -480,6 +485,21 @@ function lastPathSegment(relativePath: string): string {
   return relativePath.split('/').filter(Boolean).pop() ?? relativePath;
 }
 
+/**
+ * 编辑器动作集合（导航索引，按 action 名定位；文件较大，优先用 grep/索引）：
+ *
+ * - 打开与恢复：openFile / openFileForWorkspace / openFileOutsideWorkspaces /
+ *   rememberLastOpenedFile / restoreLastOpenedFile
+ * - 变更预览：openChangePreview / openChangePreviewForWorkspace /
+ *   prefetchChangePreviewForWorkspace
+ * - 新建：createWorkspaceFile / createWorkspaceFolder
+ * - 草稿与保存：markExternalFileChange / notifyEditorBufferDirty / noteEditorText /
+ *   saveFile / resolveFileConflict / saveDirtyEditors
+ * - 对账：reconcileSelectedFile / reconcileSelectedFileAfterWorkspaceSwitch
+ *
+ * 外部文件的根解析与隐藏工作区身份在 ./externalWorkspace.ts；保存目标按
+ * `saveFile(rel, path, { workspaceId })` 显式定向，不要按“当前选中文件”反推。
+ */
 export function createEditorActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     /**
@@ -567,6 +587,76 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
     },
 
     /**
+     * [openFileOutsideWorkspaces - 打开不属于任何侧栏工作区的绝对路径文件]
+     *
+     * 仅创建内存隐藏工作区（`removedFromSidebar: true`）：侧栏不出现、不落盘、
+     * 不触发服务端 `detect_root` 上溯（旧实现会把文件所在目录登记成工作区，
+     * 用户从未添加的目录会突然出现在侧栏）。读取/保存仍走既有工作区链路，
+     * 根目录就是文件所在目录。
+     *
+     * 根同时写入 `externalFileRoots`：`recentWorkspaces` 会被 `setRecentWorkspaces`
+     * 整体替换（添加/移除工作区、切换、启动），只靠数组条目会让保存/对账失去目标。
+     * @returns false 表示路径不可解析（调用方负责提示）。
+     * @see externalWorkspace.ts → createExternalWorkspaceEntry
+     */
+    openFileOutsideWorkspaces: async (absPath: string) => {
+      const split = splitAbsolutePath(absPath);
+      if (!split) {
+        return false;
+      }
+      const { rootPath, fileName } = split;
+      const entry = createExternalWorkspaceEntry(rootPath);
+      const state = get();
+      const existing = state.recentWorkspaces.find((w) => w.id === entry.id);
+      const previousRoots = state.externalFileRoots ?? {};
+      // 复用命中时把 key 移到末尾，使对象插入顺序即 LRU 顺序。
+      const { [entry.id]: _existingRoot, ...restRoots } = previousRoots;
+      let nextRoots: Record<string, string> = { ...restRoots, [entry.id]: entry.rootPath };
+      if (Object.keys(nextRoots).length > 20) {
+        // 保护当前选中与仍有暂存草稿的外部根，其余按 LRU 淘汰。
+        const protectedIds = new Set<string>();
+        if (state.selectedFileWorkspaceId) {
+          protectedIds.add(state.selectedFileWorkspaceId);
+        }
+        for (const key of pendingEditorTextKeys()) {
+          const id = key.slice(0, key.indexOf(':'));
+          if (isExternalWorkspaceId(id)) {
+            protectedIds.add(id);
+          }
+        }
+        const removable = Object.keys(nextRoots).filter(
+          (id) => id !== entry.id && !protectedIds.has(id),
+        );
+        while (Object.keys(nextRoots).length > 20 && removable.length > 0) {
+          const evicted = removable.shift();
+          if (evicted === undefined) {
+            break;
+          }
+          const { [evicted]: _evictedRoot, ...kept } = nextRoots;
+          nextRoots = kept;
+        }
+      }
+      const keptExternalIds = new Set(Object.keys(nextRoots));
+      let nextWorkspaces: typeof state.recentWorkspaces;
+      if (!existing) {
+        nextWorkspaces = [...state.recentWorkspaces.filter((w) => w.id !== entry.id), entry].filter(
+          (w) => !isExternalWorkspaceId(w.id) || keptExternalIds.has(w.id),
+        );
+      } else {
+        nextWorkspaces = state.recentWorkspaces
+          .map((w) =>
+            w.id === entry.id
+              ? { ...w, path: entry.path, rootPath: entry.rootPath, lastOpenedAt: Date.now() }
+              : w,
+          )
+          .filter((w) => !isExternalWorkspaceId(w.id) || keptExternalIds.has(w.id));
+      }
+      set({ externalFileRoots: nextRoots, recentWorkspaces: nextWorkspaces });
+      await get().openFileForWorkspace(entry.id, rootPath, fileName);
+      return true;
+    },
+
+    /**
      * [rememberLastOpenedFile - 记录上次打开的文件]
      * 成功打开任意文件后调用（openFile / openFileForWorkspace /
      * createWorkspaceFile），经 persist 唯一写盘通道落盘；同时清空会话恢复提示
@@ -606,6 +696,10 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       }
       const ws = workspaces.find((w) => w.id === last.workspaceId);
       if (!ws) {
+        if (isExternalWorkspaceId(last.workspaceId)) {
+          // 外部文件工作区只存在于会话内存，重启即失效：静默跳过，不提示"文件缺失"。
+          return;
+        }
         set({ sessionRestoreNotice: 'sessionLastFileMissing' });
         return;
       }
@@ -902,26 +996,69 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
     saveFile: async (
       relativePath?: string,
       workspacePath?: string,
-      options?: { force?: boolean },
+      options?: { force?: boolean; workspaceId?: string },
     ) => {
       const currentWorkspace = get().appInfo?.currentWorkspace;
       const targetPath = relativePath ?? get().selectedFilePath;
       if (!targetPath) {
         return true;
       }
-      // P4 F1：目标工作区按"显式路径 > 选中文件所属 > 当前"解析，键与落盘同目标。
       const selectedWsId = get().selectedFileWorkspaceId;
       const allWorkspaces = get().recentWorkspaces ?? [];
+      const externalRoots = get().externalFileRoots ?? {};
+      const isSelectedTarget = relativePath === undefined || targetPath === get().selectedFilePath;
+      const byId = (id: string | undefined): { id: string; path: string } | undefined => {
+        if (!id) {
+          return undefined;
+        }
+        const found = allWorkspaces.find((w) => w.id === id);
+        if (found) {
+          return { id: found.id, path: found.path };
+        }
+        if (externalRoots[id]) {
+          return { id, path: externalRoots[id] };
+        }
+        if (id === currentWorkspace?.id && currentWorkspace?.path) {
+          return { id, path: currentWorkspace.path };
+        }
+        return undefined;
+      };
+      const byPath = (path: string): { id: string; path: string } | undefined => {
+        const found = allWorkspaces.find((w) => sameWorkspacePath(w.path, path));
+        if (found) {
+          return { id: found.id, path: found.path };
+        }
+        const externalId = Object.keys(externalRoots).find((id) =>
+          sameWorkspacePath(externalRoots[id], path),
+        );
+        return externalId ? { id: externalId, path: externalRoots[externalId] } : undefined;
+      };
+      // 目标工作区按「显式 workspaceId > 显式路径 > 选中文件所属 > 当前」解析。
+      // saveDirtyEditors 必须传 workspaceId：遍历的是「键」而不是当前选中文件，
+      // 只按路径/选中重算会把 A 工作区的草稿落到 B 工作区的同名路径。
+      const requestedWsId = options?.workspaceId;
+      const intendedWsId = requestedWsId ?? (isSelectedTarget ? selectedWsId : undefined);
       const targetWs =
-        (workspacePath ? allWorkspaces.find((w) => w.path === workspacePath) : undefined) ??
-        (relativePath === undefined || targetPath === get().selectedFilePath
-          ? allWorkspaces.find((w) => w.id === selectedWsId)
-          : undefined) ??
-        currentWorkspace;
-      const rootPath = workspacePath ?? targetWs?.path ?? currentWorkspace?.path;
-      if (!rootPath || !targetWs) {
-        return true;
+        (requestedWsId ? byId(requestedWsId) : undefined) ??
+        (workspacePath ? byPath(workspacePath) : undefined) ??
+        (isSelectedTarget ? byId(selectedWsId) : undefined) ??
+        (requestedWsId || workspacePath
+          ? undefined
+          : currentWorkspace?.path
+            ? { id: currentWorkspace.id, path: currentWorkspace.path }
+            : undefined);
+      if (!targetWs) {
+        // 目标不可解析（外部根已不在、工作区被移除）：不能再返回 true 假装成功，
+        // 否则调用方会清掉脏点、编辑区看起来"已保存"。
+        return false;
       }
+      // 暂存键按「文件真正所属的工作区」生成；目标解析若发生偏移（例如外部条目
+      // 消失后回退到当前工作区），旧键上的草稿还在 → 不能当过期标记清掉。
+      const intendedPending =
+        peekPendingEditorTextByKey(scopedFileKey(intendedWsId ?? targetWs.id, targetPath)) !==
+        undefined;
+      const targetIsExternal = isExternalWorkspaceId(targetWs.id);
+
       const norm = normalizeWorkspaceRelativePath(targetPath);
       const key = scopedFileKey(targetWs.id, targetPath);
       const bridgeWsPath =
@@ -935,6 +1072,10 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       return enqueueEditorSave(key, async () => {
         let pending = peekPendingEditorTextByKey(key);
         if (pending === undefined) {
+          if (intendedPending) {
+            // 目标键与暂存键不一致（外部根/工作区解析偏移）：绝不把草稿当过期标记清掉。
+            return false;
+          }
           // 脏而无暂存 = 过期标记（旧定时器闭包/重启恢复）：只清标记，绝不拿基线回写。
           clearStaleDirtyMark(set, norm);
           return true;
@@ -950,7 +1091,13 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
 
         const hasExternalFlag = externalMatchesFlag(get, norm);
         const hasFreshWatcherSignal = hasRecentExternalSignal(key);
-        if (options?.force !== true && (hasExternalFlag || hasFreshWatcherSignal)) {
+        const baseline = baselineContentForTarget(get, key, targetPath, targetWs.id);
+        // 外部文件的隐藏根不进后端 watcher，因此有基线时每次保存都读盘比对（F9），
+        // 保证别的进程改过时走冲突卡片而不是静默覆盖。基线缺失（缓存过期/被挤出）
+        // 时不升级为阻塞式冲突：否则非选中文件的 flush 会误判 external 并挡住切换。
+        const shouldPreflight =
+          hasExternalFlag || hasFreshWatcherSignal || (targetIsExternal && baseline !== undefined);
+        if (options?.force !== true && shouldPreflight) {
           // 写前比对：外部旗/watcher 信号可能来自已过期的批次。落盘前读一次磁盘，
           // 只有「磁盘内容与基线/草稿/最近本地写入都不同」才真正拦截。
           const preflight =
@@ -969,12 +1116,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
           }
           pending = latestPending;
           if (preflight && preflight.ok) {
-            const verdict = classifyDiskContent(
-              key,
-              preflight.data.content,
-              baselineContentForTarget(get, key, targetPath, targetWs.id),
-              pending,
-            );
+            const verdict = classifyDiskContent(key, preflight.data.content, baseline, pending);
             clearExternalSignal(key);
             if (verdict === 'external') {
               // 信号尚未被 reconcile 消费：这里补立外部旗，保证冲突卡片拿到同一版本。
@@ -984,7 +1126,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
                   lastModifiedAt: preflight.data.lastModifiedAt,
                 },
               });
-              get().pushFileConflictNotice(targetPath, targetWs.id, rootPath);
+              get().pushFileConflictNotice(targetPath, targetWs.id, targetWs.path);
               return false;
             }
             // 回声/内容一致：外部旗已过期，清掉后继续落盘。
@@ -997,7 +1139,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
           } else {
             // 文件已不可读（删除/权限）：仍交给冲突卡片裁决，避免静默覆盖失败。
             clearExternalSignal(key);
-            get().pushFileConflictNotice(targetPath, targetWs.id, rootPath);
+            get().pushFileConflictNotice(targetPath, targetWs.id, targetWs.path);
             return false;
           }
         }
@@ -1110,7 +1252,10 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       const targetPath = notice.path;
       const targetWsId = notice.workspaceId;
       if (choice === 'mine') {
-        await get().saveFile(targetPath, notice.workspacePath, { force: true });
+        await get().saveFile(targetPath, notice.workspacePath, {
+          force: true,
+          workspaceId: notice.workspaceId,
+        });
         return;
       }
       // disk：用磁盘覆盖我的——草稿与脏标清掉，重读即干净基线。
@@ -1153,14 +1298,26 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         }
         const wsId = key.slice(0, separator);
         const relPath = key.slice(separator + 1);
-        const ws =
-          (get().recentWorkspaces ?? []).find((w) => w.id === wsId) ??
-          get().appInfo?.currentWorkspace;
+        const currentWs = get().appInfo?.currentWorkspace;
+        const ws = (get().recentWorkspaces ?? []).find((w) => w.id === wsId);
+        const externalRoot = get().externalFileRoots?.[wsId];
+        if (!ws && !externalRoot && wsId !== currentWs?.id && wsId !== 'global') {
+          if (isExternalWorkspaceId(wsId)) {
+            // 外部隐藏根意外丢失：不能回退当前工作区写同名文件，也不能假装成功。
+            failed += 1;
+          } else {
+            // 工作区已被移除：其草稿在移除时已提示并处理，这里只清残键，
+            // 不计失败（否则会永久阻塞工作区/分支切换）。
+            dropPendingEditorText(wsId, relPath);
+          }
+          continue;
+        }
         const hadPending = peekPendingEditorTextByKey(key) !== undefined;
-        const ok = await get().saveFile(
-          relPath,
-          ws && ws.id !== get().appInfo?.currentWorkspace?.id ? ws.path : undefined,
-        );
+        const targetPath = externalRoot ?? (ws && ws.id !== currentWs?.id ? ws.path : undefined);
+        // 显式传键所属工作区：saveFile 不能按「当前选中文件」重算目标，否则
+        // 跨作用域同名草稿会被写错或静默丢弃。
+        const effectiveWsId = wsId === 'global' ? (currentWs?.id ?? undefined) : wsId;
+        const ok = await get().saveFile(relPath, targetPath, { workspaceId: effectiveWsId });
         if (!ok) {
           failed += 1;
         } else if (hadPending && peekPendingEditorTextByKey(key) === undefined) {
@@ -1198,8 +1355,18 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       // P4 F1：对账跟文件所属工作区走（跨工作区选中经 readFileForWorkspace），
       // 不再一律读当前工作区。
       const selectedWsId = get().selectedFileWorkspaceId;
+      const externalRoot =
+        selectedWsId && get().externalFileRoots?.[selectedWsId]
+          ? get().externalFileRoots[selectedWsId]
+          : undefined;
       const targetWs =
-        (get().recentWorkspaces ?? []).find((w) => w.id === selectedWsId) ?? currentWorkspace;
+        (get().recentWorkspaces ?? []).find((w) => w.id === selectedWsId) ??
+        (externalRoot ? { id: selectedWsId as string, path: externalRoot } : undefined) ??
+        (isExternalWorkspaceId(selectedWsId) ? undefined : currentWorkspace);
+      if (!targetWs) {
+        // 外部根已失效：不回退当前工作区读入同名文件（内容会串），静默跳过。
+        return;
+      }
       const norm = normalizeWorkspaceRelativePath(selected);
       if (isMediaFileCategory(categorizeFile(selected))) {
         await reconcileSelectedMedia(get, set, selected, {
@@ -1355,6 +1522,15 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       }
       const selectedWsId = get().selectedFileWorkspaceId;
       if (selectedWsId === undefined) {
+        return;
+      }
+      // 外部文件不随工作区切换失效：根还在就正常对账，根丢了也绝不把新工作区的
+      // 同名文件读进当前视图。
+      if (get().externalFileRoots?.[selectedWsId]) {
+        await get().reconcileSelectedFile();
+        return;
+      }
+      if (isExternalWorkspaceId(selectedWsId)) {
         return;
       }
       const sourceListed = (get().recentWorkspaces ?? []).some(

@@ -133,13 +133,6 @@ type AllSlices = [
 
 interface WorkspaceActions {
   openWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * 把路径登记为侧栏工作区但不切换当前工作区。
-   * 供智能体文件链接指向未知工作区时“先登记、再在文件面板打开”。
-   */
-  addWorkspaceToSidebar: (
-    workspacePath: string,
-  ) => Promise<{ ok: boolean; workspaceId?: string; rootPath?: string; error?: string }>;
   clearWorkspaceContext: () => Promise<void>;
   pickWorkspaceDirectory: () => Promise<string | undefined>;
   removeWorkspaceFromSidebar: (workspaceId: WorkspaceID) => Promise<void>;
@@ -199,6 +192,12 @@ interface EditorActions {
     workspacePath: string,
     relativePath: string,
   ) => Promise<void>;
+  /**
+   * 打开不属于任何侧栏工作区的绝对路径文件：用内存隐藏工作区（不登记侧栏、
+   * 不落盘）承载文件所在目录，右侧文件面板照常读取/预览/保存。
+   * @returns 路径可解析且已发起打开；false 表示无法解析（调用方决定是否提示）。
+   */
+  openFileOutsideWorkspaces: (absPath: string) => Promise<boolean>;
   rememberLastOpenedFile: (workspaceId: string, relativePath: string) => void;
   restoreLastOpenedFile: () => Promise<void>;
   openChangePreview: (relativePath: string) => Promise<void>;
@@ -218,7 +217,7 @@ interface EditorActions {
   saveFile: (
     relativePath?: string,
     workspacePath?: string,
-    options?: { force?: boolean },
+    options?: { force?: boolean; workspaceId?: string },
   ) => Promise<boolean>;
   /**
    * 裁决右下角存盘冲突卡片：mine=force 落盘覆盖磁盘，disk=丢草稿读磁盘，

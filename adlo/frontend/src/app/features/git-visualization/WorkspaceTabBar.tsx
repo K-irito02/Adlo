@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useMouseDragReorder } from './hooks/useMouseDragReorder';
+import { visibleGitWorkspaces } from './gitVisualizationWorkspaces';
 
 const TAB_WIDTH = 120;
 const TAB_GAP = 4;
@@ -22,7 +23,11 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar({
   );
 
   const workspaceTabs = React.useMemo(
-    () => recentWorkspaces.map((w) => ({ id: w.id, label: w.name || w.id })),
+    () =>
+      visibleGitWorkspaces(recentWorkspaces).map((w) => ({
+        id: w.id,
+        label: w.name || w.id,
+      })),
     [recentWorkspaces],
   );
 

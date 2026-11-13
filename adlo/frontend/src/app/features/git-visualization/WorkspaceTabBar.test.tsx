@@ -47,6 +47,12 @@ vi.mock('@i18n/useTCopy', () => ({
 afterEach(() => {
   cleanup();
   mockSetActiveWorkspaceTab.mockClear();
+  // 隐藏工作区用例会临时追加条目。
+  for (let index = mockRecentWorkspaces.length - 1; index >= 0; index -= 1) {
+    if (mockRecentWorkspaces[index].removedFromSidebar) {
+      mockRecentWorkspaces.splice(index, 1);
+    }
+  }
 });
 
 describe('WorkspaceTabBar', () => {
@@ -102,5 +108,24 @@ describe('WorkspaceTabBar', () => {
     const { container } = render(<WorkspaceTabBar />);
     const tabs = container.querySelectorAll('.adl-workspace-tab__tab');
     expect(tabs.length).toBe(27);
+  });
+
+  it('filters out workspaces hidden from the sidebar', () => {
+    mockRecentWorkspaces.push({
+      id: 'external-hidden',
+      name: 'Hidden Downloads',
+      rootPath: 'E:/Downloads',
+      path: 'E:/Downloads',
+      lastOpenedAt: Date.now(),
+      isPinned: false,
+      pinnedOrder: 0,
+      unpinnedOrder: 27,
+      removedFromSidebar: true,
+      available: true,
+    });
+    const { container } = render(<WorkspaceTabBar />);
+    // 隐藏根不产生标签，也不会改变可见标签的数量。
+    expect(container.querySelectorAll('.adl-workspace-tab__tab').length).toBe(27);
+    expect(container.textContent).not.toContain('Hidden Downloads');
   });
 });

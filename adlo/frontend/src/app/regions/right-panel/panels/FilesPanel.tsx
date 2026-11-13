@@ -8,6 +8,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useEditorOptions, useFileHistory } from '../hooks';
 import { FileNavigatorShell } from '../FileNavigatorShell';
+import { resolveHistoryWorkspace } from '../historyWorkspace';
 import { LazyEditorSurface, SuspenseWrapper } from '@components/LazyComponents';
 import { warmRightPanelEditors } from '@components/warmRightPanelEditors';
 import { FileContextMenu, type FileMenuItem, type FileMenuDivider } from '../FileContextMenu';
@@ -108,19 +109,22 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   );
 
   const editorOptions = useEditorOptions();
+  const externalFileRoots = useAppStore(useShallow((s) => s.externalFileRoots));
+  const externalSelectedRoot = selectedFileWorkspaceId
+    ? externalFileRoots[selectedFileWorkspaceId]
+    : undefined;
   // 后退/前进按条目归属的工作区打开，而非当前工作区（事项 6：跨工作区浏览时，
   // 否则会把 A 工作区的路径拿到 B 工作区下去读，报 entity not found）。
   const handleHistoryNavigate = useCallback(
     (entry: { path: string; workspaceId: string | undefined }) => {
-      const ws = recentWorkspaces.find((w) => w.id === entry.workspaceId);
-      const wsPath = ws?.rootPath ?? ws?.path;
-      if (ws && wsPath) {
-        onOpenFileForWorkspace(ws.id, wsPath, entry.path);
+      const target = resolveHistoryWorkspace(entry, recentWorkspaces, externalFileRoots);
+      if (target) {
+        onOpenFileForWorkspace(target.id, target.root, entry.path);
         return;
       }
       onOpenFile(entry.path);
     },
-    [recentWorkspaces, onOpenFile, onOpenFileForWorkspace],
+    [recentWorkspaces, externalFileRoots, onOpenFile, onOpenFileForWorkspace],
   );
   const fileHistory = useFileHistory(
     selectedFilePath,
@@ -178,12 +182,26 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   );
 
   const selectedAbsolutePath = useMemo(() => {
-    const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
+    // 跨工作区/外部文件：绝对路径按选中文件所属工作区的根解析，回退当前工作区。
+    const selectedWorkspace = recentWorkspaces.find((w) => w.id === selectedFileWorkspaceId);
+    const rootPath =
+      selectedWorkspace?.rootPath ??
+      selectedWorkspace?.path ??
+      externalSelectedRoot ??
+      appInfo?.currentWorkspace?.rootPath ??
+      appInfo?.currentWorkspace?.path;
     if (!rootPath || !selectedFilePath) {
       return undefined;
     }
     return joinPathSegments(rootPath, selectedFilePath);
-  }, [appInfo?.currentWorkspace?.path, appInfo?.currentWorkspace?.rootPath, selectedFilePath]);
+  }, [
+    appInfo?.currentWorkspace?.path,
+    appInfo?.currentWorkspace?.rootPath,
+    externalSelectedRoot,
+    recentWorkspaces,
+    selectedFileWorkspaceId,
+    selectedFilePath,
+  ]);
 
   const handleCopyPath = useCallback(async (value?: string) => {
     if (!value) {

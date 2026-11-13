@@ -65,6 +65,8 @@ STEP="check:i18n:orphans"
 ( cd "$ROOT/adlo/frontend" && pnpm run check:i18n:orphans:changed )
 STEP="check:glossary"
 ( cd "$ROOT/adlo/frontend" && pnpm run check:glossary )
+STEP="check:css-vars"
+( cd "$ROOT/adlo" && node scripts/check-css-vars.mjs )
 STEP="check:dead-code"
 ( cd "$ROOT/adlo/frontend" && pnpm run check:dead-code )
 STEP="check:vite-config"

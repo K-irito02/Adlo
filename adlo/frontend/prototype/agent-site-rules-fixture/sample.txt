@@ -1,0 +1,2 @@
+plain text fixture for the agent-site interception rules
+open me from the fixture page

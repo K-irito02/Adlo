@@ -214,6 +214,7 @@ run('vite config load', 'node scripts/check-vite-config.mjs');
 run('source hygiene', 'node ../scripts/check-source-hygiene.mjs');
 // CSS 架构机械禁令（keyframes 属性 / `*` / `!important`）：只扫新增行，行级 allow 标记豁免。
 run('css architecture', 'node scripts/check-css-architecture.mjs');
+run('css variables', 'node ../scripts/check-css-vars.mjs');
 run('dead code (changed files only)', 'node scripts/check-dead-code.mjs');
 
 run('typecheck', 'npx tsc --noEmit');

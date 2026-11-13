@@ -73,29 +73,6 @@ export function createWorkspaceLifecycleActions(
     },
 
     /**
-     * [addWorkspaceToSidebar - 登记侧栏工作区，不切换当前工作区]
-     *
-     * 智能体文件链接可能指向应用侧栏未知的文件夹（harness 自带工作区列表）。
-     * 文件面板按工作区隔离，故先登记再打开文件；不写 current_workspace、
-     * 不建检索快照，避免隐式切换用户当前工作区。
-     */
-    addWorkspaceToSidebar: async (workspacePath: string) => {
-      const result = await window.digitalLife.workspace.addToSidebar(workspacePath);
-      if (!result.ok) {
-        return { ok: false, error: result.error.message };
-      }
-      const recent = await window.digitalLife.workspace.listRecent();
-      if (recent.ok) {
-        get().setRecentWorkspaces(recent.data);
-      }
-      return {
-        ok: true,
-        workspaceId: result.data.id,
-        rootPath: result.data.rootPath ?? result.data.path,
-      };
-    },
-
-    /**
      * [clearWorkspaceContext - 清除当前工作区上下文]
      * @reads workspaceSlice.appInfo
      * @writes (通过 bootstrap) 完整的应用状态

@@ -325,34 +325,143 @@ export const settingsZh = {
   settingsAgentRules: '拦截规则',
   settingsAgentRulesDesc:
     '全局规则与站点覆盖。启用拦截后，白名单智能体站点中的链接会先按这些规则尝试拦截',
-  settingsAgentRulesGlobalManage: '管理全局规则',
-  settingsAgentRulesGlobalReset: '恢复全局默认',
-  settingsAgentRulesSiteManage: '管理站点规则',
   settingsAgentRulesSiteReset: '恢复站点默认',
   settingsAgentRulesSiteResetConfirm: '恢复站点默认：{site}',
-  settingsAgentRulesBuiltinFileLike: '内置本地文件属性',
-  settingsAgentRulesDialogTitleGlobal: '管理全局拦截规则',
-  settingsAgentRulesDialogTitleSite: '管理 {site} 站点覆盖',
+  settingsAgentRulesBuiltinFileLike: '本地文件属性',
   settingsAgentRulesAdd: '新增规则',
   settingsAgentRulesName: '规则名称',
   settingsAgentRulesSelector: '匹配选择器',
   settingsAgentRulesAttributes: '属性列表',
   settingsAgentRulesAttributesHint: '以英文逗号分隔，例如 title, data-file-path, aria-label',
   settingsAgentRulesPreset: '匹配方式',
-  settingsAgentRulesPresetFileLike: '内置本地文件',
+  settingsAgentRulesPresetFileLike: '本地文件',
   settingsAgentRulesPresetRegex: '自定义正则',
   settingsAgentRulesRegex: '匹配正则',
   settingsAgentRulesRegexFlags: '正则标志',
   settingsAgentRulesAction: '动作',
   settingsAgentRulesActionFile: '打开文件',
   settingsAgentRulesActionUrl: '打开网址',
+  settingsAgentRulesActionFileOnly: '本地文件模式固定为「打开文件」',
   settingsAgentRulesEnabled: '启用规则',
-  settingsAgentRulesDelete: '删除规则',
   settingsAgentRulesSave: '保存',
   settingsAgentRulesCancel: '取消',
   settingsAgentRulesEmptyGlobal: '暂无全局规则',
   settingsAgentRulesEmptySite: '暂无站点规则',
-  settingsAgentRulesDisabled: '已停用',
-  settingsAgentRulesOverridden: '已启用站点覆盖',
   settingsAgentRulesRuleError: '正则无法识别，请检查语法',
+  settingsAgentRulesOtherRuleInvalid: '其他规则存在无效正则，保存前请先修正',
+  settingsAgentRulesSummary: '{rules} 条全局 · {sites} 个站点覆盖',
+  settingsAgentRulesEdit: '编辑规则',
+  settingsAgentRulesCollapse: '收起规则',
+  settingsAgentRulesGlobalTab: '全局规则',
+  settingsAgentRulesSiteTab: '站点覆盖',
+  settingsAgentRulesSiteRules: '站点规则',
+  settingsAgentRulesGlobalEnabled: '全局启用规则',
+  settingsAgentRulesDeleteSelected: '删除选中规则',
+  settingsAgentRulesNoSites: '还没有白名单站点',
+  settingsAgentRulesNoSitesHint: '先在「智能体网址白名单」里添加站点，再回来配置站点覆盖。',
+  settingsAgentRulesResetConfirmTitle: '恢复拦截规则默认？',
+  settingsAgentRulesResetConfirmMessage: '将恢复默认全局规则并清除全部站点覆盖。此操作不可撤销。',
+  settingsAgentRulesHelpShow: '使用说明',
+  settingsAgentRulesHelpGlobalTitle: '全局规则如何使用',
+  settingsAgentRulesHelpGlobalIntro:
+    '全局规则对「{whitelist}」中的全部站点生效。点击站点里的链接或按钮时，Adlo 会按列表顺序检查元素属性，命中后按「打开文件 / 打开网址」处理。',
+  settingsAgentRulesHelpGlobalStep1:
+    '先确认「{intercept}」已开启，并在它下方的「{whitelist}」里添加目标站点。',
+  settingsAgentRulesHelpGlobalStep2:
+    '在「{selector}」里写可点击元素的选择器，在「{attributes}」里列出承载路径的属性名（如 title、data-file-path）。',
+  settingsAgentRulesHelpGlobalStep3:
+    '在「{preset}」里选择「{fileLike}」或「{regex}」；保存后用真实点击验证，失败时优先检查属性值形态。',
+  settingsAgentRulesHelpSiteTitle: '站点覆盖如何使用',
+  settingsAgentRulesHelpSiteIntro:
+    '站点覆盖只影响「{whitelist}」中当前选中的站点：可以停用部分全局规则，也可以追加只属于这个站点的规则。站点规则优先于全局规则。',
+  settingsAgentRulesHelpSiteStep1: '先在「{whitelist}」里添加目标站点，再在「{siteTab}」中选中它。',
+  settingsAgentRulesHelpSiteStep2:
+    '在「{globalEnabled}」里取消不需要的规则；需要额外行为时新增站点规则。',
+  settingsAgentRulesHelpSiteStep3: '保存后只在该站点验证；同 id 的站点规则会替换全局规则。',
+  settingsAgentRulesHelpFileLike:
+    '本地文件：只接受 file://、盘符路径（C:\\ 或 C:/）和 UNC 路径；站点相对路径不算本地文件。',
+  settingsAgentRulesHelpRegex:
+    '自定义正则：按 JS RegExp 匹配属性原值；「打开网址」会把相对地址按当前页面解析，且只接受 http(s)。',
+  settingsAgentRulesHelpNote:
+    '规则按列表从上到下匹配，命中第一条即停止。找不到问题时，先确认「{intercept}」与「{whitelist}」，再检查属性名和值。',
+  settingsAgentRulesCopyPrompt: '复制给智能体的提示词',
+  settingsAgentRulesPromptNoSite: '（未选择站点）',
+  settingsAgentRulesPromptNoAlias: '（无别称）',
+  settingsAgentRulesPromptTestTarget: '用户提供的测试页面（请向用户索取 URL）',
+  settingsAgentRulesCopyPromptShort: '复制提示词',
+  settingsAgentRulesCopied: '已复制',
+  settingsAgentRulesCopyFailed: '复制失败，请重试',
+  settingsAgentRulesCopyFailedShort: '复制失败',
+  settingsAgentRulesExternalChanged: '配置已在外部变更，保存将覆盖外部写入。',
+  settingsAgentRulesPromptGlobal: `你是 Adlo 桌面应用的「智能体站点链接拦截规则」维护助手。请先检查真实行为，再按规范修改配置并确认生效。
+
+对应界面：Adlo → 设置 → 打开方式 → 智能体站点链接拦截（总开关）/ 智能体网址白名单 / 拦截规则。
+
+## 目标
+1. 使用你所在产品的内嵌浏览器、浏览器自动化技能或等价工具，打开并检查：{testTarget}
+2. 逐个点击并记录结果：本地文件路径、本地音频/视频、file:// 链接、相对路径、http(s) 链接、mailto:、正则规则命中与不命中。
+3. 找出「点击后没有按预期打开」的元素，判断原因：缺少规则、选择器不匹配、属性名不对、正则写错，或 action 选错。
+4. 只修改 Adlo 的拦截规则配置；保存后确认应用已重新加载，并再次验证。
+
+## 配置文件
+- 位置：{configPath}（安装版可能在安装目录同级使用 <安装目录名>-data；以「设置 → 存储」显示的数据根为准）
+- 如果默认路径不存在：请让用户在 Adlo「设置 → 存储」确认数据目录，再拼接 config/config.json，不要猜错文件。
+- 只改这些顶层字段：agent_link_intercept、agent_site_whitelist、agent_site_rules、agent_site_overrides；其它字段保持原样。
+- agent_link_intercept 必须为 true，规则才会生效；agent_site_whitelist 用完整 origin（协议 + 主机 + 端口，不带路径）。
+- 恢复产品默认：删除 agent_site_rules 与 agent_site_overrides 字段；空数组表示“没有规则”，不是默认。
+- 顶层字段用 snake_case；规则对象内部用 camelCase：matchSelector、pathPreset、valueRegex、regexFlags、disabledRuleIds、siteRules。
+- 写前备份为 config.json.bak-<时间戳>；先写临时文件再原子替换；保持 UTF-8。
+- 不要写入密钥、token 或与拦截规则无关的个人数据。
+
+## 当前配置快照
+{configJson}
+
+## 规则语义
+- pathPreset=fileLike：属性值必须是 file://、盘符路径（C:\\ 或 C:/）或 UNC（\\\\server\\share）；站点相对路径 /assets/x 不是本地文件。
+- pathPreset=regex：valueRegex 按 JS RegExp 语法匹配属性原值；regexFlags 例如 i。
+- action=file：按「文件打开方式」处理；action=url：按当前页面解析相对地址，仅接受 http(s)。
+- 站点规则优先于全局规则；同 id 时站点规则替换全局规则；disabledRuleIds 只禁用全局规则。
+- 规则按数组顺序匹配，同一元素命中第一条即停止；enabled=false 跳过。
+
+## 交付
+- 列出检查过的场景与结果（通过 / 失败 / 原因）。
+- 给出修改前后的 JSON 片段（仅规则相关字段）。
+- 说明已保存并确认生效；如果无法访问配置文件或无法驱动浏览器，明确说明原因，不要伪造成功。`,
+  settingsAgentRulesPromptSite: `你是 Adlo 桌面应用的「智能体站点链接拦截规则」维护助手。请先检查真实行为，再按规范修改配置并确认生效。
+
+对应界面：Adlo → 设置 → 打开方式 → 智能体站点链接拦截（总开关）/ 智能体网址白名单 / 拦截规则。
+
+## 本次站点
+只处理 origin 为 {site}（{alias}）的站点覆盖；确认它已在 agent_site_whitelist 中，只修改 agent_site_overrides 中该 origin 的条目。
+
+## 目标
+1. 使用你所在产品的内嵌浏览器、浏览器自动化技能或等价工具，打开并检查：{testTarget}
+2. 逐个点击并记录结果：本地文件路径、本地音频/视频、file:// 链接、相对路径、http(s) 链接、mailto:、正则规则命中与不命中。
+3. 找出「点击后没有按预期打开」的元素，判断原因：缺少规则、选择器不匹配、属性名不对、正则写错，或 action 选错。
+4. 只修改该站点的覆盖配置；保存后确认应用已重新加载，并再次验证。
+
+## 配置文件
+- 位置：{configPath}（安装版可能在安装目录同级使用 <安装目录名>-data；以「设置 → 存储」显示的数据根为准）
+- 如果默认路径不存在：请让用户在 Adlo「设置 → 存储」确认数据目录，再拼接 config/config.json，不要猜错文件。
+- 只改这些顶层字段：agent_link_intercept、agent_site_whitelist、agent_site_rules、agent_site_overrides；其它字段保持原样。
+- agent_link_intercept 必须为 true，规则才会生效；agent_site_whitelist 用完整 origin（协议 + 主机 + 端口，不带路径）。
+- 恢复产品默认：删除 agent_site_rules 与 agent_site_overrides 字段；空数组表示“没有规则”，不是默认。
+- 顶层字段用 snake_case；规则对象内部用 camelCase：matchSelector、pathPreset、valueRegex、regexFlags、disabledRuleIds、siteRules。
+- 写前备份为 config.json.bak-<时间戳>；先写临时文件再原子替换；保持 UTF-8。
+- 不要写入密钥、token 或与拦截规则无关的个人数据。
+
+## 当前配置快照
+{configJson}
+
+## 规则语义
+- pathPreset=fileLike：属性值必须是 file://、盘符路径（C:\\ 或 C:/）或 UNC（\\\\server\\share）；站点相对路径 /assets/x 不是本地文件。
+- pathPreset=regex：valueRegex 按 JS RegExp 语法匹配属性原值；regexFlags 例如 i。
+- action=file：按「文件打开方式」处理；action=url：按当前页面解析相对地址，仅接受 http(s)。
+- 站点规则优先于全局规则；同 id 时站点规则替换全局规则；disabledRuleIds 只禁用全局规则。
+- 规则按数组顺序匹配，同一元素命中第一条即停止；enabled=false 跳过。
+
+## 交付
+- 列出检查过的场景与结果（通过 / 失败 / 原因）。
+- 给出修改前后的 JSON 片段（仅规则相关字段）。
+- 说明已保存并确认生效；如果无法访问配置文件或无法驱动浏览器，明确说明原因，不要伪造成功。`,
 } as const;

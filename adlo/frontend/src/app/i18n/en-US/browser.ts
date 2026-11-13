@@ -47,7 +47,7 @@ export const browserEn = {
   browserLocalFileDesktopOnly: 'Local files are only supported in the desktop app',
   browserLocalFileUnsupported: 'Only local files that the browser can render are supported',
   browserFileOutsideWorkspace:
-    'This file is outside every known workspace, so it cannot open in the file panel',
+    'The link path cannot be resolved to a local file, so it was not opened',
   browserCategoryWorkspace: 'Workspace Directory',
   browserCategoryUserFolder: 'Custom Directory',
   browserCategoryHistory: 'History Directory',

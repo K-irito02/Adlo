@@ -73,6 +73,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 |------|------|
 | `pnpm --dir frontend run test` | 前端单元/组件测试（Vitest，jsdom 环境） |
 | `pnpm --dir frontend run test:watch` | 前端测试 watch 模式（开发时使用） |
+| `pnpm --dir frontend run test:one -- <文件…>` | 定向跑指定测试文件；固定 `--reporter=dot --silent=passed-only`，避免刷屏与 ANSI 噪声 |
 | `pnpm --dir frontend run coverage` | 前端覆盖率收集 |
 | `pnpm --dir frontend run typecheck` | 前端类型检查 |
 | `pnpm --dir frontend run typecheck:dev` | 前端 dev 工具链类型检查（CI 门禁） |
@@ -108,8 +109,8 @@ cargo test -p adl-server --test workspace_all
 # Rust — 模糊匹配测试名称（限定 crate，避免编译壳层）
 cargo test -p adl-server reference_list
 
-# 前端 — 仅指定测试文件
-pnpm --dir frontend run test -- src/app/features/browser
+# 前端 — 仅指定测试文件（紧凑输出，避免 ANSI/中文刷屏）
+pnpm --dir frontend run test:one -- src/app/features/browser
 
 # 前端 — watch 模式（开发时）
 pnpm --dir frontend run test:watch
