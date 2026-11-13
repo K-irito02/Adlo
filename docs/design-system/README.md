@@ -125,3 +125,9 @@ const unsub = theme.subscribe((state) => console.log(state.resolvedTheme));
 即**行必须是卡片的直接子元素**。需要按依赖/主题分组时，包装元素（如环境组的 `<section>`）
 必须自己承担行距与分隔线，并中和组内行的首末收边；否则整组会粘连、分组语义倒置。
 参考实现：`frontend/src/styles/regions/environment-settings.css`（契约注释在 `settings.css` 的 Rows 段）。
+
+行内控件的垂直对齐有两种来源：组级 `align-items: center`（如 `.adl-settings-controls` /
+`.adl-browser-settings` / `.adl-dsh-settings`），以及行级修饰类 `--center` / `--path-center`。
+共用行组件（如 `features/harness/sub-components/SourceCard.tsx` 的 `SourceRow`）应自带行级修饰类，
+这样新增设置组（例如 OpenCode CLI）不会因为漏写组级规则而贴顶。窄档（容器 ≤600px）由
+`@container` 的堆叠规则统一覆盖回 `stretch`。

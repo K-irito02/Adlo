@@ -133,7 +133,7 @@ const shouldShowSeparator =
 运行时：
   ThemeController (singleton, systemPrefersDark() 解析)
     ├─ useResolvedTheme() hook     → React 组件 (FilesPanel, DiffViewer, CodeEditor)
-    ├─ MutationObserver            → xterm.js 终端、StartupOverlay
+    ├─ MutationObserver            → xterm.js 终端
     ├─ useBrowserThemeSync         → Tauri WebView 颜色方案
     └─ DOM data-theme / color-scheme → CSS 变量
 ```
@@ -157,7 +157,8 @@ const shouldShowSeparator =
 - 应用内用户选择优先：即使 OS 是 dark，用户选 light 就用 light
 - localStorage 双缓存：`adl-theme-mode`（用户选择的 mode）+ `adl-resolved-theme`（已解析主题），供 index.html 内联脚本在下次启动时同步读取
 - React 组件必须使用 `useResolvedTheme()` 获取当前主题，禁止读取 `appInfo.config.resolvedTheme`
-- 非 React 上下文（xterm.js、StartupOverlay）通过 MutationObserver 监听 `<html data-theme>` 属性变化
+- 非 React 上下文（如 xterm.js）通过 MutationObserver 监听 `<html data-theme>` 属性变化；
+  React 侧的颜色面（含 `StartupOverlay`）只消费 CSS 变量（`--splash-*` 等），不读 `data-theme`
 - `themeController.setTheme()` 只需传 `mode`，不需要传 `resolvedTheme`（Controller 自行解析）
 - 修改偏好时调用 `actions.updatePreferences({ themeMode })`，不要直接修改 store
 - 禁止直接调用 `window.matchMedia('(prefers-color-scheme: dark)')`，必须使用 `systemPrefersDark()` 统一函数

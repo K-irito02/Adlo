@@ -48,7 +48,7 @@ Tokens are the only acceptable way to express atomic design decisions in the cod
 
 | Group     | Tokens                                                                                                               |
 | --------- | -------------------------------------------------------------------------------------------------------------------- |
-| Duration  | `--duration-75` … `--duration-1000`（含 `--duration-350`，tooltip enter 用），`--duration-editorial` (600 ms) |
+| Duration  | `--duration-75` … `--duration-1000`（含 `--duration-350`，tooltip enter 用），`--duration-editorial` (600 ms)，`--splash-*`（启动覆盖层编排：7 个时长 + 5 个延迟，见 `StartupOverlay.css`） |
 | Easing    | `--ease-default` (220 emphasis), `--ease-enter`, `--ease-exit`, `--ease-spring`, `--ease-snap`, `--ease-linear`, `--ease-editorial` |
 | Composite | `--transition-colors`, `--transition-shadow`, `--transition-transform`, `--transition-opacity`, `--transition-modal` |
 

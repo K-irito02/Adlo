@@ -45,6 +45,9 @@
 
 **修复**：将 canvas 初始化（空依赖，仅执行一次）与颜色更新（通过 `postMessage` 通知 Worker）分离。
 
+> 注（2026-11-13）：`flow-field-background.tsx` / `flow-field-worker.ts` 已在开屏改版中整体删除，
+> 本节仅作历史记录；现行开屏见 [startup-overlay-redesign](../../specs/ui/2026-11-13-startup-overlay-redesign.md)。
+
 ### 3. 删除无效的防御层
 
 `overlay_state.rs`（WM_NCHITTEST 拦截）和 `commands/overlay.rs`（`set_startup_overlay_active` 命令）已证明无效（`hittest_intercepts=0`），已删除。

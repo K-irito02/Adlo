@@ -15,3 +15,4 @@
 - [2026-07-13-startup-overlay-design.md](./2026-07-13-startup-overlay-design.md) — 启动覆盖层设计
 - [2026-07-16-heatmap-chart-generalization-design.md](./2026-07-16-heatmap-chart-generalization-design.md) — 热力图图表泛化设计
 - [2026-11-05-about-settings-design.md](./2026-11-05-about-settings-design.md) — 设置「关于」组（Colophon）设计
+- [2026-11-13-startup-overlay-redesign.md](./2026-11-13-startup-overlay-redesign.md) — 启动覆盖层改版：字标掠光 + 网格背景（取代 07-13 版视觉）
