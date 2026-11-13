@@ -16,6 +16,7 @@ import { BranchGraph } from './charts/BranchGraph';
 import { BranchGraphHelpCard } from './charts/BranchGraphHelpCard';
 import { ChartColorPresetSelector } from './ChartColorPresetSelector';
 import { WorkspaceTabBar } from './WorkspaceTabBar';
+import { visibleGitWorkspaces } from './gitVisualizationWorkspaces';
 import { useGitVisRefresh } from './hooks/useGitVisRefresh';
 import { useChartData } from './hooks/useChartData';
 import { useYearBounds } from './hooks/useYearBounds';
@@ -145,14 +146,15 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const chartColorPreset = useAppStore(useShallow((s) => s.chartColorPreset));
   const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
   const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
+  const gitWorkspaces = useMemo(() => visibleGitWorkspaces(recentWorkspaces), [recentWorkspaces]);
   const appInfo = useAppStore((s) => s.appInfo);
   const setGitVisLoadedPhases = useAppStore((s) => s.setGitVisLoadedPhases);
   const loadGitSnapshot = useAppStore((s) => s.loadGitSnapshot);
   const setActiveWorkspaceTab = useAppStore((s) => s.setActiveWorkspaceTab);
 
   const activeWs = useMemo(
-    () => recentWorkspaces.find((w) => w.id === activeWorkspaceTab),
-    [recentWorkspaces, activeWorkspaceTab],
+    () => gitWorkspaces.find((w) => w.id === activeWorkspaceTab),
+    [gitWorkspaces, activeWorkspaceTab],
   );
   const rootPath = activeWs?.rootPath || '';
 
@@ -185,24 +187,24 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   // 'workspace-1' on first run, or the workspace was removed). The auto-select
   // effect below fixes the tab right after commit; until then render a neutral
   // loading region instead of flashing the "请选择一个 Git 工作区" empty-state.
-  const workspaceTabUnresolved = recentWorkspaces.length > 0 && !activeWs;
+  const workspaceTabUnresolved = gitWorkspaces.length > 0 && !activeWs;
 
   // Auto-select the current app workspace, falling back to the first available
   // one, so the charts can load without requiring a manual tab click.
   useEffect(() => {
-    if (recentWorkspaces.length === 0) {
+    if (gitWorkspaces.length === 0) {
       return;
     }
-    const matches = recentWorkspaces.some((w) => w.id === activeWorkspaceTab);
+    const matches = gitWorkspaces.some((w) => w.id === activeWorkspaceTab);
     if (matches) {
       return;
     }
     const current =
-      recentWorkspaces.find((w) => w.id === appInfo?.currentWorkspace?.id) ?? recentWorkspaces[0];
+      gitWorkspaces.find((w) => w.id === appInfo?.currentWorkspace?.id) ?? gitWorkspaces[0];
     if (current && current.id !== activeWorkspaceTab) {
       setActiveWorkspaceTab(current.id);
     }
-  }, [recentWorkspaces, activeWorkspaceTab, appInfo?.currentWorkspace?.id, setActiveWorkspaceTab]);
+  }, [gitWorkspaces, activeWorkspaceTab, appInfo?.currentWorkspace?.id, setActiveWorkspaceTab]);
 
   // Lazy-load the active workspace's git snapshot when it is missing. bootstrap()
   // only preloads visible workspaces; a tab whose snapshot never loaded (hidden /
@@ -259,14 +261,14 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
 
   // Cascade load priority phases — data loads on first view via loadActiveWorkspace
   useEffect(() => {
-    if (!appInfo?.config || recentWorkspaces.length === 0) {
+    if (!appInfo?.config || gitWorkspaces.length === 0) {
       return;
     }
     const phases = determinePhases(
       appInfo.config.workspacePriorityIds ?? [],
       appInfo.config.workspaceDeferredIds ?? [],
       appInfo.config.workspaceNaturalOrder ?? [],
-      recentWorkspaces.map((w) => ({ id: w.id, rootPath: w.rootPath })),
+      gitWorkspaces.map((w) => ({ id: w.id, rootPath: w.rootPath })),
     );
     setGitVisLoadedPhases(
       Object.fromEntries([
@@ -275,7 +277,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
         ...phases.low.map((w) => [w.id, 'low' as const]),
       ]),
     );
-  }, [recentWorkspaces, appInfo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gitWorkspaces, appInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load active workspace data — uses ref to avoid stale time range closure.
   // Session cache guard: skip the automatic workspace refresh once this

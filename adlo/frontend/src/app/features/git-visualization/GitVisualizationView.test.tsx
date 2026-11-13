@@ -15,6 +15,7 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   mockActiveWorkspaceTab = 'workspace-1';
+  mockRecentWorkspaces = [visibleWorkspace];
   mockGitSnapshots = { 'workspace-1': { isRepo: true, branches: [], conflicts: [] } };
   mockChangesTreeLoading = {};
   mockChangesTreeErrors = {};
@@ -104,20 +105,19 @@ vi.mock('@hooks/useResolvedTheme', () => ({
   useResolvedTheme: vi.fn(() => 'light'),
 }));
 
-const mockRecentWorkspaces = [
-  {
-    id: 'workspace-1',
-    name: 'Workspace 1',
-    rootPath: '/test/path',
-    path: '/test/path',
-    lastOpenedAt: Date.now(),
-    isPinned: false,
-    pinnedOrder: 0,
-    unpinnedOrder: 0,
-    removedFromSidebar: false,
-    available: true,
-  },
-];
+const visibleWorkspace = {
+  id: 'workspace-1',
+  name: 'Workspace 1',
+  rootPath: '/test/path',
+  path: '/test/path',
+  lastOpenedAt: Date.now(),
+  isPinned: false,
+  pinnedOrder: 0,
+  unpinnedOrder: 0,
+  removedFromSidebar: false,
+  available: true,
+};
+let mockRecentWorkspaces = [visibleWorkspace];
 
 // Mutable store slice backing useAppStore so per-test states (snapshot loaded vs
 // missing vs failed) can be asserted without re-registering the whole mock.
@@ -380,6 +380,33 @@ describe('GitVisualizationView', () => {
       expect(container.textContent).toContain('Loading chart...');
     },
   );
+
+  it('resolves a persisted hidden workspace tab to a visible workspace', () => {
+    // 外部文件的内存隐藏根不应成为 Git 可视化的活动标签。
+    mockActiveWorkspaceTab = 'external-hidden';
+    mockRecentWorkspaces = [
+      visibleWorkspace,
+      {
+        id: 'external-hidden',
+        name: 'Hidden Downloads',
+        rootPath: 'E:/Downloads',
+        path: 'E:/Downloads',
+        lastOpenedAt: Date.now(),
+        isPinned: false,
+        pinnedOrder: 0,
+        unpinnedOrder: 1,
+        removedFromSidebar: true,
+        available: true,
+      },
+    ];
+    const { container } = render(<GitVisualizationView />);
+
+    // 活动标签回落到可见工作区，隐藏根既不进标签栏也不被当作 Git 工作区。
+    expect(mockSetActiveWorkspaceTab).toHaveBeenCalledWith('workspace-1');
+    expect(container.textContent).not.toContain('Hidden Downloads');
+    // 解析期间显示中性 loading 区域，而不是隐藏根驱动的空态/图表。
+    expect(container.textContent).toContain('Loading chart...');
+  });
 
   it('renders a recoverable snapshot-error region instead of a permanent skeleton when the snapshot load failed', () => {
     mockGitSnapshots = {};
