@@ -158,6 +158,8 @@ pnpm --dir frontend run check:changed
 | `node frontend/scripts/replace-term.mjs --pairs <pairs.json> [--dry-run]` | 字节级批量替换（保 UTF-8、按文件校验、支持干跑）；`pairs.json` 形如 `{ "replacements": [{"from":"旧","to":"新"}], "files": ["src/app/..."] }` |
 | `node scripts/check-stale-terms.mjs` | 旧标识符 denylist 守卫（pre-commit 与 `check:repo` 自动执行） |
 | `node scripts/check-no-new-any.mjs` | 禁止在 store 改动里**新增** `as any` / `as unknown as`（pre-commit 跑暂存 diff 的新增行） |
+| `node scripts/check-docs-links.mjs` | `docs/**/README.md` 相对链接存在性（`check:repo` 自动执行） |
+| `node frontend/scripts/check-css-architecture.mjs` | CSS 机械禁令：`@keyframes` 只许 transform/opacity、禁 `*` 与 `!important`（`check:changed` 扫新增行） |
 
 收尾顺序：每层结束跑 `pnpm --dir frontend run typecheck`；全部改完后把旧名字加进
 `adlo/scripts/check-stale-terms.mjs` 的 `STALE_TERMS`，防止旧名回潮。

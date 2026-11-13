@@ -62,3 +62,4 @@
 - 样式测试（node 读 CSS）：reduced-motion 覆盖全部动画层、时长/延迟零字面量、`z-index: var(--z-max)`、
   网格漂移必须是 `translate3d` 而非 `background-position`。
 - 真机 computed style（亮/暗各一次）：底色、名称颜色、网格线色、遮罩存在。
+- 动画中间帧：`?adl-splash-at=<ms>` 定格时间轴（dev-only），`?adl-motion=reduce` 复现 reduced-motion。

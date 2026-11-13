@@ -184,6 +184,9 @@ const prettierable = changed.filter((f) => /\.(ts|tsx|js|jsx|mjs|css|json|md)$/.
 // 导致 15 个 dev 测试文件完全在门禁之外，2026-11-12 retro 修正）。
 // i18n 字典收窄仍只认已知字典路径（i18nTestScopes 对未知路径返回 null → 走 related）。
 const srcChanges = changed.filter((f) => /^(src|dev)\//.test(f) && /\.(ts|tsx|js|jsx)$/.test(f));
+// CSS 文本锁（测试用 `readFileSync` 读样式表）没有 ES import 边，`vitest related` 永远
+// 选不中它们；只改 CSS 时门禁会一个测试都不跑。这里显式补跑样式锁。
+const cssChanges = changed.filter((f) => /^src\/.*\.css$/.test(f));
 
 console.log(
   `[check:changed] base=${base} changed(frontend)=${changed.length} src=${srcChanges.length}`,
@@ -209,6 +212,8 @@ run('vite config load', 'node scripts/check-vite-config.mjs');
 
 // 源码卫生：注释里出现字面反斜杠加 n 通常意味着一次失败的批量替换（静默失效，无其它门禁可查）。
 run('source hygiene', 'node ../scripts/check-source-hygiene.mjs');
+// CSS 架构机械禁令（keyframes 属性 / `*` / `!important`）：只扫新增行，行级 allow 标记豁免。
+run('css architecture', 'node scripts/check-css-architecture.mjs');
 run('dead code (changed files only)', 'node scripts/check-dead-code.mjs');
 
 run('typecheck', 'npx tsc --noEmit');
@@ -241,23 +246,42 @@ if (flakyTests.length > 0) {
 
 if (options.skipTests) {
   console.log('[check:changed] tests skipped (--skip-tests)');
-} else if (srcChanges.length > 0) {
-  // i18n 字典被几乎所有组件引用：`vitest related` 会把整张导入图拉进来。
-  // 仅当变更文件全部是**已知**字典域时才收窄，未知字典仍走 related（宁可多跑）。
-  const i18nScopes = i18nTestScopes(srcChanges);
-  if (i18nScopes) {
-    runTests(
-      `vitest scoped (i18n-only change -> ${i18nScopes.length} dirs)`,
-      `npx vitest run ${i18nScopes.map(quote).join(' ')} --passWithNoTests --reporter=dot --silent=passed-only${flakyExcludeArgs}`,
-    );
-  } else {
-    runTests(
-      `vitest related (${srcChanges.length} changed source files)`,
-      `npx vitest related ${srcChanges.map(quote).join(' ')} --passWithNoTests --reporter=dot --silent=passed-only${flakyExcludeArgs}`,
-    );
-  }
 } else {
-  console.log('[check:changed] tests skipped (no testable src/dev changes)');
+  let ranTests = false;
+  if (srcChanges.length > 0) {
+    // i18n 字典被几乎所有组件引用：`vitest related` 会把整张导入图拉进来。
+    // 仅当变更文件全部是**已知**字典域时才收窄，未知字典仍走 related（宁可多跑）。
+    const i18nScopes = i18nTestScopes(srcChanges);
+    if (i18nScopes) {
+      runTests(
+        `vitest scoped (i18n-only change -> ${i18nScopes.length} dirs)`,
+        `npx vitest run ${i18nScopes.map(quote).join(' ')} --passWithNoTests --reporter=dot --silent=passed-only${flakyExcludeArgs}`,
+      );
+    } else {
+      runTests(
+        `vitest related (${srcChanges.length} changed source files)`,
+        `npx vitest related ${srcChanges.map(quote).join(' ')} --passWithNoTests --reporter=dot --silent=passed-only${flakyExcludeArgs}`,
+      );
+    }
+    ranTests = true;
+  }
+  if (cssChanges.length > 0) {
+    // `src/styles` 下的测试全部是 CSS 文本守卫；`*.css.test.ts` 分散在组件旁。
+    const cssTestFiles = git(['ls-files', 'src/**/*.css.test.ts'])
+      .split(/\r?\n/)
+      .map((file) => file.trim())
+      .filter(Boolean)
+      .map((file) => (prefix && file.startsWith(prefix) ? file.slice(prefix.length) : file));
+    const targets = [...new Set([...cssTestFiles, 'src/styles'])];
+    runTests(
+      `vitest css style locks (${cssChanges.length} css files)`,
+      `npx vitest run ${targets.map(quote).join(' ')} --passWithNoTests --reporter=dot --silent=passed-only${flakyExcludeArgs}`,
+    );
+    ranTests = true;
+  }
+  if (!ranTests) {
+    console.log('[check:changed] tests skipped (no testable src/dev/css changes)');
+  }
 }
 
 console.log('\n[check:changed] OK');

@@ -55,6 +55,12 @@ alwaysApply: false
 - 超过 50 项的滚动列表：使用 `content-visibility: auto` 延迟渲染屏外内容
 - 动画和过渡仅使用 `transform` 和 `opacity`，避免触发 layout/paint（使用 `will-change` 提示浏览器）
 - 禁止使用 `*` 选择器或深度嵌套选择器（>3 层）
+- 以上动画属性 / `*` / `!important` 三项由 `frontend/scripts/check-css-architecture.mjs` 在
+  `check:changed` 中对**新增行**强制执行；确有必要时在违规行写行级豁免并说明理由：
+  `animation-prop-allow: …` / `selector-allow: …` / `important-allow: …`。
+- CSS 文本守卫测试的范式（读样式表断言关键声明）：`frontend/src/styles/testing/cssRules.ts` +
+  `frontend/src/styles/loading-row.test.ts`。`check:changed` 在 CSS 变更时会自动补跑
+  `src/styles` 与 `*.css.test.ts`（这类测试靠 `readFileSync` 读文件，`vitest related` 选不中）。
 
 ## CSS 文件加载顺序与去重
 - 同一优先级的选择器在多个 CSS 文件中定义时，加载顺序靠后者覆盖前者

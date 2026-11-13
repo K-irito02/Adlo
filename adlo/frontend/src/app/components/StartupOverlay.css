@@ -129,7 +129,7 @@
   from {
     opacity: 0;
     transform: scale(0.96);
-    filter: blur(6px);
+    filter: blur(6px); /* animation-prop-allow: 88px 局部落定，代价可忽略 */
   }
 }
 
@@ -167,8 +167,8 @@
   from {
     opacity: 0;
     /* 起始字距只服务于"收拢"编排，不参与设计取值（终态见 .adl-splash__name）。 */
-    letter-spacing: 0.28em;
-    padding-left: 0.28em;
+    letter-spacing: 0.28em; /* animation-prop-allow: 收拢手感是本设计核心 */
+    padding-left: 0.28em; /* animation-prop-allow: 与字距成对，保持居中 */
   }
 }
 
@@ -184,4 +184,15 @@
   .adl-splash__name {
     animation: none;
   }
+}
+
+/* dev-only 验证钩子：`?adl-motion=reduce` 复现系统偏好分支（与上面媒体查询同构）。 */
+.adl-splash--reduced .adl-splash__grid,
+.adl-splash--reduced .adl-splash__grid::before,
+.adl-splash--reduced .adl-splash__mark,
+.adl-splash--reduced .adl-splash__sweep,
+.adl-splash--reduced .adl-splash__sweep--idle,
+.adl-splash--reduced .adl-splash__rule,
+.adl-splash--reduced .adl-splash__name {
+  animation: none;
 }

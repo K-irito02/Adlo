@@ -28,6 +28,15 @@ alwaysApply: false
 
 桌面-only 交互（标题栏/面板开合、窗口几何、真实 IPC）可先跑 `pnpm run e2e`（命令与前置见 [commands.md](commands.md#测试命令)，流程见技能 `desktop-e2e-wdio`）。**自动化通过 ≠ 视觉验收通过**：仍须按上方清单在真实窗口内人工确认。
 
+## 验证手段排障（2026-11-13）
+
+- **内置 browser 工具**：`screenshot` 要求桌面窗口可见；报 `needs visible tab` 时改用
+  `getComputedStyle` 断言，不要反复重试。标签 ID 会过期，操作前用 `tabs.list` 重取；
+  `evaluate` 的入参名是 `script`。
+- **动画类改动**：窗口不可见时浏览器会冻结动画时钟（`getAnimations()` 的 `currentTime` 恒为 0），
+  中间帧无法测量。开屏已提供 dev-only 钩子：`?adl-splash-at=<ms>` 定格时间轴、
+  `?adl-motion=reduce` 复现 reduced-motion；新增其它长动画时按同样方式加钩子再验证。
+
 ## 验证清单
 
 修改 UI 后必须在 Tauri 桌面和浏览器模式下分别验证：

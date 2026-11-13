@@ -14,6 +14,10 @@ If any of these files don't exist, **proceed silently**. Don't flag their absenc
 
 Backticked entries inside an `_Avoid_` line are **enforced**: `check:glossary` fails if they appear in `frontend/src/app/i18n/zh-CN/**`, `docs/operations/**`, or `docs/architecture/**`（以 `adlo/frontend/scripts/check-glossary.ts` 的 `ENFORCED_SOURCES` 为准）. Put a `glossary-allow` marker on a line for an intentional exception (for example, quoting a historical UI string). Plain `_Avoid_` entries are advisory only.
 
+## 收尾时的词表核对
+
+新增 UI 表面概念（覆盖层、面板、行、组）时先查词表是否已有条目。代码或文档里出现**被反复引用却未定义**的概念、或既有条目被放错分区时，收尾阶段跑一次 `domain-modeling` 技能补齐（词条 + `_Avoid_` + 必要时升级为强制词）。`check:glossary` 只能校验"已有词条格式正确"，发现不了"概念缺失"——2026-11-13 的「设置行/设置组」与放错段的「设置块」就是这样漏掉的。
+
 ## File structure
 
 Single-context repo (most repos):
