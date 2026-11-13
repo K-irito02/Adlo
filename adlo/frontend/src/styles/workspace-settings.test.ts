@@ -321,6 +321,11 @@ describe('settings panel narrow layout (方案 C+B+A)', () => {
     // 子项 shrink-to-fit、四组行为不一致。
     expect(block).toContain('.adl-settings-controls .adl-settings-row');
     expect(block).toContain('align-items: stretch');
+    // 行级修饰类与 stretch 同为 0-1-0：本档必须晚于 `--center` 的定义，
+    // 否则窄档会被修饰类重新居中（显式列出不等于免疫源码顺序）。
+    const centerRuleIndex = settingsCss.indexOf('.adl-settings-row--center {');
+    expect(centerRuleIndex).toBeGreaterThanOrEqual(0);
+    expect(centerRuleIndex).toBeLessThan(start);
     // 字体块整块改列（预览/下拉各占一行）。
     expect(block).toContain('.adl-settings-font--row');
   });

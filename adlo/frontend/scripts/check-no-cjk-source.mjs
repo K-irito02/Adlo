@@ -16,7 +16,8 @@
  *  4. 对这些行取 `git diff -U0` 的新增行交集，命中则报告并退出码 1
  *
  * 专用豁免：`cjk-source-allow` 出现在**该行**表示接受；仅用于外部格式规范里
- * 确实出现中文的位置（例如 Chrome 导出文件名解析常量、域常量）。
+ * 确实出现中文的位置（例如 Chrome 导出文件名解析常量、域常量），以及**不可本地化、
+ * 不进入 i18n 字典**的品牌常量（例如开屏的「Adlo · 安洛」——两种语言下都原样显示）。
  */
 import { spawnSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';

@@ -253,7 +253,7 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
-/* 右侧只有单个按钮/开关的行：控件与左侧标题+说明整体垂直居中。 */
+/* 右侧为单个控件（按钮 / 开关 / 下拉）的行：控件与左侧标题+说明整体垂直居中。 */
 .adl-settings-row--center {
   align-items: center;
 }
@@ -2223,12 +2223,15 @@
     gap: var(--space-2);
   }
 
-  /* 组级 align-items:center（0-2-0，通用/浏览器/DSH 三条 + path-center）会压过
-     上面的 stretch（0-1-0）→ 窄档子项 shrink-to-fit 不拉伸、组间行为不一致。
-     用等价特异度在本档逐一扳回 stretch。 */
+  /* 组级 center（0-2-0：通用/浏览器/DSH 三条）会压过本档开头的
+     `.adl-settings-row { align-items: stretch }`（0-1-0），故逐一扳回。
+     行级修饰类 `--center` / `--path-center` 同为 0-1-0，本档开头的 stretch 已晚于
+     其定义、正常可覆盖；仍显式列出以表达意图并去掉对那一条声明的依赖。
+     三者同为 0-1-0，故本块必须位于 `.adl-settings-row--center` 之后。 */
   .adl-settings-controls .adl-settings-row,
   .adl-browser-settings .adl-settings-row,
   .adl-dsh-settings .adl-settings-row,
+  .adl-settings-row--center,
   .adl-settings-row--path-center {
     align-items: stretch;
   }

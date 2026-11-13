@@ -40,6 +40,8 @@ export function SourceRow({
 }: SourceRowProps) {
   const { t } = useTCopy();
   return (
+    // OpenCode 组不在 settings.css 的组级居中名单内（通用/浏览器/DSH 三组），
+    // 故该行显式带 `--center`；窄档（≤600px）由堆叠规则覆盖回 stretch。
     <div
       className="adl-settings-row adl-settings-row--center"
       data-settings-row={t.harnessVersionSourceTitle}

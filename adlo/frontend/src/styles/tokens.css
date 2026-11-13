@@ -244,12 +244,7 @@
     --duration-700: 1ms;
     --duration-1000: 1ms;
     --duration-editorial: 1ms;
-    --splash-grid-in-duration: 1ms;
-    --splash-grid-drift-duration: 1ms;
-    --splash-mark-duration: 1ms;
-    --splash-sweep-duration: 1ms;
-    --splash-idle-sweep-duration: 1ms;
-    --splash-rule-duration: 1ms;
-    --splash-name-duration: 1ms;
+    /* 启动覆盖层的 `--splash-*` 时长不在此塌缩：该组件的媒体查询直接
+       `animation: none`（1ms 塌缩不会取消 delay，仍会产生跳变）。 */
   }
 }

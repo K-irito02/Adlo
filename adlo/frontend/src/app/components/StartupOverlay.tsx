@@ -6,13 +6,13 @@ import './StartupOverlay.css';
 const BRAND_LOCKUP = 'Adlo · 安洛'; // cjk-source-allow: 品牌常量，非可本地化 UI 文案
 
 /**
- * 启动覆盖层（开屏）：品牌图标 + 字标掠光 + 网格背景。
+ * 启动覆盖层（开屏）：品牌图标 + 掠光 + 网格背景。
  *
  * 时序（总长 2320ms 演完，3.5s 最短停留由 App.tsx 控制，剩余由网格漂移
  * 与弱掠光填充）：
  *   0–620ms     图标落定（scale 0.96→1，blur 6px→0）
  *   0–900ms     网格自中心生长，随后 9s 周期极慢漂移
- *   560–1460ms  柔光带扫过字标
+ *   560–1460ms  柔光带扫过图标
  *   1420–1940ms 细线由中心展开
  *   1700–2320ms 名称收字距淡入
  *   2600ms+     每 2.6s 一次弱掠光
@@ -30,7 +30,7 @@ export default function StartupOverlay() {
 
   return (
     <div aria-hidden="true" className="adl-splash">
-      <div aria-hidden="true" className="adl-splash__grid" />
+      <div className="adl-splash__grid" />
       <div className="adl-splash__brand">
         <div className="adl-splash__mark">
           <img alt="" height={88} src="/adlo-icon.png" width={88} />
