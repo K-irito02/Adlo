@@ -63,3 +63,6 @@
   网格漂移必须是 `translate3d` 而非 `background-position`。
 - 真机 computed style（亮/暗各一次）：底色、名称颜色、网格线色、遮罩存在。
 - 动画中间帧：`?adl-splash-at=<ms>` 定格时间轴（dev-only），`?adl-motion=reduce` 复现 reduced-motion。
+  钩子约定：只有该参数**存在且为合法毫秒数**时才定格；缺失、空串、纯空白一律不定格
+  （`Number(null) === 0` 会把普通启动误判成"定格 0ms"，把动画冻在首帧，窗口只剩底色 ——
+  解析收敛在 `splashDebugParams.ts` 的 `parseSplashFreezeAt`，并有用例锁定）。

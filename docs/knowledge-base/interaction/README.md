@@ -28,6 +28,7 @@
 | [clipboard-viewer-lessons-2026-10-11.md](./clipboard-viewer-lessons-2026-10-11.md) | 剪贴板放大查看弹窗 37 项重构 6 条可复用经验（跨域下载失效走原生对话框、Tooltip 包裹层 grid、常驻 hidden 防闪、互斥编辑代际 guard、四端键 parity、Node/Rust 拒绝语义对齐） |
 | [titlebar-overflow-affordances-2026-11-07.md](./titlebar-overflow-affordances-2026-11-07.md) | 标题栏拖拽车道与两端渐隐：sticky 覆盖层不能用 `scroll-padding` 让位（改层级）、z 顺序（渐隐 < 操作按钮 < “+” < 拖拽项）、隐藏瞬时防残影、选中底色不做颜色过渡、jsdom 伪造滚动指标测渐隐四态 |
 | [editor-autosave-watcher-race-2026-11-08.md](./editor-autosave-watcher-race-2026-11-08.md) | 文件面板自动保存：watcher 自写回声误报冲突 + 保存旧响应覆盖新草稿；按文件串行/代际、内容指纹回声识别、读盘分类、草稿真相源与受控 value 不变量 |
+| [splash-freeze-hook-null-param-2026-11-14.md](./splash-freeze-hook-null-param-2026-11-14.md) | 开屏定格钩子把「参数缺失」当成 0ms（`Number(null) === 0`）致动画冻结在首帧、窗口只剩底色；可选数字参数须区分缺失/空串/0，隐藏窗口冻结动画时钟的取证方法 |
 
 ## 子主题
 
