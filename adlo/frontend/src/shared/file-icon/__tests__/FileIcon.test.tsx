@@ -52,13 +52,7 @@ describe('FileIcon', () => {
     expect(icon).toBeTruthy();
   });
 
-  it('handles special filename Dockerfile', () => {
-    render(<FileIcon fileName="Dockerfile" />);
-    const icon = document.querySelector('svg, img, span');
-    expect(icon).toBeTruthy();
-  });
-
-  it('handles special filename package.json', () => {
+  it('handles package.json', () => {
     render(<FileIcon fileName="package.json" />);
     const icon = document.querySelector('svg, img, span');
     expect(icon).toBeTruthy();
@@ -78,20 +72,35 @@ function pathData(container: HTMLElement): string[] {
 }
 
 describe('FileIcon dotfile fallback', () => {
-  it.each(['.editorconfig', '.gitattributes', '.gitignore', '.prettierignore'])(
-    'renders the config glyph for %s',
-    (fileName) => {
-      const { container } = render(<FileIcon fileName={fileName} />);
-      const paths = pathData(container);
-      for (const glyph of CONFIG_GLYPH_PATHS) {
-        expect(paths).toContain(glyph);
-      }
-    },
-  );
+  it.each([
+    '.editorconfig',
+    '.gitattributes',
+    '.gitignore',
+    '.prettierignore',
+    '.env',
+    '.eslintrc',
+    '.prettierrc',
+  ])('renders the config glyph for %s', (fileName) => {
+    const { container } = render(<FileIcon fileName={fileName} />);
+    const paths = pathData(container);
+    for (const glyph of CONFIG_GLYPH_PATHS) {
+      expect(paths).toContain(glyph);
+    }
+  });
 
   it('keeps extension-based icons for dotfiles that carry a real extension', () => {
     const { container } = render(<FileIcon fileName=".eslintrc.json" />);
     const paths = pathData(container);
+    expect(paths.length).toBeGreaterThan(0);
+    for (const glyph of CONFIG_GLYPH_PATHS) {
+      expect(paths).not.toContain(glyph);
+    }
+  });
+
+  it('leaves multi-dot dotfiles to the extension tiers', () => {
+    const { container } = render(<FileIcon fileName=".env.local" />);
+    const paths = pathData(container);
+    expect(paths.length).toBeGreaterThan(0);
     for (const glyph of CONFIG_GLYPH_PATHS) {
       expect(paths).not.toContain(glyph);
     }
@@ -100,14 +109,28 @@ describe('FileIcon dotfile fallback', () => {
   it('does not apply the config glyph to unknown extensions', () => {
     const { container } = render(<FileIcon fileName="data.xyz" />);
     const paths = pathData(container);
+    expect(paths.length).toBeGreaterThan(0);
     for (const glyph of CONFIG_GLYPH_PATHS) {
       expect(paths).not.toContain(glyph);
     }
   });
 
-  it('renders the extension-less fallback without question-mark artifacts', () => {
+  it('renders the generic document for extension-less names', () => {
+    const { container } = render(<FileIcon fileName="Dockerfile" />);
+    const paths = pathData(container);
+    // 专项文件名层已删除：旧表用的 docker/config 不是合法 defaultStyles 键，
+    // Dockerfile 与 LICENSE 一样落到通用文档（两条骨架 path）。
+    expect(paths).toHaveLength(2);
+    expect(paths).toContain('M14 3v6h6');
+  });
+
+  it('renders the plain document skeleton for extension-less files', () => {
     const { container } = render(<FileIcon fileName="LICENSE" />);
     const paths = pathData(container);
+    // 正向断言：文档骨架必须真的画出来（只断言"没有问号"时，返回空 SVG 也会假绿）
+    expect(paths).toContain('M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6z');
+    expect(paths).toContain('M14 3v6h6');
+    expect(paths).toHaveLength(2);
     expect(paths).not.toContain('M12 13v1');
     expect(paths).not.toContain('M12 16v.01');
   });
@@ -115,7 +138,8 @@ describe('FileIcon dotfile fallback', () => {
 
 /**
  * 回归保护：项目自带的冷门扩展名图标必须排在 react-symbols 之前 —— 后者对任意
- * 扩展名都会渲染通用文档，顺序一旦回退，这些图标就永远不可达。
+ * **未识别的**扩展名都会回退到通用文档（不会返回空），顺序一旦回退，这些项目图标
+ * 就永远不可达。
  */
 describe('FileIcon niche extension fallbacks', () => {
   it.each(['settings.conf', 'tsconfig.jsonc'])('renders the config glyph for %s', (fileName) => {

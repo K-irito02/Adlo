@@ -6,8 +6,9 @@
  *
  * 为什么单独成函数：`Number(new URLSearchParams(search).get('adl-splash-at'))` 在
  * 参数缺失时得到 `Number(null) === 0`，会被误判成"定格在 0ms"，从而把开屏的全部
- * 动画 `pause()` 在首帧 —— 首帧是每个元素的 `from` 态（opacity 0 / scaleX 0），
- * 表现为启动后只剩纯黑或纯白的底色。缺失与 0 必须区分开。
+ * 动画 `pause()` 在首帧 —— 首帧是各入场动画的起始态（`grid`/`mark`/`name` 为
+ * `opacity: 0`、`rule` 为 `scaleX(0)`、`sweep` 移出视野），表现为启动后只剩纯黑或
+ * 纯白的底色。缺失与 0 必须区分开。
  */
 export function parseSplashFreezeAt(search: string): number | null {
   const raw = new URLSearchParams(search).get('adl-splash-at');

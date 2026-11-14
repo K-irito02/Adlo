@@ -20,78 +20,19 @@ function extractExtension(fileName: string): string {
 }
 
 /**
- * Special filename rules — maps well-known filenames to react-file-icon
- * extension keys so they get the correct glyph (e.g., Dockerfile → "docker",
- * package.json → "config"). Used as fallback when extension-based resolution misses.
- */
-const SPECIAL_FILENAME_RULES: Record<string, string> = {
-  dockerfile: 'docker',
-  'docker-compose.yml': 'docker',
-  'docker-compose.yaml': 'docker',
-  makefile: 'config',
-  'pnpm-workspace.yaml': 'config',
-  'turbo.json': 'config',
-  'cargo.toml': 'config',
-  'cargo.lock': 'config',
-  'composer.json': 'config',
-  'composer.lock': 'config',
-  gemfile: 'config',
-  'gemfile.lock': 'config',
-  podfile: 'config',
-  'podfile.lock': 'config',
-  'requirements.txt': 'config',
-  pipfile: 'config',
-  'pipfile.lock': 'config',
-  'pyproject.toml': 'config',
-  'poetry.lock': 'config',
-  'go.mod': 'config',
-  'go.sum': 'config',
-  'package-lock.json': 'config',
-  'pnpm-lock.yaml': 'config',
-  'yarn.lock': 'config',
-};
-
-/** Check if a filename starts with a prefix (for .env, .eslintrc, etc.) */
-const SPECIAL_PREFIX_RULES: { prefix: string; type: string }[] = [
-  { prefix: '.env', type: 'config' },
-  { prefix: '.eslintrc', type: 'config' },
-  { prefix: 'eslint.', type: 'config' },
-  { prefix: 'prettier.', type: 'config' },
-  { prefix: '.prettierrc', type: 'config' },
-  { prefix: 'tsconfig', type: 'config' },
-  { prefix: 'vite.config.', type: 'config' },
-  { prefix: 'vitest.config.', type: 'config' },
-  { prefix: 'jest.config.', type: 'config' },
-  { prefix: 'rollup.config.', type: 'config' },
-  { prefix: 'webpack.config.', type: 'config' },
-  { prefix: 'readme.', type: 'document' },
-];
-
-function getSpecialFilenameType(fileName: string): string | undefined {
-  const lower = fileName.toLowerCase();
-
-  // Exact match
-  if (SPECIAL_FILENAME_RULES[lower]) {
-    return SPECIAL_FILENAME_RULES[lower];
-  }
-
-  // Prefix match
-  for (const { prefix, type } of SPECIAL_PREFIX_RULES) {
-    if (lower === prefix || lower.startsWith(prefix)) {
-      return type;
-    }
-  }
-
-  return undefined;
-}
-
-/**
  * Dotfile rule — `.editorconfig`, `.gitignore`, `.prettierignore`, `.env` …
  *
  * These names have no real extension: `extractExtension()` returns '' because
- * the only dot is the leading one, which used to drop them into the generic
- * document fallback. Dotfiles that carry a real extension (`.eslintrc.json`,
- * `.env.local`) keep the extension-driven icon instead.
+ * the only dot is the leading one, so the extension-driven tiers never see them.
+ * Before this rule they all fell through to the generic unknown icon (the old
+ * special-filename table mapped `.gitignore` to react-file-icon's `config`, which
+ * is not a valid `defaultStyles` key, so it never rendered); now the whole
+ * single-dot dotfile family shares the project config glyph.
+ *
+ * Dotfiles carrying a second dot (`.eslintrc.json`, `.env.local`) are left to the
+ * extension-driven tiers, so they keep their extension icon — `.eslintrc.json`
+ * gets the library JSON icon, while `.env.local` currently falls back to that
+ * library's generic document (no `local` icon exists there).
  */
 function isDotfile(fileName: string): boolean {
   return fileName.startsWith('.') && !fileName.slice(1).includes('.');
@@ -137,8 +78,7 @@ const REACT_FILE_ICON_PREFERRED = new Set([
  * 2. Project config glyph for dotfiles without a real extension (.editorconfig, .gitignore …)
  * 3. Project SVGs for niche/cold extensions (hta, conf, jsonc …)
  * 4. react-symbols for everything else (300+ icons — programming, images, media, config)
- * 5. Special filename rules (Dockerfile, package.json, etc.)
- * 6. Generic unknown file icon
+ * 5. Generic document for names without a usable extension (LICENSE, Dockerfile, Makefile …)
  */
 export function FileIcon({ fileName, size = 16, className }: FileIconProps) {
   const extension = useMemo(() => extractExtension(fileName), [fileName]);
@@ -168,7 +108,7 @@ export function FileIcon({ fileName, size = 16, className }: FileIconProps) {
 
   // Tier 2: dotfiles — no real extension, give them the config glyph instead of
   // the generic document (also covers .gitignore / .gitattributes, which used to
-  // fall through to react-file-icon's config style)
+  // fall through to the generic unknown icon)
   if (isDotfile(fileName)) {
     return <IconFallbackConfig size={size} className={className} decorative />;
   }
@@ -176,11 +116,9 @@ export function FileIcon({ fileName, size = 16, className }: FileIconProps) {
   // Tier 3: Project icons for niche/cold extensions (hta, conf, jsonc …).
   // Must run before react-symbols: that library renders a generic document for
   // any unknown extension, so a lookup placed after it would never be reached.
-  if (extension) {
-    const FallbackIcon = FALLBACK_EXTENSION_MAP[extension];
-    if (FallbackIcon) {
-      return <FallbackIcon size={size} className={className} decorative />;
-    }
+  const ProjectIcon = FALLBACK_EXTENSION_MAP[extension];
+  if (ProjectIcon) {
+    return <ProjectIcon size={size} className={className} decorative />;
   }
 
   // Tier 4: react-symbols — broadest coverage (300+ icons)
@@ -190,29 +128,9 @@ export function FileIcon({ fileName, size = 16, className }: FileIconProps) {
     );
   }
 
-  // Tier 5: Special filename rules (Dockerfile, package.json, etc.)
-  // Apply soft glyph color + reduced gradient
-  const specialType = getSpecialFilenameType(fileName);
-  if (specialType) {
-    const hasSpecialStyle = specialType in defaultStyles;
-    if (hasSpecialStyle) {
-      const baseStyle = defaultStyles[specialType as DefaultExtensionType];
-      const mergedStyle = {
-        ...baseStyle,
-        glyphColor: baseStyle.glyphColor || SOFT_GLYPH_COLOR,
-        gradientOpacity: baseStyle.gradientOpacity ?? SOFT_GRADIENT_OPACITY,
-      };
-      return (
-        <span
-          className={className}
-          style={{ display: 'inline-flex', alignItems: 'center', width: size, height: size }}
-        >
-          <ReactFileIcon extension={specialType} {...mergedStyle} />
-        </span>
-      );
-    }
-  }
-
-  // Tier 6: Generic unknown file icon
+  // Tier 5: names without a usable extension (LICENSE, Dockerfile, Makefile …).
+  // The old special-filename table mapped Dockerfile / Makefile to `docker` /
+  // `config`, which are not valid `defaultStyles` keys, so it never rendered
+  // beyond this same document — the dead layer was removed.
   return <IconFallbackUnknown size={size} className={className} decorative />;
 }
