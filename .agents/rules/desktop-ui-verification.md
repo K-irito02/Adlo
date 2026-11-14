@@ -33,9 +33,20 @@ alwaysApply: false
 - **内置 browser 工具**：`screenshot` 要求桌面窗口可见；报 `needs visible tab` 时改用
   `getComputedStyle` 断言，不要反复重试。标签 ID 会过期，操作前用 `tabs.list` 重取；
   `evaluate` 的入参名是 `script`。
+- **面板浏览器连不上 dev 应用**：`pnpm dev*` 的窗口带实例令牌，把启动行打印的地址粘进 Review
+  面板页会拿到 CORS 报错或 502 —— 这是设计使然，不是服务坏了。要读真实窗口按下面的 CDP 端口走，
+  或把用户当「手」（编号步骤 + 预期日志）。
+- **Review 面板页的时间轴可能恒为 0**：即使 `document.visibilityState === 'visible'`，面板内嵌页的
+  `document.timeline.currentTime` 也可能一直停在 0（未合成/被遮挡），此时任何 `getAnimations()`
+  读数都不可信 → 换 CDP 或真实窗口，不要在面板页上反复断言。
 - **动画类改动**：窗口不可见时浏览器会冻结动画时钟（`getAnimations()` 的 `currentTime` 恒为 0），
   中间帧无法测量。开屏已提供 dev-only 钩子：`?adl-splash-at=<ms>` 定格时间轴、
   `?adl-motion=reduce` 复现 reduced-motion；新增其它长动画时按同样方式加钩子再验证。
+- **「定格了一帧」≠「动画在走」**：定格钩子只把时间轴钉到某个毫秒，不能证明动画真在推进。要证明活性
+  用采样：临时在组件里打 `[DBG-<name>]`，读 `getAnimations({ subtree: true })` 的 `playState` 与
+  `currentTime`（0/400/1600/2800ms 各一次），经调试日志落到 `.adl-logs/debug-logs.txt`；判据是
+  `playState === 'running'` 且 `currentTime` 递增。2026-11-14 开屏事故正是靠这条定位到「钩子把动画
+  pause 在首帧」，只靠肉眼/截图无法区分「没播」与「播了但内容透明」。
 
 ### 真实 WebView2 的 CDP 验证（不改源码）
 
