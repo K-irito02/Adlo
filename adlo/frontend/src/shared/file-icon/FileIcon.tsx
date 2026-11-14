@@ -8,6 +8,7 @@ import { FileIcon as ReactFileIcon, defaultStyles } from 'react-file-icon';
 import type { DefaultExtensionType } from 'react-file-icon';
 import type { IconSize } from '@icons/helper';
 import { FALLBACK_EXTENSION_MAP, IconFallbackConfig, IconFallbackUnknown } from './fallbackIcons';
+import { REACT_FILE_ICON_PREFERRED } from './iconMapping';
 
 interface FileIconProps {
   fileName: string;
@@ -65,29 +66,6 @@ function isPrototypeMember(name: string): boolean {
  */
 const SOFT_GLYPH_COLOR = '#666666';
 const SOFT_GRADIENT_OPACITY = 0.1;
-
-/**
- * Extensions where react-file-icon has better/more recognizable icons
- * (office documents with colored backgrounds and type glyphs).
- * For these extensions, prefer react-file-icon over react-symbols.
- */
-const REACT_FILE_ICON_PREFERRED = new Set([
-  'doc',
-  'docx',
-  'odt',
-  'rtf', // Word documents
-  'xls',
-  'xlsx',
-  'ods',
-  'csv', // Spreadsheets
-  'ppt',
-  'pptx',
-  'odp', // Presentations
-  'pdf', // PDF
-  'key', // Keynote
-  'pages', // Pages
-  'numbers', // Numbers
-]);
 
 /**
  * Unified file icon resolver.
