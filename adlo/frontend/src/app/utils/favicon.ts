@@ -20,6 +20,8 @@ import {
  * Mirrors Chrome's approach: fetch once, serve from persistent cache forever.
  */
 const preloadCache = new Map<string, string>();
+/** 在途预加载去重：同一 favicon URL 被多个组件/StrictMode 双调用时只建一个 Image。 */
+const preloadInFlight = new Set<string>();
 
 /**
  * 预加载外部 favicon 并转换为 data-URI（Chrome/Edge 式持久缓存）：
@@ -32,13 +34,18 @@ const preloadCache = new Map<string, string>();
  * data-URI 必须写回该键才能让同站所有 URL 命中。
  */
 function preloadExternalFavicon(faviconUrl: string, cacheKey: string): void {
-  if (preloadCache.has(faviconUrl)) {
+  if (preloadCache.has(faviconUrl) || preloadInFlight.has(faviconUrl)) {
     return;
   }
+  preloadInFlight.add(faviconUrl);
 
   const img = new Image();
   img.crossOrigin = 'anonymous';
+  img.onerror = () => {
+    preloadInFlight.delete(faviconUrl);
+  };
   img.onload = () => {
+    preloadInFlight.delete(faviconUrl);
     try {
       const canvas = new OffscreenCanvas(img.naturalWidth, img.naturalHeight);
       const ctx = canvas.getContext('2d');

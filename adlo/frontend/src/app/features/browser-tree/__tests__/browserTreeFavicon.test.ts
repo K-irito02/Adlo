@@ -38,8 +38,9 @@ describe('faviconPropsForNode', () => {
     });
   });
 
-  it('saved-bookmark rows stay passive even when the node type is tab (search results)', () => {
-    // BrowserNavSearchMode 的纯收藏结果节点 type 仍是 tab，但并无活标签
+  it('saved-bookmark rows stay passive even when the node type is tab', () => {
+    // 收藏目录/工作区书签中仍有活标签的条目会产出 nodeType:'tab' + isSavedBookmark
+    // （useBrowserTreeData.buildFolderNode 等），因此被动判定必须 isSavedBookmark 优先。
     expect(
       faviconPropsForNode(node({ nodeType: 'tab', isSavedBookmark: true, tabId: 'b-1' })),
     ).toEqual({ url: 'https://example.com/', pending: 'initial' });
@@ -49,6 +50,23 @@ describe('faviconPropsForNode', () => {
     expect(faviconPropsForNode(node({ nodeType: 'bookmark', url: undefined }))).toEqual({
       url: '',
       pending: 'initial',
+    });
+  });
+
+  it('passes the bookmark icon snapshot through for immediate rendering', () => {
+    // 导入书签自带 ICON data-URI：树行首帧即可显示，避免每次展开先露首字母。
+    expect(
+      faviconPropsForNode(
+        node({
+          nodeType: 'bookmark',
+          bookmarkId: 'b-1',
+          iconUri: 'data:image/png;base64,AA',
+        }),
+      ),
+    ).toEqual({
+      url: 'https://example.com/',
+      pending: 'initial',
+      snapshot: 'data:image/png;base64,AA',
     });
   });
 });

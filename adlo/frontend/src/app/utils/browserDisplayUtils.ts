@@ -247,6 +247,45 @@ export function historyDedupKey(url: string): string {
 }
 
 /**
+ * URL 是否已被收藏（与收藏条目的标题无关）。
+ *
+ * 收藏条目的 title 是收藏时的快照（外部导入、新建书签对话框「仅保存」、用户自定义），
+ * 与打开后的页面标题可能不同；因此收藏状态只能由 URL 身份决定。比较口径见
+ * `bookmarkUrlKey`（忽略尾斜杠、www 前缀、跟踪参数与参数顺序，但保留协议/端口），
+ * 避免同一地址的不同变体出现「已收藏却显示空心星」。
+ */
+export function isUrlBookmarked(
+  bookmarks: readonly { url: string }[],
+  url: string | null | undefined,
+): boolean {
+  if (!url) {
+    return false;
+  }
+  const target = bookmarkUrlKey(url);
+  return bookmarks.some((bookmark) => bookmark.url && bookmarkUrlKey(bookmark.url) === target);
+}
+
+/**
+ * 收藏身份键：协议 + 主机（含端口）+ 路径 + 归一化 query，忽略 hash。
+ *
+ * 与 `historyDedupKey` 的区别：历史去重可以忽略协议/端口（同一站点的不同入口仍算
+ * 同一浏览记录），但收藏是「一个可点击地址」——`http://host:3000/app` 与
+ * `https://host:5173/app` 不能互相点亮星标，更不能互相取消收藏（本地开发/自建服务
+ * 常态）。尾斜杠、www 前缀与跟踪参数仍按历史口径归一化。
+ */
+export function bookmarkUrlKey(url: string): string {
+  try {
+    const u = new URL(url);
+    const host = u.host.toLowerCase().replace(/^www\./, '');
+    const path = u.pathname.length > 1 ? u.pathname.replace(/\/+$/, '') : u.pathname;
+    const query = normalizedQueryForDedup(u.search);
+    return `${u.protocol}//${host}${path}${query}`;
+  } catch {
+    return url;
+  }
+}
+
+/**
  * 是否携带"视图身份"参数 modal_id（抖音等 SPA 视频弹层）。
  * 同一 path 下每个视频以 modal_id 区分；不带 modal_id 的同 path URL 只是
  * "容器/scaffold"（feed 骨架），并非独立视图。与 normalizeUrlForCompare 的

@@ -34,6 +34,8 @@ interface BrowserTabTreeCallbacks {
   onCopyTabLink: (url: string) => void;
   onOpenTabInNewTab: (url: string, title?: string) => void;
   onOpenTabInCurrentTab: (url: string) => void;
+  onOpenInCenter?: (url: string, title?: string) => void;
+  onOpenAllInCenter?: (categoryType: BrowserCategoryType, nodePath: string) => void;
   onCloseTab?: (tabId: string) => void;
   onBookmarkTab?: (url: string, title: string) => void;
   onRemoveBookmarkTab?: (tabId: string, url: string) => void;

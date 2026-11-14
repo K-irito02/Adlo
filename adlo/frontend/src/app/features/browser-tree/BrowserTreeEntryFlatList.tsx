@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { IconClose, IconMoreVertical, IconRefreshCw } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { BrowserFavicon } from '@components/BrowserFavicon';
@@ -18,6 +18,15 @@ interface BrowserTreeEntryFlatListProps {
   onCloseTab?: (tabId: string) => void;
 }
 
+/**
+ * 扁平列表首屏渲染行数，滚动接近底部时按页追加。
+ *
+ * 「书签列表」会把目录内全部书签（以及历史）摊平；导入几百上千条时一次性挂载
+ * 全部行 + 每行一个 favicon 订阅会阻塞主线程，切换模式要等很久（2026-11-15
+ * 用户反馈）。窗口化后首屏固定成本，滚动再增量渲染。
+ */
+export const FLAT_LIST_PAGE_SIZE = 80;
+
 export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlatList({
   flatItems,
   selectedTreePath,
@@ -27,6 +36,67 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
   onCloseTab,
 }: BrowserTreeEntryFlatListProps) {
   const { t } = useTCopy();
+  const [visibleCount, setVisibleCount] = useState(FLAT_LIST_PAGE_SIZE);
+  const sentinelRef = useRef<HTMLLIElement | null>(null);
+
+  // 列表**身份**签名（不含节点对象身份）：树在站点元数据/标签更新时会整棵重建，
+  // `flatItems` 数组身份随之变化，但目录/模式/搜索词未变时不该把窗口收回首屏。
+  // 用路径/分隔符文案拼接签名：成员的增删/换序会重置窗口；同一成员的行内
+  // 内容（标题/URL/图标）变化不重置（那不是列表身份变化）。
+  const listSignature = useMemo(
+    () =>
+      flatItems
+        .map((item) => (item.type === 'tab' ? `t:${item.node.path}` : `s:${item.label}`))
+        .join('\u0000'),
+    [flatItems],
+  );
+
+  // 列表内容变化（切换目录/切换模式/搜索词变化）时回到首屏窗口。
+  // 在 layout 阶段执行，避免先按旧的大窗口多画一帧。
+  useLayoutEffect(() => {
+    setVisibleCount(FLAT_LIST_PAGE_SIZE);
+  }, [listSignature]);
+
+  // 哨兵进入视口时追加下一页；无 IntersectionObserver（SSR/老环境）时直接全量。
+  useEffect(() => {
+    if (visibleCount >= flatItems.length) {
+      return;
+    }
+    const el = sentinelRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setVisibleCount(flatItems.length);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisibleCount((count) => Math.min(count + FLAT_LIST_PAGE_SIZE, flatItems.length));
+        }
+      },
+      { rootMargin: '300px 0px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [visibleCount, flatItems.length]);
+
+  // 数据行（不含分隔符）及其位置：供窗口化选中项兜底与 a11y 计数。
+  const tabItems = useMemo(
+    () =>
+      flatItems.filter((item): item is Extract<FlatItem, { type: 'tab' }> => item.type === 'tab'),
+    [flatItems],
+  );
+  const positionByPath = useMemo(
+    () => new Map(tabItems.map((item, index) => [item.node.path, index] as const)),
+    [tabItems],
+  );
+  // 选中项可能在第 80 行之后：窗口必须至少覆盖它，否则切到列表模式后看不到选中反馈。
+  const selectedIndex = selectedTreePath ? positionByPath.get(selectedTreePath) : undefined;
+  const effectiveVisibleCount =
+    selectedIndex === undefined ? visibleCount : Math.max(visibleCount, selectedIndex + 1);
+  const visibleItems = useMemo(
+    () => flatItems.slice(0, effectiveVisibleCount),
+    [flatItems, effectiveVisibleCount],
+  );
 
   const handleRowClick = useCallback(
     (node: BrowserTreeNode) => () => onFlatTabClick(node),
@@ -74,7 +144,7 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
   return (
     <div className="adl-browser-entry__tree adl-browser-entry__tree--flat">
       <ul className="adl-filetree" role="tree">
-        {flatItems.map((item) => {
+        {visibleItems.map((item) => {
           if (item.type === 'separator') {
             return (
               <li
@@ -117,6 +187,8 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
               className={`adl-filetree__item adl-filetree__node--file${isTabSelected ? ' is-selected' : ''}`}
               data-path={item.node.path}
               role="treeitem"
+              aria-setsize={tabItems.length}
+              aria-posinset={(positionByPath.get(item.node.path) ?? 0) + 1}
             >
               <div
                 className="adl-filetree__row"
@@ -178,6 +250,14 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
             </li>
           );
         })}
+        {visibleItems.length < flatItems.length ? (
+          <li
+            ref={sentinelRef}
+            className="adl-browser-entry__flat-sentinel"
+            aria-hidden="true"
+            style={{ height: 1, listStyle: 'none' }}
+          />
+        ) : null}
       </ul>
     </div>
   );

@@ -1,13 +1,24 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from '@stores/slicedStore';
+import { isUrlBookmarked } from '@utils/browserDisplayUtils';
 import { useOpenInCenterAction } from '@features/browser/useOpenInCenterAction';
-import { handleBookmarkToggle } from './browserEntrySubEntriesUtils';
+import { getTabContextMenuItems } from './browserEntrySubEntriesUtils';
 import { useHintCard, HintCard } from '../../components/HintCard';
 import { useClampedMenuPosition } from '@features/tree/treeEntryMenus';
 import type { BrowserTreeNode } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
 import type { CopyDict } from '@i18n';
+
+interface TreeMenuViewItem {
+  id: string;
+  label: string;
+  icon?: React.ReactNode;
+  badge?: string;
+  danger?: boolean;
+  hint?: string;
+  action: () => void;
+}
 
 interface UseBrowserTreeEntryMenuInput {
   node: BrowserTreeNode;
@@ -19,14 +30,7 @@ interface UseBrowserTreeEntryMenuInput {
   setContextMenuForTab: (ctx: { x: number; y: number; node: BrowserTreeNode } | null) => void;
   entryBtnRef: React.MutableRefObject<{ [key: string]: HTMLButtonElement | null }>;
   menuId: string;
-  entryMenuItems: {
-    id: string;
-    label: string;
-    badge?: string;
-    danger?: boolean;
-    hint?: string;
-    action: () => void;
-  }[];
+  entryMenuItems: TreeMenuViewItem[];
   t: CopyDict;
 }
 
@@ -149,6 +153,34 @@ export function useBrowserTreeEntryMenu({
     [setContextMenuForTab, hideHint],
   );
 
+  // 两处 portal 菜单共用同一套按钮渲染，避免再次出现「列表菜单复制漂移」。
+  const renderMenuButtons = useCallback(
+    (items: TreeMenuViewItem[], wrapClick: (action: () => void) => () => void) =>
+      items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
+          role="menuitem"
+          onClick={wrapClick(item.action)}
+        >
+          {item.icon ? <span className="adl-sidebar-menu__icon">{item.icon}</span> : null}
+          <span>{item.label}</span>
+          {item.badge ? <span className="adl-menu-item__badge">{item.badge}</span> : null}
+          {item.hint ? (
+            <span
+              className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
+              onMouseEnter={(e) => handleShowHint(e, item.hint!)}
+              onMouseLeave={scheduleHide}
+            >
+              !
+            </span>
+          ) : null}
+        </button>
+      )),
+    [handleShowHint, scheduleHide],
+  );
+
   useEffect(() => {
     if (!contextMenuForTab) {
       return;
@@ -177,6 +209,45 @@ export function useBrowserTreeEntryMenu({
     };
   }, [contextMenuForTab, setContextMenuForTab, hideHint]);
 
+  const entryMenuViewItems: TreeMenuViewItem[] = [
+    ...entryMenuItems,
+    ...(node.url || node.tabId
+      ? [
+          {
+            id: 'show-in-center',
+            label: t.centerTabShowInCenter,
+            action: () => showNodeInCenter(node),
+          },
+        ]
+      : []),
+  ];
+
+  // 列表模式右键菜单与树模式共用同一套叶子项；「显示」插在危险项「删除」之前，
+  // 避免菜单末尾出现「删除 → 显示」的反常顺序。
+  const tabMenuViewItems: TreeMenuViewItem[] = contextMenuForTab
+    ? (() => {
+        const node = contextMenuForTab.node;
+        const items: TreeMenuViewItem[] = getTabContextMenuItems(
+          node,
+          callbacks,
+          t,
+          isUrlBookmarked(useAppStore.getState().browserBookmarks, node.url),
+        );
+        if (node.nodeType !== 'tab') {
+          return items;
+        }
+        const showItem: TreeMenuViewItem = {
+          id: 'show-in-center',
+          label: t.centerTabShowInCenter,
+          action: () => showNodeInCenter(node),
+        };
+        const deleteIndex = items.findIndex((item) => item.id === 'delete');
+        return deleteIndex < 0
+          ? [...items, showItem]
+          : [...items.slice(0, deleteIndex), showItem, ...items.slice(deleteIndex)];
+      })()
+    : [];
+
   const entryMenuSlot =
     menuOpen && entryMenuPosition
       ? createPortal(
@@ -192,38 +263,7 @@ export function useBrowserTreeEntryMenu({
                   : { top: entryMenuPosition.top, left: entryMenuPosition.left }
               }
             >
-              {[
-                ...entryMenuItems,
-                ...(node.url || node.tabId
-                  ? [
-                      {
-                        id: 'show-in-center',
-                        label: t.centerTabShowInCenter,
-                        action: () => showNodeInCenter(node),
-                      },
-                    ]
-                  : []),
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
-                  role="menuitem"
-                  onClick={handleMenuItemClick(item.action)}
-                >
-                  <span>{item.label}</span>
-                  {item.badge ? <span className="adl-menu-item__badge">{item.badge}</span> : null}
-                  {item.hint ? (
-                    <span
-                      className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
-                      onMouseEnter={(e) => handleShowHint(e, item.hint!)}
-                      onMouseLeave={scheduleHide}
-                    >
-                      !
-                    </span>
-                  ) : null}
-                </button>
-              ))}
+              {renderMenuButtons(entryMenuViewItems, handleMenuItemClick)}
             </div>
             <HintCard {...hintCardProps} placement="right">
               {hintState?.content}
@@ -247,150 +287,7 @@ export function useBrowserTreeEntryMenu({
                 : { top: contextMenuForTab.y, left: contextMenuForTab.x }
             }
           >
-            {[
-              {
-                id: 'open-current',
-                label: t.browserContextOpenCurrent,
-                action: () => {
-                  if (contextMenuForTab.node.url) {
-                    callbacks.onOpenTabInCurrentTab(contextMenuForTab.node.url);
-                  }
-                  setContextMenuForTab(null);
-                },
-              },
-              {
-                id: 'open-new',
-                label: t.browserContextOpenNewTab,
-                action: () => {
-                  if (contextMenuForTab.node.url) {
-                    callbacks.onOpenTabInNewTab(
-                      contextMenuForTab.node.url,
-                      contextMenuForTab.node.isSavedBookmark
-                        ? undefined
-                        : contextMenuForTab.node.name,
-                    );
-                  }
-                  setContextMenuForTab(null);
-                },
-              },
-              {
-                id: 'show-in-center',
-                label: t.centerTabShowInCenter,
-                action: () => {
-                  showNodeInCenter(contextMenuForTab.node);
-                  setContextMenuForTab(null);
-                },
-              },
-              {
-                id: 'refresh',
-                label: t.browserRefreshMeta,
-                hint: t.browserRefreshMetaHint,
-                action: () => {
-                  if (contextMenuForTab.node.url) {
-                    callbacks.onRefreshTab(
-                      contextMenuForTab.node.tabId,
-                      contextMenuForTab.node.url,
-                    );
-                  }
-                  setContextMenuForTab(null);
-                },
-              },
-              {
-                id: 'edit',
-                label: t.browserContextEdit,
-                action: () => {
-                  if (contextMenuForTab.node.url) {
-                    callbacks.onEditTab(
-                      contextMenuForTab.node.bookmarkId ?? contextMenuForTab.node.tabId ?? '',
-                      contextMenuForTab.node.name,
-                      contextMenuForTab.node.url,
-                    );
-                  }
-                  setContextMenuForTab(null);
-                },
-              },
-              {
-                id: 'copy-link',
-                label: t.browserContextCopyLink,
-                action: () => {
-                  if (contextMenuForTab.node.url) {
-                    callbacks.onCopyTabLink(contextMenuForTab.node.url);
-                  }
-                  setContextMenuForTab(null);
-                },
-              },
-              {
-                id: 'bookmark-toggle',
-                label:
-                  contextMenuForTab.node.url &&
-                  useAppStore
-                    .getState()
-                    .browserBookmarks.some(
-                      (b) =>
-                        b.url === contextMenuForTab.node.url &&
-                        b.title === contextMenuForTab.node.name,
-                    )
-                    ? t.browserUnbookmark
-                    : t.browserBookmark,
-                action: () => {
-                  handleBookmarkToggle(
-                    contextMenuForTab.node.url ?? '',
-                    contextMenuForTab.node.name,
-                    contextMenuForTab.node.bookmarkId,
-                  );
-                  setContextMenuForTab(null);
-                },
-              },
-              {
-                id: 'delete',
-                label: t.browserContextDelete,
-                danger: true,
-                action: () => {
-                  if (!contextMenuForTab.node.url) {
-                    setContextMenuForTab(null);
-                    return;
-                  }
-                  if (contextMenuForTab.node.isSavedBookmark) {
-                    callbacks.onRemoveBookmarkTab?.(
-                      contextMenuForTab.node.bookmarkId ?? '',
-                      contextMenuForTab.node.url,
-                    );
-                  } else if (contextMenuForTab.node.tabId) {
-                    callbacks.onDeleteTab(contextMenuForTab.node.tabId, contextMenuForTab.node.url);
-                  }
-                  setContextMenuForTab(null);
-                },
-              },
-            ].map(
-              (item: {
-                id: string;
-                label: string;
-                badge?: string;
-                danger?: boolean;
-                hint?: string;
-                action: () => void;
-              }) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
-                  role="menuitem"
-                  onClick={handleTabMenuAction(item.action)}
-                >
-                  <span>{item.label}</span>
-                  {item.badge ? <span className="adl-menu-item__badge">{item.badge}</span> : null}
-                  {item.hint ? (
-                    <span
-                      className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
-                      onMouseEnter={(e) => handleShowHint(e, item.hint!)}
-                      onMouseLeave={scheduleHide}
-                    >
-                      !
-                    </span>
-                  ) : null}
-                </button>
-              ),
-            )}
+            {renderMenuButtons(tabMenuViewItems, handleTabMenuAction)}
           </div>
           <HintCard {...hintCardProps} placement="right">
             {hintState?.content}

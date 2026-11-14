@@ -4,6 +4,16 @@ import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
 import type { CopyDict } from '@i18n';
 import { useAppStore } from '@stores/slicedStore';
+import { isUrlBookmarked } from '@utils/browserDisplayUtils';
+
+/**
+ * 叶子行类型：背后可能有活标签页（tab）、来自历史（history），或只是一条书签
+ * （bookmark，外部导入 / 新建书签「仅保存」/ 标签页已关闭）。三者共用同一套
+ * 行级菜单与悬停动作；书签不再因为没有活标签页而被静默禁用。
+ */
+export function isLeafBrowserNodeType(nodeType: string): boolean {
+  return nodeType === 'tab' || nodeType === 'history' || nodeType === 'bookmark';
+}
 
 export interface BrowserEntrySubEntriesProps {
   node: BrowserTreeNode;
@@ -69,6 +79,7 @@ export function getChildNodeMoreMenuItems(
 ): {
   id: string;
   label: string;
+  icon?: React.ReactNode;
   badge?: string;
   danger?: boolean;
   hint?: string;
@@ -80,6 +91,11 @@ export function getChildNodeMoreMenuItems(
         id: 'open-all-tabs',
         label: t.browserContextOpenAllNewTabs,
         action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
+      },
+      {
+        id: 'open-all-center',
+        label: t.centerTabOpenAllInCenter,
+        action: () => callbacks.onOpenAllInCenter?.(categoryType, nodePath),
       },
       {
         id: 'delete-self-tabs',
@@ -110,6 +126,11 @@ export function getChildNodeMoreMenuItems(
         id: 'open-all-tabs',
         label: t.browserContextOpenAllNewTabs,
         action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
+      },
+      {
+        id: 'open-all-center',
+        label: t.centerTabOpenAllInCenter,
+        action: () => callbacks.onOpenAllInCenter?.(categoryType, nodePath),
       },
       {
         id: 'rename',
@@ -144,19 +165,16 @@ export function getChildNodeMoreMenuItems(
   return [];
 }
 
-export function handleBookmarkToggle(url: string, title: string, bookmarkId?: string): void {
+function handleBookmarkToggle(url: string, title: string, bookmarkId?: string): void {
   if (!url) {
     return;
   }
-  const stillBookmarked = useAppStore
-    .getState()
-    .browserBookmarks.some((b) => b.url === url && b.title === title);
-  if (stillBookmarked) {
-    useAppStore.getState().browserToggleBookmark({ url, title });
+  const state = useAppStore.getState();
+  // 收藏身份只看 URL：导入/仅保存条目的标题与页面标题不同，按元组判断会重复收藏。
+  if (isUrlBookmarked(state.browserBookmarks, url)) {
+    state.browserRemoveBookmarksForUrl(url);
   } else {
-    useAppStore
-      .getState()
-      .browserSetPendingBookmark({ url, title, bookmarkId: bookmarkId || undefined });
+    state.browserSetPendingBookmark({ url, title, bookmarkId: bookmarkId || undefined });
   }
 }
 
@@ -168,6 +186,7 @@ export function getTabContextMenuItems(
 ): {
   id: string;
   label: string;
+  icon?: React.ReactNode;
   badge?: string;
   danger?: boolean;
   hint?: string;
@@ -189,6 +208,15 @@ export function getTabContextMenuItems(
       action: () => {
         if (node.url) {
           callbacks.onOpenTabInNewTab(node.url, node.isSavedBookmark ? undefined : node.name);
+        }
+      },
+    },
+    {
+      id: 'open-center',
+      label: t.centerTabOpenInCenter,
+      action: () => {
+        if (node.url) {
+          callbacks.onOpenInCenter?.(node.url, node.isSavedBookmark ? undefined : node.name);
         }
       },
     },
@@ -222,8 +250,17 @@ export function getTabContextMenuItems(
     },
     {
       id: 'bookmark-toggle',
-      label: isBookmarked ? t.browserUnbookmark : t.browserBookmark,
+      // 书签行本身就是一条收藏：文案恒为「取消收藏」，动作只移除当前条目
+      // （与删除一致）。不能按 URL 级清理，否则会静默删掉其它目录的副本。
+      label:
+        (node.isSavedBookmark && node.bookmarkId) || isBookmarked
+          ? t.browserUnbookmark
+          : t.browserBookmark,
       action: () => {
+        if (node.isSavedBookmark && node.bookmarkId) {
+          callbacks.onRemoveBookmarkTab?.(node.bookmarkId, node.url || '');
+          return;
+        }
         handleBookmarkToggle(node.url || '', node.name, node.bookmarkId);
       },
     },

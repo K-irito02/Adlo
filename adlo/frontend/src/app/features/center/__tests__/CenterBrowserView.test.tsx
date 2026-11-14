@@ -256,8 +256,8 @@ describe('CenterBrowserView', () => {
   });
 
   it('回归：已收藏时点击收藏按钮，取消的是中心标签的书签（而非面板活动标签）', () => {
-    // 无参 browserToggleBookmark() 取 store 的 browserActiveTabId，而它被
-    // clampPanelActiveTab 恒夹到面板标签 → 中心侧必须显式传自己的 (url,title)。
+    // store 的 browserActiveTabId 被 clampPanelActiveTab 恒夹到面板标签 →
+    // 中心侧必须用**自己的**活动标签 URL 取消收藏。
     const centerTab = { ...makeTab('b1', 'https://x.test'), title: 'CenterTitle' };
     const panelTab = {
       ...makeTab('p1', 'https://panel.test'),
@@ -265,22 +265,22 @@ describe('CenterBrowserView', () => {
       location: 'panel' as const,
     };
     const spy = vi.fn();
-    const realToggle = useAppStore.getState().browserToggleBookmark;
+    const realRemove = useAppStore.getState().browserRemoveBookmarksForUrl;
     useAppStore.setState({
       browserTabs: [centerTab, panelTab],
       browserTabsById: { b1: centerTab, p1: panelTab },
       browserActiveTabId: 'p1',
-      // 只关心 (url,title) 元组，其余字段与断言无关
-      browserBookmarks: [{ url: 'https://x.test', title: 'CenterTitle' }] as never,
-      browserToggleBookmark: spy as never,
+      // 收藏身份只看 URL，标题是快照
+      browserBookmarks: [{ url: 'https://x.test', title: 'ImportedTitle' }] as never,
+      browserRemoveBookmarksForUrl: spy as never,
     });
 
     try {
       renderView('b1');
       fireEvent.click(screen.getByRole('button', { name: 'Remove bookmark' }));
-      expect(spy).toHaveBeenCalledWith({ url: 'https://x.test', title: 'CenterTitle' });
+      expect(spy).toHaveBeenCalledWith('https://x.test');
     } finally {
-      useAppStore.setState({ browserToggleBookmark: realToggle, browserBookmarks: [] });
+      useAppStore.setState({ browserRemoveBookmarksForUrl: realRemove, browserBookmarks: [] });
     }
   });
 

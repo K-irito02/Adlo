@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { IconPin, IconPinOff, IconEdit, IconDelete, IconExpandCorners } from '@icons';
+import { IconPin, IconPinOff, IconEdit, IconDelete, IconArrowUpLeft } from '@icons';
 import type { ContextMenuState } from './useTerminalPanel';
 import { useTCopy } from '@i18n/useTCopy';
 
@@ -84,7 +84,7 @@ export const TerminalContextMenu = React.memo(function TerminalContextMenu({
       </button>
       <button type="button" className="adl-sidebar-menu__item" onClick={onOpenInCenter}>
         <span className="adl-sidebar-menu__icon">
-          <IconExpandCorners size={16} decorative />
+          <IconArrowUpLeft size={16} decorative />
         </span>
         <span>{t.centerTabShowInCenter}</span>
       </button>

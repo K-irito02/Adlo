@@ -11,6 +11,8 @@ import {
   IconExpandCorners,
   IconPanelsCollapse,
   IconPanelsExpand,
+  IconArrowUpLeft,
+  IconArrowDownRight,
 } from './core';
 
 describe('chevron icon family geometry', () => {
@@ -78,6 +80,20 @@ describe('IconPanelsCollapse / IconPanelsExpand geometry', () => {
     expect(paths.length).toBe(4);
     expect(paths[2]?.getAttribute('d')).toBe('m7 9 3 3-3 3');
     expect(paths[3]?.getAttribute('d')).toBe('m17 9-3 3 3 3');
+  });
+});
+
+describe('center action arrows', () => {
+  it('IconArrowUpLeft is the show-in-center glyph', () => {
+    const { container } = render(<IconArrowUpLeft size={14} decorative />);
+    const paths = [...container.querySelectorAll('path')].map((p) => p.getAttribute('d'));
+    expect(paths).toEqual(['M17 17 7 7', 'M17 7H7v10']);
+  });
+
+  it('IconArrowDownRight is the 右侧面板 return glyph', () => {
+    const { container } = render(<IconArrowDownRight size={14} decorative />);
+    const paths = [...container.querySelectorAll('path')].map((p) => p.getAttribute('d'));
+    expect(paths).toEqual(['M7 7 17 17', 'M7 17h10V7']);
   });
 });
 

@@ -115,6 +115,7 @@ export function getEntryMoreMenuItems(
 ): {
   id: string;
   label: string;
+  icon?: React.ReactNode;
   badge?: string;
   danger?: boolean;
   hint?: string;
@@ -156,6 +157,7 @@ export function getEntryMoreMenuItems(
   const items: {
     id: string;
     label: string;
+    icon?: React.ReactNode;
     badge?: string;
     danger?: boolean;
     hint?: string;
@@ -176,6 +178,12 @@ export function getEntryMoreMenuItems(
     id: 'open-all-tabs',
     label: t.browserContextOpenAllNewTabs,
     action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
+  });
+
+  items.push({
+    id: 'open-all-center',
+    label: t.centerTabOpenAllInCenter,
+    action: () => callbacks.onOpenAllInCenter?.(categoryType, nodePath),
   });
 
   if (nodeType === 'workspace') {

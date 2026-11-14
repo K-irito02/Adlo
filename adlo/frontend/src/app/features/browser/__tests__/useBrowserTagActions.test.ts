@@ -26,6 +26,35 @@ function makeTab(id: string, url: string, title = 'Old'): BrowserTabState {
   };
 }
 
+describe('useBrowserTagActions handleOpenInCenter', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      browserTabs: [],
+      browserTabsById: {},
+      browserActiveTabId: '',
+      centerTabs: [],
+      centerActiveTabId: '',
+    });
+  });
+
+  it('在中心打开：新建中心标签且不产生面板活动标签', () => {
+    const { result } = renderHook(() => useBrowserTagActions());
+
+    act(() => result.current.handleOpenInCenter('https://center-open.example', '标题'));
+
+    const state = useAppStore.getState();
+    const tab = state.browserTabs.find(
+      (candidate) => candidate.url === 'https://center-open.example',
+    );
+    expect(tab).toBeDefined();
+    expect(tab?.location).toBe('center');
+    expect(tab?.title).toBe('标题');
+    expect(state.centerTabs.some((centerTab) => centerTab.refId === tab!.id)).toBe(true);
+    // 中心标签不进入面板活动标签（面板侧保持空）。
+    expect(state.browserActiveTabId).toBe('');
+  });
+});
+
 describe('useBrowserTagActions refresh no longer writes site-meta cache', () => {
   beforeEach(async () => {
     vi.mocked(pageMetaClient.refresh).mockReset();

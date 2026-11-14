@@ -29,6 +29,8 @@ export interface BrowserTreeNode extends FileTreeRenderableNode {
   /** True if this node represents a saved bookmark (workspace bookmark or user folder entry).
    *  Its delete action should only remove bookmark state, not close the underlying tab. */
   isSavedBookmark?: boolean;
+  /** 书签条目自带的内联图标快照（data-URI）；无站点元数据时可直接显示，避免首字母闪烁。 */
+  iconUri?: string;
 }
 
 export interface BrowserCategoryState {

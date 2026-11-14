@@ -77,15 +77,13 @@ export function useBookmarkToFolderDialog({
 
   const handleOpenBookmarkDialog = useCallback(() => {
     if (isBookmarked) {
-      // 必须**显式**传本宿主活动标签的 (url,title)：无参形式取的是 store 的
-      // `browserActiveTabId`，而它被 `clampPanelActiveTab` 恒夹到**面板**标签
-      //（`browserTabsSlice` 明示不得指向中心标签）→ 中心侧会误删面板标签的书签。
-      // title 为空时回落 url，与无参路径的解析链（`input.title || active.title || url`）结果一致。
+      // 按 URL 取消收藏：收藏身份由 URL 决定（导入/仅保存条目的标题是快照，
+      // 与当前页面标题不同，不能用 (url,title) 元组匹配，否则会再插一条而不是移除）。
       const url = activeTab?.url;
       if (!url) {
         return;
       }
-      useAppStore.getState().browserToggleBookmark({ url, title: activeTab?.title || url });
+      useAppStore.getState().browserRemoveBookmarksForUrl(url);
       return;
     }
     setBookmarkName(activeTab?.title || '');
@@ -106,6 +104,22 @@ export function useBookmarkToFolderDialog({
     useAppStore.getState().browserSetPendingBookmark(null);
   }, []);
 
+  /** 目录冲突的统一 toast（带路径文案时显示具体目录）。 */
+  const showDuplicateToast = useCallback(
+    (pathLabel: string | undefined) => {
+      const msg = pathLabel
+        ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', { path: pathLabel })
+        : t.browserEditBookmarkDuplicate;
+      showToast(msg, 'warning');
+    },
+    [showToast, t],
+  );
+
+  const closeDialogAfterCollision = useCallback(() => {
+    setBookmarkDialogOpen(false);
+    setPendingBookmark(null);
+  }, [setBookmarkDialogOpen, setPendingBookmark]);
+
   /**
    * 落盘「标签 → 目录」关联：folder:/workspace: 前缀分派 + 冲突 toast。
    * 返回 false 表示目录冲突已 toast（调用方据此中止后续流程）。
@@ -122,17 +136,12 @@ export function useBookmarkToFolderDialog({
         .getState()
         .browserSaveTabAsBookmark(tabId, folderId, undefined, workspaceId, title);
       if (result.ok === false && result.reason !== 'no-tab') {
-        const msg = result.pathLabel
-          ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
-              path: result.pathLabel,
-            })
-          : t.browserEditBookmarkDuplicate;
-        showToast(msg, 'warning');
+        showDuplicateToast(result.pathLabel);
         return false;
       }
       return true;
     },
-    [showToast, t],
+    [showDuplicateToast],
   );
 
   const handleBookmarkAddToFolder = useCallback(
@@ -154,14 +163,8 @@ export function useBookmarkToFolderDialog({
             state.recentWorkspaces,
           );
           if (precheck.ok === false) {
-            const msg = precheck.pathLabel
-              ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
-                  path: precheck.pathLabel,
-                })
-              : t.browserEditBookmarkDuplicate;
-            showToast(msg, 'warning');
-            setBookmarkDialogOpen(false);
-            setPendingBookmark(null);
+            showDuplicateToast(precheck.pathLabel);
+            closeDialogAfterCollision();
             return;
           }
         }
@@ -183,8 +186,23 @@ export function useBookmarkToFolderDialog({
           if (tabId) {
             const added = await addTabToDirectory(tabId, folderPath, title);
             if (!added) {
-              setBookmarkDialogOpen(false);
-              setPendingBookmark(null);
+              closeDialogAfterCollision();
+              return;
+            }
+          } else {
+            // 没有活标签页（导入书签、历史行等）：直接按 URL 写入目标目录/工作区，
+            // 否则只写全局索引且提示成功，随后会被孤儿清扫静默删掉。
+            const store = useAppStore.getState();
+            const result = store.browserCreateBookmarkEntry({
+              url: pendingBookmark.url,
+              title,
+              ...(folderPath.startsWith('folder:')
+                ? { folderId: folderPath.slice('folder:'.length) }
+                : { workspaceId: folderPath.slice('workspace:'.length) }),
+            });
+            if (result.ok === false) {
+              showDuplicateToast(result.pathLabel);
+              closeDialogAfterCollision();
               return;
             }
           }
@@ -219,7 +237,16 @@ export function useBookmarkToFolderDialog({
         showToast(t.browserSelectDirFirst, 'warning');
       }
     },
-    [activeTab, showToast, t, bookmarkName, pendingBookmark, addTabToDirectory],
+    [
+      activeTab,
+      showToast,
+      t,
+      bookmarkName,
+      pendingBookmark,
+      addTabToDirectory,
+      showDuplicateToast,
+      closeDialogAfterCollision,
+    ],
   );
 
   const handleBookmarkCreateDir = useCallback(

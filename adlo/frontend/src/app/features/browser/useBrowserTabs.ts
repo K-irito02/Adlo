@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { panelTabSelectors } from '@stores/selectors';
 import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
+import { isUrlBookmarked } from '@utils/browserDisplayUtils';
 
 export type BrowserNavigatorMode = 'open' | 'tabs' | 'list' | 'search';
 
@@ -55,7 +56,6 @@ export function useBrowserTabs() {
     browserCloseTab,
     browserUpdateTab,
     browserCloseAllTabs,
-    browserToggleBookmark,
     browserClearHistory,
     browserClearAllFolderBookmarks,
   } = useAppStore(
@@ -67,7 +67,6 @@ export function useBrowserTabs() {
       browserCloseTab: state.browserCloseTab,
       browserUpdateTab: state.browserUpdateTab,
       browserCloseAllTabs: state.browserCloseAllTabs,
-      browserToggleBookmark: state.browserToggleBookmark,
       browserClearHistory: state.browserClearHistory,
       browserClearAllFolderBookmarks: state.browserClearAllFolderBookmarks,
     })),
@@ -83,11 +82,8 @@ export function useBrowserTabs() {
   );
 
   const hasActiveTab = activeTab !== null;
-  const isBookmarked = activeTab?.url
-    ? browserBookmarks.some(
-        (bookmark) => bookmark.url === activeTab.url && bookmark.title === activeTab.title,
-      )
-    : false;
+  // 收藏状态只由 URL 决定：导入/仅保存的书签标题是快照，与页面标题不同。
+  const isBookmarked = isUrlBookmarked(browserBookmarks, activeTab?.url);
 
   const handleDoubleClick = useCallback((tabId: string, title: string) => {
     setEditValue(title);
@@ -162,17 +158,6 @@ export function useBrowserTabs() {
     [handleEditSubmit],
   );
 
-  const handleToggleBookmark = useCallback(() => {
-    browserToggleBookmark();
-  }, [browserToggleBookmark]);
-
-  const handleToggleBookmarkForTab = useCallback(
-    (tabId: string, url: string, title: string) => {
-      browserToggleBookmark({ url, title });
-    },
-    [browserToggleBookmark],
-  );
-
   const handleClearHistory = useCallback(() => {
     browserClearHistory();
   }, [browserClearHistory]);
@@ -201,8 +186,6 @@ export function useBrowserTabs() {
     handleClearTabDirectories,
     handleEditSubmit,
     handleEditKeyDown,
-    handleToggleBookmark,
-    handleToggleBookmarkForTab,
     handleClearHistory,
     setEditValue,
     setEditingTabId,

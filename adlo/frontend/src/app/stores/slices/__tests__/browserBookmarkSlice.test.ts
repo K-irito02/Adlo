@@ -966,3 +966,102 @@ describe('browserToggleBookmark tuple semantics', () => {
     expect(state.browserBookmarks).toContainEqual({ url: 'https://e.com', title: 'Custom A2' });
   });
 });
+
+describe('browserRemoveBookmarksForUrl（收藏身份按 URL）', () => {
+  interface UrlBookmark {
+    url: string;
+    title: string;
+  }
+  const seedBookmarks = (
+    get: () => Record<string, unknown>,
+    seed: { bookmarks: UrlBookmark[]; folders?: unknown[]; workspace?: Record<string, unknown[]> },
+  ) => {
+    const state = get();
+    state.browserBookmarks = seed.bookmarks;
+    state.browserBookmarkFolders = seed.folders ?? [];
+    state.browserWorkspaceBookmarks = seed.workspace ?? {};
+  };
+  const removeForUrl = (get: () => Record<string, unknown>, url: string) => {
+    (get().browserRemoveBookmarksForUrl as (target: string) => void)(url);
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('删除不同标题的导入书签：全局索引、目录与工作区条目一并清理', () => {
+    const { get } = createMockStore();
+    seedBookmarks(get, {
+      bookmarks: [
+        { url: 'https://imported.example/page', title: '导入时的标题' },
+        { url: 'https://keep.example/', title: '保留' },
+      ],
+      folders: [
+        {
+          id: 'f1',
+          name: '导入目录',
+          createdAt: 0,
+          entries: [
+            { id: 'bm1', url: 'https://imported.example/page', title: '导入时的标题' },
+            { id: 'bm2', url: 'https://keep.example/', title: '保留' },
+          ],
+        },
+      ],
+      workspace: {
+        ws1: [{ id: 'bm3', url: 'https://imported.example/page', title: '另一份快照标题' }],
+      },
+    });
+
+    removeForUrl(get, 'https://imported.example/page');
+
+    expect(get().browserBookmarks as UrlBookmark[]).toEqual([
+      { url: 'https://keep.example/', title: '保留' },
+    ]);
+    const folders = get().browserBookmarkFolders as { entries: { id: string }[] }[];
+    expect(folders[0].entries.map((entry) => entry.id)).toEqual(['bm2']);
+    expect(get().browserWorkspaceBookmarks).toEqual({});
+  });
+
+  it('同主机不同端口/协议不互相删除', () => {
+    const { get } = createMockStore();
+    seedBookmarks(get, {
+      bookmarks: [
+        { url: 'http://localhost:3000/app', title: 'A' },
+        { url: 'https://localhost:5173/app', title: 'B' },
+      ],
+    });
+
+    removeForUrl(get, 'https://localhost:5173/app');
+
+    expect(get().browserBookmarks as UrlBookmark[]).toEqual([
+      { url: 'http://localhost:3000/app', title: 'A' },
+    ]);
+  });
+
+  it('仅协议不同（同主机端口）也不互相删除', () => {
+    const { get } = createMockStore();
+    seedBookmarks(get, {
+      bookmarks: [
+        { url: 'http://localhost:5173/app', title: 'HTTP' },
+        { url: 'https://localhost:5173/app', title: 'HTTPS' },
+      ],
+    });
+
+    removeForUrl(get, 'https://localhost:5173/app');
+
+    expect(get().browserBookmarks as UrlBookmark[]).toEqual([
+      { url: 'http://localhost:5173/app', title: 'HTTP' },
+    ]);
+  });
+
+  it('尾斜杠 / www 变体视为同一收藏（与实心星判定同口径）', () => {
+    const { get } = createMockStore();
+    seedBookmarks(get, {
+      bookmarks: [{ url: 'https://www.imported.example/page/', title: '导入时的标题' }],
+    });
+
+    removeForUrl(get, 'https://imported.example/page');
+
+    expect(get().browserBookmarks).toEqual([]);
+  });
+});

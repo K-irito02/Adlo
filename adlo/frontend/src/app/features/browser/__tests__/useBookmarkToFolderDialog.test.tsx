@@ -34,7 +34,11 @@ function makeDeps(
 
 /** 用 setState 覆盖 action（zustand 的 setState 会合并进同一个 store，spy 因此可跨更新存活）。 */
 function stubAction(
-  key: 'browserSaveTabAsBookmark' | 'browserToggleBookmark',
+  key:
+    | 'browserSaveTabAsBookmark'
+    | 'browserToggleBookmark'
+    | 'browserRemoveBookmarksForUrl'
+    | 'browserCreateBookmarkEntry',
   impl: unknown,
 ): () => void {
   const real = useAppStore.getState()[key];
@@ -95,8 +99,10 @@ describe('useBookmarkToFolderDialog', () => {
   });
 
   it('已收藏时点击按钮直接取消收藏、不打开对话框', () => {
+    // 收藏身份只看 URL：取消收藏必须走 URL 级动作，不能按 (url,title) 元组匹配
+    // （导入/仅保存条目标题与页面标题不同，元组匹配会变成「再收藏一条」）。
     const spy = vi.fn();
-    const restore = stubAction('browserToggleBookmark', spy);
+    const restore = stubAction('browserRemoveBookmarksForUrl', spy);
     try {
       const { result } = renderHook((d) => useBookmarkToFolderDialog(d), {
         initialProps: makeDeps({ isBookmarked: true }),
@@ -104,8 +110,34 @@ describe('useBookmarkToFolderDialog', () => {
       act(() => {
         result.current.handleOpenBookmarkDialog();
       });
-      expect(spy).toHaveBeenCalled();
+      expect(spy).toHaveBeenCalledWith('https://x.test');
       expect(result.current.bookmarkDialogOpen).toBe(false);
+    } finally {
+      restore();
+    }
+  });
+
+  it('无活标签的待收藏项：直接写入目标目录（不再只写全局索引）', async () => {
+    const createSpy = vi.fn().mockReturnValue({ ok: true });
+    const restore = stubAction('browserCreateBookmarkEntry', createSpy);
+    try {
+      const { result } = renderHook((d) => useBookmarkToFolderDialog(d), {
+        initialProps: makeDeps(),
+      });
+      act(() => {
+        useAppStore
+          .getState()
+          .browserSetPendingBookmark({ url: 'https://no-tab.test/page', title: 'NoTab' });
+      });
+      await waitFor(() => expect(result.current.bookmarkDialogOpen).toBe(true));
+      await act(async () => {
+        await result.current.handleBookmarkAddToFolder('folder:f1');
+      });
+      expect(createSpy).toHaveBeenCalledWith({
+        url: 'https://no-tab.test/page',
+        title: 'NoTab',
+        folderId: 'f1',
+      });
     } finally {
       restore();
     }

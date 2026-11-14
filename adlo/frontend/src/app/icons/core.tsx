@@ -199,6 +199,22 @@ export const IconArrowUp = make(
   </>,
 );
 
+/** 左上箭头：当前用于「在中心显示」（已打开标签页 / 终端标签菜单）。 */
+export const IconArrowUpLeft = make(
+  <>
+    <path d="M17 17 7 7" />
+    <path d="M17 7H7v10" />
+  </>,
+);
+
+/** 右下箭头：用于「在右侧面板显示」（把中心标签放回右侧面板）。 */
+export const IconArrowDownRight = make(
+  <>
+    <path d="M7 7 17 17" />
+    <path d="M7 17h10V7" />
+  </>,
+);
+
 export const IconHome = make(<path d="M3 12 12 4l9 8" />);
 
 export const IconFoldVertical = make(

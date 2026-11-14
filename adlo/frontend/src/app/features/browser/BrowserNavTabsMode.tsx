@@ -30,6 +30,8 @@ export interface BrowserNavTabsModeProps {
   onCopyTabLink: (url: string) => void;
   onOpenTabInNewTab: (url: string, title?: string) => void;
   onOpenTabInCurrentTab: (tabId: string) => void;
+  onOpenInCenter: (url: string, title?: string) => void;
+  onOpenAllInCenter: (categoryType: string, nodePath: string) => void;
   onBookmarkTab?: (url: string, title: string) => void;
   onRemoveBookmarkTab?: (tabId: string, url: string) => void;
   labels: {
@@ -64,6 +66,8 @@ export function BrowserNavTabsMode({
   onCopyTabLink,
   onOpenTabInNewTab,
   onOpenTabInCurrentTab,
+  onOpenInCenter,
+  onOpenAllInCenter,
   onBookmarkTab,
   onRemoveBookmarkTab,
   labels,
@@ -95,6 +99,8 @@ export function BrowserNavTabsMode({
         onCopyTabLink,
         onOpenTabInNewTab,
         onOpenTabInCurrentTab,
+        onOpenInCenter,
+        onOpenAllInCenter,
         onBookmarkTab,
         onRemoveBookmarkTab,
       }}

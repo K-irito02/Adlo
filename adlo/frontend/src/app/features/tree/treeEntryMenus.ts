@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * Shared menu item type used by both BrowserTreeEntry and GitHubTreeEntry child menus.
@@ -27,7 +27,11 @@ export interface MenuViewportPosition {
 /**
  * 右键菜单视口钳制（事项 15）：portal 菜单按点击坐标定位时，底部行会溢出应用
  * 下边缘被裁。与 ContextMenu 组件同口径（8px 边距），底部/右侧溢出时上移/左移。
- * entryMenuSlot 与 tabContextMenuSlot 共用（覆盖标签目录/文件列表两模式）。
+ * entryMenuSlot 与 tabContextMenuSlot 共用（覆盖书签目录/书签列表两模式）。
+ *
+ * 无位移实现（2026-11-14）：量测必须发生在**本次 commit 的 layout 阶段**，且
+ * 钳制结果绑定本次坐标。旧实现把上一次打开时的 adjusted 留在 state 里，重开时
+ * 会先用上个菜单的坐标画一帧再纠正——用户可见「菜单卡片轻微位移」（事项 5）。
  */
 export function useClampedMenuPosition(
   position: MenuViewportPosition | null,
@@ -36,34 +40,52 @@ export function useClampedMenuPosition(
   menuRef: (el: HTMLDivElement | null) => void;
   adjusted: MenuViewportPosition | null;
 } {
-  const [adjusted, setAdjusted] = useState<MenuViewportPosition | null>(position);
+  const menuElRef = useRef<HTMLDivElement | null>(null);
+  const [measured, setMeasured] = useState<
+    (MenuViewportPosition & { sourceTop: number; sourceLeft: number }) | null
+  >(null);
 
-  // 注意：禁止在此加"position 变化即同步 adjusted"的 effect——ref 回调量测后入队
-  // 的钳制值会被 effect 后入队的原始值覆盖，导致菜单恒绘于原坐标（事项 16 真因）。
-  // 也不存在首开死锁：position 每次打开都是新身份（调用方均已 memo），ref 必重触发量测。
+  const menuRef = useCallback((el: HTMLDivElement | null) => {
+    menuElRef.current = el;
+  }, []);
 
-  const menuRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      if (!el || !position) {
-        setAdjusted(position);
-        return;
-      }
-      const rect = el.getBoundingClientRect();
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      let { top, left } = position;
-      if (left + rect.width > vw - margin) {
-        left = Math.max(margin, vw - rect.width - margin);
-      }
-      if (top + rect.height > vh - margin) {
-        top = Math.max(margin, vh - rect.height - margin);
-      }
-      setAdjusted((prev) =>
-        prev && prev.top === top && prev.left === left ? prev : { top, left },
-      );
-    },
-    [position, margin],
-  );
+  useLayoutEffect(() => {
+    const el = menuElRef.current;
+    if (!position || !el) {
+      return;
+    }
+    // layout 阶段量测并在 paint 前完成纠正，不产生可见位移。
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let { top, left } = position;
+    if (left + rect.width > vw - margin) {
+      left = Math.max(margin, vw - rect.width - margin);
+    }
+    if (top + rect.height > vh - margin) {
+      top = Math.max(margin, vh - rect.height - margin);
+    }
+    const next = { top, left, sourceTop: position.top, sourceLeft: position.left };
+    setMeasured((prev) =>
+      prev &&
+      prev.top === next.top &&
+      prev.left === next.left &&
+      prev.sourceTop === next.sourceTop &&
+      prev.sourceLeft === next.sourceLeft
+        ? prev
+        : next,
+    );
+  }, [position, margin]);
+
+  // 只复用「与本次坐标匹配」的量测结果；否则返回 null（先按原始坐标渲染，
+  // 本轮 layout 阶段立即纠正）。
+  const adjusted =
+    position &&
+    measured &&
+    measured.sourceTop === position.top &&
+    measured.sourceLeft === position.left
+      ? { top: measured.top, left: measured.left }
+      : null;
 
   return { menuRef, adjusted };
 }

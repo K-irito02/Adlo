@@ -281,6 +281,7 @@
 }
 
 .adl-filetree__file-icon {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -296,10 +297,22 @@
 }
 
 .adl-browser-tree__favicon {
+  /* 绝对定位叠在兜底首字母之上；只有加载成功（或内联快照）的来源才进入可见层，
+     因此不会出现「首字母 → 图片 → 首字母」的图层闪烁 */
+  position: absolute;
+  inset: 0;
+  margin: auto;
   width: 16px;
   height: 16px;
   border-radius: 2px;
   object-fit: contain;
+}
+
+/* 后台试加载层：不可见、不接收指针；加载成功后才替换可见图标，
+   避免每次重挂都先露出兜底首字母（2026-11-15 用户报告）。 */
+.adl-browser-tree__favicon--probe {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .adl-browser-tree__link-fallback {

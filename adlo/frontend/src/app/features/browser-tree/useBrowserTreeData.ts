@@ -6,7 +6,7 @@ import type {
   BrowserHistoryState,
 } from '@stores/slices/browserSlice';
 import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from './types';
-import { historyDedupKey, normalizeTabTitle } from '@utils/browserDisplayUtils';
+import { bookmarkUrlKey, normalizeTabTitle } from '@utils/browserDisplayUtils';
 import { useBrowserTreeCache } from './useBrowserTreeCache';
 import { useBrowserTreeVirtualization } from './useBrowserTreeVirtualization';
 import { useTCopy } from '@app/i18n/useTCopy';
@@ -80,8 +80,8 @@ function buildHistoryLeafNode(
     // 归一化匹配当前打开的标签（剥离跟踪参数/尾斜杠/www）：URL 变体（如 B 站
     // 尾斜杠、YouTube 追加参数）也能关联到正在播放的标签，音量图标稳定显示
     // （2026-08-21 事项 7：此前 t.url === entry.url 精确匹配导致图标缺失/闪烁）。
-    const entryKey = historyDedupKey(entry.url);
-    const matchedTab = browserTabs.find((t) => historyDedupKey(t.url) === entryKey);
+    const entryKey = bookmarkUrlKey(entry.url);
+    const matchedTab = browserTabs.find((t) => bookmarkUrlKey(t.url) === entryKey);
     if (matchedTab) {
       isPlayingAudio = matchedTab.isPlayingAudio;
       isAudioMuted = matchedTab.isAudioMuted;
@@ -129,12 +129,12 @@ function buildFolderNode(
       }
 
       if (!tab) {
-        return {
+        const node: BrowserTreeNode = {
           path: `bookmark:${entry.id}::${encodeURIComponent(displayUrl)}`,
           name: resolveTitle(entry.title, displayUrl),
-          kind: 'file' as const,
+          kind: 'file',
           children: [],
-          nodeType: 'bookmark' as const,
+          nodeType: 'bookmark',
           bookmarkId: entry.id,
           url: displayUrl,
           workspaceId: parentWorkspaceId || '',
@@ -142,6 +142,10 @@ function buildFolderNode(
           isAudioMuted: false,
           isSavedBookmark: true,
         };
+        if (entry.iconUri) {
+          node.iconUri = entry.iconUri;
+        }
+        return node;
       }
 
       const node = buildTabNode(
@@ -152,12 +156,15 @@ function buildFolderNode(
       );
       node.isSavedBookmark = true;
       node.bookmarkId = entry.id;
+      if (entry.iconUri) {
+        node.iconUri = entry.iconUri;
+      }
       // 使用书签条目自己的快照，保留收藏时的原始 URL/标题
       node.name = resolveTitle(entry.title || tab.title || '', displayUrl);
       node.url = displayUrl;
       // 收藏条目：仅在标签仍在收藏的 URL（归一化匹配，剥离跟踪参数/尾斜杠/www）上
       // 时才保留音频状态——URL 变体不丢失音量图标（2026-08-21 事项 7）。
-      if (historyDedupKey(tab.url) !== historyDedupKey(displayUrl)) {
+      if (bookmarkUrlKey(tab.url) !== bookmarkUrlKey(displayUrl)) {
         node.isPlayingAudio = false;
         node.isAudioMuted = false;
       }
@@ -239,11 +246,14 @@ export function buildWorkspaceCategoryTree(
         // 否则清除——URL 变体不丢失图标（2026-08-21 事项 7：此前"始终清除"导致
         // 书签/收藏目录不显示音量图标）。
         const keepAudio = Boolean(
-          tab && snapshotUrl && historyDedupKey(tab.url) === historyDedupKey(snapshotUrl),
+          tab && snapshotUrl && bookmarkUrlKey(tab.url) === bookmarkUrlKey(snapshotUrl),
         );
         node.isPlayingAudio = keepAudio ? tab!.isPlayingAudio : false;
         node.isAudioMuted = keepAudio ? tab!.isAudioMuted : false;
         node.isSavedBookmark = true;
+        if (entry.iconUri) {
+          node.iconUri = entry.iconUri;
+        }
         return node;
       })
       .filter(Boolean) as BrowserTreeNode[];

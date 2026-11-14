@@ -135,9 +135,11 @@ export const commonZh = {
   centerContentLabel: '中心内容区',
   centerLauncherLabel: '中心入口页',
   centerBrowserTabMissing: '浏览器标签不可用',
-  centerTabShowInBrowserPanel: '在浏览器面板显示',
-  centerTabShowInTerminalPanel: '在终端面板显示',
-  centerTabShowInCenter: '在中心显示',
+  centerTabShowInBrowserPanel: '在右侧面板显示',
+  centerTabShowInTerminalPanel: '在右侧面板显示',
+  centerTabShowInCenter: '在「中间区」显示', // glossary-allow: 用户指定文案
+  centerTabOpenInCenter: '在「中间区」打开', // glossary-allow: 用户指定文案
+  centerTabOpenAllInCenter: '全部在「中间区」打开', // glossary-allow: 用户指定文案
 
   jobCount: '{count} 个 Job',
   debugCopyLogs: '复制调试日志',

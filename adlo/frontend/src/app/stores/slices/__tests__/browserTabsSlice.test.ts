@@ -99,6 +99,16 @@ describe('browserOpenTab folder append dedup (url+title)', () => {
     const folder = store.getState().browserBookmarkFolders.find((f: any) => f.id === 'f1');
     expect(folder.entries).toHaveLength(2);
   });
+
+  it('keeps same host/path on a different port as a separate folder entry', () => {
+    // 收藏身份键保留协议与端口：http://localhost:3000 与 https://localhost:5173
+    // 是两个可点击地址，落目录时不能互相判重。
+    const store = makeStoreWithFolder('f1');
+    store.getState().browserOpenTab('http://localhost:3000/app', 'App', undefined, 'f1');
+    store.getState().browserOpenTab('https://localhost:5173/app', 'App', undefined, 'f1');
+    const folder = store.getState().browserBookmarkFolders.find((f: any) => f.id === 'f1');
+    expect(folder.entries).toHaveLength(2);
+  });
 });
 
 describe('browserOpenTab writes history (Chrome/Edge semantics)', () => {

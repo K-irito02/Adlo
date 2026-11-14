@@ -73,6 +73,8 @@ export function BrowserNavigator() {
     handleCopyTabLink,
     handleOpenTabInNewTab,
     handleOpenTabInCurrentTab,
+    handleOpenInCenter,
+    handleOpenAllInCenter,
     onBookmarkTab,
     onRemoveBookmarkTab,
     handleCloseTab,
@@ -285,6 +287,8 @@ export function BrowserNavigator() {
           onCopyTabLink={handleCopyTabLink}
           onOpenTabInNewTab={handleOpenTabInNewTab}
           onOpenTabInCurrentTab={handleOpenTabInCurrentTab}
+          onOpenInCenter={handleOpenInCenter}
+          onOpenAllInCenter={handleOpenAllInCenter}
           onBookmarkTab={onBookmarkTab}
           onRemoveBookmarkTab={onRemoveBookmarkTab}
           labels={{
@@ -324,6 +328,10 @@ export function BrowserNavigator() {
           onCopyTabLink={handleCopyTabLink}
           onOpenTabInNewTab={handleOpenTabInNewTab}
           onOpenTabInCurrentTab={handleOpenTabInCurrentTab}
+          onOpenInCenter={handleOpenInCenter}
+          onOpenAllInCenter={handleOpenAllInCenter}
+          onBookmarkTab={onBookmarkTab}
+          onRemoveBookmarkTab={onRemoveBookmarkTab}
           labels={{
             workspaceCategory: t.browserCategoryWorkspace,
             userFolderCategory: t.browserCategoryUserFolder,

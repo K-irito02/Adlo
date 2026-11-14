@@ -5,11 +5,13 @@ import { pageMetaClient } from '@utils/pageMetaClient';
 import { hostnameFromUrl, isPlaceholderTitle } from '@utils/browserDisplayUtils';
 import { applyBroadcastTitle, titleSourceRef } from './useBrowserPageMeta';
 import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
+import { useOpenInCenterAction } from './useOpenInCenterAction';
 
 export function useBrowserTagActions(options?: {
   navigateTabExplicit?: (tabId: string, url: string, title?: string) => void;
 }) {
   const { navigateTabExplicit } = options ?? {};
+  const { openUrlInCenter } = useOpenInCenterAction();
   const {
     browserOpenTab,
     browserCloseTab,
@@ -123,6 +125,17 @@ export function useBrowserTagActions(options?: {
     [browserOpenTab],
   );
 
+  /** 书签/历史等 URL 行：「在中心打开」= 新建中心标签（不移动已有标签）。 */
+  const handleOpenInCenter = useCallback(
+    (url: string, title?: string) => {
+      if (!url) {
+        return;
+      }
+      openUrlInCenter(url, title);
+    },
+    [openUrlInCenter],
+  );
+
   const handleOpenTabInCurrentTab = useCallback(
     (url: string) => {
       const state = useAppStore.getState();
@@ -148,5 +161,6 @@ export function useBrowserTagActions(options?: {
     handleCopyTabLink,
     handleOpenTabInNewTab,
     handleOpenTabInCurrentTab,
+    handleOpenInCenter,
   };
 }

@@ -9,7 +9,7 @@ import type {
   BookmarkEntry,
   BookmarkFolder,
 } from './browserTypes';
-import { hostnameFromUrl } from '@utils/browserDisplayUtils';
+import { bookmarkUrlKey, hostnameFromUrl } from '@utils/browserDisplayUtils';
 import { buildFolderPathLabel, buildWorkspacePathLabel } from './browserFoldersUtils';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 
@@ -461,6 +461,14 @@ export interface BrowserBookmarkSlice {
     updates: { url: string; title: string },
   ) => { ok: boolean; pathLabel?: string; isSavedBookmark?: boolean };
   browserRemoveBookmark: (bookmarkId: string, url: string, scopeFolderId?: string) => void;
+  /**
+   * 按 URL 取消收藏（地址栏实心星）。树/列表书签行的「取消收藏」是条目级动作，不走这里。
+   *
+   * 与 `browserToggleBookmark` 的 (url,title) 元组语义不同：收藏状态只看 URL，
+   * 因此这里删除所有 URL 身份相同的条目（含导入/仅保存/自定义标题的副本），
+   * 避免出现「星标已点亮但点击后仍有同名条目残留、星标又亮回来」。
+   */
+  browserRemoveBookmarksForUrl: (url: string) => void;
   /** 关闭/删除某个标签页时，连带移除它当初带来的那份收藏。 */
   browserRemoveBookmarksFromTab: (tabId: string, url: string) => void;
   browserRemoveOrphanedBookmarks: () => void;
@@ -810,6 +818,46 @@ export const createBrowserBookmarkSlice = (
         persist('adl:browser.bookmarks', result.partial.browserBookmarks!);
       }
       return result.partial;
+    });
+  },
+
+  browserRemoveBookmarksForUrl: (url: string) => {
+    const target = url.trim();
+    if (!target) {
+      return;
+    }
+    const targetKey = bookmarkUrlKey(target);
+    set((state) => {
+      const result = removeEntriesMatching(
+        state,
+        (entry) => Boolean(entry.url) && bookmarkUrlKey(entry.url) === targetKey,
+      );
+      // 仅存在于全局索引（未挂到目录/工作区）的收藏也要一并移除。
+      const baseBookmarks = result.partial?.browserBookmarks ?? state.browserBookmarks;
+      const nextBookmarks = baseBookmarks.filter(
+        (bookmark) => bookmarkUrlKey(bookmark.url) !== targetKey,
+      );
+      const bookmarksChanged = nextBookmarks.length !== state.browserBookmarks.length;
+      if (result.partial === null && !bookmarksChanged) {
+        return state;
+      }
+      const nextState = {
+        browserBookmarks: nextBookmarks,
+        browserBookmarkFolders:
+          result.partial?.browserBookmarkFolders ?? state.browserBookmarkFolders,
+        browserWorkspaceBookmarks:
+          result.partial?.browserWorkspaceBookmarks ?? state.browserWorkspaceBookmarks,
+      };
+      if (result.wsChanged) {
+        persist('adl:browser.workspaceBookmarks', nextState.browserWorkspaceBookmarks);
+      }
+      if (result.foldersChanged) {
+        persist('adl:browser.bookmarkFolders', nextState.browserBookmarkFolders);
+      }
+      if (bookmarksChanged) {
+        persist('adl:browser.bookmarks', nextState.browserBookmarks);
+      }
+      return nextState;
     });
   },
 

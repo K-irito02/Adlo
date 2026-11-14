@@ -8,6 +8,7 @@ import { useHintCard, HintCard } from '../../components/HintCard';
 import { BrowserFavicon } from '@components/BrowserFavicon';
 import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
 import { useAppStore } from '@stores/slicedStore';
+import { isUrlBookmarked } from '@utils/browserDisplayUtils';
 import type { BrowserTreeNode } from './types';
 import { buildBrowserNodeTitleMap } from './browserTreeTitle';
 import { faviconPropsForNode } from './browserTreeFavicon';
@@ -19,6 +20,7 @@ import {
   getChildNodeMoreMenuItems,
   getTabContextMenuItems,
   getTabHoverButtons,
+  isLeafBrowserNodeType,
 } from './browserEntrySubEntriesUtils';
 
 export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries({
@@ -119,12 +121,13 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
 
   const renderChildMeta = useCallback(
     (childNode: BrowserTreeNode) => {
-      // Handle tab leaf nodes
-      if (
-        childNode.kind === 'file' &&
-        (childNode.nodeType === 'tab' || childNode.nodeType === 'history')
-      ) {
-        const btns = getTabHoverButtons(t, !!callbacks.onCloseTab);
+      // Handle file leaf nodes（活标签 / 历史条目 / 纯书签共用一套行级动作）
+      if (childNode.kind === 'file' && isLeafBrowserNodeType(childNode.nodeType)) {
+        // 关闭按钮只对真实标签行有意义（历史行也带 tabId，但那是历史条目 id）。
+        const btns = getTabHoverButtons(
+          t,
+          !!callbacks.onCloseTab && childNode.nodeType === 'tab' && !!childNode.tabId,
+        );
         return (
           <span className="adl-browser-node__actions">
             {btns.map((btn) => {
@@ -148,7 +151,8 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
                         node: childNode,
                       });
                     } else if (btn.id === 'refresh') {
-                      if (childNode.tabId && childNode.url) {
+                      // 纯书签行没有 tabId，但仍可按 URL 刷新站点元数据（与右键菜单同口径）。
+                      if (childNode.url) {
                         callbacks.onRefreshTab(childNode.tabId, childNode.url);
                       }
                     }
@@ -258,23 +262,17 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
   }, []);
 
   const bookmarks = useAppStore((s) => s.browserBookmarks);
-  const bookmarkedKeys = useMemo(
-    () => new Set(bookmarks.map((b) => JSON.stringify([b.url, b.title]))),
-    [bookmarks],
-  );
 
   const handleChildContextMenu = useCallback(
     (childNode: BrowserTreeNode) => {
-      // Handle tab leaf nodes
-      if (
-        childNode.kind === 'file' &&
-        (childNode.nodeType === 'tab' || childNode.nodeType === 'history')
-      ) {
-        const isBookmarked =
-          childNode.url && childNode.name
-            ? bookmarkedKeys.has(JSON.stringify([childNode.url, childNode.name]))
-            : false;
-        return getTabContextMenuItems(childNode, callbacks, t, isBookmarked);
+      // Handle file leaf nodes（活标签 / 历史条目 / 纯书签）
+      if (childNode.kind === 'file' && isLeafBrowserNodeType(childNode.nodeType)) {
+        return getTabContextMenuItems(
+          childNode,
+          callbacks,
+          t,
+          isUrlBookmarked(bookmarks, childNode.url),
+        );
       }
       const items = getChildNodeMoreMenuItems(
         childNode.nodeType,
@@ -293,7 +291,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
         action: () => item.action(),
       }));
     },
-    [categoryType, callbacks, bookmarkedKeys, t],
+    [categoryType, callbacks, bookmarks, t],
   );
 
   const handleChildMenuClick = useCallback(
@@ -349,15 +347,15 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
               : { top: childMenuState.y, left: childMenuState.x }
           }
         >
-          {(childMenuState.node &&
-          (childMenuState.nodeType === 'tab' || childMenuState.nodeType === 'history')
+          {(childMenuState.node && isLeafBrowserNodeType(childMenuState.nodeType)
             ? (() => {
                 const node = childMenuState.node;
-                const isBookmarked =
-                  node.url && node.name
-                    ? bookmarkedKeys.has(JSON.stringify([node.url, node.name]))
-                    : false;
-                return getTabContextMenuItems(node, callbacks, t, isBookmarked);
+                return getTabContextMenuItems(
+                  node,
+                  callbacks,
+                  t,
+                  isUrlBookmarked(bookmarks, node.url),
+                );
               })()
             : getChildNodeMoreMenuItems(
                 childMenuState.nodeType,
@@ -375,6 +373,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
               role="menuitem"
               onClick={() => handleChildMenuClick(item.action)}
             >
+              {item.icon ? <span className="adl-sidebar-menu__icon">{item.icon}</span> : null}
               <span>{item.label}</span>
               {item.badge ? <span className="adl-menu-item__badge">{item.badge}</span> : null}
               {item.hint ? (

@@ -264,6 +264,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleCopyTabLink,
     handleOpenTabInNewTab,
     handleOpenTabInCurrentTab,
+    handleOpenInCenter,
+    handleOpenAllInCenter,
     handleRemoveBookmark,
   } = useBrowserTreeActions({ navigateTabExplicit });
 
@@ -478,6 +480,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
       handleCopyTabLink,
       handleOpenTabInNewTab,
       handleOpenTabInCurrentTab,
+      handleOpenInCenter,
+      handleOpenAllInCenter,
       onBookmarkTab: handleBookmarkFromUrl,
       onRemoveBookmarkTab: handleRemoveBookmark,
       setBrowserMenuOpen,
@@ -521,6 +525,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
       handleCopyTabLink,
       handleOpenTabInNewTab,
       handleOpenTabInCurrentTab,
+      handleOpenInCenter,
+      handleOpenAllInCenter,
       handleBookmarkFromUrl,
       handleRemoveBookmark,
       setBrowserMenuOpen,

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { IconClose } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
@@ -53,12 +53,6 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
   evictedTabIds,
   t: _t,
 }: BrowserTabBarProps) {
-  const browserBookmarks = useAppStore((state) => state.browserBookmarks);
-  const bookmarkedKeys = useMemo(
-    () => new Set(browserBookmarks.map((b) => JSON.stringify([b.url, b.title]))),
-    [browserBookmarks],
-  );
-
   if (tabs.length === 0) {
     return null;
   }
@@ -66,10 +60,6 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
   return (
     <ul className="adl-tool-list adl-tool-list--terminal">
       {tabs.map((tab) => {
-        const isBookmarked = tab.url
-          ? bookmarkedKeys.has(JSON.stringify([tab.url, tab.title]))
-          : false;
-
         return (
           <li
             key={tab.id}
@@ -125,7 +115,7 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                     {tab.titleResolved ? tab.title : <ShimmeringText text={_t.newTabPage} />}
                   </span>
                 </button>
-                <TooltipSimple content={isBookmarked ? _t.unbookmark : _t.close} placement="top">
+                <TooltipSimple content={_t.close} placement="top">
                   <button
                     type="button"
                     className="adl-tool-list__item-close"
@@ -133,7 +123,7 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                       e.stopPropagation();
                       onCloseTab(tab.id);
                     }}
-                    aria-label={isBookmarked ? _t.unbookmark : _t.close}
+                    aria-label={_t.close}
                   >
                     <IconClose size={12} decorative />
                   </button>

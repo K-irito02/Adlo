@@ -40,6 +40,16 @@
 4. **标题双轨（标签=网站标题/书签=自定义标题）**：标签标题由页面抓取，书签标题由用户自定义，二者解耦。实现时需保证「打开标签」与「写收藏」走不同标题来源（`browserOpenTab` 传 undefined + `browserBookmarkTab` 用 titleOverride）。
 5. **路径分隔符统一**：语义化路径用 `/`（与真实文件路径一致），`buildWorkspacePathLabel` 需把 Windows 反斜杠归一化为 `/`。
 
+## 2026-11-15 修订（收藏身份与取消入口）
+
+> 上文第 1 条已被部分取代：UI 层「已收藏」判断现按**严格 URL 身份键** `bookmarkUrlKey`（协议 + 主机含端口 + 归一化路径/query，忽略 hash），不再使用 `(url,title)` 元组；`browserToggleBookmark` 仍保留元组语义供写路径使用。取消收藏也不再统一调 toggle：
+>
+> - 地址栏实心星 → `browserRemoveBookmarksForUrl(url)`（URL 级，清理全局索引 + 各目录/工作区副本）；
+> - 书签目录/列表中的书签行 → 条目级 `browserRemoveBookmark(bookmarkId)`；
+> - 搜索/历史/标签行 → 按行归属走对应标签/历史/书签动作。
+>
+> 因此「UI URL-only + toggle 元组」是**有意共存**的两套语义，不再要求二者同时迁移；上文第 1 条仅作为历史记录保留。
+
 ## 相关文件
 
 - `frontend/src/app/stores/slices/browserBookmarkSlice.ts`（去重、toggle、cleanup、titleOverride）

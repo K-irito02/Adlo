@@ -104,7 +104,9 @@ BrowserPanel (bookmarkDialogOpen 状态)
 
 **问题**：当标签已收藏时，点击收藏按钮仍然弹出对话框，不合理。
 
-**原则**：已收藏 → 直接调用 `browserToggleBookmark()` 取消收藏（从书签列表和所属目录中移除），不弹对话框。未收藏 → 打开 BookmarkToFolderDialog。通过 `isBookmarked` 状态分流。
+**原则**：已收藏 → 直接取消收藏（从书签列表和所属目录中移除），不弹对话框。未收藏 → 打开 BookmarkToFolderDialog。通过 `isBookmarked` 状态分流。
+
+> **2026-11-15 修订**：地址栏实心星现调用 `browserRemoveBookmarksForUrl(url)`（按严格 URL 身份键 `bookmarkUrlKey` 清理全局索引 + 各目录/工作区副本），不再调用 `browserToggleBookmark()`。书签目录/列表中的书签行是**条目级**取消收藏（`browserRemoveBookmark(bookmarkId)`）。上文与 §「取消收藏的同步移除」中的 `browserToggleBookmark` 取消分支仅保留为历史记录，不再是 UI 入口。
 
 ### 7. "新建目录"命名对话框
 
@@ -183,4 +185,6 @@ BrowserPanel.handleBookmarkAddToFolder(folderPath)
 #### 取消收藏的同步移除
 
 `browserToggleBookmark` 在取消收藏时，同时从 `browserTabFolders` 和 `browserWorkspaceBookmarks` 中移除标签，确保两种收藏方式的行为一致。
+
+> **2026-11-15 修订**：UI 取消入口已改为 `browserRemoveBookmarksForUrl`（地址栏星标，URL 级）与 `browserRemoveBookmark`（书签行，条目级）；`browserTabFolders` 为旧键，当前目录关系由 `browserBookmarkFolders.entries` 承载。
 

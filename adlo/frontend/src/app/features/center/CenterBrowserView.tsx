@@ -31,6 +31,7 @@ import { useBookmarkToFolderDialog } from '@features/browser/useBookmarkToFolder
 import { BookmarkToFolderDialogs } from '@features/browser/BookmarkToFolderDialogs';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
+import { isUrlBookmarked } from '@utils/browserDisplayUtils';
 import { useCenterBrowserAddressSubmit } from './useCenterBrowserAddressSubmit';
 import { checkEmbed, isEmbedBlocked } from '@features/browser/checkEmbed';
 import { useCenterObscured } from './useCenterObscured';
@@ -110,11 +111,8 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
     });
 
   const currentEngine = searchEngines.find((e) => e.id === defaultSearchEngineId);
-  const isBookmarked = activeTab?.url
-    ? browserBookmarks.some(
-        (bookmark) => bookmark.url === activeTab.url && bookmark.title === activeTab.title,
-      )
-    : false;
+  // 与面板同口径：收藏状态只看 URL 身份（导入/仅保存书签的标题是快照）。
+  const isBookmarked = isUrlBookmarked(browserBookmarks, activeTab?.url);
 
   // 收藏标签流程（与右侧面板共用同一实现）：未收藏时点「收藏标签」打开目录选择
   // 对话框，已收藏时点击即取消收藏。目录树口径与面板一致（可见工作区 + 标签目录）。

@@ -22,6 +22,10 @@ export interface SectionCallbacks {
   onCopyTabLink: (url: string) => void;
   onOpenTabInNewTab: (url: string, title?: string) => void;
   onOpenTabInCurrentTab: (url: string) => void;
+  /** 把单条书签/历史/标签 URL 作为新标签打开到中心。 */
+  onOpenInCenter?: (url: string, title?: string) => void;
+  /** 把目录（含嵌套）/工作区（含根目录）/历史日的 URL 打开到中心。 */
+  onOpenAllInCenter?: (categoryType: BrowserCategoryType, nodePath: string) => void;
   onCloseTab?: (tabId: string) => void;
   onBookmarkTab?: (url: string, title: string) => void;
   /** Remove bookmark state without closing the tab. Used for saved-bookmark entries. */

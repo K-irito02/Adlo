@@ -6,7 +6,7 @@ import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
 import { useTCopy } from '@i18n/useTCopy';
 import { ShimmeringText } from '@/components/shimmering-text';
 import { useAppStore } from '@stores/slicedStore';
-import { IconClose, IconCopy, IconMoveToCenter, IconRefreshCw } from '@icons';
+import { IconArrowUpLeft, IconClose, IconCopy, IconRefreshCw } from '@icons';
 import { useOpenInCenterAction } from './useOpenInCenterAction';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
@@ -121,7 +121,7 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
             {
               id: 'show-in-center',
               label: t.centerTabShowInCenter,
-              icon: <IconMoveToCenter size={14} decorative />,
+              icon: <IconArrowUpLeft size={14} decorative />,
               action: () => {
                 moveTabToCenter(tab.id);
                 setContextMenu(null);

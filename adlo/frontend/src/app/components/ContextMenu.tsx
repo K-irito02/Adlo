@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useHintCard, HintCard } from './HintCard';
 
@@ -34,7 +34,9 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
   } = useHintCard();
   const [adjustedPosition, setAdjustedPosition] = useState(position);
 
-  useEffect(() => {
+  // layout 阶段量测并钳制：若放在 useEffect（paint 之后），底部行会先用原始
+  // 坐标画一帧、再跳到钳制位置，用户可见「菜单卡片位移」（2026-11-14 事项 5）。
+  useLayoutEffect(() => {
     if (!ref.current) {
       setAdjustedPosition(position);
       return;

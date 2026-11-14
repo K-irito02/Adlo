@@ -3,7 +3,7 @@ import { createUiId } from '../shared';
 import { persist } from '../persisted/persist';
 import { applyTabPrune } from '../persisted/pruneWiring';
 import type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
-import { historyDedupKey, isRealTitle } from '@utils/browserDisplayUtils';
+import { bookmarkUrlKey, isRealTitle } from '@utils/browserDisplayUtils';
 
 // Re-export the tab state types from the shared leaf module so existing
 // consumers (e.g. tests, browserSlice, browserFoldersUtils) keep working
@@ -83,11 +83,10 @@ export const createBrowserTabsSlice = (
           if (f.id === folderId) {
             const existingEntries = f.entries || [];
             const tabTitle = tab.title?.trim() || tab.url?.trim() || '';
-            const entryKey = historyDedupKey(tab.url || '');
+            const entryKey = bookmarkUrlKey(tab.url || '');
             if (
               !existingEntries.some(
-                (entry) =>
-                  historyDedupKey(entry.url || '') === entryKey && entry.title === tabTitle,
+                (entry) => bookmarkUrlKey(entry.url || '') === entryKey && entry.title === tabTitle,
               )
             ) {
               return {
