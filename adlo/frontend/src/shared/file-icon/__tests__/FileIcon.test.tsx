@@ -60,10 +60,16 @@ describe('FileIcon', () => {
 });
 
 /**
- * 回归保护：点号配置文件必须有可辨识的「配置」图形，而不是退化成通用文档。
- * 断言落到具体 path 数据 —— 回退实现（去掉点号分支 / 换回旧配置图标）必须变红。
+ * 项目「配置」字形的两条内部 path：**库没有点名图标的**点号文件必须画出它们。
+ * 已知点号名（`.gitignore` / `.editorconfig` …）改由库图标接管，见下方用例。
  */
 const CONFIG_GLYPH_PATHS = ['M9 13h6', 'M9 17h4'];
+
+/** react-symbols 的 `DefaultFileIcon`（未识别名的兜底文档）骨架。 */
+const LIBRARY_DEFAULT_DOC_PATHS = [
+  'M6 3a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V8a1 1 0 00-.375-.78l-5-4A1 1 0 0013 3H6z',
+  'M12 4v5h6',
+];
 
 function pathData(container: HTMLElement): string[] {
   return Array.from(container.querySelectorAll('svg path')).map(
@@ -71,16 +77,29 @@ function pathData(container: HTMLElement): string[] {
   );
 }
 
+/**
+ * 断言命中的是「库的专属图标」而不是两种退化形态：
+ * 项目配置字形（根节点 `stroke="currentColor"`）或库的通用文档（`DefaultFileIcon` 骨架）。
+ */
+function expectLibrarySymbol(container: HTMLElement) {
+  const paths = pathData(container);
+  expect(paths.length).toBeGreaterThan(0);
+  expect(container.querySelector('svg')?.getAttribute('stroke')).toBeNull();
+  for (const glyph of CONFIG_GLYPH_PATHS) {
+    expect(paths).not.toContain(glyph);
+  }
+  for (const glyph of LIBRARY_DEFAULT_DOC_PATHS) {
+    expect(paths).not.toContain(glyph);
+  }
+}
+
 describe('FileIcon dotfile fallback', () => {
   it.each([
-    '.editorconfig',
-    '.gitattributes',
-    '.gitignore',
-    '.prettierignore',
-    '.env',
-    '.eslintrc',
-    '.prettierrc',
-  ])('renders the config glyph for %s', (fileName) => {
+    // 库（autoAssign）没有收录这些名字，才会走到项目配置字形
+    '.adlprobe',
+    '.randomdotfile',
+    '.myconf',
+  ])('renders the project config glyph when the library has no icon for %s', (fileName) => {
     const { container } = render(<FileIcon fileName={fileName} />);
     const paths = pathData(container);
     for (const glyph of CONFIG_GLYPH_PATHS) {
@@ -88,22 +107,29 @@ describe('FileIcon dotfile fallback', () => {
     }
   });
 
-  it('keeps extension-based icons for dotfiles that carry a real extension', () => {
-    const { container } = render(<FileIcon fileName=".eslintrc.json" />);
-    const paths = pathData(container);
-    expect(paths.length).toBeGreaterThan(0);
-    for (const glyph of CONFIG_GLYPH_PATHS) {
-      expect(paths).not.toContain(glyph);
-    }
-  });
+  // 库自带的点名图标优先：用户要求「库有就用库的」。
+  it.each(['.editorconfig', '.gitattributes', '.gitignore', '.prettierignore'])(
+    'prefers the library symbol for %s',
+    (fileName) => {
+      const { container } = render(<FileIcon fileName={fileName} />);
+      expectLibrarySymbol(container);
+    },
+  );
 
-  it('leaves multi-dot dotfiles to the extension tiers', () => {
-    const { container } = render(<FileIcon fileName=".env.local" />);
-    const paths = pathData(container);
-    expect(paths.length).toBeGreaterThan(0);
-    for (const glyph of CONFIG_GLYPH_PATHS) {
-      expect(paths).not.toContain(glyph);
-    }
+  // autoAssign 在扩展名层对点号名同样开启：同一族的单点/双点名字必须拿到**同一个**库图标。
+  // 只做"不是配置字形、不是默认文档"的否定断言会假绿（关掉 autoAssign 时 `.eslintrc.json`
+  // 会退到 JSON 图标，照样满足否定条件），所以成对比较 path 数组。
+  it.each([
+    ['.eslintrc', '.eslintrc.json'],
+    ['.env', '.env.local'],
+  ])('keeps %s and %s on the same library icon', (singleDot, doubleDot) => {
+    const single = render(<FileIcon fileName={singleDot} />);
+    const doubled = render(<FileIcon fileName={doubleDot} />);
+    expectLibrarySymbol(single.container);
+    expectLibrarySymbol(doubled.container);
+    expect(pathData(doubled.container)).toEqual(pathData(single.container));
+    single.unmount();
+    doubled.unmount();
   });
 
   it('does not apply the config glyph to unknown extensions', () => {
@@ -134,6 +160,43 @@ describe('FileIcon dotfile fallback', () => {
     expect(paths).not.toContain('M12 13v1');
     expect(paths).not.toContain('M12 16v.01');
   });
+
+  // 回归保护：扩展名查找必须走自有属性。`a.constructor` / `a.__proto__` 是
+  // Object.prototype 的真实成员名，未防护时会取到函数/对象并渲染崩溃。
+  it.each(['a.constructor', 'a.__proto__'])(
+    'does not resolve %s through the prototype chain',
+    (fileName) => {
+      const { container } = render(<FileIcon fileName={fileName} />);
+      const paths = pathData(container);
+      // 落项目通用文档（库的 DefaultFileIcon 是另一种骨架，用折角 path 区分）
+      expect(paths).toContain('M14 3v6h6');
+      expect(paths).toHaveLength(2);
+    },
+  );
+
+  // 驼峰原型名（`toString` / `valueOf`）小写后并不存在于 Object.prototype，未防护也不会崩；
+  // 这两条锁的是"小写化后形似原型成员的名字一律按非法扩展名处理"这一更宽判据。
+  it.each(['a.toString', 'a.valueOf'])(
+    'treats lowercased prototype-like extension %s as unknown',
+    (fileName) => {
+      const { container } = render(<FileIcon fileName={fileName} />);
+      const paths = pathData(container);
+      expect(paths).toContain('M14 3v6h6');
+      expect(paths).toHaveLength(2);
+    },
+  );
+
+  // 点号文件走 Tier 2，必须同样挡掉伪名，否则库内部索引会取到 Object.prototype。
+  it.each(['.constructor', '.__proto__', '.CONSTRUCTOR'])(
+    'does not resolve the dotfile %s through the prototype chain',
+    (fileName) => {
+      const { container } = render(<FileIcon fileName={fileName} />);
+      const paths = pathData(container);
+      for (const glyph of CONFIG_GLYPH_PATHS) {
+        expect(paths).toContain(glyph);
+      }
+    },
+  );
 });
 
 /**

@@ -29,7 +29,7 @@ export const IconFallbackScript = make(
   </>,
 );
 
-/* Config file — dotfiles (.editorconfig, .gitignore …) and conf, jsonc */
+/* Config file — dotfiles the library has no icon for, plus conf, jsonc */
 export const IconFallbackConfig = make(
   <>
     <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6z" />
