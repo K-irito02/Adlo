@@ -3,7 +3,7 @@ import { FileIcon as ReactSymbolsFileIcon } from '@react-symbols/icons/utils';
 import { FileIcon as ReactFileIcon, defaultStyles } from 'react-file-icon';
 import type { DefaultExtensionType } from 'react-file-icon';
 import type { IconSize } from '@icons/helper';
-import { FALLBACK_EXTENSION_MAP, IconFallbackUnknown } from './fallbackIcons';
+import { FALLBACK_EXTENSION_MAP, IconFallbackConfig, IconFallbackUnknown } from './fallbackIcons';
 
 interface FileIconProps {
   fileName: string;
@@ -49,9 +49,6 @@ const SPECIAL_FILENAME_RULES: Record<string, string> = {
   'package-lock.json': 'config',
   'pnpm-lock.yaml': 'config',
   'yarn.lock': 'config',
-  '.gitignore': 'config',
-  '.gitattributes': 'config',
-  '.gitmodules': 'config',
 };
 
 /** Check if a filename starts with a prefix (for .env, .eslintrc, etc.) */
@@ -86,6 +83,18 @@ function getSpecialFilenameType(fileName: string): string | undefined {
   }
 
   return undefined;
+}
+
+/**
+ * Dotfile rule — `.editorconfig`, `.gitignore`, `.prettierignore`, `.env` …
+ *
+ * These names have no real extension: `extractExtension()` returns '' because
+ * the only dot is the leading one, which used to drop them into the generic
+ * document fallback. Dotfiles that carry a real extension (`.eslintrc.json`,
+ * `.env.local`) keep the extension-driven icon instead.
+ */
+function isDotfile(fileName: string): boolean {
+  return fileName.startsWith('.') && !fileName.slice(1).includes('.');
 }
 
 /**
@@ -125,10 +134,11 @@ const REACT_FILE_ICON_PREFERRED = new Set([
  *
  * Resolution priority (per user requirement):
  * 1. react-file-icon for office documents (strongest for doc/xls/ppt types)
- * 2. react-symbols for everything else (300+ icons — programming, images, media, config)
- * 3. Project custom SVGs for niche/cold extensions not in either library
- * 4. Special filename rules (Dockerfile, package.json, etc.)
- * 5. Generic unknown file icon
+ * 2. Project config glyph for dotfiles without a real extension (.editorconfig, .gitignore …)
+ * 3. Project SVGs for niche/cold extensions (hta, conf, jsonc …)
+ * 4. react-symbols for everything else (300+ icons — programming, images, media, config)
+ * 5. Special filename rules (Dockerfile, package.json, etc.)
+ * 6. Generic unknown file icon
  */
 export function FileIcon({ fileName, size = 16, className }: FileIconProps) {
   const extension = useMemo(() => extractExtension(fileName), [fileName]);
@@ -156,14 +166,16 @@ export function FileIcon({ fileName, size = 16, className }: FileIconProps) {
     }
   }
 
-  // Tier 2: react-symbols — broadest coverage (300+ icons)
-  if (extension) {
-    return (
-      <ReactSymbolsFileIcon fileName={fileName} width={size} height={size} className={className} />
-    );
+  // Tier 2: dotfiles — no real extension, give them the config glyph instead of
+  // the generic document (also covers .gitignore / .gitattributes, which used to
+  // fall through to react-file-icon's config style)
+  if (isDotfile(fileName)) {
+    return <IconFallbackConfig size={size} className={className} decorative />;
   }
 
-  // Tier 3: Project fallback — cold/niche extensions
+  // Tier 3: Project icons for niche/cold extensions (hta, conf, jsonc …).
+  // Must run before react-symbols: that library renders a generic document for
+  // any unknown extension, so a lookup placed after it would never be reached.
   if (extension) {
     const FallbackIcon = FALLBACK_EXTENSION_MAP[extension];
     if (FallbackIcon) {
@@ -171,7 +183,14 @@ export function FileIcon({ fileName, size = 16, className }: FileIconProps) {
     }
   }
 
-  // Tier 4: Special filename rules (Dockerfile, package.json, etc.)
+  // Tier 4: react-symbols — broadest coverage (300+ icons)
+  if (extension) {
+    return (
+      <ReactSymbolsFileIcon fileName={fileName} width={size} height={size} className={className} />
+    );
+  }
+
+  // Tier 5: Special filename rules (Dockerfile, package.json, etc.)
   // Apply soft glyph color + reduced gradient
   const specialType = getSpecialFilenameType(fileName);
   if (specialType) {
@@ -194,6 +213,6 @@ export function FileIcon({ fileName, size = 16, className }: FileIconProps) {
     }
   }
 
-  // Tier 5: Generic unknown file icon
+  // Tier 6: Generic unknown file icon
   return <IconFallbackUnknown size={size} className={className} decorative />;
 }

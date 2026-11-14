@@ -2,20 +2,20 @@ import React from 'react';
 import { make, type IconComponent } from '@icons/helper';
 
 /**
- * Fallback SVG icons for file extensions not covered by
- * react-symbols or react-file-icon.
+ * Fallback SVG icons for file names not covered by react-symbols or
+ * react-file-icon: dotfiles / config files without a real extension, cold
+ * extensions, and the generic document.
  *
- * These are cold/niche extensions that rarely appear.
- * Uses the project's existing SVG icon convention (currentColor, 24x24 viewBox).
+ * Uses the project's existing SVG icon convention (currentColor, 24x24 viewBox,
+ * strokeWidth 2). All three share the same document skeleton so the file tree
+ * reads as one family; only the inner glyph differs.
  */
 
-/* Generic file with question mark — unknown extension fallback */
+/* Generic document — unknown / extension-less files */
 export const IconFallbackUnknown = make(
   <>
     <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6z" />
     <path d="M14 3v6h6" />
-    <path d="M12 13v1" />
-    <path d="M12 16v.01" />
   </>,
 );
 
@@ -28,14 +28,13 @@ export const IconFallbackScript = make(
   </>,
 );
 
-/* Config file — for conf, jsonc */
+/* Config file — dotfiles (.editorconfig, .gitignore …) and conf, jsonc */
 export const IconFallbackConfig = make(
   <>
     <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6z" />
     <path d="M14 3v6h6" />
-    <circle cx="12" cy="15" r="2" />
-    <path d="M12 11.5v1" />
-    <path d="M12 17.5v1" />
+    <path d="M9 13h6" />
+    <path d="M9 17h4" />
   </>,
 );
 
