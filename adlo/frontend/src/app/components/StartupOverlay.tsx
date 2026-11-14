@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import './StartupOverlay.css';
+import { parseSplashFreezeAt } from './splashDebugParams';
 
 // 品牌锁定文案（GLOSSARY：产品名并列书写为「Adlo · 安洛」）。
 // 开屏在 i18n 字典加载完成前就必须渲染，且该串不随语言切换，故不进 i18n 字典。
@@ -46,8 +47,8 @@ export default function StartupOverlay() {
     if (params.get('adl-motion') === 'reduce') {
       root.classList.add('adl-splash--reduced');
     }
-    const at = Number(params.get('adl-splash-at'));
-    if (!Number.isFinite(at) || at < 0 || typeof root.getAnimations !== 'function') {
+    const at = parseSplashFreezeAt(window.location.search);
+    if (at === null || typeof root.getAnimations !== 'function') {
       return;
     }
     const freeze = () => {
