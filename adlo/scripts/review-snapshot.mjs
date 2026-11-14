@@ -260,13 +260,23 @@ export function writeClaimAckTemplate(ackPath, rev, hints) {
   }
   const existingKeys = new Set();
   const existingChecked = new Set();
+  const existingCheckedText = new Map();
   for (const line of existing.split(/\r?\n/)) {
-    const m = /^-\s*\[(x| )\]\s+(\S+)/.exec(line);
-    if (m) {
-      existingKeys.add(m[2]);
-      if (/x/i.test(m[1])) {
-        existingChecked.add(m[2]);
+    const m = /^-\s*\[(x| )\]\s+(\S+)\s*—\s*(.*)$/.exec(line);
+    if (!m) {
+      const loose = /^-\s*\[(x| )\]\s+(\S+)/.exec(line);
+      if (loose) {
+        existingKeys.add(loose[2]);
+        if (/x/i.test(loose[1])) {
+          existingChecked.add(loose[2]);
+        }
       }
+      continue;
+    }
+    existingKeys.add(m[2]);
+    if (/x/i.test(m[1])) {
+      existingChecked.add(m[2]);
+      existingCheckedText.set(m[2], (m[3] ?? "").trim());
     }
   }
   const priorText = new Set();
@@ -299,7 +309,11 @@ export function writeClaimAckTemplate(ackPath, rev, hints) {
     const carry = !existingChecked.has(key) && priorText.has(hit.text);
     const checked = existingChecked.has(key) || carry;
     const suffix = checked && !existingChecked.has(key) ? "（carried over from previous rev）" : "";
-    body.push(`- ${checked ? "[x]" : "[ ]"} ${key} — ${hit.text}${suffix}`);
+    // 人工写下的证据优先于断言原文：脚本重写模板时曾把「- [x] file:line — 证据：…」
+    // 覆写成断言原文，审查方因此看不到放行理由（2026-11-14 retro）。
+    const custom = existingCheckedText.get(key) ?? "";
+    const keepCustom = custom.length > 0 && !custom.startsWith(hit.text);
+    body.push(`- ${checked ? "[x]" : "[ ]"} ${key} — ${keepCustom ? custom : hit.text}${suffix}`);
   }
   body.push("");
   fs.writeFileSync(ackPath, body.join("\n"), "utf8");

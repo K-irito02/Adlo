@@ -186,3 +186,24 @@ test("ack template appends newly collected claims without losing checked ones", 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("ack template keeps the human-written evidence on an already-checked claim", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adl-review-snapshot-"));
+  const ackPath = join(dir, "claims-ack-rev7.md");
+  try {
+    // 2026-11-14 retro：重写模板曾把「证据：…」覆写成断言原文，审查方看不到放行理由
+    writeFileSync(
+      ackPath,
+      "# Claims ack — rev7\n\n- [x] src/a.ts:12 — 证据：deletion run made this assertion red first\n",
+    );
+    writeClaimAckTemplate(ackPath, 7, [
+      { file: "src/a.ts", line: 12, text: "// always" },
+      { file: "src/b.ts", line: 4, text: "// 3 个入口" },
+    ]);
+    const text = readFileSync(ackPath, "utf8");
+    assert.match(text, /\[x\] src\/a\.ts:12 — 证据：deletion run made this assertion red first/);
+    assert.doesNotMatch(text, /\[x\] src\/a\.ts:12 — \/\/ always\n/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
