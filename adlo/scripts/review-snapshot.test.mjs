@@ -169,6 +169,28 @@ test("ack template carries forward claims with identical text from a prior rev",
   }
 });
 
+test("ack template carries forward a checked key even when evidence text differs", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adl-review-snapshot-"));
+  const ackPath = join(dir, "claims-ack-rev9.md");
+  try {
+    // 2026-11-15 实测：上一 rev 勾选时写的是解释性证据（不是断言原文），
+    // 旧实现只比对证据文本 → identical claims 仍被重写为未勾选。
+    writeFileSync(
+      join(dir, "claims-ack-rev8.md"),
+      "# Claims ack — rev8\n\n- [x] src/a.ts:31 — 结构修复；该竞态无公共 API 可达路径，按注释记录\n",
+    );
+    writeClaimAckTemplate(ackPath, 9, [
+      { file: "src/a.ts", line: 31, text: "// always carries ownership" },
+    ]);
+    const text = readFileSync(ackPath, "utf8");
+    assert.match(text, /\[x\] src\/a\.ts:31/);
+    assert.match(text, /carried over/);
+    assert.match(text, /结构修复；该竞态无公共 API 可达路径/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("ack template appends newly collected claims without losing checked ones", () => {
   const dir = mkdtempSync(join(tmpdir(), "adl-review-snapshot-"));
   const ackPath = join(dir, "claims-ack-rev7.md");

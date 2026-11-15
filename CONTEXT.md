@@ -199,7 +199,7 @@ WebView2 的 `PreferredColorScheme` 在同一用户数据目录（UDF）会话�
 ### 浏览器 (Browser)
 内嵌 WebView（Tauri 模式）和 iframe（浏览器模式）面板，支持多标签页、书签、历史记录。网站元数据缓存（favicon data-URI + 标题）为三层架构：Tauri 端 `crates/browser/src/site_meta_cache.rs`（SQLite）、浏览器端 preview JSON 文件（`.adl-cache/`）、前端内存层 `siteMetaCache.ts`（唯一渲染真源）。
 
-书签是独立实体（`BookmarkEntry { id, url, title, addedAt, lastModifiedAt, sourceTabId? }`），落 `browserBookmarkSlice`（条目与全局索引）、`browserBookmarkFoldersSlice`（自建目录树，字段 `entries`）、`bookmarkTransferSlice`（批量导入）。树节点用 `tabId` 只表示活标签页、`bookmarkId` 表示书签条目（见 [ADR 0017](./docs/adr/0017-bookmark-transfer-and-identity.md)）。
+书签是独立实体（`BookmarkEntry { id, url, title, addedAt, lastModifiedAt, sourceTabId? }`），落 `browserBookmarkSlice`（条目与全局索引）、`browserBookmarkFoldersSlice`（自建目录树，字段 `entries`）、`bookmarkTransferSlice`（批量导入）。树节点用 `tabId` 只表示活标签页、`bookmarkId` 表示书签条目（见 [ADR 0017](./docs/adr/0017-bookmark-transfer-and-identity.md)）。收藏身份键 `bookmarkUrlKey`（协议 + 主机含端口 + 归一化 path/query）与 URL 级/条目级取消入口见该 ADR 决定 8。
 
 导入导出的实现落点：编解码纯函数 `app/features/bookmarks/bookmarkHtml.ts`，导出选择树 `collectExportTree.ts`，两个对话框与宿主 `BookmarkTransferDialogs.tsx`（挂在 `App.tsx`，菜单项只负责开关），落盘走通用能力 `shared/ipc/fileSave.ts`（Tauri `app_save_file` / dev 预览路由 `/file/save` / 浏览器 `Blob` 下载）。
 

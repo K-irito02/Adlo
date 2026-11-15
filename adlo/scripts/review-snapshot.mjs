@@ -280,6 +280,8 @@ export function writeClaimAckTemplate(ackPath, rev, hints) {
     }
   }
   const priorText = new Set();
+  const priorCheckedKeys = new Set();
+  const priorEvidence = new Map();
   const outDir = path.dirname(ackPath);
   try {
     for (const name of fs.readdirSync(outDir)) {
@@ -288,9 +290,17 @@ export function writeClaimAckTemplate(ackPath, rev, hints) {
         continue;
       }
       for (const line of fs.readFileSync(path.join(outDir, name), "utf8").split(/\r?\n/)) {
-        const m2 = /^-\s*\[(x| )\].*?—\s*(.+)$/.exec(line);
-        if (m2 && /x/i.test(m2[1])) {
-          priorText.add(m2[2].trim());
+        const m2 = /^-\s*\[(x| )\]\s+(\S+)(?:\s+—\s+(.+))?$/.exec(line);
+        if (!m2 || !/x/i.test(m2[1])) {
+          continue;
+        }
+        // 证据文本可能被人工改写成解释（如「删除性推演会变红」），不能只靠它
+        // 判断 carry；`file:line` 是 claims 的稳定键（行号漂移时仍由文本兜底）。
+        priorCheckedKeys.add(m2[2]);
+        if (m2[3]) {
+          const evidence = m2[3].trim();
+          priorText.add(evidence);
+          priorEvidence.set(m2[2], evidence);
         }
       }
     }
@@ -301,17 +311,18 @@ export function writeClaimAckTemplate(ackPath, rev, hints) {
   body.push(`# Claims ack — rev${rev}`);
   body.push("");
   body.push(
-    "派发审查前逐条自读：它与**最终代码**相符吗？能由某个测试或分支证明吗？不能就降级措辞或改成不写具体计数。跨 rev 同文案断言会自动沿用上一 rev 的勾选。",
+    "派发审查前逐条自读：它与**最终代码**相符吗？能由某个测试或分支证明吗？不能就降级措辞或改成不写具体计数。跨 rev 同 key 或同文案断言会自动沿用上一 rev 的勾选。",
   );
   body.push("");
   for (const hit of hints) {
     const key = claimKey(hit);
-    const carry = !existingChecked.has(key) && priorText.has(hit.text);
+    const carry =
+      !existingChecked.has(key) && (priorCheckedKeys.has(key) || priorText.has(hit.text));
     const checked = existingChecked.has(key) || carry;
     const suffix = checked && !existingChecked.has(key) ? "（carried over from previous rev）" : "";
     // 人工写下的证据优先于断言原文：脚本重写模板时曾把「- [x] file:line — 证据：…」
     // 覆写成断言原文，审查方因此看不到放行理由（2026-11-14 retro）。
-    const custom = existingCheckedText.get(key) ?? "";
+    const custom = existingCheckedText.get(key) ?? priorEvidence.get(key) ?? "";
     const keepCustom = custom.length > 0 && !custom.startsWith(hit.text);
     body.push(`- ${checked ? "[x]" : "[ ]"} ${key} — ${keepCustom ? custom : hit.text}${suffix}`);
   }

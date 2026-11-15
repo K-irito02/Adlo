@@ -10,6 +10,7 @@
  * Opt-out: put `no-new-any-allow` on the added line (rare; justify in review).
  *
  * Usage: `node scripts/check-no-new-any.mjs` (pre-commit; reads the staged diff)
+ *        `node scripts/check-no-new-any.mjs --base <ref>` (check:changed; worktree vs base)
  */
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -19,6 +20,23 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DIFF_PATHS = ["adlo/frontend/src/app/stores"];
 const BANNED = /\bas any\b|\bas unknown as\b/;
+
+function parseArgs(argv) {
+  let base = null;
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--base") {
+      base = argv[i + 1] ?? null;
+      i += 1;
+      if (!base) {
+        throw new Error("missing value for --base");
+      }
+    } else {
+      throw new Error(`unknown argument: ${arg}`);
+    }
+  }
+  return { base };
+}
 
 export function scanDiffText(diffText) {
   const violations = [];
@@ -42,22 +60,37 @@ export function scanDiffText(diffText) {
   return violations;
 }
 
-function stagedDiff() {
+function diffText(base) {
+  const args = base
+    ? ["-C", ROOT, "diff", base, "-U0", "--", ...DIFF_PATHS]
+    : ["-C", ROOT, "diff", "--cached", "-U0", "--", ...DIFF_PATHS];
   try {
-    return execFileSync("git", ["-C", ROOT, "diff", "--cached", "-U0", "--", ...DIFF_PATHS], {
+    return execFileSync("git", args, {
       encoding: "utf8",
       maxBuffer: 64 * 1024 * 1024,
     });
   } catch (error) {
-    console.error(`[check-no-new-any] failed to read staged diff: ${String(error)}`);
+    console.error(`[check-no-new-any] failed to read diff: ${String(error)}`);
     process.exit(1);
   }
 }
 
 function main() {
-  const violations = scanDiffText(stagedDiff());
+  let options;
+  try {
+    options = parseArgs(process.argv.slice(2));
+  } catch (error) {
+    console.error(`[check-no-new-any] ${String(error)}`);
+    console.error("usage: node scripts/check-no-new-any.mjs [--base <ref>]");
+    process.exit(1);
+  }
+  const violations = scanDiffText(diffText(options.base));
   if (violations.length === 0) {
-    console.log("[check-no-new-any] OK (no new type-erasing casts in store diff)");
+    console.log(
+      options.base
+        ? `[check-no-new-any] OK (no new type-erasing casts vs ${options.base})`
+        : "[check-no-new-any] OK (no new type-erasing casts in store diff)",
+    );
     return;
   }
   console.error(`[check-no-new-any] ${violations.length} new type-erasing cast(s):`);

@@ -1,4 +1,4 @@
-import { defineConfig, mergeConfig } from "vitest/config";
+import { defineConfig } from "vitest/config";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -27,6 +27,9 @@ export default defineConfig({
   resolve: testResolve,
   test: {
     pool: "forks",
+    // 全量 200+ 文件时默认并发会抢 CPU/磁盘，近阈值用例（5s 默认超时、预览服务
+    // 启动）会偶发超时（2026-11-15 实测两次，单跑均通过）。限制并发换稳定性。
+    maxWorkers: 4,
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
     // scripts/ 下是 node:test 风格的脚本单测（由根 test:scripts 经 node --test 运行），

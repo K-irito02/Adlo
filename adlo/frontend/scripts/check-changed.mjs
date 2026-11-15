@@ -19,13 +19,15 @@ import { isRustPath } from '../../scripts/check-rust-changed.mjs';
 const options = parseArgs(process.argv.slice(2));
 
 function parseArgs(argv) {
-  const parsed = { base: null, help: false, skipTests: false };
+  const parsed = { base: null, help: false, skipTests: false, fix: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') {
       parsed.help = true;
     } else if (arg === '--skip-tests') {
       parsed.skipTests = true;
+    } else if (arg === '--fix') {
+      parsed.fix = true;
     } else if (arg === '--base') {
       const value = argv[i + 1];
       if (value === undefined) {
@@ -41,7 +43,7 @@ function parseArgs(argv) {
 }
 
 if (options.help) {
-  console.log('usage: node scripts/check-changed.mjs [--base <ref>] [--skip-tests]');
+  console.log('usage: node scripts/check-changed.mjs [--base <ref>] [--skip-tests] [--fix]');
   process.exit(0);
 }
 
@@ -192,6 +194,27 @@ console.log(
   `[check:changed] base=${base} changed(frontend)=${changed.length} src=${srcChanges.length}`,
 );
 
+// `lint:changed:fix`：只修本轮改动文件，避免 `eslint . --fix` 顺手改写无关
+// 配置（2026-11-15 实测：仓库级 lint:fix 改写了 vite.config.ts，只能手工还原）。
+if (options.fix) {
+  if (lintable.length === 0) {
+    console.log('[check:changed] --fix: no lintable changed files');
+    process.exit(0);
+  }
+  if (lintable.length > 100) {
+    console.error(
+      '[check:changed] --fix refused: >100 changed lintable files; fix in batches or use the full lint:fix intentionally',
+    );
+    process.exit(1);
+  }
+  run(
+    `eslint --fix (${lintable.length} files)`,
+    `npx eslint --fix --no-warn-ignored ${lintable.map(quote).join(' ')}`,
+  );
+  console.log('[check:changed] fix done; rerun check:changed without --fix');
+  process.exit(0);
+}
+
 // 改动文件按「零 warning」收口：warning 不阻断时容易长期残留（本仓实测 Array<T>
 // 警告跨两轮门禁存活）。全量回退保留现状（vite.config 等既有 warning 不在本轮范围）。
 runFileList('eslint', 'npx eslint --max-warnings 0 --no-warn-ignored', lintable, 'npx eslint .');
@@ -219,6 +242,9 @@ run('dead code (changed files only)', 'node scripts/check-dead-code.mjs');
 
 run('typecheck', 'npx tsc --noEmit');
 run('typecheck (dev tooling)', 'npx tsc --noEmit -p dev/tsconfig.json');
+// 与 pre-commit 同一棘轮，提前到日常门禁：store 测试新增 `as any` 不再等到
+// 最后一次提交才暴露（2026-11-15 R2 实测 22 处）。
+run('store cast ratchet', `node ../scripts/check-no-new-any.mjs --base ${quote(base)}`);
 
 if (process.env.ADL_SKIP_RUST === '1') {
   console.log('[check:changed] rust skipped (ADL_SKIP_RUST=1)');

@@ -77,7 +77,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `pnpm --dir frontend run coverage` | 前端覆盖率收集 |
 | `pnpm --dir frontend run typecheck` | 前端类型检查 |
 | `pnpm --dir frontend run typecheck:dev` | 前端 dev 工具链类型检查（CI 门禁） |
-| `pnpm --dir frontend run lint` | 前端 Lint 检查（修复用 `lint:fix`） |
+| `pnpm --dir frontend run lint` | 前端 Lint 检查（**修复用 `lint:changed:fix`，只改本轮改动文件**；仓库级 `lint:fix` 仅用于显式全量清理，会改写无关配置） |
 | `pnpm --dir frontend run format:check` | 前端格式检查（修复用 `format`） |
 | `pnpm --dir frontend run check:i18n` | 前端 i18n 覆盖检查（CI 门禁） |
 | `pnpm --dir frontend run check:changed` | 受影响范围门禁（前端 + 自动带 Rust 受影响 crate 的 fmt/clippy/test） |

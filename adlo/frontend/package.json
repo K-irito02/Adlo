@@ -20,6 +20,7 @@
     "build:analyze": "BUILD_ANALYZE=true vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "lint:changed:fix": "node scripts/check-changed.mjs --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\" \"vite.config.ts\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\" \"vite.config.ts\"",
     "check:i18n": "tsx scripts/check-i18n-coverage.ts",

@@ -16,7 +16,7 @@
 
 ## 代码知识图谱
 
-`adlo/` 配置 CodeGraph 本地图谱（`adlo/.codegraph/`，SQLite；MCP 仅暴露 `codegraph_explore`）。查询、检索代码优先用图谱，不逐文件 grep/Read；技能见 [SKILLS.md](./SKILLS.md) 的 `codegraph-knowledge-graph`（符号查询 `maxFiles: 3`）。外部参考代码直接复用须标注 MIT 来源；渐进式源码索引见 [docs/analysis/adlo/](./docs/analysis/adlo/)。
+`adlo/` 配置 CodeGraph 本地图谱（`adlo/.codegraph/`，SQLite；MCP 仅暴露 `codegraph_explore`）。查询、检索代码优先用图谱，不逐文件 grep/Read；跨文件调用链/影响面（如「星标 → store → 树节点」）优先一次 `codegraph_explore` 拿到源码与调用路径，单文件细节再 Read；技能见 [SKILLS.md](./SKILLS.md) 的 `codegraph-knowledge-graph`（符号查询 `maxFiles: 3`）。外部参考代码直接复用须标注 MIT 来源；渐进式源码索引见 [docs/analysis/adlo/](./docs/analysis/adlo/)。
 
 ## 并行开发（多会话 / 多 agent）
 
