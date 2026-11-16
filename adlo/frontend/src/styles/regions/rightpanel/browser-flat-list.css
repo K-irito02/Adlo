@@ -78,6 +78,62 @@
   flex-shrink: 0;
 }
 
+/* 插入线 portal 到 body，固定在目标行边界：
+   - 不参与 `<ul>` 的 flex 布局，避免 1px gap 随落点移动造成抖动；
+   - z-index 高于抬起副本（9999），避免整行宽的 ghost 把线盖住。 */
+.adl-browser-tab-drop-line-overlay {
+  position: fixed;
+  z-index: 10000;
+  height: 2px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--adl-dnd-line) 12%,
+    var(--adl-dnd-line) 88%,
+    transparent 100%
+  );
+  box-shadow: 0 0 8px var(--adl-dnd-glow);
+}
+
+.adl-browser-pinned-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  margin: var(--space-1) var(--space-2);
+  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  list-style: none;
+}
+
+.adl-browser-pinned-divider::before,
+.adl-browser-pinned-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.adl-browser-tab-end {
+  height: var(--space-3);
+  list-style: none;
+}
+
+.adl-browser-entry__tree--flat .adl-filetree__item[data-tab-index] {
+  cursor: grab;
+}
+
+.adl-browser-entry__tree--flat .adl-filetree__item[data-tab-index]:active {
+  cursor: grabbing;
+}
+
+body.adl-browser-tab-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
 .adl-browser-entry__tree--flat .adl-filetree__label {
   flex: 1;
   min-width: 0;

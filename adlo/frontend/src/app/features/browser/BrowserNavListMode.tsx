@@ -9,6 +9,7 @@ export function BrowserNavListMode({
   visibleWorkspaces,
   browserTabs,
   browserBookmarkFolders,
+  browserBookmarkChildOrder,
   browserHistory,
   browserWorkspaceBookmarks,
   tabTreeExpanded,
@@ -41,6 +42,7 @@ export function BrowserNavListMode({
       workspaces={visibleWorkspaces}
       browserTabs={browserTabs}
       browserBookmarkFolders={browserBookmarkFolders}
+      browserBookmarkChildOrder={browserBookmarkChildOrder}
       browserHistory={browserHistory}
       browserWorkspaceBookmarks={browserWorkspaceBookmarks}
       tabTreeExpanded={tabTreeExpanded}

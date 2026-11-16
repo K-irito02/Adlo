@@ -184,6 +184,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
       emptyText={t.browserEmptyDirectory}
       actionButtonsSlot={actionButtonsSlot}
       entryMenuSlot={menuSlots.entryMenuSlot}
+      dataPath={node.path}
       hasChildren={node.children.length > 0}
     >
       <BrowserTreeEntryChildren

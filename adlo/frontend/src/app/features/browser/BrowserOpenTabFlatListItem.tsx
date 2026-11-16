@@ -12,22 +12,26 @@ import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 interface BrowserOpenTabFlatListItemProps {
   tab: BrowserTabState;
+  index: number;
   isActive: boolean;
   isEvicted: boolean;
   onSelectTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onRefreshTab?: (tabId: string, url: string) => void;
   onCopyTabLink?: (url: string) => void;
+  onPointerDown?: (event: React.PointerEvent<HTMLElement>, tabId: string, index: number) => void;
 }
 
 export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlatListItem({
   tab,
+  index,
   isActive,
   isEvicted,
   onSelectTab,
   onCloseTab,
   onRefreshTab,
   onCopyTabLink,
+  onPointerDown,
 }: BrowserOpenTabFlatListItemProps) {
   const { t } = useTCopy();
   const { moveTabToCenter } = useOpenInCenterAction();
@@ -37,7 +41,9 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
     <li
       className={`adl-filetree__item adl-filetree__node--file${isActive ? ' is-active' : ''}${isEvicted ? ' adl-filetree__item--evicted' : ''}`}
       data-path={`tab:${tab.id}`}
+      data-tab-index={index}
       role="treeitem"
+      onPointerDown={(event) => onPointerDown?.(event, tab.id, index)}
     >
       <div
         className="adl-filetree__row"

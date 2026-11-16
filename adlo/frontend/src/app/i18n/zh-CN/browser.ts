@@ -373,4 +373,5 @@ export const browserZh = {
   bookmarkImportNestedHintPrefix: '在该目录下新建嵌套子目录，请点击',
   bookmarkImportNestedHintSuffix: '。',
   bookmarkImportHintAriaLabel: '导入书签说明',
+  browserPinnedGroupLabel: '固定标签',
 } as const;

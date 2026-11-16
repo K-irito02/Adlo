@@ -9,6 +9,7 @@ export interface BrowserNavTabsModeProps {
   visibleWorkspaces: RecentWorkspaceEntry[];
   browserTabs: BrowserTabState[];
   browserBookmarkFolders: BookmarkFolder[];
+  browserBookmarkChildOrder: Record<string, string[]>;
   browserHistory: BrowserHistoryState[];
   browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>;
   tabTreeExpanded: Record<string, boolean>;
@@ -45,6 +46,7 @@ export function BrowserNavTabsMode({
   visibleWorkspaces,
   browserTabs,
   browserBookmarkFolders,
+  browserBookmarkChildOrder,
   browserHistory,
   browserWorkspaceBookmarks,
   tabTreeExpanded,
@@ -77,6 +79,7 @@ export function BrowserNavTabsMode({
       workspaces={visibleWorkspaces}
       browserTabs={browserTabs}
       browserBookmarkFolders={browserBookmarkFolders}
+      browserBookmarkChildOrder={browserBookmarkChildOrder}
       browserHistory={browserHistory}
       browserWorkspaceBookmarks={browserWorkspaceBookmarks}
       tabTreeExpanded={tabTreeExpanded}

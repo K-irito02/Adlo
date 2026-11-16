@@ -65,8 +65,8 @@ function makeFolder(
     entries: tabIds.map((id) => ({
       id,
       sourceTabId: id,
-      url: '',
-      title: '',
+      url: `https://${id}.example/`,
+      title: `Bookmark ${id}`,
       addedAt: 0,
       lastModifiedAt: 0,
     })),
@@ -212,41 +212,36 @@ describe('countDirectChildren (history tree)', () => {
 });
 
 describe('count rules per category type', () => {
-  it('workspace category: counts direct child tabs of each workspace (per current data shape)', () => {
-    const tabA = makeTab('t1', 'Tab 1', 'https://a.example', 'ws-1');
-    const tabB = makeTab('t2', 'Tab 2', 'https://b.example', 'ws-1');
-    const tabC = makeTab('t3', 'Tab 3', 'https://c.example', 'ws-1');
-    const tabD = makeTab('t4', 'Tab 4', 'https://d.example', 'ws-1');
+  it('workspace category: counts direct bookmark children, never live tabs', () => {
     const subFolder = makeFolder('f1', 'Sub', 'root', 'folder', ['t3', 't4']);
     const rootFolder = makeFolder('root', 'Root', 'ws-1', 'workspace', ['t1', 't2']);
+    const workspaceBookmark: BookmarkEntry = {
+      id: 'w1',
+      url: 'https://workspace.example/',
+      title: 'Workspace bookmark',
+      addedAt: 0,
+      lastModifiedAt: 0,
+    };
 
-    const tree = buildWorkspaceCategoryTree(
-      [workspace],
-      [tabA, tabB, tabC, tabD],
-      [rootFolder, subFolder],
-    );
+    const tree = buildWorkspaceCategoryTree([workspace], [rootFolder, subFolder], {
+      'ws-1': [workspaceBookmark],
+    });
 
     expect(tree).toHaveLength(1);
     const ws = tree[0];
-    // Per buildWorkspaceCategoryTree, all workspace tabs are direct children of the
-    // workspace node, alongside any workspace-root folders. So the workspace's
-    // direct file children = all 4 tabs.
-    expect(countDirectFileChildren(ws)).toBe(4);
+    expect(countDirectFileChildren(ws)).toBe(1);
+    expect(ws.children.some((node) => node.nodeType === 'tab')).toBe(false);
 
     const folderNode = ws.children.find((c) => c.path === 'folder:root');
     expect(folderNode).toBeDefined();
-    // Folder's direct file children = the 2 tabs assigned to that folder.
     expect(countDirectFileChildren(folderNode!)).toBe(2);
   });
 
-  it('user-folder category: counts only direct child tabs under each root folder', () => {
-    const tabA = makeTab('t1', 'Tab 1', 'https://a.example', 'ws-1');
-    const tabB = makeTab('t2', 'Tab 2', 'https://b.example', 'ws-1');
-    const tabC = makeTab('t3', 'Tab 3', 'https://c.example', 'ws-1');
+  it('user-folder category: counts only direct bookmark children under each root folder', () => {
     const subFolder = makeFolder('sub', 'Sub', 'root', 'folder', ['t3']);
     const rootFolder = makeFolder('root', 'Root', undefined, undefined, ['t1', 't2']);
 
-    const tree = buildUserFolderCategoryTree([rootFolder, subFolder], [tabA, tabB, tabC]);
+    const tree = buildUserFolderCategoryTree([rootFolder, subFolder], {});
 
     expect(tree).toHaveLength(1);
     const root = tree[0];
@@ -306,14 +301,14 @@ describe('count rules per category type', () => {
 
   it('category top-level count equals nodes.length (workspace)', () => {
     const ws2 = makeWorkspace('ws-2', 'Workspace 2', '/tmp/ws-2');
-    const tree = buildWorkspaceCategoryTree([workspace, ws2], [], []);
+    const tree = buildWorkspaceCategoryTree([workspace, ws2], [], {});
     expect(tree).toHaveLength(2);
   });
 
   it('category top-level count equals nodes.length (user folder)', () => {
     const folderA = makeFolder('a', 'Folder A', undefined, undefined, []);
     const folderB = makeFolder('b', 'Folder B', undefined, undefined, []);
-    const tree = buildUserFolderCategoryTree([folderA, folderB], []);
+    const tree = buildUserFolderCategoryTree([folderA, folderB], {});
     expect(tree).toHaveLength(2);
   });
 
@@ -398,7 +393,6 @@ describe('bookmark tree node title via resolveDisplayTitle (⑪)', () => {
     const tree = buildWorkspaceCategoryTree(
       [workspace],
       [],
-      [],
       { 'ws-1': bookmarks },
       (_title, url) => (url === 'https://a.com/' ? '真实标题' : ''),
     );
@@ -411,12 +405,8 @@ describe('bookmark tree node title via resolveDisplayTitle (⑪)', () => {
       { id: 'bm-tab', url: 'https://b.com/', title: '我的书签', addedAt: 0, lastModifiedAt: 0 },
     ];
     // resolver 持有真实标题决策（生产为 resolveSiteTitle）：非占位快照标题优先
-    const tree = buildWorkspaceCategoryTree(
-      [workspace],
-      [],
-      [],
-      { 'ws-1': bookmarks },
-      (title, url) => (url === 'https://b.com/' ? title || '服务端标题' : ''),
+    const tree = buildWorkspaceCategoryTree([workspace], [], { 'ws-1': bookmarks }, (title, url) =>
+      url === 'https://b.com/' ? title || '服务端标题' : '',
     );
     const bmNode = tree[0].children.find((c) => c.url === 'https://b.com/');
     expect(bmNode?.name).toBe('我的书签');
@@ -463,9 +453,7 @@ describe('audio indicator propagation across tree categories (事项 7)', () => 
     expect(leaf.isPlayingAudio).toBe(false);
   });
 
-  it('folder bookmark keeps playing state when the tab is still on the (normalized) URL', () => {
-    const tab = makeTab('t1', '视频', 'https://www.bilibili.com/video/BV1', 'ws-1');
-    tab.isPlayingAudio = true;
+  it('folder bookmark never shows playing state after live-tab decoupling', () => {
     const folder = makeFolder('root', 'Root', undefined, undefined);
     folder.entries = [
       {
@@ -477,16 +465,12 @@ describe('audio indicator propagation across tree categories (事项 7)', () => 
         lastModifiedAt: 0,
       },
     ];
-    const tree = buildUserFolderCategoryTree([folder], [tab]);
+    const tree = buildUserFolderCategoryTree([folder], {});
     const leaf = tree[0].children[0];
-    expect(leaf.isPlayingAudio).toBe(true);
+    expect(leaf.isPlayingAudio ?? false).toBe(false);
   });
 
-  it('workspace bookmark keeps playing state when the tab is still on the (normalized) URL', () => {
-    // tab 属于其它工作区（不属于 ws-1 的"已打开标签"）→ 走书签节点分支（tab 存在），
-    // 归一化 URL 匹配时保留音频状态。
-    const tab = makeTab('bm-tab', '视频', 'https://www.bilibili.com/video/BV1', 'other-ws');
-    tab.isPlayingAudio = true;
+  it('workspace bookmark never shows playing state after live-tab decoupling', () => {
     const bookmarks: BookmarkEntry[] = [
       {
         id: 'bm-entry',
@@ -497,8 +481,8 @@ describe('audio indicator propagation across tree categories (事项 7)', () => 
         lastModifiedAt: 0,
       },
     ];
-    const tree = buildWorkspaceCategoryTree([workspace], [tab], [], { 'ws-1': bookmarks });
+    const tree = buildWorkspaceCategoryTree([workspace], [], { 'ws-1': bookmarks });
     const bmNode = tree[0].children.find((c) => c.url === 'https://www.bilibili.com/video/BV1/');
-    expect(bmNode?.isPlayingAudio).toBe(true);
+    expect(bmNode?.isPlayingAudio ?? false).toBe(false);
   });
 });

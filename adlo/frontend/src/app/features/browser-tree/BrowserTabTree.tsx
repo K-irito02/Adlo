@@ -1,6 +1,8 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useBrowserTreeData } from './useBrowserTreeData';
 import { BrowserCategorySection } from './BrowserCategorySection';
+import { BrowserTreeDndOverlay } from './BrowserTreeDndOverlay';
+import { useBrowserTreeDnd } from './useBrowserTreeDnd';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import type { BrowserCategoryType } from './types';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
@@ -45,6 +47,7 @@ interface BrowserTabTreeProps {
   workspaces: RecentWorkspaceEntry[];
   browserTabs: BrowserTabState[];
   browserBookmarkFolders: BookmarkFolder[];
+  browserBookmarkChildOrder?: Record<string, string[]>;
   browserHistory: BrowserHistoryState[];
   browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>;
   tabTreeExpanded: Record<string, boolean>;
@@ -54,48 +57,13 @@ interface BrowserTabTreeProps {
   callbacks: BrowserTabTreeCallbacks;
   labels: BrowserCategoryLabels;
   browserViewMode?: 'tree' | 'list' | 'all';
-  onlyOpenTabs?: boolean;
-}
-
-function findWorkspaceBookmarkUrl(
-  bookmarks: Record<string, BookmarkEntry[]>,
-  uniqueKey: string,
-): string | undefined {
-  for (const [wsId, entries] of Object.entries(bookmarks)) {
-    for (const entry of entries) {
-      const encodedUrl = encodeURIComponent(entry.url);
-      if (!uniqueKey.endsWith(encodedUrl)) {
-        continue;
-      }
-      const candidates = [entry.id, entry.sourceTabId].filter(Boolean) as string[];
-      if (candidates.some((id) => uniqueKey === `ws-bookmark-${wsId}-${id}-${encodedUrl}`)) {
-        return entry.url;
-      }
-    }
-  }
-  return undefined;
-}
-
-function findFolderBookmarkUrl(folders: BookmarkFolder[], uniqueKey: string): string | undefined {
-  for (const folder of folders) {
-    for (const entry of folder.entries ?? []) {
-      const encodedUrl = encodeURIComponent(entry.url);
-      if (!uniqueKey.endsWith(encodedUrl)) {
-        continue;
-      }
-      const candidates = [entry.id, entry.sourceTabId].filter(Boolean) as string[];
-      if (candidates.some((id) => uniqueKey === `folder-${folder.id}-${id}-${encodedUrl}`)) {
-        return entry.url;
-      }
-    }
-  }
-  return undefined;
 }
 
 export function BrowserTabTree({
   workspaces,
   browserTabs,
   browserBookmarkFolders,
+  browserBookmarkChildOrder = {},
   browserHistory,
   browserWorkspaceBookmarks,
   tabTreeExpanded,
@@ -105,46 +73,21 @@ export function BrowserTabTree({
   callbacks,
   labels,
   browserViewMode,
-  onlyOpenTabs = false,
 }: BrowserTabTreeProps) {
   const categories = useBrowserTreeData(
     workspaces,
     browserTabs,
     browserBookmarkFolders,
+    browserBookmarkChildOrder,
     browserHistory,
     browserWorkspaceBookmarks,
     labels,
   );
 
-  const openTabIds = useMemo(
-    () => (onlyOpenTabs ? new Set(browserTabs.map((t) => t.id)) : undefined),
-    [onlyOpenTabs, browserTabs],
-  );
+  const dnd = useBrowserTreeDnd(categories);
 
   const handleOpenFile = useCallback(
     (nodePath: string) => {
-      if (nodePath.startsWith('tab:')) {
-        const rest = nodePath.slice('tab:'.length);
-        const lastColon = rest.lastIndexOf(':');
-        const uniqueKey = lastColon >= 0 ? rest.slice(0, lastColon) : '';
-        const tabId = lastColon >= 0 ? rest.slice(lastColon + 1) : rest;
-
-        if (uniqueKey.startsWith('ws-bookmark-') || uniqueKey.startsWith('folder-')) {
-          const bookmarkUrl = uniqueKey.startsWith('ws-bookmark-')
-            ? findWorkspaceBookmarkUrl(browserWorkspaceBookmarks, uniqueKey)
-            : findFolderBookmarkUrl(browserBookmarkFolders, uniqueKey);
-          if (bookmarkUrl) {
-            callbacks.onOpenTab(bookmarkUrl);
-            return;
-          }
-        }
-
-        const tab = browserTabs.find((t) => t.id === tabId);
-        if (tab) {
-          callbacks.onOpenTab(tab.url, tab.id);
-          return;
-        }
-      }
       if (nodePath.startsWith('bookmark:')) {
         const rest = nodePath.slice('bookmark:'.length);
         const parts = rest.split(':');
@@ -184,43 +127,41 @@ export function BrowserTabTree({
         }
       }
     },
-    [browserTabs, browserHistory, browserWorkspaceBookmarks, browserBookmarkFolders, callbacks],
+    [browserHistory, browserWorkspaceBookmarks, callbacks],
   );
 
   return (
-    <CustomScrollArea
-      shellClassName="adl-multitree adl-multitree--browser"
-      scrollClassName="adl-multitree-scroll"
-      scrollbarClassName="adl-multitree-scrollbar"
-      thumbClassName="adl-multitree-scrollbar__thumb"
-    >
-      <BrowserCategorySection
-        category={categories.workspaceCategory}
-        categoryType="workspace"
-        expandedPaths={tabTreeExpanded}
-        selectedTreePath={selectedTreePath}
-        onSelectTreePath={onSelectTreePath}
-        onTogglePath={onTogglePath}
-        onOpenFile={handleOpenFile}
-        callbacks={callbacks}
-        counts={categories.counts}
-        browserViewMode={browserViewMode}
-        filterTabIds={openTabIds}
-      />
-      <BrowserCategorySection
-        category={categories.userFolderCategory}
-        categoryType="userFolder"
-        expandedPaths={tabTreeExpanded}
-        selectedTreePath={selectedTreePath}
-        onSelectTreePath={onSelectTreePath}
-        onTogglePath={onTogglePath}
-        onOpenFile={handleOpenFile}
-        callbacks={callbacks}
-        counts={categories.counts}
-        browserViewMode={browserViewMode}
-        filterTabIds={openTabIds}
-      />
-      {!onlyOpenTabs && (
+    <div className="adl-browser-tree-dnd-root" {...dnd.handlers}>
+      <CustomScrollArea
+        shellClassName="adl-multitree adl-multitree--browser"
+        scrollClassName="adl-multitree-scroll"
+        scrollbarClassName="adl-multitree-scrollbar"
+        thumbClassName="adl-multitree-scrollbar__thumb"
+      >
+        <BrowserCategorySection
+          category={categories.workspaceCategory}
+          categoryType="workspace"
+          expandedPaths={tabTreeExpanded}
+          selectedTreePath={selectedTreePath}
+          onSelectTreePath={onSelectTreePath}
+          onTogglePath={onTogglePath}
+          onOpenFile={handleOpenFile}
+          callbacks={callbacks}
+          counts={categories.counts}
+          browserViewMode={browserViewMode}
+        />
+        <BrowserCategorySection
+          category={categories.userFolderCategory}
+          categoryType="userFolder"
+          expandedPaths={tabTreeExpanded}
+          selectedTreePath={selectedTreePath}
+          onSelectTreePath={onSelectTreePath}
+          onTogglePath={onTogglePath}
+          onOpenFile={handleOpenFile}
+          callbacks={callbacks}
+          counts={categories.counts}
+          browserViewMode={browserViewMode}
+        />
         <BrowserCategorySection
           category={categories.historyCategory}
           categoryType="history"
@@ -233,7 +174,8 @@ export function BrowserTabTree({
           counts={categories.counts}
           browserViewMode={browserViewMode}
         />
-      )}
-    </CustomScrollArea>
+      </CustomScrollArea>
+      <BrowserTreeDndOverlay indicator={dnd.indicator} />
+    </div>
   );
 }

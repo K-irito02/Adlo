@@ -9,11 +9,14 @@ import {
   computeDeleteAllBookmarksOutcome,
   computeDeleteOwnBookmarksOutcome,
 } from './browserFoldersDeletion';
+import { applyBookmarkMove } from './browserBookmarkOrder';
+import type { BookmarkMove, BookmarkMoveError } from './browserBookmarkOrder';
 
 export type { BookmarkEntry, BookmarkFolder, BookmarkFolderUpdate } from './browserFoldersTypes';
 
 export interface BrowserBookmarkFoldersSlice {
   browserBookmarkFolders: BookmarkFolder[];
+  browserBookmarkChildOrder: Record<string, string[]>;
   browserTabTreeExpanded: Record<string, boolean>;
 
   browserCreateBookmarkFolder: (
@@ -29,6 +32,9 @@ export interface BrowserBookmarkFoldersSlice {
   browserDeleteAllBookmarksInNode: (nodePath: string) => void;
   browserDeleteOwnBookmarksInNode: (nodePath: string) => void;
   browserClearAllFolderBookmarks: () => void;
+  browserMoveBookmarkNode: (
+    move: BookmarkMove,
+  ) => { ok: true } | { ok: false; error: BookmarkMoveError };
 }
 
 export const createBrowserBookmarkFoldersSlice = (
@@ -36,6 +42,7 @@ export const createBrowserBookmarkFoldersSlice = (
   _get: () => StoreState,
 ): BrowserBookmarkFoldersSlice => ({
   browserBookmarkFolders: [],
+  browserBookmarkChildOrder: {},
   browserTabTreeExpanded: {},
 
   browserCreateBookmarkFolder: async (
@@ -202,5 +209,29 @@ export const createBrowserBookmarkFoldersSlice = (
         browserWorkspaceBookmarks: nextWorkspaceBookmarks,
       };
     });
+  },
+
+  browserMoveBookmarkNode: (move) => {
+    const state = _get();
+    const result = applyBookmarkMove(
+      {
+        browserBookmarkFolders: state.browserBookmarkFolders,
+        browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
+        browserBookmarkChildOrder: state.browserBookmarkChildOrder,
+      },
+      move,
+    );
+    if (!result.ok) {
+      return { ok: false, error: result.error };
+    }
+    set({
+      browserBookmarkFolders: result.state.browserBookmarkFolders,
+      browserWorkspaceBookmarks: result.state.browserWorkspaceBookmarks,
+      browserBookmarkChildOrder: result.state.browserBookmarkChildOrder,
+    });
+    persist('adl:browser.bookmarkFolders', result.state.browserBookmarkFolders);
+    persist('adl:browser.workspaceBookmarks', result.state.browserWorkspaceBookmarks);
+    persist('adl:browser.bookmarkChildOrder', result.state.browserBookmarkChildOrder);
+    return { ok: true };
   },
 });

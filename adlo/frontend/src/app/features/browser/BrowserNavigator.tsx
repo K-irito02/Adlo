@@ -8,7 +8,7 @@ import {
   IconFoldVertical,
   IconUnfoldVertical,
 } from '@icons';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { ConfirmDialog } from '@components/ConfirmDialog';
@@ -24,6 +24,8 @@ import { useBrowserPanelActions } from './BrowserPanelActionsContext';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { mergePanelTabOrder } from './useOpenTabReorder';
 
 export function BrowserNavigator() {
   const [deleteBookmarksConfirmOpen, setDeleteBookmarksConfirmOpen] = useState(false);
@@ -88,6 +90,7 @@ export function BrowserNavigator() {
 
   const {
     browserBookmarks,
+    browserBookmarkChildOrder,
     browserHistory,
     browserWorkspaceBookmarks,
     setBrowserNavigatorWidth,
@@ -95,6 +98,7 @@ export function BrowserNavigator() {
   } = useAppStore(
     useShallow((state) => ({
       browserBookmarks: state.browserBookmarks,
+      browserBookmarkChildOrder: state.browserBookmarkChildOrder ?? {},
       browserHistory: state.browserHistory,
       browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
       setBrowserNavigatorWidth: state.setBrowserNavigatorWidth,
@@ -107,6 +111,11 @@ export function BrowserNavigator() {
     minWidth: 180,
     maxWidth: 300,
   });
+
+  const handleReorderPanelTabs = useCallback((orderedPanelTabs: BrowserTabState[]) => {
+    const state = useAppStore.getState();
+    state.browserReorderTabs(mergePanelTabOrder(state.browserTabs, orderedPanelTabs));
+  }, []);
 
   return (
     <aside className="adl-tool-navigator" aria-label={t.toolBrowser}>
@@ -255,12 +264,14 @@ export function BrowserNavigator() {
           onCloseTab={(tabId) => handleCloseTab(tabId)}
           onRefreshTab={handleRefreshTab}
           onCopyTabLink={handleCopyTabLink}
+          onReorderTabs={handleReorderPanelTabs}
         />
       ) : navigatorMode === 'tabs' ? (
         <BrowserNavTabsMode
           visibleWorkspaces={visibleWorkspaces as RecentWorkspaceEntry[]}
           browserTabs={browserTabs}
           browserBookmarkFolders={browserBookmarkFolders}
+          browserBookmarkChildOrder={browserBookmarkChildOrder}
           browserHistory={browserHistory}
           browserWorkspaceBookmarks={browserWorkspaceBookmarks}
           tabTreeExpanded={tabTreeExpanded}
@@ -302,6 +313,7 @@ export function BrowserNavigator() {
           visibleWorkspaces={visibleWorkspaces as RecentWorkspaceEntry[]}
           browserTabs={browserTabs}
           browserBookmarkFolders={browserBookmarkFolders}
+          browserBookmarkChildOrder={browserBookmarkChildOrder}
           browserHistory={browserHistory}
           browserWorkspaceBookmarks={browserWorkspaceBookmarks}
           tabTreeExpanded={tabTreeExpanded}

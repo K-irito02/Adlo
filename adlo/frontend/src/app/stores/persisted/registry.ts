@@ -698,6 +698,13 @@ export const registry = {
     scope: 'global',
     read: readObjectArray<BookmarkFolder>(isBookmarkFolder),
   }),
+  'adl:browser.bookmarkChildOrder': defineEntry<Record<string, string[]>>({
+    key: 'adl:browser.bookmarkChildOrder',
+    field: 'browserBookmarkChildOrder',
+    fallback: {},
+    scope: 'global',
+    read: readStringArrayRecord,
+  }),
   'adl:browser.tabTreeExpanded': defineEntry<Record<string, boolean>>({
     key: 'adl:browser.tabTreeExpanded',
     field: 'browserTabTreeExpanded',

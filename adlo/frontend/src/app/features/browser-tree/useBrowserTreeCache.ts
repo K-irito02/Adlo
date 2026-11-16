@@ -23,6 +23,7 @@ export interface UseBrowserTreeCacheInput {
   workspaces: RecentWorkspaceEntry[];
   browserTabs: BrowserTabState[];
   browserBookmarkFolders: BookmarkFolder[];
+  browserBookmarkChildOrder: Record<string, string[]>;
   browserHistory: BrowserHistoryState[];
   browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>;
   labels: {
@@ -52,6 +53,7 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
     workspaces,
     browserTabs,
     browserBookmarkFolders,
+    browserBookmarkChildOrder,
     browserHistory,
     browserWorkspaceBookmarks,
     labels,
@@ -76,15 +78,15 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
     () =>
       buildWorkspaceCategoryTree(
         workspaces,
-        browserTabs,
         browserBookmarkFolders,
         browserWorkspaceBookmarks,
         resolveTitle,
+        browserBookmarkChildOrder,
       ),
     [
       workspaces,
-      browserTabs,
       browserBookmarkFolders,
+      browserBookmarkChildOrder,
       browserWorkspaceBookmarks,
       resolveTitle,
       metaVersion,
@@ -100,8 +102,20 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
   );
 
   const userFolderNodes = useMemo(
-    () => buildUserFolderCategoryTree(browserBookmarkFolders, browserTabs, resolveTitle),
-    [browserBookmarkFolders, browserTabs, resolveTitle, metaVersion],
+    () =>
+      buildUserFolderCategoryTree(
+        browserBookmarkFolders,
+        browserWorkspaceBookmarks,
+        resolveTitle,
+        browserBookmarkChildOrder,
+      ),
+    [
+      browserBookmarkFolders,
+      browserBookmarkChildOrder,
+      browserWorkspaceBookmarks,
+      resolveTitle,
+      metaVersion,
+    ],
   );
 
   const userFolderCategory: BrowserCategoryState = useMemo(

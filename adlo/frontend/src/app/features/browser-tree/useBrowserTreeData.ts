@@ -6,6 +6,12 @@ import type {
   BrowserHistoryState,
 } from '@stores/slices/browserSlice';
 import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from './types';
+import {
+  CUSTOM_ROOT,
+  folderContainerKey,
+  resolveContainerChildren,
+  workspaceContainerKey,
+} from '@stores/slices/browserBookmarkOrder';
 import { bookmarkUrlKey, normalizeTabTitle } from '@utils/browserDisplayUtils';
 import { useBrowserTreeCache } from './useBrowserTreeCache';
 import { useBrowserTreeVirtualization } from './useBrowserTreeVirtualization';
@@ -39,26 +45,6 @@ export function resolveChildCount(
     return null;
   }
   return counts.get(childNode.path) ?? 0;
-}
-
-function buildTabNode(
-  tab: BrowserTabState,
-  workspaceId: string,
-  uniqueKey: string,
-  resolveTitle: (title: string, url: string) => string,
-): BrowserTreeNode {
-  return {
-    path: `tab:${uniqueKey}:${tab.id}`,
-    name: resolveTitle(tab.title, tab.url),
-    kind: 'file',
-    children: [],
-    nodeType: 'tab',
-    tabId: tab.id,
-    url: tab.url,
-    workspaceId,
-    isPlayingAudio: tab.isPlayingAudio,
-    isAudioMuted: tab.isAudioMuted,
-  };
 }
 
 function buildHistoryLeafNode(
@@ -108,79 +94,80 @@ function buildHistoryLeafNode(
   };
 }
 
+function buildBookmarkEntryNode(
+  entry: BookmarkEntry,
+  workspaceId: string,
+  path: string,
+  resolveTitle: (title: string, url: string) => string,
+): BrowserTreeNode | null {
+  if (!entry.id || !entry.url) {
+    return null;
+  }
+  const node: BrowserTreeNode = {
+    path,
+    name: resolveTitle(entry.title, entry.url),
+    kind: 'file',
+    children: [],
+    nodeType: 'bookmark',
+    bookmarkId: entry.id,
+    url: entry.url,
+    workspaceId,
+    isSavedBookmark: true,
+  };
+  if (entry.iconUri) {
+    node.iconUri = entry.iconUri;
+  }
+  return node;
+}
+
 function buildFolderNode(
   folder: BookmarkFolder,
   allFolders: BookmarkFolder[],
-  browserTabs: BrowserTabState[],
+  workspaceBookmarks: Record<string, BookmarkEntry[]>,
+  order: Record<string, string[]>,
   resolveTitle: (title: string, url: string) => string = () => '',
   parentWorkspaceId?: string,
 ): BrowserTreeNode {
-  const childFolders = allFolders.filter(
-    (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder'),
-  );
-  const entryChildren: BrowserTreeNode[] = (folder.entries ?? [])
-    .map((entry) => {
-      const tab = entry.sourceTabId
-        ? browserTabs.find((t) => t.id === entry.sourceTabId)
-        : undefined;
-      const displayUrl = entry.url || tab?.url || '';
-      if (!displayUrl) {
+  const children = resolveContainerChildren(
+    {
+      browserBookmarkFolders: allFolders,
+      browserWorkspaceBookmarks: workspaceBookmarks,
+      browserBookmarkChildOrder: order,
+    },
+    folderContainerKey(folder.id),
+  )
+    .map((child) => {
+      if (child.kind === 'folder') {
+        const childFolder = allFolders.find((item) => item.id === child.id);
+        return childFolder
+          ? buildFolderNode(
+              childFolder,
+              allFolders,
+              workspaceBookmarks,
+              order,
+              resolveTitle,
+              parentWorkspaceId,
+            )
+          : null;
+      }
+      const entry = (folder.entries ?? []).find((item) => item.id === child.id);
+      if (!entry) {
         return null;
       }
-
-      if (!tab) {
-        const node: BrowserTreeNode = {
-          path: `bookmark:${entry.id}::${encodeURIComponent(displayUrl)}`,
-          name: resolveTitle(entry.title, displayUrl),
-          kind: 'file',
-          children: [],
-          nodeType: 'bookmark',
-          bookmarkId: entry.id,
-          url: displayUrl,
-          workspaceId: parentWorkspaceId || '',
-          isPlayingAudio: false,
-          isAudioMuted: false,
-          isSavedBookmark: true,
-        };
-        if (entry.iconUri) {
-          node.iconUri = entry.iconUri;
-        }
-        return node;
-      }
-
-      const node = buildTabNode(
-        tab,
-        tab.workspaceId,
-        `folder-${folder.id}-${tab.id}-${encodeURIComponent(displayUrl)}`,
+      return buildBookmarkEntryNode(
+        entry,
+        parentWorkspaceId || '',
+        `bookmark:${entry.id}::${encodeURIComponent(entry.url)}`,
         resolveTitle,
       );
-      node.isSavedBookmark = true;
-      node.bookmarkId = entry.id;
-      if (entry.iconUri) {
-        node.iconUri = entry.iconUri;
-      }
-      // 使用书签条目自己的快照，保留收藏时的原始 URL/标题
-      node.name = resolveTitle(entry.title || tab.title || '', displayUrl);
-      node.url = displayUrl;
-      // 收藏条目：仅在标签仍在收藏的 URL（归一化匹配，剥离跟踪参数/尾斜杠/www）上
-      // 时才保留音频状态——URL 变体不丢失音量图标（2026-08-21 事项 7）。
-      if (bookmarkUrlKey(tab.url) !== bookmarkUrlKey(displayUrl)) {
-        node.isPlayingAudio = false;
-        node.isAudioMuted = false;
-      }
-      return node;
     })
     .filter(Boolean) as BrowserTreeNode[];
-
-  const folderChildren: BrowserTreeNode[] = childFolders.map((child) =>
-    buildFolderNode(child, allFolders, browserTabs, resolveTitle, parentWorkspaceId),
-  );
 
   return {
     path: `folder:${folder.id}`,
     name: folder.name,
     kind: 'directory',
-    children: [...entryChildren, ...folderChildren],
+    children,
     nodeType: 'folder',
     folderId: folder.id,
     workspaceId: parentWorkspaceId,
@@ -189,87 +176,45 @@ function buildFolderNode(
 
 export function buildWorkspaceCategoryTree(
   workspaces: RecentWorkspaceEntry[],
-  browserTabs: BrowserTabState[],
   tabFolders: BookmarkFolder[],
   workspaceBookmarks: Record<string, BookmarkEntry[]> = {},
   resolveTitle: (title: string, url: string) => string = () => '',
+  order: Record<string, string[]> = {},
 ): BrowserTreeNode[] {
   return workspaces.map((ws) => {
-    const wsTabs = browserTabs.filter((t) => t.workspaceId === ws.id);
-    const tabNodes: BrowserTreeNode[] = wsTabs.map((tab) =>
-      buildTabNode(tab, ws.id, `ws-${ws.id}-${tab.id}`, resolveTitle),
-    );
-
-    // 添加工作区级别的书签标签（使用快照数据）
-    const bookmarkedEntries = workspaceBookmarks[ws.id] || [];
-    const bookmarkNodes: BrowserTreeNode[] = bookmarkedEntries
-      .map((entry) => {
-        if (!entry || !entry.id || !entry.url) {
+    const children = resolveContainerChildren(
+      {
+        browserBookmarkFolders: tabFolders,
+        browserWorkspaceBookmarks: workspaceBookmarks,
+        browserBookmarkChildOrder: order,
+      },
+      workspaceContainerKey(ws.id),
+    )
+      .map((child) => {
+        if (child.kind === 'folder') {
+          const folder = tabFolders.find((item) => item.id === child.id);
+          return folder
+            ? buildFolderNode(folder, tabFolders, workspaceBookmarks, order, resolveTitle, ws.id)
+            : null;
+        }
+        const entry = (workspaceBookmarks[ws.id] ?? []).find((item) => item.id === child.id);
+        if (!entry) {
           return null;
         }
-        // 已有同源活标签页时，由 tabNodes 呈现，避免重复
-        const tab = entry.sourceTabId
-          ? browserTabs.find((t) => t.id === entry.sourceTabId)
-          : undefined;
-        if (tab && wsTabs.some((t) => t.id === tab.id)) {
-          return null;
-        }
-
-        const snapshotUrl = entry.url;
-        const snapshotTitle = entry.title || '';
-
-        let node: BrowserTreeNode;
-        if (tab) {
-          node = buildTabNode(
-            tab,
-            ws.id,
-            `ws-bookmark-${ws.id}-${entry.id}-${encodeURIComponent(snapshotUrl)}`,
-            resolveTitle,
-          );
-          node.name = resolveTitle(snapshotTitle, snapshotUrl);
-          node.url = snapshotUrl;
-        } else {
-          node = {
-            path: `bookmark:${ws.id}:${entry.id}:${encodeURIComponent(snapshotUrl)}`,
-            name: resolveTitle(snapshotTitle, snapshotUrl),
-            kind: 'file' as const,
-            children: [],
-            nodeType: 'bookmark' as const,
-            bookmarkId: entry.id,
-            url: snapshotUrl,
-            workspaceId: ws.id,
-            isPlayingAudio: false,
-            isAudioMuted: false,
-          };
-        }
-        // 收藏条目：标签仍在该快照 URL（归一化匹配）上时保留音频状态（音量图标），
-        // 否则清除——URL 变体不丢失图标（2026-08-21 事项 7：此前"始终清除"导致
-        // 书签/收藏目录不显示音量图标）。
-        const keepAudio = Boolean(
-          tab && snapshotUrl && bookmarkUrlKey(tab.url) === bookmarkUrlKey(snapshotUrl),
+        return buildBookmarkEntryNode(
+          entry,
+          ws.id,
+          `bookmark:${ws.id}:${entry.id}:${encodeURIComponent(entry.url)}`,
+          resolveTitle,
         );
-        node.isPlayingAudio = keepAudio ? tab!.isPlayingAudio : false;
-        node.isAudioMuted = keepAudio ? tab!.isAudioMuted : false;
-        node.isSavedBookmark = true;
-        if (entry.iconUri) {
-          node.iconUri = entry.iconUri;
-        }
-        return node;
       })
       .filter(Boolean) as BrowserTreeNode[];
-
-    const wsRootFolders = tabFolders.filter(
-      (f) => f.parentType === 'workspace' && f.parentId === ws.id,
-    );
-    const folderNodes: BrowserTreeNode[] = wsRootFolders.map((folder) =>
-      buildFolderNode(folder, tabFolders, browserTabs, resolveTitle, ws.id),
-    );
 
     return {
       path: `workspace:${ws.id}`,
       name: ws.name || ws.path,
       kind: 'directory',
-      children: [...tabNodes, ...bookmarkNodes, ...folderNodes],
+      children,
       nodeType: 'workspace',
       workspaceId: ws.id,
     };
@@ -278,13 +223,28 @@ export function buildWorkspaceCategoryTree(
 
 export function buildUserFolderCategoryTree(
   tabFolders: BookmarkFolder[],
-  browserTabs: BrowserTabState[],
+  workspaceBookmarks: Record<string, BookmarkEntry[]>,
   resolveTitle: (title: string, url: string) => string = () => '',
+  order: Record<string, string[]> = {},
 ): BrowserTreeNode[] {
-  const rootFolders = tabFolders.filter((f) => !f.parentId);
-  return rootFolders.map((folder) =>
-    buildFolderNode(folder, tabFolders, browserTabs, resolveTitle),
-  );
+  return resolveContainerChildren(
+    {
+      browserBookmarkFolders: tabFolders,
+      browserWorkspaceBookmarks: workspaceBookmarks,
+      browserBookmarkChildOrder: order,
+    },
+    CUSTOM_ROOT,
+  )
+    .map((child) => {
+      if (child.kind !== 'folder') {
+        return null;
+      }
+      const folder = tabFolders.find((item) => item.id === child.id);
+      return folder
+        ? buildFolderNode(folder, tabFolders, workspaceBookmarks, order, resolveTitle)
+        : null;
+    })
+    .filter(Boolean) as BrowserTreeNode[];
 }
 
 export function buildHistoryCategoryTree(
@@ -382,6 +342,7 @@ export function useBrowserTreeData(
   workspaces: RecentWorkspaceEntry[],
   browserTabs: BrowserTabState[],
   browserBookmarkFolders: BookmarkFolder[],
+  browserBookmarkChildOrder: Record<string, string[]>,
   browserHistory: BrowserHistoryState[],
   browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>,
   labels: {
@@ -408,6 +369,7 @@ export function useBrowserTreeData(
     workspaces,
     browserTabs,
     browserBookmarkFolders,
+    browserBookmarkChildOrder,
     browserHistory,
     browserWorkspaceBookmarks,
     labels,

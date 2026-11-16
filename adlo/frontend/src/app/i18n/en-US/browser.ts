@@ -388,4 +388,5 @@ export const browserEn = {
   bookmarkImportNestedHintPrefix: 'To nest a subfolder under it, click',
   bookmarkImportNestedHintSuffix: 'here.',
   bookmarkImportHintAriaLabel: 'Bookmarks import guide',
+  browserPinnedGroupLabel: 'Pinned',
 } as const;

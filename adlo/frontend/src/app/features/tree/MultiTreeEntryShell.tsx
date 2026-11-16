@@ -41,6 +41,9 @@ export interface MultiTreeEntryShellProps {
   /** The entry-level portal context menu (createPortal node, rendered between header and children) */
   entryMenuSlot?: React.ReactNode;
 
+  /** Optional path used by browser-tree drag & drop event delegation. */
+  dataPath?: string;
+
   /** Whether this node has children (controls empty state display) */
   hasChildren: boolean;
 
@@ -75,12 +78,13 @@ export const MultiTreeEntryShell = React.memo(function MultiTreeEntryShell({
   emptyText,
   actionButtonsSlot,
   entryMenuSlot,
+  dataPath,
   hasChildren,
   children,
   extraContent,
 }: MultiTreeEntryShellProps) {
   return (
-    <div className="adl-browser-entry">
+    <div className="adl-browser-entry" data-path={dataPath}>
       <div
         className={`adl-browser-entry__header${isSelected ? ' is-selected' : ''}`}
         onClick={onHeaderClick}

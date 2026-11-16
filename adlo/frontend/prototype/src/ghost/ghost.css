@@ -1,0 +1,120 @@
+/* PROTOTYPE ONLY — 抬起副本（drag ghost）四种抬升处理。
+   复用 feedback.css 的树/行样式；这里只定义副本的表面与阴影。 */
+
+body.ghost-proto {
+  --ghost-bg: #202020;
+  --ghost-border: rgba(255, 255, 255, 0.14);
+  --ghost-soft: rgba(0, 0, 0, 0.2);
+  --ghost-mid: rgba(0, 0, 0, 0.32);
+  --ghost-far: rgba(0, 0, 0, 0.22);
+  --ghost-glass-bg: rgba(32, 32, 32, 0.78);
+  --ghost-glass-border: rgba(255, 255, 255, 0.18);
+}
+
+[data-theme='light'] body.ghost-proto {
+  --ghost-bg: #ffffff;
+  --ghost-border: rgba(0, 0, 0, 0.12);
+  --ghost-soft: rgba(0, 0, 0, 0.08);
+  --ghost-mid: rgba(0, 0, 0, 0.14);
+  --ghost-far: rgba(0, 0, 0, 0.1);
+  --ghost-glass-bg: rgba(255, 255, 255, 0.78);
+  --ghost-glass-border: rgba(0, 0, 0, 0.1);
+}
+
+.ghost-lift,
+.ghost-sample {
+  /* 与生产一致：保留近直角（--radius-sm = 2px），不做更圆的卡片。 */
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--ghost-bg);
+  will-change: transform;
+}
+
+.ghost-lift {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* A · 现状：边框 + 双层阴影 + 2% 放大 */
+.ghost-variant-A {
+  background: var(--ghost-bg);
+  border: 1px solid var(--ghost-border);
+  box-shadow:
+    0 8px 24px var(--ghost-mid),
+    0 2px 6px var(--ghost-soft);
+  transform: scale(1.02);
+  opacity: 0.97;
+}
+
+/* B · 纸张：无边框 + 三层阴影 + 上浮 2px + 3% 放大 */
+.ghost-variant-B {
+  background: var(--ghost-bg);
+  border: 1px solid transparent;
+  box-shadow:
+    0 2px 4px var(--ghost-soft),
+    0 12px 28px var(--ghost-mid),
+    0 28px 56px var(--ghost-far);
+  transform: translateY(-2px) scale(1.03);
+  opacity: 1;
+}
+
+/* C · 玻璃：半透明 + backdrop blur + 内高光描边 */
+.ghost-variant-C {
+  background: var(--ghost-glass-bg);
+  border: 1px solid var(--ghost-glass-border);
+  box-shadow: 0 12px 32px var(--ghost-mid);
+  -webkit-backdrop-filter: blur(12px) saturate(1.08);
+  backdrop-filter: blur(12px) saturate(1.08);
+  transform: scale(1.025);
+  opacity: 1;
+}
+
+/* D · 拿起：深阴影 + 上浮 3px + 微倾 + 3.5% 放大 */
+.ghost-variant-D {
+  background: var(--ghost-bg);
+  border: 1px solid var(--ghost-border);
+  box-shadow:
+    0 4px 10px var(--ghost-soft),
+    0 18px 44px var(--ghost-mid),
+    0 30px 64px var(--ghost-far);
+  transform: translateY(-3px) rotate(-0.8deg) scale(1.035);
+  transform-origin: 18% 50%;
+  opacity: 1;
+}
+
+/* ---------- 静态对照 ---------- */
+
+.ghost-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.ghost-preview__label {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.ghost-preview__label + .ghost-preview__label,
+.ghost-sample {
+  margin-top: 4px;
+}
+
+.ghost-preview__source,
+.ghost-sample {
+  width: 260px;
+}
+
+.ghost-preview__source {
+  cursor: default;
+}
+
+.ghost-sample {
+  cursor: default;
+  pointer-events: none;
+}

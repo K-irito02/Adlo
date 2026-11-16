@@ -12,6 +12,8 @@ import { createBrowserSearchEnginesSlice } from '../browserSearchEnginesSlice';
 import { createBrowserBookmarkSlice } from '../browserBookmarkSlice';
 import { createBrowserSlice } from '../browserSlice';
 import { createUIWidthSlice } from '../uiSliceWidths';
+import { entryItemKey, folderContainerKey } from '../browserBookmarkOrder';
+import type { BookmarkFolder } from '../browserTypes';
 
 type SetFn = (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void;
 
@@ -82,6 +84,47 @@ describe('browser panel persistence — write → simulated restart → read bac
     // 跨键：activeTabId 与 tabs 一起还原，且 tabsById 由 tabs 派生
     expect(patch.browserActiveTabId).toBe(tabId);
     expect(Object.keys(patch.browserTabsById as Record<string, unknown>)).toEqual([tabId]);
+  });
+
+  it('persists bookmark child order across restart', async () => {
+    const get = createBrowserStore();
+    await get().browserCreateBookmarkFolder('A');
+    await get().browserCreateBookmarkFolder('B');
+    const [folderA, folderB] = get().browserBookmarkFolders;
+    const created = get().browserCreateBookmarkEntry({
+      url: 'https://order.test',
+      title: 'Order test',
+      folderId: folderA.id,
+    });
+    expect(created.ok).toBe(true);
+    const entry = get().browserBookmarkFolders.find((folder) => folder.id === folderA.id)
+      ?.entries?.[0];
+    expect(entry).toBeTruthy();
+
+    const moved = get().browserMoveBookmarkNode({
+      kind: 'bookmark',
+      id: entry!.id,
+      target: { kind: 'into', container: folderContainerKey(folderB.id) },
+    });
+    expect(moved).toEqual({ ok: true });
+    expect(
+      get()
+        .browserBookmarkFolders.find((folder) => folder.id === folderB.id)
+        ?.entries?.map((item) => item.id),
+    ).toEqual([entry!.id]);
+
+    flushCrossSliceWrites();
+    const patch = restart();
+    expect(patch.browserBookmarkChildOrder).toMatchObject({
+      [folderContainerKey(folderB.id)]: [entryItemKey(entry!.id)],
+    });
+    const folders = patch.browserBookmarkFolders as BookmarkFolder[];
+    expect(
+      folders.find((folder) => folder.id === folderB.id)?.entries?.map((item) => item.id),
+    ).toEqual([entry!.id]);
+    expect(localStorage.getItem('adl:browser.bookmarkChildOrder')).toContain(
+      entryItemKey(entry!.id),
+    );
   });
 
   it('persists dsh-URL tabs across restart (dsh tabs are ordinary tabs)', () => {

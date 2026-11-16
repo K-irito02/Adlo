@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Prototype · 浏览器面板拖拽</title>
+    <script>
+      // 与 index.html 同源的初始主题解析，避免切页闪白/闪黑。
+      var html = document.documentElement;
+      var cachedMode = null;
+      var cachedResolved = null;
+      try {
+        cachedMode = localStorage.getItem('adl-theme-mode');
+        cachedResolved = localStorage.getItem('adl-resolved-theme');
+      } catch (e) {}
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var resolved;
+      if (cachedResolved === 'dark' || cachedResolved === 'light') {
+        resolved = cachedResolved;
+      } else if (cachedMode === 'light' || cachedMode === 'dark') {
+        resolved = cachedMode;
+      } else {
+        resolved = prefersDark ? 'dark' : 'light';
+      }
+      html.dataset.theme = resolved;
+      html.style.colorScheme = resolved;
+      html.classList.toggle('dark', resolved === 'dark');
+    </script>
+  </head>
+  <body>
+    <div id="prototype-root"></div>
+    <script type="module" src="/prototype/src/main.tsx"></script>
+  </body>
+</html>

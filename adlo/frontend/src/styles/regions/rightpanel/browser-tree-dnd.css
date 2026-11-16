@@ -1,0 +1,106 @@
+/* 书签树拖拽：中性落点反馈 + 原样抬起副本；不使用虚线框或文字提示。 */
+
+/* 落点反馈与副本的中性色：暗色主题用白，亮色主题用黑。
+   放在 body 上，确保 portal 到 body 的 overlay / ghost 都能继承。 */
+body {
+  --adl-dnd-into: rgba(0, 0, 0, 0.12);
+  --adl-dnd-line: rgba(0, 0, 0, 0.78);
+  --adl-dnd-glow: rgba(0, 0, 0, 0.12);
+  --adl-dnd-lift-bg: #ffffff;
+  --adl-dnd-lift-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.08), 0 12px 28px rgba(0, 0, 0, 0.14), 0 28px 56px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] body {
+  --adl-dnd-into: rgba(255, 255, 255, 0.16);
+  --adl-dnd-line: rgba(255, 255, 255, 0.84);
+  --adl-dnd-glow: rgba(255, 255, 255, 0.2);
+  --adl-dnd-lift-bg: #202020;
+  --adl-dnd-lift-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.2), 0 12px 28px rgba(0, 0, 0, 0.32), 0 28px 56px rgba(0, 0, 0, 0.22);
+}
+
+.adl-browser-tree-dnd-root {
+  display: contents;
+}
+
+.adl-browser-tree-dnd-root [data-path^='folder:'],
+.adl-browser-tree-dnd-root [data-path^='bookmark:'] {
+  cursor: grab;
+}
+
+.adl-browser-tree-dnd-root [data-path^='folder:']:active,
+.adl-browser-tree-dnd-root [data-path^='bookmark:']:active {
+  cursor: grabbing;
+}
+
+body.adl-browser-dnd-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* 拖拽落在无效区域（含历史目录）时，所有可命中的行/标题/按钮统一显示禁用光标。
+   行内部件各自声明了 cursor（header/default，namezone/按钮/pointer），
+   因此逐一覆盖而不是依赖继承。 */
+body.adl-browser-dnd-not-allowed,
+body.adl-browser-dnd-not-allowed .adl-browser-tree-dnd-root [data-path],
+body.adl-browser-dnd-not-allowed .adl-browser-tree-dnd-root .adl-browser-entry__header,
+body.adl-browser-dnd-not-allowed .adl-browser-tree-dnd-root .adl-browser-entry__namezone,
+body.adl-browser-dnd-not-allowed .adl-browser-tree-dnd-root button,
+body.adl-browser-dnd-not-allowed .adl-browser-tree-dnd-root .adl-browser-category,
+body.adl-browser-dnd-not-allowed .adl-browser-tree-dnd-root .adl-browser-category__label,
+body.adl-browser-dnd-not-allowed .adl-browser-tree-dnd-root .adl-browser-category__empty,
+body.adl-browser-dnd-not-allowed .adl-browser-entry__tree--flat [data-tab-index],
+body.adl-browser-dnd-not-allowed .adl-browser-entry__tree--flat .adl-filetree__row,
+body.adl-browser-dnd-not-allowed .adl-browser-entry__tree--flat button {
+  cursor: not-allowed;
+}
+
+.adl-browser-dnd-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.adl-browser-dnd-insert-line,
+.adl-browser-dnd-into,
+.adl-browser-dnd-new-root {
+  position: absolute;
+}
+
+.adl-browser-dnd-insert-line {
+  /* 高于抬起副本（9999），确保插入线不会被整行宽的 ghost 盖住。 */
+  z-index: 10000;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--adl-dnd-line) 12%,
+    var(--adl-dnd-line) 88%,
+    transparent 100%
+  );
+  box-shadow: 0 0 8px var(--adl-dnd-glow);
+}
+
+.adl-browser-dnd-into,
+.adl-browser-dnd-new-root {
+  /* 低于抬起副本：高亮只作为底色，不应染到 ghost 上。 */
+  z-index: 9997;
+  border-radius: var(--radius-sm);
+  background: var(--adl-dnd-into);
+}
+
+/* B · 纸张厚阴影：无边框、三层阴影、上浮 2px；圆角保持近直角的 --radius-sm。 */
+.adl-browser-dnd-lift {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  overflow: hidden;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--adl-dnd-lift-bg);
+  box-shadow: var(--adl-dnd-lift-shadow);
+  transform: translateY(-2px) scale(1.03);
+  transform-origin: center;
+}
