@@ -38,7 +38,7 @@ Browser 模式 (iframe):
 - 淘汰标签：favicon 60% 透明度，标题 45% 透明度，无灰度滤镜
 - 当前标签高亮：`.adl-filetree__item.is-active > .adl-filetree__row { background: var(--bg-hover) }`
 - 点击淘汰标签：`OrbitalLoader` 转子动画（Loading 时），WebView 创建后恢复
-- `BrowserTabBar.tsx` 是死代码，从未被渲染。实际标签列表由 `BrowserNavigator.tsx` 中的 `OpenTabFlatList` 渲染。
+- `BrowserTabBar.tsx` 已于 2026-11-17 删除；实际标签列表由 `BrowserNavigator.tsx` 中的 `OpenTabFlatList` 渲染。
 
 ## 数据流
 
@@ -68,5 +68,5 @@ Browser 模式 (iframe):
 
 - 池大小默认 6（Tauri 模式），iframe LRU 大小默认 5（Browser 模式）
 - 被淘汰标签的 WebView 被销毁（`webview.close()`），不是冻结
-- `BrowserTabBar.tsx` 是废弃组件，不要使用
+- `BrowserTabBar.tsx` 已删除（2026-11-17），不要重新引入
 - `evictedTabIds` 在多处使用（Tauri pool + iframe LRU），修改需同步更新 `BrowserPanelContent.tsx` 的 `mergedEvictedTabIds`

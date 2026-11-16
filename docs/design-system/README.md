@@ -26,6 +26,7 @@ docs/design-system/
 ├── action-flash-triad.md    # Action flash triad pattern
 ├── allowlist-manage-dropdown.md  # Allowlist manage dropdown pattern
 ├── button-loading-overlay.md     # Button loading overlay pattern
+├── drag-drop-feedback.md         # Drag drop feedback & lifted copy pattern
 ├── foundations/             # Core design primitives
 │   ├── README.md
 │   ├── tokens.md            # Design tokens (spacing/typography/radius/shadow/...)

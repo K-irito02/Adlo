@@ -207,7 +207,6 @@ features/browser/
 ├── BrowserContextMenu.tsx    # 浏览器右键菜单组件
 ├── BrowserSearchOverlay.tsx  # 搜索覆盖层
 ├── BrowserToolbar.tsx        # 浏览器工具栏组件
-├── BrowserTabBar.tsx         # 标签页栏
 ├── BrowserMenuDropdown.tsx   # 菜单下拉
 ├── BrowserIframeStack.tsx    # 多 iframe 堆叠管理器
 ├── BookmarkToFolderDialog.tsx# 收藏到目录对话框

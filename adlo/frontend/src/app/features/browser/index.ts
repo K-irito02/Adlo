@@ -1,10 +1,8 @@
 export { BrowserPanel } from './BrowserPanel';
-export { BrowserTabBar } from './BrowserTabBar';
 export { BrowserContextMenu } from './BrowserContextMenu';
 export { BrowserMenuDropdown } from './BrowserMenuDropdown';
 export { useBrowserMenus } from './useBrowserMenus';
 export { useBrowserContextMenu } from './useBrowserContextMenu';
-export { useBrowserDragDrop } from './useBrowserDragDrop';
 export { useBrowserTabs, computeNavigatorCount } from './useBrowserTabs';
 export { useBrowserWebView } from './useBrowserWebView';
 export { useBrowserUrlChange } from './useBrowserUrlChange';

@@ -24,7 +24,7 @@ export function BrowserTreeDndOverlay({ indicator }: BrowserTreeDndOverlayProps)
     <div className="adl-browser-dnd-overlay" aria-hidden="true">
       {indicator.kind === 'insert' ? (
         <div
-          className="adl-browser-dnd-insert-line"
+          className="adl-browser-dnd-insert-line adl-dnd-insert-line"
           style={{
             top: indicator.top,
             left: indicator.left,

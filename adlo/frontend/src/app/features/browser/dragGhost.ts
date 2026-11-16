@@ -3,7 +3,6 @@
  * 原型行仍留在原位，副本只负责跟随光标，不接收指针事件。
  */
 export interface DragGhostHandle {
-  element: HTMLElement;
   move: (clientX: number, clientY: number) => void;
   remove: () => void;
 }
@@ -27,21 +26,17 @@ export function createDragGhost(
   element.removeAttribute('data-tab-end');
   element.removeAttribute('data-dnd-category');
   element.removeAttribute('id');
-  element.style.position = 'fixed';
   element.style.margin = '0';
   element.style.width = `${sourceRect.width}px`;
   element.style.height = `${sourceRect.height}px`;
   element.style.left = `${sourceRect.left}px`;
   element.style.top = `${sourceRect.top}px`;
-  element.style.pointerEvents = 'none';
-  element.style.zIndex = '9999';
   document.body.appendChild(element);
 
   const offsetX = pointerX - sourceRect.left;
   const offsetY = pointerY - sourceRect.top;
 
   return {
-    element,
     move: (clientX: number, clientY: number) => {
       element.style.left = `${clientX - offsetX}px`;
       element.style.top = `${clientY - offsetY}px`;

@@ -154,7 +154,7 @@
 | 组件 | 文件 | 用途 |
 |------|------|------|
 | `BrowserNavigator` | `features/browser/BrowserNavigator.tsx` | 导航栏（地址栏、按钮） |
-| `BrowserTabBar` | `features/browser/BrowserTabBar.tsx` | 标签页栏 |
+| `BrowserOpenTabFlatList` | `features/browser/BrowserOpenTabFlatList.tsx` | 已打开标签扁平列表（Pointer 拖拽排序） |
 | `BrowserToolbar` | `features/browser/BrowserToolbar.tsx` | 工具栏 |
 | `BrowserNavTabsMode` | `features/browser/BrowserNavTabsMode.tsx` | 标签页导航模式 |
 | `BrowserNavListMode` | `features/browser/BrowserNavListMode.tsx` | 列表导航模式 |
@@ -227,7 +227,7 @@
 | `useBrowserFolderReorder` | `features/browser/useBrowserFolderReorder.ts` | 文件夹排序 |
 | `useBrowserContextMenu` | `features/browser/useBrowserContextMenu.ts` | 右键菜单 |
 | `useBrowserDialogs` | `features/browser/useBrowserDialogs.ts` | 对话框管理 |
-| `useBrowserDragDrop` | `features/browser/useBrowserDragDrop.ts` | 拖拽排序 |
+| `useOpenTabReorder` | `features/browser/useOpenTabReorder.ts` | 标签页 Pointer 拖拽排序 |
 | `useBrowserMenus` | `features/browser/useBrowserMenus.ts` | 菜单管理 |
 | `useBrowserMenuActions` | `features/browser/useBrowserMenuActions.ts` | 菜单操作 |
 | `useBrowserToast` | `features/browser/useBrowserToast.ts` | 浏览器 Toast |

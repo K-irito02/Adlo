@@ -11,7 +11,6 @@ interface BrowserTreeEntryChildrenProps {
   isExpanded: boolean;
   isFlatMode: boolean;
   showSeparators: boolean;
-  filterTabIds?: Set<string>;
   selectedTreePath: string | null;
   onSelectTreePath: (path: string | null) => void;
   onOpenFile: (path: string) => void;
@@ -29,7 +28,6 @@ export const BrowserTreeEntryChildren = React.memo(function BrowserTreeEntryChil
   isExpanded,
   isFlatMode,
   showSeparators,
-  filterTabIds,
   selectedTreePath,
   onSelectTreePath,
   onOpenFile,
@@ -41,8 +39,8 @@ export const BrowserTreeEntryChildren = React.memo(function BrowserTreeEntryChil
   setContextMenuForTab,
 }: BrowserTreeEntryChildrenProps) {
   const flatItems = useMemo(
-    () => (isFlatMode && isExpanded ? buildFlatTabItems(node, showSeparators, filterTabIds) : []),
-    [node, isFlatMode, isExpanded, showSeparators, filterTabIds],
+    () => (isFlatMode && isExpanded ? buildFlatTabItems(node, showSeparators) : []),
+    [node, isFlatMode, isExpanded, showSeparators],
   );
 
   const handleFlatTabClick = useCallback(
@@ -92,7 +90,6 @@ export const BrowserTreeEntryChildren = React.memo(function BrowserTreeEntryChil
       onOpenFile={onOpenFile}
       callbacks={callbacks}
       counts={counts}
-      filterTabIds={filterTabIds}
     />
   );
 });

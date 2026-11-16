@@ -73,6 +73,26 @@ if (typeof window !== 'undefined') {
     clearTimeout(id);
   };
 
+  // jsdom 26 没有 PointerEvent，@testing-library 的 pointer 事件会退化成 Event，
+  // clientX/clientY 丢失后 4px 阈值与上下半区判断都会失真（NaN 比较恒 false）。
+  if (typeof window.PointerEvent === 'undefined') {
+    class PointerEventPolyfill extends MouseEvent {
+      readonly pointerId: number;
+      readonly pointerType: string;
+
+      constructor(type: string, init: PointerEventInit = {}) {
+        super(type, init);
+        this.pointerId = init.pointerId ?? 0;
+        this.pointerType = init.pointerType ?? 'mouse';
+      }
+    }
+    Object.defineProperty(window, 'PointerEvent', {
+      writable: true,
+      configurable: true,
+      value: PointerEventPolyfill,
+    });
+  }
+
   // jsdom 不实现 canvas：xterm 在模块加载时创建 canvas 计算调色板会触发
   // "Not implemented: HTMLCanvasElement.prototype.getContext" 噪声。返回 null
   // 与 jsdom 默认行为等价（xterm 已对空上下文做了容错），仅消除该警告。

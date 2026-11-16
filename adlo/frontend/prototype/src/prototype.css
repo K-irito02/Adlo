@@ -466,6 +466,22 @@
   pointer-events: none;
 }
 
+/* 插入线改为覆盖在目标行上，不做流内占位：
+   否则线会把行下推 3–6px，指着行上缘松手会命中 slot/包装层而被静默吞掉。 */
+.proto-row-slot > .proto-insert-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  margin: 0;
+}
+
+.proto-row-slot > .proto-insert-line--tab {
+  left: 8px;
+  right: 8px;
+}
+
 .proto-insert-line--inline {
   width: calc(100% - 16px);
   margin: 0 auto 2px;
@@ -487,8 +503,23 @@
   background: var(--accent-subtle);
   color: var(--text-secondary);
   font-size: 12px;
-  opacity: 0.92;
   pointer-events: none;
+}
+
+/* D 变体的排序幽灵行改为覆盖在目标行上，不再作为流内块把整棵树下推：
+   否则 ghost 会盖住光标，elementFromPoint 退化到 slot，导致“插到某行之前”无法落点。 */
+.proto-row-slot > .proto-ghost-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  z-index: 3;
+  margin-top: 0;
+  margin-bottom: 0;
+  /* 覆盖式幽灵必须不透明，否则被覆盖行的标题会透出来叠字。 */
+  background: var(--bg-card);
+  opacity: 1;
 }
 
 .proto-ghost-row__tag {

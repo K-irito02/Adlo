@@ -27,7 +27,6 @@ interface BrowserTreeEntryProps {
   callbacks: SectionCallbacks;
   counts: Map<string, number>;
   browserViewMode?: 'tree' | 'list' | 'all';
-  filterTabIds?: Set<string>;
 }
 
 export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
@@ -41,7 +40,6 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   callbacks,
   counts,
   browserViewMode,
-  filterTabIds,
 }: BrowserTreeEntryProps) {
   const { t } = useTCopy();
   const isSelected = selectedTreePath === node.path;
@@ -193,7 +191,6 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
         isExpanded={isExpanded}
         isFlatMode={isFlatMode}
         showSeparators={showSeparators}
-        filterTabIds={filterTabIds}
         selectedTreePath={selectedTreePath}
         onSelectTreePath={onSelectTreePath}
         onOpenFile={onOpenFile}

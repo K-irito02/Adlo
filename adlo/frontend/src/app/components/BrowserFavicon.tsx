@@ -414,6 +414,7 @@ export function BrowserFavicon({
           key={displaySrc}
           src={displaySrc}
           alt=""
+          draggable={false}
           className="adl-browser-tree__favicon"
           style={{ width: size, height: size }}
           onError={handleDisplayError}
@@ -426,6 +427,7 @@ export function BrowserFavicon({
           src={probeSrc}
           alt=""
           aria-hidden="true"
+          draggable={false}
           className="adl-browser-tree__favicon adl-browser-tree__favicon--probe"
           style={{ width: size, height: size }}
           onLoad={handleProbeLoad}

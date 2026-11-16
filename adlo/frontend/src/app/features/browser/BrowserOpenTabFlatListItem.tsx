@@ -19,7 +19,7 @@ interface BrowserOpenTabFlatListItemProps {
   onCloseTab: (tabId: string) => void;
   onRefreshTab?: (tabId: string, url: string) => void;
   onCopyTabLink?: (url: string) => void;
-  onPointerDown?: (event: React.PointerEvent<HTMLElement>, tabId: string, index: number) => void;
+  onPointerDown?: (event: React.PointerEvent<HTMLElement>, tabId: string) => void;
 }
 
 export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlatListItem({
@@ -43,7 +43,7 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
       data-path={`tab:${tab.id}`}
       data-tab-index={index}
       role="treeitem"
-      onPointerDown={(event) => onPointerDown?.(event, tab.id, index)}
+      onPointerDown={(event) => onPointerDown?.(event, tab.id)}
     >
       <div
         className="adl-filetree__row"

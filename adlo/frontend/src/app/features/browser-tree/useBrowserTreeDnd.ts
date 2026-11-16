@@ -7,14 +7,12 @@ import {
   validateBookmarkMove,
   workspaceContainerKey,
 } from '@stores/slices/browserBookmarkOrder';
-import type { BookmarkMove, BookmarkMoveError } from '@stores/slices/browserBookmarkOrder';
+import type { BookmarkMove } from '@stores/slices/browserBookmarkOrder';
 import { createDragGhost } from '@features/browser/dragGhost';
 import type { DragGhostHandle } from '@features/browser/dragGhost';
 import type { BrowserCategoryState } from './types';
 
 const DRAG_THRESHOLD = 4;
-
-type DropError = BookmarkMoveError | 'history' | 'workspace-header' | 'bookmark-root';
 
 interface DragPayload {
   kind: 'folder' | 'bookmark';
@@ -48,18 +46,16 @@ export interface BrowserTreeDndIndicator {
 
 interface DropComputation {
   move?: BookmarkMove;
-  error?: DropError;
   indicator: BrowserTreeDndIndicator;
 }
 
-export interface BrowserTreeDndHandlers {
+interface BrowserTreeDndHandlers {
   onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
   onClickCapture: (event: ReactMouseEvent<HTMLElement>) => void;
 }
 
-export interface BrowserTreeDndResult {
+interface BrowserTreeDndResult {
   indicator: BrowserTreeDndIndicator | null;
-  isDragging: boolean;
   handlers: BrowserTreeDndHandlers;
 }
 
@@ -171,13 +167,11 @@ export function useBrowserTreeDnd(categories: {
   const suppressClickRef = useRef(false);
   const lastComputationRef = useRef<DropComputation | null>(null);
   const [indicator, setIndicator] = useState<BrowserTreeDndIndicator | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
 
   const cleanup = useCallback(() => {
     sessionRef.current?.ghost?.remove();
     sessionRef.current = null;
     lastComputationRef.current = null;
-    setIsDragging(false);
     setIndicator(null);
     document.body.classList.remove('adl-browser-dnd-dragging');
     document.body.classList.remove('adl-browser-dnd-not-allowed');
@@ -197,7 +191,6 @@ export function useBrowserTreeDnd(categories: {
         if (!info) {
           if (path.startsWith('history')) {
             return {
-              error: 'history',
               indicator: {
                 kind: 'invalid',
                 top: rect.top,
@@ -229,11 +222,12 @@ export function useBrowserTreeDnd(categories: {
               browserBookmarkFolders: state.browserBookmarkFolders,
               browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
               browserBookmarkChildOrder: state.browserBookmarkChildOrder ?? {},
+              workspaceIds: state.recentWorkspaces?.map((workspace) => workspace.id),
             },
             move,
           );
           return {
-            ...(error ? { error } : { move }),
+            ...(error ? {} : { move }),
             indicator: {
               kind: error ? 'invalid' : 'into',
               top: rect.top,
@@ -265,11 +259,12 @@ export function useBrowserTreeDnd(categories: {
                 browserBookmarkFolders: state.browserBookmarkFolders,
                 browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
                 browserBookmarkChildOrder: state.browserBookmarkChildOrder ?? {},
+                workspaceIds: state.recentWorkspaces?.map((workspace) => workspace.id),
               },
               move,
             );
             return {
-              ...(error ? { error } : { move }),
+              ...(error ? {} : { move }),
               indicator: {
                 kind: error ? 'invalid' : 'into',
                 top: rect.top,
@@ -302,11 +297,12 @@ export function useBrowserTreeDnd(categories: {
               browserBookmarkFolders: state.browserBookmarkFolders,
               browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
               browserBookmarkChildOrder: state.browserBookmarkChildOrder ?? {},
+              workspaceIds: state.recentWorkspaces?.map((workspace) => workspace.id),
             },
             move,
           );
           return {
-            ...(error ? { error } : { move }),
+            ...(error ? {} : { move }),
             indicator: {
               kind: error ? 'invalid' : 'insert',
               // “放到目录后面”在语义上位于整棵子树之后；展开的目录若画在 header
@@ -344,11 +340,12 @@ export function useBrowserTreeDnd(categories: {
               browserBookmarkFolders: state.browserBookmarkFolders,
               browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
               browserBookmarkChildOrder: state.browserBookmarkChildOrder ?? {},
+              workspaceIds: state.recentWorkspaces?.map((workspace) => workspace.id),
             },
             move,
           );
           return {
-            ...(error ? { error } : { move }),
+            ...(error ? {} : { move }),
             indicator: {
               kind: error ? 'invalid' : 'insert',
               top: after ? rect.bottom : rect.top,
@@ -360,6 +357,9 @@ export function useBrowserTreeDnd(categories: {
         }
       }
 
+      // 书签列表模式的嵌套文件夹分隔符没有 data-path（只渲染标题文本），因此这里
+      // 会回落到分类分支。列表模式只支持书签行排序与顶层文件夹/工作区行；
+      // 嵌套文件夹既不能拖也不能作为放入目标。
       const category = closestElement(target, '[data-dnd-category]');
       if (!category) {
         return null;
@@ -379,6 +379,7 @@ export function useBrowserTreeDnd(categories: {
             browserBookmarkFolders: state.browserBookmarkFolders,
             browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
             browserBookmarkChildOrder: state.browserBookmarkChildOrder ?? {},
+            workspaceIds: state.recentWorkspaces?.map((workspace) => workspace.id),
           },
           move,
         );
@@ -393,14 +394,7 @@ export function useBrowserTreeDnd(categories: {
           },
         };
       }
-      const error: DropError =
-        categoryType === 'userFolder'
-          ? 'bookmark-root'
-          : categoryType === 'workspace'
-            ? 'workspace-header'
-            : 'history';
       return {
-        error,
         indicator: {
           kind: 'invalid',
           top: rect.top,
@@ -464,7 +458,6 @@ export function useBrowserTreeDnd(categories: {
         } catch {
           // Pointer capture is best-effort; window listeners still handle the drag.
         }
-        setIsDragging(true);
         document.body.classList.add('adl-browser-dnd-dragging');
       }
       event.preventDefault();
@@ -473,7 +466,10 @@ export function useBrowserTreeDnd(categories: {
       const computation = computeDrop(target, event.clientY, session.payload);
       lastComputationRef.current = computation;
       setIndicator(computation?.indicator ?? null);
-      document.body.classList.toggle('adl-browser-dnd-not-allowed', Boolean(computation?.error));
+      document.body.classList.toggle(
+        'adl-browser-dnd-not-allowed',
+        computation?.indicator.kind === 'invalid',
+      );
     };
 
     const handleUp = (event: PointerEvent) => {
@@ -524,7 +520,6 @@ export function useBrowserTreeDnd(categories: {
 
   return {
     indicator,
-    isDragging,
     handlers: {
       onPointerDown: handlePointerDown,
       onClickCapture: handleClickCapture,

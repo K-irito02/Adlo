@@ -1,20 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { createDragGhost } from '@features/browser/dragGhost';
 import type { DragGhostHandle } from '@features/browser/dragGhost';
 
 const DRAG_THRESHOLD = 4;
 
-export interface OpenTabReorderHandlers {
-  onPointerDown: (event: ReactPointerEvent<HTMLElement>, tabId: string, index: number) => void;
-  onClickCapture: (event: ReactMouseEvent<HTMLElement>) => void;
+interface OpenTabReorderHandlers {
+  onPointerDown: (event: ReactPointerEvent<HTMLElement>, tabId: string) => void;
 }
 
-export interface OpenTabReorderResult {
+interface OpenTabReorderResult {
   visibleTabs: BrowserTabState[];
   overIndex: number | null;
-  isDragging: boolean;
   handlers: OpenTabReorderHandlers;
 }
 
@@ -114,7 +112,6 @@ export function useOpenTabReorder(
   const suppressClickRef = useRef(false);
   const overIndexRef = useRef<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
   const visibleTabs = useMemo(() => sortPinnedFirst(panelTabs), [panelTabs]);
   const visibleTabsRef = useRef(visibleTabs);
   visibleTabsRef.current = visibleTabs;
@@ -128,7 +125,6 @@ export function useOpenTabReorder(
     sessionRef.current?.ghost?.remove();
     sessionRef.current = null;
     setDropIndex(null);
-    setIsDragging(false);
     document.body.classList.remove('adl-browser-tab-dragging');
     document.body.classList.remove('adl-browser-dnd-not-allowed');
   }, [setDropIndex]);
@@ -147,14 +143,6 @@ export function useOpenTabReorder(
       startY: event.clientY,
       active: false,
     };
-  }, []);
-
-  const handleClickCapture = useCallback((event: ReactMouseEvent<HTMLElement>) => {
-    if (!suppressClickRef.current) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
   }, []);
 
   useEffect(() => {
@@ -177,7 +165,6 @@ export function useOpenTabReorder(
         } catch {
           // Pointer capture is best-effort; window listeners still handle the drag.
         }
-        setIsDragging(true);
         document.body.classList.add('adl-browser-tab-dragging');
       }
       event.preventDefault();
@@ -245,10 +232,8 @@ export function useOpenTabReorder(
   return {
     visibleTabs,
     overIndex,
-    isDragging,
     handlers: {
       onPointerDown: handlePointerDown,
-      onClickCapture: handleClickCapture,
     },
   };
 }

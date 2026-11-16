@@ -77,8 +77,8 @@ describe('BrowserOpenTabFlatList reorder', () => {
     doc.elementFromPoint = () => target;
     try {
       fireEvent.pointerDown(source, { button: 0, clientX: 0, clientY: 0, pointerId: 1 });
-      fireEvent.pointerMove(window, { clientX: 0, clientY: 2, pointerId: 1 });
-      fireEvent.pointerUp(window, { clientX: 0, clientY: 2, pointerId: 1 });
+      fireEvent.pointerMove(window, { clientX: 0, clientY: 6, pointerId: 1 });
+      fireEvent.pointerUp(window, { clientX: 0, clientY: 6, pointerId: 1 });
     } finally {
       doc.elementFromPoint = originalElementFromPoint;
     }
@@ -91,7 +91,7 @@ describe('BrowserOpenTabFlatList reorder', () => {
     ]);
   });
 
-  it('portals the insertion line above the ghost without inserting a flex child', () => {
+  it('portals the insertion line to body without adding a flex child', () => {
     const tabs = [tab('normal-a', false), tab('normal-b', false)];
 
     const { container } = render(
@@ -119,11 +119,11 @@ describe('BrowserOpenTabFlatList reorder', () => {
     doc.elementFromPoint = () => target;
     try {
       fireEvent.pointerDown(source, { button: 0, clientX: 0, clientY: 0, pointerId: 1 });
-      fireEvent.pointerMove(window, { clientX: 0, clientY: 2, pointerId: 1 });
+      fireEvent.pointerMove(window, { clientX: 0, clientY: 6, pointerId: 1 });
 
       const overlay = document.querySelector('.adl-browser-tab-drop-line-overlay') as HTMLElement;
       expect(overlay).not.toBeNull();
-      // portal 到 body，才能用 10000 的 z-index 盖在抬起副本之上。
+      // portal 到 body，才能用高于副本的 z-index 绘制，且不参与列表布局。
       expect(overlay.parentElement).toBe(document.body);
       expect(overlay.style.left).toBe('8px');
       expect(overlay.style.width).toBe('184px');
@@ -131,7 +131,125 @@ describe('BrowserOpenTabFlatList reorder', () => {
       // 插入线不再作为 <li> 进入布局，列表子元素数量保持不变。
       expect(list.children.length).toBe(listChildrenBefore);
     } finally {
+      fireEvent.pointerUp(window, { clientX: 0, clientY: 6, pointerId: 1 });
+      doc.elementFromPoint = originalElementFromPoint;
+    }
+  });
+
+  it('inserts after the target row when the pointer is in its lower half', () => {
+    const onReorderTabs = vi.fn();
+    const tabs = [tab('normal-a', false), tab('normal-b', false)];
+    render(
+      <TCopyProvider t={t} locale="en-US">
+        <BrowserOpenTabFlatList
+          browserTabs={tabs}
+          activeTabId="normal-a"
+          onSelectTab={vi.fn()}
+          onCloseTab={vi.fn()}
+          onReorderTabs={onReorderTabs}
+        />
+      </TCopyProvider>,
+    );
+
+    const source = screen.getByText('normal-a').closest('[data-path]') as HTMLElement;
+    const target = screen.getByText('normal-b').closest('[data-path]') as HTMLElement;
+    setRect(source);
+    setRect(target);
+
+    const doc = document as Document & {
+      elementFromPoint?: (x: number, y: number) => Element | null;
+    };
+    const originalElementFromPoint = doc.elementFromPoint;
+    doc.elementFromPoint = () => target;
+    try {
+      fireEvent.pointerDown(source, { button: 0, clientX: 0, clientY: 0, pointerId: 1 });
+      fireEvent.pointerMove(window, { clientX: 0, clientY: 20, pointerId: 1 });
+      fireEvent.pointerUp(window, { clientX: 0, clientY: 20, pointerId: 1 });
+    } finally {
+      doc.elementFromPoint = originalElementFromPoint;
+    }
+
+    expect(onReorderTabs).toHaveBeenCalledTimes(1);
+    expect(onReorderTabs.mock.calls[0][0].map((item: BrowserTabState) => item.id)).toEqual([
+      'normal-b',
+      'normal-a',
+    ]);
+  });
+
+  it('does not start a reorder before the 4px drag threshold', () => {
+    const onReorderTabs = vi.fn();
+    const tabs = [tab('normal-a', false), tab('normal-b', false)];
+    render(
+      <TCopyProvider t={t} locale="en-US">
+        <BrowserOpenTabFlatList
+          browserTabs={tabs}
+          activeTabId="normal-a"
+          onSelectTab={vi.fn()}
+          onCloseTab={vi.fn()}
+          onReorderTabs={onReorderTabs}
+        />
+      </TCopyProvider>,
+    );
+
+    const source = screen.getByText('normal-a').closest('[data-path]') as HTMLElement;
+    const target = screen.getByText('normal-b').closest('[data-path]') as HTMLElement;
+    setRect(source);
+    setRect(target);
+
+    const doc = document as Document & {
+      elementFromPoint?: (x: number, y: number) => Element | null;
+    };
+    const originalElementFromPoint = doc.elementFromPoint;
+    doc.elementFromPoint = () => target;
+    try {
+      fireEvent.pointerDown(source, { button: 0, clientX: 0, clientY: 0, pointerId: 1 });
+      fireEvent.pointerMove(window, { clientX: 0, clientY: 2, pointerId: 1 });
       fireEvent.pointerUp(window, { clientX: 0, clientY: 2, pointerId: 1 });
+    } finally {
+      doc.elementFromPoint = originalElementFromPoint;
+    }
+
+    expect(onReorderTabs).not.toHaveBeenCalled();
+  });
+
+  it('cleans up the ghost/body state and suppresses the post-drag click', () => {
+    const onSelectTab = vi.fn();
+    const tabs = [tab('normal-a', false), tab('normal-b', false)];
+    render(
+      <TCopyProvider t={t} locale="en-US">
+        <BrowserOpenTabFlatList
+          browserTabs={tabs}
+          activeTabId="normal-a"
+          onSelectTab={onSelectTab}
+          onCloseTab={vi.fn()}
+        />
+      </TCopyProvider>,
+    );
+
+    const source = screen.getByText('normal-a').closest('[data-path]') as HTMLElement;
+    const target = screen.getByText('normal-b').closest('[data-path]') as HTMLElement;
+    setRect(source);
+    setRect(target);
+
+    const doc = document as Document & {
+      elementFromPoint?: (x: number, y: number) => Element | null;
+    };
+    const originalElementFromPoint = doc.elementFromPoint;
+    doc.elementFromPoint = () => target;
+    try {
+      fireEvent.pointerDown(source, { button: 0, clientX: 0, clientY: 0, pointerId: 1 });
+      fireEvent.pointerMove(window, { clientX: 0, clientY: 6, pointerId: 1 });
+      expect(document.querySelector('.adl-browser-dnd-lift')).not.toBeNull();
+      expect(document.body.classList.contains('adl-browser-tab-dragging')).toBe(true);
+
+      fireEvent.pointerUp(window, { clientX: 0, clientY: 6, pointerId: 1 });
+      expect(document.querySelector('.adl-browser-dnd-lift')).toBeNull();
+      expect(document.body.classList.contains('adl-browser-tab-dragging')).toBe(false);
+
+      // 拖拽结束后紧跟的 click 必须被抑制，不能顺带切换标签。
+      fireEvent.click(screen.getByText('normal-a'));
+      expect(onSelectTab).not.toHaveBeenCalled();
+    } finally {
       doc.elementFromPoint = originalElementFromPoint;
     }
   });

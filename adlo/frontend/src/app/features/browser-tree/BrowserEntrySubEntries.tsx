@@ -33,7 +33,6 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
   onOpenFile,
   callbacks,
   counts,
-  filterTabIds,
 }: BrowserEntrySubEntriesProps) {
   const { t } = useTCopy();
   const browserBookmarkFolders = useAppStore((s) => s.browserBookmarkFolders);
@@ -303,21 +302,11 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     [hideHint],
   );
 
-  const filteredNodes = useMemo(
-    () =>
-      filterTabIds
-        ? node.children.filter(
-            (child) => child.kind === 'directory' || (child.tabId && filterTabIds.has(child.tabId)),
-          )
-        : node.children,
-    [node.children, filterTabIds],
-  );
-
   const fileTreeChildren =
-    isExpanded && filteredNodes.length > 0 ? (
+    isExpanded && node.children.length > 0 ? (
       <div className="adl-browser-entry__tree">
         <FileTree<BrowserTreeNode>
-          nodes={filteredNodes}
+          nodes={node.children}
           selectedFilePath={selectedTreePath ?? undefined}
           expandedPaths={expandedPaths}
           onToggle={handleChildClick}

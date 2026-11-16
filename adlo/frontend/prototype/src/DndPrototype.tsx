@@ -4,7 +4,7 @@
  * 4 套放置区/反馈方案，同一份 mock 数据、同一套规则：
  *   A 行三分区 · B 行间缝隙 · C 意图延迟 · D A + 幽灵占位
  *
- * 这是用来做设计决策的临时代码，不是生产实现；选定方案后删除/重写。
+ * 这是用来做设计决策的临时代码，不是生产实现；选定方案已折进生产，原型保留供追溯。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -64,8 +64,8 @@ const VARIANT_META: Record<Variant, VariantMeta> = {
   },
   B: {
     name: '行间缝隙',
-    description: '目录行整行是放入，行与行之间 8px 缝隙是排序插入，末端有“放到末尾”带。',
-    hint: '最接近资源管理器：误放少，但排序要瞄准行间缝隙。',
+    description: '目录行上下各约 10px 是排序插入，中间是放入；末端有“放到末尾”带。',
+    hint: '最接近资源管理器：误放少，但排序要瞄准行内上下边缘。',
   },
   C: {
     name: '意图延迟',
@@ -74,7 +74,8 @@ const VARIANT_META: Record<Variant, VariantMeta> = {
   },
   D: {
     name: '幽灵占位',
-    description: '采用 A 的分区，但排序时显示半透明占位行，放入时显示虚线幽灵子行。',
+    description:
+      '采用 A 的分区；排序时显示覆盖式幽灵行（不透明），放入时显示虚线幽灵子行（半透明）。',
     hint: '最直观：松手前就能看到最终落点。',
   },
 };
@@ -956,7 +957,10 @@ export function DndPrototype() {
               handleDrop(event, {
                 kind: 'insert',
                 container: row.container,
-                index: row.index,
+                index:
+                  drop?.kind === 'insert' && drop.container === row.container
+                    ? drop.index
+                    : row.index,
               });
             }}
             onMouseDown={() => rowMouseDown(row.key)}
@@ -1008,7 +1012,10 @@ export function DndPrototype() {
             handleDrop(event, {
               kind: 'insert',
               container: row.container,
-              index: row.index,
+              index:
+                drop?.kind === 'insert' && drop.container === row.container
+                  ? drop.index
+                  : row.index,
             })
           }
           onMouseDown={() => rowMouseDown(row.key)}
@@ -1091,7 +1098,7 @@ export function DndPrototype() {
     const isInsert = drop?.kind === 'tab' && drop.index === index;
     const isInvalid = drop?.kind === 'invalid' && drop.rowKey === `tab:${index}`;
     return (
-      <div key={tab.id}>
+      <div key={tab.id} className="proto-row-slot">
         {isInsert ? <div className="proto-insert-line proto-insert-line--tab" /> : null}
         <div
           className={`proto-row proto-row--tab${tab.pinned ? ' is-pinned' : ''}${isInvalid ? ' is-drop-invalid' : ''}`}
@@ -1235,11 +1242,7 @@ export function DndPrototype() {
           <div className="proto-nav__hint">
             pinned 固定在最前，只能在 pinned 组内排序；普通标签同理。
           </div>
-          <div
-            className="proto-nav__scroll proto-nav__scroll--tabs"
-            role="tree"
-            aria-label="已打开标签页"
-          >
+          <div className="proto-nav__scroll" role="tree" aria-label="已打开标签页">
             {visibleTabs.length === 0 ? <div className="proto-empty">没有打开的标签页</div> : null}
             {pinnedTabs.map((tab) => renderTabRow(tab, visibleTabs.indexOf(tab)))}
             {pinnedTabs.length > 0 && normalTabs.length > 0 ? (

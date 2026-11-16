@@ -84,17 +84,7 @@
 .adl-browser-tab-drop-line-overlay {
   position: fixed;
   z-index: 10000;
-  height: 2px;
-  border-radius: 999px;
   pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--adl-dnd-line) 12%,
-    var(--adl-dnd-line) 88%,
-    transparent 100%
-  );
-  box-shadow: 0 0 8px var(--adl-dnd-glow);
 }
 
 .adl-browser-pinned-divider {

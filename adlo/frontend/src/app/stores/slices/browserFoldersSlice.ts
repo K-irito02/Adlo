@@ -218,6 +218,7 @@ export const createBrowserBookmarkFoldersSlice = (
         browserBookmarkFolders: state.browserBookmarkFolders,
         browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
         browserBookmarkChildOrder: state.browserBookmarkChildOrder,
+        workspaceIds: state.recentWorkspaces?.map((workspace) => workspace.id),
       },
       move,
     );

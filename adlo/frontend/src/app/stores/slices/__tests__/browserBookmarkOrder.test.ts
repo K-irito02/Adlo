@@ -45,6 +45,7 @@ function makeState(): BookmarkMoveState {
     browserBookmarkFolders: folders,
     browserWorkspaceBookmarks: { 'ws-1': [entry('w1')] },
     browserBookmarkChildOrder: {},
+    workspaceIds: ['ws-1'],
   };
 }
 
@@ -168,6 +169,100 @@ describe('applyBookmarkMove', () => {
       target: { kind: 'into', container: CUSTOM_ROOT },
     });
     expect(result).toEqual({ ok: false, error: 'bookmark-to-custom-root' });
+  });
+
+  it('rejects a folder target that no longer exists', () => {
+    const state = makeState();
+    expect(
+      applyBookmarkMove(state, {
+        kind: 'folder',
+        id: 'f-b',
+        target: { kind: 'into', container: folderContainerKey('folder-ghost') },
+      }),
+    ).toEqual({ ok: false, error: 'target-missing' });
+  });
+
+  it('rejects a bookmark target that no longer exists without dropping the entry', () => {
+    const state = makeState();
+    const result = applyBookmarkMove(state, {
+      kind: 'bookmark',
+      id: 'e1',
+      target: { kind: 'into', container: folderContainerKey('folder-ghost') },
+    });
+    expect(result).toEqual({ ok: false, error: 'target-missing' });
+    expect(state.browserBookmarkFolders.find((folder) => folder.id === 'f-a')?.entries).toEqual([
+      entry('e1'),
+      entry('e2'),
+    ]);
+  });
+
+  it('rejects an unknown workspace when workspaceIds is provided', () => {
+    const state = makeState();
+    expect(
+      applyBookmarkMove(state, {
+        kind: 'folder',
+        id: 'f-b',
+        target: { kind: 'into', container: workspaceContainerKey('ws-ghost') },
+      }),
+    ).toEqual({ ok: false, error: 'target-missing' });
+    expect(
+      applyBookmarkMove(state, {
+        kind: 'bookmark',
+        id: 'e1',
+        target: { kind: 'into', container: workspaceContainerKey('ws-ghost') },
+      }),
+    ).toEqual({ ok: false, error: 'target-missing' });
+  });
+
+  it('allows a known but empty workspace target', () => {
+    const state = makeState();
+    state.workspaceIds = ['ws-1', 'ws-empty'];
+    const result = applyBookmarkMove(state, {
+      kind: 'bookmark',
+      id: 'e1',
+      target: { kind: 'into', container: workspaceContainerKey('ws-empty') },
+    });
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+    expect(result.state.browserWorkspaceBookmarks['ws-empty']?.map((item) => item.id)).toEqual([
+      'e1',
+    ]);
+  });
+
+  it('treats omitted workspaceIds as lenient and an empty list as strict', () => {
+    const lenient = makeState();
+    lenient.workspaceIds = undefined;
+    expect(
+      applyBookmarkMove(lenient, {
+        kind: 'bookmark',
+        id: 'e1',
+        target: { kind: 'into', container: workspaceContainerKey('ws-ghost') },
+      }).ok,
+    ).toBe(true);
+
+    const strict = makeState();
+    strict.workspaceIds = [];
+    expect(
+      applyBookmarkMove(strict, {
+        kind: 'bookmark',
+        id: 'e1',
+        target: { kind: 'into', container: workspaceContainerKey('ws-ghost') },
+      }),
+    ).toEqual({ ok: false, error: 'target-missing' });
+  });
+
+  it('carries workspaceIds into the returned state for chained moves', () => {
+    const state = makeState();
+    const result = applyBookmarkMove(state, {
+      kind: 'bookmark',
+      id: 'e1',
+      target: { kind: 'into', container: folderContainerKey('f-b') },
+    });
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+    expect(result.state.workspaceIds).toEqual(state.workspaceIds);
   });
 
   it('reorders within the same container with index adjustment', () => {

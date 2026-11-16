@@ -372,8 +372,8 @@ describe('CenterTabStrip 拖拽排序（B·滑动让位）', () => {
     });
   }
 
-  /** jsdom 无 PointerEvent：fireEvent.pointer* 会丢 clientX，
-      用 MouseEvent 冒充 pointer 事件派发（类型名字即一切，React 认类型）。
+  /** 全局 test-setup 已提供 PointerEvent polyfill；此 helper 仍用 MouseEvent
+      手工构造指针字段，便于显式控制 pointerType/buttons，语义与 polyfill 一致。
       pointerType/buttons 需手工定义（MouseEvent 无 pointerType，buttons 默认为 0；
       实现要求 mouse 且左键位 buttons & 1，故默认 pointerType 'mouse'、buttons 1）。 */
   function pointer(

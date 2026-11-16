@@ -3,23 +3,6 @@ import { fireEvent, render } from '@testing-library/react';
 import { HScrollbar } from './HScrollbar';
 import type { RevealScrollbarController } from '../hooks/useRevealScrollbar';
 
-if (typeof window !== 'undefined' && typeof window.PointerEvent === 'undefined') {
-  class PointerEventPolyfill extends MouseEvent {
-    readonly pointerId: number;
-    readonly pointerType: string;
-    constructor(type: string, init: PointerEventInit = {}) {
-      super(type, init);
-      this.pointerId = init.pointerId ?? 0;
-      this.pointerType = init.pointerType ?? 'mouse';
-    }
-  }
-  Object.defineProperty(window, 'PointerEvent', {
-    writable: true,
-    configurable: true,
-    value: PointerEventPolyfill,
-  });
-}
-
 function makeController(
   overrides: Partial<RevealScrollbarController> = {},
 ): RevealScrollbarController {

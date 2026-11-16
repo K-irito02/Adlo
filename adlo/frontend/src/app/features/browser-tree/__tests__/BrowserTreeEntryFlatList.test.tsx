@@ -58,9 +58,8 @@ describe('BrowserTreeEntryFlatList favicon policy wiring', () => {
   });
 
   it('treats saved-bookmark rows typed as tab as passive', () => {
-    // 收藏目录/工作区中仍有活标签的书签条目会产出 nodeType:'tab' + isSavedBookmark
-    // （useBrowserTreeData.buildFolderNode）；列表模式经 buildFlatTabItems 原样复用，
-    // 因此被动判定必须以 isSavedBookmark 优先。
+    // 测试夹具/外部构造的节点仍可能带 nodeType:'tab' + isSavedBookmark（当前
+    // buildBookmarkEntryNode 已只产出 'bookmark'）；被动判定必须以 isSavedBookmark 优先。
     const { container } = renderList({
       ...flatNode('收藏结果', 'tab', 'https://saved-search-row.example/'),
       isSavedBookmark: true,

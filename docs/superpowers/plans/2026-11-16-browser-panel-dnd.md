@@ -1,6 +1,6 @@
 # 浏览器面板拖拽 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 让右侧浏览器面板的书签树与已打开标签列表支持按方案 D 拖拽移动/排序，并让书签目录与活标签彻底解耦。
 
@@ -30,11 +30,11 @@
 **Interfaces:**
 - Produces: `CUSTOM_ROOT`, `folderContainerKey`, `workspaceContainerKey`, `folderItemKey`, `entryItemKey`, `resolveContainerChildren`, `applyBookmarkMove`, `BookmarkMove`, `BookmarkMoveError`, `BookmarkMoveState`.
 
-- [ ] Step 1: 写失败测试：默认顺序（目录在前/书签在后）、顺序表混排、跨容器移动、new-root、非法后代、书签到 custom root。
-- [ ] Step 2: `pnpm --dir adlo/frontend run test:one src/app/stores/slices/__tests__/browserBookmarkOrder.test.ts`，确认失败。
-- [ ] Step 3: 实现纯函数，返回新的 folders/workspaceBookmarks/order，不读 store。
-- [ ] Step 4: 重跑测试，确认通过。
-- [ ] Step 5: Commit `feat(stores): add bookmark order model`。
+- [x] Step 1: 写失败测试：默认顺序（目录在前/书签在后）、顺序表混排、跨容器移动、new-root、非法后代、书签到 custom root。
+- [x] Step 2: `pnpm --dir adlo/frontend run test:one src/app/stores/slices/__tests__/browserBookmarkOrder.test.ts`，确认失败。
+- [x] Step 3: 实现纯函数，返回新的 folders/workspaceBookmarks/order，不读 store。
+- [x] Step 4: 重跑测试，确认通过。
+- [x] Step 5: Commit `feat(stores): add bookmark order model`。
 
 ### Task 2: Store 状态、action 与持久化
 
@@ -48,11 +48,11 @@
 - Produces: `browserBookmarkChildOrder`, `browserMoveBookmarkNode`.
 - Consumes: Task 1 的 `applyBookmarkMove`。
 
-- [ ] Step 1: 写失败测试：初始 `{}`；action 成功后 folders/workspaceBookmarks/order 更新并写 localStorage；失败不改状态；新持久化键读取回退。
-- [ ] Step 2: 跑测试确认失败。
-- [ ] Step 3: 在 slice 中加字段与 action，调用纯函数，成功后 `persist` 三份状态；registry 加 `adl:browser.bookmarkChildOrder`（`readStringArrayRecord`, `global`）。
-- [ ] Step 4: 重跑测试通过。
-- [ ] Step 5: Commit `feat(stores): persist bookmark child order and moves`。
+- [x] Step 1: 写失败测试：初始 `{}`；action 成功后 folders/workspaceBookmarks/order 更新并写 localStorage；失败不改状态；新持久化键读取回退。
+- [x] Step 2: 跑测试确认失败。
+- [x] Step 3: 在 slice 中加字段与 action，调用纯函数，成功后 `persist` 三份状态；registry 加 `adl:browser.bookmarkChildOrder`（`readStringArrayRecord`, `global`）。
+- [x] Step 4: 重跑测试通过。
+- [x] Step 5: Commit `feat(stores): persist bookmark child order and moves`。
 
 ### Task 3: 树构建混排 + 移除活标签/音频耦合
 
@@ -70,11 +70,11 @@
 - Consumes: `resolveContainerChildren`。
 - Produces: `useBrowserTreeData` 新增 `browserBookmarkChildOrder` 入参；工作区树不再有 `tabNodes`；书签节点无 `isPlayingAudio`/`isAudioMuted`。
 
-- [ ] Step 1: 写/改失败测试：工作区根节点 children 不含活标签；书签节点无音频；顺序表决定混排；无顺序表时目录在前。
-- [ ] Step 2: 跑相关测试确认失败。
-- [ ] Step 3: 改 buildFolderNode / buildWorkspaceCategoryTree / buildUserFolderCategoryTree；删除 tabNodes 与活标签查找；把 order 传入。
-- [ ] Step 4: 重跑相关测试通过；更新调用链类型。
-- [ ] Step 5: Commit `feat(browser): mix bookmark tree order and drop live tabs`。
+- [x] Step 1: 写/改失败测试：工作区根节点 children 不含活标签；书签节点无音频；顺序表决定混排；无顺序表时目录在前。
+- [x] Step 2: 跑相关测试确认失败。
+- [x] Step 3: 改 buildFolderNode / buildWorkspaceCategoryTree / buildUserFolderCategoryTree；删除 tabNodes 与活标签查找；把 order 传入。
+- [x] Step 4: 重跑相关测试通过；更新调用链类型。
+- [x] Step 5: Commit `feat(browser): mix bookmark tree order and drop live tabs`。
 
 ### Task 4: 书签树 DnD（方案 D + overlay 指示器）
 
@@ -90,14 +90,14 @@
 
 **Interfaces:**
 - Consumes: `browserMoveBookmarkNode`, `resolveContainerChildren`, `BrowserCategoryState`。
-- Produces: 树容器上的 `onDragStart/onDragOver/onDrop/onDragEnd` 与 fixed overlay。
+- Produces: 树容器上的 Pointer Events（`onPointerDown` + window move/up）与 portal 到 body 的 fixed overlay。
 
-- [ ] Step 1: 写失败测试：放入文件夹、插入到书签前/后、非法后代恢复、自建目录标题行新顶级、工作区标题行拒绝、折叠目录放入后保持折叠。
-- [ ] Step 2: 跑测试确认失败。
-- [ ] Step 3: 实现 `useBrowserTreeDnd`（事件委托 + 节点 map + 校验 + overlay 状态）与 `BrowserTreeDndOverlay`（插入线/放入高亮/幽灵行）。
-- [ ] Step 4: 接线 `BrowserTabTree` / `BrowserCategorySection` / `MultiTreeEntryShell` `dataPath`；加 CSS。
-- [ ] Step 5: 重跑测试通过。
-- [ ] Step 6: Commit `feat(browser): drag and drop bookmark tree`。
+- [x] Step 1: 写失败测试：放入文件夹、插入到书签前/后、非法后代恢复、自建目录标题行新顶级、工作区标题行拒绝、折叠目录放入后保持折叠。
+- [x] Step 2: 跑测试确认失败。
+- [x] Step 3: 实现 `useBrowserTreeDnd`（Pointer Events + 节点 map + 校验 + overlay 状态）与 `BrowserTreeDndOverlay`（渐隐插入线/中性放入高亮，无幽灵行）。
+- [x] Step 4: 接线 `BrowserTabTree` / `BrowserCategorySection` / `MultiTreeEntryShell` `dataPath`；加 CSS。
+- [x] Step 5: 重跑测试通过。
+- [x] Step 6: Commit `feat(browser): drag and drop bookmark tree`。
 
 ### Task 5: 已打开标签页排序
 
@@ -107,31 +107,31 @@
 - Modify: `adlo/frontend/src/app/features/browser/BrowserOpenTabFlatListItem.tsx`
 - Modify: `adlo/frontend/src/app/features/browser/BrowserNavOpenMode.tsx`
 - Modify: `adlo/frontend/src/app/features/browser/BrowserNavigator.tsx`
-- Modify: `adlo/frontend/src/app/features/browser/useBrowserDragDrop.ts`（复用/删除旧实现，按实际调用点）
-- Create: `adlo/frontend/src/app/features/browser/__tests__/BrowserOpenTabReorder.test.tsx`
+- Delete: `adlo/frontend/src/app/features/browser/useBrowserDragDrop.ts`（旧 HTML5 DnD 实现，无消费方）
+- Create: `adlo/frontend/src/app/features/browser/__tests__/BrowserOpenTabFlatList.test.tsx`
 
 **Interfaces:**
 - Consumes: `browserReorderTabs`、全量 `browserTabs`。
-- Produces: `useOpenTabReorder({ panelTabs, onReorder })`，返回 `dragOverIndex/handleDragStart/handleDragOver/handleDrop/handleDragEnd`。
+- Produces: `useOpenTabReorder(panelTabs, onReorder)`，返回 `visibleTabs / overIndex / handlers.onPointerDown`。
 
-- [ ] Step 1: 写失败测试：普通组重排、pinned 组内重排、pinned 边界、跨组拒绝、中心标签位置不变。
-- [ ] Step 2: 跑测试确认失败。
-- [ ] Step 3: 实现 hook 与行级 DnD；合并面板顺序回全量 tabs 后调用 `browserReorderTabs`。
-- [ ] Step 4: 重跑测试通过。
-- [ ] Step 5: Commit `feat(browser): reorder open tabs by drag`。
+- [x] Step 1: 写失败测试：普通组重排、pinned 组内重排、pinned 边界、跨组拒绝、中心标签位置不变。
+- [x] Step 2: 跑测试确认失败。
+- [x] Step 3: 实现 Pointer Events hook；portal 插入线；合并面板顺序回全量 tabs 后调用 `browserReorderTabs`。
+- [x] Step 4: 重跑测试通过。
+- [x] Step 5: Commit `feat(browser): reorder open tabs by drag`。
 
 ### Task 6: i18n 与样式收口
 
 **Files:**
 - Modify: `adlo/frontend/src/app/i18n/zh-CN/browser.ts`
 - Modify: `adlo/frontend/src/app/i18n/en-US/browser.ts`
-- Modify: `adlo/frontend/src/app/features/browser-tree/*`（toast/aria 文案）
-- Modify: `adlo/frontend/src/styles/regions/rightpanel/browser-tree-entry.css` 或新建 `browser-tree-dnd.css`
+- Modify: `adlo/frontend/src/app/features/browser-tree/*`
+- Modify: `adlo/frontend/src/styles/regions/rightpanel/browser-tree-dnd.css` / `browser-flat-list.css`
 
-- [ ] Step 1: 加 DnD toast/aria/pinned 分组文案（中英同步）。
-- [ ] Step 2: 加插入线/幽灵行/放入高亮/禁止态样式，全部消费 CSS token。
-- [ ] Step 3: `pnpm --dir adlo/frontend run check:i18n`。
-- [ ] Step 4: Commit `feat(browser): add drag drop copy and styles`。
+- [x] Step 1: 只加 `browserPinnedGroupLabel`；非法拖拽不弹 toast，由禁止光标表达。
+- [x] Step 2: 加中性放入底色、两端渐隐插入线、禁止态样式；树/标签共用 `.adl-dnd-insert-line`。
+- [x] Step 3: `pnpm --dir adlo/frontend run check:i18n`。
+- [x] Step 4: Commit `feat(browser): add drag drop copy and styles`。
 
 ### Task 7: 门禁与文档
 
@@ -140,10 +140,10 @@
 - Modify: `docs/superpowers/specs/2026-11-16-browser-panel-dnd-design.md`（如实现有偏离）
 - Modify: `GLOSSARY.md`（如新增术语）
 
-- [ ] Step 1: `pnpm --dir adlo/frontend run check:changed`（不带 `--skip-tests`）。
-- [ ] Step 2: 修复失败项；必要时跑受影响测试。
-- [ ] Step 3: 更新进度文件（实现、验证、待用户确认）。
-- [ ] Step 4: Commit `feat(browser): bookmark and tab drag reorder`。
+- [x] Step 1: `pnpm --dir adlo/frontend run check:changed`（不带 `--skip-tests`）。
+- [x] Step 2: 修复失败项；必要时跑受影响测试。
+- [x] Step 3: 更新进度文件（实现、验证、待用户确认）。
+- [x] Step 4: Commit `feat(browser): bookmark and tab drag reorder`。
 
 ---
 

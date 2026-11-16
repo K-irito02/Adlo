@@ -202,7 +202,7 @@
 **解决方案**：
 - **预加载策略**：`handlePageMeta` 中收到新 favicon URL 时，先 `new Image()` 预加载，`onload` 回调中再更新 `setCachedFavicon`。这样 `<img>` src 变更时图片已在浏览器缓存中。
 - **CSS 过渡**：`<img>` 上添加 `transition: opacity 0.15s ease-in-out`，即使有极短延迟也平滑过渡。
-**关键文件**：`frontend/src/app/features/browser/useBrowserPageMeta.ts`、`frontend/src/app/components/BrowserFavicon.tsx`、`frontend/src/app/features/browser/BrowserTabBar.tsx`
+**关键文件**：`frontend/src/app/features/browser/useBrowserPageMeta.ts`、`frontend/src/app/components/BrowserFavicon.tsx`
 
 ### 19. Rust 侧多源去重 + 旧标题检测
 **问题**：三个独立的 `onMetaChanged` 源（postMessage、DocumentTitleChanged、FaviconChanged）对相同 `(url, title, favicon)` 组合并发发射，导致重复事件和自动连播时的旧标题闪现。

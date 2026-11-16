@@ -580,7 +580,7 @@ export function GhostPrototype() {
   );
 
   return (
-    <div className="fb-page ghost-page" style={toneStyle}>
+    <div className="fb-page" style={toneStyle}>
       <header className="fb-header">
         <div>
           <p className="fb-eyebrow">Prototype · Drag ghost</p>

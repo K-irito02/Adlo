@@ -1,10 +1,10 @@
 # 浏览器面板拖拽 · 设计规格
 
-> 日期：2026-11-16　｜　状态：已选定（原型 D：A 的分区 + 幽灵占位）　｜　工作树：slot-1
+> 日期：2026-11-16　｜　状态：已实现（交互采用 D 的分区；落点反馈 B2；抬起副本 B 纸张）　｜　工作树：slot-1
 
 ## 1. 目标
 
-- 右侧面板「书签目录」/「书签列表」下，书签文件夹与书签条目支持鼠标拖拽：改变父子关系、改变同级顺序、跨工作区/自建目录移动。
+- 右侧面板「书签目录」下，书签文件夹与书签条目支持鼠标拖拽：改变父子关系、改变同级顺序、跨工作区/自建目录移动；「书签列表」只支持书签行排序与顶层文件夹/工作区行，嵌套文件夹分隔符既不可拖也不可放入。
 - 「工作区目录」分类的**工作区根节点**不可拖拽，但可作为放置目标；不可变成新顶级目录。
 - 「自建目录」分类标题行/空白区可作为新顶级目录的投放区；书签不能变成顶级目录。
 - 「历史目录」完全只读。
@@ -42,8 +42,8 @@
 
 - 移动文件夹时整棵子树一起移动。
 - 禁止把文件夹放进自己或自己的后代。
-- 放入位置 = 目标容器混合列表末尾；非法/取消 = 状态不变 + 原因 toast。
-- 书签同 `(url,title)` 冲突：拒绝移动 + toast（沿用现有 `checkBookmarkCollision` 语义）。
+- 放入位置 = 目标容器混合列表末尾；非法/取消 = 状态不变。
+- 书签同 `(url,title)` 冲突：拒绝移动（沿用现有 `checkBookmarkCollision` 语义）。
 
 ### 4.2 顺序与默认值
 
@@ -61,10 +61,10 @@
   - 中间 60%：放入该文件夹。
 - 书签行：上/下 50% 排序插入；书签不能承接“放入”。
 - 工作区根节点整行：放入该工作区；不允许排序插入。
-- 排序插入：显示 2px accent 插入线 + 半透明幽灵行（带被拖项名称与缩进）。
-- 放入：目标行 accent 高亮 + 虚线幽灵子行（缩进一级）。
+- 排序插入：显示 2px 两端渐隐插入线 + 柔光；不使用幽灵占位行。
+- 放入：目标行中性淡色背景（暗色白 / 亮色黑），无描边、无外发光。
 - 自建目录标题行/空白区：拖动文件夹时高亮为“变成顶级目录”；书签/工作区分类/历史分类为禁止态。
-- 非法拖拽：禁止光标 + 红色行/标题提示；松手恢复原状并 toast 原因；普通取消静默。
+- 非法拖拽：只显示禁止光标；松手状态不变，不弹 toast。
 - 折叠目录：放入后保持折叠；不自动展开。
 
 ### 4.4 已打开标签页
@@ -98,6 +98,8 @@ export interface BookmarkMoveState {
   browserBookmarkFolders: BookmarkFolder[];
   browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>;
   browserBookmarkChildOrder: Record<string, string[]>;
+  /** 已知工作区 id；提供时校验 workspace 目标存在，未提供则按宽松模式跳过。 */
+  workspaceIds?: readonly string[];
 }
 
 export type BookmarkMove =
@@ -123,7 +125,8 @@ export type BookmarkMoveError =
   | 'target-missing'
   | 'folder-into-self'
   | 'folder-into-descendant'
-  | 'bookmark-to-custom-root';
+  | 'bookmark-to-custom-root'
+  | 'bookmark-duplicate';
 
 export function resolveContainerChildren(
   state: Pick<BookmarkMoveState, 'browserBookmarkFolders' | 'browserWorkspaceBookmarks' | 'browserBookmarkChildOrder'>,
@@ -171,25 +174,18 @@ browserMoveBookmarkNode: (move: BookmarkMove) =>
   - 顶层 `BrowserTreeEntry` 根节点带 `data-path`；子行 `TreeRow` 已有 `data-path`。
   - 事件委托到树容器，按 `data-path` 查节点信息；构建 `Map<path, { kind, container, index, folderId/workspaceId }>`。
   - **使用 Pointer Events（pointerdown/move/up + `document.elementFromPoint`），不使用 HTML5 Drag & Drop**：Tauri 2 在 Windows 默认 `dragDropEnabled: true` 会拦截 DOM 拖拽事件；改用 pointer 事件可同时保留“文件/文件夹拖入应用打开工作区”的原生能力。
-  - 投放指示器用 fixed overlay（插入线/行高亮/幽灵行），避免侵入虚拟化列表。
-  - `pointerup` 调 `browserMoveBookmarkNode`；非法时 toast。
+  - 投放指示器用 portal 到 `document.body` 的 fixed overlay（插入线/行高亮），避免被面板 transform 包含块偏移；点击抑制只保留 document 捕获层。
+  - `pointerup` 调 `browserMoveBookmarkNode`；非法时只显示禁止光标，不弹 toast。
 - `BrowserOpenTabFlatList` 增加拖拽排序：
-  - 行级 `draggable` + `onDragStart/onDragOver/onDrop`；
-  - 插入线渲染在行间；
+  - Pointer Events（`onPointerDown` + window `pointermove/up`），不使用 HTML5 DnD；
+  - 插入线 portal 到 `document.body` 的 fixed 元素（z-index 高于 ghost），不参与列表 flex 布局；
   - 重排结果合并回全量 `browserTabs` 后调 `browserReorderTabs`，保留中心标签。
 
 ## 6. i18n
 
-新增到 `zh-CN/browser.ts` / `en-US/browser.ts`：
+只新增 `browserPinnedGroupLabel`（固定标签分组标题）到 `zh-CN/browser.ts` / `en-US/browser.ts`。
 
-- `browserDndMoveInto` / `browserDndMoveBefore` / `browserDndMoveAfter` / `browserDndMoveToRoot`
-- `browserDndInvalidFolderSelf` / `browserDndInvalidFolderDescendant`
-- `browserDndInvalidBookmarkRoot` / `browserDndInvalidWorkspaceHeader` / `browserDndInvalidHistory`
-- `browserDndInvalidPinnedGroup`
-- `browserPinnedGroupLabel`
-- `browserDndAriaGrabbed`（可选）
-
-Toast 用 `format` 插值目标名称。
+非法拖拽不弹 toast，因此不需要 `browserDnd*` 文案；拖拽状态由光标与视觉指示表达。
 
 ## 7. 测试
 
@@ -197,7 +193,8 @@ Toast 用 `format` 插值目标名称。
 - `browserFoldersSlice.test.ts`：action 成功后三份状态持久化；失败不改状态。
 - `browserPanelPersistence.test.ts`：`adl:browser.bookmarkChildOrder` 读取/回退。
 - `useBrowserTreeData` / `browserTreeCounts` 测试更新：工作区根节点不再含活标签；书签无音频；顺序表生效。
-- `BrowserOpenTabFlatList` 测试：普通组重排、pinned 边界、跨组拒绝。
+- `useOpenTabReorder.test.ts`：普通组重排、pinned 边界、跨组拒绝、中心标签保留。
+- `BrowserOpenTabFlatList.test.tsx`：portal 插入线、ghost/body/click 清理、4px 阈值与上下半区。
 - `BrowserTabTree` DnD 交互测试：放入、插入、非法恢复、分类标题行、折叠保持。
 - 最终 `pnpm --dir adlo/frontend run check:changed` + 受影响 Rust 无改动（跳过）。
 

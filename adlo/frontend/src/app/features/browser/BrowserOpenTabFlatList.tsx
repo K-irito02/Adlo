@@ -104,12 +104,7 @@ export function BrowserOpenTabFlatList({
         thumbClassName="adl-multitree-scrollbar__thumb"
       >
         <div className="adl-browser-entry__tree adl-browser-entry__tree--flat">
-          <ul
-            ref={listRef}
-            className="adl-filetree"
-            role="tree"
-            onClickCapture={reorder.handlers.onClickCapture}
-          >
+          <ul ref={listRef} className="adl-filetree" role="tree">
             {reorder.visibleTabs.map((tab, index) => (
               <Fragment key={tab.id}>
                 {showPinnedDivider && index === pinnedCount ? (
@@ -137,7 +132,7 @@ export function BrowserOpenTabFlatList({
       {dropLine
         ? createPortal(
             <div
-              className="adl-browser-tab-drop-line-overlay"
+              className="adl-browser-tab-drop-line-overlay adl-dnd-insert-line"
               aria-hidden="true"
               style={{ top: dropLine.top, left: dropLine.left, width: dropLine.width }}
             />,

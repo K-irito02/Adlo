@@ -68,9 +68,8 @@ body.adl-browser-dnd-not-allowed .adl-browser-entry__tree--flat button {
   position: absolute;
 }
 
-.adl-browser-dnd-insert-line {
-  /* 高于抬起副本（9999），确保插入线不会被整行宽的 ghost 盖住。 */
-  z-index: 10000;
+/* 书签树与标签页共用同一条插入线视觉；各端只保留定位/层级差异。 */
+.adl-dnd-insert-line {
   height: 2px;
   border-radius: 999px;
   background: linear-gradient(
@@ -81,6 +80,11 @@ body.adl-browser-dnd-not-allowed .adl-browser-entry__tree--flat button {
     transparent 100%
   );
   box-shadow: 0 0 8px var(--adl-dnd-glow);
+}
+
+.adl-browser-dnd-insert-line {
+  /* 高于抬起副本（9999），确保插入线不会被整行宽的 ghost 盖住。 */
+  z-index: 10000;
 }
 
 .adl-browser-dnd-into,

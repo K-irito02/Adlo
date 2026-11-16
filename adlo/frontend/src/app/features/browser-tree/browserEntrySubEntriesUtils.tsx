@@ -25,7 +25,6 @@ export interface BrowserEntrySubEntriesProps {
   onOpenFile: (path: string) => void;
   callbacks: SectionCallbacks;
   counts: Map<string, number>;
-  filterTabIds?: Set<string>;
 }
 
 export function getChildNodeHoverButtons(

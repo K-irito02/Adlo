@@ -646,7 +646,7 @@ export function FeedbackPrototype() {
               <span className="fb-spec__label">插入 · 行间（两端渐隐）</span>
               <div className="fb-demo-rows">
                 <div className="fb-demo-row">哔哩哔哩</div>
-                <div className="fb-line is-static" style={{ top: 29, left: 6, right: 6 }} />
+                <div className="fb-line" style={{ top: 29, left: 6, right: 6 }} />
                 <div className="fb-demo-row">下一个书签</div>
               </div>
             </div>

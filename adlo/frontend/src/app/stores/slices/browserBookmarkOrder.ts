@@ -30,6 +30,8 @@ export interface BookmarkMoveState {
   browserBookmarkFolders: BookmarkFolder[];
   browserWorkspaceBookmarks: Record<string, BookmarkEntry[]>;
   browserBookmarkChildOrder: Record<string, string[]>;
+  /** 已知工作区 id；提供时用于校验 `workspace:<id>` 目标是否存在。 */
+  workspaceIds?: readonly string[];
 }
 
 export type BookmarkMove =
@@ -250,20 +252,14 @@ function setContainerOrder(
 }
 
 function setFolderParent(folder: BookmarkFolder, targetContainer: string): void {
-  if (targetContainer === CUSTOM_ROOT) {
+  const parsed = parseContainer(targetContainer);
+  if (!parsed || parsed.kind === 'custom') {
     folder.parentId = undefined;
     folder.parentType = undefined;
     return;
   }
-  if (targetContainer.startsWith('folder:')) {
-    folder.parentId = targetContainer.slice('folder:'.length);
-    folder.parentType = 'folder';
-    return;
-  }
-  if (targetContainer.startsWith('workspace:')) {
-    folder.parentId = targetContainer.slice('workspace:'.length);
-    folder.parentType = 'workspace';
-  }
+  folder.parentId = parsed.id;
+  folder.parentType = parsed.kind;
 }
 
 function detachEntry(
@@ -311,24 +307,26 @@ function attachEntry(
   container: string,
   entry: BookmarkEntry,
 ): { folders: BookmarkFolder[]; workspaceBookmarks: Record<string, BookmarkEntry[]> } {
-  if (container.startsWith('folder:')) {
-    const folderId = container.slice('folder:'.length);
+  const parsed = parseContainer(container);
+  if (!parsed) {
+    return { folders, workspaceBookmarks };
+  }
+  if (parsed.kind === 'folder') {
     return {
       folders: folders.map((folder) =>
-        folder.id === folderId
+        folder.id === parsed.id
           ? { ...folder, entries: [...(folder.entries ?? []), entry] }
           : folder,
       ),
       workspaceBookmarks,
     };
   }
-  if (container.startsWith('workspace:')) {
-    const workspaceId = container.slice('workspace:'.length);
+  if (parsed.kind === 'workspace') {
     return {
       folders,
       workspaceBookmarks: {
         ...workspaceBookmarks,
-        [workspaceId]: [...(workspaceBookmarks[workspaceId] ?? []), entry],
+        [parsed.id]: [...(workspaceBookmarks[parsed.id] ?? []), entry],
       },
     };
   }
@@ -383,12 +381,22 @@ function validateMove(state: BookmarkMoveState, move: BookmarkMove): BookmarkMov
       return 'target-missing';
     }
     if (parsed.kind === 'folder') {
+      if (!state.browserBookmarkFolders.some((item) => item.id === parsed.id)) {
+        return 'target-missing';
+      }
       if (parsed.id === folder.id) {
         return 'folder-into-self';
       }
       if (isDescendantFolder(state.browserBookmarkFolders, folder.id, parsed.id)) {
         return 'folder-into-descendant';
       }
+    }
+    if (
+      parsed.kind === 'workspace' &&
+      state.workspaceIds &&
+      !state.workspaceIds.includes(parsed.id)
+    ) {
+      return 'target-missing';
     }
     return null;
   }
@@ -406,7 +414,21 @@ function validateMove(state: BookmarkMoveState, move: BookmarkMove): BookmarkMov
   if (move.target.container === CUSTOM_ROOT) {
     return 'bookmark-to-custom-root';
   }
-  if (!parseContainer(move.target.container)) {
+  const parsed = parseContainer(move.target.container);
+  if (!parsed || parsed.kind === 'custom') {
+    return 'target-missing';
+  }
+  if (
+    parsed.kind === 'folder' &&
+    !state.browserBookmarkFolders.some((item) => item.id === parsed.id)
+  ) {
+    return 'target-missing';
+  }
+  if (
+    parsed.kind === 'workspace' &&
+    state.workspaceIds &&
+    !state.workspaceIds.includes(parsed.id)
+  ) {
     return 'target-missing';
   }
   const entry = findEntryById(state, move.id);
@@ -475,6 +497,7 @@ export function applyBookmarkMove(
         browserBookmarkFolders: nextFolders,
         browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
         browserBookmarkChildOrder: nextOrder,
+        workspaceIds: state.workspaceIds,
       },
     };
   }
@@ -543,6 +566,7 @@ export function applyBookmarkMove(
       browserBookmarkFolders: nextFolders,
       browserWorkspaceBookmarks: nextWorkspaceBookmarks,
       browserBookmarkChildOrder: nextOrder,
+      workspaceIds: state.workspaceIds,
     },
   };
 }

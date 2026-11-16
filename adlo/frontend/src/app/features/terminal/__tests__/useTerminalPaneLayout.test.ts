@@ -11,18 +11,7 @@ import {
 import { useTerminalPaneLayout, measureGridContent } from '../useTerminalPaneLayout';
 
 if (typeof window.PointerEvent === 'undefined') {
-  class PointerEventPolyfill extends MouseEvent {
-    readonly pointerId: number;
-    constructor(type: string, init: PointerEventInit = {}) {
-      super(type, init);
-      this.pointerId = init.pointerId ?? 0;
-    }
-  }
-  Object.defineProperty(window, 'PointerEvent', {
-    writable: true,
-    configurable: true,
-    value: PointerEventPolyfill,
-  });
+  throw new Error('test-setup.ts should provide a global PointerEvent polyfill');
 }
 
 // Deferred rAF mock: callbacks are captured and only run when flushRaf() is called.

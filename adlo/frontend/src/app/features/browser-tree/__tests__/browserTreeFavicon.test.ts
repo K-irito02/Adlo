@@ -39,8 +39,8 @@ describe('faviconPropsForNode', () => {
   });
 
   it('saved-bookmark rows stay passive even when the node type is tab', () => {
-    // 收藏目录/工作区书签中仍有活标签的条目会产出 nodeType:'tab' + isSavedBookmark
-    // （useBrowserTreeData.buildFolderNode 等），因此被动判定必须 isSavedBookmark 优先。
+    // 测试夹具/外部构造的节点仍可能带 nodeType:'tab' + isSavedBookmark；被动判定
+    // 必须以 isSavedBookmark 优先（当前 buildBookmarkEntryNode 已只产出 'bookmark'）。
     expect(
       faviconPropsForNode(node({ nodeType: 'tab', isSavedBookmark: true, tabId: 'b-1' })),
     ).toEqual({ url: 'https://example.com/', pending: 'initial' });

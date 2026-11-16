@@ -1,34 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import type { CopyDict } from '@i18n/types';
-import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
 import type { BookmarkFolder } from '@stores/slices/browserTypes';
 import { BrowserTreeDndOverlay } from '../BrowserTreeDndOverlay';
 import { useBrowserTreeDnd } from '../useBrowserTreeDnd';
 import type { BrowserCategoryState, BrowserTreeNode } from '../types';
-
-const t = {
-  browserCategoryUserFolder: 'Custom',
-  browserDndMoveInto: 'Moved {name} into {target}',
-  browserDndMoveInsert: 'Moved {name}',
-  browserDndMoveToRoot: 'Made {name} top-level',
-  browserDndInvalidFolderSelf: 'Folder into itself',
-  browserDndInvalidFolderDescendant: 'Folder into descendant',
-  browserDndInvalidBookmarkRoot: 'Bookmark cannot be top-level',
-  browserDndInvalidWorkspaceHeader: 'Workspace header is not a target',
-  browserDndInvalidHistory: 'History is read-only',
-  browserDndInvalidTarget: 'Target missing',
-  browserDndInvalidFolderMissing: 'Folder missing',
-  browserDndInvalidBookmarkMissing: 'Bookmark missing',
-  browserDndInvalidSource: 'Source missing',
-  browserDndMoveFailed: 'Move failed',
-  browserDndDropToRootHint: 'Release to make top-level',
-  browserDndDropIntoHint: 'Release to drop into',
-  browserDndDropInsertHint: 'Release to insert',
-  browserDndForbiddenHint: 'Not allowed',
-  browserPinnedGroupLabel: 'Pinned',
-} as unknown as CopyDict;
 
 function folderNode(id: string, name: string, children: BrowserTreeNode[] = []): BrowserTreeNode {
   return {
@@ -147,11 +123,7 @@ describe('useBrowserTreeDnd', () => {
       historyCategory: category('History', []),
     };
 
-    render(
-      <TCopyProvider t={t} locale="en-US">
-        <Harness categories={categories} targetId="folder:f-b" />
-      </TCopyProvider>,
-    );
+    render(<Harness categories={categories} targetId="folder:f-b" />);
 
     const source = screen.getByTestId('row-a');
     const target = screen.getByTestId('row-target');
@@ -189,11 +161,7 @@ describe('useBrowserTreeDnd', () => {
       historyCategory: category('History', []),
     };
 
-    render(
-      <TCopyProvider t={t} locale="en-US">
-        <Harness categories={categories} targetId="folder:f-b" />
-      </TCopyProvider>,
-    );
+    render(<Harness categories={categories} targetId="folder:f-b" />);
 
     const source = screen.getByTestId('row-a');
     const target = screen.getByTestId('row-target');
@@ -223,11 +191,7 @@ describe('useBrowserTreeDnd', () => {
       historyCategory: category('History', []),
     };
 
-    render(
-      <TCopyProvider t={t} locale="en-US">
-        <Harness categories={categories} targetId="history-entry:h1" />
-      </TCopyProvider>,
-    );
+    render(<Harness categories={categories} targetId="history-entry:h1" />);
 
     const source = screen.getByTestId('row-a');
     const target = screen.getByTestId('row-target');
@@ -257,11 +221,7 @@ describe('useBrowserTreeDnd', () => {
       historyCategory: category('History', []),
     };
 
-    render(
-      <TCopyProvider t={t} locale="en-US">
-        <Harness categories={categories} targetId="folder:f-b" onRowClick={onClick} />
-      </TCopyProvider>,
-    );
+    render(<Harness categories={categories} targetId="folder:f-b" onRowClick={onClick} />);
 
     const source = screen.getByTestId('row-a');
     fireEvent.pointerDown(source, { button: 0, clientX: 0, clientY: 0, pointerId: 1 });
@@ -284,11 +244,7 @@ describe('useBrowserTreeDnd', () => {
       historyCategory: category('History', []),
     };
 
-    render(
-      <TCopyProvider t={t} locale="en-US">
-        <Harness categories={categories} targetId="folder:f-b" />
-      </TCopyProvider>,
-    );
+    render(<Harness categories={categories} targetId="folder:f-b" />);
 
     const source = screen.getByTestId('row-a');
     const target = screen.getByTestId('row-target');
@@ -321,11 +277,7 @@ describe('useBrowserTreeDnd', () => {
       historyCategory: category('History', []),
     };
 
-    render(
-      <TCopyProvider t={t} locale="en-US">
-        <Harness categories={categories} targetId="folder:f-b" />
-      </TCopyProvider>,
-    );
+    render(<Harness categories={categories} targetId="folder:f-b" />);
 
     const source = screen.getByTestId('row-a');
     const header = screen.getByTestId('custom-header');
