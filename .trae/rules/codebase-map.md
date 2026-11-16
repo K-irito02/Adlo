@@ -54,7 +54,7 @@ adlo/
 | `sysmon` | 系统资源快照（sysinfo：CPU/内存/磁盘/网络/进程 Top-N） |
 | `server` | adl-server 后端引擎（axum HTTP + WebSocket，与 Tauri 壳共用领域逻辑） |
 | `harness-version` | harness 版本管理（已装版本目录、最新查询、回退/升级/重装，DSH 与 OpenCode 多包线；registry 镜像优先） |
-| `webapp-host` | 第三方 harness 进程托管（进程拉起、健康检查、WebView 宿主） |
+| `webapp-host` | harness 进程托管（进程拉起、健康检查、WebView 宿主） |
 | `download-source` | 下载源配置（npm 仓库/镜像源、代理设置、连通性测试） |
 | `adl-hosted` | 通用宿主版本托管（`env-hosted/<dep>/installed/<v>`、原子换装、adopt、安装锁、子进程宿主、进度任务） |
 | `adl-env` | 环境依赖（6 providers：node/git/bash/webview2/adlserver/netprobe；`env-sources.json` 来源偏好 + `env-baseline.json` 基线；`resolve()` 来源解析） |

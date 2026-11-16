@@ -38,4 +38,4 @@
 - [知识沉淀](../knowledge-base/) — 实施过程中的经验教训
 - [adlo/AGENTS.md](../../adlo/AGENTS.md) — 实现工作区治理（技术栈、边界与约束；功能清单见 [core/system-overview.md](./core/system-overview.md)）
 - [phase-boundary.md](../../.agents/rules/phase-boundary.md) — 项目形态与范围边界
-- [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 未来想法（非分阶段规划）
+- [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 未来工作

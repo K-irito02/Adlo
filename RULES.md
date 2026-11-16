@@ -133,7 +133,7 @@ alwaysApply: false
 | 规则文件 | 覆盖内容 |
 |----------|----------|
 | `project-overview.md` | 项目总览、双根结构、技术栈 |
-| `phase-boundary.md` | 项目形态、范围边界与排除项 |
+| `phase-boundary.md` | 范围边界 |
 | `dev-rules.md` | 代理交互与执行规则 |
 | `preference-writes.md` | 用户偏好只由用户操作写入，后台逻辑不得静默改写 |
 | `mandatory-testing.md` | 结束验收与强制红绿测试 |
@@ -155,7 +155,7 @@ alwaysApply: false
 |----------|----------|----------|
 | `project-overview.md` | 始终 | 项目总览：双根结构、技术栈、双端架构与真源位置 |
 | `multi-dimensional-architecture-design.md` | `adlo/**` | 多维度架构（代码 / 部署 / 数据 / 安全 / 接口 / 性能）与架构事实的唯一真源 |
-| `phase-boundary.md` | 始终 | 项目形态、范围边界与排除项，防止范围蔓延 |
+| `phase-boundary.md` | 始终 | 范围边界，防止范围蔓延 |
 | `codebase-map.md` | `adlo/**` | 代码地图：Cargo 工作区、前端目录、包列表与索引策略 |
 | `dev-rules.md` | 始终 | 代理交互与执行规则：询问卡片、终端命令、代码修改、问题排查、编码风格、并行工作树约束 |
 | `preference-writes.md` | 始终 | 用户显式选择类配置只由用户操作写入，后台 effect/定时器不得静默改写偏好 |

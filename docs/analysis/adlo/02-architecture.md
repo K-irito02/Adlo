@@ -47,7 +47,7 @@
 │  adl-env（providers/来源偏好/基线）        │
 │  adl-hosted（版本托管/原子换装/进度任务）  │
 ├──────────────────────────────────────────┤
-│  dsh 宿主集成层（第三方 harness 由 dsh 提供）│
+│  dsh 宿主集成层                            │
 │  webapp-host │ harness-version               │
 │  download-source                              │
 ├──────────────────────────────────────────┤
@@ -66,7 +66,7 @@ App.tsx (根组件，TCopyProvider 注入)
 │   ├── TitleBar            # 标题栏（含汉堡菜单/中心标签条/窗口控制）
 │   ├── CenterPane          # 中央多标签宿主（CenterEntryPage：dsh/浏览器/终端）
 │   ├── LeftSidebar         # 左侧边栏（剪切看板 + 系统监控）
-  │   └── RightPanel          # 右侧面板（5 工具切换：files/changes/browser/terminal/settings；communicate 已删除）
+  │   └── RightPanel          # 右侧面板（5 工具切换：files/changes/browser/terminal/settings）
 │
 ├── [Features] (25 功能域)  # 按功能域组织的面板，详见 00-quick-reference.md
 │   ├── browser/            # 内置浏览器

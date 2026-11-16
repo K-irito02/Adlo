@@ -36,7 +36,7 @@
 | 终端 | "终端" | `-terminal-panel` |
 | 设置 | "设置" | `-settings-panel` |
 
-> `audit`、`models` 非 ToolId（`models-panel` 不存在）；`communicate` 已删除（见分支 `remove-communicate-panel`）。
+> `audit`、`models` 非 ToolId（`models-panel` 不存在）。
 
 ### 状态
 

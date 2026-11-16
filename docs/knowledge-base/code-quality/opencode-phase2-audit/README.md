@@ -1,6 +1,6 @@
 # Code Quality / OpenCode Phase 2 Audit
 
-OpenCode（第三方 harness）Phase 2 功能审计、缺陷与集成修复的经验沉淀。
+OpenCode Phase 2 功能审计、缺陷与集成修复的经验沉淀。
 
 ## 文件
 

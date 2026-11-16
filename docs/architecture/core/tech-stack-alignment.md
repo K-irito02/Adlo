@@ -2,53 +2,39 @@
 
 ## Summary
 
-项目已迁移到 **Rust + Tauri 2.x** 技术栈。本文件记录主栈、依赖选型理由以及取代旧 Electron 栈的逐项对应。
+项目使用 **Rust + Tauri 2.x** 技术栈。本文件记录主栈与依赖选型理由。
 
-### 已采用的主栈
+### 主栈
 
-
-| 层         | 选型                                         | 替代了                                |
-| --------- | ------------------------------------------ | ---------------------------------- |
-| 桌面框架      | Tauri 2.x                                  | Electron                           |
-| 后端语言      | Rust (stable)                              | Node.js / TypeScript（Main 进程）      |
-| 异步运行时     | tokio                                      | Node event loop                    |
-| 持久化       | SQLite via `rusqlite`                      | `better-sqlite3`                   |
-| 序列化       | `serde` / `serde_json`                     | 手写 JSON                            |
-| 日志        | `tracing` + `tracing-subscriber`           | `pino`                             |
-| 错误处理      | `thiserror`（库）+ `anyhow`（应用层）              | 自定义 TS Error                       |
-| 文件监听      | `notify`                                   | `chokidar`                         |
-| HTTP 客户端  | `reqwest`                                  | Node `fetch`                       |
-| 凭据存储      | `keyring` + 加密文件回退                    | 普通配置（不安全）                          |
-| 进程执行      | `tokio::process` / `std::process::Command` | Node `child_process`               |
-| 前端框架      | React 19 + Vite + Zustand + TypeScript     | （保留）                               |
-| 桥接        | `#[tauri::command]` + `@tauri-apps/api`    | `ipcMain.handle` + `contextBridge` |
-| 打包        | `cargo tauri build`                        | `electron-builder`                 |
-| 包管理（Rust） | Cargo workspace                            | —                                  |
-| 包管理（前端）   | npm / pnpm                                 | npm / pnpm（保留）                     |
-| 单测        | `cargo test` + `vitest`（前端）                | `vitest`                           |
-| E2E       | `@wdio/tauri-service`（embedded WebDriver，opt-in） | Playwright                  |
-
-
-### 已废弃的栈项
-
-- Electron / `electron-rebuild`
-- `better-sqlite3`（Node binding）
-- `chokidar`
-- `pino`
-- `electron-builder`
-- Node Worker Thread（被 `tokio::spawn` 取代）
-- Preload 脚本（Tauri 原生隔离不需要）
+| 层         | 选型                                         |
+| --------- | ------------------------------------------ |
+| 桌面框架      | Tauri 2.x                                  |
+| 后端语言      | Rust (stable)                              |
+| 异步运行时     | tokio                                      |
+| 持久化       | SQLite via `rusqlite`                      |
+| 序列化       | `serde` / `serde_json`                     |
+| 日志        | `tracing` + `tracing-subscriber`           |
+| 错误处理      | `thiserror`（库）+ `anyhow`（应用层）              |
+| 文件监听      | `notify`                                   |
+| HTTP 客户端  | `reqwest`                                  |
+| 凭据存储      | `keyring` + 加密文件回退                    |
+| 进程执行      | `tokio::process` / `std::process::Command` |
+| 前端框架      | React 19 + Vite + Zustand + TypeScript     |
+| 桥接        | `#[tauri::command]` + `@tauri-apps/api`    |
+| 打包        | `cargo tauri build`                        |
+| 包管理（Rust） | Cargo workspace                            |
+| 包管理（前端）   | npm / pnpm                                 |
+| 单测        | `cargo test` + `vitest`（前端）                |
+| E2E       | `@wdio/tauri-service`（embedded WebDriver，opt-in） |
 
 ## Why Rust + Tauri
 
-迁移到 Rust + Tauri 的核心驱动：
-
-- **更小的安装包与运行时占用**：Tauri 利用 OS 自带 WebView，安装包从数十 MB 降至个位数 MB
+- **更小的安装包与运行时占用**：Tauri 利用 OS 自带 WebView
 - **内存安全**：Rust 借用检查器消除大类内存安全问题，对长期运行的桌面应用尤为关键
 - **能力模型更细粒度**：Tauri 2.x Capability + Permission 系统天然落实最小权限
 - **统一类型契约**：Rust struct + `serde` 在 backend 与 WebView 之间天然类型化，无需手维 IPC d.ts
-- **无 Node 原生模块兼容噩梦**：`better-sqlite3` 等 native module 对 Electron 版本敏感，Rust crate 通过 Cargo 解决
-- **更强的并发模型**：`tokio` + 通道 + 借用检查 替代 EventEmitter + Promise 编排
+- **原生模块依赖由 Cargo 管理**：不需要处理 Node 原生模块的版本兼容
+- **更强的并发模型**：`tokio` + 通道 + 借用检查
 
 ## Alignment Decision By Item
 

@@ -13,12 +13,7 @@
 
 当前技术基线见 [adlo/AGENTS.md](../../adlo/AGENTS.md#技术栈) 的技术栈表。
 
-当前阶段边界：
-
-- 当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**（见根 `AGENTS.md#项目形态` 与 `.agents/rules/phase-boundary.md`）
-- Agent 对话、模型接入与编排由第三方 harness（当前为 DSH 与 OpenCode CLI）提供，本仓库仅负责宿主集成
-- 未来想法见 `FUTURE-ROADMAP.md`（未立项）
-- 未经显式决策，不得把未立项的复杂能力伪装成当前必需项
+当前范围见根 `AGENTS.md` 与 `.agents/rules/phase-boundary.md`。
 
 ## 总体工程原则
 
@@ -72,7 +67,7 @@
 - `Tauri Commands` 是 WebView 与后端的唯一桥接面：类型化、capability 白名单、结构化错误返回
 - `WebView Frontend (React)` 负责界面、交互编排和表现层状态，不直接触达系统能力
 - 后台任务通过 `tokio::spawn`（或专用线程）承载索引、检索、长耗时计算，不直接承担 UI 状态
-- harness 宿主集成（`webapp-host`/`harness-version`/`download-source`）负责第三方 harness 的进程托管、版本管理、下载源与宿主渲染
+- harness 宿主集成（`webapp-host`/`harness-version`/`download-source`）负责 harness 的进程托管、版本管理、下载源与宿主渲染
 - 基础设施（`adl-kernel::storage` 路径解析 / `adl-logging` / `errors` 等）负责实现细节
 
 明确禁止：

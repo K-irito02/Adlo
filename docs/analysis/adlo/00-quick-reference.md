@@ -32,7 +32,7 @@ crates/change-engine/src/       # 变更引擎（Patch/Snapshot/Revert）
 crates/server/src/              # adl-server 后端引擎（浏览器模式真实后端）
 ```
 
-### 第三方 harness 宿主集成（DSH 与 OpenCode CLI）
+### harness 宿主集成
 
 ```
 crates/webapp-host/src/         # harness 进程托管与拉起
@@ -41,8 +41,6 @@ crates/adl-hosted/src/          # 宿主版本托管（版本目录/原子换装
 crates/adl-env/src/             # 环境依赖（node/git/bash/webview2/adlserver/netprobe）
 crates/download-source/src/     # 下载源与镜像配置
 ```
-
-> Agent 对话、模型接入与编排由第三方 harness 提供，本仓库仅做宿主集成，不自建 agent-runtime/model-gateway/mcp-client/lsp-client。
 
 ### Tauri 入口
 

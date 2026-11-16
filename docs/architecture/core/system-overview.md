@@ -1,19 +1,17 @@
 # System Overview (Rust + Tauri)
 
-> **项目形态**：桌面应用宿主 + 第三方 Agent harness 集成。范围边界以 `.agents/rules/phase-boundary.md` 与根 `AGENTS.md` 为准。
+> **范围**：范围边界以 `.agents/rules/phase-boundary.md` 与根 `AGENTS.md` 为准。
 
 ## Purpose
 
-This codebase is the runnable **desktop host + third-party Agent harness integration** on top of **Rust + Tauri 2.x**:
+This codebase is the runnable **desktop host** on top of **Rust + Tauri 2.x**:
 
 - Tauri 桌面壳、SQLite 状态
 - 工作区管理、补丁预览/应用/回滚、快照
 - xterm.js 交互式终端 + CodeMirror 编辑器 + 内置浏览器
 - 存储治理（`adl-kernel::storage` 统一路径解析 + 启动期迁移 + 设置面板存储组）
 - 系统能力（剪贴板历史、系统监视器、CI 状态、GitHub 面板、凭据存储）
-- 第三方 harness 宿主集成（当前为 DSH 与 OpenCode CLI）：进程托管与拉起（`crates/webapp-host`）、版本管理与系统版本检测/升级回退（`crates/harness-version`，安装包不预置版本）、下载源与镜像配置（`crates/download-source`）、终端 PATH 注入（`crates/pty`）、中心多标签宿主渲染（`CenterEntryPage`，`location='center'`）
-
-Agent 对话、模型接入与编排由第三方 harness 提供，本仓库不实现内置单 Agent 运行时与 Provider 路由。
+- harness 宿主集成：进程托管与拉起（`crates/webapp-host`）、版本管理与系统版本检测/升级回退（`crates/harness-version`，安装包不预置版本）、下载源与镜像配置（`crates/download-source`）、终端 PATH 注入（`crates/pty`）、中心多标签宿主渲染（`CenterEntryPage`，`location='center'`）
 
 ## Implemented Surface
 
@@ -96,7 +94,7 @@ SQLite stores schema version, workspaces, sessions, tasks, approvals, audit reco
 - 右侧面板第一行工具栏折叠：工具切换器「折叠/展开工具栏」按钮（单折角图标，位于扩大/还原按钮左侧，两按钮间细分隔线）+ 全局统一状态 `adl:ui.rightPanelToolbarCollapsed`（五个面板共用，不按面板拆分）+ 折叠后内容区顶边与中心的终端/浏览器内容区对齐（隐藏 40px 工具栏，中心工具栏不受影响）
 - 文件检索结果新鲜度（工作区 watcher 自动重算 + 点击校验重定位 + 「已失效」行内标记 + App 级错误边界；开文件就绪才切换＋失败时内容区友好错误）+ 检索结果分页窗口（Rust `SearchWindow` offset/limit + 精确 `hasMore` 多探一条判定 + 服务端硬上限钳制 20000（默认 5000，用户可在检索设置自定义步长/上限，超 5000 出卡顿警告）+ 前端单一来源 `searchWindow.ts` 四端同语义 + 「加载更多/显示全部/!」说明卡）+ 检索设置（工具栏齿轮入口 + 忽略/限制/绑定三 tab：手动勾选树（复用文件树行 chrome + 三态勾选 + 半选圆点 + 祖先展开）与 `.gitignore` 链（类 git 语义自动合并，前后两端镜像实现）并集生效 + 按工作区持久化；绑定 tab：跟随高亮/固定工作区（持久化）双模式）+ 检索绑定工作区（默认跟随文件面板高亮，可切换；后端 `search`/`search-in-files` 接受显式 `workspacePath`，命中打开走同一根）+ 内容检索 ripgrep 式无大小上限（流式逐行，NUL 二进制跳过，非 UTF-8 尽力匹配，超 8MB 单行截断）+ 跳转落点高亮（预览覆盖层直角贴边 + 远距瞬时定位）与编辑器揭示"渲染实测闭环 + 语言扩展就绪闸门"（首次点击即精准居中）
 - 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框 + 收藏标签目录选择对话框 + 工作区顶级目录书签 + 4模式导航栏（open/tabs/list/search）+ SafeIframe 嵌入检查 + checkEmbed LRU 缓存 + Guard Effect 双路径验证 + 导航模式切换：就地导航/新建标签 + @radix-ui/react-switch + motion 动效 + 已打开标签过滤（filterTabIds）+ 多 iframe 状态保持（activatedTabIdsRef）+ 悬停关闭按钮（danger-hover）+ Flat 模式 ::after 渐变蒙版 + text-overflow: clip + 网站元数据持久化缓存（favicon data-URI + 标题，三层：Rust SQLite `site_meta_cache.rs` / preview JSON `.adl-cache/` / 前端 `siteMetaCache.ts`，预载门控 + 成功才写 + 引用计数删除）+ 标签加载状态（favicon 加载中 spinner + 标题未结算时"新建标签页"扫光动效，`titleResolved` 状态机 + `isRealTitle` 统一判定）+ 跨域重定向 favicon/标题兜底（方案 A 历史 URL 回写 `browserUpdateHistoryUrl` + 方案 B 会话级 `redirectMap`，`expectedNavigationUrlRef={url,at,tabId}` 显式导航检测 + 10s 新鲜度 + 发起 tab 绑定，参考 Chrome/Edge 重定向链消化语义 + Chromium `page_url_type`）+ 分隔线透明桥接条（dsh↔浏览器 WebView 零间隙贴边时 6px 透明子窗口夺回拖拽命中权，`divider_strip_*` 命令 + `siblingWebviewNonce` z-order 重建））
-- 第三方 harness 宿主集成（当前为 DSH 与 OpenCode CLI）：进程托管与拉起（`crates/webapp-host`）、版本管理（`crates/harness-version`）与系统版本检测/升级回退、下载源与镜像配置（`crates/download-source`）、终端 PATH 注入（`crates/pty`）、中心多标签宿主渲染（统一入口页 CenterEntryPage：deepseek harness / 浏览器 / 终端三入口；DSH 与 OpenCode CLI 的版本管理共用一张通用版本卡片（`features/harness/HarnessVersionCard.tsx`，经各自适配器注入 store/actions），分别位于设置面板「DSH」组与「OpenCode CLI」组；dsh 作为普通浏览器标签承载，`location='center'`；Tauri 双宿主 WebView2 / 浏览器 iframe + 嵌入被拒外部打开兜底；智能体站点正文链接拦截（白名单 origin 整站匹配，仅 Tauri WebView2 可注入，浏览器模式开关置灰））
+- harness 宿主集成：进程托管与拉起（`crates/webapp-host`）、版本管理（`crates/harness-version`）与系统版本检测/升级回退、下载源与镜像配置（`crates/download-source`）、终端 PATH 注入（`crates/pty`）、中心多标签宿主渲染（`CenterEntryPage`，`location='center'`）
 - 存储治理：`adl-kernel::storage` 统一路径解析 + 启动期迁移 + 设置面板存储组（见上文"存储路径解析"）
 - 运行环境依赖管理：`adl-env`（6 个 provider：node/git/bash/webview2/adlserver/netprobe；来源偏好 `env-sources.json` + 基线 `env-baseline.json` 资源；auto 优先宿主、强制来源不静默降级）+ `adl-hosted`（版本目录托管 `<数据根>/env-hosted/<dep>/installed/<v>`、原子换装与 adopt、`InstallLock`、进程宿主、进度任务）；adl-server 暴露 `GET /env/status` 与 `POST /env/{install,uninstall,select-source,set-custom-path,recheck}`（`EnvStatus` 含六依赖 + `task` + `dataDir` + `dshReady`）；设置面板「网络」组（源/代理/测试连接，自 DSH 搬迁）与「环境」组（7 依赖行、聚合条、复制给 agent、卸载/重装）+ 首启环境准备（五项任务清单，不可跳过）+ 6 份 runbook（`frontend/src/app/features/environment/runbooks/`，索引 `docs/runbooks/README.md`）；宿主 Git = PortableGit（含 Bash，Bash 也可取自系统 Git for Windows / WSL / MSYS2 / 手填路径）；adl-server 作为 sidecar 随包（`binaries/adl-server-<triple>.exe` 暂存、运行时 `adl-server.exe`、`scripts/build-stage-sidecar.ps1` 静态 CRT、`stage:sidecar` 预置）
 - Markdown 预览主题（文件/变更面板）：github-markdown-css 变量驱动单表（`frontend/scripts/generate-md-theme-vars.mjs` 生成 + 自校验，切换只翻容器 `data-md-theme`，零取数零闪烁）+ 6 主题按亮暗分组跟随应用主题并持久化（`adl:files.markdownTheme{Light,Dark}`）+ 工具栏主题按钮（水滴图标，交互同图表主题选择器：悬停即时预览/离开恢复/点击打勾确认）+ starry-night 语法高亮（common 约 35 语言，本地 `onig.wasm` 优先、失败回落纯文本）+ 正文链接可点击（章节锚点跳转/相对文件索引打开/`#fragment` 剥离/按所属工作区解析/裸域不自动成链）+ 「打开方式」设置组（网址落点三选一、文件打开二选一、智能体站点链接拦截 + 白名单）

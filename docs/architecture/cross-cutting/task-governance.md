@@ -35,7 +35,7 @@ These records back the home-shell governance panel.
 - Audit timeline entries are queryable from the renderer, so approvals, patch apply/rollback, validation, and command execution can share one review surface.
 - Patch application now validates the original file hash, creates a checkpoint payload, applies accepted hunks only, stores validation output, and rolls back when validation fails.
 
-> Agent 对话、模型接入与编排由第三方 harness（DSH 与 OpenCode CLI）提供，本仓库不实现内置单 Agent 运行时与 Provider 路由（历史文档中的 DeepSeek→MiniMax 双 Provider 描述已失效）。
+
 
 ## Present Limits
 

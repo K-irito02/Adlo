@@ -1,6 +1,6 @@
 # Run Activity And Run Summary
 
-> 范围注记：本仓库无内置 Agent 运行时；Agent 对话、模型接入与编排由第三方 harness（DSH 与 OpenCode CLI）提供，本仓库仅负责宿主集成（进程托管、版本管理、宿主渲染）。下文 `run-activity` 为宿主侧运行透明度/回放表面，非内置 Agent 实现。
+> 范围注记：下文 `run-activity` 为宿主侧运行透明度/回放表面。
 
 This note documents the **run-level transparency surface** used by the WebView shell during development and debugging.
 

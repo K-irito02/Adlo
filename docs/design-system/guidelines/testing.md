@@ -40,7 +40,7 @@ pnpm --dir adlo/frontend test -- --run \
 
 ## 4. Visual regression
 
-Visual regression 尚未自动化（未来想法，未立项）。以 `quality-gates.md` / `mandatory-testing.md` 的红绿测试与双端验证为准。
+Visual regression 尚未自动化。以 `quality-gates.md` / `mandatory-testing.md` 的红绿测试与双端验证为准。
 
 ## Coverage expectations
 

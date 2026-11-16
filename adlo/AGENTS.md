@@ -20,7 +20,7 @@
 
 ## 项目形态
 
-当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**（DSH 与 OpenCode CLI），详见根 [AGENTS.md#项目形态](../AGENTS.md#项目形态)。实现侧只保留差异：Agent 对话、模型接入与编排由接入的外部 harness 提供，本仓负责宿主集成（进程托管、版本管理、宿主渲染）。
+当前形态：**桌面应用宿主**（Rust + Tauri 2.x + React 19 WebView）。
 
 - 能力清单与实现落点：[system-overview.md](../docs/architecture/core/system-overview.md#已实现能力清单详细)（AGENTS 不复制清单，只保留边界与约束）。
 - 终端子系统文件地图与 PTY 生命周期：[terminal.md](../docs/architecture/features/terminal.md)。

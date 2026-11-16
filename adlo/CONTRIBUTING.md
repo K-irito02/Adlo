@@ -2,8 +2,7 @@
 
 ## Scope Discipline
 
-- 先确认变更属于当前项目形态范围内，还是未立项的未来想法（见 `AGENTS.md` 项目形态与 `FUTURE-ROADMAP.md`）
-- 不把模型路由、命令执行、补丁引擎、多智能体编排伪装成当前必需项
+- 先确认变更属于当前范围（见 `AGENTS.md` 与 `.agents/rules/phase-boundary.md`）
 - 若变更扩大权限边界、Tauri Command 暴露面或持久化真相源，必须先补文档再改代码
 
 ## Required Checks

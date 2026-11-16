@@ -82,7 +82,7 @@ git worktree add "E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/<branch>" -b <bra
 ├── GLOSSARY.md          # 领域术语表
 ├── CONTEXT.md           # 架构与实现说明
 ├── SECURITY.md          # 安全策略
-├── FUTURE-ROADMAP.md    # 远期规划
+├── FUTURE-ROADMAP.md    # 未来工作
 ├── adlo/     # 实现工作区（Rust + Tauri + React）
 ├── references/          # 外部参考源码（本地拉取的开源项目）
 └── docs/                # 架构、设计、知识库
@@ -150,5 +150,5 @@ git worktree add "E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/<branch>" -b <bra
 - [GLOSSARY.md](./GLOSSARY.md) — 领域术语表
 - [CONTEXT.md](./CONTEXT.md) — 架构与实现说明
 - [SECURITY.md](./SECURITY.md) — 安全策略
-- [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
+- [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 未来工作
 - [docs/](./docs/) — 架构设计、知识库、设计系统

@@ -1,6 +1,6 @@
 # Adlo
 
-Adlo 是一个本地桌面工作台：工作区、编辑器、终端与浏览器收在同一个窗口里，DSH、OpenCode 等第三方 Agent harness 由它托管。对话与编排由 harness 提供，Adlo 只负责承载它们。
+Adlo 是一个本地桌面工作台：工作区、编辑器、终端与浏览器收在同一个窗口里。
 
 本仓库是 Adlo 的单一仓库，采用双根结构：根目录负责规划与治理（规则、架构、术语、决策），`adlo/` 负责应用实现。
 
@@ -42,6 +42,6 @@ Adlo 是一个本地桌面工作台：工作区、编辑器、终端与浏览器
 - [SECURITY.md](./SECURITY.md) — 安全策略
 - [adlo/README.md](./adlo/README.md) — 实现工作区快速开始
 - [adlo/AGENTS.md](./adlo/AGENTS.md) — 技术栈、边界与约束；功能清单见 [docs/architecture/core/system-overview.md](./docs/architecture/core/system-overview.md)
-- [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
+- [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 未来工作
 - [docs/knowledge-base/README.md](./docs/knowledge-base/README.md) — 经验教训索引
 - [docs/analysis/adlo/README.md](./docs/analysis/adlo/README.md) — ADL 源码地图（渐进式索引）

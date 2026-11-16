@@ -12,7 +12,7 @@
 
 ## 项目形态
 
-当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入与编排不由本仓实现，交由接入的第三方 harness 提供（当前为 DSH 与 OpenCode CLI）；本仓仅负责宿主集成。技术栈与功能清单见 [adlo/AGENTS.md](./adlo/AGENTS.md)；范围边界见 [phase-boundary.md](.agents/rules/phase-boundary.md)。
+当前形态：**桌面应用宿主**（工作区、编辑器、终端、浏览器、存储与系统能力）。技术栈与功能清单见 [adlo/AGENTS.md](./adlo/AGENTS.md)；范围边界见 [phase-boundary.md](.agents/rules/phase-boundary.md)。
 
 ## 代码知识图谱
 

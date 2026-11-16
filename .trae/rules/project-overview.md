@@ -10,7 +10,7 @@ alwaysApply: true
 | 维度 | 说明 |
 |------|------|
 | 项目名称 | Adlo（中文名：安洛） |
-| 项目类型 | 桌面应用宿主 + 第三方 Agent harness 集成（Agent 对话、模型接入与编排由外部 harness 提供，当前为 DSH 与 OpenCode CLI） |
+| 项目类型 | 桌面应用宿主（Rust + Tauri + React） |
 | 桌面框架 | Rust + Tauri 2.x |
 | 前端框架 | React 19 + Vite + TypeScript |
 | 状态管理 | Zustand（切片合并模式） |
@@ -71,5 +71,5 @@ alwaysApply: true
 - [GLOSSARY.md](../../GLOSSARY.md) — 领域术语表
 - [CONTEXT.md](../../CONTEXT.md) — 架构与实现说明
 - [SECURITY.md](../../SECURITY.md) — 安全策略
-- [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 未来想法
+- [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 未来工作
 - [commands.md](./commands.md) — 常用命令速查

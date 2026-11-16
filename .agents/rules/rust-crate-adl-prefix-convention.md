@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Rust Crate `adl-` 命名前缀约定
 
-所有内部 Rust crate 使用 `adl-` 前缀（工程前缀：品牌名为 Adlo，`adl` 是旧名时代确立的固定前缀，不随品牌改名），确保与外部 crate 在 Cargo.toml 中的明确区分。
+所有内部 Rust crate 使用 `adl-` 前缀（工程前缀：品牌名为 Adlo，`adl` 是固定工程前缀，不随品牌改名），确保与外部 crate 在 Cargo.toml 中的明确区分。
 
 ## 规则
 

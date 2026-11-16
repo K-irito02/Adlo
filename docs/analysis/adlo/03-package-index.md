@@ -104,7 +104,7 @@
 
 #### `webapp-host` — dsh 进程托管
 - **路径**：`crates/webapp-host/src/`
-- **职责**：第三方 harness（DSH 与 OpenCode CLI）进程拉起与托管
+- **职责**：harness 进程拉起与托管
 
 #### `harness-version` — harness 版本管理（宿主版本目录：已装/最新/回退/升级/重装）
 - **路径**：`crates/harness-version/src/`
@@ -121,8 +121,6 @@
 #### `tauri-runtime-wry-patched` — Tauri 运行时补丁
 - **路径**：`crates/tauri-runtime-wry-patched/`
 - **职责**：Tauri 运行时补丁（wry 相关）
-
-> Agent 对话、模型接入与编排由第三方 harness（DSH 与 OpenCode CLI）提供，本仓库不设 agent-runtime/model-gateway/mcp-client/lsp-client 等 crate。
 
 ## Tauri 入口（src-tauri，13 个命令文件）
 

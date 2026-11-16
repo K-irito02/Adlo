@@ -148,7 +148,7 @@
 | 项目 | 值 |
 |------|-----|
 | 路径 | `crates/webapp-host/` |
-| 用途 | 第三方 harness（DSH 与 OpenCode CLI）进程拉起与托管 |
+| 用途 | harness 进程拉起与托管 |
 
 ## 18. harness-version（harness 版本管理）
 

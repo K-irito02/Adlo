@@ -5,13 +5,13 @@
 
 ## 项目定位
 
-Adlo 是桌面端的应用宿主，基于 Rust + Tauri 2.x 构建。当前形态为**桌面应用宿主 + 第三方 Agent harness 集成**（见 `AGENTS.md#项目形态`）。Agent 对话、模型接入与编排能力由第三方 harness 提供，本仓库仅负责宿主集成。
+Adlo 是桌面端的应用宿主，基于 Rust + Tauri 2.x 构建。
 
 | 特征 | 说明 |
 |------|------|
 | 桌面原生 | Rust + Tauri 2.x，原生性能与系统能力 |
 | 双端架构 | Tauri 桌面 + 浏览器预览双模式（功能行为一致） |
-| 第三方 harness 集成 | DSH 与 OpenCode CLI：进程托管（webapp-host）、版本管理（harness-version）、下载源与镜像（download-source）、中心多标签宿主渲染 |
+| harness 集成 | 进程托管（webapp-host）、版本管理（harness-version）、下载源与镜像（download-source）、中心多标签宿主渲染 |
 | 工作区 | 多工作区管理、Git 操作、文件树、大纲解析、搜索 |
 | 终端 | xterm.js 交互式终端（多会话 PTY + 单标签多窗格布局） |
 | 编辑器 | CodeMirror 6 + 文件预览 + 差异查看器 |
@@ -51,10 +51,6 @@ Adlo 是桌面端的应用宿主，基于 Rust + Tauri 2.x 构建。当前形态
 | 前端测试 | 1947（截至 2026-09-15 的历史快照，以 `pnpm --dir adlo/frontend run test` 输出为准） |
 
 > 快照数字可能滞后，当前准确计数以源码实测为准（`adlo/AGENTS.md` 不复制计数）。
-
-## 项目形态
-
-当前形态：桌面应用宿主 + 第三方 Agent harness 集成，范围边界见 `.agents/rules/phase-boundary.md`。
 
 ## 仓库工作区结构
 

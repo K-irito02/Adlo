@@ -71,7 +71,7 @@ frontend/src/app/
 | 工作区设置 | `features/workspace-settings/` |
 | 工作区终端 | `features/workspace-terminal/` |
 
-> 以下目录不存在，相关能力由第三方 harness（dsh）提供或已下线：`conversation`、`mcp`、`lsp-panel`、`provider-manager`、`permission-settings`、`plugin-manager`、`custom-agent`、`reference-manager`、`session-fork`、`web-search`、`command-editor`。
+
 
 ## 布局区域 (regions/)
 
@@ -80,7 +80,7 @@ App.tsx
 ├── TitleBar                # 自定义标题栏（HamburgerMenu.adl-hamburger__* + CenterTabStrip + WindowControls）
 ├── LeftSidebar             # 左侧边栏（ClipboardHistoryList + SystemMonitorPanel + ResizeHandle）
 ├── CenterPane              # 中央多标签宿主（CenterEntryPage + adl-center__empty 缺 tab 提示）
-├── RightPanel              # 右侧面板（5 工具切换：files/changes/browser/terminal/settings；communicate 已删除）
+├── RightPanel              # 右侧面板（5 工具切换：files/changes/browser/terminal/settings）
 │   ├── editor-support/     # 编辑器支持（stickyContext.ts/stickyContextView.tsx 已迁入）
 │   ├── panels/             # 子面板实现（BrowserPanel/ChangesPanel/FilesPanel…）
 │   ├── hooks/              # 右侧面板 Hook（useBrowserPanelProps/useRightPanelViewProps…）
