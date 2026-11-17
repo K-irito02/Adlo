@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MediaPreview } from '../MediaPreview';
+import { useAppStore } from '@stores/slicedStore';
+
+vi.mock('@shared/env', () => ({ isTauriShell: () => true }));
 
 vi.mock('@i18n/useTCopy', () => ({
   useTCopy: () => ({
     t: {
       mediaPreviewFailed: 'Media preview failed: {error}',
+      mediaPreviewDecodeFailed: 'cannot decode',
+      previewOpenInBrowserTab: 'center',
+      previewOpenInBrowserPanel: 'panel',
       changesPreviewBinary: 'Binary file',
       mediaEmptyFile: 'The file is empty',
     },
@@ -59,6 +65,36 @@ describe('MediaPreview', () => {
       expect(document.querySelector('video')).toBeTruthy();
     });
     expect(screen.queryByText(/Media preview failed/u)).toBeNull();
+  });
+
+  it('shows a decode error after the media element fires onError', async () => {
+    render(<MediaPreview media={media()} kind="video" />);
+    const video = await waitFor(() => {
+      const node = document.querySelector('video');
+      expect(node).toBeTruthy();
+      return node as HTMLVideoElement;
+    });
+    video.dispatchEvent(new Event('error'));
+    await waitFor(() => {
+      expect(screen.getByText(/cannot decode/u)).toBeTruthy();
+    });
+  });
+
+  it('shows the browser fallback entries after a decode error', async () => {
+    useAppStore.setState({
+      recentWorkspaces: [{ id: 'ws-1', path: 'C:\\ws', rootPath: 'C:\\ws' }],
+    } as never);
+    render(<MediaPreview media={media()} kind="video" workspaceId="ws-1" />);
+    const video = await waitFor(() => {
+      const node = document.querySelector('video');
+      expect(node).toBeTruthy();
+      return node as HTMLVideoElement;
+    });
+    video.dispatchEvent(new Event('error'));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'center' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'panel' })).toBeTruthy();
+    });
   });
 
   it('shows an empty-file notice for empty base64', async () => {

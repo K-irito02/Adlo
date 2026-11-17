@@ -9,7 +9,13 @@ import { useFoldMarkerAutoHide } from '../editor/useFoldMarkerAutoHide';
 import { createDiffEditorRef } from '../editor/editorAdapters';
 import type { DiffEditorRef, EditorRef } from '@stores/types';
 import type { PreviewDiffCollapsedRange } from './changePreviewDiffRanges';
-import { getLanguageExtension, getLanguageExtensionSync } from '../editor/cmLanguages';
+import {
+  getLanguageExtension,
+  getLanguageExtensionSync,
+  languageSupportsFolding,
+} from '../editor/cmLanguages';
+import { profileDiffCost } from '../../regions/right-panel/diffCost';
+import { classifyDiffTier } from '../../regions/right-panel/heavyPreviewLimits';
 import {
   buildSharedExtensions,
   lineNumbersCompartment,
@@ -17,13 +23,8 @@ import {
   foldGutterCompartment,
   COLLAPSE_UNCHANGED_CONFIG,
 } from './sharedExtensions';
-import {
-  syncHorizontalScroll,
-  buildCollapsedUnchangedRanges,
-  syncScrollPosition,
-  getMergeChunks,
-} from './diffViewerUtils';
-import { isHeavyDiffContent } from '../../regions/right-panel/heavyPreviewLimits';
+import { buildCollapsedUnchangedRanges, getMergeChunks } from './diffViewerUtils';
+import { createScrollSync } from './scrollSync';
 import { setupDiffResizer } from './useDiffResizer';
 import { useTCopy } from '@app/i18n/useTCopy';
 import { cn } from '@/lib/utils';
@@ -59,25 +60,28 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
 }) {
   const { t } = useTCopy();
   // 重型差异降级（方案A）：任一侧超限即重型（与确认门同阈值），双 pane 双倍成本。
-  const isHeavy = isHeavyDiffContent(original, modified);
+  // 事项1：分档同时覆盖"体积不大但行数极多"的降级场景。
+  const costTier = useMemo(
+    () => classifyDiffTier(profileDiffCost(original, modified)),
+    [original, modified],
+  );
+  const isHeavy = costTier === 'heavy';
+  const isDegraded = costTier === 'degraded';
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mergeViewRef = useRef<MergeView | null>(null);
   const mergeViewARef = useRef<EditorView | null>(null);
   const mergeViewBRef = useRef<EditorView | null>(null);
   const [editorViewA, setEditorViewA] = useState<EditorView | null>(null);
   const [editorViewB, setEditorViewB] = useState<EditorView | null>(null);
-  const scrollHandlersRef = useRef<{
-    handleScrollA: () => void;
-    handleScrollB: () => void;
-  } | null>(null);
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const foldMarkerState = useFoldMarkerAutoHide(
     wrapperRef,
     fileKey ?? original + modified,
     editorViewA || editorViewB,
-    // 重型 plaintext 下 fold 标记永不出现，跳过 100ms×60 轮询风暴（方案A）。
-    isHeavy,
+    // 事项1 根因：plaintext / 无语法加载器的语言无法产生折叠标记，
+    // 重型与降级档也不值得为折叠标记轮询；跳过 forceParsing 轮询风暴。
+    isHeavy || isDegraded || !languageSupportsFolding(language),
   );
   const [langExtensions, setLangExtensions] = useState<Extension[]>(() =>
     isHeavy ? [] : getLanguageExtensionSync(language),
@@ -147,13 +151,12 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
         onCollapsedUnchangedRangesChange([]);
         return;
       }
-      onCollapsedUnchangedRangesChange(
-        buildCollapsedUnchangedRanges({
-          chunks: getMergeChunks(view.state),
-          doc: view.state.doc,
-          expandedLines: expandedCollapsedLinesRef.current,
-        }),
-      );
+      const ranges = buildCollapsedUnchangedRanges({
+        chunks: getMergeChunks(view.state),
+        doc: view.state.doc,
+        expandedLines: expandedCollapsedLinesRef.current,
+      });
+      onCollapsedUnchangedRangesChange(ranges);
     },
     [collapseUnchanged, onCollapsedUnchangedRangesChange],
   );
@@ -169,7 +172,6 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
       mergeViewRef.current = null;
     }
 
-    let syncing = false;
     expandedCollapsedLinesRef.current = new Set();
 
     const aExts: Extension[] = [...sharedExts];
@@ -196,35 +198,11 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
       parent: containerRef.current,
       collapseUnchanged: collapseUnchanged ? COLLAPSE_UNCHANGED_CONFIG : undefined,
       gutter: !isHeavy,
-      highlightChanges: !isHeavy,
+      highlightChanges: !isHeavy && !isDegraded,
     });
 
-    const handleScrollA = () => {
-      if (syncing) {
-        return;
-      }
-      syncing = true;
-      if (mv.b) {
-        syncScrollPosition(mv.a.scrollDOM, mv.b.scrollDOM);
-        syncHorizontalScroll(mv.a.scrollDOM, mv.b.scrollDOM);
-      }
-      syncing = false;
-    };
-    const handleScrollB = () => {
-      if (syncing) {
-        return;
-      }
-      syncing = true;
-      if (mv.a) {
-        syncScrollPosition(mv.b.scrollDOM, mv.a.scrollDOM);
-        syncHorizontalScroll(mv.b.scrollDOM, mv.a.scrollDOM);
-      }
-      syncing = false;
-    };
-    scrollHandlersRef.current = { handleScrollA, handleScrollB };
-
-    mv.a.scrollDOM.addEventListener('scroll', handleScrollA, { passive: true });
-    mv.b.scrollDOM.addEventListener('scroll', handleScrollB, { passive: true });
+    const scrollSync = createScrollSync(mv.a.scrollDOM, mv.b.scrollDOM);
+    scrollSync.attach();
 
     const resizerCleanup = setupDiffResizer(mv);
 
@@ -240,17 +218,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     }
 
     return () => {
-      if (mergeViewRef.current && scrollHandlersRef.current) {
-        mergeViewRef.current.a.scrollDOM.removeEventListener(
-          'scroll',
-          scrollHandlersRef.current.handleScrollA,
-        );
-        mergeViewRef.current.b.scrollDOM.removeEventListener(
-          'scroll',
-          scrollHandlersRef.current.handleScrollB,
-        );
-        scrollHandlersRef.current = null;
-      }
+      scrollSync.detach();
       resizerCleanup();
       if (mergeViewRef.current) {
         mergeViewRef.current.destroy();
@@ -274,6 +242,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     // isHeavy 经 sharedExts 间接覆盖，此处显式声明以满足 exhaustive-deps
     // （重型↔普通切换必须重建 MergeView，否则新旧选项混用）。
     isHeavy,
+    isDegraded,
   ]);
 
   useEffect(() => {
@@ -301,9 +270,9 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
 
   // Also force-parse syntax tree and reconfigure fold gutter for the right panel (view B).
   // (view A is handled by useFoldMarkerAutoHide's internal poll loop.)
-  // 重型跳过：plaintext 下无解析器，且整篇 forceParsing（2000ms 预算）本身即主线程块。
+  // 重型与降级档跳过：plaintext 下无解析器，且整篇 forceParsing（2000ms 预算）本身即主线程块。
   useEffect(() => {
-    if (!editorViewB || isHeavy) {
+    if (!editorViewB || isHeavy || isDegraded) {
       return;
     }
     let cancelled = false;
@@ -322,7 +291,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     return () => {
       cancelled = true;
     };
-  }, [editorViewB, lineNumbersEnabled, isHeavy]);
+  }, [editorViewB, lineNumbersEnabled, isHeavy, isDegraded]);
 
   // 容器尺寸变化（窗口最大化/还原、面板拖拽）后重测量（方案A，同 inline 理由）。
   // rAF 节流：拖拽中 RO 高频触发，逐帧重测会把缩放拖成幻灯片。

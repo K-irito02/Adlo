@@ -1051,6 +1051,18 @@ export function createHttpBridge({
         call<void>(baseUrl, '/workspace/git/unstage', POST({ relativePath, workspacePath })),
       discardFile: (relativePath: string, workspacePath?: string) =>
         call<void>(baseUrl, '/workspace/git/discard', POST({ relativePath, workspacePath })),
+      stageAllFiles: (workspacePath?: string) =>
+        call<void>(baseUrl, '/workspace/git/stage-all', POST({ workspacePath })),
+      unstageAllFiles: (workspacePath?: string) =>
+        call<void>(baseUrl, '/workspace/git/unstage-all', POST({ workspacePath })),
+      discardAllFiles: (workspacePath?: string) =>
+        call<void>(baseUrl, '/workspace/git/discard-all', POST({ workspacePath })),
+      commitChanges: (message: string, workspacePath?: string) =>
+        call<void>(baseUrl, '/workspace/git/commit', POST({ message, workspacePath })),
+      pushChanges: (workspacePath?: string) =>
+        call<void>(baseUrl, '/workspace/git/push', POST({ workspacePath })),
+      pullChanges: (workspacePath?: string) =>
+        call<void>(baseUrl, '/workspace/git/pull', POST({ workspacePath })),
       listWorktrees: (workspacePath?: string) =>
         call<WorktreeInfo[]>(baseUrl, '/workspace/git/worktrees', POST({ workspacePath })),
       ensureWorktree: (input: WorkspaceWorktreeEnsureInput, workspacePath?: string) =>

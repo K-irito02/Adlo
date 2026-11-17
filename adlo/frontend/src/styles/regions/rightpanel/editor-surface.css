@@ -250,3 +250,16 @@
   outline-offset: 2px;
   background: var(--bg-hover, rgba(128, 128, 128, 0.14));
 }
+
+/* 「在浏览器标签/面板打开」兜底入口（事项4）：仅在内部渲染器不支持时出现。 */
+.adl-preview-external {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.adl-preview-external .adl-unsupported-preview__action {
+  margin-top: 0;
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { base64ToBlob } from './mediaBlob';
+import { PreviewExternalActions } from './PreviewExternalActions';
 import type { WorkspaceMediaDocument } from '@shared/ipc/workspace';
 
 export type MediaKind = 'image' | 'audio' | 'video';
@@ -8,6 +9,8 @@ export type MediaKind = 'image' | 'audio' | 'video';
 export interface MediaPreviewProps {
   media: WorkspaceMediaDocument;
   kind: MediaKind;
+  /** 工作区 id：用于"在浏览器中打开"兜底入口解析绝对路径（可选）。 */
+  workspaceId?: string;
 }
 
 /**
@@ -19,18 +22,21 @@ export interface MediaPreviewProps {
  * 状态机（Phase 4 审查 R-01）：object URL 的创建/失败经 effect 持有，
  * 成功必清 error——失败后换合法文件不再卡死；空 base64 直接进错误分支。
  */
-export function MediaPreview({ media, kind }: MediaPreviewProps) {
+export function MediaPreview({ media, kind, workspaceId }: MediaPreviewProps) {
   const { t, formatT } = useTCopy();
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // 首帧判定（rev2 复审 N-01）：effect 落定前既非错误也非空——渲染 null，
   // 否则合法文件首帧会闪一下"文件为空"错误态。
   const [settled, setSettled] = useState(false);
+  // 解码/播放失败（损坏文件、浏览器不支持的编码）：object URL 建好但元素 onError。
+  const [renderFailed, setRenderFailed] = useState(false);
 
   useEffect(() => {
     let revoked = false;
     let url: string | null = null;
     setSettled(false);
+    setRenderFailed(false);
     if (!media.base64) {
       setError('');
       setObjectUrl(null);
@@ -74,6 +80,7 @@ export function MediaPreview({ media, kind }: MediaPreviewProps) {
       return (
         <div className="adl-media-preview adl-media-preview--error" role="alert">
           <p>{formatT(t, 'mediaPreviewFailed', { error })}</p>
+          <PreviewExternalActions filePath={media.path} workspaceId={workspaceId} />
         </div>
       );
     }
@@ -81,14 +88,26 @@ export function MediaPreview({ media, kind }: MediaPreviewProps) {
       <div className="adl-media-preview adl-media-preview--error" role="status">
         <p>{t.changesPreviewBinary as string}</p>
         <p>{t.mediaEmptyFile as string}</p>
+        <PreviewExternalActions filePath={media.path} workspaceId={workspaceId} />
       </div>
     );
   }
 
+  if (renderFailed) {
+    return (
+      <div className="adl-media-preview adl-media-preview--error" role="alert">
+        <p>{formatT(t, 'mediaPreviewFailed', { error: t.mediaPreviewDecodeFailed })}</p>
+        <PreviewExternalActions filePath={media.path} workspaceId={workspaceId} />
+      </div>
+    );
+  }
+
+  const handleRenderError = () => setRenderFailed(true);
+
   if (kind === 'image') {
     return (
       <div className="adl-media-preview adl-media-preview--image">
-        <img src={objectUrl} alt={media.path} draggable={false} />
+        <img src={objectUrl} alt={media.path} draggable={false} onError={handleRenderError} />
       </div>
     );
   }
@@ -96,14 +115,14 @@ export function MediaPreview({ media, kind }: MediaPreviewProps) {
   if (kind === 'audio') {
     return (
       <div className="adl-media-preview adl-media-preview--audio">
-        <audio controls preload="metadata" src={objectUrl} />
+        <audio controls preload="metadata" src={objectUrl} onError={handleRenderError} />
       </div>
     );
   }
 
   return (
     <div className="adl-media-preview adl-media-preview--video">
-      <video controls preload="metadata" playsInline src={objectUrl} />
+      <video controls preload="metadata" playsInline src={objectUrl} onError={handleRenderError} />
     </div>
   );
 }

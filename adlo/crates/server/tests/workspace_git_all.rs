@@ -391,3 +391,170 @@ async fn file_hotspots_non_git_dir_returns_error() {
     assert!(status.is_client_error(), "non-git dir -> error: {status} {body}");
     assert_eq!(body["ok"], false, "body: {body}");
 }
+
+// ---------------------------------------------------------------------------
+// Workspace-git bulk/remote endpoints（事项3：工作区文件夹菜单）
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn stage_all_then_commit_roundtrip_in_real_repo() {
+    let state = state("ws-git-bulk").await;
+    let dir = temp_dir("bulk-roundtrip");
+    init_git_repo(&dir);
+    std::fs::write(dir.join("bulk.txt"), "bulk\n").unwrap();
+
+    let (stage_status, stage_body) = send_post(
+        state.clone(),
+        "/workspace/git/stage-all",
+        Some(json!({ "workspacePath": dir.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(stage_status, axum::http::StatusCode::OK, "body: {stage_body}");
+
+    let (commit_status, commit_body) = send_post(
+        state,
+        "/workspace/git/commit",
+        Some(json!({
+            "workspacePath": dir.to_string_lossy(),
+            "message": "feat: bulk commit",
+        })),
+    )
+    .await;
+    assert_eq!(commit_status, axum::http::StatusCode::OK, "body: {commit_body}");
+
+    let output = std::process::Command::new("git")
+        .args(["log", "-1", "--pretty=%s"])
+        .current_dir(&dir)
+        .output()
+        .unwrap();
+    let subject = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    assert_eq!(subject, "feat: bulk commit");
+}
+
+#[tokio::test]
+async fn unstage_all_and_discard_all_clear_the_worktree() {
+    let state = state("ws-git-bulk").await;
+    let dir = temp_dir("bulk-discard");
+    init_git_repo(&dir);
+    std::fs::write(dir.join("loose.txt"), "loose\n").unwrap();
+    std::fs::write(dir.join("readme.md"), "changed\n").unwrap();
+    common::run_git(&dir, &["add", "-A"]);
+
+    let (unstage_status, unstage_body) = send_post(
+        state.clone(),
+        "/workspace/git/unstage-all",
+        Some(json!({ "workspacePath": dir.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(unstage_status, axum::http::StatusCode::OK, "body: {unstage_body}");
+
+    let (discard_status, discard_body) = send_post(
+        state,
+        "/workspace/git/discard-all",
+        Some(json!({ "workspacePath": dir.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(discard_status, axum::http::StatusCode::OK, "body: {discard_body}");
+    assert!(!dir.join("loose.txt").exists(), "untracked file removed");
+    let readme = std::fs::read_to_string(dir.join("readme.md")).unwrap();
+    assert_eq!(readme.replace("\r\n", "\n"), "# test\n", "tracked file restored");
+}
+
+#[tokio::test]
+async fn commit_with_empty_message_returns_invalid_input() {
+    let state = state("ws-git-bulk").await;
+    let dir = temp_dir("bulk-empty-commit");
+    init_git_repo(&dir);
+    let (status, body) = send_post(
+        state,
+        "/workspace/git/commit",
+        Some(json!({ "workspacePath": dir.to_string_lossy(), "message": "   " })),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "body: {body}");
+    assert_eq!(body["error"]["code"], "INVALID_INPUT", "body: {body}");
+}
+
+#[tokio::test]
+async fn push_and_pull_without_remote_return_errors() {
+    let state = state("ws-git-bulk").await;
+    let dir = temp_dir("bulk-noremote");
+    init_git_repo(&dir);
+
+    let (push_status, push_body) = send_post(
+        state.clone(),
+        "/workspace/git/push",
+        Some(json!({ "workspacePath": dir.to_string_lossy() })),
+    )
+    .await;
+    assert!(push_status.is_client_error(), "push without remote -> error: {push_body}");
+    assert_eq!(push_body["ok"], false, "body: {push_body}");
+
+    let (pull_status, pull_body) = send_post(
+        state,
+        "/workspace/git/pull",
+        Some(json!({ "workspacePath": dir.to_string_lossy() })),
+    )
+    .await;
+    assert!(pull_status.is_client_error(), "pull without remote -> error: {pull_body}");
+    assert_eq!(pull_body["ok"], false, "body: {pull_body}");
+}
+
+#[tokio::test]
+async fn bulk_ops_require_an_explicit_workspace_path() {
+    let state = state("ws-git-bulk").await;
+    let dir = temp_dir("bulk-paths");
+    init_git_repo(&dir);
+    std::fs::write(dir.join("keep.txt"), "keep\n").unwrap();
+    std::fs::write(dir.join("untracked.txt"), "u\n").unwrap();
+    // 真正把 dir 设为活动工作区：缺 path 的批量操作若回退到活动工作区，
+    // 就会在这里产生可见副作用（discard-all 会删掉 untracked.txt）。
+    let (open_status, open_body) = send_post(
+        state.clone(),
+        "/workspace/open",
+        Some(json!({ "workspacePath": dir.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(open_status, axum::http::StatusCode::OK, "open: {open_body}");
+
+    for path in [
+        "/workspace/git/stage-all",
+        "/workspace/git/unstage-all",
+        "/workspace/git/discard-all",
+        "/workspace/git/push",
+        "/workspace/git/pull",
+    ] {
+        let (status, body) = send_post(state.clone(), path, Some(json!({}))).await;
+        assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "{path}: {body}");
+        assert_eq!(body["error"]["code"], "INVALID_INPUT", "{path}: {body}");
+    }
+
+    let (status, body) =
+        send_post(state, "/workspace/git/commit", Some(json!({ "message": "no workspace" }))).await;
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "body: {body}");
+    assert_eq!(body["error"]["code"], "INVALID_INPUT", "body: {body}");
+    assert!(dir.join("keep.txt").exists(), "active workspace must stay untouched");
+    assert!(
+        dir.join("untracked.txt").exists(),
+        "discard-all without workspacePath must not fall back to the active workspace"
+    );
+}
+
+#[tokio::test]
+async fn bulk_ops_on_non_git_dir_return_workspace_errors() {
+    let state = state("ws-git-bulk").await;
+    let dir = temp_dir("bulk-nongit");
+    for path in [
+        "/workspace/git/stage-all",
+        "/workspace/git/unstage-all",
+        "/workspace/git/discard-all",
+        "/workspace/git/push",
+        "/workspace/git/pull",
+    ] {
+        let (status, body) =
+            send_post(state.clone(), path, Some(json!({ "workspacePath": dir.to_string_lossy() })))
+                .await;
+        assert!(status.is_client_error(), "{path} -> error: {status} {body}");
+        assert_eq!(body["ok"], false, "{path} body: {body}");
+    }
+}

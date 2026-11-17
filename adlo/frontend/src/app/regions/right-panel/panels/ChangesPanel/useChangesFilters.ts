@@ -10,7 +10,7 @@ import type {
 import { buildChangeEntries, buildChangeTree } from '@regions/right-panel/changesTree';
 import { collectDirectoryPaths } from '@features/file-tree';
 import { getDefaultExpandedOutlineIds, outlineForChangePreview } from '@features/outline';
-import { isHeavyDiffContent } from '@regions/right-panel/heavyPreviewLimits';
+import { shouldSkipChangeOutline } from '@regions/right-panel/heavyPreviewLimits';
 import { summarizePatchSet } from '@features/patch-review';
 import { joinPathSegments } from '@app/utils/workspacePaths';
 import type { TreeExpansion } from '@stores/slices/uiSliceTypes';
@@ -97,7 +97,7 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
       changePreview
         ? outlineForChangePreview(
             changePreview,
-            isHeavyDiffContent(changePreview.baseContent, changePreview.currentContent),
+            shouldSkipChangeOutline(changePreview.baseContent, changePreview.currentContent),
           )
         : [],
     [changePreview],

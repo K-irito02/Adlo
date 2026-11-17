@@ -22,10 +22,11 @@ pub use git::git_vis::{
     capture_contributor_modules, capture_file_hotspots,
 };
 pub use git::{
-    capture_git_snapshot, capture_git_snapshot_async, create_git_branch, discard_file_changes,
-    ensure_branch_worktree, git_has_local_changes, has_auto_stash, init_git_repo,
-    list_git_branches, list_worktrees, pop_auto_stash, prune_worktrees, remove_worktree,
-    sibling_worktree_dir, stage_file, switch_git_branch, unstage_file, worktree_for_branch,
+    capture_git_snapshot, capture_git_snapshot_async, commit, create_git_branch, discard_all,
+    discard_file_changes, ensure_branch_worktree, git_has_local_changes, has_auto_stash,
+    init_git_repo, list_git_branches, list_worktrees, pop_auto_stash, prune_worktrees,
+    pull_ff_only, push, remove_worktree, sibling_worktree_dir, stage_all, stage_file,
+    switch_git_branch, unstage_all, unstage_file, worktree_for_branch,
 };
 pub use gitignore::{GitignoreMatcher, GitignoreRuleSet, load_gitignore_chain};
 pub use preview::read_change_preview;

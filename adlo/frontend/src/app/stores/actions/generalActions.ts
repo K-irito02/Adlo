@@ -3,6 +3,7 @@ import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@adlo/kernel';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
 import type { TreeCacheOptions } from '../../../shared/ipc/storage';
 import { workspaceRequestSeq, queueLowPriorityRefresh, clearError, captureError } from '../shared';
+import { clearedChangePreviewState } from '../cacheHelpers';
 import { buildGitSnapshotSyncPatch } from '../gitSnapshotSync';
 import { resolveCurrentTheme } from '@shared/resolveTheme';
 import { isTauriShell } from '../../../tauri-bridge';
@@ -635,9 +636,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         dirtyEditorPaths: [],
         openTabs: [],
         selectedFilePath: undefined,
-        selectedChangePreviewPath: undefined,
-        changePreview: undefined,
-        changePreviewLoading: false,
+        ...clearedChangePreviewState(),
         fileContent: undefined,
         fileLastModifiedAt: undefined,
         fileMedia: null,

@@ -11,7 +11,7 @@ const REVEAL_DURATION_MS = 1000;
 const HIDE_DELAY_MS = 300;
 const POLL_INTERVAL_MS = 100;
 const FORCE_PARSE_TIMEOUT_MS = 1500;
-const MAX_FORCE_PARSE_ATTEMPTS = 60;
+const MAX_FORCE_PARSE_ATTEMPTS = 12;
 const MAX_VISIBLE_DURATION_MS = 5000;
 
 function hasFoldGutterMarkers(container: HTMLElement): boolean {
@@ -42,8 +42,8 @@ export function useFoldMarkerAutoHide(
   fileKey: string,
   editorView?: EditorView | null,
   /**
-   * 重型差异降级（方案A）：plaintext 下无解析器→永无 fold 标记，
-   * 100ms×60 的 forceParsing + 重配轮询纯属无用功且阻塞主线程，直接全跳过。
+   * 跳过轮询：无语法加载器的语言不产生 fold 标记；重型/降级档也不值得为
+   * 「打开时自动显示标记」轮询（悬停仍由 CSS 显示）。
    */
   disabled = false,
 ): FoldMarkerState {

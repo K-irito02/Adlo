@@ -13,13 +13,24 @@ export interface HeavyPreviewGateProps {
    * 缺省沿用通用 `heavyPreviewHint`（文件面板等全量渲染路径）。
    */
   hintKey?: Extract<CopyKey, 'heavyPreviewHint' | 'heavyPreviewHintDiff'>;
+  /**
+   * 标题 key：行数触发的重型与“文件体积大”不是同一原因，
+   * 差异门传 `heavyPreviewTitleDiff` 使用中性措辞。
+   */
+  titleKey?: Extract<CopyKey, 'heavyPreviewTitle' | 'heavyPreviewTitleDiff'>;
 }
 
 /**
  * 大文件确认门（收尾 M1 抽取，EditorSurfaceShell/FilePreviewRenderers 共用）：
  * 居中图标 + 标题 + 体积说明 + “仍然打开”按钮，统一样式与无障碍语义。
  */
-export function HeavyPreviewGate({ name, sizeText, onConfirm, hintKey }: HeavyPreviewGateProps) {
+export function HeavyPreviewGate({
+  name,
+  sizeText,
+  onConfirm,
+  hintKey,
+  titleKey,
+}: HeavyPreviewGateProps) {
   const { t, formatT } = useTCopy();
   return (
     <div className="adl-unsupported-preview" role="status">
@@ -37,7 +48,9 @@ export function HeavyPreviewGate({ name, sizeText, onConfirm, hintKey }: HeavyPr
         <path d="M12 11v6" />
         <path d="M9 14h6" />
       </svg>
-      <span className="adl-unsupported-preview__text">{t.heavyPreviewTitle as string}</span>
+      <span className="adl-unsupported-preview__text">
+        {t[titleKey ?? 'heavyPreviewTitle'] as string}
+      </span>
       <span className="adl-unsupported-preview__hint">
         {formatT(t, hintKey ?? 'heavyPreviewHint', { name, size: sizeText })}
       </span>

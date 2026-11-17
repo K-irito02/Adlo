@@ -7,6 +7,12 @@ export {
   LazyPptxPreviewWrapper,
 } from './LazyPreviews';
 export { PreviewLoadingGate } from './PreviewLoadingGate';
+export { PreviewExternalActions } from './PreviewExternalActions';
+export {
+  isWebViewRenderableFile,
+  openLocalFileInBrowser,
+  resolveBrowserFileUrl,
+} from './previewExternal';
 export { buildPreviewCacheKey } from './previewCache';
 export type {
   MarkdownPreviewProps,

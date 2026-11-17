@@ -1,10 +1,5 @@
 export { DiffViewer, type DiffViewerProps } from './DiffViewer';
-export {
-  computeSyncedScrollTop,
-  syncHorizontalScroll,
-  buildCollapsedUnchangedRanges,
-} from './diffViewerUtils';
-export type { ScrollSyncMetrics } from './sharedExtensions';
+export { buildCollapsedUnchangedRanges } from './diffViewerUtils';
 
 export type {
   PreviewDiffRange,

@@ -22,6 +22,7 @@ import { ChunkLoadingFallback } from '@components/LazyComponents';
 import type { RightPanelViewProps } from './types';
 import { useTCopy } from '@i18n/useTCopy';
 import { useDiffStickyRanges } from './useDiffStickyRanges';
+import { PreviewExternalActions } from '@features/preview';
 
 /** 后端"不存在"类错误码归一化（Phase 4 审查 L3）：大小写/分隔符不敏感，另认 ENOENT。 */
 function isNotFoundCode(code: string): boolean {
@@ -225,6 +226,11 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
         >
           {t.fileOpenErrorRetry}
         </button>
+        {/* 事项4：内部读取/渲染打不开时，若 WebView2 可渲染则提供浏览器入口。 */}
+        <PreviewExternalActions
+          filePath={fileOpenError.path}
+          workspaceId={fileOpenError.workspaceId ?? selectedFileWorkspaceId}
+        />
       </div>
     );
   }

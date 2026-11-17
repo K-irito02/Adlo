@@ -313,7 +313,12 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
     return (
       <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
         {/* key 绑定路径：切换文件即全新挂载，杜绝错误态/旧容器残留串扰 */}
-        <LazyMediaPreviewWrapper key={fileMedia.path} media={fileMedia} kind={fileCategory} />
+        <LazyMediaPreviewWrapper
+          key={fileMedia.path}
+          media={fileMedia}
+          kind={fileCategory}
+          workspaceId={workspaceId}
+        />
       </PreviewSurface>
     );
   }

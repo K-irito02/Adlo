@@ -92,6 +92,7 @@ pub(crate) fn capture_git_paths_with_fallback(
     })
 }
 
+/// 无超时的本地 git 调用（commit/add/restore 等可能跑钩子或耗时，不能按网络超时判死）。
 pub(crate) fn run_git_required(root: &Path, args: &[&str]) -> Result<String, AppError> {
     let output = git_command(root)
         .args(args)
@@ -107,6 +108,180 @@ pub(crate) fn run_git_required(root: &Path, args: &[&str]) -> Result<String, App
             stderr
         }))
     }
+}
+
+/// 带超时的 git 调用（仅用于 push/pull 等网络操作）：超时即结束进程树并返回错误。
+/// 读取线程通过 channel 回收；超时后每个流最多等 2s，仍未结束则记录 warn 并放弃等待，
+/// 保证请求线程不会被持有管道写端的孙进程永久阻塞。
+pub(crate) fn run_git_required_with_timeout(
+    root: &Path,
+    args: &[&str],
+    timeout: Duration,
+) -> Result<String, AppError> {
+    use std::io::Read;
+    use std::process::Stdio;
+    use std::sync::mpsc;
+
+    let mut child = git_command(root)
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| AppError::Workspace(format!("failed to execute git: {error}")))?;
+    let mut stdout_pipe = child
+        .stdout
+        .take()
+        .ok_or_else(|| AppError::Workspace("failed to capture git stdout".into()))?;
+    let mut stderr_pipe = child
+        .stderr
+        .take()
+        .ok_or_else(|| AppError::Workspace("failed to capture git stderr".into()))?;
+    let (stdout_tx, stdout_rx) = mpsc::channel::<Vec<u8>>();
+    let (stderr_tx, stderr_rx) = mpsc::channel::<Vec<u8>>();
+    std::thread::spawn(move || {
+        let mut buffer = Vec::new();
+        let _ = stdout_pipe.read_to_end(&mut buffer);
+        let _ = stdout_tx.send(buffer);
+    });
+    std::thread::spawn(move || {
+        let mut buffer = Vec::new();
+        let _ = stderr_pipe.read_to_end(&mut buffer);
+        let _ = stderr_tx.send(buffer);
+    });
+
+    let drain = || -> (Vec<u8>, Vec<u8>) {
+        let wait = Duration::from_secs(2);
+        let stdout = stdout_rx.recv_timeout(wait).unwrap_or_else(|_| {
+            warn!(args = %args.join(" "), "git stdout reader did not finish; detaching");
+            Vec::new()
+        });
+        let stderr = stderr_rx.recv_timeout(wait).unwrap_or_else(|_| {
+            warn!(args = %args.join(" "), "git stderr reader did not finish; detaching");
+            Vec::new()
+        });
+        (stdout, stderr)
+    };
+
+    let started = std::time::Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => {},
+            Err(error) => {
+                kill_process_tree(&mut child);
+                let _ = child.wait();
+                let _ = drain();
+                return Err(AppError::Workspace(format!("failed to wait for git: {error}")));
+            },
+        }
+        if started.elapsed() > timeout {
+            kill_process_tree(&mut child);
+            let _ = child.wait();
+            let (_, stderr) = drain();
+            let tail = String::from_utf8_lossy(&stderr).trim().to_string();
+            warn!(
+                args = %args.join(" "),
+                stderr = %tail,
+                "git command timed out; process tree killed"
+            );
+            return Err(AppError::Workspace(format!(
+                "git command timed out after {}s: git {}",
+                timeout.as_secs(),
+                args.join(" ")
+            )));
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+
+    let (stdout, stderr) = drain();
+    if status.success() {
+        Ok(String::from_utf8_lossy(&stdout).trim().to_string())
+    } else {
+        let stderr = String::from_utf8_lossy(&stderr).trim().to_string();
+        Err(AppError::Workspace(if stderr.is_empty() {
+            format!("git command failed: git {}", args.join(" "))
+        } else {
+            stderr
+        }))
+    }
+}
+
+/// 结束 git 子进程及其派生进程（Windows 上 push/pull 会派生 git-remote-*、
+/// credential manager 等，仅 kill 直接子进程会让孙进程继续持有管道写端）。
+fn kill_process_tree(child: &mut std::process::Child) {
+    #[cfg(windows)]
+    {
+        let pid = child.id().to_string();
+        match std::process::Command::new("taskkill").args(["/T", "/F", "/PID", &pid]).output() {
+            Ok(output) if output.status.success() => {},
+            Ok(output) => warn!(
+                pid = %pid,
+                code = ?output.status.code(),
+                "taskkill failed; falling back to child.kill (grandchildren may survive)"
+            ),
+            Err(error) => warn!(
+                pid = %pid,
+                error = %error,
+                "taskkill unavailable; falling back to child.kill (grandchildren may survive)"
+            ),
+        }
+    }
+    let _ = child.kill();
+}
+
+/// HEAD 的两种合法状态；其它失败（仓库损坏/权限）必须上抛，不能当成 unborn。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HeadState {
+    Present,
+    Unborn,
+}
+
+pub(crate) fn git_head_state(root: &Path) -> Result<HeadState, AppError> {
+    let head = git_command(root)
+        .args(["rev-parse", "--verify", "HEAD^{commit}"])
+        .output()
+        .map_err(|error| AppError::Workspace(format!("failed to execute git: {error}")))?;
+    if head.status.success() {
+        return Ok(HeadState::Present);
+    }
+
+    // HEAD 不是符号引用（detached 已由上面的成功分支覆盖；损坏/非法 HEAD 这里失败）。
+    let refname = run_git(root, &["symbolic-ref", "--quiet", "HEAD"]).ok_or_else(|| {
+        AppError::Workspace("HEAD is not a symbolic ref and cannot be resolved".into())
+    })?;
+    let refname = refname.trim().to_string();
+    if !refname.starts_with("refs/heads/") {
+        return Err(AppError::Workspace(format!("unexpected HEAD ref: {refname}")));
+    }
+
+    // 结构判定：分支 ref 文件存在（或出现在 packed-refs）但提交不可解析 = 仓库损坏，
+    // 必须上抛；只有目标分支确实不存在才是 unborn。
+    let ref_path = run_git(root, &["rev-parse", "--git-path", &refname])
+        .ok_or_else(|| AppError::Workspace(format!("cannot resolve git path for {refname}")))?;
+    let ref_exists = {
+        let path = Path::new(ref_path.trim());
+        let absolute = if path.is_absolute() { path.to_path_buf() } else { root.join(path) };
+        absolute.exists()
+    };
+    let packed_exists = run_git(root, &["rev-parse", "--git-path", "packed-refs"])
+        .map(|path| {
+            let candidate = Path::new(path.trim());
+            let absolute = if candidate.is_absolute() {
+                candidate.to_path_buf()
+            } else {
+                root.join(candidate)
+            };
+            std::fs::read_to_string(absolute)
+                .map(|content| content.lines().any(|line| line.ends_with(&format!(" {refname}"))))
+                .unwrap_or(false)
+        })
+        .unwrap_or(false);
+    if ref_exists || packed_exists {
+        return Err(AppError::Workspace(format!(
+            "HEAD points to {refname} but its commit cannot be resolved"
+        )));
+    }
+    Ok(HeadState::Unborn)
 }
 
 pub(crate) fn first_non_empty_line(value: String) -> Option<String> {

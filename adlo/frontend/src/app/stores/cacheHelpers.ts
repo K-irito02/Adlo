@@ -309,6 +309,22 @@ export function clearWorkspaceCaches(workspacePrefix: string) {
   clearEditorSaveStateForWorkspace(workspacePrefix);
 }
 
+/**
+ * 变更预览的统一清空补丁：文本与媒体两条链共用，避免新增字段时漏清
+ * （媒体 base64 可达 50MB，遗漏会长期驻留）。
+ */
+export function clearedChangePreviewState() {
+  return {
+    selectedChangePreviewPath: undefined,
+    selectedChangePreviewWorkspaceId: undefined,
+    changePreview: undefined,
+    changePreviewLoading: false,
+    changePreviewMedia: null,
+    changePreviewMediaLoading: false,
+    changePreviewMediaError: null,
+  } as const;
+}
+
 /** 清除错误 toast（scope 提供时仅清除该作用域，缺省清空全部） */
 export function clearError(get: () => StoreState, scope?: string): void {
   if (get().errorToasts.length > 0) {

@@ -45,6 +45,15 @@ mount inline heavy=true origLen=5646505 modLen=0 lines=1 chunks=1
 5. **自定义 hook 的隐式轮询**：`useFoldMarkerAutoHide` 这类"挂载即起轮询"的 hook，在被复用到新场景（重型 plain）时必须显式关闭，否则旧优化在主路径上失效（审查发现）。
 6. **"就绪才切换"的连带**：把 selected 从"请求开始"挪到"终态"会改变所有读 selected 的旁路（如 `fetchGitStatus` 刷新）语义，需同步加在途哨兵，否则点击被后台刷新静默作废。
 
+## 2026-11-17 追加：阈值信号与轮询上限
+
+同一问题的第二轮排查（低体积但多行/多变更块的文件仍卡）：
+
+- **轮询风暴的真正触发面**：`useFoldMarkerAutoHide` 只在 `isHeavy`（>1MB）时禁用；4000 行 / 150KB 的 plaintext diff 仍跑满 60 次轮询，实测每次 65–89ms，打开后 8s 内 **62 个长任务 / 4.4–5.1s**。修复：按 `languageSupportsFolding`（无语法加载器即禁用）+ 轮询上限 60→12；实测降到 3 个长任务 / 235ms。
+- **分档信号不能用行×行**：把差分单元格（`baseLines × currentLines`）当 viewer 降级信号，会让 1500 行普通代码 diff 被判 heavy（无高亮、无变更标记）。viewer 分档只看字符数与行数；行×行 DP 只属于 `changePreviewDiffRanges` 自己的 `MAX_EXACT_DIFF_CELLS` 熔断。
+- **确认门/plain 双栏/跳过计算必须同源**：三处各自判断会出现「无门、无 plain、却跳过 ranges/大纲」。统一到 `classifyDiffTier(profileDiffCost(...)) === 'heavy'`（面板 tier、侧栏 `shouldSkipChangeOutline`）。
+- **并排滚动同步**：同步布尔锁 + 比例回写在 `scroll` 异步派发下形成 A→B→A 回环，每帧把源侧拉回 ~45px。正确做法：写入后回读实际位置记期望值、位置归因的用户接管、rAF 合并（同帧以最后滚动侧为准）、底部硬对齐。测试必须用「打断事件顺序 + 写次数」才能变红，位置恒等映射下普通断言是假绿。
+
 ## 相关
 
 - 后端上限：`crates/workspace/src/lib.rs`（`DEFAULT_MAX_TEXT_FILE_BYTES`）、`preview.rs`、`git/git_helpers.rs`；浏览器 `dev/previewWorkspaceService/git.ts`。

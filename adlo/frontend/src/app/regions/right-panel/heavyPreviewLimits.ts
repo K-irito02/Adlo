@@ -1,4 +1,5 @@
 import type { FileCategory } from './fileTypeRouter';
+import { profileDiffCost, type DiffCostProfile } from './diffCost';
 
 /**
  * 大文件直接渲染阈值（字节）：超过后先显示友好提示 + "仍然打开"，
@@ -29,22 +30,41 @@ export function isHeavyTextCategory(category: FileCategory): boolean {
 }
 
 /**
- * 变更预览的重型体积（字符数）：取 base/current 两侧较大者。
- * 事项3：此前门条件只看 current，删除型（current 为空、base 巨大）绕过确认门
- * 直挂 DiffViewer，大文档解析+布局阻塞主线程 → 最小化还原黑屏、缩放卡顿。
- * base/current 语义见 read_change_preview（新增型 base 空、删除型 current 空）。
+ * 变更预览的体积显示值（字符数）：取 base/current 两侧较大者，仅用于
+ * 确认门卡片的体积文案；是否进门由 `classifyDiffTier` 决定。
  */
 export function heavyChangePreviewLength(baseContent: string, currentContent: string): number {
   return Math.max(baseContent.length, currentContent.length);
 }
 
 /**
- * 重型差异内容判定（方案A：重型差异降级渲染）。
- * 与确认门同阈值（`>`），供差异视图挂载时选择低成本选项：
- * base/current 任一超限即重型（删除型 current 为空不能作为"不重"依据）。
+ * 差异代价分档（事项 1）：单一体积门不足以覆盖"体积不大但行数极多"的文件
+ * （实测 4000 行 / 约 1000 变更块的文件打开后被折叠标记轮询拖住数秒）。
+ * 分档只使用字符数与行数（行×行的 DP 代价属于 changePreviewDiffRanges 自己的
+ * 分解上限，不是 MergeView 的成本，不参与 viewer 降级）。
+ * light 全功能；degraded 关变更高亮与折叠轮询（语法仍解析）；heavy 走确认门 + plain 双栏。
  */
-export function isHeavyDiffContent(original: string, modified: string): boolean {
-  return heavyChangePreviewLength(original, modified) > TEXT_HEAVY_PREVIEW_CHARS;
+export type DiffCostTier = 'light' | 'degraded' | 'heavy';
+
+const LIGHT_MAX_CHARS = 256 * 1024;
+const LIGHT_MAX_LINES = 3000;
+const HEAVY_MAX_LINES = 10_000;
+
+export function classifyDiffTier(profile: DiffCostProfile): DiffCostTier {
+  const maxChars = Math.max(profile.baseChars, profile.currentChars);
+  const maxLines = Math.max(profile.baseLines, profile.currentLines);
+  if (maxChars > TEXT_HEAVY_PREVIEW_CHARS || maxLines > HEAVY_MAX_LINES) {
+    return 'heavy';
+  }
+  if (maxChars > LIGHT_MAX_CHARS || maxLines > LIGHT_MAX_LINES) {
+    return 'degraded';
+  }
+  return 'light';
+}
+
+/** 侧栏大纲跳过谓词：与面板 `costTier` 同源（同一对纯函数、同一输入）。 */
+export function shouldSkipChangeOutline(baseContent: string, currentContent: string): boolean {
+  return classifyDiffTier(profileDiffCost(baseContent, currentContent)) === 'heavy';
 }
 
 /**

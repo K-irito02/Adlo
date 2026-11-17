@@ -17,6 +17,15 @@ export interface WorkspaceChangesMenuProps {
   onCopyFullPath: () => void;
   onCopyRelativePath: () => void;
   onClose: () => void;
+  onStageAll: () => void;
+  onUnstageAll: () => void;
+  onRequestCommit: () => void;
+  onPush: () => void;
+  onPull: () => void;
+  onRequestDiscardAll: () => void;
+  hasChanges: boolean;
+  hasStaged: boolean;
+  busy: boolean;
 }
 
 export const WorkspaceChangesMenu = React.memo(function WorkspaceChangesMenu({
@@ -31,6 +40,15 @@ export const WorkspaceChangesMenu = React.memo(function WorkspaceChangesMenu({
   onCopyFullPath,
   onCopyRelativePath,
   onClose,
+  onStageAll,
+  onUnstageAll,
+  onRequestCommit,
+  onPush,
+  onPull,
+  onRequestDiscardAll,
+  hasChanges,
+  hasStaged,
+  busy,
 }: WorkspaceChangesMenuProps) {
   useEffect(() => {
     if (!menuOpen) {
@@ -79,23 +97,59 @@ export const WorkspaceChangesMenu = React.memo(function WorkspaceChangesMenu({
     >
       <BranchMenuItem currentBranch={currentBranch} onRequestOpen={onRequestBranchOpen} />
       <div className="adl-multitree-entry__menu-sep" role="separator" />
-      <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" disabled>
+      <button
+        type="button"
+        className="adl-multitree-entry__menu-item"
+        role="menuitem"
+        disabled={busy || !hasChanges}
+        onClick={onStageAll}
+      >
         {t.changesStageAll}
       </button>
-      <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" disabled>
+      <button
+        type="button"
+        className="adl-multitree-entry__menu-item"
+        role="menuitem"
+        disabled={busy || !hasStaged}
+        onClick={onUnstageAll}
+      >
         {t.changesUnstageAll}
       </button>
-      <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" disabled>
+      <button
+        type="button"
+        className="adl-multitree-entry__menu-item"
+        role="menuitem"
+        disabled={busy || !hasChanges}
+        onClick={onRequestCommit}
+      >
         {t.changesCommit}
       </button>
-      <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" disabled>
+      <button
+        type="button"
+        className="adl-multitree-entry__menu-item"
+        role="menuitem"
+        disabled={busy}
+        onClick={onPush}
+      >
         {t.changesPush}
       </button>
-      <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" disabled>
+      <button
+        type="button"
+        className="adl-multitree-entry__menu-item"
+        role="menuitem"
+        disabled={busy}
+        onClick={onPull}
+      >
         {t.changesPull}
       </button>
       <div className="adl-multitree-entry__menu-sep" role="separator" />
-      <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" disabled>
+      <button
+        type="button"
+        className="adl-multitree-entry__menu-item"
+        role="menuitem"
+        disabled={busy || !hasChanges}
+        onClick={onRequestDiscardAll}
+      >
         {t.changesDiscardAll}
       </button>
       <div className="adl-multitree-entry__menu-sep" role="separator" />

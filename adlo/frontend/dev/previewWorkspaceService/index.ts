@@ -945,6 +945,138 @@ const routes: Route[] = [
     },
   },
   {
+    method: 'POST',
+    pathname: makePath('/workspace/git-stage-file'),
+    handler: async (_req, body) => {
+      const b = body as { rootPath?: string; relativePath?: string } | undefined;
+      if (!b?.rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      if (!b.relativePath?.trim()) return fail('relativePath is required', 'INVALID_INPUT');
+      try {
+        await git.stageFile(b.rootPath, b.relativePath);
+        return ok(true);
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'WORKSPACE_ERROR');
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/workspace/git-unstage-file'),
+    handler: async (_req, body) => {
+      const b = body as { rootPath?: string; relativePath?: string } | undefined;
+      if (!b?.rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      if (!b.relativePath?.trim()) return fail('relativePath is required', 'INVALID_INPUT');
+      try {
+        await git.unstageFile(b.rootPath, b.relativePath);
+        return ok(true);
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'WORKSPACE_ERROR');
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/workspace/git-discard-file'),
+    handler: async (_req, body) => {
+      const b = body as { rootPath?: string; relativePath?: string } | undefined;
+      if (!b?.rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      if (!b.relativePath?.trim()) return fail('relativePath is required', 'INVALID_INPUT');
+      try {
+        await git.discardFile(b.rootPath, b.relativePath);
+        return ok(true);
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'WORKSPACE_ERROR');
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/workspace/git-stage-all'),
+    handler: async (_req, body) => {
+      const b = body as { rootPath?: string } | undefined;
+      if (!b?.rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      try {
+        await git.stageAll(b.rootPath);
+        return ok(true);
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'WORKSPACE_ERROR');
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/workspace/git-unstage-all'),
+    handler: async (_req, body) => {
+      const b = body as { rootPath?: string } | undefined;
+      if (!b?.rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      try {
+        await git.unstageAll(b.rootPath);
+        return ok(true);
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'WORKSPACE_ERROR');
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/workspace/git-discard-all'),
+    handler: async (_req, body) => {
+      const b = body as { rootPath?: string } | undefined;
+      if (!b?.rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      try {
+        await git.discardAll(b.rootPath);
+        return ok(true);
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'WORKSPACE_ERROR');
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/workspace/git-commit'),
+    handler: async (_req, body) => {
+      const b = body as { rootPath?: string; message?: string } | undefined;
+      if (!b?.rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      if (!b.message || !b.message.trim()) {
+        return fail('commit message is empty', 'INVALID_INPUT');
+      }
+      try {
+        await git.commitChanges(b.rootPath, b.message ?? '');
+        return ok(true);
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'WORKSPACE_ERROR');
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/workspace/git-push'),
+    handler: async (_req, body) => {
+      const b = body as { rootPath?: string } | undefined;
+      if (!b?.rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      try {
+        await git.pushChanges(b.rootPath);
+        return ok(true);
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'WORKSPACE_ERROR');
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/workspace/git-pull'),
+    handler: async (_req, body) => {
+      const b = body as { rootPath?: string } | undefined;
+      if (!b?.rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      try {
+        await git.pullChanges(b.rootPath);
+        return ok(true);
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'WORKSPACE_ERROR');
+      }
+    },
+  },
+  {
     method: 'GET',
     pathname: makePath('/workspace/absolute-path'),
     handler: async (_req, _body, searchParams) => {

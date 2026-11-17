@@ -13,6 +13,8 @@ import { FileTree, type FileTreeContextMenuItem } from '@features/file-tree';
 import { TooltipSimple } from '@components/Tooltip';
 import { LoadingRow, EmptyRow } from '@components/LoadingRow';
 import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
+import { CommitDialog } from '@components/CommitDialog';
+import { ConfirmDialog } from '@components/ConfirmDialog';
 import { BranchSubCard } from '@regions/right-panel/panels/BranchSubCard';
 import { useWorkspaceChangesActions } from './WorkspaceChangesActions';
 import { WorkspaceChangesMenu } from './WorkspaceChangesMenu';
@@ -107,6 +109,23 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
     handleHideFromRightPanels,
     handleRefreshClick,
     wrappedGetContextMenuItems,
+    handleStageAll,
+    handleUnstageAll,
+    handleRequestCommit,
+    handlePush,
+    handlePull,
+    handleRequestDiscardAll,
+    commitOpen,
+    commitBusy,
+    commitError,
+    submitCommit,
+    closeCommit,
+    discardOpen,
+    confirmDiscardAll,
+    closeDiscard,
+    gitBusy,
+    hasChanges,
+    hasStaged,
   } = useWorkspaceChangesActions({
     workspace,
     onToggleExpand,
@@ -226,6 +245,46 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
         onCopyFullPath={handleCopyFullPath}
         onCopyRelativePath={handleCopyRelativePath}
         onClose={closeMenu}
+        onStageAll={handleStageAll}
+        onUnstageAll={handleUnstageAll}
+        onRequestCommit={handleRequestCommit}
+        onPush={handlePush}
+        onPull={handlePull}
+        onRequestDiscardAll={handleRequestDiscardAll}
+        hasChanges={hasChanges}
+        hasStaged={hasStaged}
+        busy={gitBusy}
+      />
+
+      <CommitDialog
+        open={commitOpen}
+        title={t.changesCommitDialogTitle}
+        messageLabel={t.changesCommitMessageLabel}
+        placeholder={t.changesCommitMessagePlaceholder}
+        stageAllLabel={t.changesCommitStageAllOption}
+        submitLabel={t.changesCommitSubmit}
+        submittingLabel={t.changesCommitSubmitting}
+        emptyMessage={t.changesCommitEmptyMessage}
+        cancelLabel={t.cancel}
+        error={commitError}
+        submitting={commitBusy}
+        onCancel={closeCommit}
+        onSubmit={(message, stageAll) => {
+          void submitCommit(message, stageAll);
+        }}
+      />
+
+      <ConfirmDialog
+        open={discardOpen}
+        title={t.changesDiscardAllTitle}
+        message={gitSnapshot?.head ? t.changesDiscardAllMessage : t.changesDiscardAllNoHeadMessage}
+        confirmLabel={t.changesDiscardAll}
+        cancelLabel={t.cancel}
+        busy={gitBusy}
+        onConfirm={() => {
+          void confirmDiscardAll();
+        }}
+        onCancel={closeDiscard}
       />
 
       <WorkspaceRemoveConfirmDialog

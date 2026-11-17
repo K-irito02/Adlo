@@ -51,24 +51,6 @@ class ScrollLeftSyncPlugin implements PluginValue {
     this.hscrollMgr.onPointerUpComplete = () => {
       this.schedule();
     };
-    this.hscrollMgr.onEditorScroll = (scrollDOM) => {
-      const mergeView = scrollDOM.closest('.cm-mergeView');
-      if (mergeView) {
-        const editors = mergeView.querySelectorAll('.cm-mergeViewEditor .cm-scroller');
-        for (const scroller of editors) {
-          if (scroller !== scrollDOM) {
-            const otherScroll = scroller as HTMLElement;
-            const otherMax = Math.max(0, otherScroll.scrollWidth - otherScroll.clientWidth);
-            if (otherMax > 0) {
-              const scrollLeft = scrollDOM.scrollLeft;
-              const maxScrollLeft = Math.max(0, scrollDOM.scrollWidth - scrollDOM.clientWidth);
-              const ratio = Math.min(1, scrollLeft / maxScrollLeft);
-              otherScroll.scrollLeft = ratio * otherMax;
-            }
-          }
-        }
-      }
-    };
 
     this.hscrollMgr.createCustomScrollbar();
     this.syncCssPropsOnly();

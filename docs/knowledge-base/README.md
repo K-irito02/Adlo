@@ -82,7 +82,7 @@
 | [file-tree.md](./multi-workspace/file-tree.md) | 多工作区文件树 11 条经验 |
 | [git-metadata-watch-silent-miss-2026-11-09.md](./multi-workspace/git-metadata-watch-silent-miss-2026-11-09.md) | 变更面板 commit/push 后不刷新：git 元数据盲区与 linked worktree gitdir/commondir 双监听 |
 | [interactive-terminal.md](./multi-workspace/interactive-terminal.md) | 交互式终端讨论总结 |
-| [large-file-diff-degradation-2026-10-14.md](./multi-workspace/large-file-diff-degradation-2026-10-14.md) | 超大变更文件差异渲染：挂载成本、双侧取大门、plain 降级、fold 轮询风暴 |
+| [large-file-diff-degradation-2026-10-14.md](./multi-workspace/large-file-diff-degradation-2026-10-14.md) | 超大变更文件差异渲染：挂载成本、双侧取大门、plain 降级、fold 轮询风暴；2026-11-17 追加分档信号与滚动同步回环 |
 | [search-workspace-binding-2026-10-14.md](./multi-workspace/search-workspace-binding-2026-10-14.md) | 文件检索工作区绑定、命中显式打开、ripgrep 式大文件检索、覆盖锚重定 |
 | [stats-fix.md](./multi-workspace/stats-fix.md) | 多工作区统计修复经验 |
 | [terminal-binding.md](./multi-workspace/terminal-binding.md) | 终端工作区绑定改进经验 |

@@ -27,7 +27,6 @@ export class HorizontalScrollManager {
   onSetChunkButtonsVisible: ((visible: boolean) => void) | null = null;
   onDragEnd: (() => void) | null = null;
   onPointerUpComplete: (() => void) | null = null;
-  onEditorScroll: ((scrollDOM: HTMLElement) => void) | null = null;
 
   readonly onThumbPointerDown: (e: PointerEvent) => void;
   readonly onTrackPointerDown: (e: PointerEvent) => void;
@@ -178,8 +177,6 @@ export class HorizontalScrollManager {
     this.view.scrollDOM.scrollLeft = scrollLeft;
 
     this.hscrollThumb.style.left = `${thumbLeft}px`;
-
-    this.onEditorScroll?.(this.view.scrollDOM);
   }
 
   private _onPointerUp(): void {
@@ -306,8 +303,6 @@ export class HorizontalScrollManager {
     } else {
       scrollDOM.scrollLeft = Math.max(0, scrollDOM.scrollLeft - 2 - 4 * speed);
     }
-
-    this.onEditorScroll?.(scrollDOM);
 
     if (this.edgeScrollRafId !== null) {
       this.edgeScrollRafId = requestAnimationFrame(this.tickEdgeScroll);

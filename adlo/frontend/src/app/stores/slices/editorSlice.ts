@@ -47,6 +47,15 @@ export interface EditorSlice {
   changePreview?: WorkspaceChangePreview;
   changePreviewLoading: boolean;
   /**
+   * 变更预览的媒体/办公字节（事项4）：变更面板与文件面板可打开类型一致。
+   * 文本变更走 `changePreview`；媒体类走本字段，二者按当前选中变更互斥。
+   */
+  changePreviewMedia?: WorkspaceMediaDocument | null;
+  /** 变更预览媒体读取中（与 changePreviewLoading 同步语义）。 */
+  changePreviewMediaLoading: boolean;
+  /** 媒体/办公变更读取失败（含已删除文件）：面板据此展示错误与重试。 */
+  changePreviewMediaError?: { path: string; message: string } | null;
+  /**
    * 磁盘基线，同时作为 CodeMirror 的受控 value。编辑中的实时文本在
    * `pendingEditorText` 暂存缓冲（按工作区+路径键控），不在本字段。
    *
@@ -164,6 +173,9 @@ export const createEditorSlice = (
   openTabs: [],
   outline: [],
   changePreviewLoading: false,
+  changePreviewMedia: null,
+  changePreviewMediaLoading: false,
+  changePreviewMediaError: null,
   dirtyEditorPaths: [],
   fileOpenError: null,
   positioningPath: null,
@@ -341,6 +353,9 @@ export const createEditorSlice = (
       selectedChangePreviewWorkspaceId: undefined,
       changePreview: undefined,
       changePreviewLoading: false,
+      changePreviewMedia: null,
+      changePreviewMediaLoading: false,
+      changePreviewMediaError: null,
       fileContent: undefined,
       fileLastModifiedAt: undefined,
       fileMedia: null,

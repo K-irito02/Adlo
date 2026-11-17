@@ -2,7 +2,7 @@ import { getChunks } from '@codemirror/merge';
 import type { EditorState } from '@codemirror/state';
 import { initScrollbarWidth } from './scrollbarWidth';
 import type { PreviewDiffCollapsedRange } from './changePreviewDiffRanges';
-import type { ScrollSyncMetrics, MergeChunk } from './sharedExtensions';
+import type { MergeChunk } from './sharedExtensions';
 
 initScrollbarWidth();
 
@@ -10,28 +10,21 @@ export function getMergeChunks(state: EditorState): readonly MergeChunk[] {
   return getChunks(state)?.chunks ?? [];
 }
 
-export function computeSyncedScrollTop(input: ScrollSyncMetrics): number {
-  const sourceMax = Math.max(0, input.sourceScrollHeight - input.sourceClientHeight);
-  if (sourceMax <= 0) {
-    return 0;
+function expandedLinesHasOverlap(
+  expandedLines: ReadonlySet<number>,
+  startLine: number,
+  endLine: number,
+): boolean {
+  if (expandedLines.size === 0) {
+    return false;
   }
-  const targetMax = Math.max(0, input.targetScrollHeight - input.targetClientHeight);
-  const ratio = Math.max(0, Math.min(input.sourceScrollTop, sourceMax)) / sourceMax;
-  return ratio * targetMax;
-}
-
-export function syncHorizontalScroll(source: HTMLElement, target: HTMLElement): void {
-  const sourceMax = Math.max(0, source.scrollWidth - source.clientWidth);
-  if (sourceMax <= 0) {
-    target.scrollLeft = 0;
-    return;
+  // 展开行通常远少于区间行数：直接迭代展开集合，命中即返回。
+  for (const line of expandedLines) {
+    if (line >= startLine && line <= endLine) {
+      return true;
+    }
   }
-  const targetMax = Math.max(0, target.scrollWidth - target.clientWidth);
-  if (targetMax <= 0) {
-    return;
-  }
-  const ratio = Math.max(0, Math.min(source.scrollLeft, sourceMax)) / sourceMax;
-  target.scrollLeft = ratio * targetMax;
+  return false;
 }
 
 export function buildCollapsedUnchangedRanges(input: {
@@ -56,7 +49,8 @@ export function buildCollapsedUnchangedRanges(input: {
     const lineCount = collapseTo - collapseFrom + 1;
     if (
       lineCount >= minSize &&
-      ![...expandedLines].some((line) => line >= collapseFrom && line <= collapseTo)
+      // 区间存在性判定：避免 `[...expandedLines]` 在循环内反复展开（区块多时是热点）。
+      !expandedLinesHasOverlap(expandedLines, collapseFrom, collapseTo)
     ) {
       ranges.push({ startLine: collapseFrom, endLine: collapseTo });
     }
@@ -67,17 +61,4 @@ export function buildCollapsedUnchangedRanges(input: {
   }
 
   return ranges;
-}
-
-export function syncScrollPosition(source: HTMLElement, target: HTMLElement) {
-  const nextScrollTop = computeSyncedScrollTop({
-    sourceScrollTop: source.scrollTop,
-    sourceScrollHeight: source.scrollHeight,
-    sourceClientHeight: source.clientHeight,
-    targetScrollHeight: target.scrollHeight,
-    targetClientHeight: target.clientHeight,
-  });
-  if (Math.abs(target.scrollTop - nextScrollTop) > 0.5) {
-    target.scrollTop = nextScrollTop;
-  }
 }

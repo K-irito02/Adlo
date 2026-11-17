@@ -123,6 +123,9 @@ GitSnapshot {
 | `move_file_entry` | 移动文件/文件夹 |
 | `duplicate_file_entry` | 复制文件/文件夹 |
 | `read_change_preview` | 读取变更预览 |
+| `read_media_file` | 读取媒体/办公二进制（base64 + MIME） |
+| `stage_all` / `unstage_all` / `discard_all` | 全量暂存 / 取消暂存 / 放弃（无 HEAD 先清索引） |
+| `commit` / `push` / `pull_ff_only` | 提交 / 推送（自动 upstream）/ 仅快进拉取 |
 | `outline` | 代码大纲 |
 
 ### IPC 接口 (`shared/ipc/workspace.ts`)

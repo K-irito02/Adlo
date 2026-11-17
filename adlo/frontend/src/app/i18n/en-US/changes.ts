@@ -21,6 +21,18 @@ export const changesEn = {
   changesPull: 'Pull',
   changesUnstageAll: 'Unstage All',
   changesDiscardAll: 'Discard All',
+  changesCommitDialogTitle: 'Commit changes',
+  changesCommitMessageLabel: 'Commit message',
+  changesCommitMessagePlaceholder: 'Describe this change briefly',
+  changesCommitStageAllOption: 'Stage all and commit',
+  changesCommitSubmit: 'Commit',
+  changesCommitSubmitting: 'Committing…',
+  changesCommitEmptyMessage: 'Commit message cannot be empty',
+  changesDiscardAllTitle: 'Discard all changes',
+  changesDiscardAllMessage:
+    'All tracked files will be restored and untracked files deleted. This cannot be undone.',
+  changesDiscardAllNoHeadMessage:
+    'This repository has no commits yet (no HEAD). Confirming clears the index and deletes every non-ignored file in the workspace (staged and untracked; .gitignore entries are kept). This cannot be undone.',
   changesMoreActions: 'More actions',
   changesAll: 'All',
   changesStaged: 'Staged',
@@ -90,6 +102,8 @@ export const changesEn = {
   changesPreviewWorking: 'Workspace',
   changesPreviewWorkingMissing: 'Deleted from the workspace',
   changesPreviewOpenInFiles: 'Open in Files',
+  changesPreviewMediaFailed:
+    'Failed to read this file (it may be deleted or exceed the size limit).',
   conflictViewDiff: 'View diff',
   batchAcceptAll: 'Accept all',
   batchRejectAll: 'Reject all',
@@ -140,8 +154,8 @@ export const changesEn = {
   docxUnreadable:
     'This file is not a valid DOCX document and may be corrupted. Re-save it in Word and reopen it.',
   officeDecodeFailed: 'Failed to load document data, please retry.',
-  changesPreviewMediaInChanges:
-    'Media and office files are not diffed line by line here. Open the preview in the Files panel.',
+  previewOpenInBrowserTab: 'Open in center browser tab',
+  previewOpenInBrowserPanel: 'Open in right browser panel',
   spreadsheetSheet: 'Sheet',
   presentationFidelityHint: 'Complex animations and embedded objects may differ from the original',
   docxFidelityHint: 'Complex layouts (floating graphics, shapes, TOC) may differ from the original',

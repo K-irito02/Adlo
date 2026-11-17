@@ -6,6 +6,7 @@ import {
 } from '../editorActionsHelpers';
 import { getNextFileRequestSeq, getNextChangePreviewRequestSeq } from '../../cacheHelpers';
 import {
+  cancelPreviewLanding,
   pendingChangePreviewPath,
   getCachedChangePreview,
   setCachedChangePreview,
@@ -826,5 +827,162 @@ describe('openChangePreviewGeneric pending 收敛', () => {
 
     expect(pendingChangePreviewPath).toBeUndefined();
     expect(get().selectedChangePreviewPath).toBeUndefined();
+  });
+});
+
+describe('openChangePreviewGeneric 媒体/办公分支（事项4）', () => {
+  function media(path: string) {
+    return {
+      path,
+      mime: 'video/mp4',
+      base64: 'AAAA',
+      size: 4,
+      lastModifiedAt: 1,
+    };
+  }
+
+  function stubMediaRead(impl: () => Promise<unknown>) {
+    vi.stubGlobal('digitalLife', {
+      workspace: { readMediaFileForWorkspace: vi.fn(impl), readMediaFile: vi.fn(impl) },
+    });
+  }
+
+  it('媒体变更走字节读取并把结果写入 changePreviewMedia', async () => {
+    const { set, get } = setup({ selectedChangePreviewPath: 'old.ts' } as never);
+    const read = vi.fn(async () => ({ ok: true, data: media('clip.mp4') }));
+    vi.stubGlobal('digitalLife', { workspace: { readMediaFileForWorkspace: read } });
+
+    await openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'clip.mp4',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey: `media-ok-${Date.now()}`,
+        workspaceId: 'ws-1',
+        workspacePath: '/ws',
+        getPreview: () => Promise.resolve({ ok: false }) as never,
+      },
+    );
+
+    expect(read).toHaveBeenCalledWith('/ws', 'clip.mp4');
+    const state = get();
+    expect(state.changePreviewMedia?.path).toBe('clip.mp4');
+    expect(state.changePreview).toBeUndefined();
+    expect(state.changePreviewMediaLoading).toBe(false);
+    expect(state.changePreviewLoading).toBe(false);
+    expect(state.changePreviewMediaError).toBeNull();
+  });
+
+  it('读取失败保留选中并记录可展示的错误', async () => {
+    const { set, get } = setup({} as never);
+    mockReportError(get);
+    stubMediaRead(async () => ({
+      ok: false,
+      error: { code: 'INVALID_INPUT', message: 'file exceeds read limit' },
+    }));
+
+    await openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'clip.mp4',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey: `media-fail-${Date.now()}`,
+        workspaceId: 'ws-1',
+        workspacePath: '/ws',
+        getPreview: () => Promise.resolve({ ok: false }) as never,
+      },
+    );
+
+    const failure = get();
+    expect(failure.selectedChangePreviewPath).toBe('clip.mp4');
+    expect(failure.changePreviewMedia).toBeNull();
+    expect(failure.changePreviewMediaLoading).toBe(false);
+    expect(failure.changePreviewLoading).toBe(false);
+    expect(failure.changePreviewMediaError).toEqual({
+      path: 'clip.mp4',
+      message: 'file exceeds read limit',
+    });
+  });
+
+  it('旧版 OLE 办公不读字节，直接落占位媒体文档', async () => {
+    const { set, get } = setup({} as never);
+    const read = vi.fn(async () => ({ ok: true, data: media('legacy.doc') }));
+    vi.stubGlobal('digitalLife', { workspace: { readMediaFileForWorkspace: read } });
+
+    await openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'legacy.doc',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey: `media-legacy-${Date.now()}`,
+        workspaceId: 'ws-1',
+        workspacePath: '/ws',
+        getPreview: () => Promise.resolve({ ok: false }) as never,
+      },
+    );
+
+    expect(read).not.toHaveBeenCalled();
+    const state = get();
+    expect(state.changePreviewMedia?.base64).toBe('');
+    expect(state.changePreviewMedia?.path).toBe('legacy.doc');
+  });
+
+  it('迟到的媒体落地不会覆盖已切走的选中预览', async () => {
+    const { set, get } = setup({} as never);
+    const gate = deferred<{ ok: true; data: ReturnType<typeof media> }>();
+    stubMediaRead(() => gate.promise as never);
+
+    const pending = openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'clip.mp4',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey: `media-superseded-${Date.now()}`,
+        workspaceId: 'ws-1',
+        workspacePath: '/ws',
+        getPreview: () => Promise.resolve({ ok: false }) as never,
+      },
+    );
+    // 模拟用户已切到另一个预览（选中路径不再指向本次请求）。
+    set({ selectedChangePreviewPath: 'other.mp4' } as never);
+    gate.resolve({ ok: true, data: media('clip.mp4') });
+    await pending;
+
+    const state = get();
+    expect(state.selectedChangePreviewPath).toBe('other.mp4');
+    expect(state.changePreviewMedia).toBeNull();
+    expect(state.changePreviewMediaLoading).toBe(false);
+  });
+
+  it('取消预览后迟到的媒体读盘不会复活预览', async () => {
+    const { set, get } = setup({ selectedChangePreviewPath: 'old.ts' } as never);
+    const gate = deferred<{ ok: true; data: ReturnType<typeof media> }>();
+    stubMediaRead(() => gate.promise as never);
+    const cacheKey = `media-cancel-${Date.now()}`;
+
+    const pending = openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'clip.mp4',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey,
+        workspaceId: 'ws-1',
+        workspacePath: '/ws',
+        getPreview: () => Promise.resolve({ ok: false }) as never,
+      },
+    );
+
+    cancelPreviewLanding(cacheKey, 'clip.mp4');
+    gate.resolve({ ok: true, data: media('clip.mp4') });
+    await pending;
+
+    const state = get();
+    expect(state.changePreviewMedia).toBeNull();
+    expect(state.changePreviewMediaLoading).toBe(false);
   });
 });

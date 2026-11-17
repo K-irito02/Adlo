@@ -561,6 +561,22 @@ export interface WorkspaceBridge {
    * @see preview-bridge/index.ts → workspace.discardFile
    */
   discardFile: (relativePath: string, workspacePath?: string) => Promise<IpcResult<void>>;
+  /**
+   * 暂存全部更改（含未跟踪）。工作区文件夹菜单「暂存全部」。
+   * @see httpBridge.ts → workspace.stageAllFiles（POST /workspace/git/stage-all）
+   * @see preview-bridge/index.ts → workspace.stageAllFiles
+   */
+  stageAllFiles: (workspacePath: string) => Promise<IpcResult<void>>;
+  /** 取消暂存全部更改。菜单「取消暂存」（POST /workspace/git/unstage-all）。 */
+  unstageAllFiles: (workspacePath: string) => Promise<IpcResult<void>>;
+  /** 放弃全部本地更改（已跟踪 restore + 未跟踪 clean，不可恢复）。POST /workspace/git/discard-all。 */
+  discardAllFiles: (workspacePath: string) => Promise<IpcResult<void>>;
+  /** 提交已暂存内容；空消息由服务端拒绝。POST /workspace/git/commit。 */
+  commitChanges: (message: string, workspacePath: string) => Promise<IpcResult<void>>;
+  /** 推送当前分支；无 upstream 时自动 `-u` 建立跟踪。POST /workspace/git/push。 */
+  pushChanges: (workspacePath: string) => Promise<IpcResult<void>>;
+  /** 仅快进拉取（`git pull --ff-only`）。POST /workspace/git/pull。 */
+  pullChanges: (workspacePath: string) => Promise<IpcResult<void>>;
   /** Get commit statistics (serves calendar heatmap, clock heatmap, contributor activity, commit timeline) */
   gitVisCommitStats: (
     rootPath: string,

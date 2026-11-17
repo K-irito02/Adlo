@@ -22,9 +22,13 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     activePatchSet,
     latestPatchApplication,
     selectedPatchFilePath,
+    selectedChangePreviewPath,
     selectedChangePreviewWorkspaceId,
     changePreview,
     changePreviewLoading,
+    changePreviewMedia,
+    changePreviewMediaLoading,
+    changePreviewMediaError,
     selectedPatchHunkId,
     collapsedPatchHunkIds,
     patchReviewFilter,
@@ -246,6 +250,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
               <LazyDiffEditor
                 changePreview={changePreview}
                 changePreviewLoading={changePreviewLoading}
+                changePreviewMedia={changePreviewMedia}
+                changePreviewMediaLoading={changePreviewMediaLoading}
+                changePreviewMediaError={changePreviewMediaError}
                 diffSideBySide={props.diffSideBySide}
                 latestPatchApplication={latestPatchApplication}
                 appInfo={appInfo}
@@ -254,6 +261,8 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
                 wordWrapEnabled={wordWrapEnabled}
                 onDiffMount={handleDiffMount}
                 onOpenFile={props.onOpenFile}
+                onOpenChangePreview={props.onOpenChangePreview}
+                selectedChangePreviewPath={selectedChangePreviewPath}
                 selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
                 previewContainerRef={changesPreviewContainerRef}
               />

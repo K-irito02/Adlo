@@ -38,6 +38,24 @@ export interface WorkspaceChangesActions {
   wrappedGetContextMenuItems: (
     node: WorkspaceTreeNode,
   ) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
+  /** 六个 Git 菜单动作（事项3） */
+  handleStageAll: () => Promise<void>;
+  handleUnstageAll: () => Promise<void>;
+  handleRequestCommit: () => void;
+  handlePush: () => Promise<void>;
+  handlePull: () => Promise<void>;
+  handleRequestDiscardAll: () => void;
+  commitOpen: boolean;
+  commitBusy: boolean;
+  commitError: string | undefined;
+  submitCommit: (message: string, stageAll: boolean) => Promise<void>;
+  closeCommit: () => void;
+  discardOpen: boolean;
+  confirmDiscardAll: () => Promise<void>;
+  closeDiscard: () => void;
+  gitBusy: boolean;
+  hasChanges: boolean;
+  hasStaged: boolean;
 }
 
 export function useWorkspaceChangesActions({
@@ -54,7 +72,19 @@ export function useWorkspaceChangesActions({
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [branchSubOpen, setBranchSubOpen] = useState(false);
+  const [commitOpen, setCommitOpen] = useState(false);
+  const [commitBusy, setCommitBusy] = useState(false);
+  const [commitError, setCommitError] = useState<string | undefined>(undefined);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [gitBusy, setGitBusy] = useState(false);
   const menuId = `ws-changes-menu-${workspace.id}`;
+  const gitSnapshot = useAppStore((s) => s.gitSnapshots[workspace.id]);
+  const hasChanges =
+    (gitSnapshot?.staged.length ?? 0) +
+      (gitSnapshot?.unstaged.length ?? 0) +
+      (gitSnapshot?.untracked.length ?? 0) >
+    0;
+  const hasStaged = (gitSnapshot?.staged.length ?? 0) > 0;
 
   const copyToClipboard = useCallback(async (text: string) => {
     try {
@@ -206,6 +236,87 @@ export function useWorkspaceChangesActions({
     [onRefreshTree],
   );
 
+  const runGitAction = useCallback(
+    async (action: () => Promise<unknown>) => {
+      closeMenu();
+      setGitBusy(true);
+      try {
+        await action();
+      } finally {
+        setGitBusy(false);
+      }
+    },
+    [closeMenu],
+  );
+
+  const handleStageAll = useCallback(
+    () => runGitAction(() => useAppStore.getState().stageAllWorkspaceChanges(workspace.path)),
+    [runGitAction, workspace.path],
+  );
+
+  const handleUnstageAll = useCallback(
+    () => runGitAction(() => useAppStore.getState().unstageAllWorkspaceChanges(workspace.path)),
+    [runGitAction, workspace.path],
+  );
+
+  const handlePush = useCallback(
+    () => runGitAction(() => useAppStore.getState().pushWorkspaceChanges(workspace.path)),
+    [runGitAction, workspace.path],
+  );
+
+  const handlePull = useCallback(
+    () => runGitAction(() => useAppStore.getState().pullWorkspaceChanges(workspace.path)),
+    [runGitAction, workspace.path],
+  );
+
+  const handleRequestCommit = useCallback(() => {
+    closeMenu();
+    setCommitError(undefined);
+    setCommitOpen(true);
+  }, [closeMenu]);
+
+  const handleRequestDiscardAll = useCallback(() => {
+    closeMenu();
+    setDiscardOpen(true);
+  }, [closeMenu]);
+
+  const submitCommit = useCallback(
+    async (message: string, stageAll: boolean) => {
+      setCommitBusy(true);
+      setCommitError(undefined);
+      try {
+        const failure = await useAppStore
+          .getState()
+          .commitWorkspaceChanges(message, { stageAll, workspacePath: workspace.path });
+        if (failure) {
+          setCommitError(failure);
+          return;
+        }
+        setCommitOpen(false);
+      } finally {
+        setCommitBusy(false);
+      }
+    },
+    [workspace.path],
+  );
+
+  const closeCommit = useCallback(() => {
+    setCommitOpen(false);
+    setCommitError(undefined);
+  }, []);
+
+  const confirmDiscardAll = useCallback(async () => {
+    if (gitBusy) {
+      return;
+    }
+    await runGitAction(() => useAppStore.getState().discardAllWorkspaceChanges(workspace.path));
+    setDiscardOpen(false);
+  }, [gitBusy, runGitAction, workspace.path]);
+
+  const closeDiscard = useCallback(() => {
+    setDiscardOpen(false);
+  }, []);
+
   return {
     menuOpen,
     menuPosition,
@@ -223,5 +334,22 @@ export function useWorkspaceChangesActions({
     handleHideFromRightPanels,
     handleRefreshClick,
     wrappedGetContextMenuItems,
+    handleStageAll,
+    handleUnstageAll,
+    handleRequestCommit,
+    handlePush,
+    handlePull,
+    handleRequestDiscardAll,
+    commitOpen,
+    commitBusy,
+    commitError,
+    submitCommit,
+    closeCommit,
+    discardOpen,
+    confirmDiscardAll,
+    closeDiscard,
+    gitBusy,
+    hasChanges,
+    hasStaged,
   };
 }

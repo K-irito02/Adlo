@@ -2,6 +2,8 @@ mod git_branch;
 mod git_helpers;
 mod git_snapshot;
 mod git_staging;
+mod git_staging_all;
+mod git_sync;
 pub mod git_vis;
 mod git_worktree;
 
@@ -12,6 +14,8 @@ pub use git_snapshot::{
     init_git_repo, pop_auto_stash,
 };
 pub use git_staging::{discard_file_changes, stage_file, unstage_file};
+pub use git_staging_all::{discard_all, stage_all, unstage_all};
+pub use git_sync::{commit, pull_ff_only, push};
 pub use git_worktree::{
     ensure_branch_worktree, list_worktrees, prune_worktrees, remove_worktree, sibling_worktree_dir,
     worktree_for_branch,

@@ -459,6 +459,92 @@ export const mockWorkspace: WorkspaceBridge = {
       setMockCurrentWorkspace(ws);
       return { ok: true, data: undefined };
     },
+    stageAllFiles: async (_workspacePath?: string) => {
+      if (!currentWorkspaceMeta) {
+        return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+      }
+      const snapshot = currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot();
+      const updated: GitSnapshot = {
+        ...snapshot,
+        staged: [
+          ...new Set([...snapshot.staged, ...snapshot.unstaged, ...snapshot.untracked]),
+        ],
+        unstaged: [],
+        untracked: [],
+        capturedAt: Date.now(),
+      };
+      setMockCurrentWorkspace({ ...currentWorkspaceMeta, gitSnapshot: updated });
+      return { ok: true, data: undefined };
+    },
+    unstageAllFiles: async (_workspacePath?: string) => {
+      if (!currentWorkspaceMeta) {
+        return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+      }
+      const snapshot = currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot();
+      const updated: GitSnapshot = {
+        ...snapshot,
+        staged: [],
+        unstaged: [...new Set([...snapshot.unstaged, ...snapshot.staged])],
+        capturedAt: Date.now(),
+      };
+      setMockCurrentWorkspace({ ...currentWorkspaceMeta, gitSnapshot: updated });
+      return { ok: true, data: undefined };
+    },
+    discardAllFiles: async (_workspacePath?: string) => {
+      if (!currentWorkspaceMeta) {
+        return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+      }
+      const snapshot = currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot();
+      const updated: GitSnapshot = {
+        ...snapshot,
+        staged: [],
+        unstaged: [],
+        untracked: [],
+        capturedAt: Date.now(),
+      };
+      setMockCurrentWorkspace({ ...currentWorkspaceMeta, gitSnapshot: updated });
+      return { ok: true, data: undefined };
+    },
+    commitChanges: async (message: string, _workspacePath?: string) => {
+      if (!currentWorkspaceMeta) {
+        return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+      }
+      if (!message.trim()) {
+        return { ok: false, error: { code: "INVALID_INPUT", message: "commit message is empty" } };
+      }
+      const snapshot = currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot();
+      const updated: GitSnapshot = {
+        ...snapshot,
+        head: `mock-${Date.now().toString(36)}`,
+        staged: [],
+        ahead: (snapshot.ahead ?? 0) + 1,
+        capturedAt: Date.now(),
+      };
+      setMockCurrentWorkspace({ ...currentWorkspaceMeta, gitSnapshot: updated });
+      return { ok: true, data: undefined };
+    },
+    pushChanges: async (_workspacePath?: string) => {
+      if (!currentWorkspaceMeta) {
+        return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+      }
+      const snapshot = currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot();
+      setMockCurrentWorkspace({
+        ...currentWorkspaceMeta,
+        gitSnapshot: { ...snapshot, ahead: 0, capturedAt: Date.now() },
+      });
+      return { ok: true, data: undefined };
+    },
+    pullChanges: async (_workspacePath?: string) => {
+      if (!currentWorkspaceMeta) {
+        return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+      }
+      const snapshot = currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot();
+      setMockCurrentWorkspace({
+        ...currentWorkspaceMeta,
+        gitSnapshot: { ...snapshot, behind: 0, capturedAt: Date.now() },
+      });
+      return { ok: true, data: undefined };
+    },
     createGitBranch: async (input: WorkspaceGitBranchCreateInput) => {
     if (!currentWorkspaceMeta) {
       return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };

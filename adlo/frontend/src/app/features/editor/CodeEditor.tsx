@@ -23,7 +23,7 @@ import {
 } from '@stores/persisted/viewport';
 import { createEditorRef } from './editorAdapters';
 import { getThemeExtension, getPhrasesExtension } from './cmTheme';
-import { getLanguageExtension } from './cmLanguages';
+import { getLanguageExtension, languageSupportsFolding } from './cmLanguages';
 import { createFoldGutterExtension } from './cmFoldGutter';
 import { FoldTooltipOverlay } from './FoldTooltipOverlay';
 import { scrollLeftSyncExtension } from './cmScrollSync';
@@ -90,13 +90,13 @@ export function CodeEditor({
     };
   }, [language]);
 
-  // plaintext 无解析器→永无 fold 标记，跳过 useFoldMarkerAutoHide 的
-  // 100ms×60 forceParsing + gutter 重配轮询（复审 H1；变更面板重型 plain 走此路）。
+  // 无语法加载器的语言不产生 fold 标记，跳过 useFoldMarkerAutoHide 的
+  // 100ms×12 forceParsing + gutter 重配轮询（复审 H1；变更面板重型 plain 走此路）。
   const foldMarkerState = useFoldMarkerAutoHide(
     wrapperRef,
     fileKey ?? value,
     editorView,
-    language === 'plaintext',
+    !languageSupportsFolding(language),
   );
 
   const cmPhrases = useMemo(

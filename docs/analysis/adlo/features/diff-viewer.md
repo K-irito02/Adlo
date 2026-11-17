@@ -180,10 +180,13 @@ PatchSlice {
 | `DiffViewer.tsx` | 统一差异查看器：根据配置选择内联或并排模式，管理差异高亮和行号映射 |
 | `SideBySideDiffViewer.tsx` | 并排差异查看器：左右两栏分别显示 before/after 内容，支持 CodeMirror 实例同步滚动 |
 | `InlineDiffViewer.tsx` | 内联差异查看器：统一视图中显示增删行，通过颜色标记区分 |
-| `diffViewerUtils.ts` | 差异工具函数：diff 解析、行号映射、变更范围计算 |
+| `diffViewerUtils.ts` | 差异工具函数：merge chunks 与折叠范围计算 |
+| `scrollSync.ts` | 并排滚动同步控制器：程序写入回读归因、滚动所有权、rAF 合并、底部硬对齐、横向同步 |
 | `changePreviewDiffRanges.ts` | 变更预览差异范围：计算代码变更的精确行范围 |
 | `sharedExtensions.ts` | 共享 CodeMirror 扩展：diff 查看器和编辑器公用的扩展配置 |
 | `scrollbarWidth.ts` | 滚动条宽度计算工具 |
+
+> 代价分档：`regions/right-panel/diffCost.ts`（体积/行数画像）与 `heavyPreviewLimits.ts` 的 `classifyDiffTier` 决定 light/degraded/heavy。`degraded` 关行内变更高亮与折叠标记轮询（语法仍解析）；`heavy` 走面板确认门 + plain 双栏，并跳过 ranges/大纲计算。行×行 DP 仅服务 `changePreviewDiffRanges` 自己的 `MAX_EXACT_DIFF_CELLS`，不参与 viewer 降级。
 
 ### patch-review 功能域
 

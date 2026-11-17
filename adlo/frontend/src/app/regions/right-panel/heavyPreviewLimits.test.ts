@@ -3,7 +3,6 @@ import {
   TEXT_HEAVY_PREVIEW_CHARS,
   getHeavyPreviewPanes,
   heavyChangePreviewLength,
-  isHeavyDiffContent,
 } from './heavyPreviewLimits';
 
 describe('heavyChangePreviewLength (事项3：删除型大文件也要进门）', () => {
@@ -20,7 +19,7 @@ describe('heavyChangePreviewLength (事项3：删除型大文件也要进门）'
     expect(heavyChangePreviewLength('a'.repeat(50), 'b'.repeat(10))).toBe(50);
   });
 
-  it('删除型 2MB base 超过 1M 字符门限（门条件成立）', () => {
+  it('删除型 2MB base 的体积显示值超过 1MiB', () => {
     const len = heavyChangePreviewLength('z'.repeat(2 * 1024 * 1024), '');
     expect(len).toBeGreaterThan(TEXT_HEAVY_PREVIEW_CHARS);
   });
@@ -29,25 +28,6 @@ describe('heavyChangePreviewLength (事项3：删除型大文件也要进门）'
     expect(heavyChangePreviewLength('base', 'current')).toBeLessThanOrEqual(
       TEXT_HEAVY_PREVIEW_CHARS,
     );
-  });
-});
-
-describe('isHeavyDiffContent (方案A：重型差异降级渲染判定）', () => {
-  it('删除型大 base 判定为重型（与门同阈值）', () => {
-    expect(isHeavyDiffContent('y'.repeat(2 * 1024 * 1024), '')).toBe(true);
-  });
-
-  it('新增型大 current 判定为重型', () => {
-    expect(isHeavyDiffContent('', 'x'.repeat(2 * 1024 * 1024))).toBe(true);
-  });
-
-  it('小文件两侧都不超限时为非重型', () => {
-    expect(isHeavyDiffContent('base', 'current')).toBe(false);
-  });
-
-  it('边界：恰为阈值时不算重型（与门 `>` 同语义）', () => {
-    expect(isHeavyDiffContent('a'.repeat(TEXT_HEAVY_PREVIEW_CHARS), '')).toBe(false);
-    expect(isHeavyDiffContent('', 'a'.repeat(TEXT_HEAVY_PREVIEW_CHARS + 1))).toBe(true);
   });
 });
 

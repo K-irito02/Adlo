@@ -9,7 +9,11 @@ import { useFoldMarkerAutoHide } from '../editor/useFoldMarkerAutoHide';
 import { createEditorRef } from '../editor/editorAdapters';
 import type { DiffEditorRef, EditorRef } from '@stores/types';
 import type { PreviewDiffCollapsedRange } from './changePreviewDiffRanges';
-import { getLanguageExtension, getLanguageExtensionSync } from '../editor/cmLanguages';
+import {
+  getLanguageExtension,
+  getLanguageExtensionSync,
+  languageSupportsFolding,
+} from '../editor/cmLanguages';
 import {
   buildSharedExtensions,
   lineNumbersCompartment,
@@ -18,7 +22,8 @@ import {
   COLLAPSE_UNCHANGED_CONFIG,
 } from './sharedExtensions';
 import { buildCollapsedUnchangedRanges, getMergeChunks } from './diffViewerUtils';
-import { isHeavyDiffContent } from '../../regions/right-panel/heavyPreviewLimits';
+import { profileDiffCost } from '../../regions/right-panel/diffCost';
+import { classifyDiffTier } from '../../regions/right-panel/heavyPreviewLimits';
 import { useTCopy } from '@app/i18n/useTCopy';
 import { cn } from '@/lib/utils';
 
@@ -54,7 +59,12 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
   const { t } = useTCopy();
   // 重型差异降级（方案A）：任一侧超限即重型（与确认门同阈值），挂载时关高开销选项。
   // 只读预览里 chunk 合并按钮（接受/拒绝）落不了盘，纯摆设，重型下一并关闭。
-  const isHeavy = isHeavyDiffContent(original, modified);
+  const costTier = useMemo(
+    () => classifyDiffTier(profileDiffCost(original, modified)),
+    [original, modified],
+  );
+  const isHeavy = costTier === 'heavy';
+  const isDegraded = costTier === 'degraded';
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [editorView, setEditorView] = useState<EditorView | null>(null);
@@ -68,8 +78,9 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
     wrapperRef,
     fileKey ?? original + modified,
     editorView,
-    // 重型 plaintext 下 fold 标记永不出现，跳过 100ms×60 轮询风暴（方案A）。
-    isHeavy,
+    // 事项1 根因：无语法加载器的语言（plaintext 等）无法产生折叠标记，
+    // 重型/降级档也不值得轮询；跳过 forceParsing 轮询风暴。
+    isHeavy || isDegraded || !languageSupportsFolding(language),
   );
 
   const onMountRef = useRef(onMount);
@@ -152,7 +163,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
       }),
       unifiedMergeView({
         original,
-        highlightChanges: !isHeavy,
+        highlightChanges: !isHeavy && !isDegraded,
         gutter: !isHeavy,
         mergeControls: isHeavy && readOnly ? false : true,
         syntaxHighlightDeletions: !isHeavy,
@@ -167,6 +178,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
     wordWrap,
     cmPhrases,
     isHeavy,
+    isDegraded,
     langExtensions,
     original,
     collapseUnchanged,

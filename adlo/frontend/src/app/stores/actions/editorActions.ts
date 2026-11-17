@@ -721,7 +721,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
     /**
      * [openChangePreview - 打开文件变更预览]
      * @reads workspaceSlice.appInfo
-     * @writes editorSlice.selectedChangePreviewPath, editorSlice.selectedChangePreviewWorkspaceId, editorSlice.changePreview, editorSlice.changePreviewLoading
+     * @writes editorSlice.selectedChangePreviewPath, editorSlice.selectedChangePreviewWorkspaceId, editorSlice.changePreview, editorSlice.changePreviewMedia, editorSlice.changePreviewMediaError, editorSlice.changePreviewLoading, editorSlice.changePreviewMediaLoading
      * @see shared/ipc.ts → workspace.getChangePreview
      * @see mock-bridge.ts → workspace.getChangePreview
      * @see preview-bridge/index.ts → workspace.getChangePreview
@@ -730,6 +730,8 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       await openChangePreviewGeneric(set, get, relativePath, getNextChangePreviewRequestSeq(), {
         cacheKey: getWorkspaceScopedCacheKey(get().appInfo, relativePath),
         workspaceId: get().appInfo?.currentWorkspace?.id,
+        workspacePath:
+          get().appInfo?.currentWorkspace?.rootPath ?? get().appInfo?.currentWorkspace?.path,
         getPreview: () => window.digitalLife.workspace.getChangePreview(relativePath),
       });
     },
@@ -737,7 +739,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
     /**
      * [openChangePreviewForWorkspace - 为指定工作区打开文件变更预览]
      * @reads workspaceSlice.recentWorkspaces
-     * @writes editorSlice.selectedChangePreviewPath, editorSlice.selectedChangePreviewWorkspaceId, editorSlice.changePreview, editorSlice.changePreviewLoading
+     * @writes editorSlice.selectedChangePreviewPath, editorSlice.selectedChangePreviewWorkspaceId, editorSlice.changePreview, editorSlice.changePreviewMedia, editorSlice.changePreviewMediaError, editorSlice.changePreviewLoading, editorSlice.changePreviewMediaLoading
      * @see shared/ipc.ts → workspace.getChangePreviewForWorkspace
      * @see mock-bridge.ts → workspace.getChangePreviewForWorkspace
      * @see preview-bridge/index.ts → workspace.getChangePreviewForWorkspace
@@ -749,6 +751,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
           relativePath,
         ),
         workspaceId: get().recentWorkspaces.find((w) => w.path === workspacePath)?.id,
+        workspacePath,
         getPreview: () =>
           window.digitalLife.workspace.getChangePreviewForWorkspace(workspacePath, relativePath),
       });

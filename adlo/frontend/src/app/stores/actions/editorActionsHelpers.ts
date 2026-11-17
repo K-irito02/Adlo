@@ -15,7 +15,11 @@ import type { StoreState } from '../StoreState';
 import { createEditorTab } from '@utils/editorTabs';
 import { buildOutlineFromContent } from '@shared/outline';
 import { TEXT_HEAVY_PREVIEW_CHARS } from '../../regions/right-panel/heavyPreviewLimits';
-import { isLegacyOfficeFile } from '../../regions/right-panel/fileTypeRouter';
+import {
+  categorizeFile,
+  isLegacyOfficeFile,
+  isMediaFileCategory,
+} from '../../regions/right-panel/fileTypeRouter';
 import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
 import {
   fileRequestSeq,
@@ -309,6 +313,8 @@ export async function openMediaFileGeneric(
 export interface OpenChangePreviewConfig {
   cacheKey: string;
   workspaceId: string | undefined;
+  /** 媒体/办公变更预览按工作区读取字节（事项4）；文本预览不需要。 */
+  workspacePath?: string;
   getPreview: () => Promise<IpcResult<WorkspaceChangePreview>>;
 }
 
@@ -319,7 +325,77 @@ export async function openChangePreviewGeneric(
   requestSeq: number,
   config: OpenChangePreviewConfig,
 ) {
-  set({ changePreviewLoading: true });
+  set({ changePreviewLoading: true, changePreviewMediaLoading: false });
+
+  // 事项4：媒体/办公文件在变更面板走字节读取（与文件面板同一渲染器），
+  // 不做逐行 diff；文本文件继续走 change-preview。
+  if (isMediaFileCategory(categorizeFile(relativePath))) {
+    set({
+      selectedChangePreviewPath: relativePath,
+      selectedChangePreviewWorkspaceId: config.workspaceId,
+      changePreview: undefined,
+      changePreviewMedia: null,
+      changePreviewMediaLoading: true,
+      changePreviewMediaError: null,
+    });
+    setPendingChangePreviewPath(relativePath);
+    // 与文本链共用 `preview:` 代际命名空间：`cancelPreviewLanding` 只推进该命名空间，
+    // 独立命名空间会让被清空的媒体预览在迟到的读盘落地时「复活」。
+    const previewGen = nextFileGen(`preview:${config.cacheKey}`);
+    // 旧版 OLE 办公（.doc/.dot/.ppt）与文件面板同短路：不读字节，渲染器给转存指引。
+    const result = isLegacyOfficeFile(relativePath)
+      ? ({
+          ok: true,
+          data: {
+            path: relativePath.replace(/\\/g, '/'),
+            mime: 'application/octet-stream',
+            base64: '',
+            size: 0,
+            lastModifiedAt: 0,
+          },
+        } satisfies IpcResult<WorkspaceMediaDocument>)
+      : config.workspacePath
+        ? await window.digitalLife.workspace.readMediaFileForWorkspace(
+            config.workspacePath,
+            relativePath,
+          )
+        : await window.digitalLife.workspace.readMediaFile(relativePath);
+    if (requestSeq !== changePreviewRequestSeq) {
+      return;
+    }
+    if (!isCurrentFileGen(`preview:${config.cacheKey}`, previewGen)) {
+      setPendingChangePreviewPath(undefined);
+      set({ changePreviewMediaLoading: false });
+      return;
+    }
+    setPendingChangePreviewPath(undefined);
+    // 迟到落地防御：预览已被清空/切走时不得把媒体写回。
+    const current = get();
+    if (
+      current.selectedChangePreviewPath !== relativePath ||
+      current.selectedChangePreviewWorkspaceId !== config.workspaceId
+    ) {
+      set({ changePreviewMediaLoading: false });
+      return;
+    }
+    if (!result.ok) {
+      captureError(get, result.error, SCOPE);
+      set({
+        changePreviewLoading: false,
+        changePreviewMediaLoading: false,
+        changePreviewMedia: null,
+        changePreviewMediaError: { path: relativePath, message: result.error.message },
+      });
+      return;
+    }
+    set({
+      changePreviewLoading: false,
+      changePreviewMediaLoading: false,
+      changePreviewMedia: result.data,
+      changePreviewMediaError: null,
+    });
+    return;
+  }
 
   const cachedPreview = getCachedChangePreview(config.cacheKey);
   if (cachedPreview) {
@@ -331,6 +407,9 @@ export async function openChangePreviewGeneric(
       selectedChangePreviewWorkspaceId: config.workspaceId,
       changePreview: cachedPreview,
       changePreviewLoading: false,
+      changePreviewMedia: null,
+      changePreviewMediaLoading: false,
+      changePreviewMediaError: null,
     });
     return;
   }
@@ -359,6 +438,9 @@ export async function openChangePreviewGeneric(
       selectedChangePreviewPath: relativePath,
       selectedChangePreviewWorkspaceId: config.workspaceId,
       changePreviewLoading: false,
+      changePreviewMedia: null,
+      changePreviewMediaLoading: false,
+      changePreviewMediaError: null,
       // 失败是终态：清掉旧预览，不回退显示旧文件内容（与 openFileGeneric 的
       // submitOpenFailure 同语义）。此前保留旧预览，切到超限大文件时内容区仍是
       // 上一个文件、重型门也出不来（事项3"被侵占"）。
@@ -378,6 +460,9 @@ export async function openChangePreviewGeneric(
     selectedChangePreviewPath: relativePath,
     selectedChangePreviewWorkspaceId: config.workspaceId,
     changePreviewLoading: false,
+    changePreviewMedia: null,
+    changePreviewMediaLoading: false,
+    changePreviewMediaError: null,
     changePreview: result.data,
   });
 }

@@ -4,6 +4,7 @@ import type { StoreApi } from 'zustand';
 import { createLazyLoader, pendingChangePreviewPath } from '../shared';
 import {
   cancelPreviewLanding,
+  clearedChangePreviewState,
   invalidateCachedChangePreview,
   scopedFileKey,
 } from '../cacheHelpers';
@@ -75,12 +76,7 @@ function clearStaleChangePreview(
   }
   if (!snapshotPaths(snapshot).has(normalizeWorkspaceRelativePath(selected))) {
     cancelPreviewLanding(scopedFileKey(previewWorkspaceId, selected), selected);
-    set({
-      selectedChangePreviewPath: undefined,
-      selectedChangePreviewWorkspaceId: undefined,
-      changePreview: undefined,
-      changePreviewLoading: false,
-    });
+    set(clearedChangePreviewState());
   }
 }
 
@@ -194,12 +190,7 @@ export function clearChangePreviewForWorkspace(
       scopedFileKey(previewWorkspaceId, state.selectedChangePreviewPath),
       state.selectedChangePreviewPath,
     );
-    set({
-      selectedChangePreviewPath: undefined,
-      selectedChangePreviewWorkspaceId: undefined,
-      changePreview: undefined,
-      changePreviewLoading: false,
-    });
+    set(clearedChangePreviewState());
   }
 }
 
@@ -211,7 +202,7 @@ export function createGitSnapshotActions(
     /**
      * [fetchGitStatus - 获取当前工作区的 Git 状态快照]
      * @reads workspaceSlice.appInfo, editorSlice.selectedChangePreviewPath
-     * @writes gitSlice.gitSnapshot, workspaceSlice.gitSnapshots, workspaceSlice.appInfo (gitSnapshot 字段), editorSlice.selectedChangePreviewPath, editorSlice.changePreview, editorSlice.changePreviewLoading
+     * @writes gitSlice.gitSnapshot, workspaceSlice.gitSnapshots, workspaceSlice.appInfo (gitSnapshot 字段), editorSlice.selectedChangePreviewPath, editorSlice.changePreview, editorSlice.changePreviewLoading, editorSlice.changePreviewMedia, editorSlice.changePreviewMediaLoading, editorSlice.changePreviewMediaError
      * @see shared/ipc.ts → workspace.getGitStatus
      * @see mock-bridge.ts → workspace.getGitStatus
      * @see preview-bridge/index.ts → workspace.getGitStatus
@@ -226,10 +217,7 @@ export function createGitSnapshotActions(
         );
         set({
           gitSnapshot: undefined,
-          selectedChangePreviewPath: undefined,
-          selectedChangePreviewWorkspaceId: undefined,
-          changePreview: undefined,
-          changePreviewLoading: false,
+          ...clearedChangePreviewState(),
         });
         return;
       }
@@ -284,12 +272,7 @@ export function createGitSnapshotActions(
             scopedFileKey(workspaceId, selectedChangePreviewPath),
             selectedChangePreviewPath,
           );
-          set({
-            selectedChangePreviewPath: undefined,
-            selectedChangePreviewWorkspaceId: undefined,
-            changePreview: undefined,
-            changePreviewLoading: false,
-          });
+          set(clearedChangePreviewState());
           return;
         }
         await get().openChangePreview(selectedChangePreviewPath);
@@ -342,10 +325,7 @@ export function createGitSnapshotActions(
           workspaceChangesTreeLoading: { ...st.workspaceChangesTreeLoading, [id]: false },
           ...(previewGone
             ? {
-                selectedChangePreviewPath: undefined,
-                selectedChangePreviewWorkspaceId: undefined,
-                changePreview: undefined,
-                changePreviewLoading: false,
+                ...clearedChangePreviewState(),
               }
             : {}),
         };

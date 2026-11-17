@@ -70,14 +70,46 @@ export async function resolveGitBinary(): Promise<string> {
   return moduleState.gitBinary;
 }
 
-export async function runGit(rootPath: string, args: string[]): Promise<string | undefined> {
+function killProcessTree(child: ChildProcess): void {
+  if (process.platform === 'win32' && child.pid) {
+    try {
+      const killer = spawn('taskkill', ['/T', '/F', '/PID', String(child.pid)], {
+        windowsHide: true,
+        stdio: 'ignore',
+      });
+      killer.on('error', () => {
+        child.kill();
+      });
+    } catch {
+      child.kill();
+    }
+  }
+  // 无论 taskkill 是否可用都再 kill 一次直接子进程（成功时重复 kill 无害）。
+  child.kill();
+}
+
+interface GitCapture {
+  code: number;
+  stdout: string;
+  stderr: string;
+}
+
+async function runGitCapture(
+  rootPath: string,
+  args: string[],
+  timeoutMs: number | null = GIT_TIMEOUT_MS,
+): Promise<GitCapture | undefined> {
   const gitBin = await resolveGitBinary();
   return new Promise((resolve) => {
     const child = spawn(gitBin, args, { cwd: rootPath, windowsHide: true });
     let stdout = '';
+    let stderr = '';
     let timer: NodeJS.Timeout | undefined;
     child.stdout.on('data', (chunk) => {
       stdout += String(chunk);
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += String(chunk);
     });
     child.on('error', () => {
       if (timer) clearTimeout(timer);
@@ -85,13 +117,202 @@ export async function runGit(rootPath: string, args: string[]): Promise<string |
     });
     child.on('close', (code) => {
       if (timer) clearTimeout(timer);
-      resolve(code === 0 ? stdout.trim() : undefined);
+      resolve({ code: code ?? -1, stdout: stdout.trim(), stderr: stderr.trim() });
     });
-    timer = setTimeout(() => {
-      child.kill();
-      resolve(undefined);
-    }, GIT_TIMEOUT_MS);
+    if (timeoutMs !== null) {
+      timer = setTimeout(() => {
+        killProcessTree(child);
+        resolve(undefined);
+      }, timeoutMs);
+    }
   });
+}
+
+export async function runGit(
+  rootPath: string,
+  args: string[],
+  timeoutMs: number | null = GIT_TIMEOUT_MS,
+): Promise<string | undefined> {
+  const result = await runGitCapture(rootPath, args, timeoutMs);
+  return result && result.code === 0 ? result.stdout : undefined;
+}
+
+/** 网络操作（push/pull）超时：远大于本地 git 的 30s 上限。 */
+const GIT_NETWORK_TIMEOUT_MS = 120_000;
+
+async function runGitOrThrow(
+  rootPath: string,
+  args: string[],
+  timeoutMs: number | null = GIT_TIMEOUT_MS,
+): Promise<string | undefined> {
+  const result = await runGitCapture(rootPath, args, timeoutMs);
+  if (!result) {
+    throw new Error(`git ${args.join(' ')} failed: command timed out or could not start`);
+  }
+  if (result.code !== 0) {
+    const detail = result.stderr || result.stdout || 'no output';
+    throw new Error(`git ${args.join(' ')} failed: ${detail}`);
+  }
+  return result.stdout;
+}
+
+/** 暂存全部（含未跟踪与删除）。 */
+export async function stageAll(rootPath: string): Promise<void> {
+  await runGitOrThrow(rootPath, ['add', '-A']);
+}
+
+/** 结构判定 unborn：HEAD 是符号引用，且目标分支 ref 不存在（不是损坏）。 */
+async function isUnbornHead(rootPath: string, captured: GitCapture): Promise<boolean> {
+  if (captured.code === 0) {
+    return false;
+  }
+  const symbolic = await runGitCapture(rootPath, ['symbolic-ref', '--quiet', 'HEAD']);
+  if (!symbolic || symbolic.code !== 0) {
+    return false;
+  }
+  const refname = symbolic.stdout.trim();
+  if (!refname.startsWith('refs/heads/')) {
+    return false;
+  }
+  const refPath = await runGitCapture(rootPath, ['rev-parse', '--git-path', refname]);
+  if (!refPath || refPath.code !== 0) {
+    return false;
+  }
+  const candidate = refPath.stdout.trim();
+  const absolute = path.isAbsolute(candidate) ? candidate : path.join(rootPath, candidate);
+  if (fsSync.existsSync(absolute)) {
+    // 分支 ref 存在但提交不可解析 = 仓库损坏，交由调用方报错。
+    return false;
+  }
+  const packedPath = await runGitCapture(rootPath, ['rev-parse', '--git-path', 'packed-refs']);
+  if (!packedPath || packedPath.code !== 0) {
+    return false;
+  }
+  const packedCandidate = packedPath.stdout.trim();
+  const packedAbsolute = path.isAbsolute(packedCandidate)
+    ? packedCandidate
+    : path.join(rootPath, packedCandidate);
+  let packedExists = false;
+  try {
+    packedExists = fsSync
+      .readFileSync(packedAbsolute, 'utf8')
+      .split('\n')
+      .some((line) => line.trim().endsWith(` ${refname}`));
+  } catch {
+    packedExists = false;
+  }
+  return !packedExists;
+}
+
+/** 取消暂存全部；有 HEAD 走 restore，unborn 仓库走 reset，其它失败原样上抛。 */
+export async function unstageAll(rootPath: string): Promise<void> {
+  const head = await runGitCapture(rootPath, ['rev-parse', '--verify', 'HEAD']);
+  if (!head) {
+    throw new Error('git rev-parse --verify HEAD failed: command timed out or could not start');
+  }
+  if (head.code === 0) {
+    await runGitOrThrow(rootPath, ['restore', '--staged', '--', '.']);
+    return;
+  }
+  if (!(await isUnbornHead(rootPath, head))) {
+    throw new Error(`git rev-parse --verify HEAD failed: ${head.stderr || head.stdout}`);
+  }
+  await runGitOrThrow(rootPath, ['reset']);
+}
+
+/** 放弃全部本地更改：已跟踪 restore 到 HEAD，未跟踪 clean（unborn 先清索引）。 */
+export async function discardAll(rootPath: string): Promise<void> {
+  const head = await runGitCapture(rootPath, ['rev-parse', '--verify', 'HEAD']);
+  if (!head) {
+    throw new Error('git rev-parse --verify HEAD failed: command timed out or could not start');
+  }
+  if (head.code === 0) {
+    await runGitOrThrow(rootPath, [
+      'restore',
+      '--source=HEAD',
+      '--staged',
+      '--worktree',
+      '--',
+      '.',
+    ]);
+  } else if (await isUnbornHead(rootPath, head)) {
+    // 无 HEAD：索引条目无法 restore，先清索引（-f 覆盖「暂存后又编辑」），
+    // clean 才会删除这些文件。
+    await runGitOrThrow(
+      rootPath,
+      ['rm', '-r', '-f', '--cached', '--ignore-unmatch', '--', '.'],
+      null,
+    );
+  } else {
+    throw new Error(`git rev-parse --verify HEAD failed: ${head.stderr || head.stdout}`);
+  }
+  await runGitOrThrow(rootPath, ['clean', '-fd']);
+}
+
+/** 提交已暂存内容（空消息拒绝）。 */
+export async function commitChanges(rootPath: string, message: string): Promise<void> {
+  const trimmed = message.trim();
+  if (!trimmed) {
+    throw new Error('commit message is empty');
+  }
+  // 本地提交可能跑 pre-commit/husky 钩子：不设超时（与桌面端一致）。
+  await runGitOrThrow(rootPath, ['commit', '-m', trimmed], null);
+}
+
+/** 推送当前分支；无 upstream 时选远程并 `-u` 建立跟踪。 */
+export async function pushChanges(rootPath: string): Promise<void> {
+  const upstream = await runGit(rootPath, [
+    'rev-parse',
+    '--abbrev-ref',
+    '--symbolic-full-name',
+    '@{u}',
+  ]);
+  if (upstream) {
+    await runGitOrThrow(rootPath, ['push'], GIT_NETWORK_TIMEOUT_MS);
+    return;
+  }
+  const remotes = (await runGit(rootPath, ['remote'])) ?? '';
+  const list = remotes
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  const remote = list.includes('origin') ? 'origin' : list.length === 1 ? list[0] : undefined;
+  if (!remote) {
+    throw new Error('no upstream branch and no unambiguous remote; set an upstream branch first');
+  }
+  await runGitOrThrow(rootPath, ['push', '-u', remote, 'HEAD'], GIT_NETWORK_TIMEOUT_MS);
+}
+
+/** 仅快进拉取。 */
+export async function pullChanges(rootPath: string): Promise<void> {
+  await runGitOrThrow(rootPath, ['pull', '--ff-only'], GIT_NETWORK_TIMEOUT_MS);
+}
+
+/** 单文件暂存（浏览器预览服务补齐与 Rust 后端一致的能力）。 */
+export async function stageFile(rootPath: string, relativePath: string): Promise<void> {
+  await runGitOrThrow(rootPath, ['add', '--', relativePath]);
+}
+
+export async function unstageFile(rootPath: string, relativePath: string): Promise<void> {
+  await runGitOrThrow(rootPath, ['restore', '--staged', '--', relativePath]);
+}
+
+export async function discardFile(rootPath: string, relativePath: string): Promise<void> {
+  const restored = await runGit(rootPath, [
+    'restore',
+    '--source=HEAD',
+    '--staged',
+    '--worktree',
+    '--',
+    relativePath,
+  ]);
+  if (restored !== undefined) {
+    return;
+  }
+  const tracked = await runGit(rootPath, ['ls-files', '--', relativePath]);
+  if (!tracked) {
+    await runGitOrThrow(rootPath, ['clean', '-f', '--', relativePath]);
+  }
 }
 
 async function runGitBytes(rootPath: string, args: string[]): Promise<Buffer | undefined> {

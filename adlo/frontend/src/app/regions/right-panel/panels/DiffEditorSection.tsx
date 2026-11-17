@@ -5,18 +5,20 @@ import type { DiffEditorRef, EditorRef } from '@stores/types';
 import { detectEditorLanguage } from '@utils/workspacePaths';
 import { categorizeFile, isMediaFileCategory } from '../fileTypeRouter';
 import {
-  TEXT_HEAVY_PREVIEW_CHARS,
+  classifyDiffTier,
   confirmHeavyPreview,
   getHeavyPreviewPanes,
   heavyChangePreviewLength,
-  isHeavyDiffContent,
   isHeavyPreviewConfirmed,
 } from '../heavyPreviewLimits';
+import { profileDiffCost } from '../diffCost';
 import { HeavyPreviewGate } from '../HeavyPreviewGate';
 import { formatBytes } from '@root/design-system/html';
 import { computePreviewDiffVisualRanges } from '@features/diff-viewer';
 import type { PreviewDiffCollapsedRange } from '@features/diff-viewer';
-import { LazyMarkdownPreviewWrapper } from '@features/preview';
+import { LazyMarkdownPreviewWrapper, PreviewExternalActions } from '@features/preview';
+import { resolvePreviewOwner } from '@features/preview/previewExternal';
+import { FilePreviewRenderers } from '../FilePreviewRenderers';
 import { openMarkdownFileLink, openUrlByMethod } from '@features/preview/openByMethod';
 import { StickyContext } from '../editor-support/stickyContextView';
 import { useStickyContext } from '../hooks';
@@ -38,11 +40,16 @@ interface DiffEditorSectionProps extends Pick<
   ChangesPanelProps,
   | 'changePreview'
   | 'changePreviewLoading'
+  | 'changePreviewMedia'
+  | 'changePreviewMediaLoading'
+  | 'changePreviewMediaError'
   | 'diffSideBySide'
   | 'latestPatchApplication'
   | 'appInfo'
   | 'onDiffMount'
   | 'onOpenFile'
+  | 'onOpenChangePreview'
+  | 'selectedChangePreviewPath'
   | 'selectedChangePreviewWorkspaceId'
 > {
   previewEnabled: boolean;
@@ -54,6 +61,9 @@ interface DiffEditorSectionProps extends Pick<
 const DiffEditorSection = React.memo(function DiffEditorSection({
   changePreview,
   changePreviewLoading,
+  changePreviewMedia,
+  changePreviewMediaLoading,
+  changePreviewMediaError,
   diffSideBySide,
   latestPatchApplication,
   appInfo,
@@ -62,6 +72,8 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   wordWrapEnabled,
   onDiffMount,
   onOpenFile,
+  onOpenChangePreview,
+  selectedChangePreviewPath,
   selectedChangePreviewWorkspaceId,
   previewContainerRef,
 }: DiffEditorSectionProps) {
@@ -80,11 +92,22 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   const [_collapsedUnchangedDiffRanges, setCollapsedUnchangedDiffRanges] = useState<
     PreviewDiffCollapsedRange[]
   >([]);
-  // 大变更确认（收尾 R34-H2）：与 Files 面板文本门同阈值同文案，确认态跨面板共享。
+  // 大变更确认（收尾 R34-H2）：确认态跨面板共享；触发条件见 costTier（字符数或行数）。
   const [, setChangeConfirmTick] = useState(0);
 
   const validation = latestPatchApplication?.validation;
   const changePreviewContent = changePreview?.currentContent ?? '';
+
+  // 事项1：代价画像与分档先于任何差分/大纲计算（旧实现重型门排在计算之后，
+  // 门只挡住渲染、没挡住主线程成本）。
+  const costProfile = useMemo(
+    () =>
+      changePreview
+        ? profileDiffCost(changePreview.baseContent, changePreview.currentContent)
+        : null,
+    [changePreview],
+  );
+  const costTier = costProfile ? classifyDiffTier(costProfile) : 'light';
 
   const changePreviewLanguage = useMemo(() => {
     return detectEditorLanguage(changePreview?.path);
@@ -93,25 +116,19 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   const changePreviewTheme = useResolvedTheme();
   const changePreviewLocale = resolveAppLanguage(appInfo?.config.language);
 
-  const changePreviewDiffRanges = useMemo(
-    () =>
-      changePreview
-        ? computePreviewDiffVisualRanges(changePreview.baseContent, changePreview.currentContent)
-        : [],
-    [changePreview],
-  );
+  const changePreviewDiffRanges = useMemo(() => {
+    if (!changePreview || costTier === 'heavy') {
+      return [];
+    }
+    return computePreviewDiffVisualRanges(changePreview.baseContent, changePreview.currentContent);
+  }, [changePreview, costTier]);
 
-  const outline = useMemo(
-    () =>
-      // 大纲去重（事项4）：与导航大纲同输入，WeakMap 共享一次 walk。
-      changePreview
-        ? outlineForChangePreview(
-            changePreview,
-            isHeavyDiffContent(changePreview.baseContent, changePreview.currentContent),
-          )
-        : [],
-    [changePreview],
-  );
+  const outline = useMemo(() => {
+    if (!changePreview || costTier === 'heavy') {
+      return [];
+    }
+    return outlineForChangePreview(changePreview, false);
+  }, [changePreview, costTier]);
 
   const getStickySourceEditor = useCallback(() => {
     const ref = localEditorRef.current;
@@ -173,8 +190,13 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
 
   // 内容区无预览时直接留空（事项1）：不渲染"当前没有检测到文件变更"等空态文字。
   // 加载期给骨架反馈而非纯空白（事项4 感知优化）。
-  if (!changePreview) {
-    if (changePreviewLoading) {
+  // 事项4：媒体/办公变更没有 changePreview（字节走 changePreviewMedia），
+  // 只有文本变更才要求 changePreview 存在。
+  const previewPath = changePreview?.path ?? selectedChangePreviewPath;
+  const previewCategory = previewPath ? categorizeFile(previewPath) : undefined;
+  const isMediaPreview = previewCategory ? isMediaFileCategory(previewCategory) : false;
+  if (!changePreview && !isMediaPreview && previewCategory !== 'binary') {
+    if (changePreviewLoading || changePreviewMediaLoading) {
       return <ChunkLoadingFallback />;
     }
     return null;
@@ -204,14 +226,76 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
     </div>
   ) : null;
 
-  // 媒体、办公与二进制文件不在变更面板做逐行对比：居中友好占位 + 前往文件面板预览。
-  // 与文件面板共用 .adl-unsupported-preview 视觉（已居中）。
-  // binary 一并占位：二进制变更预览本就失败闭合（changePreview 为空），
-  // 避免落入 DiffViewer 面对空内容（Phase 4 审查 F6）。
-  const changePreviewCategory = categorizeFile(changePreview.path);
-  if (isMediaFileCategory(changePreviewCategory) || changePreviewCategory === 'binary') {
-    const previewPath = changePreview.path;
-    const isBinary = changePreviewCategory === 'binary';
+  // 事项4：媒体/办公变更复用文件面板的渲染器（同一重型门、错误态、Office/媒体
+  // 预览器），不做逐行对比；文本变更仍走下面的 diff 分支。
+  const changePreviewCategory = previewCategory ?? 'text';
+  if (isMediaPreview && previewPath) {
+    const mediaFailed =
+      !changePreviewMedia &&
+      !changePreviewMediaLoading &&
+      changePreviewMediaError?.path === previewPath;
+    return (
+      <>
+        {validationBanner}
+        <div
+          ref={setPreviewShellRef}
+          className="adl-tool-editor adl-tool-editor--changes"
+          data-testid="changes-preview-shell"
+        >
+          {mediaFailed ? (
+            <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
+              <div className="adl-unsupported-preview" role="alert">
+                <span className="adl-unsupported-preview__text">
+                  {t.changesPreviewMediaFailed as string}
+                </span>
+                <span className="adl-unsupported-preview__hint" title={previewPath}>
+                  {changePreviewMediaError?.message ?? previewPath}
+                </span>
+                <button
+                  type="button"
+                  className="adl-unsupported-preview__action"
+                  onClick={() => {
+                    // 重试必须落在预览所属工作区：当前工作区入口会读错目录。
+                    const state = useAppStore.getState();
+                    const owner = resolvePreviewOwner(selectedChangePreviewWorkspaceId);
+                    if (owner) {
+                      void state.openChangePreviewForWorkspace(owner.root, previewPath);
+                      return;
+                    }
+                    // 无 workspaceId（mock/未归属）才回退当前工作区入口。
+                    if (selectedChangePreviewWorkspaceId === undefined) {
+                      onOpenChangePreview(previewPath);
+                    }
+                  }}
+                >
+                  {t.fileOpenErrorRetry as string}
+                </button>
+                <PreviewExternalActions
+                  filePath={previewPath}
+                  workspaceId={selectedChangePreviewWorkspaceId}
+                />
+              </div>
+            </div>
+          ) : (
+            <FilePreviewRenderers
+              editorSurfaceRef={localPreviewShellRef}
+              fileCategory={changePreviewCategory}
+              fileContent={null}
+              fileMedia={changePreviewMedia ?? null}
+              fileMediaLoading={changePreviewMediaLoading}
+              filePath={previewPath}
+              workspaceId={selectedChangePreviewWorkspaceId}
+              theme={changePreviewTheme}
+            />
+          )}
+        </div>
+      </>
+    );
+  }
+
+  // 二进制/未知类型不做预览；其扩展名不在 WebView2 可渲染白名单内，故不提供
+  // 浏览器兜底入口（占位只保留「在文件中打开」）。
+  if (changePreviewCategory === 'binary' && previewPath) {
     return (
       <>
         {validationBanner}
@@ -236,9 +320,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
                 <path d="M9 15h6" />
               </svg>
               <span className="adl-unsupported-preview__text">
-                {isBinary
-                  ? (t.changesPreviewBinary as string)
-                  : (t.changesPreviewMediaInChanges as string)}
+                {t.changesPreviewBinary as string}
               </span>
               <span className="adl-unsupported-preview__hint" title={previewPath}>
                 {previewPath}
@@ -261,19 +343,24 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
     );
   }
 
+  if (!changePreview) {
+    return null;
+  }
+
   // 大变更确认门（收尾 R34-H2）：markdown 预览 whole-document 解析与 DiffViewer
-  // 全量 diff 计算同样怕巨型内容，与 Files 文本门同阈值（字符数近似即可）。
+  // 全量 diff 计算同样怕巨型内容；重型判定见 costTier（字符数或行数）。
   // 事项3：体积取 base/current 较大者——删除型 current 为空，只看 current 会放行
   // 巨型 base 直渲染（白屏/卡顿源头）；确认后渲染，不强制限制（用户仍可"仍然打开"）。
   const heavyContentLength = heavyChangePreviewLength(
     changePreview.baseContent,
     changePreview.currentContent,
   );
+  const isHeavyPreview = costTier === 'heavy';
   if (
     (changePreviewCategory === 'markdown' ||
       changePreviewCategory === 'code' ||
       changePreviewCategory === 'text') &&
-    heavyContentLength > TEXT_HEAVY_PREVIEW_CHARS &&
+    isHeavyPreview &&
     !isHeavyPreviewConfirmed(selectedChangePreviewWorkspaceId, changePreview.path)
   ) {
     return (
@@ -289,6 +376,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
               name={changePreview.path}
               sizeText={formatBytes(heavyContentLength)}
               hintKey="heavyPreviewHintDiff"
+              titleKey="heavyPreviewTitleDiff"
               onConfirm={() => {
                 confirmHeavyPreview(selectedChangePreviewWorkspaceId, changePreview.path);
                 setChangeConfirmTick((tick) => tick + 1);
@@ -307,7 +395,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
     (changePreviewCategory === 'markdown' ||
       changePreviewCategory === 'code' ||
       changePreviewCategory === 'text') &&
-    heavyContentLength > TEXT_HEAVY_PREVIEW_CHARS &&
+    isHeavyPreview &&
     isHeavyPreviewConfirmed(selectedChangePreviewWorkspaceId, changePreview.path);
   const heavyPanes = heavyConfirmed
     ? getHeavyPreviewPanes(changePreview.baseContent, changePreview.currentContent)

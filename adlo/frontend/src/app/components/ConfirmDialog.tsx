@@ -7,6 +7,8 @@ export interface ConfirmDialogProps {
   message: string;
   confirmLabel: string;
   cancelLabel: string;
+  /** 执行中：禁用两键，避免重复触发（不可恢复操作尤其需要）。 */
+  busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -17,6 +19,7 @@ export function ConfirmDialog({
   message,
   confirmLabel,
   cancelLabel,
+  busy,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -87,7 +90,12 @@ export function ConfirmDialog({
           <p className="adl-confirm-dialog__message">{message}</p>
         </div>
         <div className="adl-confirm-dialog__footer">
-          <button type="button" className="adl-btn adl-btn--secondary" onClick={onCancel}>
+          <button
+            type="button"
+            className="adl-btn adl-btn--secondary"
+            onClick={onCancel}
+            disabled={busy}
+          >
             {cancelLabel}
           </button>
           <button
@@ -95,6 +103,7 @@ export function ConfirmDialog({
             type="button"
             className="adl-btn adl-btn--danger"
             onClick={onConfirm}
+            disabled={busy}
           >
             {confirmLabel}
           </button>

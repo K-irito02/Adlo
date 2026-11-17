@@ -287,6 +287,24 @@ interface GitActions {
   stageWorkspaceFile: (relativePath: string, workspacePath?: string) => Promise<void>;
   unstageWorkspaceFile: (relativePath: string, workspacePath?: string) => Promise<void>;
   discardWorkspaceFile: (relativePath: string, workspacePath?: string) => Promise<void>;
+  /** 「暂存全部」：`git add -A` 后刷新该工作区快照。 */
+  stageAllWorkspaceChanges: (workspacePath?: string) => Promise<void>;
+  /** 「取消暂存」：把索引恢复到 HEAD（无 HEAD 时清空索引）后刷新快照。 */
+  unstageAllWorkspaceChanges: (workspacePath?: string) => Promise<void>;
+  /** 「放弃全部」：restore + clean（不可恢复）后刷新快照。 */
+  discardAllWorkspaceChanges: (workspacePath?: string) => Promise<void>;
+  /**
+   * 「提交」：提交已暂存内容；stageAll 为 true 时先暂存全部。
+   * @returns 成功返回 undefined；失败返回可展示的错误文案（弹窗内展示）。
+   */
+  commitWorkspaceChanges: (
+    message: string,
+    options?: { stageAll?: boolean; workspacePath?: string },
+  ) => Promise<string | undefined>;
+  /** 「推送」：无 upstream 时自动建立跟踪。 */
+  pushWorkspaceChanges: (workspacePath?: string) => Promise<void>;
+  /** 「拉取」：仅快进。 */
+  pullWorkspaceChanges: (workspacePath?: string) => Promise<void>;
 }
 
 interface PatchActions {

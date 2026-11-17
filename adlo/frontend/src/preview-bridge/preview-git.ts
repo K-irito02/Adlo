@@ -178,6 +178,66 @@ export function createPreviewGitBridge(
         body: JSON.stringify({ rootPath: root, relativePath }),
       });
     },
+    stageAllFiles: async (workspacePath?: string): Promise<IpcResult<void>> => {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
+      }
+      return requestPreviewApi<void>('/workspace/git-stage-all', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath: root }),
+      });
+    },
+    unstageAllFiles: async (workspacePath?: string): Promise<IpcResult<void>> => {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
+      }
+      return requestPreviewApi<void>('/workspace/git-unstage-all', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath: root }),
+      });
+    },
+    discardAllFiles: async (workspacePath?: string): Promise<IpcResult<void>> => {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
+      }
+      return requestPreviewApi<void>('/workspace/git-discard-all', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath: root }),
+      });
+    },
+    commitChanges: async (message: string, workspacePath?: string): Promise<IpcResult<void>> => {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
+      }
+      return requestPreviewApi<void>('/workspace/git-commit', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath: root, message }),
+      });
+    },
+    pushChanges: async (workspacePath?: string): Promise<IpcResult<void>> => {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
+      }
+      return requestPreviewApi<void>('/workspace/git-push', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath: root }),
+      });
+    },
+    pullChanges: async (workspacePath?: string): Promise<IpcResult<void>> => {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
+      }
+      return requestPreviewApi<void>('/workspace/git-pull', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath: root }),
+      });
+    },
     gitVisCommitStats: async (rootPath: string, since?: string, until?: string) => {
       const params = new URLSearchParams({ rootPath });
       if (since) {

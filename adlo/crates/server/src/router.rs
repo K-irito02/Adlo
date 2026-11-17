@@ -155,6 +155,12 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/workspace/git/stage", post(handlers::workspace_git::git_stage_file))
         .route("/workspace/git/unstage", post(handlers::workspace_git::git_unstage_file))
         .route("/workspace/git/discard", post(handlers::workspace_git::git_discard_file))
+        .route("/workspace/git/stage-all", post(handlers::workspace_git::git_stage_all))
+        .route("/workspace/git/unstage-all", post(handlers::workspace_git::git_unstage_all))
+        .route("/workspace/git/discard-all", post(handlers::workspace_git::git_discard_all))
+        .route("/workspace/git/commit", post(handlers::workspace_git::git_commit))
+        .route("/workspace/git/push", post(handlers::workspace_git::git_push))
+        .route("/workspace/git/pull", post(handlers::workspace_git::git_pull))
         // Workspace-git-visualization domain
         .route("/workspace/git-vis/commit-stats", post(handlers::workspace_git_vis::commit_stats))
         .route(

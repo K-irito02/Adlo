@@ -33,6 +33,9 @@ export function useChangesPanelProps(
   const selectedChangePreviewWorkspaceId = useAppStore((s) => s.selectedChangePreviewWorkspaceId);
   const changePreview = useAppStore(useShallow((s) => s.changePreview));
   const changePreviewLoading = useAppStore((s) => s.changePreviewLoading);
+  const changePreviewMedia = useAppStore(useShallow((s) => s.changePreviewMedia));
+  const changePreviewMediaLoading = useAppStore((s) => s.changePreviewMediaLoading);
+  const changePreviewMediaError = useAppStore(useShallow((s) => s.changePreviewMediaError));
   const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
   const workspaceChangesExpanded = useAppStore(useShallow((s) => s.workspaceChangesExpanded));
   const gitSnapshot = useAppStore(useShallow((s) => s.gitSnapshot));
@@ -111,6 +114,9 @@ export function useChangesPanelProps(
       selectedChangePreviewWorkspaceId,
       changePreview,
       changePreviewLoading,
+      changePreviewMedia,
+      changePreviewMediaLoading,
+      changePreviewMediaError,
       selectedPatchHunkId,
       collapsedPatchHunkIds,
       patchReviewFilter,
@@ -150,6 +156,9 @@ export function useChangesPanelProps(
       selectedChangePreviewWorkspaceId,
       changePreview,
       changePreviewLoading,
+      changePreviewMedia,
+      changePreviewMediaLoading,
+      changePreviewMediaError,
       selectedPatchHunkId,
       collapsedPatchHunkIds,
       patchReviewFilter,

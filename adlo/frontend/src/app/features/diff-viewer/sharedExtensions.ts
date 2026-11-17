@@ -21,14 +21,6 @@ export const lineNumbersCompartment = new Compartment();
 export const wordWrapCompartment = new Compartment();
 export const foldGutterCompartment = new Compartment();
 
-export interface ScrollSyncMetrics {
-  sourceScrollTop: number;
-  sourceScrollHeight: number;
-  sourceClientHeight: number;
-  targetScrollHeight: number;
-  targetClientHeight: number;
-}
-
 export const COLLAPSE_UNCHANGED_CONFIG = { margin: 3, minSize: 8 } as const;
 
 type MergeChunksResult = Exclude<ReturnType<typeof getChunks>, null>;

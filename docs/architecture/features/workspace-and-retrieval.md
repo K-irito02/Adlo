@@ -22,6 +22,20 @@ Retrieval remains worker-owned and continues to store only externally visible st
 - If a switch or cross-base branch creation would discard local changes, the UI requires explicit confirmation and the backend auto-stashes local changes before continuing.
 - After a branch change, the shell refreshes workspace tree, Git snapshot, retrieval snapshot, and open file content to keep preview and desktop behavior aligned.
 
+## Bulk Git Actions
+
+- The changes navigator's workspace menu exposes stage-all / unstage-all / discard-all / commit / push / pull over `/workspace/git/*`.
+- Bulk and remote endpoints require an explicit `workspacePath` (missing → `INVALID_INPUT`); they never fall back to the active workspace, because discard-all is destructive in a multi-workspace setup.
+- Commit requires a non-empty message. Push uses the configured upstream; without one it prefers `origin`, then a single remote, and forces `-u` tracking. Pull is `--ff-only` and surfaces Git's stderr verbatim.
+- Local Git operations run without a timeout (hooks may be slow); only push/pull run under the network timeout and kill the process tree on expiry.
+- Unborn repositories (`git init` without commits) have their index cleared before `clean -fd`, so discard-all also discards staged entries. A corrupt/unresolvable HEAD is reported instead of being treated as unborn.
+
+## Change Preview Content Types
+
+- Text changes stream through `read_change_preview`; media/office changes read bytes through `read_media_file` and reuse the file-panel renderers (native video/audio/image, docx/pdf/xlsx/pptx).
+- Both chains share the `preview:` request generation, so a cancelled preview cannot be resurrected by a late disk read.
+- Unsupported renderers offer "open in center browser tab / right browser panel" only for WebView2-native extensions and only in the desktop shell (browser-mode iframes block `file://`).
+
 ## Runtime Rules
 
 - Workspace identity, session summary, and retrieval snapshot stay separate in storage.

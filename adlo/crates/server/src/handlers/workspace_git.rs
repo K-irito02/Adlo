@@ -56,6 +56,13 @@ pub async fn get_git_status(
     }
 }
 
+/// 多工作区安全：需要显式工作区路径的写操作统一走这里（空白串也算缺失）。
+fn require_workspace_path(value: Option<String>) -> Result<String, AppError> {
+    value
+        .filter(|path| !path.trim().is_empty())
+        .ok_or_else(|| AppError::InvalidInput("workspacePath is required".into()))
+}
+
 /// POST `/workspace/git/init` — initialize a **local** git repository at the
 /// explicitly supplied workspace path (covers `WorkspaceBridge.initGitRepo`).
 ///
@@ -68,10 +75,9 @@ pub async fn init_git_repo(body: axum::body::Bytes) -> impl IntoResponse {
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
     let workspace_path = body_val.get("workspacePath").and_then(|v| v.as_str()).map(String::from);
-    let Some(workspace_path) = workspace_path else {
-        return ipc::to_response(Err(AppError::InvalidInput(
-            "workspacePath is required".to_string(),
-        )));
+    let workspace_path = match require_workspace_path(workspace_path) {
+        Ok(path) => path,
+        Err(error) => return ipc::to_response(Err(error)),
     };
     let result = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
         let snapshot = adl_workspace::init_git_repo(Path::new(&workspace_path))?;
@@ -303,6 +309,100 @@ pub async fn git_stage_file(
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
     ipc::to_response(run_git_file_op(&state, body, adl_workspace::stage_file).await)
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GitRepoBody {
+    workspace_path: Option<String>,
+}
+
+async fn run_git_repo_op(
+    state: &ServerState,
+    body: axum::body::Bytes,
+    op: fn(&Path) -> Result<(), AppError>,
+) -> Result<serde_json::Value, AppError> {
+    let input: GitRepoBody =
+        ipc::json_body(body).await.map_err(|(_, msg)| AppError::InvalidInput(msg))?;
+    // 多工作区安全：全量/远程操作（含不可恢复的 discard-all）必须显式指定目标，
+    // 禁止回退到活动工作区（与 init_git_repo 同一规则）。
+    let workspace_path = require_workspace_path(input.workspace_path)?;
+    let root = git_root(state, Some(workspace_path))?;
+    tokio::task::spawn_blocking(move || op(root.as_path()))
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(serde_json::json!(null))
+}
+
+/// POST `/workspace/git/stage-all` — stage every change (`git add -A`).
+pub async fn git_stage_all(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    ipc::to_response(run_git_repo_op(&state, body, adl_workspace::stage_all).await)
+}
+
+/// POST `/workspace/git/unstage-all` — unstage every change.
+pub async fn git_unstage_all(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    ipc::to_response(run_git_repo_op(&state, body, adl_workspace::unstage_all).await)
+}
+
+/// POST `/workspace/git/discard-all` — restore tracked files and clean untracked ones.
+pub async fn git_discard_all(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    ipc::to_response(run_git_repo_op(&state, body, adl_workspace::discard_all).await)
+}
+
+/// POST `/workspace/git/push` — push the current branch (sets upstream when missing).
+pub async fn git_push(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    ipc::to_response(run_git_repo_op(&state, body, adl_workspace::push).await)
+}
+
+/// POST `/workspace/git/pull` — `git pull --ff-only` for the current branch.
+pub async fn git_pull(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    ipc::to_response(run_git_repo_op(&state, body, adl_workspace::pull_ff_only).await)
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GitCommitBody {
+    workspace_path: Option<String>,
+    message: String,
+}
+
+/// POST `/workspace/git/commit` — commit the staged changes with the given message.
+pub async fn git_commit(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: GitCommitBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let workspace_path = match require_workspace_path(input.workspace_path) {
+        Ok(path) => path,
+        Err(error) => return ipc::to_response(Err(error)),
+    };
+    let root = match git_root(&state, Some(workspace_path)) {
+        Ok(root) => root,
+        Err(error) => return ipc::to_response(Err(error)),
+    };
+    let result =
+        tokio::task::spawn_blocking(move || adl_workspace::commit(root.as_path(), &input.message))
+            .await
+            .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")));
+    ipc::to_response(result.and_then(|inner| inner.map(|_| serde_json::json!(null))))
 }
 
 /// POST `/workspace/git/unstage` — unstage a file (covers `WorkspaceBridge.gitUnstageFile`).

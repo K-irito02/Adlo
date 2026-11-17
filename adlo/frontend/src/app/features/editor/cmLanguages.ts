@@ -73,12 +73,23 @@ export function getLanguageExtensionSync(languageId: string): Extension[] {
   return [];
 }
 
+/**
+ * 该语言是否可能产生折叠标记（事项 1）：只有挂了语法加载器的语言才有折叠区间。
+ * plaintext / 未知语言无法产生折叠标记，`useFoldMarkerAutoHide` 的
+ * 「forceParsing + reconfigure」轮询对其纯属主线程浪费，必须直接禁用。
+ */
+export function languageSupportsFolding(languageId: string): boolean {
+  return Object.hasOwn(languageLoaders, languageId);
+}
+
 export async function getLanguageExtension(languageId: string): Promise<Extension[]> {
   const cached = extensionCache.get(languageId);
   if (cached) {
     return cached;
   }
-  const loader = languageLoaders[languageId];
+  const loader = Object.hasOwn(languageLoaders, languageId)
+    ? languageLoaders[languageId]
+    : undefined;
   if (!loader) {
     return [];
   }
@@ -107,7 +118,7 @@ export async function getLanguageExtension(languageId: string): Promise<Extensio
  * 扩展集合发生变化并触发重新量测；若这次变化发生在揭示之后，落点会被推走。
  */
 export function isLanguageExtensionReady(languageId: string): boolean {
-  return extensionCache.has(languageId) || languageLoaders[languageId] === undefined;
+  return extensionCache.has(languageId) || !Object.hasOwn(languageLoaders, languageId);
 }
 
 /**
