@@ -25,6 +25,7 @@ test("review-snapshot parses base/out/rev and rejects invalid rev", () => {
     help: false,
     allowUntracked: false,
     allowClaims: false,
+    progress: null,
   });
   assert.deepEqual(parseReviewArgs(["--base", "origin/main", "--out", ".diffs", "--rev", "3"]), {
     base: "origin/main",
@@ -33,6 +34,16 @@ test("review-snapshot parses base/out/rev and rejects invalid rev", () => {
     help: false,
     allowUntracked: false,
     allowClaims: false,
+    progress: null,
+  });
+  assert.deepEqual(parseReviewArgs(["--rev", "2", "--progress", "docs/p.md"]), {
+    base: null,
+    out: ".review-diffs",
+    rev: 2,
+    help: false,
+    allowUntracked: false,
+    allowClaims: false,
+    progress: "docs/p.md",
   });
   assert.throws(() => parseReviewArgs(["--rev", "0"]), /positive integer/);
   assert.throws(() => parseReviewArgs(["--nope"]), /unknown argument/);

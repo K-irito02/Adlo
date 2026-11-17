@@ -20,6 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { findLatestProgressFile, hasP3P4Approval } from "./check-review-gate.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..", "..");
@@ -52,6 +53,7 @@ export function parseArgs(argv) {
     help: false,
     allowUntracked: false,
     allowClaims: false,
+    progress: null,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -85,6 +87,8 @@ export function parseArgs(argv) {
         throw new Error("--rev must be a positive integer");
       }
       options.rev = rev;
+    } else if (arg === "--progress") {
+      options.progress = next();
     } else {
       throw new Error(`unknown argument: ${arg}`);
     }
@@ -393,9 +397,32 @@ function main() {
   }
   if (options.help) {
     console.log(
-      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--allow-untracked] [--allow-claims]",
+      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--progress <file>] [--allow-untracked] [--allow-claims]",
     );
     return;
+  }
+
+  if (options.rev === 1) {
+    const progressFile = options.progress
+      ? path.resolve(repoRoot, options.progress)
+      : findLatestProgressFile(repoRoot);
+    if (!progressFile || !fs.existsSync(progressFile)) {
+      console.error(
+        "[review-snapshot] P3→P4 approval check failed: progress file not found; pass --progress <file>.",
+      );
+      process.exit(1);
+    }
+    if (!hasP3P4Approval(fs.readFileSync(progressFile, "utf8"))) {
+      console.error(
+        [
+          "[review-snapshot] P3→P4 user approval missing; rev1 must not be generated.",
+          `  progress: ${progressFile}`,
+          '  add: "- P3→P4 用户批准：是（YYYY-MM-DD）" after the user approves,',
+          '  or "- P3→P4 用户批准：不需要（用户已明确授权直接收尾）".',
+        ].join("\n"),
+      );
+      process.exit(1);
+    }
   }
 
   const base = resolveBase(options.base);

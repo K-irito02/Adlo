@@ -81,3 +81,12 @@
 - 断言「某节点曾经渲染过」用 MutationObserver 的 added/removed 记录，**不要赌回调投递时机**；`disconnect()` 会清空未投递队列——先 `takeRecords()` 再断开。
 - **桌面 Tauri**：合成层闪烁（`backdrop-filter` 首帧等）WebDriver 截图抓不到。浏览器帧序列用来定位布局类根因，最终视觉结论交给用户桌面实测；不要为抓闪烁去跑 `e2e:build`。
 - 成本：一次 `playwright-cli` 调用 2–5s，采样窗口只有几秒；**别把「点触发」和「点确认」拆成两次调用**（本仓实测因此白跑一整轮）。
+
+## 7. 本应用 DOM 定位配方（2026-11-17 实测）
+
+- **图标按钮没有 innerText**：工具切换器、面板操作按钮用 `aria-label` / `title`（如 `aria-label="变更"`、`aria-label="更多操作"`）。先 `querySelectorAll('button')` 按 `getAttribute('aria-label') || getAttribute('title')` 匹配；不要用 `innerText.includes('变更')`。
+- **分段按钮的文字在子 span**：`内联/并排/均分/自由` 用 `.adl-tool-context__toggle-btn` + `innerText.trim()` 判断，选中态看 `className.includes('is-active')`。
+- **fixed portal 的 `offsetParent === null`**：右键菜单/portal 弹层是 `position: fixed`，`offsetParent` 为 null 不代表不可见。用 `document.querySelector(selector)` + `innerText`/`getBoundingClientRect().width > 0` 判断，或直接按文本找 `[role="menu"]`。
+- **会话状态会持久化**：上次的 `file://` 浏览器标签、右侧当前工具、工作区区划都会恢复；开始验证前先关闭旧中心标签/切到目标工具，否则会误判“页面空白/按钮消失”。中心区显示“该网站无法在嵌入式视图中显示”通常就是遗留的 `file://` 标签。
+- **点击优先用 DOM `.click()`**：a11y 快照对自定义组件支持有限；`evaluate` 里对目标元素 `.click()` 更稳。React 受控输入用原生 setter + `input` 事件（textarea 见 `adl-commit-message`）。
+- **大列表/长任务用 in-page 采样**：`PerformanceObserver({type:'longtask'})` + rAF 采样 `scrollTop` 序列，比截图/肉眼可靠（见 §6）。

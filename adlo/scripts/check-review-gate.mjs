@@ -6,9 +6,11 @@
  * （2026-11-15 实测 4 次误派发）。本脚本从 `.review-diffs` 读取每个 R1 scope
  * 的**最新** rev 报告，要求全部明确写「需修复项：0」；任一缺失/非零即退出 1。
  *
- * 用法：`node adlo/scripts/check-review-gate.mjs --phase r2 [--dir .review-diffs]`
+ * 用法：`node adlo/scripts/check-review-gate.mjs --phase r1|r2 [--dir .review-diffs] [--progress <file>]`
+ * - `r1`：检查进度文件的 P3→P4 用户批准标记（防止未经用户验收就开审）。
+ * - `r2`：检查每个 R1 scope 的最新报告是否「需修复项：0」。
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -17,8 +19,53 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", ".
 const REPORT_RE = /^(.+)-r1-rev(\d+)-report\.md$/;
 const ZERO_RE = /需修复项\s*[:：]\s*0(?:\D|$)/;
 
+/**
+ * P3→P4 用户批准标记（技能门控）：
+ * 进度文件必须有一行 `- P3→P4 用户批准：是（日期）`；用户明确授权直接收尾时可写 `不需要`。
+ */
+const APPROVAL_RE = /P3\s*(?:→|->|-)\s*P4\s*用户批准\s*[:：]\s*(是|不需要)/iu;
+
+export function hasP3P4Approval(progressText) {
+  return APPROVAL_RE.test(progressText);
+}
+
+/** 最近修改的进度文件（docs/root-cause-to-close/<YYYY-MM>/progress-*.md）。 */
+export function findLatestProgressFile(root) {
+  const base = path.join(root, "docs", "root-cause-to-close");
+  if (!existsSync(base)) {
+    return null;
+  }
+  const candidates = [];
+  for (const month of readdirSync(base, { withFileTypes: true })) {
+    if (!month.isDirectory()) {
+      continue;
+    }
+    const dir = path.join(base, month.name);
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isFile() && /^progress-.*\.md$/.test(entry.name)) {
+        const file = path.join(dir, entry.name);
+        candidates.push({ file, mtime: fsStatMtime(file) });
+      }
+    }
+  }
+  candidates.sort((a, b) => b.mtime - a.mtime);
+  return candidates[0]?.file ?? null;
+}
+
+function fsStatMtime(file) {
+  try {
+    return statSync(file).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
 const parseArgs = (argv) => {
-  const options = { phase: "r2", dir: path.join(ROOT, ".review-diffs") };
+  const options = {
+    phase: "r2",
+    dir: path.join(ROOT, ".review-diffs"),
+    progress: null,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--phase") {
@@ -26,6 +73,9 @@ const parseArgs = (argv) => {
       i += 1;
     } else if (arg === "--dir") {
       options.dir = path.resolve(argv[i + 1] ?? "");
+      i += 1;
+    } else if (arg === "--progress") {
+      options.progress = path.resolve(argv[i + 1] ?? "");
       i += 1;
     } else {
       throw new Error(`unknown argument: ${arg}`);
@@ -82,12 +132,35 @@ function main() {
     options = parseArgs(process.argv.slice(2));
   } catch (error) {
     console.error(`[review-gate] ${String(error)}`);
-    console.error("usage: node scripts/check-review-gate.mjs --phase r2 [--dir .review-diffs]");
+    console.error(
+      "usage: node scripts/check-review-gate.mjs --phase r1|r2 [--dir .review-diffs] [--progress <file>]",
+    );
     process.exit(1);
   }
-  if (options.phase !== "r2") {
-    console.error(`[review-gate] unsupported phase: ${options.phase} (only r2)`);
+  if (options.phase !== "r1" && options.phase !== "r2") {
+    console.error(`[review-gate] unsupported phase: ${options.phase} (expected r1 or r2)`);
     process.exit(1);
+  }
+  if (options.phase === "r1") {
+    const progress = options.progress ?? findLatestProgressFile(ROOT);
+    if (!progress || !existsSync(progress)) {
+      console.error("[review-gate] progress file not found; pass --progress <file>.");
+      process.exit(1);
+    }
+    const text = readFileSync(progress, "utf8");
+    if (!hasP3P4Approval(text)) {
+      console.error(
+        [
+          "[review-gate] P3→P4 user approval missing; R1 must not start.",
+          `  progress: ${progress}`,
+          '  add: "- P3→P4 用户批准：是（YYYY-MM-DD）" after the user approves,',
+          '  or "- P3→P4 用户批准：不需要（用户已明确授权直接收尾）".',
+        ].join("\n"),
+      );
+      process.exit(1);
+    }
+    console.log(`[review-gate] OK (P3→P4 approved in ${path.relative(ROOT, progress)})`);
+    return;
   }
   if (!existsSync(options.dir)) {
     console.error(`[review-gate] review dir not found: ${options.dir}`);

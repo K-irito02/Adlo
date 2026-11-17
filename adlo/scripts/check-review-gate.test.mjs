@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { evaluateR2Gate, latestR1Reports } from "./check-review-gate.mjs";
+import { evaluateR2Gate, hasP3P4Approval, latestR1Reports } from "./check-review-gate.mjs";
 
 const report = (scope, rev, conclusion) => ({
   name: `${scope}-r1-rev${rev}-report.md`,
@@ -50,5 +50,20 @@ describe("check-review-gate", () => {
     const result = evaluateR2Gate([{ name: "core-rev3-report.md", text: "需修复项：0" }]);
     assert.equal(result.ok, false);
     assert.deepEqual(result.scopes, []);
+  });
+});
+
+describe("P3→P4 approval gate", () => {
+  it("accepts the explicit approval marker", () => {
+    assert.equal(hasP3P4Approval("# 进度\n\n- P3→P4 用户批准：是（2026-11-17）\n"), true);
+  });
+
+  it("accepts an explicit direct-to-close authorization", () => {
+    assert.equal(hasP3P4Approval("- P3→P4 用户批准：不需要（用户已授权直接收尾）"), true);
+  });
+
+  it("rejects pending / missing markers", () => {
+    assert.equal(hasP3P4Approval("- P3→P4 用户批准：待定"), false);
+    assert.equal(hasP3P4Approval("# 进度\n\n- 状态：进行中\n"), false);
   });
 });

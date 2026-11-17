@@ -21,6 +21,7 @@ alwaysApply: true
 5. 批量修改后必须自检：`git diff --check`、`node adlo/scripts/check-source-hygiene.mjs`、`pnpm --dir adlo run scripts:format:check`。hygiene 同时拦截 U+FFFD / BOM / 常见 mojibake，以及未发布阶段的「兼容历史」代码（外部协议用 `compat-allow: <理由>` 显式豁免）。
 6. `git diff --output=<file>` 必须写在 `--` 之前（`git diff HEAD --output=<file> -- <path>`）；写在 `--` 之后会被当作 pathspec，快照落空还刷屏（2026-10-27，49 个快照重跑）。
 7. 中文命令输出在工具回显里按 GBK 解码必乱码：凡需断言中文内容，一律落盘后用 `read` / `grep` 验，不看回显。
+   - **降低回显乱码（推荐）**：会话开始时执行一次 `chcp 65001 > $null; [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)`，再跑长命令；若仍出现 `�`，按上一条落盘核对，不要据乱码猜文案或计数。 <!-- hygiene-allow: intentional U+FFFD sample -->
 8. **日志回显不可作证据**：WDIO / PowerShell 输出中的中文标题会在回显里被截断（如 `Could not find window with title containing "�?`），判断窗口标题、错误文案时必须用 `read` 打开日志文件确认，不要据此猜值或下结论。 <!-- hygiene-allow: intentional mojibake sample -->
 
 ## 自检
