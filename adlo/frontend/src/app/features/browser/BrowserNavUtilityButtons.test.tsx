@@ -12,7 +12,7 @@ const labels = {
   clearOpenTabs: '关闭所有已打开标签页',
 };
 
-function setup(navigatorMode: 'tabs' | 'open' | 'list' | 'search') {
+function setup(navigatorMode: 'tree' | 'open' | 'list' | 'search') {
   const onAlwaysNewTab = vi.fn();
   const onClearOpenTabs = vi.fn();
   render(
@@ -44,7 +44,7 @@ describe('BrowserNavUtilityButtons', () => {
   });
 
   it('renders new-bookmark button (tabs mode) without native title (uses custom tooltip)', () => {
-    setup('tabs');
+    setup('tree');
     const plus = screen.getByRole('button', { name: labels.newTab });
     expect(plus).not.toHaveAttribute('title');
   });
@@ -93,7 +93,7 @@ describe('BrowserNavUtilityButtons', () => {
   it('shows tooltip content for the tabs-mode button on hover', async () => {
     vi.useFakeTimers();
     try {
-      setup('tabs');
+      setup('tree');
       await hoverAndAssertTooltip(labels.newTab);
     } finally {
       vi.useRealTimers();

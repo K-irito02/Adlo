@@ -76,7 +76,7 @@ export const createBrowserSlice = (
 ): BrowserSlice => {
   return {
     browserNavigateInPlace: false,
-    browserNavigatorMode: 'tabs',
+    browserNavigatorMode: 'tree',
     browserSearchScope: 'all',
     browserSelectedTreePath: null,
     browserZoomByTab: {},

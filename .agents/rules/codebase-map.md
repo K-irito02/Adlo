@@ -200,7 +200,7 @@ features/browser/
 ├── BrowserPanelActionsContext.tsx # 面板操作上下文
 ├── BrowserNavigator.tsx      # 导航器壳（工具栏 + 模式切换，~120行）
 ├── BrowserNavOpenMode.tsx    # 已打开标签模式（封装 BrowserOpenTabFlatList）
-├── BrowserNavTabsMode.tsx    # 书签目录树模式（封装 BrowserTabTree）
+├── BrowserNavTreeMode.tsx    # 书签目录树模式（封装 BrowserTabTree）
 ├── BrowserNavListMode.tsx    # 列表视图模式（BrowserTabTree viewMode="list"）
 ├── BrowserNavSearchMode.tsx  # 搜索模式（搜索结果列表）
 ├── BrowserOpenTabFlatList.tsx# 已打开标签扁平列表（可拖拽）

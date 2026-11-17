@@ -61,7 +61,7 @@
 - Modify: `adlo/frontend/src/app/features/browser-tree/useBrowserTreeCache.ts`
 - Modify: `adlo/frontend/src/app/features/browser-tree/__tests__/browserTreeCounts.test.ts`（按实际测试文件调整）
 - Modify: `adlo/frontend/src/app/features/browser-tree/BrowserTabTree.tsx`
-- Modify: `adlo/frontend/src/app/features/browser/BrowserNavTabsMode.tsx`
+- Modify: `adlo/frontend/src/app/features/browser/BrowserNavTreeMode.tsx`
 - Modify: `adlo/frontend/src/app/features/browser/BrowserNavListMode.tsx`
 - Modify: `adlo/frontend/src/app/features/browser/BrowserNavigator.tsx`
 - Modify: `adlo/frontend/src/app/features/browser/useBrowserPanelState.ts` / `BrowserPanelStateContext.ts`（以实际选择器位置为准）

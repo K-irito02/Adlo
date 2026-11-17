@@ -1,9 +1,9 @@
 import { BrowserTabTree } from '@features/browser-tree';
-import type { BrowserNavTabsModeProps } from './BrowserNavTabsMode';
+import type { BrowserNavTreeModeProps } from './BrowserNavTreeMode';
 
 // 列表模式与目录模式必须共用同一套书签动作：列表里的收藏行同样要能取消收藏 /
 // 移除条目，不能因为少传回调而静默失效。
-export type BrowserNavListModeProps = BrowserNavTabsModeProps;
+export type BrowserNavListModeProps = BrowserNavTreeModeProps;
 
 export function BrowserNavListMode({
   visibleWorkspaces,

@@ -7,7 +7,7 @@ import { panelTabSelectors } from '@stores/selectors';
 import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 import { isUrlBookmarked } from '@utils/browserDisplayUtils';
 
-export type BrowserNavigatorMode = 'open' | 'tabs' | 'list' | 'search';
+export type BrowserNavigatorMode = 'open' | 'tree' | 'list' | 'search';
 
 export function computeNavigatorCount(
   navigatorMode: BrowserNavigatorMode,
@@ -19,7 +19,7 @@ export function computeNavigatorCount(
   _filteredBookmarks: { title: string; url: string }[],
   _filteredHistory: { title: string; url: string }[],
 ): number {
-  if (navigatorMode === 'tabs' || navigatorMode === 'open' || navigatorMode === 'list') {
+  if (navigatorMode === 'tree' || navigatorMode === 'open' || navigatorMode === 'list') {
     return panelTabs.length;
   }
   if (navigatorMode === 'search') {

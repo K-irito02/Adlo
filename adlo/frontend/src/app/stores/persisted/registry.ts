@@ -800,9 +800,9 @@ export const registry = {
   'adl:browser.navigatorMode': defineEntry<BrowserNavigatorMode>({
     key: 'adl:browser.navigatorMode',
     field: 'browserNavigatorMode',
-    fallback: 'tabs',
+    fallback: 'tree',
     scope: 'global',
-    read: readStringEnum<BrowserNavigatorMode>(['open', 'tabs', 'list', 'search'] as const),
+    read: readStringEnum<BrowserNavigatorMode>(['open', 'tree', 'list', 'search'] as const),
   }),
   'adl:browser.searchScope': defineEntry<BrowserSearchScope>({
     key: 'adl:browser.searchScope',

@@ -169,7 +169,7 @@ browserMoveBookmarkNode: (move: BookmarkMove) =>
 
 ### 5.5 UI 接线
 
-- `BrowserNavigator` → `BrowserNavTabsMode` / `BrowserNavListMode` → `BrowserTabTree` 增加 `browserBookmarkChildOrder` prop。
+- `BrowserNavigator` → `BrowserNavTreeMode` / `BrowserNavListMode` → `BrowserTabTree` 增加 `browserBookmarkChildOrder` prop。
 - `BrowserTabTree` 用 `useBrowserTreeDnd` 处理拖拽：
   - 顶层 `BrowserTreeEntry` 根节点带 `data-path`；子行 `TreeRow` 已有 `data-path`。
   - 事件委托到树容器，按 `data-path` 查节点信息；构建 `Map<path, { kind, container, index, folderId/workspaceId }>`。

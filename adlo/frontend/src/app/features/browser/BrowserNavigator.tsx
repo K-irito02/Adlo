@@ -16,7 +16,7 @@ import { useNavigatorResize } from '@hooks/useNavigatorResize';
 import { resolveFolderWorkspaceId } from './browserPanelHelpers';
 import { BrowserNavUtilityButtons } from './BrowserNavUtilityButtons';
 import { BrowserNavOpenMode } from './BrowserNavOpenMode';
-import { BrowserNavTabsMode } from './BrowserNavTabsMode';
+import { BrowserNavTreeMode } from './BrowserNavTreeMode';
 import { BrowserNavListMode } from './BrowserNavListMode';
 import { BrowserNavSearchMode } from './BrowserNavSearchMode';
 import { useBrowserPanelState } from './BrowserPanelStateContext';
@@ -157,10 +157,10 @@ export function BrowserNavigator() {
           <TooltipSimple content={t.browserTabDir} placement="top">
             <button
               type="button"
-              className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'tabs' ? ' is-active' : ''}`}
-              onClick={() => setNavigatorMode('tabs')}
+              className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'tree' ? ' is-active' : ''}`}
+              onClick={() => setNavigatorMode('tree')}
               aria-label={t.browserTabDir}
-              aria-pressed={navigatorMode === 'tabs'}
+              aria-pressed={navigatorMode === 'tree'}
             >
               <IconFolder size={14} decorative />
             </button>
@@ -195,7 +195,7 @@ export function BrowserNavigator() {
             alwaysNewTabLabel={t.browserNewTabAlways}
             clearOpenTabsLabel={t.browserClearAllOpenTabs}
             onAlwaysNewTab={() => {
-              if (navigatorMode === 'tabs') {
+              if (navigatorMode === 'tree') {
                 const path = selectedTreePathRef.current;
                 if (!path || (!path.startsWith('folder:') && !path.startsWith('workspace:'))) {
                   showToast(t.browserSelectDirFirst, 'warning');
@@ -219,7 +219,7 @@ export function BrowserNavigator() {
           />
           <span
             style={{
-              display: navigatorMode === 'tabs' || navigatorMode === 'list' ? '' : 'none',
+              display: navigatorMode === 'tree' || navigatorMode === 'list' ? '' : 'none',
             }}
           >
             <TooltipSimple content={t.browserCreateDir} placement="top">
@@ -237,7 +237,7 @@ export function BrowserNavigator() {
             </TooltipSimple>
           </span>
           <span
-            style={{ display: navigatorMode === 'tabs' || navigatorMode === 'list' ? '' : 'none' }}
+            style={{ display: navigatorMode === 'tree' || navigatorMode === 'list' ? '' : 'none' }}
           >
             <TooltipSimple content={t.browserDeleteAllBookmarksShort} placement="top">
               <button
@@ -266,8 +266,8 @@ export function BrowserNavigator() {
           onCopyTabLink={handleCopyTabLink}
           onReorderTabs={handleReorderPanelTabs}
         />
-      ) : navigatorMode === 'tabs' ? (
-        <BrowserNavTabsMode
+      ) : navigatorMode === 'tree' ? (
+        <BrowserNavTreeMode
           visibleWorkspaces={visibleWorkspaces as RecentWorkspaceEntry[]}
           browserTabs={browserTabs}
           browserBookmarkFolders={browserBookmarkFolders}

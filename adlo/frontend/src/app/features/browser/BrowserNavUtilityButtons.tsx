@@ -2,7 +2,7 @@ import { IconPlus, IconDelete, IconBookmarkPlus } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 
 interface BrowserNavUtilityButtonsProps {
-  navigatorMode: 'tabs' | 'open' | 'list' | 'search';
+  navigatorMode: 'open' | 'tree' | 'list' | 'search';
   alwaysNewTabLabel: string;
   clearOpenTabsLabel: string;
   newBookmarkLabel: string;
@@ -18,9 +18,9 @@ export function BrowserNavUtilityButtons({
   onAlwaysNewTab,
   onClearOpenTabs,
 }: BrowserNavUtilityButtonsProps) {
-  const showPlus = navigatorMode === 'tabs' || navigatorMode === 'open';
+  const showPlus = navigatorMode === 'tree' || navigatorMode === 'open';
   const showClear = navigatorMode === 'open';
-  const plusLabel = navigatorMode === 'tabs' ? newBookmarkLabel : alwaysNewTabLabel;
+  const plusLabel = navigatorMode === 'tree' ? newBookmarkLabel : alwaysNewTabLabel;
   const plusButton = (
     <button
       type="button"
@@ -28,7 +28,7 @@ export function BrowserNavUtilityButtons({
       onClick={onAlwaysNewTab}
       aria-label={plusLabel}
     >
-      {navigatorMode === 'tabs' ? (
+      {navigatorMode === 'tree' ? (
         <IconBookmarkPlus size={14} decorative />
       ) : (
         <IconPlus size={14} decorative />

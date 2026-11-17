@@ -4,8 +4,6 @@ import { useBrowserContextMenu } from './useBrowserContextMenu';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { useTCopy } from '@i18n/useTCopy';
 
-export type BrowserNavigatorMode = 'tabs' | 'bookmarks' | 'history';
-
 export type BrowserMenuItem =
   | { id: string; separator: true }
   | { id: string; label: string; disabled?: boolean; hint?: string; action?: () => void };

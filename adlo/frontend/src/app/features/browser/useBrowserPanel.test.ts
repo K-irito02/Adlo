@@ -32,7 +32,7 @@ describe('computeNavigatorCount (mode-aware header count)', () => {
 
   it('tabs mode: returns browserTabs.length', () => {
     const tabs = [makeTab('t1'), makeTab('t2')];
-    expect(computeNavigatorCount('tabs', '', tabs, [], [], [], [], [])).toBe(2);
+    expect(computeNavigatorCount('tree', '', tabs, [], [], [], [], [])).toBe(2);
   });
 
   it('list mode: returns browserTabs.length', () => {

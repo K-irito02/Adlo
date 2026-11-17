@@ -38,6 +38,7 @@
 - [0022 本地文件按可信文档打开，WebView2 环境参数全应用一致](./0022-local-file-trust-and-webview2-environment.md) — 同 UDF 参数逐字一致，可渲染扩展白名单
 - [0023 智能体文件链接的未知工作区：内存隐藏工作区（superseded）](./0023-agent-link-unknown-workspace-registration.md) — 原「登记为已添加工作区」已由同日修订取代：不登记侧栏、内存隐藏根、保存前读盘比对
 - [0024 智能体站点规则合并：站点优先、同 id 替换、停用只作用全局](./0024-agent-site-rule-merge-order.md) — 规则顺序有语义；停用站点规则不回退全局同 id；命中需可解析目标
+- [0025 内部拖拽使用 Pointer Events，保留 Tauri 原生文件拖入](./0025-pointer-events-for-internal-drag.md) — HTML5 DnD 与 `dragDropEnabled` 互斥；内部拖拽走 pointer，原生文件拖入保留
 
 ## 品牌、工具链与 Git 可视化
 

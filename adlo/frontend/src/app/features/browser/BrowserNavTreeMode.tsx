@@ -5,7 +5,7 @@ import type { BrowserHistoryState } from '@stores/slices/browserHistorySlice';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type { BookmarkEntry } from '@stores/slices/browserSlice';
 
-export interface BrowserNavTabsModeProps {
+export interface BrowserNavTreeModeProps {
   visibleWorkspaces: RecentWorkspaceEntry[];
   browserTabs: BrowserTabState[];
   browserBookmarkFolders: BookmarkFolder[];
@@ -42,7 +42,7 @@ export interface BrowserNavTabsModeProps {
   };
 }
 
-export function BrowserNavTabsMode({
+export function BrowserNavTreeMode({
   visibleWorkspaces,
   browserTabs,
   browserBookmarkFolders,
@@ -73,7 +73,7 @@ export function BrowserNavTabsMode({
   onBookmarkTab,
   onRemoveBookmarkTab,
   labels,
-}: BrowserNavTabsModeProps) {
+}: BrowserNavTreeModeProps) {
   return (
     <BrowserTabTree
       workspaces={visibleWorkspaces}

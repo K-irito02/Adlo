@@ -12,8 +12,8 @@ vi.mock('./BrowserNavOpenMode', () => ({
   BrowserNavOpenMode: () => <div data-testid="open-mode" />,
 }));
 
-vi.mock('./BrowserNavTabsMode', () => ({
-  BrowserNavTabsMode: () => <div data-testid="tabs-mode" />,
+vi.mock('./BrowserNavTreeMode', () => ({
+  BrowserNavTreeMode: () => <div data-testid="tree-mode" />,
 }));
 
 vi.mock('./BrowserNavListMode', () => ({
@@ -206,7 +206,7 @@ describe('BrowserNavigator bookmark delete confirmation', () => {
   });
 
   it('opens a confirmation dialog before deleting all bookmarks in tabs mode', () => {
-    const actions = renderNavigator('tabs');
+    const actions = renderNavigator('tree');
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete all bookmarks' }));
 

@@ -156,7 +156,7 @@
 | `BrowserNavigator` | `features/browser/BrowserNavigator.tsx` | 导航栏（地址栏、按钮） |
 | `BrowserOpenTabFlatList` | `features/browser/BrowserOpenTabFlatList.tsx` | 已打开标签扁平列表（Pointer 拖拽排序） |
 | `BrowserToolbar` | `features/browser/BrowserToolbar.tsx` | 工具栏 |
-| `BrowserNavTabsMode` | `features/browser/BrowserNavTabsMode.tsx` | 标签页导航模式 |
+| `BrowserNavTreeMode` | `features/browser/BrowserNavTreeMode.tsx` | 书签目录树视图 |
 | `BrowserNavListMode` | `features/browser/BrowserNavListMode.tsx` | 列表导航模式 |
 | `BrowserNavOpenMode` | `features/browser/BrowserNavOpenMode.tsx` | 打开导航模式 |
 | `BrowserNavSearchMode` | `features/browser/BrowserNavSearchMode.tsx` | 搜索导航模式 |
