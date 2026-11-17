@@ -45,4 +45,10 @@ describe("check-review-gate", () => {
     assert.equal(result.ok, false);
     assert.deepEqual(result.scopes, []);
   });
+
+  it("only accepts R1 report names; the old <scope>-rev name is ignored", () => {
+    const result = evaluateR2Gate([{ name: "core-rev3-report.md", text: "需修复项：0" }]);
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.scopes, []);
+  });
 });

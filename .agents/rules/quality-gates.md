@@ -52,6 +52,17 @@ alwaysApply: false
 
 > `check:changed` 检测到 Rust 变更时会调用 `scripts/check-rust-changed.mjs`：`cargo fmt --all -- --check` 总是执行，clippy 与受影响 crate 的 `cargo test --lib` 仅在 Rust 变更时执行；`--skip-test` 只用于排查脚本本身。`--base HEAD` 的参数由前端脚本透传，最终提交前必须去掉以恢复 upstream 口径。
 
+> **共享 test setup**：`frontend/src/test-setup.ts` 变更会让 `vitest related` 扩到全量（本次实测 503 文件 / 约 10–13 min）。修复循环用 `check:changed -- --skip-tests` + 定向用例，最终快照再跑全量并预留 1800s；多轮审查前先提交 checkpoint，可用 `--base HEAD` 只查本轮。
+
+## 浏览器模式真实 UI/样式验证（隔离实例）
+
+需要读取 `getComputedStyle` 或验证真实拖拽/样式时，用隔离实例，不要占用用户正在运行的 `dev:tauri` 端口：
+
+1. `pnpm --dir adlo run serve:server -- --no-build`：打印临时数据目录上的 ad-server URL。
+2. 另开终端：`$env:VITE_ADL_SERVER_URL='<上一步 URL>'; pnpm --dir adlo/frontend exec vite --host 127.0.0.1 --port 5178 --strictPort`。
+3. 浏览器打开 Vite 地址验证；结束后终止 Vite 与 ad-server，删除临时数据目录。
+4. 审查子代理自行启动的服务也必须在返回前关闭（见 `review-brief.md`）。
+
 **聚合门禁**：`pnpm run check:all`（在 `adlo/` 执行）= `check:repo`（`check:css-globals` / `check:brand` / `check:stale-terms` / `check:context-budget` / `check:ui-manual` + `test:scripts` + `scripts:format:check` + `e2e:typecheck`）+ Rust fmt/clippy/check/test + 前端 `check:full`（`check:static` + 全量测试）。合并后必须跑它；它是语义冲突的唯一兜底，但不替代日常的受影响范围检查。
 
 > `check:repo` 是合并门禁与 pre-push 的**共用**仓库级聚合（pre-push 直接调用它），其组成以 `adlo/package.json` 的 `check:repo` 字段为准；pre-push 不得另写一套。

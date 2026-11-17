@@ -41,7 +41,7 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 3. **校验容错**：校验命令语法与参数；失败时进行错误处理与恢复
 4. **性能反馈**：优化慢速命令（如使用镜像源），长操作显示进度
 5. **持续增强**：评估并改进执行框架，处理意外边缘情况
-6. **超时基线**：vitest 冷跑预留 ≥300s（`check:changed` 约 150s，超时设 600s）；长命令一律显式设 timeout，不依赖默认 120s
+6. **超时基线**：vitest 冷跑预留 ≥300s；`check:changed` 通常约 150s，但 `src/test-setup.ts` 等共享 setup 变更会让 `vitest related` fan-out 到 500+ 文件（约 10–13 min），此时超时设 **1800s**；修复循环可先 `--skip-tests` + 定向测试，最终快照再跑全量。长命令一律显式设 timeout，不依赖默认 120s。
 7. **安装源回退**：`pnpm install` 遇网络错误（`error 23` / `ECONNRESET`）时加 `--registry=https://registry.npmmirror.com` 重试
 
 ## 代码修改规则
