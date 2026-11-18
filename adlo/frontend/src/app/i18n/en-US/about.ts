@@ -7,7 +7,6 @@ export const aboutEn = {
   aboutAppNameZh: '安洛',
   aboutTagline: 'A desktop host that integrates third-party agent harnesses.',
   aboutLicenseLine: 'Released under the MIT License.',
-  aboutWebsite: 'Website',
   aboutRepository: 'GitHub repository',
   aboutIssues: 'Issue tracker',
   aboutLicense: 'License',

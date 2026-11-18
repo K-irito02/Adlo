@@ -227,13 +227,6 @@ export function AboutSettings() {
         <button
           type="button"
           className="adl-about__link"
-          onClick={() => openUrlByMethod(ABOUT_URLS.website)}
-        >
-          {t.aboutWebsite}
-        </button>
-        <button
-          type="button"
-          className="adl-about__link"
           onClick={() => openUrlByMethod(ABOUT_URLS.repository)}
         >
           {t.aboutRepository}
