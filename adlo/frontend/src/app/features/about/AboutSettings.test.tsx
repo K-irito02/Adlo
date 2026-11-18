@@ -22,8 +22,6 @@ const aboutT = new Proxy({} as Record<string, string>, {
         return '桌面应用宿主，集成第三方 Agent harness。';
       case 'aboutLicenseLine':
         return '基于 MIT 许可证发布。';
-      case 'aboutWebsite':
-        return '网站';
       case 'aboutRepository':
         return 'GitHub 仓库';
       case 'aboutIssues':
@@ -233,13 +231,11 @@ describe('AboutSettings', () => {
   it('opens links through openUrlByMethod with the documented destinations', () => {
     renderAbout();
 
-    fireEvent.click(screen.getByText('网站'));
     fireEvent.click(screen.getByText('GitHub 仓库'));
     fireEvent.click(screen.getByText('问题反馈'));
 
-    expect(openUrlByMethod).toHaveBeenNthCalledWith(1, 'https://www.xiaogans.online/');
-    expect(openUrlByMethod).toHaveBeenNthCalledWith(2, 'https://github.com/K-irito02/Adlo');
-    expect(openUrlByMethod).toHaveBeenNthCalledWith(3, 'https://github.com/K-irito02/Adlo/issues');
+    expect(openUrlByMethod).toHaveBeenNthCalledWith(1, 'https://github.com/K-irito02/Adlo');
+    expect(openUrlByMethod).toHaveBeenNthCalledWith(2, 'https://github.com/K-irito02/Adlo/issues');
   });
 
   it('shows the MIT license in its own dialog, separate from credits', () => {
