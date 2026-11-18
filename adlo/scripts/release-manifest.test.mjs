@@ -6,6 +6,8 @@ import {
   defaultTestNotes,
   downloadUrl,
   isVersion,
+  MANIFEST_FILE_NAME,
+  replaceVersionText,
   sha256Line,
   setupFileName,
 } from "./release/manifest.mjs";
@@ -76,4 +78,20 @@ test("defaultTestNotes marks the build as a test release", () => {
   const notes = defaultTestNotes("0.1.1");
   assert.match(notes, /测试版本/);
   assert.match(notes, /非正式发布/);
+});
+
+test("GitHub manifest asset name is exactly latest.json", () => {
+  assert.equal(MANIFEST_FILE_NAME, "latest.json");
+});
+
+test("replaceVersionText swaps only the version group", () => {
+  const conf = '{\n  "name": "Adlo",\n  "version": "0.1.0",\n  "identifier": "com.adlo.app"\n}';
+  const bumped = replaceVersionText(conf, /("version":\s*")([^"]+)(")/, "0.2.0");
+  assert.match(bumped, /"version": "0.2.0"/);
+  assert.doesNotMatch(bumped, /0\.1\.0/);
+  assert.deepEqual(JSON.parse(bumped), {
+    name: "Adlo",
+    version: "0.2.0",
+    identifier: "com.adlo.app",
+  });
 });

@@ -6,6 +6,17 @@ use adl_types::types::config::{
     AppInfo, ConfigSnapshot, LogEntrySummary, RuntimeInfo, Theme, ThemeMode,
 };
 
+/// 打包进二进制的 Tauri 配置：应用版本与安装包版本同源。
+const TAURI_CONF: &str = include_str!("../../../src-tauri/tauri.conf.json");
+
+/// 读取 `tauri.conf.json` 的 `version`；解析失败时退回 crate 版本（仅兜底，不该发生）。
+pub fn app_version() -> String {
+    serde_json::from_str::<serde_json::Value>(TAURI_CONF)
+        .ok()
+        .and_then(|value| value.get("version")?.as_str().map(str::to_owned))
+        .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string())
+}
+
 /// 构造跨进程一致的 `AppInfo`（Tauri shell 与 adl-server 共用，杜绝两份契约面漂移）。
 ///
 /// `resolved_theme`：`System` 在**后端**统一解析为 `Light`（前端 `useThemeSync` 会用
@@ -28,9 +39,10 @@ pub fn build(
     };
     AppInfo {
         app_name: adl_types::APP_NAME.into(),
-        // 取 kernel crate 版本：全 workspace 统一 `version.workspace = true`
-        // （当前同为 0.1.0），故与应用版本同源；若版本各自演进，需改由调用方传入。
-        version: env!("CARGO_PKG_VERSION").to_string(),
+        // 应用版本以 `src-tauri/tauri.conf.json` 为唯一真源（安装包与关于页同源）。
+        // 不再用 `CARGO_PKG_VERSION`：workspace 版本一旦随发版改动，全部 crate 都会重编，
+        // 发版从增量变成全量。crate 版本保持独立、按需演进。
+        version: app_version(),
         config: ConfigSnapshot {
             language: config.language.clone(),
             theme_mode: config.theme_mode,
@@ -121,6 +133,16 @@ mod tests {
         let info = build(&AppConfig::default(), None, test_runtime());
         assert!(info.current_workspace.is_none());
         assert_eq!(info.recent_logs.len(), 1);
-        assert_eq!(info.version, env!("CARGO_PKG_VERSION"));
+        assert_eq!(info.version, app_version());
+        assert!(info.version.split('.').count() >= 3, "version must look semver-ish");
+        assert_eq!(
+            app_version(),
+            serde_json::from_str::<serde_json::Value>(TAURI_CONF)
+                .expect("tauri.conf.json parses")
+                .get("version")
+                .and_then(|value| value.as_str())
+                .expect("version string"),
+            "app version must come from tauri.conf.json"
+        );
     }
 }

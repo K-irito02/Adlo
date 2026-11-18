@@ -24,7 +24,9 @@ import {
   defaultTestNotes,
   downloadUrl,
   isVersion,
+  MANIFEST_FILE_NAME,
   RELEASE,
+  replaceVersionText,
   setupFileName,
   sha256Line,
 } from "./release/manifest.mjs";
@@ -97,12 +99,7 @@ function resolveGiteeToken() {
 
 function replaceVersion(file, pattern, version, kind) {
   const before = readFileSync(file, "utf8");
-  // 回调签名是 (match, p1, p2, p3, …)：p2 是旧版本号，p3 才是收尾引号。
-  // 曾把 p2 当收尾引号用，把 "0.1.0" 拼成 `"0.1.1` + `0.1.0`（引号被吃掉）。
-  const after = before.replace(
-    pattern,
-    (_match, prefix, _old, suffix) => `${prefix}${version}${suffix}`,
-  );
+  const after = replaceVersionText(before, pattern, version);
   if (after === before) {
     if (before.includes(version)) {
       return;
@@ -123,7 +120,8 @@ function bump(version) {
   if (!isVersion(version)) {
     fail(`invalid version: ${version}`);
   }
-  replaceVersion(join(ADLO_ROOT, "Cargo.toml"), /(version = ")([^"]+)(")/, version, "toml");
+  // 只改「应用版本」三处：Cargo workspace 版本是 crate 版本，不是发布版本；
+  // 改它会让全部 crate 重编（发版从增量变全量）。
   replaceVersion(TAURI_CONF, /("version":\s*")([^"]+)(")/, version, "json");
   replaceVersion(join(ADLO_ROOT, "package.json"), /("version":\s*")([^"]+)(")/, version, "json");
   replaceVersion(
@@ -132,7 +130,7 @@ function bump(version) {
     version,
     "json",
   );
-  log(`version bumped to ${version} in Cargo workspace / tauri.conf / 2 x package.json`);
+  log(`version bumped to ${version} in tauri.conf / 2 x package.json`);
 }
 
 /** 签名密码：环境变量优先，其次当前用户注册表（`setx` 之后老进程看不到）。 */
@@ -178,6 +176,25 @@ function build() {
   process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD = password;
   log("building NSIS bundle with updater signature…");
   run("cargo", ["tauri", "build", "--bundles", "nsis"]);
+  assertInstallerHooks();
+}
+
+/**
+ * 构建后断言 NSIS 钩子真的被注入：文件锁兜底完全依赖它，
+ * 配置写错时只有安装时才暴露，代价是一次失败的升级。
+ */
+function assertInstallerHooks() {
+  const script = join(ADLO_ROOT, "target", "release", "nsis", "x64", "installer.nsi");
+  if (!existsSync(script)) {
+    fail(`NSIS script not found: ${script}`);
+  }
+  const body = readFileSync(script, "utf8");
+  for (const needle of ["installer-hooks.nsh", "NSIS_HOOK_PREINSTALL"]) {
+    if (!body.includes(needle)) {
+      fail(`installer.nsi does not reference ${needle}; adl-server.exe lock fallback is missing`);
+    }
+  }
+  log("installer hooks verified (adl-server.exe is killed before install)");
 }
 
 function stagedArtifacts(version) {
@@ -206,7 +223,7 @@ function prepareStaging(version, notes, host) {
   mkdirSync(dir, { recursive: true });
   // 文件名必须是 latest.json：GitHub 的稳定地址是 releases/latest/download/latest.json，
   // 资产名一旦变成 latest.github.json，这个地址就永远 404（首轮发布踩过）。
-  const manifestPath = join(dir, "latest.json");
+  const manifestPath = join(dir, MANIFEST_FILE_NAME);
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   const sumsPath = join(dir, "SHA256SUMS.txt");
   const sums = [sha256Line(fileName, sha256File(setupPath))];

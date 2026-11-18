@@ -22,6 +22,8 @@
     "release:build": "node ./scripts/release.mjs build",
     "release:publish": "node ./scripts/release.mjs publish",
     "release:verify": "node ./scripts/release.mjs verify",
+    "probe:net": "node ./scripts/net-probe.mjs",
+    "log:tail": "node ./scripts/log-tail.mjs",
     "frontend:dev": "pnpm --dir frontend run dev",
     "frontend:build": "pnpm --dir frontend run build",
     "frontend:typecheck": "pnpm --dir frontend run typecheck",

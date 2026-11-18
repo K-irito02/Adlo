@@ -24,6 +24,7 @@
 
 - 能力清单与实现落点：[system-overview.md](../docs/architecture/core/system-overview.md#已实现能力清单详细)（AGENTS 不复制清单，只保留边界与约束）。
 - 终端子系统文件地图与 PTY 生命周期：[terminal.md](../docs/architecture/features/terminal.md)。
+- 应用更新子系统文件地图：[update.md](../docs/architecture/features/update.md)。
 - 架构概念与文件落点：[CONTEXT.md](../CONTEXT.md)；并行/运行/调试：技能 [parallel-branch-development](../.agents/skills/parallel-branch-development/SKILL.md)（唯一真源）。
 - 测试计数不在此维护，运行 `pnpm run cargo:test` / `pnpm --dir frontend run test` 获取。
 
@@ -80,6 +81,8 @@ CSS 选择器/层叠/布局/主题变更：按 [desktop-ui-verification.md](../.
 | 复制按钮   | 页面右上角可拖拽"复制调试日志"按钮                                                               |
 | 自动写入   | `.adl-logs/`（debug 构建）；Tauri 桌面壳 `debug-logs*.txt`、浏览器模式 `debug-logs-browser*.txt` |
 | 后端命令   | `src-tauri/src/commands/app.rs` → `write_debug_logs_to_project`                                  |
+| 日志检索   | `pnpm --dir adlo run log:tail -- --file <path> --grep <regex> [--tail 80]`（UTF-8 安全，替代被禁的 `Select-String`） |
+| 网络预检   | `pnpm --dir adlo run probe:net`（长操作前确认 Gitee/GitHub 的 API 与 git 端点可达） |
 | 浏览器后端 | `frontend/dev/previewWorkspaceService/`（`logging.ts` → `writeDebugLogs`）                       |
 
 **优先级**：调试日志收起器是最高优先级的调试手段，遇到 UI/交互问题时优先使用。详见 [仓库根 AGENTS.md](../AGENTS.md#问题排查与调试)。

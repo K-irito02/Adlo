@@ -88,7 +88,7 @@ lines.forEach((line, index) => {
   const stripped = line.replace(/`[^`]*`/g, '');
   if (/\\_/.test(stripped) || /\*/.test(stripped)) {
     problems.push(
-      `line ${index + 1}: Markdown emphasis corruption in glossary body (escape env vars with backticks)`,
+      `line ${index + 1}: 定义正文出现强调记号（* 或转义 _）——请改成普通文本；标识符/命令用反引号包裹（不是环境变量才需要反引号）`,
     );
   }
 });

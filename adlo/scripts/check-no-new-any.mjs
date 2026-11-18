@@ -53,6 +53,10 @@ export function scanDiffText(diffText) {
     if (added.includes("no-new-any-allow")) {
       continue;
     }
+    // 注释/文档行里的示例文本不算类型逃逸（曾把「避免 as any」这句注释判成违规）。
+    if (/^\s*(\/\/|\*|\/\*)/.test(added)) {
+      continue;
+    }
     if (BANNED.test(added)) {
       violations.push({ file: currentFile ?? "<unknown>", text: added.trim().slice(0, 160) });
     }

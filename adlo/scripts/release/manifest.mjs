@@ -31,6 +31,14 @@ export function downloadUrl(host, version, fileName) {
   return `https://${domain}/${owner}/${RELEASE[host].repo}/releases/download/v${version}/${fileName}`;
 }
 
+/** GitHub 侧资产名：必须是 `latest.json`，否则 `releases/latest/download/latest.json` 会 404。 */
+export const MANIFEST_FILE_NAME = "latest.json";
+
+/** 只替换「版本号」那段文本（三个捕获组：前缀 / 旧值 / 收尾）。 */
+export function replaceVersionText(text, pattern, version) {
+  return text.replace(pattern, (_match, prefix, _old, suffix) => `${prefix}${version}${suffix}`);
+}
+
 /**
  * 生成 `latest.json`。字段名遵循 Tauri 静态清单（snake_case：`pub_date`）。
  * 任一项不合法直接抛错——清单写错会让所有客户端静默「已是最新」。
