@@ -25,6 +25,7 @@ import { ConflictModal } from './components/ConflictModal';
 import { StartupOverlayWrapper } from './components/StartupOverlayWrapper';
 import { useBrowserAgentLinkSubscription } from './features/browser/useBrowserAgentLinkSubscription';
 import { useGlobalBrowserMeta } from './features/browser/useGlobalBrowserMeta';
+import { useAppUpdateWatcher } from './hooks/useAppUpdateWatcher';
 
 export function App() {
   const errorToasts = useAppStore((state) => state.errorToasts);
@@ -59,6 +60,7 @@ export function App() {
   useDragDropWorkspace(actions);
   useBrowserAgentLinkSubscription();
   useGlobalBrowserMeta();
+  useAppUpdateWatcher();
 
   const { locale, t } = useAppStartup(appInfo);
 

@@ -100,3 +100,234 @@
   color: var(--text-muted);
   white-space: nowrap;
 }
+
+/* 「已下载待安装」的绿色圆点：与右上角未读徽标分开位置，避免互相覆盖。 */
+.adl-notif-dot {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  pointer-events: none;
+}
+
+/* 更新卡片（ADR-0027，布局用户 2026-11-18 定稿）：
+   说明常驻 + 右下折角展开；动作行左「查看更新说明」、右「跳过 + 下载/安装」；
+   按钮灰底无边框（不再用蓝色），主次只靠字重。 */
+.adl-update-card {
+  gap: 10px;
+}
+
+.adl-update-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.adl-update-card__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.adl-update-card__pill {
+  padding: 3px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.adl-update-card__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-update-card__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-update-card__notes {
+  position: relative;
+}
+
+/* 折角要占一条独立的下边带：留在滚动容器内部时，滚动条会被它压住一截。 */
+.adl-update-card__notes--overflowing {
+  padding-bottom: 14px;
+}
+
+.adl-update-card__notes-text {
+  margin: 0;
+  padding-right: 18px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 展开后给一个有限高度，超长时用项目自绘的细线滚动条（与右侧面板导航一致）：
+   原生滚动条在这里既粗又带箭头，所以隐藏原生、用 CustomScrollArea 的 3px 滑块。 */
+.adl-update-card__notes-shell {
+  position: relative;
+}
+
+.adl-update-card__notes-scroll {
+  max-height: 168px;
+  overflow-y: auto;
+  padding-right: 12px;
+  scrollbar-width: none;
+}
+
+.adl-update-card__notes-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.adl-update-card__notes-text--expanded {
+  display: block;
+}
+
+.adl-update-card__notes-scrollbar {
+  position: absolute;
+  top: 0;
+  right: -8px;
+  bottom: 0;
+  z-index: 2;
+  width: 7px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-150) var(--ease-default);
+}
+
+.adl-update-card__notes-shell.is-scrollable .adl-update-card__notes-scrollbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.adl-update-card__notes-scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 3px;
+  min-height: 24px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 34%, transparent);
+}
+
+.adl-update-card__notes-scrollbar:hover .adl-update-card__notes-scrollbar-thumb,
+.adl-update-card__notes-scrollbar:active .adl-update-card__notes-scrollbar-thumb {
+  width: 5px;
+  background: color-mix(in srgb, var(--text-muted) 54%, transparent);
+}
+
+.adl-update-card__toggle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.adl-update-card__toggle:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.adl-update-card__line {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.adl-update-card__progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.adl-update-card__progress-track {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.adl-update-card__progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--text-secondary);
+  transition: width var(--duration-150) var(--ease-default);
+}
+
+.adl-update-card__progress-value {
+  min-width: 30px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.adl-update-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.adl-update-card__actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.adl-update-card__btn {
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-update-card__btn:hover {
+  background: color-mix(in srgb, var(--text-primary) 14%, var(--bg-hover));
+}
+
+.adl-update-card__btn--primary {
+  font-weight: 600;
+}

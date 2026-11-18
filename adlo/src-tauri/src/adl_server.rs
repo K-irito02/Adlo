@@ -101,8 +101,14 @@ fn read_bound_port(stdout: std::process::ChildStdout) -> std::sync::mpsc::Receiv
 fn kill_child_tree(child: &mut Child) {
     #[cfg(target_os = "windows")]
     {
-        let _ =
-            Command::new("taskkill").args(["/pid", &child.id().to_string(), "/T", "/F"]).status();
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        // 宿主是 GUI 进程（无控制台）：不设这个标志，taskkill 会新开一个黑色
+        // 控制台窗口（安装更新、退出应用时会闪一下）。sidecar 自己也用同一标志启动。
+        let mut command = Command::new("taskkill");
+        command.args(["/pid", &child.id().to_string(), "/T", "/F"]);
+        command.creation_flags(CREATE_NO_WINDOW);
+        let _ = command.status();
     }
     let _ = child.kill();
     let _ = child.wait();
@@ -117,6 +123,24 @@ pub struct AdServerHandle {
 }
 
 impl AdServerHandle {
+    /// 结束 sidecar 进程树并等待退出。
+    ///
+    /// 应用更新安装前必须调用：NSIS 要覆盖 `adl-server.exe`，而正在运行的
+    /// sidecar 会锁住这个文件，安装器会弹 `Error opening file for writing`
+    /// 并停在进度条上（用户只能点「忽略」才能继续）。
+    pub fn terminate(&self) {
+        let mut guard = match self.child.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        if let Some(mut child) = guard.take() {
+            kill_child_tree(&mut child);
+        }
+        if let Ok(mut url) = self.base_url.write() {
+            *url = None;
+        }
+    }
+
     /// Spawn `adl-server` for `data_dir`, wait for its ephemeral port, and store
     /// the base URL. Returns a handle with `base_url: None` (system-only) on any
     /// failure — never panics, never blocks setup beyond [`PORT_LINE_TIMEOUT`].
@@ -132,6 +156,14 @@ impl AdServerHandle {
         let mut cmd = Command::new(&binary);
         cmd.arg("--data-dir").arg(data_dir).arg("--port").arg("0");
         cmd.stdout(Stdio::piped()).stderr(Stdio::inherit());
+        // 发布版壳层是 GUI 进程（没有控制台）：不给子进程 CREATE_NO_WINDOW，
+        // Windows 会为 adl-server 新开一个黑色 cmd 窗口，用户会以为程序出错。
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
         tracing::info!(
             "[adl-shell] spawning adl-server: {} --data-dir {} --port 0",
             binary.display(),

@@ -28,7 +28,9 @@
 /* 第二选择器：设置面板里的加载文案是 `.adl-settings-row__label small`（0-1-1）在着色，
    需复合选择器（0-2-1）才能让 `color: transparent` 生效（否则扫光看不到）。 */
 .adl-loading-row__text--shimmer,
-.adl-settings-row__label small.adl-loading-row__text--shimmer {
+.adl-settings-row__label small.adl-loading-row__text--shimmer,
+.adl-about__update-status.adl-loading-row__text--shimmer,
+.adl-update-card__line.adl-loading-row__text--shimmer {
   background: linear-gradient(
     90deg,
     var(--text-muted) 0%,
@@ -61,7 +63,9 @@
     animation: none;
   }
   .adl-loading-row__text--shimmer,
-  .adl-settings-row__label small.adl-loading-row__text--shimmer {
+  .adl-settings-row__label small.adl-loading-row__text--shimmer,
+  .adl-about__update-status.adl-loading-row__text--shimmer,
+  .adl-update-card__line.adl-loading-row__text--shimmer {
     animation: none;
     color: var(--text-muted);
     background: none;

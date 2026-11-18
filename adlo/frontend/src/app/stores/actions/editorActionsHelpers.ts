@@ -49,6 +49,11 @@ export interface OpenFileConfig {
   workspaceId: string | undefined;
   workspacePath?: string;
   readFile: () => Promise<IpcResult<WorkspaceFileDocument>>;
+  /**
+   * 静默失败：不弹全局错误卡，只写入内容区错误视图/恢复提示。
+   * 会话恢复（启动时重开上次文件）用它——文件被删掉是常见情况，不该在启动时报错。
+   */
+  silentError?: boolean;
 }
 
 /**
@@ -164,7 +169,9 @@ export async function openFileGeneric(
     if (requestSeq !== fileRequestSeq) {
       return false;
     }
-    captureError(get, err, SCOPE);
+    if (!config.silentError) {
+      captureError(get, err, SCOPE);
+    }
     submitOpenFailure(set, relativePath, config, err);
     return false;
   }
@@ -176,7 +183,9 @@ export async function openFileGeneric(
     return false;
   }
   if (!fileResult.ok) {
-    captureError(get, fileResult.error, SCOPE);
+    if (!config.silentError) {
+      captureError(get, fileResult.error, SCOPE);
+    }
     // 失败不在内容区回退显示旧文件内容：切到目标路径并展示友好错误（用户决策）。
     submitOpenFailure(set, relativePath, config, fileResult.error);
     return false;
@@ -204,6 +213,8 @@ export interface OpenMediaFileConfig {
   workspaceId: string | undefined;
   workspacePath?: string;
   readMediaFile: () => Promise<IpcResult<WorkspaceMediaDocument>>;
+  /** 同 `OpenFileConfig.silentError`：会话恢复时不弹全局错误卡。 */
+  silentError?: boolean;
 }
 
 /**
@@ -266,7 +277,9 @@ export async function openMediaFileGeneric(
     if (requestSeq !== fileRequestSeq) {
       return false;
     }
-    captureError(get, err, SCOPE);
+    if (!config.silentError) {
+      captureError(get, err, SCOPE);
+    }
     submitOpenFailure(set, relativePath, config, err);
     set({ fileMediaLoading: false });
     return false;
@@ -280,7 +293,9 @@ export async function openMediaFileGeneric(
     return false;
   }
   if (!mediaResult.ok) {
-    captureError(get, mediaResult.error, SCOPE);
+    if (!config.silentError) {
+      captureError(get, mediaResult.error, SCOPE);
+    }
     submitOpenFailure(set, relativePath, config, mediaResult.error);
     set({ fileMediaLoading: false });
     return false;

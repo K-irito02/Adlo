@@ -55,6 +55,9 @@ digitalLife/
 # Closing-workflow review snapshots (regenerable via git diff, deleted in Step 5)
 .review-diffs/
 
+# Local release staging (installer copies, generated manifests; regenerable)
+.release/
+
 # External reference code (not part of the project, for learning/reference only)
 references/bklit-ui/
 

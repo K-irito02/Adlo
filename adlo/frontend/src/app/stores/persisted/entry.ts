@@ -12,6 +12,7 @@ export const PERSIST_DOMAINS = [
   'session',
   'center',
   'env',
+  'update',
 ] as const;
 
 export type PersistDomain = (typeof PERSIST_DOMAINS)[number];

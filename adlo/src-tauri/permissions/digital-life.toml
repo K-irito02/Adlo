@@ -77,5 +77,8 @@ commands.allow = [
   "storage_tree_cache_stats",
   "storage_tree_cache_options",
   "storage_tree_cache_clear",
-  "app_restart"
+  "app_restart",
+  "app_update_check",
+  "app_update_download",
+  "app_update_install"
 ]

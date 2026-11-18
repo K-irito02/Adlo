@@ -14,7 +14,6 @@ import type { StorageBridge } from '../shared/ipc/storage';
 import type { EnvBridge } from '../shared/ipc/env';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
 import { createHttpBridge, resolveAdlServerBaseUrl } from '../httpBridge';
-import { requestPreviewApi } from '../shared/ipc/preview-api';
 import { createPtyBridge } from './preview-pty-bridge';
 import { loadRecentWorkspaces } from './preview-storage';
 import { createPreviewWorkspaceBridge } from './preview-workspace';
@@ -310,6 +309,7 @@ export async function setupPreviewBridge(): Promise<void> {
     // browser keeps the preview/mock impl unconditionally (never wrapped in
     // preferHttpWhenReachable).
     reserved: mockDigitalLifeBridge.reserved,
+    update: mockDigitalLifeBridge.update,
     subscribeModelStream: http.subscribeModelStream,
     subscribeRunActivity: http.subscribeRunActivity,
     subscribeTerminalStream: http.subscribeTerminalStream,

@@ -38,7 +38,8 @@ $WorkspaceRoot = Split-Path -Parent $PSScriptRoot            # adlo/
 $Manifest = Join-Path $WorkspaceRoot "Cargo.toml"
 # `debug` maps to cargo's default dev profile (output dir `target/debug`);
 # `--profile debug` is rejected by cargo because "debug" is reserved.
-$ProfileArgs = if ($Profile -eq "release") { @("--release") } else { @() }
+# 用显式分支而不是把 flags 拼进变量再 splat：`@ProfileArgs` 在本脚本里曾被拆成
+# 单字符参数（cargo 只报 "unexpected argument '-' found"），显式调用没有这个风险。
 
 # Fail fast when a dev instance holds the debug server image. Cargo would
 # otherwise fail halfway through with an opaque "拒绝访问" on the output file.
@@ -65,7 +66,11 @@ $Staged = Join-Path $WorkspaceRoot "src-tauri\binaries\adl-server-x86_64-pc-wind
 $env:RUSTFLAGS = (@($env:RUSTFLAGS, "-C target-feature=+crt-static") |
     Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join " "
 
-& cargo build -p adl-server --manifest-path $Manifest @ProfileArgs
+if ($Profile -eq "release") {
+    & cargo build -p adl-server --manifest-path $Manifest --release
+} else {
+    & cargo build -p adl-server --manifest-path $Manifest
+}
 if ($LASTEXITCODE -ne 0) {
     Write-Error "cargo build -p adl-server failed (profile: $Profile)"
     exit $LASTEXITCODE

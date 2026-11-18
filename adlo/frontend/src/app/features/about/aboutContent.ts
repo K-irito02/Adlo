@@ -8,6 +8,7 @@
 export const ABOUT_URLS = {
   website: 'https://www.xiaogans.online/',
   repository: 'https://github.com/K-irito02/Adlo',
+  gitee: 'https://gitee.com/K_irito/Adlo',
   issues: 'https://github.com/K-irito02/Adlo/issues',
 } as const;
 

@@ -1,6 +1,6 @@
 export interface NotificationData {
   id: string;
-  type: 'conflict';
+  type: 'conflict' | 'update';
   title: string;
   summary: string;
   fullInfo: string;
@@ -8,11 +8,20 @@ export interface NotificationData {
   read: boolean;
 }
 
+export interface NotificationInput extends Omit<NotificationData, 'id' | 'timestamp' | 'read'> {
+  /**
+   * 静默通知：只进列表、不弹浮层（`activePopupId` 不指向它）。
+   * 更新提醒用它——检查更新的结果由「关于」页或通知面板承载，
+   * 不需要冲突弹窗那种强打断。
+   */
+  silent?: boolean;
+}
+
 export interface NotificationSlice {
   notifications: NotificationData[];
   activePopupId: string | null;
 
-  addNotification: (data: Omit<NotificationData, 'id' | 'timestamp' | 'read'>) => string;
+  addNotification: (data: NotificationInput) => string;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   removeNotification: (id: string) => void;
@@ -40,15 +49,16 @@ export const createNotificationSlice = (
 
   addNotification: (data) => {
     const id = notifId();
+    const { silent, ...rest } = data;
     const notification: NotificationData = {
-      ...data,
+      ...rest,
       id,
       timestamp: Date.now(),
       read: false,
     };
     set((state) => ({
       notifications: [notification, ...state.notifications],
-      activePopupId: state.activePopupId ?? id,
+      activePopupId: silent ? state.activePopupId : (state.activePopupId ?? id),
     }));
     return id;
   },

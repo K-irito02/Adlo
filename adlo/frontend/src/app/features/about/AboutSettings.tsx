@@ -9,6 +9,7 @@ import { CREDIT_GROUPS } from './creditsData';
 import { THIRD_PARTY_NOTICES } from './thirdPartyNotices';
 import { formatArch, formatOs } from './runtimeLabels';
 import { AboutTextDialog } from './AboutTextDialog';
+import { formatRelativeTime } from '@utils/relativeTime';
 
 type AboutDialog = 'license' | 'credits' | 'notices' | null;
 
@@ -30,6 +31,97 @@ export function AboutSettings() {
     })),
   );
   const [dialog, setDialog] = useState<AboutDialog>(null);
+  const {
+    updateStatus,
+    updateVersion,
+    updateProgress,
+    updateLastCheckedAt,
+    updateUpToDate,
+    updateSource,
+    linkOpenMethod,
+    checkAppUpdate,
+    downloadAppUpdate,
+    installAppUpdate,
+  } = useAppStore(
+    useShallow((state) => ({
+      updateStatus: state.appUpdateStatus,
+      updateVersion: state.appUpdateVersion,
+      updateProgress: state.appUpdateProgress,
+      updateLastCheckedAt: state.appUpdatePersisted.lastCheckedAt,
+      updateUpToDate: state.appUpdateUpToDate,
+      updateSource: state.appUpdateSource,
+      linkOpenMethod: state.appInfo?.config?.linkOpenMethod ?? 'panel',
+      checkAppUpdate: state.checkAppUpdate,
+      downloadAppUpdate: state.downloadAppUpdate,
+      installAppUpdate: state.installAppUpdate,
+    })),
+  );
+  const updateSupported =
+    typeof window !== 'undefined' && window.digitalLife?.update?.supported === true;
+  const updateBusy =
+    updateStatus === 'checking' || updateStatus === 'downloading' || updateStatus === 'installing';
+
+  const updatePercent =
+    updateProgress?.total && updateProgress.total > 0
+      ? Math.min(100, Math.round((updateProgress.downloaded / updateProgress.total) * 100))
+      : null;
+
+  const updateStatusText = (() => {
+    if (!updateSupported) {
+      return t.updateUnsupported;
+    }
+    switch (updateStatus) {
+      case 'checking':
+        return t.aboutUpdateChecking;
+      case 'downloading':
+        return formatT(t, 'updateDownloading', { percent: updatePercent ?? '…' });
+      case 'available':
+        return formatT(t, 'updateAvailableTitle', { version: updateVersion ?? '' });
+      case 'downloaded':
+        return t.updateReadyLine;
+      case 'installing':
+        return t.updateInstalling;
+      case 'error':
+        return t.aboutUpdateFailed;
+      default: {
+        const checked = updateLastCheckedAt
+          ? formatT(t, 'aboutUpdateLastChecked', {
+              time: formatRelativeTime(updateLastCheckedAt, t),
+            })
+          : '';
+        if (updateUpToDate) {
+          return checked ? `${t.aboutUpdateUpToDate} · ${checked}` : t.aboutUpdateUpToDate;
+        }
+        return checked || t.aboutUpdateNeverChecked;
+      }
+    }
+  })();
+
+  const handleUpdateAction = useCallback(() => {
+    if (updateStatus === 'available') {
+      void downloadAppUpdate();
+      return;
+    }
+    if (updateStatus === 'downloaded') {
+      void installAppUpdate();
+      return;
+    }
+    void checkAppUpdate({ manual: true });
+  }, [checkAppUpdate, downloadAppUpdate, installAppUpdate, updateStatus]);
+
+  const handleOpenReleaseNotes = useCallback(() => {
+    const releaseBase = updateSource?.includes('gitee.com')
+      ? ABOUT_URLS.gitee
+      : ABOUT_URLS.repository;
+    openUrlByMethod(`${releaseBase}/releases`);
+    const target =
+      linkOpenMethod === 'external'
+        ? t.updateNotesOpenedExternal
+        : linkOpenMethod === 'middle'
+          ? t.updateNotesOpenedMiddle
+          : t.updateNotesOpenedPanel;
+    showToast(formatT(t, 'updateNotesOpened', { target }), 'success');
+  }, [linkOpenMethod, showToast, t, updateSource]);
 
   const runtime = appInfo?.runtime;
   const shellLabel = !runtime
@@ -83,6 +175,42 @@ export function AboutSettings() {
       <p className="adl-about__version">
         {formatT(t, 'aboutVersion', { version: appInfo?.version ?? t.aboutUnknown })}
       </p>
+
+      <div className="adl-about__update">
+        {updateSupported ? (
+          <button
+            type="button"
+            className="adl-about__link"
+            onClick={handleUpdateAction}
+            disabled={updateBusy}
+          >
+            {updateStatus === 'available'
+              ? t.updateDownloadAndInstall
+              : updateStatus === 'downloaded'
+                ? t.updateInstallNow
+                : updateStatus === 'error'
+                  ? t.aboutUpdateRetry
+                  : t.aboutUpdateCheck}
+          </button>
+        ) : null}
+        <span
+          className={`adl-about__update-status${
+            updateBusy ? ' adl-loading-row__text--shimmer' : ''
+          }`}
+        >
+          {updateStatusText}
+        </span>
+      </div>
+      {updateSupported && updateStatus === 'available' ? (
+        <div className="adl-about__update-actions">
+          <button type="button" className="adl-about__link" onClick={handleOpenReleaseNotes}>
+            {t.updateViewNotes}
+          </button>
+        </div>
+      ) : null}
+      {updateSupported && updateStatus === 'downloaded' ? (
+        <p className="adl-about__update-warning">{t.updateReadyWithHint}</p>
+      ) : null}
       <p className="adl-about__line">{t.aboutTagline}</p>
       <p className="adl-about__line">{t.aboutLicenseLine}</p>
 

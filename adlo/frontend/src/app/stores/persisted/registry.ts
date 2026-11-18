@@ -125,6 +125,10 @@ import {
 } from '../../regions/right-panel/rightPanelLayout';
 import { EDITOR_VIEWPORT_KEY, readEditorViewport, type PersistedViewport } from './viewport';
 import type { ChangeFileState } from '../../regions/right-panel/changesTree';
+import {
+  DEFAULT_APP_UPDATE_PERSISTED,
+  type AppUpdatePersistedState,
+} from '../slices/appUpdateSlice';
 
 // ─────────────────────────────────────────────────────────────
 // 浏览器面板条目的逐项形状校验器（Task 9）
@@ -340,6 +344,34 @@ function readSettingsSearchHistory(raw: unknown): string[] | undefined {
     }
   }
   return normalized.slice(0, SETTINGS_SEARCH_HISTORY_MAX);
+}
+
+/**
+ * 应用更新的持久偏好：四个字段都允许 `null`（从未发生过），其余类型一律拒绝并回退
+ * 默认值。`skippedVersion` 是版本号字符串，跨版本升级后自然失效（新版本 ≠ 跳过值）。
+ */
+function readAppUpdatePersisted(raw: unknown): AppUpdatePersistedState | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return undefined;
+  }
+  const record = raw as Record<string, unknown>;
+  const isNullableString = (value: unknown) => value === null || typeof value === 'string';
+  const isNullableTimestamp = (value: unknown) =>
+    value === null || (typeof value === 'number' && Number.isFinite(value) && value >= 0);
+  if (
+    !isNullableString(record.skippedVersion) ||
+    !isNullableString(record.lastPromptedVersion) ||
+    !isNullableTimestamp(record.lastPromptedAt) ||
+    !isNullableTimestamp(record.lastCheckedAt)
+  ) {
+    return undefined;
+  }
+  return {
+    skippedVersion: record.skippedVersion as string | null,
+    lastPromptedVersion: record.lastPromptedVersion as string | null,
+    lastPromptedAt: record.lastPromptedAt as number | null,
+    lastCheckedAt: record.lastCheckedAt as number | null,
+  };
 }
 
 /**
@@ -1119,6 +1151,18 @@ export const registry = {
     scope: 'global',
     read: (raw: unknown) =>
       raw === null ? null : readNumberInRange(0, Number.MAX_SAFE_INTEGER)(raw),
+  }),
+
+  // ─────────────────────────────────────────────────────────────
+  // 应用自身更新（ADR-0026 / ADR-0027）：只存偏好与时间戳。
+  // 「已下载待安装」有意不落盘 —— 重启后临时包不再保证可用，界面回到可下载态。
+  // ─────────────────────────────────────────────────────────────
+  'adl:update.state': defineEntry<AppUpdatePersistedState>({
+    key: 'adl:update.state',
+    field: 'appUpdatePersisted',
+    fallback: DEFAULT_APP_UPDATE_PERSISTED,
+    scope: 'global',
+    read: readAppUpdatePersisted,
   }),
 } as const;
 

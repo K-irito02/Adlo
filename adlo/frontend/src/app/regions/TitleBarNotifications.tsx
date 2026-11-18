@@ -19,6 +19,9 @@ const TitleBarNotifications = React.memo(function TitleBarNotifications({
   const clearAll = useAppStore((s) => s.clearAll);
   const setReadByVisibility = useAppStore((s) => s.setReadByVisibility);
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
+  const updateDownloaded = useAppStore(
+    (s) => s.appUpdateStatus === 'downloaded' && s.notifications.some((n) => n.type === 'update'),
+  );
 
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -128,6 +131,7 @@ const TitleBarNotifications = React.memo(function TitleBarNotifications({
           {unreadCount > 0 && (
             <span className="adl-notif-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
           )}
+          {updateDownloaded && !notifOpen && <span className="adl-notif-dot" aria-hidden="true" />}
         </button>
       </TooltipSimple>
       {notifOpen && (

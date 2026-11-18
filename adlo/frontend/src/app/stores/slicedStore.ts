@@ -37,6 +37,7 @@ import {
 } from './slices';
 import { createGitVisSlice } from './slices/gitVisSlice';
 import { createCenterTabsSlice } from './slices/centerTabsSlice';
+import { createAppUpdateSlice } from './slices/appUpdateSlice';
 import { createCenterActions } from './actions/centerActions';
 import type { StoreState as FullStoreState } from './StoreState';
 
@@ -79,6 +80,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createClipboardSlice(set, get), // 剪贴板
   ...createDshSlice(set, get), // dsh 宿主壳
   ...createEnvSlice(set, get), // 环境依赖状态 + 引导完成态
+  ...createAppUpdateSlice(set, get), // 应用自身更新（检查/下载/安装）
   ...createClipboardHistorySlice(set, get), // 剪贴板历史（系统剪贴板）
   ...createSystemMonitorSlice(set, get), // 系统监控（CPU/内存/磁盘/网络/进程）
   ...createTerminalSlice(set, get), // 终端会话管理

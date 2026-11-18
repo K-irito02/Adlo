@@ -18,10 +18,13 @@ adl-browser = { path = "../crates/browser" }
 adl-logging = { path = "../crates/adl-logging" }
 adl-storage = { path = "../crates/storage" }
 adl-migration = { path = "../crates/migration" }
+adl-update = { path = "../crates/update" }
+adl-download-source = { path = "../crates/download-source" }
 
 tauri = { workspace = true, features = ["unstable"] }
 tauri-plugin-dialog.workspace = true
 tauri-plugin-shell.workspace = true
+tauri-plugin-updater.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

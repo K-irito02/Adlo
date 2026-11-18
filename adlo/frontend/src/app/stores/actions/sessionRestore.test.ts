@@ -113,7 +113,10 @@ describe('session restore', () => {
     try {
       await expect(useAppStore.getState().restoreLastOpenedFile()).resolves.toBeUndefined();
       expect(useAppStore.getState().sessionRestoreNotice).toBe('sessionLastFileMissing');
-      expect(openFileForWorkspace).toHaveBeenCalledWith('workspace_a', '/ws/a', 'gone.ts');
+      // 恢复路径必须静默失败：文件被删掉不该在启动时弹全局错误卡。
+      expect(openFileForWorkspace).toHaveBeenCalledWith('workspace_a', '/ws/a', 'gone.ts', {
+        silentError: true,
+      });
     } finally {
       useAppStore.setState({ openFileForWorkspace: realOpenFileForWorkspace });
     }

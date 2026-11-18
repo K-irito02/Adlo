@@ -30,6 +30,7 @@ import type { ReferenceBridge } from './reference';
 import type { DurableBridge } from './durable';
 import type { ReservedBridge } from './reserved';
 import type { StorageBridge } from './storage';
+import type { UpdateBridge } from './update';
 
 /** SSE wire event type (formerly in part-stream/partStoreTypes) */
 export type SseWireEvent =
@@ -159,4 +160,6 @@ export interface DigitalLifeBridge {
   systemMonitor: SystemMonitorBridge;
   /** 存储路径管理子模块 (状态/预检/切换/重启) */
   storage: StorageBridge;
+  /** 应用自身更新子模块（仅桌面端；浏览器模式 `supported: false`） */
+  update: UpdateBridge;
 }

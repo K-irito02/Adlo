@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Adlo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.adlo.app",
   "build": {
     "frontendDist": "../frontend/dist",
@@ -36,15 +36,31 @@
     },
     "withGlobalTauri": false
   },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://gitee.com/K_irito/Adlo/raw/main/release/latest.json",
+        "https://github.com/K-irito02/Adlo/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE5MTkwODkwREQ3OUE1MjIKUldRaXBYbmRrQWdaR2QybER6VmVvVThudEhIRjlUQjgwVWtiSEtPZVhrTGNYQlVCNUtuSWhaQXUK",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
     "resources": ["resources/env-baseline.json"],
     "externalBin": ["binaries/adl-server"],
     "windows": {
       "webviewInstallMode": {
         "type": "embedBootstrapper",
         "silent": true
+      },
+      "nsis": {
+        "installerHooks": "installer-hooks.nsh"
       }
     },
     "icon": [

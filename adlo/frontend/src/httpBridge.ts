@@ -106,6 +106,7 @@ import type {
   TreeCacheOptions,
   TreeCacheStats,
 } from './shared/ipc/storage';
+import type { AppUpdateCheckResult, UpdateBridge } from './shared/ipc/update';
 import { repoMapEntriesToTree } from './shared/repoMapFromEntries';
 import {
   subscribeEventSource,
@@ -1295,6 +1296,19 @@ export function createHttpBridge({
     systemMonitor: {
       snapshot: () => call<SystemSnapshot>(baseUrl, '/sysmon/snapshot', GET()),
     } satisfies SystemMonitorBridge,
+
+    // ── App self-update: no ad-server route exists and the browser has no
+    // installable body to replace, so the whole domain is NOT_SUPPORTED here.
+    // The desktop shell overrides it with `createTauriUpdateBridge()`; the
+    // preview/mock bridges use the shared unsupported implementation.
+    update: {
+      supported: false,
+      check: () => taskNotSupported<AppUpdateCheckResult>('update.check'),
+      download: () => taskNotSupported<void>('update.download'),
+      install: () => taskNotSupported<void>('update.install'),
+      onProgress: () => () => undefined,
+      onInstalling: () => () => undefined,
+    } satisfies UpdateBridge,
 
     // ── Storage domain (crates/server/src/handlers/storage.rs). B5: no
     // `/storage/restart-backend` route exists — adl-server never restarts

@@ -558,6 +558,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       workspaceId: string,
       workspacePath: string,
       relativePath: string,
+      options: { silentError?: boolean } = {},
     ) => {
       const flush = await get().saveDirtyEditors();
       if (
@@ -571,6 +572,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         ? await openMediaFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
             workspaceId,
             workspacePath,
+            silentError: options.silentError,
             readMediaFile: () =>
               window.digitalLife.workspace.readMediaFileForWorkspace(workspacePath, relativePath),
           })
@@ -578,6 +580,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
             cacheKey: scopedFileKey(workspaceId, relativePath),
             workspaceId,
             workspacePath,
+            silentError: options.silentError,
             readFile: () =>
               window.digitalLife.workspace.readFileForWorkspace(workspacePath, relativePath),
           });
@@ -704,7 +707,9 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         return;
       }
       try {
-        await get().openFileForWorkspace(last.workspaceId, ws.path, last.relativePath);
+        await get().openFileForWorkspace(last.workspaceId, ws.path, last.relativePath, {
+          silentError: true,
+        });
       } catch {
         // 读取失败即降级为提示，不抛错（Task 26）
       }

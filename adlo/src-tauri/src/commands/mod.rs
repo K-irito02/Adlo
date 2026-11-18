@@ -9,6 +9,7 @@ pub mod platform;
 pub mod port_scan;
 pub mod reserved;
 pub mod storage;
+pub mod update;
 pub mod workspace;
 
 use crate::error::CommandError;

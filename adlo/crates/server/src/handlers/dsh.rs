@@ -180,10 +180,20 @@ fn parse_netstat_listening_pids(text: &str, port: u16) -> Vec<u32> {
         .collect()
 }
 
+/// Windows 上从无控制台的宿主（adl-server 以 CREATE_NO_WINDOW 启动）拉起控制台程序时，
+/// 不设这个标志会让 Windows 新开一个黑色窗口（netstat / powershell / taskkill 都会闪）。
+#[cfg(target_os = "windows")]
+fn hidden_command(program: &str) -> tokio::process::Command {
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let mut command = tokio::process::Command::new(program);
+    command.creation_flags(CREATE_NO_WINDOW);
+    command
+}
+
 /// 查询占用端口的进程 PID 列表（平台命令实现）。
 #[cfg(target_os = "windows")]
 async fn pids_listening_on(port: u16) -> Result<Vec<u32>, AppError> {
-    let out = tokio::process::Command::new("netstat")
+    let out = hidden_command("netstat")
         .args(["-ano"])
         .output()
         .await
@@ -226,7 +236,7 @@ async fn pids_listening_on(port: u16) -> Result<Vec<u32>, AppError> {
 async fn process_cmdline(pid: u32) -> Option<String> {
     let script =
         format!("(Get-CimInstance Win32_Process -Filter \"ProcessId = {pid}\").CommandLine");
-    let out = tokio::process::Command::new("powershell")
+    let out = hidden_command("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", &script])
         .output()
         .await
@@ -253,7 +263,7 @@ async fn process_cmdline(pid: u32) -> Option<String> {
 /// 终止指定 PID 进程。失败（含工具报非零退出）返回 `Err`。
 #[cfg(target_os = "windows")]
 async fn kill_pid(pid: u32) -> Result<(), AppError> {
-    let out = tokio::process::Command::new("taskkill")
+    let out = hidden_command("taskkill")
         .args(["/PID", &pid.to_string(), "/F"])
         .output()
         .await

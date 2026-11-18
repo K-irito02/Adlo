@@ -23,11 +23,12 @@ members = [
     "crates/download-source",
     "crates/adl-hosted",
     "crates/adl-env",
+    "crates/update",
     "src-tauri",
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "MIT"
 rust-version = "1.85"
@@ -57,6 +58,8 @@ tauri = "2"
 tauri-build = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
+tauri-plugin-updater = "2"
+semver = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 sha2 = "0.10"

@@ -3,6 +3,7 @@ import { IconAlertTriangle, IconClose } from '@icons';
 import { formatRelativeTime } from '@utils/relativeTime';
 import { CopyButton } from './CopyButton';
 import type { NotificationData } from '@stores/slices/notificationSlice';
+import { UpdateNotificationCard } from '@features/update/UpdateNotificationCard';
 
 interface NotificationCardProps {
   notification: NotificationData;
@@ -16,6 +17,9 @@ export function NotificationCard({
   showCopy = true,
 }: NotificationCardProps) {
   const { t } = useTCopy();
+  if (notification.type === 'update') {
+    return <UpdateNotificationCard onClose={() => onClose(notification.id)} />;
+  }
   const displayTitle =
     notification.type === 'conflict' ? (t.notifConflictTitle as string) : notification.title;
 

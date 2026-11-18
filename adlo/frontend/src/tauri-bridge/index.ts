@@ -20,6 +20,7 @@ import { createTauriReservedBridge } from './tauri-reserved';
 import { createTauriWindowBridge } from './tauri-window';
 import { createTauriWorkspaceBridge } from './tauri-workspace';
 import { createTauriFileSaveBridge } from './tauri-file-save';
+import { createTauriUpdateBridge } from './tauri-update';
 import { invokeIpc } from './tauri-shared';
 
 /**
@@ -82,6 +83,7 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
     app: createTauriAppBridge(),
     browser: createTauriBrowserBridge(),
     reserved: createTauriReservedBridge(),
+    update: createTauriUpdateBridge(),
 
     // Storage path management stays on Tauri invoke (Plan C Task 1 commands):
     // the desktop owns the locator writes and the process restart. The

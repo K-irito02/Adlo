@@ -55,6 +55,7 @@ fn main() {
     builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let t0 = std::time::Instant::now();
             let defaults = setup::resolve_defaults(app)?;
@@ -74,6 +75,7 @@ fn main() {
             // Managed 剪贴板/系统监控 state，也不启动重复监听。
             setup::start_background_tasks(&app_state);
             app.manage(app_state);
+            app.manage(commands::update::UpdateState::default());
             Ok(())
         })
         .on_page_load(|webview, payload| {
@@ -140,6 +142,9 @@ fn main() {
             commands::app::write_debug_logs,
             commands::app::write_debug_logs_to_project,
             commands::app::app_get_server_info,
+            commands::update::app_update_check,
+            commands::update::app_update_download,
+            commands::update::app_update_install,
             commands::workspace::workspace_pick_directory,
             commands::file_save::app_save_file,
             commands::platform::workspace_reveal_in_file_manager,

@@ -16,6 +16,7 @@ import type { DiagnosticSlice } from './slices/diagnosticSlice';
 import type { ClipboardSlice } from './slices/clipboardSlice';
 import type { DshSlice } from './slices/dshSlice';
 import type { EnvSlice } from './slices/envSlice';
+import type { AppUpdateSlice } from './slices/appUpdateSlice';
 import type { ClipboardHistorySlice } from './slices/clipboardHistorySlice';
 import type { SystemMonitorSlice } from './slices/systemMonitorSlice';
 import type { TerminalSlice } from './slices/terminalSlice';
@@ -112,6 +113,7 @@ type AllSlices = [
   DshSlice,
   ClipboardHistorySlice,
   EnvSlice,
+  AppUpdateSlice,
   SystemMonitorSlice,
   TerminalSlice,
   BrowserTabsSlice,
@@ -191,6 +193,7 @@ interface EditorActions {
     workspaceId: string,
     workspacePath: string,
     relativePath: string,
+    options?: { silentError?: boolean },
   ) => Promise<void>;
   /**
    * 打开不属于任何侧栏工作区的绝对路径文件：用内存隐藏工作区（不登记侧栏、
