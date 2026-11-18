@@ -184,6 +184,57 @@ describe('appUpdateSlice', () => {
     expect(updateNotifications(state)).toHaveLength(1);
   });
 
+  it('所有来源都不可用时显示检查失败，而不是已是最新', async () => {
+    installBridge({
+      check: vi.fn(async () => ({
+        ok: true as const,
+        data: result({
+          available: false,
+          version: null,
+          notes: null,
+          source: null,
+          error: 'gitee: timeout | github: timeout',
+        }),
+      })),
+    });
+    const state = setup();
+
+    await state.checkAppUpdate({ manual: true });
+
+    expect(state.appUpdateStatus).toBe('error');
+    expect(state.appUpdateError).toContain('timeout');
+    expect(state.appUpdateUpToDate).toBe(false);
+  });
+
+  it('检查结果变为「已是最新」时清掉旧的更新卡片', async () => {
+    const check = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true as const, data: result() })
+      .mockResolvedValueOnce({
+        ok: true as const,
+        data: result({ available: false, version: null, notes: null, source: null }),
+      });
+    installBridge({ check });
+    const state = setup();
+
+    await state.checkAppUpdate();
+    expect(updateNotifications(state)).toHaveLength(1);
+
+    await state.checkAppUpdate({ manual: true });
+    expect(updateNotifications(state)).toHaveLength(0);
+  });
+
+  it('后台检查不会把已下载状态打回可下载', async () => {
+    installBridge();
+    const state = setup();
+    state.appUpdateStatus = 'downloaded';
+    state.appUpdateVersion = '0.2.0';
+
+    await state.checkAppUpdate();
+
+    expect(state.appUpdateStatus).toBe('downloaded');
+  });
+
   it('浏览器模式的桥接不支持时不发请求、不改状态', async () => {
     const bridge = installBridge({ supported: false });
     const state = setup();

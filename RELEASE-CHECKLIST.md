@@ -33,11 +33,17 @@
 
 ## 3. 版本与构建
 
-- [ ] 版本号升位并保持一致：`adlo/package.json`、`adlo/frontend/package.json`、
-      Rust crate（`adlo/Cargo.toml` 及各 crate 的 `Cargo.toml`）
+- [ ] 版本号升位并保持一致：`pnpm --dir adlo run release:bump -- X.Y.Z` 一次改四处
+      （`adlo/Cargo.toml` workspace、`adlo/src-tauri/tauri.conf.json`、两个 `package.json`）
 - [ ] 应用内「关于」页显示的版本与安装包版本一致
 - [ ] 应用图标若已更新：`src-tauri/icons/128x128.png` 与 `adlo/frontend/public/adlo-icon.png`（关于页）同步替换
-- [ ] 生产构建（`cargo tauri build`）并安装验证
+- [ ] 生产构建用 **`pnpm --dir adlo run release:build`**（NSIS + 签名；需要
+      `TAURI_SIGNING_PRIVATE_KEY`（路径或内容）与 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`；
+      普通 `cargo tauri build` 会因 `createUpdaterArtifacts` 直接失败）
+- [ ] 产物核对：`adlo/target/release/bundle/nsis/Adlo_<ver>_x64-setup.exe` 与同名 `.exe.sig` 都存在
+- [ ] 发布与自检：`pnpm --dir adlo run release:publish -- --tag vX.Y.Z [--notes-file …]`
+      → `pnpm --dir adlo run release:verify -- --tag vX.Y.Z`（两行 OK）
+- [ ] 安装包签名私钥已备份（离线一份 + 密码管理器一份；丢失将无法再推送更新）
 - [ ] 双端一致：Tauri 桌面与浏览器模式下「关于」组行为一致（链接落点、弹窗、诊断入口）
 
 ## 4. 验证（全量门禁需用户批准）

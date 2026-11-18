@@ -30,13 +30,61 @@ pub fn target_key(os: &str, arch: &str) -> Result<String, AppError> {
     Ok(format!("{os}-{arch}"))
 }
 
+/// 单个来源在一次检查中的三态回答。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceState<'a> {
+    /// 该来源回答「有新版本」，附版本号。
+    Update(&'a str),
+    /// 该来源明确回答「已是最新」。
+    UpToDate,
+    /// 该来源不可用（网络/解析/清单异常）。
+    Unavailable,
+}
+
+/// 多源合并后的结论：索引指向 `states` 里被选中的那一条。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Decision {
+    /// 至少一个来源明确说「已是最新」，且没有任何来源报更新。
+    UpToDate,
+    /// 选中 `states[index]`（`Update`，按 semver 取最高）。
+    Found(usize),
+    /// 所有来源都不可用——这才是真正的失败。
+    Unavailable,
+}
+
+/// 合并多源回答（纯函数，便于测试真实分支）：
+/// - 有 `Update` → 取版本最高者；
+/// - 否则只要有任意 `UpToDate` → 已是最新（单源故障不能把结论翻成失败）；
+/// - 全部 `Unavailable` → 失败。
+pub fn decide(states: &[SourceState<'_>]) -> Decision {
+    let mut best: Option<(Version, usize)> = None;
+    let mut any_up_to_date = false;
+    for (index, state) in states.iter().enumerate() {
+        match state {
+            SourceState::Update(version) => {
+                if let Some(parsed) = parse_version(version) {
+                    if best.as_ref().is_none_or(|(current, _)| parsed > *current) {
+                        best = Some((parsed, index));
+                    }
+                }
+            },
+            SourceState::UpToDate => any_up_to_date = true,
+            SourceState::Unavailable => {},
+        }
+    }
+    match best {
+        Some((_, index)) => Decision::Found(index),
+        None if any_up_to_date => Decision::UpToDate,
+        None => Decision::Unavailable,
+    }
+}
+
 /// 一个来源回答的候选版本。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceCandidate<'a> {
     pub source: &'a str,
     pub version: &'a str,
 }
-
 /// 在多个来源的候选版本里取最新者；版本号无法解析的候选被忽略。
 ///
 /// 返回 `None` 表示没有任何可用候选（全部不可解析）。
@@ -96,13 +144,44 @@ pub fn summarize_notes(raw: &str, max_chars: usize) -> String {
     truncate_chars(&paragraph, max_chars)
 }
 
-/// 去掉行首的 Markdown 记号（标题、引用、列表、行内代码、粗体/斜体）。
+/// 去掉行首的 Markdown 记号（标题、引用、列表）与行内记号（反引号、链接、强调）。
 fn clean_markdown_line(line: &str) -> String {
-    line.trim_start_matches(['#', '>', '*', '-', '+', '`', '_'])
-        .trim()
-        .trim_end_matches(['*', '_', '`'])
-        .trim()
-        .to_string()
+    let head = line.trim_start_matches(['#', '>', '*', '-', '+', '`', '_']).trim();
+    let inline = clean_inline_markdown(head);
+    inline.trim_end_matches(['*', '_', '`']).trim().to_string()
+}
+
+/// 行内记号：`code` 去反引号、`[text](url)` 只留 text、`**`/`__`/`~~` 成对去掉。
+/// 卡片不渲染 Markdown，残留记号会原样显示给用户。
+fn clean_inline_markdown(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut index = 0;
+    while index < chars.len() {
+        let current = chars[index];
+        if current == '`' {
+            if let Some(offset) = chars[index + 1..].iter().position(|ch| *ch == '`') {
+                out.extend(&chars[index + 1..index + 1 + offset]);
+                index = index + offset + 2;
+                continue;
+            }
+        }
+        if current == '[' {
+            if let Some(close) = chars[index + 1..].iter().position(|ch| *ch == ']') {
+                let text_end = index + 1 + close;
+                if chars.get(text_end + 1) == Some(&'(') {
+                    if let Some(paren) = chars[text_end + 2..].iter().position(|ch| *ch == ')') {
+                        out.extend(&chars[index + 1..text_end]);
+                        index = text_end + 2 + paren + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+        out.push(current);
+        index += 1;
+    }
+    out.replace("**", "").replace("__", "").replace("~~", "")
 }
 
 fn truncate_chars(text: &str, max_chars: usize) -> String {
@@ -179,5 +258,39 @@ mod tests {
     #[test]
     fn summarize_notes_handles_empty_input() {
         assert_eq!(summarize_notes("   \n\n  ", 20), "");
+    }
+
+    #[test]
+    fn summarize_notes_strips_inline_markdown() {
+        assert_eq!(summarize_notes("修复 `a` 崩溃", 40), "修复 a 崩溃");
+        assert_eq!(summarize_notes("[详情](https://example.com) 见说明", 40), "详情 见说明");
+        assert_eq!(summarize_notes("**重点** 与 ~~旧值~~", 40), "重点 与 旧值");
+    }
+
+    #[test]
+    fn decide_prefers_update_over_unavailable() {
+        let states = [SourceState::Unavailable, SourceState::Update("0.2.0")];
+        assert_eq!(decide(&states), Decision::Found(1));
+    }
+
+    #[test]
+    fn decide_keeps_up_to_date_when_another_source_fails() {
+        // 单源被墙/超时不能把「已是最新」翻成失败（否则用户永远看到检查失败）。
+        let states = [SourceState::UpToDate, SourceState::Unavailable];
+        assert_eq!(decide(&states), Decision::UpToDate);
+    }
+
+    #[test]
+    fn decide_fails_only_when_every_source_is_unavailable() {
+        let states = [SourceState::Unavailable, SourceState::Unavailable];
+        assert_eq!(decide(&states), Decision::Unavailable);
+    }
+
+    #[test]
+    fn decide_picks_highest_version_across_sources() {
+        let states = [SourceState::Update("0.1.9"), SourceState::Update("0.2.0")];
+        assert_eq!(decide(&states), Decision::Found(1));
+        let states = [SourceState::Update("0.10.0"), SourceState::Update("0.9.0")];
+        assert_eq!(decide(&states), Decision::Found(0));
     }
 }

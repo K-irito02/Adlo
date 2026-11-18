@@ -200,7 +200,7 @@ $env:LIB = "$msvc\lib\x64;$sdk\Lib\$sdkv\um\x64;$sdk\Lib\$sdkv\ucrt\x64"
 | `pnpm run cargo:check` | 编译检查（无二进制输出；内部先 `stage:sidecar`） |
 | `cargo fmt --all -- --check` | Rust 格式检查（修复用 `cargo fmt --all`；不触发生成物，无需 staging） |
 | `pnpm run cargo:test` | 运行所有 Rust 测试（内部先 `stage:sidecar`） |
-| `pnpm run cargo:build` | 完整编译（debug profile；内部先 `stage:sidecar`。release 打包用 `pnpm run build`） |
+| `pnpm run cargo:build` | 完整编译（debug profile；内部先 `stage:sidecar`。release 打包用 `pnpm run release:build`，需签名私钥） |
 | `pnpm run cargo:clippy` | Lint 检查（内部先 `stage:sidecar`） |
 
 > **工作区级 cargo 命令前置条件**：`src-tauri` 含 `bundle.externalBin`，tauri-build 构建脚本会在每次构建时校验

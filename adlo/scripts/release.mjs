@@ -154,13 +154,17 @@ function resolveSigningPassword() {
 }
 
 function build() {
-  const keyPath =
-    process.env.TAURI_SIGNING_PRIVATE_KEY_PATH ??
-    join(process.env.USERPROFILE ?? "", ".tauri", "adlo.key");
-  if (!existsSync(keyPath)) {
-    fail(`signing key not found at ${keyPath} (expected the minisign private key)`);
-  }
+  // 先看环境里是否已有私钥（CI 用内容注入），只有都没给时才要求默认文件存在。
   if (!process.env.TAURI_SIGNING_PRIVATE_KEY) {
+    const keyPath =
+      process.env.TAURI_SIGNING_PRIVATE_KEY_PATH ??
+      join(process.env.USERPROFILE ?? "", ".tauri", "adlo.key");
+    if (!existsSync(keyPath)) {
+      fail(
+        `signing key not found: set TAURI_SIGNING_PRIVATE_KEY (content or path) ` +
+          `or place the key at ${keyPath}`,
+      );
+    }
     process.env.TAURI_SIGNING_PRIVATE_KEY = keyPath;
   }
   const password = resolveSigningPassword();
@@ -219,7 +223,28 @@ async function publish({ tag, notesFile, prerelease }) {
   if (tag !== `v${version}`) {
     fail(`tag ${tag} does not match tauri.conf version ${version}`);
   }
+  if (prerelease) {
+    // ADR-0026 只做稳定通道：预发布会把 rc 写进 Gitee 稳定清单，而 GitHub 的
+    // releases/latest 又跳过它，两源可见性相反。要发预发布必须另开一条通道。
+    fail("--prerelease is not supported: this project only ships the stable channel");
+  }
   stagedArtifacts(version);
+
+  // tag 必须指向本机 HEAD（含本次版本号），否则 gh 会用远端默认分支最新提交建 tag。
+  const head = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim();
+  const dirty = spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" }).stdout.trim();
+  if (!head) {
+    fail("could not resolve HEAD");
+  }
+  if (dirty && !process.argv.includes("--allow-dirty")) {
+    fail(
+      "working tree is dirty: commit (and push) the version bump before publishing, " +
+        "or pass --allow-dirty to publish HEAD as-is",
+    );
+  }
+  if (dirty) {
+    log("warning: publishing a dirty working tree (--allow-dirty)");
+  }
 
   const notes = notesFile
     ? readFileSync(resolve(REPO_ROOT, notesFile), "utf8")
@@ -238,6 +263,8 @@ async function publish({ tag, notesFile, prerelease }) {
     tag,
     "--repo",
     `${RELEASE.github.owner}/${RELEASE.github.repo}`,
+    "--target",
+    head,
     "--title",
     tag,
     "--notes-file",
@@ -270,7 +297,7 @@ async function publish({ tag, notesFile, prerelease }) {
         tag_name: tag,
         name: tag,
         body: notes,
-        target_commitish: "main",
+        target_commitish: head,
         prerelease,
       }),
     },

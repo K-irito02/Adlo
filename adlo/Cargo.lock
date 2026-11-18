@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "adl-browser"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "adl-migration",
@@ -34,7 +34,7 @@ dependencies = [
 
 [[package]]
 name = "adl-change-engine"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "adl-fs-ops",
@@ -46,7 +46,7 @@ dependencies = [
 
 [[package]]
 name = "adl-ci-status"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "adl-types",
@@ -61,7 +61,7 @@ dependencies = [
 
 [[package]]
 name = "adl-clipboard"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "adl-storage",
@@ -75,7 +75,7 @@ dependencies = [
 
 [[package]]
 name = "adl-credential"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "aes-gcm",
@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "adl-env"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-download-source",
  "adl-errors",
@@ -121,7 +121,7 @@ dependencies = [
 
 [[package]]
 name = "adl-errors"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -130,7 +130,7 @@ dependencies = [
 
 [[package]]
 name = "adl-fs-ops"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "sha2",
@@ -139,7 +139,7 @@ dependencies = [
 
 [[package]]
 name = "adl-harness-version"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-download-source",
  "adl-errors",
@@ -169,7 +169,7 @@ dependencies = [
 
 [[package]]
 name = "adl-kernel"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "adl-logging",
@@ -191,7 +191,7 @@ dependencies = [
 
 [[package]]
 name = "adl-logging"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-types",
  "chrono",
@@ -207,7 +207,7 @@ dependencies = [
 
 [[package]]
 name = "adl-migration"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "adl-storage",
@@ -218,7 +218,7 @@ dependencies = [
 
 [[package]]
 name = "adl-outline"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "adl-types",
@@ -227,7 +227,7 @@ dependencies = [
 
 [[package]]
 name = "adl-pty"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "adl-types",
@@ -242,7 +242,7 @@ dependencies = [
 
 [[package]]
 name = "adl-server"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-change-engine",
  "adl-ci-status",
@@ -284,7 +284,7 @@ dependencies = [
 
 [[package]]
 name = "adl-storage"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "adl-types",
@@ -299,7 +299,7 @@ dependencies = [
 
 [[package]]
 name = "adl-sysmon"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-types",
  "sysinfo",
@@ -307,7 +307,7 @@ dependencies = [
 
 [[package]]
 name = "adl-types"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "chrono",
@@ -319,7 +319,7 @@ dependencies = [
 
 [[package]]
 name = "adl-update"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "semver",
@@ -328,7 +328,7 @@ dependencies = [
 
 [[package]]
 name = "adl-webapp-host"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "adl-hosted",
@@ -339,7 +339,7 @@ dependencies = [
 
 [[package]]
 name = "adl-workspace"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-errors",
  "adl-fs-ops",
@@ -365,7 +365,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
 name = "adlo"
-version = "0.1.7"
+version = "0.2.0"
 dependencies = [
  "adl-browser",
  "adl-download-source",

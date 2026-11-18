@@ -38,6 +38,7 @@ export function AboutSettings() {
     updateLastCheckedAt,
     updateUpToDate,
     updateSource,
+    updateError,
     linkOpenMethod,
     checkAppUpdate,
     downloadAppUpdate,
@@ -50,6 +51,7 @@ export function AboutSettings() {
       updateLastCheckedAt: state.appUpdatePersisted.lastCheckedAt,
       updateUpToDate: state.appUpdateUpToDate,
       updateSource: state.appUpdateSource,
+      updateError: state.appUpdateError,
       linkOpenMethod: state.appInfo?.config?.linkOpenMethod ?? 'panel',
       checkAppUpdate: state.checkAppUpdate,
       downloadAppUpdate: state.downloadAppUpdate,
@@ -82,7 +84,7 @@ export function AboutSettings() {
       case 'installing':
         return t.updateInstalling;
       case 'error':
-        return t.aboutUpdateFailed;
+        return t.updateCheckFailed;
       default: {
         const checked = updateLastCheckedAt
           ? formatT(t, 'aboutUpdateLastChecked', {
@@ -185,7 +187,7 @@ export function AboutSettings() {
             disabled={updateBusy}
           >
             {updateStatus === 'available'
-              ? t.updateDownloadAndInstall
+              ? t.updateDownload
               : updateStatus === 'downloaded'
                 ? t.updateInstallNow
                 : updateStatus === 'error'
@@ -207,6 +209,11 @@ export function AboutSettings() {
             {t.updateViewNotes}
           </button>
         </div>
+      ) : null}
+      {updateSupported && updateStatus === 'error' && updateError ? (
+        <p className="adl-about__update-warning">
+          {updateError.length > 160 ? `${updateError.slice(0, 160)}…` : updateError}
+        </p>
       ) : null}
       {updateSupported && updateStatus === 'downloaded' ? (
         <p className="adl-about__update-warning">{t.updateReadyWithHint}</p>

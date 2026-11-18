@@ -12,8 +12,8 @@ export const notificationEn = {
   updateAvailableShort: 'New version available',
   updateNoNotes: 'This release has no notes',
   updateExpandNotes: 'Expand release notes',
-  updateCollapseNotes: 'Collapse release notes',
-  updateDownloadAndInstall: 'Download',
+  updateCheckFailed: 'Update failed',
+  updateDownload: 'Download',
   updateDownloading: 'Downloading {percent}%',
   updateReadyLine: 'Update downloaded',
   updateReadyWithHint:
@@ -30,7 +30,6 @@ export const notificationEn = {
   aboutUpdateCheck: 'Check for updates',
   aboutUpdateUpToDate: 'Up to date',
   aboutUpdateChecking: 'Checking…',
-  aboutUpdateFailed: 'Check failed',
   aboutUpdateRetry: 'Retry',
   aboutUpdateLastChecked: 'Last checked: {time}',
   aboutUpdateNeverChecked: 'Never checked',

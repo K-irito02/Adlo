@@ -99,4 +99,17 @@ describe('notificationSlice', () => {
     expect(get().activePopupId).toBeNull();
     expect(get().notifications[0].read).toBe(true);
   });
+
+  it('silent 通知只进列表、不弹浮层', () => {
+    const { get } = createStore();
+    get().addNotification({
+      type: 'update',
+      title: 'v0.1.9',
+      summary: '',
+      fullInfo: '',
+      silent: true,
+    });
+    expect(get().notifications).toHaveLength(1);
+    expect(get().activePopupId).toBeNull();
+  });
 });

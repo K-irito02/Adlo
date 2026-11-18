@@ -93,6 +93,8 @@ export const createAppUpdateSlice = (
     if (status === 'checking' || status === 'downloading' || status === 'installing') {
       return;
     }
+    // 进入 checking 之前先记住「已下载待安装」的状态：后台检查不能把它打回可下载。
+    const downloadedVersion = status === 'downloaded' ? get().appUpdateVersion : null;
 
     set({ appUpdateStatus: 'checking', appUpdateError: null });
     const result = await update.check();
@@ -111,6 +113,17 @@ export const createAppUpdateSlice = (
     }
 
     const data = result.data;
+    // 后端只在「所有来源都不可用」时给 error；必须显示失败，不能当成已是最新。
+    if (data.error) {
+      set({
+        ...persistField('adl:update.state', persisted),
+        appUpdateStatus: 'error',
+        appUpdateError: data.error,
+        appUpdateProgress: null,
+        appUpdateUpToDate: false,
+      });
+      return;
+    }
     if (!data.available || !data.version) {
       set({
         ...persistField('adl:update.state', persisted),
@@ -123,10 +136,24 @@ export const createAppUpdateSlice = (
         appUpdateProgress: null,
         appUpdateUpToDate: true,
       });
+      // 已是最新时清掉旧的更新卡片，避免留下指向旧版本的僵尸卡。
+      const stale = get().notifications.filter((n) => n.type === 'update');
+      for (const notification of stale) {
+        get().removeNotification(notification.id);
+      }
       return;
     }
 
     const version = data.version;
+    // 后台检查不能把「已下载待安装」打回「可下载」：用户准备安装的状态优先。
+    if (downloadedVersion !== null && downloadedVersion === version) {
+      set({
+        ...persistField('adl:update.state', persisted),
+        appUpdateStatus: 'downloaded',
+        appUpdateError: null,
+      });
+      return;
+    }
     const skipped = persisted.skippedVersion === version;
     const promptedToday =
       persisted.lastPromptedVersion === version &&

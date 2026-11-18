@@ -62,7 +62,7 @@ export function UpdateNotificationCard({ onClose }: { onClose: () => void }) {
   const showActions = status !== 'installing';
 
   return (
-    <div className="adl-notif-card adl-update-card" role="status">
+    <div className="adl-notif-card adl-update-card">
       <div className="adl-update-card__head">
         <span className="adl-update-card__title">{t.updateAvailableShort}</span>
         <span className="adl-update-card__pill">v{version ?? '—'}</span>
@@ -103,7 +103,7 @@ export function UpdateNotificationCard({ onClose }: { onClose: () => void }) {
             className="adl-update-card__toggle"
             onClick={() => setExpanded((value) => !value)}
             aria-expanded={expanded}
-            aria-label={expanded ? t.updateCollapseNotes : t.updateExpandNotes}
+            aria-label={t.updateExpandNotes}
           >
             {expanded ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />}
           </button>
@@ -126,9 +126,20 @@ export function UpdateNotificationCard({ onClose }: { onClose: () => void }) {
         <p className="adl-update-card__line adl-loading-row__text--shimmer">{t.updateInstalling}</p>
       ) : null}
 
+      {status === 'error' ? <p className="adl-update-card__line">{t.updateCheckFailed}</p> : null}
+
       {showActions ? (
         <div className="adl-update-card__actions">
           <div className="adl-update-card__actions-right">
+            {status === 'error' && version ? (
+              <button
+                type="button"
+                className="adl-update-card__btn adl-update-card__btn--primary"
+                onClick={() => void downloadAppUpdate()}
+              >
+                {t.aboutUpdateRetry}
+              </button>
+            ) : null}
             {status === 'available' ? (
               <button type="button" className="adl-update-card__btn" onClick={skipAppUpdateVersion}>
                 {t.updateSkipVersion}
@@ -140,7 +151,7 @@ export function UpdateNotificationCard({ onClose }: { onClose: () => void }) {
                 className="adl-update-card__btn adl-update-card__btn--primary"
                 onClick={() => void downloadAppUpdate()}
               >
-                {t.updateDownloadAndInstall}
+                {t.updateDownload}
               </button>
             ) : null}
             {status === 'downloaded' ? (
