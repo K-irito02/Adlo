@@ -49,3 +49,4 @@
 
 - [0026 应用更新走官方 updater，清单双源（Gitee 优先、GitHub 兜底）](./0026-app-update-via-official-updater-dual-source.md) — 签名不可关闭；只发 NSIS 按当前用户安装；Gitee 清单落仓库 raw 文件
 - [0027 更新安装不设拦截弹窗：下载完成用铃铛绿点与卡片文案告知](./0027-update-install-without-confirmation-dialog.md) — 卡片文案须写明立即关闭并重启
+- [0028 发布只走本地脚本，不引入 CI](./0028-local-release-scripts-only.md) — 密钥与令牌不出本机；脏工作区默认拒绝发布
