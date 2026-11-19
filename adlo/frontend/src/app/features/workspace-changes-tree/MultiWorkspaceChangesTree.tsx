@@ -2,11 +2,9 @@ import React, { useCallback, useMemo } from 'react';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
 import { applyChildOrder } from '@features/file-tree/childOrder';
-import { DndOverlay } from '@features/dnd/DndOverlay';
 import type { TreeExpansion } from '@stores/slices/uiSliceTypes';
 import { useAppStore } from '@stores/slicedStore';
 import { MultiWorkspaceTreeShell } from '../multi-workspace/MultiWorkspaceTreeShell';
-import { useWorkspaceTreeDnd } from '../workspace-file-tree/useWorkspaceTreeDnd';
 import { AddWorkspaceHint } from '../multi-workspace/AddWorkspaceHint';
 import { WorkspaceChangesEntry } from './WorkspaceChangesEntry';
 import { useTCopy } from '@i18n/useTCopy';
@@ -83,7 +81,7 @@ export function MultiWorkspaceChangesTree({
   const { t } = useTCopy();
   const fileChildOrder = useAppStore((state) => state.fileChildOrder);
 
-  // 与文件面板共享同一份目录顺序；变更树只显示其中「有变更」的节点。
+  // 与文件面板共享同一份目录顺序（仅影响显示顺序）；变更面板不支持拖拽。
   const orderedTreeData = useMemo(() => {
     const next: Record<string, WorkspaceTreeNode[]> = {};
     for (const workspace of workspaces) {
@@ -96,8 +94,6 @@ export function MultiWorkspaceChangesTree({
     }
     return next;
   }, [workspaces, treeData, fileChildOrder]);
-
-  const { indicator, handlers } = useWorkspaceTreeDnd(workspaces, orderedTreeData);
 
   const renderContent = useCallback(
     (workspace: RecentWorkspaceEntry, isExpanded: boolean) => {
@@ -176,23 +172,19 @@ export function MultiWorkspaceChangesTree({
   );
 
   return (
-    <>
-      <MultiWorkspaceTreeShell
-        visibleWorkspaces={workspaces}
-        expandedState={expandedStates}
-        emptyText={
-          <AddWorkspaceHint
-            prefix={t.workspaceEmptyAddWorkspacePrefix as string}
-            suffix={t.workspaceEmptyAddWorkspaceSuffix as string}
-          />
-        }
-        onToggleExpand={onToggleExpand}
-        onClearSelection={onClearSelection}
-        renderContent={renderContent}
-        stickyHeaders
-        dndHandlers={handlers}
-      />
-      <DndOverlay indicator={indicator} />
-    </>
+    <MultiWorkspaceTreeShell
+      visibleWorkspaces={workspaces}
+      expandedState={expandedStates}
+      emptyText={
+        <AddWorkspaceHint
+          prefix={t.workspaceEmptyAddWorkspacePrefix as string}
+          suffix={t.workspaceEmptyAddWorkspaceSuffix as string}
+        />
+      }
+      onToggleExpand={onToggleExpand}
+      onClearSelection={onClearSelection}
+      renderContent={renderContent}
+      stickyHeaders
+    />
   );
 }

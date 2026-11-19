@@ -17,9 +17,8 @@ function ghostSource(source: HTMLElement): HTMLElement {
   if (source.classList.contains('adl-browser-entry')) {
     return source.querySelector<HTMLElement>('.adl-browser-entry__header') ?? source;
   }
-  if (source.classList.contains('adl-tree-node')) {
-    return source.querySelector<HTMLElement>('.adl-tree-node__row') ?? source;
-  }
+  // 文件/变更树：克隆整个 <li>（保留 `--adl-tree-indent` / `--adl-tree-row-offset`
+  // 内联变量与行宽），随后在克隆体里移除嵌套子树，只留下这一行。
   return source;
 }
 
@@ -31,6 +30,14 @@ export function createDragGhost(
   const cloneSource = ghostSource(source);
   const sourceRect = cloneSource.getBoundingClientRect();
   const element = cloneSource.cloneNode(true) as HTMLElement;
+
+  // 文件/变更树的节点是 <li>：去掉克隆体里嵌套的子树，只保留这一行，
+  // 同时保留 li 上的内联缩进变量与行宽。
+  if (element.tagName === 'LI') {
+    element.querySelectorAll('ul').forEach((child) => child.remove());
+    // 行的宽度必须与侧栏一致：书签树副本的 1.03 放大不适用于整行宽的树行。
+    element.classList.add('adl-browser-dnd-lift--tree');
+  }
 
   element.classList.add('adl-browser-dnd-lift');
   element.setAttribute('aria-hidden', 'true');

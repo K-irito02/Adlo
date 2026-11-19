@@ -19,6 +19,7 @@ import { BranchMenuItem, BranchSubCard } from '@regions/right-panel/panels/Branc
 import { MenuHintItem } from '@components/MenuHintItem';
 import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
 import { joinPathSegments } from '@app/utils/workspacePaths';
+import { bindWorkspaceClipboard } from './workspaceClipboard';
 
 export interface WorkspaceFileTreeEntryProps {
   workspace: RecentWorkspaceEntry;
@@ -189,7 +190,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
   // Wrap getContextMenuItems to bind workspace.path for reveal/copy-full-path/paste/rename/delete
   const wrappedGetContextMenuItems = useCallback(
     (node: WorkspaceTreeNode) => {
-      const items = getContextMenuItems(node);
+      const items = bindWorkspaceClipboard(getContextMenuItems(node), workspace.path);
       return items.map((item) => {
         if (item.separator) {
           return item;
@@ -206,75 +207,6 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
               } else {
                 copyToClipboard(fullPath);
               }
-            },
-          };
-        }
-        // 记录复制/剪切来源工作区：跨工作区粘贴必须按来源根解析源路径。
-        if (item.id === 'cut' || item.id === 'copy') {
-          const isCut = item.id === 'cut';
-          return {
-            ...item,
-            action: (targetNode: WorkspaceTreeNode) => {
-              useAppStore
-                .getState()
-                .setClipboard(
-                  isCut ? 'cut' : 'copy',
-                  targetNode.path,
-                  targetNode.kind,
-                  workspace.path,
-                );
-            },
-          };
-        }
-        // Override paste to use this workspace's path
-        if (item.id === 'paste') {
-          return {
-            ...item,
-            action: async (targetNode: WorkspaceTreeNode) => {
-              const store = useAppStore.getState();
-              const sourcePath = store.clipboardSourcePath;
-              const operation = store.clipboardOperation;
-              if (!sourcePath || !operation) {
-                return;
-              }
-              const targetDir =
-                targetNode.kind === 'directory'
-                  ? targetNode.path
-                  : targetNode.path.substring(0, targetNode.path.lastIndexOf('/') + 1);
-              const sourceName = sourcePath.split('/').pop() || sourcePath;
-              const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
-              const sourceWorkspacePath = store.clipboardSourceWorkspacePath;
-
-              if (!sourceWorkspacePath || sourceWorkspacePath === workspace.path) {
-                if (operation === 'copy') {
-                  await store.duplicateWorkspaceFile(sourcePath, newPath, workspace.path);
-                } else {
-                  if (sourcePath === newPath) {
-                    store.clearClipboard();
-                    return;
-                  }
-                  await store.moveWorkspaceFile(sourcePath, newPath, workspace.path);
-                }
-                store.clearClipboard();
-                return;
-              }
-
-              // 跨工作区：复制走 copyFileAcross（源保留），剪切走 moveFileAcross（源移除）。
-              const input = {
-                sourceWorkspacePath,
-                sourceRelativePath: sourcePath,
-                targetWorkspacePath: workspace.path,
-                targetRelativePath: newPath,
-              };
-              const ok =
-                operation === 'copy'
-                  ? await store.copyWorkspaceFileAcross(input)
-                  : await store.moveWorkspaceFileAcross(input);
-              if (!ok) {
-                // 失败保留剪贴板，用户可重试或换个目标。
-                return;
-              }
-              store.clearClipboard();
             },
           };
         }

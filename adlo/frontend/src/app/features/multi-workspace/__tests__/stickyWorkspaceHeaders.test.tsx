@@ -105,7 +105,8 @@ describe('右侧导航树工作区标题吸顶', () => {
 
     const shell = container.querySelector('.adl-multitree');
     expect(shell?.classList.contains('adl-multitree--sticky-headers')).toBe(true);
-    expect(shell?.classList.contains('adl-multitree--dnd')).toBe(true);
+    // 变更面板不支持拖拽（只保留吸顶与共享显示顺序）。
+    expect(shell?.classList.contains('adl-multitree--dnd')).toBe(false);
   });
 
   it('未开启的复用方（终端面板等）不受影响', () => {

@@ -30,6 +30,11 @@ body.adl-tree-dnd-not-allowed .adl-multitree--dnd button {
   pointer-events: none;
 }
 
+/* 文件/变更树的「抬起副本」是整行宽的 <li>：不放大（放大器会让副本比行宽、贴边溢出）。 */
+.adl-browser-dnd-lift--tree {
+  transform: translateY(-2px);
+}
+
 .adl-dnd-overlay .adl-dnd-insert-line {
   position: absolute;
   /* 高于抬起副本（9999），插入线不被整行宽的 ghost 盖住。 */
@@ -40,6 +45,7 @@ body.adl-tree-dnd-not-allowed .adl-multitree--dnd button {
   position: absolute;
   /* 低于抬起副本：高亮只作底色，不染到 ghost 上。 */
   z-index: 9997;
-  border-radius: var(--radius-sm);
+  /* 文件/变更树「放入」高亮：四角直角（浏览器书签树仍用自身的圆角类）。 */
+  border-radius: 0;
   background: var(--adl-dnd-into);
 }
