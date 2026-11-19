@@ -8,11 +8,11 @@ const MAIN_ROOT = path.resolve("E:/AI-DIGITAL-LIFE/SourceWorkspace/adlo");
 const SLOT_ROOT = path.resolve("E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/slot-1/adlo");
 
 function expectedStateDir(repoRoot) {
-  return path.join(repoRoot, "target", "adl-instance");
+  return path.join(repoRoot, ".adl-instance");
 }
 
 function expectedLocator(repoRoot) {
-  return path.join(repoRoot, "target", "adl-instance", "storage-locator.json");
+  return path.join(repoRoot, ".adl-instance", "storage-locator.json");
 }
 
 test("main worktree keeps the plain identifier and no locator override", () => {
@@ -94,16 +94,19 @@ test("a multi-segment ADL_INSTANCE_ID is joined into one suffix", () => {
   );
 });
 
-test("isInstanceLocatorPath only matches dev-managed locator locations", () => {
+test("isInstanceLocatorPath matches the current and legacy dev-managed locations", () => {
+  assert.equal(isInstanceLocatorPath("E:/x/adlo/.adl-instance/storage-locator.json"), true);
+  assert.equal(isInstanceLocatorPath("E:\\x\\adlo\\.adl-instance\\storage-locator.json"), true);
   assert.equal(isInstanceLocatorPath("E:/x/adlo/target/adl-instance/storage-locator.json"), true);
-  assert.equal(
-    isInstanceLocatorPath("E:\\x\\adlo\\target\\adl-instance\\storage-locator.json"),
-    true,
-  );
   assert.equal(
     isInstanceLocatorPath("C:/Users/me/AppData/Roaming/adlo/storage-locator.json"),
     false,
   );
   assert.equal(isInstanceLocatorPath(""), false);
   assert.equal(isInstanceLocatorPath(undefined), false);
+});
+
+test("worktree dev state lives outside target so cargo clean cannot wipe it", () => {
+  const { stateDir } = resolveInstance({ repoRoot: SLOT_ROOT, env: {} });
+  assert.equal(stateDir.includes(`${path.sep}target${path.sep}`), false);
 });

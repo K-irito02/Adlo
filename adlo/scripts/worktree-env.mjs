@@ -2,8 +2,9 @@
  * Print the `[ENV]` snapshot required by the parallel-branch-development skill.
  *
  * Usage: `pnpm run worktree:env` (from `adlo/` or via `pnpm --dir adlo`).
- * The output is the fixed 10-line block from §2 of the skill, so agents can paste
- * it into the conversation instead of re-deriving each field by hand.
+ * `--all` also prints the `[WORKTREES]` table (path / branch / base / dirty /
+ * session occupancy) that §3.0 asks for, so agents stop re-deriving it with
+ * hand-written `git rev-list` loops.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -11,6 +12,12 @@ import process from "node:process";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { findLockedDevExecutables } from "./dev-instance.mjs";
+import {
+  formatAge,
+  listWorktrees,
+  readActiveSessions,
+  summarizeSessions,
+} from "./worktree-registry.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -35,47 +42,12 @@ const slot = path.basename(toplevel);
 const isPoolWorktree = /-worktrees$/i.test(path.basename(path.dirname(toplevel)));
 const mode = isPoolWorktree ? "existing-worktree" : "main-worktree";
 
-const sessionsDir = path.join(path.dirname(toplevel), ".sessions");
-const activeSessions = [];
-let registry = "missing";
-
-function formatAge(ms) {
-  const hours = Math.floor(ms / (60 * 60 * 1000));
-  if (hours < 1) {
-    return "just now";
-  }
-  if (hours < 24) {
-    return `${hours}h`;
-  }
-  return `${Math.floor(hours / 24)}d`;
-}
-
-try {
-  for (const name of fs.readdirSync(sessionsDir)) {
-    if (!name.endsWith(".json")) {
-      continue;
-    }
-    try {
-      const filePath = path.join(sessionsDir, name);
-      const record = JSON.parse(fs.readFileSync(filePath, "utf8"));
-      const sameWorktree =
-        typeof record.worktree === "string" &&
-        path.resolve(record.worktree).toLowerCase() === path.resolve(toplevel).toLowerCase();
-      if (sameWorktree && record.status === "active") {
-        registry = name;
-        const ageMs = Date.now() - fs.statSync(filePath).mtimeMs;
-        const stale = ageMs > 24 * 60 * 60 * 1000;
-        activeSessions.push(
-          `${record.session ?? name} (active${stale ? `, ${formatAge(ageMs)} stale` : ""})`,
-        );
-      }
-    } catch {
-      // Ignore a malformed registry entry; report the rest.
-    }
-  }
-} catch {
-  // No .sessions directory (main worktree or fresh clone).
-}
+const active = readActiveSessions(toplevel);
+const registry = active[0]?.name ?? "missing";
+const others = active.map(
+  ({ record, name, ageMs, stale }) =>
+    `${record.session ?? name} (active${stale ? `, ${formatAge(ageMs)} stale` : ""})`,
+);
 
 const locked = findLockedDevExecutables(repoRoot);
 const instance = locked.length > 0 ? locked.join(", ") : "none";
@@ -90,13 +62,18 @@ const lines = [
   `  base     : main 落后 ${behind} / 领先 ${ahead}`,
   `  dirty    : ${dirty}`,
   `  slot     : ${slot} / mode : ${mode}`,
-  `  others   : ${activeSessions.length > 0 ? activeSessions.join(", ") : "无"}`,
+  `  others   : ${others.length > 0 ? others.join(", ") : "无"}`,
   `  instance : ${instance}`,
   `  hooks    : ${hooksState} / graph : ${graph}`,
   `  registry : ${registry}`,
 ];
 
 console.log(lines.join("\n"));
+
+if (process.argv.includes("--all")) {
+  console.log("");
+  console.log(buildWorktreeTable(toplevel));
+}
 
 if (graph === "missing") {
   console.log(
@@ -105,4 +82,56 @@ if (graph === "missing") {
 }
 if (hooksState === "missing") {
   console.log("[worktree:env] WARN git hooks not enabled; the same setup command enables them.");
+}
+
+function buildWorktreeTable(currentToplevel) {
+  const rows = listWorktrees(currentToplevel).map((worktree) => {
+    const behindAhead = worktree.branch
+      ? git(["rev-list", "--left-right", "--count", `main...${worktree.branch}`], worktree.path)
+          .split(/\s+/)
+          .filter(Boolean)
+      : [];
+    const dirtyCount = git(["status", "--porcelain"], worktree.path)
+      .split(/\r?\n/)
+      .filter(Boolean).length;
+    return {
+      branch: worktree.branch ?? (worktree.detached ? "(detached)" : "—"),
+      base: behindAhead.length === 2 ? `${behindAhead[0]}/${behindAhead[1]}` : "—",
+      dirty: String(dirtyCount),
+      sessions: summarizeSessions(readActiveSessions(worktree.path)),
+      path: worktree.path,
+    };
+  });
+
+  const width = (header, values) =>
+    Math.max(header.length, ...values.map((value) => String(value).length));
+  const branchWidth = width(
+    "branch",
+    rows.map((row) => row.branch),
+  );
+  const baseWidth = width(
+    "base",
+    rows.map((row) => row.base),
+  );
+  const dirtyWidth = width(
+    "dirty",
+    rows.map((row) => row.dirty),
+  );
+  const sessionsWidth = width(
+    "sessions",
+    rows.map((row) => row.sessions),
+  );
+
+  return [
+    "[WORKTREES]",
+    `  ${"branch".padEnd(branchWidth)}  ${"base".padEnd(baseWidth)}  ${"dirty".padEnd(
+      dirtyWidth,
+    )}  ${"sessions".padEnd(sessionsWidth)}  path`,
+    ...rows.map(
+      (row) =>
+        `  ${row.branch.padEnd(branchWidth)}  ${row.base.padEnd(baseWidth)}  ${row.dirty.padEnd(
+          dirtyWidth,
+        )}  ${row.sessions.padEnd(sessionsWidth)}  ${row.path}`,
+    ),
+  ].join("\n");
 }

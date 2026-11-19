@@ -15,6 +15,9 @@ build/
 coverage/
 .vite/
 
+# Dev instance state (per worktree; outside target/ so cargo clean keeps DB + WebView profile)
+.adl-instance/
+
 # Logs
 # *.log
 npm-debug.log*

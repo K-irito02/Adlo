@@ -122,12 +122,7 @@ Test-Path -LiteralPath "adlo/.codegraph"  # 9 CodeGraph 索引是否就绪（每
 ### 3.0 五步走
 
 1. 在当前目录执行 §2 ENV PROBE，输出 `[ENV]` 快照。
-2. **在输出正文中列出全仓工作树对照表**（每个工作树的路径、分支、与本地 `main` 的对齐情况）：
-
-   ```powershell
-   git -C "$ROOT" worktree list --porcelain
-   git -C "$ROOT" rev-list --left-right --count main...<branch>   # 逐分支输出 "落后 领先"，如 "3 1"
-   ```
+2. **在输出正文中列出全仓工作树对照表**（路径、分支、与本地 `main` 的对齐、dirty、会话占用）：运行 `pnpm --dir adlo run worktree:env -- --all`，直接贴输出的 `[WORKTREES]` 块，不要手工循环 `git rev-list`。
 
    | 工作树                               | 分支       | 落后 main | 领先 main | 会话占用                          |
    | ------------------------------------ | ---------- | --------- | --------- | --------------------------------- |
@@ -162,7 +157,7 @@ cd "$WT_ROOT/<branch>/adlo" && pnpm install && pnpm run setup:worktree && pnpm r
 ### 3.2 复用已存在的某个工作树分支
 
 1. 确认三项：该分支在全仓只出现一次（即该工作树）；无他人 `status: active` 会话占用；`git status --porcelain` 为空（或改动全部归属明确且用户知情；有疑问先停下报告，不得自行清理）。
-   - 若 `worktree:env` 的 `others` 标出 `(active, Nd stale)`（最后写入超过 24h），先向用户确认该会话已结束；确认后可接管：只写自己的 `.sessions/<session>.json`，不修改他人文件，并在 `notes` 记录接管来源。
+   - 若 `worktree:env` 的 `others` 标出 `(active, Nd stale)`（最后写入超过 24h），先跑 `pnpm --dir adlo run worktree:sessions -- --stale-only` 核对条目并让用户一次性确认；确认后执行 `--reap --older-than 3d` 把 stale 项改为 `paused`（之后不再重复询问），再只写自己的 `.sessions/<session>.json`（不改他人文件），并在 `notes` 记录接管来源。
 2. 将会话工作环境切换到该工作树目录，在该目录重跑 §2 ENV PROBE。
 3. 逐项通过后，明确通知用户“可以在该工作树分支下开始开发了”。
 4. 禁止动作：切过去之后换分支（`switch -c` / `switch <other>`）、把别处改动带入。确需换分支 → 走 §3.3 特批。
@@ -242,7 +237,7 @@ git -C "$WT" diff --stat "$OLD..<new-branch>" -- `  # 6 依赖是否变化
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `target/`        | 每工作树独立                                                                                                                                                                                                                                                                                                                                                                                      | 禁止共享 `CARGO_TARGET_DIR`：共享后 exe 路径相同，dev 脚本（`killProcessesByName` 按绝对路径过滤）会跨工作树互杀，且构建退化为串行                           |
 | `node_modules/`  | 每工作树独立，pnpm store 全局共享                                                                                                                                                                                                                                                                                                                                                                 | lock 变了才重装                                                                                                                                              |
-| 运行数据         | dev 脚本按工作树派生 identifier（`com.adlo.app.<工作树目录名>`，可用 `ADL_INSTANCE_ID` 覆盖），数据根、WebView2 profile、locator、凭证回退目录、浏览器模式 adl-server 数据都随之隔离（`<worktree>/adlo/target/adl-instance/`）                                                                                                                                                                    | 隔离只覆盖 `pnpm dev*` 入口；直接跑 `target/debug/*.exe` 或主工作树仍共 `%APPDATA%\com.adlo.app`；OS 密钥环条目按 service 名存系统凭据管理器，仍跨工作树共享 |
+| 运行数据         | dev 脚本按工作树派生 identifier（`com.adlo.app.<工作树目录名>`，可用 `ADL_INSTANCE_ID` 覆盖），数据根、WebView2 profile、locator、凭证回退目录、浏览器模式 adl-server 数据都随之隔离（`<worktree>/adlo/.adl-instance/`，`cargo clean` 不碰）                                                                                                                                                                    | 隔离只覆盖 `pnpm dev*` 入口；直接跑 `target/debug/*.exe` 或主工作树仍共 `%APPDATA%\com.adlo.app`；OS 密钥环条目按 service 名存系统凭据管理器，仍跨工作树共享 |
 | 前端端口         | 每个工作树自动取**稳定端口**：主工作树 5173、`slot-N` → 5173+N；被占则顺延到下一个空闲端口。`ADL_PORT` / `PORT` 可显式覆盖，但**必须空闲**（占用即硬失败）。窗口只加载本工作树的 vite（`strictPort` + 实例令牌 `GET /__adl_dev_instance__` 校验）。`dev:tauri` / `dev:browser` / `dev:preview` 同一规则；裸 `pnpm frontend:dev` 不经过启动器，`strictPort` 下占用即失败（并行请走 `dev:browser`） | 无需手工固定端口；一个窗口"改了没变化"时先核对 `[adl-run] url=` 与本工作树的端口                                                                             |
 | 内置 Rust server | 绑定 `127.0.0.1:0`                                                                                                                                                                                                                                                                                                                                                                                | 无固定端口冲突                                                                                                                                               |
 | 实例定位         | `pnpm run dev:status` 扫描 5173..5182，打印端口 / 实例令牌前缀 / PID                                                                                                                                                                                                                                                                                                                              | 与启动行 `[adl-run] … token=xxxxxxxx` 对号；「窗口连的是谁」先跑它再怀疑代码                                                                                 |
@@ -285,22 +280,29 @@ pnpm --dir "$ROOT/adlo" run check:all
 
 ### 5.3 保留与清理
 
-| 场景       | 动作                                       |
-| ---------- | ------------------------------------------ |
-| 分支已合并 | 保留目录，注册表 `status: merged`          |
-| 分支被放弃 | 保留目录，`status: done`，`notes` 写明原因 |
-| 会话结束   | 只更新注册表，不动目录                     |
+| 场景         | 动作                                                                  |
+| ------------ | --------------------------------------------------------------------- |
+| 分支已合并   | 保留目录，注册表 `status: merged`                                     |
+| 分支被放弃   | 保留目录，`status: done`，`notes` 写明原因                            |
+| 会话结束     | 只更新注册表，不动目录                                                |
+| 只清产物     | `pnpm --dir adlo run worktree:disk -- --clean`（默认保留 `.adl-instance`） |
+| 注册表 stale | `pnpm --dir adlo run worktree:sessions -- --reap --older-than 3d`     |
 
-保留的目的是保住 `target/` 与 `node_modules/`。只有三种情况清理：用户明确要求；该工作树无 active 会话且 `target` 超 30 GB；目录已 `prunable`。
+保留的目的是保住 `target/`、`node_modules/` 与 `adlo/.adl-instance/`（dev 实例 DB / WebView2 profile / locator，已移出 `target`，`cargo clean` 不再误删）。只有三种情况清理：用户明确要求；该工作树无 active 会话且 `target` 超 30 GB；目录已 `prunable`。
 
 ```powershell
-powershell -NoProfile -File "$ROOT/adlo/.cargo/clean-target.ps1"          # 只清当前工作树
-powershell -NoProfile -File "$ROOT/adlo/.cargo/clean-target.ps1" -WhatIf   # 干跑
-git -C "$ROOT" worktree remove "$WT_ROOT/<name>"                                      # 用户批准后
+pnpm --dir adlo run worktree:disk                              # 全仓体积报告（先看再删）
+pnpm --dir adlo run worktree:disk -- --current --clean         # 只清当前工作树产物
+pnpm --dir adlo run worktree:disk -- --clean --dry-run         # 跨树清理干跑
+pwsh -NoProfile -File "adlo/.cargo/clean-target.ps1"           # 或：单树 + 30GB 阈值
+pwsh -NoProfile -File "adlo/.cargo/clean-target.ps1" -WhatIf   # 干跑
+git -C "$ROOT" worktree remove "$WT_ROOT/<name>"               # 用户批准后
 git -C "$ROOT" worktree prune
 # Windows 长路径（node_modules 深嵌套）致 remove 报 `Filename too long` 时（用户已批准删除）：
-Remove-Item -LiteralPath "\\?\$WT_ROOT\<name>" -Recurse -Force                        # 整删后重跑 worktree prune
+Remove-Item -LiteralPath "\\?\$WT_ROOT\<name>" -Recurse -Force # 整删后重跑 worktree prune
 ```
+
+`clean-target.ps1` 先做进程预检（本工作树 `adlo.exe` / `adl-server.exe` 被占用 → 退出码 2），默认保留 `.adl-instance`；要连 dev 状态一起删加 `-IncludeInstanceState`（`worktree:disk` 对应 `--include-instance-state`）。`worktree:disk --clean` 属破坏性操作：按不变量 3，只在用户明确要求或本会话专属工作树内使用。
 
 磁盘预算（实测 2026-10-24：`E:` 余 118 GB）：并发工作树 ≤ 2，单工作树 `target` ≤ 30 GB，新建工作树前余量 ≥ 60 GB。
 
@@ -328,6 +330,8 @@ Remove-Item -LiteralPath "\\?\$WT_ROOT\<name>" -Recurse -Force                  
 ```
 
 `mode` = `new-worktree` / `existing-worktree`；`slot` = 工作树目录名；`history` 记录该工作树承载过的分支（固定绑定下一般只有一条，特批换分支后追加）；`status` 状态机 `active → paused → merged / done`（后两者均保留目录）。
+
+stale `active`（>24h 未更新）用 `pnpm --dir adlo run worktree:sessions -- --stale-only` 核对，`-- --reap --older-than 3d` 收口：脚本只把超阈值条目改为 `paused` 并追加 `notes`，不删文件。
 
 写注册表文件必须显式 UTF-8 无 BOM（`[System.IO.File]::WriteAllText($p, $json, [System.Text.UTF8Encoding]::new($false))`）；禁止经 PowerShell 管道/重定向传文本（CJK 会被写成 `?`），见规则 `shell-encoding.md`。
 

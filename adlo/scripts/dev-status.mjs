@@ -3,7 +3,7 @@
  *
  * 用途：排查「这个窗口连的是哪个工作树的前端、有没有真的连上 ad-server、是不是孤儿进程」。
  * - 实例令牌与 `[adl-run]` 启动行里的 `token=` 前缀一致；`/__adl_dev_instance__` 是启动器自证探针。
- * - 启动器会把本次运行写进 `<worktree>/adlo/target/adl-instance/dev-instance.json`
+ * - 启动器会把本次运行写进 `<worktree>/adlo/.adl-instance/dev-instance.json`
  *   （port / serverUrl / launcherPid），dev:status 据此区分「本工作树启动器管理的实例」与孤儿。
  *
  * 用法：`pnpm run dev:status`
@@ -13,7 +13,7 @@ import net from "node:net";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { DEV_PORT_BASE } from "./dev-port.mjs";
-import { resolveInstance } from "./instance-id.mjs";
+import { INSTANCE_STATE_DIRNAME, resolveInstance } from "./instance-id.mjs";
 
 const HOST = "127.0.0.1";
 const PORTS = Array.from({ length: 10 }, (_, index) => DEV_PORT_BASE + index);
@@ -21,7 +21,7 @@ const TOKEN_PATH = "/__adl_dev_instance__";
 
 function markerPathFor(repoRoot) {
   const instance = resolveInstance({ repoRoot });
-  const dir = instance.stateDir ?? path.join(repoRoot, "target", "adl-instance");
+  const dir = instance.stateDir ?? path.join(repoRoot, INSTANCE_STATE_DIRNAME);
   return path.join(dir, "dev-instance.json");
 }
 

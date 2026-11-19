@@ -278,7 +278,7 @@ describe('resolveDevDataDir (per-worktree isolation)', () => {
 
   it('uses the worktree instance dir for a slot worktree', () => {
     expect(resolveDevDataDir(slotRepoRoot, {})).toBe(
-      path.join(slotRepoRoot, 'target', 'adl-instance', 'ad-server-data'),
+      path.join(slotRepoRoot, '.adl-instance', 'ad-server-data'),
     );
   });
 

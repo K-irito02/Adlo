@@ -12,6 +12,8 @@
     "dev:stop": "node ./scripts/stop-project-surface.mjs",
     "prototype:serve": "node ./scripts/serve-prototype.mjs",
     "worktree:env": "node ./scripts/worktree-env.mjs",
+    "worktree:disk": "node ./scripts/worktree-disk.mjs",
+    "worktree:sessions": "node ./scripts/worktree-sessions.mjs",
     "serve:server": "node ./scripts/serve-adl-server.mjs",
     "test:env-path": "cargo test -p adl-server --test env_path_cli",
     "review:snapshot": "node ./scripts/review-snapshot.mjs",

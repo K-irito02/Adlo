@@ -9,6 +9,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { INSTANCE_STATE_DIRNAME } from "./instance-id.mjs";
 
 export function devExecutables(repoRoot) {
   const base = path.join(path.resolve(repoRoot), "target", "debug");
@@ -60,7 +61,7 @@ function killLauncher(markerPath) {
 export function stopDevInstances(repoRoot) {
   const root = path.resolve(repoRoot);
   const { app, server } = devExecutables(root);
-  const marker = path.join(root, "target", "adl-instance", "dev-instance.json");
+  const marker = path.join(root, INSTANCE_STATE_DIRNAME, "dev-instance.json");
   killLauncher(marker);
 
   if (process.platform === "win32") {

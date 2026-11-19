@@ -107,7 +107,9 @@ CSS 选择器/层叠/布局/主题变更：按 [desktop-ui-verification.md](../.
 ## 磁盘空间管理
 
 - 第三方依赖 `debug=1` + `opt-level=1`；自有 crate 白名单保留 `debug=2`（`.cargo/config.toml`）。
-- **清理策略**：`target/debug` 超过 30 GB → 立即 `powershell -File .cargo\clean-target.ps1` 全量 `cargo clean`（脚本自身带 30GB 阈值判断，`-WhatIf` 干跑预览）。
+- **dev 实例状态不在 `target/`**：每个工作树的 DB、WebView2 profile、storage locator 落在 `adlo/.adl-instance/`（gitignored），`cargo clean` 不再删除它们；旧工作树的 `target/adl-instance/` 会在首次清理时迁移过去。
+- **清理策略**：`target/debug` 超过 30 GB → `pwsh -NoProfile -File .cargo\clean-target.ps1`（保留 dev 状态；`-WhatIf` 干跑）。脚本先做进程预检，`adlo.exe` / `adl-server.exe` 被占用时退出码 2；确需连 dev 状态一起删，显式加 `-IncludeInstanceState`。
+- **跨工作树**：`pnpm run worktree:disk` 报告各槽 `target` / `.adl-instance` / `node_modules` 体积；`-- --clean` 只清构建产物（进程预检 + 长路径处理）。注册表 stale 会话用 `pnpm run worktree:sessions -- --reap` 收口。
 - 所有删除均为**永久删除**：不进回收站/垃圾箱。
 
 相关文件：`.cargo/config.toml`（alias `rebuild` = `clean && build`、`prune` = `clean`）。

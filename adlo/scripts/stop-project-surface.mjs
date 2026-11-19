@@ -3,7 +3,7 @@
  *
  * Only processes whose executable path is exactly `<adlo>/target/debug/adlo(.exe)`
  * or `<adlo>/target/debug/adl-server(.exe)` are targeted, plus the launcher pid
- * recorded in `target/adl-instance/dev-instance.json`. Other worktrees and an
+ * recorded in `.adl-instance/dev-instance.json`. Other worktrees and an
  * installed release build are left untouched.
  */
 import path from "node:path";

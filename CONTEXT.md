@@ -236,4 +236,4 @@ WebView2 的 `PreferredColorScheme` 在同一用户数据目录（UDF）会话�
 | 双端启动 | `pnpm run dev:both` | 两者 | 两者 |
 
 ### 开发实例 (Dev Instance)
-以 `pnpm dev*` 从某个工作树启动的应用实例：`scripts/instance-id.mjs` 为槽位目录派生 identifier 后缀并把 storage locator 落到 `<worktree>/adlo/target/adl-instance/`（主工作树沿用默认身份，与正式安装共用数据）；`scripts/dev-port.mjs` 分配 `5173+N` 稳定前端端口并生成实例令牌，`vite` 以 `strictPort` 绑定，启动器用 `GET /__adl_dev_instance__` 校验「应答的是不是自己 spawn 的 vite」。
+以 `pnpm dev*` 从某个工作树启动的应用实例：`scripts/instance-id.mjs` 为槽位目录派生 identifier 后缀并把 storage locator 落到 `<worktree>/adlo/.adl-instance/`（在 `target/` 外，`cargo clean` 不会删除）（主工作树沿用默认身份，与正式安装共用数据）；`scripts/dev-port.mjs` 分配 `5173+N` 稳定前端端口并生成实例令牌，`vite` 以 `strictPort` 绑定，启动器用 `GET /__adl_dev_instance__` 校验「应答的是不是自己 spawn 的 vite」。

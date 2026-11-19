@@ -12,6 +12,7 @@ alwaysApply: true
 ## 约束
 
 1. **禁止**用 shell 内联命令对源码/文档做批量文本修改（`-replace`、`Add-Content`、here-string、`sed`、`node -e`/`node -p` 写文件、`perl -pi` 等），**不限是否含中文**。历史事故：中文字面量被破坏（`中间区` → `心心`，4 个文件损坏）；注释被写入字面量 `\n`、import 块残留空行（2026-10-25，多轮人工审查才发现）。
+   - 只是内存里的路径/字符串归一化（不写文件）也别用 `-replace`：`.opencode/opencode.json` 按子串拒绝整条命令；用 `.Replace()` / `Join-Path` / `[System.IO.Path]::Combine`。
 2. 正文修改一律用 `edit` 工具逐处改。确需批量时**写成脚本文件**（`.mjs` / `.ps1`）再执行；**禁止用 `node -e`/`node -p` 内联 `fs.writeFileSync`/`appendFileSync`/`createWriteStream` 写文件**；脚本内按 UTF-8 读写（`[System.IO.File]::ReadAllText/WriteAllText` + `UTF8Encoding($false)`），不要经管道传递文本。跨文件统一改名优先用 `frontend/scripts/replace-term.mjs --pairs <json>`（精确匹配、零命中即失败，含 fixture 单测）。
    - **运行含 CJK 的 `.ps1` 一律用 `pwsh`**：`powershell`（5.1）按系统代码页解码无 BOM 的 UTF-8，在内存里就会损坏中文字面量（2026-11-04 实测：批量替换的中文规则全部静默失效）。仓库脚本自身也不得用 `powershell -File` 调用。
    - `pairs.json` 的规则应加 `minHits`：给出「这条规则至少应命中多少处」，避免某条规则因编码/拼写问题静默 0 命中而整体仍报 OK。

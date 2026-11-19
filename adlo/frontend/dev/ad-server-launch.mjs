@@ -40,7 +40,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { debugLogModeForVite, parseLogFlags } from './logFlags.mjs';
-import { isInstanceLocatorPath, resolveInstance } from '../../scripts/instance-id.mjs';
+import {
+  INSTANCE_STATE_DIRNAME,
+  isInstanceLocatorPath,
+  resolveInstance,
+} from '../../scripts/instance-id.mjs';
 import { resolveDevPort, stripServerArgs } from '../../scripts/dev-port.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -61,8 +65,9 @@ const requestedPort = Number.parseInt(process.env.ADL_AD_SERVER_PORT ?? '0', 10)
 
 /**
  * Pure: dev ad-server data dir. A worktree instance gets its own directory under
- * `<repo>/target/adl-instance/…` so parallel slots never share one SQLite file; the
- * main worktree keeps the historical tmp dir. `ADL_AD_SERVER_DATA_DIR` still wins.
+ * `<repo>/.adl-instance/…` so parallel slots never share one SQLite file and `cargo clean`
+ * cannot wipe it; the main worktree keeps the historical tmp dir. `ADL_AD_SERVER_DATA_DIR`
+ * still wins.
  */
 export function resolveDevDataDir(repoRoot, env = process.env) {
   if (env.ADL_AD_SERVER_DATA_DIR) {
@@ -85,7 +90,7 @@ const portLineTimeoutMs = Number.parseInt(
 
 /** 本实例的运行态标记文件：供 dev:status 判断「这个端口有没有注入后端、是不是孤儿」。 */
 function instanceStateDir(instance) {
-  return instance.stateDir ?? path.join(repoRoot, 'target', 'adl-instance');
+  return instance.stateDir ?? path.join(repoRoot, INSTANCE_STATE_DIRNAME);
 }
 
 function writeInstanceMarker(instance, data) {
