@@ -3,6 +3,57 @@ import type { WorkspaceTreeNode } from '@shared/ipc';
 import { useAppStore } from '@stores/slicedStore';
 
 /**
+ * 把剪贴板内容粘贴到指定工作区的目录（`targetDir` 传 `''` 表示工作区根）。
+ *
+ * 同工作区走现有 duplicate/move；跨工作区走 copyFileAcross / moveFileAcross。
+ * 失败时保留剪贴板（用户可重试或换目标），成功才清空。
+ */
+export async function pasteClipboardIntoWorkspace(
+  workspacePath: string,
+  targetDir: string,
+): Promise<boolean> {
+  const store = useAppStore.getState();
+  const sourcePath = store.clipboardSourcePath;
+  const operation = store.clipboardOperation;
+  if (!sourcePath || !operation) {
+    return false;
+  }
+  const sourceName = sourcePath.split('/').pop() || sourcePath;
+  const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
+  const sourceWorkspacePath = store.clipboardSourceWorkspacePath;
+
+  if (!sourceWorkspacePath || sourceWorkspacePath === workspacePath) {
+    if (operation === 'copy') {
+      await store.duplicateWorkspaceFile(sourcePath, newPath, workspacePath);
+    } else {
+      if (sourcePath === newPath) {
+        store.clearClipboard();
+        return true;
+      }
+      await store.moveWorkspaceFile(sourcePath, newPath, workspacePath);
+    }
+    store.clearClipboard();
+    return true;
+  }
+
+  const input = {
+    sourceWorkspacePath,
+    sourceRelativePath: sourcePath,
+    targetWorkspacePath: workspacePath,
+    targetRelativePath: newPath,
+  };
+  const ok =
+    operation === 'copy'
+      ? await store.copyWorkspaceFileAcross(input)
+      : await store.moveWorkspaceFileAcross(input);
+  if (!ok) {
+    return false;
+  }
+  store.clearClipboard();
+  return true;
+}
+
+/**
  * 把「复制/剪切」的来源工作区写进剪贴板，并让「粘贴」按同区/跨区分流。
  *
  * 菜单项 id 由右面板通用菜单提供：剪切 = `cut`、复制 = `copy-op`、
@@ -33,50 +84,11 @@ export function bindWorkspaceClipboard(
     return {
       ...item,
       action: async (targetNode: WorkspaceTreeNode) => {
-        const store = useAppStore.getState();
-        const sourcePath = store.clipboardSourcePath;
-        const operation = store.clipboardOperation;
-        if (!sourcePath || !operation) {
-          return;
-        }
         const targetDir =
           targetNode.kind === 'directory'
             ? targetNode.path
             : targetNode.path.substring(0, targetNode.path.lastIndexOf('/') + 1);
-        const sourceName = sourcePath.split('/').pop() || sourcePath;
-        const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
-        const sourceWorkspacePath = store.clipboardSourceWorkspacePath;
-
-        if (!sourceWorkspacePath || sourceWorkspacePath === workspacePath) {
-          if (operation === 'copy') {
-            await store.duplicateWorkspaceFile(sourcePath, newPath, workspacePath);
-          } else {
-            if (sourcePath === newPath) {
-              store.clearClipboard();
-              return;
-            }
-            await store.moveWorkspaceFile(sourcePath, newPath, workspacePath);
-          }
-          store.clearClipboard();
-          return;
-        }
-
-        // 跨工作区：复制走 copyFileAcross（源保留），剪切走 moveFileAcross（源移除）。
-        const input = {
-          sourceWorkspacePath,
-          sourceRelativePath: sourcePath,
-          targetWorkspacePath: workspacePath,
-          targetRelativePath: newPath,
-        };
-        const ok =
-          operation === 'copy'
-            ? await store.copyWorkspaceFileAcross(input)
-            : await store.moveWorkspaceFileAcross(input);
-        if (!ok) {
-          // 失败保留剪贴板，用户可重试或换个目标。
-          return;
-        }
-        store.clearClipboard();
+        await pasteClipboardIntoWorkspace(workspacePath, targetDir);
       },
     };
   });

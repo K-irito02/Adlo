@@ -10,6 +10,7 @@ import {
   IconAlertTriangle,
   IconCopy,
   IconEyeOff,
+  IconUpload,
 } from '@icons';
 import { FileTree, type FileTreeContextMenuItem } from '@features/file-tree';
 import { TooltipSimple } from '@components/Tooltip';
@@ -19,7 +20,7 @@ import { BranchMenuItem, BranchSubCard } from '@regions/right-panel/panels/Branc
 import { MenuHintItem } from '@components/MenuHintItem';
 import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
 import { joinPathSegments } from '@app/utils/workspacePaths';
-import { bindWorkspaceClipboard } from './workspaceClipboard';
+import { bindWorkspaceClipboard, pasteClipboardIntoWorkspace } from './workspaceClipboard';
 
 export interface WorkspaceFileTreeEntryProps {
   workspace: RecentWorkspaceEntry;
@@ -94,6 +95,8 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const gitSnapshot = useAppStore((s) => s.gitSnapshots[workspace.id]);
   const currentBranch = gitSnapshot?.branch ?? '';
+  // 工作区菜单的「粘贴」只在剪贴板有内容时可用。
+  const hasClipboard = useAppStore((state) => state.clipboardOperation !== null);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -393,6 +396,19 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
               >
                 <IconFolderOpen size={14} />
                 {t.sessionMenuRevealFolder as string}
+              </button>
+              <button
+                type="button"
+                className="adl-multitree-entry__menu-item"
+                role="menuitem"
+                disabled={!hasClipboard}
+                onClick={() => {
+                  closeMenu();
+                  void pasteClipboardIntoWorkspace(workspace.path, '');
+                }}
+              >
+                <IconUpload size={14} />
+                {t.fileContextPaste as string}
               </button>
               <div className="adl-multitree-entry__menu-sep" role="separator" />
               <button

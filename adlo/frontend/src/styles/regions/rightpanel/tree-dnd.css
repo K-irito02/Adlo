@@ -1,4 +1,4 @@
-/* 文件 / 变更导航树拖拽：与书签树共用 --adl-dnd-* 中性色与 .adl-dnd-insert-line 视觉。 */
+/* 文件导航树拖拽：与书签树共用 --adl-dnd-* 中性色与 .adl-dnd-insert-line 视觉。 */
 
 .adl-tree-dnd-dragging {
   cursor: grabbing;

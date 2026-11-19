@@ -91,7 +91,7 @@ body.adl-browser-dnd-not-allowed .adl-browser-entry__tree--flat button {
 .adl-browser-dnd-new-root {
   /* 低于抬起副本：高亮只作为底色，不应染到 ghost 上。 */
   z-index: 9997;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   background: var(--adl-dnd-into);
 }
 
