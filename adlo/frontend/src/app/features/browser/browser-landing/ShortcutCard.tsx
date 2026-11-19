@@ -54,7 +54,7 @@ export const ShortcutCard = memo(function ShortcutCard({
 
   const handleClick = useCallback(() => onClick(site), [site, onClick]);
 
-  // 快捷站点不存图标快照：挂载即补抓站点图标（会话节流 + 并发上限），
+  // 快捷站点不存图标快照：挂载即补抓网站图标（会话节流 + 并发上限），
   // 抓到前/抓不到时才由 BrowserFavicon 显示名称首字母兜底。
   useEffect(() => {
     ensureSiteFavicon(site.url);

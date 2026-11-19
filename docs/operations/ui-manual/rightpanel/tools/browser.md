@@ -616,7 +616,7 @@ await page.click('button[aria-label="新建目录"]');
 | `.adl-shortcut-grid__items` | 网格容器 |
 | `.adl-shortcut-card` | 快捷站点卡片（48×48px） |
 | `.adl-shortcut-card__icon` | 图标槽（32×32 圆形） |
-| `.adl-shortcut-card__icon .adl-browser-tree__favicon` | 站点图标（24×24，`border-radius: 4px`、`object-fit: contain`）；由共享站点元数据镜像供图，抓不到时才显示 `.adl-browser-tree__link-fallback` 名称首字母 |
+| `.adl-shortcut-card__icon .adl-browser-tree__favicon` | 网站图标（24×24，`border-radius: 4px`、`object-fit: contain`）；由共享站点元数据镜像供图，抓不到时才显示 `.adl-browser-tree__link-fallback` 名称首字母 |
 | `.adl-shortcut-card--drag-over` | 拖拽悬停状态 |
 | `.adl-shortcut-card__add-placeholder` | 虚线"+"占位卡片 |
 

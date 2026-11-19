@@ -82,7 +82,7 @@ function drainEnsureQueue(): void {
 }
 
 /**
- * 确保该页面能拿到站点图标：已有可显示图标（data-URI / 外部 URL / 重定向目标）时
+ * 确保该页面能拿到网站图标：已有可显示图标（data-URI / 外部 URL / 重定向目标）时
  * 直接跳过；否则按会话节流排队执行一次强制刷新（`pageMetaClient.refresh`，即
  * 「刷新网站图标与标题」走的那条链路：静默渲染 + 图标字节下载 + 广播自愈）。
  *
