@@ -413,7 +413,7 @@ function main() {
   }
   if (options.help) {
     console.log(
-      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--progress <file>] [--allow-untracked] [--allow-claims]",
+      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--progress <file>] [--allow-untracked] [--allow-claims] [--exclude-generated]",
     );
     return;
   }
@@ -553,8 +553,11 @@ function main() {
       }
     }
   }
-  for (const file of files) {
+  for (const file of reviewFiles) {
     console.log(`  ${safeSnapshotName(file)}-rev${rev}.diff`);
+  }
+  for (const file of generatedFiles) {
+    console.log(`  ${safeSnapshotName(file)}-rev${rev}.diff (generated, diff skipped)`);
   }
 }
 

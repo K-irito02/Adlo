@@ -25,7 +25,7 @@
     "release:publish": "node ./scripts/release.mjs publish",
     "release:verify": "node ./scripts/release.mjs verify",
     "notices:generate": "node ./scripts/generate-third-party-notices.mjs",
-    "notices:check": "node ./scripts/generate-third-party-notices.mjs --check",
+    "notices:check": "node ./scripts/generate-third-party-notices.mjs --check --offline",
     "probe:net": "node ./scripts/net-probe.mjs",
     "log:tail": "node ./scripts/log-tail.mjs",
     "frontend:dev": "pnpm --dir frontend run dev",

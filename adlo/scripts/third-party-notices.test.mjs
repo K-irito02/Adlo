@@ -3,12 +3,17 @@ import { describe, it } from "node:test";
 
 import {
   buildNoticeOutput,
+  coversLicenseText,
+  mergeLicenseCorpus,
   normalizeNpmLicense,
   normalizeRepositoryUrl,
   parseCargoLock,
   parseLicenseExpression,
   parsePnpmLock,
+  partialNpmFailure,
   readCargoManifestFields,
+  refusePartialMetadata,
+  shouldWriteNpmCache,
   stripLeadingCopyright,
 } from "./third-party-notices-lib.mjs";
 
@@ -213,5 +218,94 @@ describe("buildNoticeOutput", () => {
       missingText: 1,
     });
     assert.deepEqual(Object.keys(output.licenseTexts), ["spdx:MIT"]);
+  });
+});
+
+describe("partialNpmFailure", () => {
+  it("allows complete metadata and explicit partial mode", () => {
+    assert.equal(
+      partialNpmFailure({ offline: false, missingCount: 0, fetchedCount: 0, allowPartial: false }),
+      null,
+    );
+    assert.equal(
+      partialNpmFailure({ offline: true, missingCount: 2, fetchedCount: 0, allowPartial: true }),
+      null,
+    );
+  });
+
+  it("rejects offline or partially resolved metadata", () => {
+    assert.match(
+      partialNpmFailure({ offline: true, missingCount: 2, fetchedCount: 0, allowPartial: false }),
+      /offline: 2 npm packages/,
+    );
+    assert.match(
+      partialNpmFailure({ offline: false, missingCount: 2, fetchedCount: 1, allowPartial: false }),
+      /registry: 1 of 2 npm packages/,
+    );
+    assert.equal(
+      partialNpmFailure({ offline: false, missingCount: 2, fetchedCount: 2, allowPartial: false }),
+      null,
+    );
+  });
+});
+
+describe("mergeLicenseCorpus", () => {
+  it("keeps old texts and lets newly fetched entries win", () => {
+    assert.deepEqual(
+      mergeLicenseCorpus(
+        { MIT: { name: "MIT", text: "old" }, ISC: { name: "ISC", text: "keep" } },
+        { MIT: { name: "MIT", text: "new" } },
+      ),
+      {
+        MIT: { name: "MIT", text: "new" },
+        ISC: { name: "ISC", text: "keep" },
+      },
+    );
+  });
+});
+
+describe("coversLicenseText", () => {
+  const body = `Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.`;
+
+  it("matches across missing titles, copyright lines and re-wrapping", () => {
+    assert.equal(coversLicenseText(`MIT License\n\n${body}`, body), true);
+    assert.equal(
+      coversLicenseText(`Copyright (c) 2024 Someone\n\n${body.replace(/\n/g, "\n   ")}`, body),
+      true,
+    );
+  });
+
+  it("does not accept a short pointer file as the full text", () => {
+    assert.equal(coversLicenseText("Licensed under MIT. See LICENSE for details.", body), false);
+    assert.equal(coversLicenseText("", body), false);
+  });
+
+  it("keeps a license that drops a paragraph apart", () => {
+    const withoutSecondParagraph = body.split("\n\nThe above")[0];
+    assert.equal(coversLicenseText(withoutSecondParagraph, body), false);
+  });
+});
+
+describe("refusePartialMetadata", () => {
+  it("throws unless partial output is explicitly allowed", () => {
+    assert.throws(() => refusePartialMetadata("offline: 2 missing", false), /--allow-partial/);
+    assert.equal(refusePartialMetadata("offline: 2 missing", true), true);
+    assert.equal(refusePartialMetadata(null, false), false);
+  });
+});
+
+describe("shouldWriteNpmCache", () => {
+  it("never writes during --check and never writes an empty fill", () => {
+    assert.equal(shouldWriteNpmCache({ check: true, fetchedCount: 5 }), false);
+    assert.equal(shouldWriteNpmCache({ check: false, fetchedCount: 0 }), false);
+    assert.equal(shouldWriteNpmCache({ check: false, fetchedCount: 5 }), true);
   });
 });

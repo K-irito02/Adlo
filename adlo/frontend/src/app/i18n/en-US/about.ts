@@ -32,6 +32,7 @@ export const aboutEn = {
 
   // Credits dialog
   aboutCreditsTitle: 'Credits',
+  aboutCreditsEyebrow: 'A LETTER / 2026',
   aboutCreditsSalutation: 'To the open-source community',
   aboutCreditsLetterBody:
     'Adlo · 安洛 is built on the work of the open-source community. Without this foundation, this app would not exist.',
@@ -66,5 +67,5 @@ export const aboutEn = {
   aboutNoticesCanonicalText:
     'Upstream does not bundle a license file; the standard license text is shown below.',
   aboutThirdPartyNoticesScope:
-    'Inventory from Cargo.lock and pnpm-lock.yaml (including transitive dependencies); licenses and texts follow upstream; nothing is invented when missing. Fonts and external tools that are not bundled are outside this inventory.',
+    'Inventory from Cargo.lock and pnpm-lock.yaml (including transitive dependencies); licenses follow upstream declarations, bundled texts are reproduced verbatim, and when upstream bundles none the standard license text is shown and labeled. Fonts and external tools that are not bundled are outside this inventory.',
 };

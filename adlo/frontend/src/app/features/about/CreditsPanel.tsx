@@ -18,7 +18,7 @@ export function CreditsPanel() {
   return (
     <div className="adl-about-credits adl-about-credits--letter">
       <div className="adl-about-credits__letter">
-        <p className="adl-about-credits__eyebrow">A LETTER / 2026</p>
+        <p className="adl-about-credits__eyebrow">{t.aboutCreditsEyebrow}</p>
         <h3 className="adl-about-credits__salutation">{t.aboutCreditsSalutation}</h3>
         <p className="adl-about-credits__body">{t.aboutCreditsLetterBody}</p>
         <p className="adl-about-credits__body">{t.aboutCreditsLetterThanks}</p>

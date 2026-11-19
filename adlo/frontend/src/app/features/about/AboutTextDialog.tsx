@@ -57,7 +57,7 @@ export function AboutTextDialog({
       }
       const focusables = Array.from(
         dialog.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary:not([aria-disabled="true"]), [tabindex]:not([tabindex="-1"])',
         ),
       );
       if (focusables.length === 0) {

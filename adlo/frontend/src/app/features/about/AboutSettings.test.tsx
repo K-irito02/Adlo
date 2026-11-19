@@ -59,6 +59,50 @@ const noticeData = {
   ],
 };
 
+const canonicalData = {
+  ...noticeData,
+  packages: [
+    ...noticeData.packages,
+    {
+      ...noticeData.packages[0],
+      name: 'delta',
+      license: 'MIT',
+      licenseIds: ['MIT'],
+      texts: [{ label: 'MIT', key: 'spdx:MIT' }],
+      textSource: 'canonical' as const,
+    },
+    {
+      ...noticeData.packages[1],
+      name: 'epsilon',
+      license: 'MIT OR Apache-2.0',
+      licenseIds: ['MIT', 'Apache-2.0'],
+      texts: [
+        { label: 'LICENSE-MIT', key: 'spdx:MIT' },
+        { label: 'Apache-2.0', key: 'spdx:Apache-2.0' },
+      ],
+      textSource: 'package' as const,
+    },
+  ],
+  totals: { ...noticeData.totals, total: 5, npm: 3, cargo: 2 },
+};
+
+const truncatedData = {
+  ...noticeData,
+  totals: {
+    ...noticeData.totals,
+    total: 201,
+    npm: 201,
+    cargo: 0,
+    unknownLicense: 0,
+    missingText: 0,
+  },
+  packages: Array.from({ length: 201 }, (_, index) => ({
+    ...noticeData.packages[0],
+    name: `pkg-${index}`,
+    version: '1.0.0',
+  })),
+};
+
 const aboutT = new Proxy({} as Record<string, string>, {
   get: (_, key) => {
     switch (key) {
@@ -102,6 +146,8 @@ const aboutT = new Proxy({} as Record<string, string>, {
         return 'Adlo 基于 MIT 许可证发布。';
       case 'aboutCreditsTitle':
         return '致谢';
+      case 'aboutCreditsEyebrow':
+        return 'A LETTER / 2026';
       case 'aboutCreditsSalutation':
         return '致开源社区';
       case 'aboutCreditsLetterBody':
@@ -380,7 +426,7 @@ describe('AboutSettings', () => {
     expect(dialog.textContent).toContain('Lucide');
     expect(dialog.textContent).toContain('Copyright (c) 2026 Lucide Icons and Contributors');
     expect(dialog.textContent).not.toContain('随包素材与移植代码');
-    expect(dialog.querySelectorAll('.adl-about-notices__title')).toHaveLength(0);
+    expect(dialog.querySelectorAll('.adl-about-notices__section > h3')).toHaveLength(0);
     expect(dialog.querySelector('.adl-about-dialog__foot')?.textContent).toContain(
       '清单来自锁文件',
     );
@@ -391,8 +437,14 @@ describe('AboutSettings', () => {
       '随包素材、移植代码与全部 npm / Cargo 依赖的许可声明 · 共 3 项，1 项未声明许可证，1 项缺许可全文',
     );
     expect(dialog.textContent).toContain('MIT OR Apache-2.0');
-    expect(dialog.textContent).toContain('未声明许可证');
+    const gammaRow = Array.from(dialog.querySelectorAll('.adl-about-notice--dependency')).find(
+      (row) => row.textContent?.includes('gamma'),
+    );
+    expect(gammaRow).toBeTruthy();
+    expect(gammaRow?.querySelector('.adl-about-notice__license')?.textContent).toBe('未声明许可证');
+    expect(gammaRow?.querySelector('.adl-about-notices__missing')).toBeTruthy();
     expect(dialog.textContent).toContain('上游未随包提供许可全文。');
+    expect(dialog.textContent).toContain('上游许可文件未提供版权行');
     expect(dialog.textContent).toContain('Copyright (c) 2024 Alpha');
     // 5 条随包声明（含 Lucide）+ alpha 1 + beta 1（gamma 没有正文）。
     expect(dialog.querySelectorAll('details')).toHaveLength(7);
@@ -416,6 +468,90 @@ describe('AboutSettings', () => {
 
     fireEvent.change(search, { target: { value: 'zzz' } });
     expect(screen.getByText('没有匹配的条目。')).toBeTruthy();
+  });
+
+  it('shows a load failure and retries when the dialog is reopened', async () => {
+    loadThirdPartyNoticeData.mockRejectedValueOnce(new Error('boom'));
+    renderAbout();
+
+    fireEvent.click(screen.getByText('第三方声明'));
+    let dialog = screen.getByRole('dialog');
+    await waitFor(() => expect(dialog.textContent).toContain('依赖清单加载失败，请关闭后重试。'));
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.click(screen.getByText('第三方声明'));
+    dialog = screen.getByRole('dialog');
+    await waitFor(() => expect(dialog.textContent).toContain('alpha'));
+    expect(loadThirdPartyNoticeData).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows the truncation, canonical and missing-copyright degradations', async () => {
+    loadThirdPartyNoticeData.mockResolvedValueOnce(truncatedData);
+    renderAbout();
+    fireEvent.click(screen.getByText('第三方声明'));
+    let dialog = screen.getByRole('dialog');
+    await waitFor(() => expect(dialog.textContent).toContain('仅显示前 200 项（共 201 项）'));
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭' }));
+    loadThirdPartyNoticeData.mockResolvedValueOnce(canonicalData);
+    fireEvent.click(screen.getByText('第三方声明'));
+    dialog = screen.getByRole('dialog');
+    await waitFor(() => expect(dialog.textContent).toContain('delta'));
+    expect(dialog.textContent).toContain('上游未随包提供许可文件，以下为标准许可正文。');
+    expect(dialog.textContent).toContain('上游许可文件未提供版权行');
+
+    // 混源包：来源说明只出现在回退的标准正文那一条，随包原文不加。
+    const epsilon = Array.from(dialog.querySelectorAll('.adl-about-notice--dependency')).find(
+      (row) => row.textContent?.includes('epsilon'),
+    );
+    expect(epsilon).toBeTruthy();
+    const textBlocks = Array.from(epsilon?.querySelectorAll('.adl-about-notices__text') ?? []);
+    const blockFor = (label: string) =>
+      textBlocks.find(
+        (block) => block.querySelector('.adl-about-notices__text-label')?.textContent === label,
+      );
+    expect(blockFor('Apache-2.0')?.querySelector('.adl-about-notices__note')).toBeTruthy();
+    expect(blockFor('LICENSE-MIT')?.querySelector('.adl-about-notices__note')).toBeNull();
+  });
+
+  it('shows a busy state while the issue tracker is being selected', async () => {
+    let resolveChoice: (url: string) => void = () => {};
+    chooseIssueTrackerUrl.mockReturnValue(
+      new Promise((resolve) => {
+        resolveChoice = resolve;
+      }),
+    );
+    renderAbout();
+
+    const issueButton = screen.getByRole('button', { name: '问题反馈' });
+    fireEvent.click(issueButton);
+
+    await waitFor(() => expect(issueButton).toBeDisabled());
+    expect(issueButton.getAttribute('aria-busy')).toBe('true');
+    expect(screen.getByText('正在选择…')).toBeTruthy();
+
+    resolveChoice('https://gitee.com/K_irito/Adlo/issues');
+    await waitFor(() =>
+      expect(openUrlByMethod).toHaveBeenCalledWith('https://gitee.com/K_irito/Adlo/issues'),
+    );
+    expect(issueButton).not.toBeDisabled();
+  });
+
+  it('keeps summary elements in the dialog focus cycle', () => {
+    renderAbout();
+    fireEvent.click(screen.getByText('第三方声明'));
+    const dialog = screen.getByRole('dialog');
+    const summary = dialog.querySelector('summary');
+    if (!summary) {
+      throw new Error('missing summary');
+    }
+    summary.focus();
+    expect(document.activeElement).toBe(summary);
+
+    fireEvent.keyDown(window, { key: 'Tab' });
+    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: '关闭' }));
   });
 
   it('keeps only the logs entry in the support row', () => {

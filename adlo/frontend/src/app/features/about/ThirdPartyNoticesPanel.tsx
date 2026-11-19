@@ -5,7 +5,11 @@ import { openUrlByMethod } from '@features/preview/openByMethod';
 import { THIRD_PARTY_NOTICES } from './thirdPartyNotices';
 import { loadThirdPartyNoticeData } from './thirdPartyNoticeData';
 import { filterNoticePackages } from './thirdPartyNoticeSearch';
-import type { ThirdPartyNoticeData, ThirdPartyNoticePackage } from './thirdPartyNoticesTypes';
+import type {
+  ThirdPartyNoticeData,
+  ThirdPartyNoticePackage,
+  ThirdPartyNoticeTextRef,
+} from './thirdPartyNoticesTypes';
 
 function NoticeTextBlocks({
   pkg,
@@ -14,6 +18,7 @@ function NoticeTextBlocks({
   pkg: ThirdPartyNoticePackage;
   texts: ThirdPartyNoticeData['licenseTexts'];
 }) {
+  const { t } = useTCopy();
   return (
     <>
       {pkg.texts.map((ref) => (
@@ -21,11 +26,20 @@ function NoticeTextBlocks({
           {pkg.texts.length > 1 ? (
             <span className="adl-about-notices__text-label">{ref.label}</span>
           ) : null}
+          {/* 混源包（package + 回退标准正文）只给回退的那一条加来源说明。 */}
+          {pkg.textSource === 'package' && isCanonicalRef(ref) ? (
+            <p className="adl-about-notices__note">{t.aboutNoticesCanonicalText}</p>
+          ) : null}
           <pre className="adl-about-dialog__license">{texts[ref.key] ?? ''}</pre>
         </div>
       ))}
     </>
   );
+}
+
+/** 标准正文回退的 ref：key 为 `spdx:<id>` 且 label 只用 id 本身。 */
+function isCanonicalRef(ref: ThirdPartyNoticeTextRef): boolean {
+  return ref.key.startsWith('spdx:') && ref.label === ref.key.slice('spdx:'.length);
 }
 
 function DependencyNotice({
@@ -77,8 +91,9 @@ function DependencyNotice({
  * 「第三方声明」弹窗正文：随包素材/移植代码（人工维护）+ 全量依赖清单（生成）。
  *
  * 顶部提示把范围与统计合成一行；搜索框同时过滤人工条目与生成清单。
- * 全量数据按需加载；清单先截断到 200 条，再靠搜索缩小范围。缺失许可证、
- * 多许可证、缺少正文都按上游原文如实展示，不补造。
+ * 全量数据按需加载；搜索在全部依赖上过滤，渲染时只取前 200 条，超出以提示
+ * 引导用户用搜索缩小范围。缺失许可证与多许可证照实标注；正文优先照录随包原文，
+ * 包内没有正文时改用标准许可正文并在正文上方注明来源。
  */
 export function ThirdPartyNoticesPanel() {
   const { t } = useTCopy();

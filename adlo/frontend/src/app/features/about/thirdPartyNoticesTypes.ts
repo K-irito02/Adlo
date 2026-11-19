@@ -7,7 +7,10 @@
 
 export type NoticeEcosystem = 'cargo' | 'npm';
 
-/** 正文来源：随包文件 / 内嵌标准正文 / 两者都没有。 */
+/**
+ * 正文来源：`package` = 至少一条正文来自随包文件（其余可能回退标准正文）；
+ * `canonical` = 包内没有正文，全部来自内嵌标准正文；`none` = 都没有。
+ */
 export type NoticeTextSource = 'package' | 'canonical' | 'none';
 
 export interface ThirdPartyNoticeTextRef {

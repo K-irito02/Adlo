@@ -1,6 +1,6 @@
 import type { ThirdPartyNoticePackage } from './thirdPartyNoticesTypes';
 
-/** 一次渲染上限：清单可达上千条，先截断再交给搜索缩小范围。 */
+/** 一次渲染上限：清单可达上千条，对全量结果过滤后只渲染前 200 条。 */
 export const NOTICE_PAGE_LIMIT = 200;
 
 export interface NoticeFilterResult {

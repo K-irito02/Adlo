@@ -4,8 +4,9 @@
  *
  *   pnpm --dir adlo run notices:generate          # 生成（本地优先，缺元数据时联网补全）
  *   pnpm --dir adlo run notices:generate -- --offline   # 严格离线
- *   pnpm --dir adlo run notices:check             # 生成物漂移门禁
+ *   pnpm --dir adlo run notices:check             # 离线漂移门禁
  *   pnpm --dir adlo run notices:generate -- --refresh-spdx  # 刷新内嵌的标准许可正文
+ *   pnpm --dir adlo run notices:generate -- --allow-partial  # 显式允许不完整元数据
  *
  * 设计约束：
  * - **锁文件是包清单的唯一真源**：Cargo.lock + pnpm-lock.yaml；包管理器元数据只补许可证。
@@ -33,13 +34,19 @@ import { fileURLToPath } from "node:url";
 import {
   BASE_SPDX_IDS,
   buildNoticeOutput,
+  coversLicenseText,
+  licenseSimilarity,
+  mergeLicenseCorpus,
   normalizeLicenseText,
   normalizeNpmLicense,
   normalizeRepositoryUrl,
   parseCargoLock,
   parseLicenseExpression,
   parsePnpmLock,
+  partialNpmFailure,
   readCargoManifestFields,
+  refusePartialMetadata,
+  shouldWriteNpmCache,
   stripLeadingCopyright,
   textKey,
 } from "./third-party-notices-lib.mjs";
@@ -74,6 +81,7 @@ const argv = new Set(process.argv.slice(2));
 const OFFLINE = argv.has("--offline");
 const CHECK = argv.has("--check");
 const REFRESH_SPDX = argv.has("--refresh-spdx");
+const ALLOW_PARTIAL = argv.has("--allow-partial");
 
 function log(message) {
   process.stdout.write(`[notices] ${message}\n`);
@@ -391,8 +399,10 @@ function readSpdxCorpus() {
 }
 
 async function refreshSpdxCorpus(ids) {
+  const existing = readSpdxCorpus();
   const all = sortedUnique([...BASE_SPDX_IDS, ...ids]);
-  const licenses = {};
+  const fetched = {};
+  const failed = [];
   let index = 0;
   const fetchOne = async (id) => {
     const urls = [
@@ -416,8 +426,8 @@ async function refreshSpdxCorpus(ids) {
             json.licenseText ?? json.licenseExceptionText ?? json.exceptionText ?? "",
           ).body;
           if (body.length > 20) {
-            licenses[id] = { name: json.name || id, text: body };
-            return;
+            fetched[id] = { name: json.name || id, text: body };
+            return true;
           }
           lastError = "empty license text";
         } catch (error) {
@@ -429,6 +439,7 @@ async function refreshSpdxCorpus(ids) {
       }
     }
     warn(`SPDX text fetch failed for ${id}: ${lastError}`);
+    return false;
   };
   const workers = Array.from({ length: 4 }, async () => {
     for (;;) {
@@ -437,10 +448,16 @@ async function refreshSpdxCorpus(ids) {
       if (current >= all.length) {
         return;
       }
-      await fetchOne(all[current]);
+      const id = all[current];
+      if (!(await fetchOne(id))) {
+        failed.push(id);
+      }
     }
   });
   await Promise.all(workers);
+
+  // 只更新成功抓取的 id；未抓到的旧条目保留，避免刷新失败把语料文件悄悄改小。
+  const licenses = mergeLicenseCorpus(existing, fetched);
   mkdirSync(dirname(SPDX_DATA_FILE), { recursive: true });
   writeFileSync(
     SPDX_DATA_FILE,
@@ -457,8 +474,11 @@ async function refreshSpdxCorpus(ids) {
     )}\n`,
     "utf8",
   );
-  log(`SPDX corpus refreshed: ${Object.keys(licenses).length} licenses -> ${SPDX_DATA_FILE}`);
-  return licenses;
+  log(
+    `SPDX corpus refreshed: ${Object.keys(fetched).length} fetched, ` +
+      `${Object.keys(licenses).length} total, ${failed.length} failed -> ${SPDX_DATA_FILE}`,
+  );
+  return { licenses, failed };
 }
 
 function collectLicenseFiles(dir, licenseFile) {
@@ -467,8 +487,7 @@ function collectLicenseFiles(dir, licenseFile) {
   }
   const files = [];
   const seen = new Set();
-  const add = (path, label) => {
-    if (seen.has(path) || !existsSync(path)) {
+  const add = (path, label) => {    if (seen.has(path) || !existsSync(path)) {
       return;
     }
     let stat;
@@ -483,6 +502,10 @@ function collectLicenseFiles(dir, licenseFile) {
     try {
       const text = normalizeLicenseText(readFileSync(path, "utf8"));
       if (text.length < 20) {
+        return;
+      }
+      // `.spdx` 文档是 SPDX 元数据（SPDXVersion / PackageLicenseDeclared），不是许可正文。
+      if (/^SPDXVersion:/i.test(text.trimStart())) {
         return;
       }
       seen.add(path);
@@ -506,6 +529,9 @@ function collectLicenseFiles(dir, licenseFile) {
     }
     add(join(dir, name), name);
   }
+  // LICENSE / COPYING 优先于 COPYRIGHT / NOTICE：后者常带同一份正文的副本。
+  const rank = (label) => (/^(?:licen[cs]e|copying|unlicense)/i.test(label) ? 0 : 1);
+  files.sort((a, b) => rank(a.label) - rank(b.label) || a.label.localeCompare(b.label));
   return files;
 }
 
@@ -531,6 +557,36 @@ function addFileTexts(files, store, canonicalIndex) {
   };
 }
 
+/** 同一份正文只展示一条：随包文件排在前面，因此优先保留原文而不是标准正文副本。 */
+function dedupeRefs(refs, store) {
+  const kept = [];
+  for (const ref of refs) {
+    const body = store[ref.key] ?? "";
+    const duplicate = kept.some(
+      (other) => licenseSimilarity(body, store[other.key] ?? "") >= 0.95,
+    );
+    if (!duplicate) {
+      kept.push(ref);
+    }
+  }
+  return kept;
+}
+
+/** 声明 id 中，已有随包正文与之等价的集合（标题行 / 缩进差异也算同一份正文）。 */
+function coveredLicenseIds(fileTexts, expression, corpus) {
+  const covered = new Set();
+  for (const id of [...expression.ids, ...expression.exceptions]) {
+    const canonical = corpus[id]?.text;
+    if (!canonical) {
+      continue;
+    }
+    if (fileTexts.some((text) => coversLicenseText(text, canonical))) {
+      covered.add(id);
+    }
+  }
+  return covered;
+}
+
 /** 折行差异不应产生新条目：正文按空白折叠后再哈希。 */
 function bodyFingerprint(text) {
   return sha256(normalizeLicenseText(text).replace(/\s+/g, " ").trim()).slice(0, 16);
@@ -551,9 +607,11 @@ function buildCanonicalBodyIndex(corpus) {
   return index;
 }
 
-function addCanonicalTexts(expression, corpus, store) {
+function addCanonicalTexts(expression, corpus, store, skipIds) {
   const refs = [];
-  const ids = [...expression.ids, ...expression.exceptions];
+  const ids = [...expression.ids, ...expression.exceptions].filter(
+    (id) => !skipIds?.has(id),
+  );
   for (const id of ids) {
     const entry = corpus[id];
     if (!entry?.text) {
@@ -595,6 +653,14 @@ function buildPackageRecord({
     refs = added.refs;
     copyright = added.copyright;
     textSource = "package";
+    // 声明里未被随包正文覆盖的 id 回退标准正文；等价判定允许标题行 / 缩进差异，
+    // 既避免同一份正文重复出现，也补上「随包只有部分许可」的缺口。
+    const covered = coveredLicenseIds(
+      files.map((file) => file.text),
+      expression,
+      corpus,
+    );
+    refs = [...refs, ...addCanonicalTexts(expression, corpus, store, covered)];
   } else {
     refs = addCanonicalTexts(expression, corpus, store);
     if (refs.length > 0) {
@@ -602,6 +668,7 @@ function buildPackageRecord({
     }
   }
   const url = normalizeRepositoryUrl(repository) ?? normalizeRepositoryUrl(homepage);
+  refs = dedupeRefs(refs, store);
   const record = {
     name,
     version,
@@ -727,10 +794,11 @@ async function main() {
       !storeMap.has(`${pkg.name}@${pkg.version}`) && !npmCache.has(`${pkg.name}@${pkg.version}`),
   );
   const registryManifests = new Map(npmCache);
+  let fetchedCount = 0;
   if (missingNpm.length > 0) {
     if (OFFLINE) {
       log(
-        `offline: ${missingNpm.length} npm packages have no local metadata or cache entry (licenses stay unknown)`,
+        `offline: ${missingNpm.length} npm packages have no local metadata or cache entry`,
       );
     } else {
       log(`fetching ${missingNpm.length} npm manifests from the registry...`);
@@ -738,11 +806,24 @@ async function main() {
       for (const [key, value] of fetched) {
         registryManifests.set(key, value);
       }
+      fetchedCount = fetched.size;
       log(`registry fill: ${fetched.size}/${missingNpm.length} resolved`);
-      if (fetched.size > 0) {
-        writeNpmCache(registryManifests);
-      }
     }
+
+    const partial = partialNpmFailure({
+      offline: OFFLINE,
+      missingCount: missingNpm.length,
+      fetchedCount,
+      allowPartial: false,
+    });
+    if (refusePartialMetadata(partial, ALLOW_PARTIAL)) {
+      warn(`${partial}; continuing because --allow-partial`);
+    }
+  }
+
+  // 漂移门禁只读：--check 不写缓存；失败/离线不完整的缓存也不会被悄悄落盘。
+  if (shouldWriteNpmCache({ check: CHECK, fetchedCount })) {
+    writeNpmCache(registryManifests);
   }
 
   let corpus = readSpdxCorpus();
@@ -754,7 +835,15 @@ async function main() {
       ...buildNpmPackages(npmLock, storeMap, registryManifests, corpus, canonicalIndex, probeStore),
     ];
     const ids = probe.flatMap((pkg) => pkg.licenseIds ?? []);
-    corpus = { ...corpus, ...(await refreshSpdxCorpus(ids)) };
+    const refreshed = await refreshSpdxCorpus(ids);
+    corpus = refreshed.licenses;
+    const reason =
+      refreshed.failed.length > 0
+        ? `SPDX corpus refresh failed for ${refreshed.failed.length} id(s): ${refreshed.failed.join(", ")}`
+        : null;
+    if (refusePartialMetadata(reason, ALLOW_PARTIAL)) {
+      warn(`${reason}; continuing because --allow-partial`);
+    }
     canonicalIndex = buildCanonicalBodyIndex(corpus);
   }
   if (Object.keys(corpus).length === 0) {

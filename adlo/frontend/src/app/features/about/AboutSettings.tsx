@@ -21,7 +21,7 @@ type AboutDialog = 'license' | 'credits' | 'notices' | null;
  * - 只展示应用自身（版本 / 运行时 / 系统）与可核验链接，不展示 Node/Git 等
  *   工具链版本（那些属于「环境」组，且随用户安装时机变化）；
  * - 运行时取 `appInfo.runtime`（后端由壳层 / ad-server 分别填充），未知即「未知」；
- * - 许可与致谢是两个独立弹窗，内容不混排。
+ * - 许可 / 致谢 / 第三方声明是三个独立弹窗，共用外壳，内容不混排。
  */
 export function AboutSettings() {
   const { t } = useTCopy();

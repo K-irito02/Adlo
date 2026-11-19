@@ -32,6 +32,7 @@ export const aboutZh = {
 
   // 致谢弹窗
   aboutCreditsTitle: '致谢',
+  aboutCreditsEyebrow: 'A LETTER / 2026',
   aboutCreditsSalutation: '致开源社区',
   aboutCreditsLetterBody:
     'Adlo · 安洛 建立在开源社区的工作之上。没有这些基础设施，就没有这个应用。',
@@ -60,5 +61,5 @@ export const aboutZh = {
   aboutNoticesMissingText: '上游未随包提供许可全文。',
   aboutNoticesCanonicalText: '上游未随包提供许可文件，以下为标准许可正文。',
   aboutThirdPartyNoticesScope:
-    '清单来自 Cargo.lock 与 pnpm-lock.yaml（含间接依赖）；许可与正文按上游原文展示，缺失不补造。未随包分发的字体与外部工具不在本清单内。',
+    '清单来自 Cargo.lock 与 pnpm-lock.yaml（含间接依赖）；许可证按上游声明展示，随包提供正文时照录原文，未提供时改用标准许可正文并在正文上方注明。未随包分发的字体与外部工具不在本清单内。',
 };

@@ -318,3 +318,96 @@ export function buildNoticeOutput({ packages, licenseTexts, sources }) {
 export function textKey(prefix, hash) {
   return `${prefix}:${hash}`;
 }
+
+/**
+ * 网络补全的降级判定：返回 null 表示可以继续写盘；否则返回拒绝写盘的原因。
+ *
+ * `--allow-partial` 是显式放行；离线或 registry 部分失败时不允许静默生成
+ * 「看起来完整、实际缺许可证」的清单。
+ */
+export function partialNpmFailure({ offline, missingCount, fetchedCount, allowPartial }) {
+  if (missingCount === 0 || allowPartial) {
+    return null;
+  }
+  if (offline) {
+    return `offline: ${missingCount} npm packages have no local metadata or cache entry`;
+  }
+  if (fetchedCount < missingCount) {
+    return `registry: ${missingCount - fetchedCount} of ${missingCount} npm packages could not be resolved`;
+  }
+  return null;
+}
+
+/** SPDX 语料刷新合并：新抓取覆盖同 id，未抓到的旧条目保留，避免文件悄悄缩小。 */
+export function mergeLicenseCorpus(existing, fetched) {
+  return { ...existing, ...fetched };
+}
+
+/**
+ * 词袋 Dice 相似度：忽略标点、折行与顺序细节，衡量两份正文是否同一份许可。
+ * 语料内不同许可的最高相似度约 0.93（0BSD/ISC、BSD-2/BSD-3、MIT/MIT-0），
+ * 因此 0.95 之上视为「同一份正文」，可安全去重。
+ */
+export function licenseSimilarity(a, b) {
+  const left = licenseWords(a);
+  const right = licenseWords(b);
+  if (left.length === 0 || right.length === 0) {
+    return 0;
+  }
+  const counts = new Map();
+  for (const word of left) {
+    counts.set(word, (counts.get(word) ?? 0) + 1);
+  }
+  let shared = 0;
+  for (const word of right) {
+    const remaining = counts.get(word) ?? 0;
+    if (remaining > 0) {
+      shared += 1;
+      counts.set(word, remaining - 1);
+    }
+  }
+  return (2 * shared) / (left.length + right.length);
+}
+
+const SIMILAR_LICENSE_THRESHOLD = 0.95;
+
+/**
+ * 随包正文是否已覆盖标准正文：先剥掉标题行与开头版权块，再按词袋相似度判断。
+ * 缺段、只有一句声明或链接时不算覆盖。
+ */
+export function coversLicenseText(sourceText, canonicalText) {
+  return (
+    licenseSimilarity(
+      stripLeadingCopyright(sourceText).body,
+      stripLeadingCopyright(canonicalText).body,
+    ) >= SIMILAR_LICENSE_THRESHOLD
+  );
+}
+
+function licenseWords(text) {
+  return normalizeLicenseText(text)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+/**
+ * 部分元数据的放行策略：返回 true 表示「已显式放行，降级继续」；
+ * 未放行时抛错，保证不完整清单不会静默写盘。
+ */
+export function refusePartialMetadata(reason, allowPartial) {
+  if (!reason) {
+    return false;
+  }
+  if (allowPartial) {
+    return true;
+  }
+  throw new Error(`${reason}; rerun with network or pass --allow-partial`);
+}
+
+/** npm 缓存只在真实生成且确有补全时写盘；`--check` 必须保持只读。 */
+export function shouldWriteNpmCache({ check, fetchedCount }) {
+  return !check && fetchedCount > 0;
+}
+

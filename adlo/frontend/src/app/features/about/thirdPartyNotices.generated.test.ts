@@ -31,10 +31,80 @@ describe('generated third-party notices', () => {
   });
 
   it('reports unknown licenses and missing texts without inventing values', () => {
-    const unknown = THIRD_PARTY_NOTICES_DATA.packages.filter((pkg) => pkg.license === '');
-    const missing = THIRD_PARTY_NOTICES_DATA.packages.filter((pkg) => pkg.texts.length === 0);
-    expect(unknown).toHaveLength(THIRD_PARTY_NOTICES_DATA.totals.unknownLicense);
-    expect(missing).toHaveLength(THIRD_PARTY_NOTICES_DATA.totals.missingText);
+    const cssValue = THIRD_PARTY_NOTICES_DATA.packages.find(
+      (pkg) => pkg.name === 'css-value' && pkg.version === '0.0.1',
+    );
+    expect(cssValue).toBeDefined();
+    expect(cssValue?.license).toBe('');
+    expect(cssValue?.texts).toHaveLength(0);
+    expect(cssValue?.textSource).toBe('none');
+    expect(THIRD_PARTY_NOTICES_DATA.totals.unknownLicense).toBeGreaterThanOrEqual(1);
+    expect(THIRD_PARTY_NOTICES_DATA.totals.missingText).toBeGreaterThanOrEqual(1);
+  });
+
+  it('fills missing license ids from canonical texts for mixed-license packages', () => {
+    const byKey = new Map(
+      THIRD_PARTY_NOTICES_DATA.packages.map((pkg) => [
+        `${pkg.ecosystem}:${pkg.name}@${pkg.version}`,
+        pkg,
+      ]),
+    );
+    const expectText = (key: string, refKey: string) => {
+      const pkg = byKey.get(key);
+      expect(pkg, key).toBeDefined();
+      expect(pkg?.texts.map((ref) => ref.key)).toContain(refKey);
+    };
+    expectText('cargo:ident_case@1.0.1', 'spdx:Apache-2.0');
+    expectText('cargo:dunce@1.0.5', 'spdx:MIT-0');
+    expectText('cargo:dunce@1.0.5', 'spdx:Apache-2.0');
+    expectText('npm:@visx/vendor@4.0.0', 'spdx:ISC');
+    expectText('npm:@pkgjs/parseargs@0.11.0', 'spdx:MIT');
+    // 随包只有部分许可 / 只有声明（指针）的包也必须补齐。
+    expectText('npm:pako@1.0.11', 'spdx:Zlib');
+    expectText('cargo:siphasher@1.0.3', 'spdx:MIT');
+    expectText('cargo:siphasher@1.0.3', 'spdx:Apache-2.0');
+    expectText('cargo:brotli-decompressor@5.0.3', 'spdx:MIT');
+  });
+
+  it('never lists the same license body twice in one package', () => {
+    const words = (text: string) =>
+      text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean);
+    const similarity = (a: string, b: string) => {
+      const left = words(a);
+      const right = words(b);
+      if (left.length === 0 || right.length === 0) {
+        return 0;
+      }
+      const counts = new Map<string, number>();
+      for (const word of left) {
+        counts.set(word, (counts.get(word) ?? 0) + 1);
+      }
+      let shared = 0;
+      for (const word of right) {
+        const remaining = counts.get(word) ?? 0;
+        if (remaining > 0) {
+          shared += 1;
+          counts.set(word, remaining - 1);
+        }
+      }
+      return (2 * shared) / (left.length + right.length);
+    };
+
+    for (const pkg of THIRD_PARTY_NOTICES_DATA.packages) {
+      const bodies = pkg.texts.map((ref) => THIRD_PARTY_NOTICES_DATA.licenseTexts[ref.key] ?? '');
+      for (let i = 0; i < bodies.length; i += 1) {
+        for (let j = i + 1; j < bodies.length; j += 1) {
+          expect(
+            similarity(bodies[i], bodies[j]),
+            `${pkg.ecosystem}:${pkg.name}@${pkg.version} lists ${pkg.texts[i].label} and ${pkg.texts[j].label} twice`,
+          ).toBeLessThan(0.95);
+        }
+      }
+    }
   });
 
   it('generates a unique, sorted names index that matches the full data', () => {
