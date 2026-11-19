@@ -1,81 +1,122 @@
 ---
 name: adlo-release
-description: 发布 Adlo 桌面应用的新版本——GitHub + Gitee 双源 Release、minisign 签名、NSIS 安装包与 latest.json 清单，并用 verify 自检两个更新源。当用户说「发版 / 发布新版本 / 打个 tag / 升版本号 / 同步 Gitee / 补发 Release / 客户端收不到更新 / 检查更新清单」时使用。
+description: 发布 Adlo 桌面应用的新版本——三处版本号同步、GitHub + Gitee 双源 Release、minisign 签名、NSIS 安装包与 latest.json 清单，并用 verify 自检两个更新源；也覆盖只构建不发布的本地签名包与离线验签。当用户说「发版 / 发布新版本 / 打个 tag / 升版本号 / 同步 Gitee / 补发 Release / 只构建不发布 / 客户端收不到更新 / 检查更新清单」时使用。
 ---
 
 # Adlo 发版（本地脚本版）
 
-发布链路的设计依据是 [ADR-0026](../../../docs/adr/0026-app-update-via-official-updater-dual-source.md)（官方 updater + 双源清单）
-与 [ADR-0027](../../../docs/adr/0027-update-install-without-confirmation-dialog.md)（安装前不弹确认）。
-本技能只描述**怎么把一版安全地发出去**；发布前的人肉核验项仍以根目录 `RELEASE-CHECKLIST.md` 为准。
+依据 [ADR-0026](../../../docs/adr/0026-app-update-via-official-updater-dual-source.md)、
+[ADR-0027](../../../docs/adr/0027-update-install-without-confirmation-dialog.md)、
+[ADR-0028](../../../docs/adr/0028-local-release-scripts-only.md)；发布前法务核验仍以 `RELEASE-CHECKLIST.md` 为准。
+
+## 三条硬规则
+
+1. **版本号真源是 `adlo/src-tauri/tauri.conf.json`**。`release:bump` 同步**三处**（tauri.conf + 两个 `package.json`）；
+   `adlo/Cargo.toml` 的 workspace 版本是 crate 版本，**脚本刻意不动**——改它会让全部 crate 重编。
+2. **tag 指向本机 HEAD**。`release:publish` 默认拒绝脏树；bump 后必须 **commit + push**，GitHub 与 Gitee 都要有该 commit。
+   不要用 `--allow-dirty`：tag 会钉在不含新版本号的提交上。
+3. **发布打包前必须过全量门禁并获批准**。日常 affected 检查不能替代 `check:all` + 双端验证；
+   `quality-gates.md` 要求先通知用户并获批准，不得自行执行。
 
 ## 一次性准备
 
 | 项 | 说明 |
 | --- | --- |
-| 签名私钥 | `%USERPROFILE%\.tauri\adlo.key`（仓库外）；公钥已写进 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey` |
-| 签名密码 | 用户级环境变量 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`（脚本会从环境或 HKCU 读，不打印） |
-| Gitee 令牌 | 用户级环境变量 `GITEE_TOKEN`（32 位私人令牌，仓库与发行版权限） |
-| GitHub CLI | `gh auth status` 必须是已登录状态 |
+| 签名私钥 | `TAURI_SIGNING_PRIVATE_KEY`（内容或路径）→ `TAURI_SIGNING_PRIVATE_KEY_PATH` → 默认 `%USERPROFILE%\.tauri\adlo.key`；公钥在 `tauri.conf.json` 的 `plugins.updater.pubkey` |
+| 签名密码 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`（环境或 HKCU；`setx` 后无需重开终端） |
+| Gitee 令牌 | `GITEE_TOKEN`（仓库读写 + 发行版权限；长度是外部易变事实，不写死） |
+| GitHub CLI | `gh auth status` 已登录 |
+| 网络/磁盘 | `pnpm --dir adlo run probe:net`；release 构建建议剩余 ≥ 25 GB |
 
-私钥丢失 = **已安装用户永远收不到自动更新**；泄露 = 更新通道被接管。备份两份离线介质，别进仓库。
+私钥丢失 = 已安装用户永远收不到更新；泄露 = 通道被接管。备份两份离线介质，别进仓库。
 
-## 发版流程
+## 正式发布
 
-1. **确认环境**：`git status --short` 干净；`git branch --show-current` 是本次要发的分支；确认目标版本号（`X.Y.Z`，tag 为 `vX.Y.Z`）。
-2. **门禁**：至少 `pnpm --dir adlo/frontend run check:changed` + `pnpm --dir adlo run cargo:clippy`；合并/发布前按 `.agents/rules/quality-gates.md` 跑 `check:all`（全量需用户批准）。
-3. **升版本号**（四处同步，脚本负责）：
+1. **环境**：`git status --short` 干净、分支正确、`git pull --ff-only`；`dev:stop`；`probe:net`；`gh auth status`；
+   确认目标 `X.Y.Z`（tag `vX.Y.Z`）。
+2. **tag 预检**：`git ls-remote --tags origin vX.Y.Z` + Gitee「标签」页。已存在且不是本次 HEAD 就先删
+   （GitHub `gh release delete vX.Y.Z --cleanup-tag`；Gitee 网页删），否则 `gh release create` 会复用旧 tag。
+3. **门禁**：日常 `pnpm --dir adlo/frontend run check:changed` + `pnpm --dir adlo run cargo:clippy`；
+   打包前 `pnpm --dir adlo run check:all` + 双端验证，**先获用户批准**。
+4. **升版本号（三处）**：
    ```powershell
    pnpm --dir adlo run release:bump -- 0.1.1
    ```
-4. **写发布说明**：测试版必须写明「测试版本（非正式发布）」；不写功能宣传。不传 `--notes-file` 时脚本用 `defaultTestNotes()` 生成。
+   核对 `tauri.conf.json` / `adlo/package.json` / `adlo/frontend/package.json`；`Cargo.toml` 仍是旧值，这是对的。
+   依赖有变化时先 `notices:generate` 并提交生成物（`release:build` 会离线复核）。
+5. **写发布说明**：`.release/notes.md`（已 gitignore）。首段就是卡片摘要（客户端只取第一个非空段落并剥 Markdown），
+   不要用标题/列表开头；全文 ≤ **4000 字符**；测试版写明「测试版本（非正式发布）」；
+   **正式发布必须传 `--notes-file`**，不传时脚本用测试版默认文案。
+6. **提交 + 推送**：
    ```powershell
-   # .release/notes.md（该目录已 gitignore）
+   git add adlo/src-tauri/tauri.conf.json adlo/package.json adlo/frontend/package.json
+   git commit -m "chore(release): v0.1.1"
+   git push origin main
    ```
-5. **构建 + 签名**：
+   **Gitee 必须在 publish 之前有同一 commit**（`git push https://gitee.com/K_irito/Adlo.git main` 或网页同步）；
+   顺序反了会用 GitHub 内容覆盖刚写入的 `release/latest.json`。
+7. **构建 + 签名**：
    ```powershell
    pnpm --dir adlo run release:build
    ```
-   产物在 `adlo/target/release/bundle/nsis/`：`Adlo_<ver>_x64-setup.exe` 与同名 `.exe.sig`。缺 `.sig` 说明 `createUpdaterArtifacts` 没生效或密钥没读到，**不要继续发布**。
-6. **发布双源**：
+   先移走同版本旧产物（脚本只检查存在性，不检查新鲜度）。产物 `Adlo_<ver>_x64-setup.exe` + `.sig`；
+   必须看到 `installer hooks verified`；缺 `.sig` 停止发布。本地密码学验签见
+   [references/local-signature-verification.md](./references/local-signature-verification.md)。
+8. **发布双源**：
    ```powershell
    pnpm --dir adlo run release:publish -- --tag v0.1.1 --notes-file .release/notes.md
    ```
-   脚本做四件事：GitHub `gh release create` 上传 exe/sig/latest.json/SHA256SUMS → Gitee 建 Release → 传附件 → 更新 Gitee 仓库文件 `release/latest.json`。
-7. **自检两个更新源**：
+   GitHub 上传 exe/sig/latest.json/SHA256SUMS.txt → Gitee 建 Release + 传 exe/sig/SHA256SUMS.txt →
+   contents API 提交 `release/latest.json` 到 Gitee **默认分支**。默认分支必须是 `main`（客户端读 `raw/main/`）。
+9. **自检两个源**：
    ```powershell
    pnpm --dir adlo run release:verify -- --tag v0.1.1
    ```
-   期望两行 `OK`（Gitee raw 清单 + GitHub releases/latest 清单，各自版本匹配且安装包 HEAD 可达）。
-8. **安装冒烟**：装 `Adlo_<ver>_x64-setup.exe` → 启动 → 设置·关于页版本号正确 → 手动「检查更新」返回「已是最新」。
-9. **回归更新链路**（发新版时）：在**旧版本**里等铃铛通知或手动检查 → 下载（铃铛出现绿点）→ 卡片「安装」→ 重启后关于页是新版本。至少跑一次「代理关闭」和一次「代理开启」。
+   两行 `OK`。**边界**：不验签、不验 tag 指向、不验 Gitee 附件集合；首版必须在干净机器上完成一次真实安装与旧→新升级。
+10. **冒烟**：新装 → 关于页版本正确 → 检查更新「已是最新」；再在**旧版本**里等铃铛/手动检查 → 下载（绿点）→
+    安装 → 重启后新版本。代理关闭、开启各一次。
+11. **记录**：版本、两个 Release 链接、SHA-256、verify 时间、网络条件。
+
+## 只构建不发布（本地签名包）
+
+`release:bump` → `release:build`，不要 `publish`。构建前移走同版本旧产物；确认 `.exe`/`.sig` 时间戳与
+`trusted comment` 里的 `file:`/`timestamp`；**不要跑 `release:verify`**（它读线上清单，未发布必失败且不验签）。
+密码学验签见 [references/local-signature-verification.md](./references/local-signature-verification.md)。
 
 ## 必须守住的约束
 
-- **不要给最新版打 prerelease 标记**：GitHub 的 `releases/latest` 会跳过预发布，清单地址直接 404，所有客户端表现为「永远已是最新」。
-- **只发 NSIS**：MSI / 绿色包不参与自动更新，发布它们会产生两份安装记录。
-- **版本号只有一个真源**：`src-tauri/tauri.conf.json`；`Cargo.toml` 与两个 `package.json` 由 `release:bump` 同步，CI 之前也要靠人核对。
-- **Gitee 清单是仓库文件**：raw 直链有 CDN 缓存，`verify` 刚失败时先等 1–2 分钟再重试；仍失败再查 Gitee 令牌权限与 `release/latest.json` 是否真的落在 `main`。
-- **Gitee 附件有大小上限**：安装包超限时先查 Gitee 配额，不要改成分片。
-- **签名密钥不可随手轮换**：确需轮换，先发一个「同时内置新旧公钥、用旧私钥签名」的桥接版本，再下一版切新密钥。
+- **只发稳定通道**：`publish --prerelease` 直接拒绝；版本号只用 `X.Y.Z`。`releases/latest` 会跳过预发布
+  （有旧正式版时回退到它，不是必然 404）。
+- **只发 NSIS**：MSI / 绿色包不参与自动更新，会产生两份安装记录。
+- **Gitee 清单是仓库文件**：`raw/main/` 有 CDN 缓存；默认分支必须是 `main`；刚提交后等 1–2 分钟。
+- **Gitee 附件有大小上限**：超限先查配额，不要改成分片。
+- **密钥轮换**：先发「新旧双公钥、旧私钥签名」的桥接版，再切新密钥。
+- **不要手工只传 exe 建 Release**：页面正常但清单没更新，客户端永远收不到更新。
 
 ## 失败处置
 
 | 现象 | 处置 |
 | --- | --- |
-| GitHub 成功、Gitee 失败 | GitHub 侧已对外可见，优先补 Gitee：手工建 Release + 传附件 + 更新 `release/latest.json`，不要重跑整个 `publish`（会因 tag 已存在而失败） |
-| `verify` 报清单版本不符 | 多半是 Gitee 清单没更新成功（缓存或权限）；重新执行清单更新步骤后重试 |
-| `verify` 报安装包 HEAD 非 200 | 附件没传成功或文件名与清单不一致；核对 `Adlo_<ver>_x64-setup.exe` |
-| 构建报缺少 `.sig` | 检查 `TAURI_SIGNING_PRIVATE_KEY`（路径或内容）与密码是否可读 |
-| `build-stage-sidecar.ps1` 报 cargo 参数错误 | 该脚本曾因 splat 单元素数组把 `--release` 拆成单字符；已改成显式子命令分支，勿再引入 `@ProfileArgs` |
+| `working tree is dirty` | 回第 6 步 commit + push；不要 `--allow-dirty` |
+| tag / 版本不符 | 确认三处版本与 tag 一致后重跑 |
+| tag 已存在但 Release 不存在 | `gh` 会复用旧 tag；先删 tag 再发 |
+| GitHub 成功、Gitee 失败 | **不重跑 publish**：① 确认 Gitee 有该 commit；② 网页建 Release（target `main`）；③ 传 `Adlo_X.Y.Z_x64-setup.exe`、`.exe.sig`、`.release/vX.Y.Z/gitee/SHA256SUMS.txt`；④ 把 `.release/vX.Y.Z/gitee/latest.json` 提交到 Gitee `release/latest.json`；⑤ 重跑 verify |
+| Gitee Release 已建 / 附件不全 / 重试 400/409 | 只补缺附件与清单，不再 create |
+| verify 版本不符 | 先确认默认分支 `main` 与 raw 文件存在 → 等缓存 1–2 分钟 → 查令牌权限 |
+| verify HEAD 非 200 | 附件没传成功或文件名与清单不一致 |
+| build 缺密钥/密码 | 查三种密钥入口与 HKCU 密码；`setx` 后无需重开终端 |
+| publish 缺 `signature` | `createUpdaterArtifacts` 失效或产物被清；不是密钥问题（build 前已校验） |
+| `installer.nsi` 缺 hooks | 恢复配置重建，否则升级被 `adl-server.exe` 锁 |
+| `.sig` 是旧包 | 构建前没清同版本旧产物；重建并核对 `trusted comment` |
+| 包坏了 | 客户端只接受更高版本：bump 下一版重发；不要把删 Release 当回滚 |
 
 ## 自检清单
 
-- [ ] `git status` 干净，分支正确，tag 与 `tauri.conf.json` 版本一致
-- [ ] 门禁通过（至少 affected 范围）
-- [ ] 四处版本号一致
-- [ ] `setup.exe` + `.sig` 都存在
-- [ ] 发布说明写明测试/正式性质
-- [ ] `release:verify` 两行 OK
-- [ ] 安装冒烟通过（版本号正确、检查更新可用）
-- [ ] 记录：版本号、两个 Release 链接、SHA-256、验证时间与网络条件（代理开/关）
+- [ ] 分支正确、HEAD 已推送；tag 不存在或指向本次 HEAD
+- [ ] 三处版本一致；`Cargo.toml` 未动
+- [ ] `check:all` + 双端验证通过并获批准
+- [ ] 依赖有变化时 `notices:check` 通过
+- [ ] `setup.exe` + `.sig` 为本次产出；verify 两行 `OK`
+- [ ] notes 首段可独立成句、≤ 4000 字符、性质写明
+- [ ] 干净安装 + 旧版本→新版本升级通过（代理开/关）
+- [ ] 记录版本、链接、SHA-256、验证时间与网络

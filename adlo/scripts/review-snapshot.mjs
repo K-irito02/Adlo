@@ -9,8 +9,10 @@
  *
  * 用法：
  *   node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>]
- *     [--allow-untracked] [--allow-claims]
+ *     [--allow-untracked] [--allow-claims] [--exclude-generated]
  * 默认 base = merge-base(origin/HEAD, HEAD)，无远端时 HEAD；out = 仓库根 .review-diffs。
+ * `--exclude-generated` 不给生成物写 diff（仍列进 changed-files 与 manifest），
+ * 用于动辄数 MB 的生成数据；生成物由对应生成器与漂移门禁负责。
  *
  * 未跟踪的纯数字名 / `.tmp/.log/.out/.bak` 会被拒绝（审查子代理临时产物）。
  * 新增注释里的绝对断言必须先在 claims-ack-rev<N>.md 逐条标 [x]，否则退出码为 1。
@@ -45,6 +47,15 @@ export function safeSnapshotName(file) {
   return file.replace(/[\\/:*?"<>|]/g, "_");
 }
 
+/** 生成物：`*.generated.ts` / `*.generated.css` 与 `generated/` 目录。 */
+export function isGeneratedArtifact(file) {
+  const normalized = file.replace(/\\/g, "/");
+  return (
+    /\.generated\.(?:ts|tsx|js|jsx|css)$/i.test(normalized) ||
+    /(?:^|\/)generated\//i.test(normalized)
+  );
+}
+
 export function parseArgs(argv) {
   const options = {
     base: null,
@@ -53,6 +64,7 @@ export function parseArgs(argv) {
     help: false,
     allowUntracked: false,
     allowClaims: false,
+    excludeGenerated: false,
     progress: null,
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -67,6 +79,10 @@ export function parseArgs(argv) {
     }
     if (arg === "--allow-claims") {
       options.allowClaims = true;
+      continue;
+    }
+    if (arg === "--exclude-generated") {
+      options.excludeGenerated = true;
       continue;
     }
     const next = () => {
@@ -441,15 +457,19 @@ function main() {
     console.error(`[review-snapshot] no changes against base ${base}; nothing to snapshot`);
     process.exit(1);
   }
+  const generatedFiles = options.excludeGenerated ? files.filter(isGeneratedArtifact) : [];
+  const reviewFiles = options.excludeGenerated
+    ? files.filter((file) => !isGeneratedArtifact(file))
+    : files;
 
-  for (const file of files) {
+  for (const file of reviewFiles) {
     const diffPath = path.join(outDir, `${safeSnapshotName(file)}-rev${options.rev}.diff`);
     // --output 必须在 `--` 之前：放到 `--` 之后会被 git 当成 pathspec（本仓实测）。
     git(["diff", `--output=${diffPath}`, base, "--", file]);
   }
 
   const rev = options.rev;
-  const claimResult = collectClaimHints(files, outDir, rev);
+  const claimResult = collectClaimHints(reviewFiles, outDir, rev);
   const claims = claimResult.count;
   fs.writeFileSync(
     path.join(outDir, `changed-files-rev${rev}.txt`),
@@ -494,12 +514,21 @@ function main() {
     "",
     groupLines,
     "",
+    ...(generatedFiles.length > 0
+      ? [
+          "## 生成物（未写 diff）",
+          "",
+          "以下文件由生成器产出，内容以生成器与漂移门禁为准；不要逐行审查：",
+          ...generatedFiles.map((file) => `- ${file}`),
+          "",
+        ]
+      : []),
   ].join("\n");
   const manifestPath = path.join(outDir, `manifest-rev${rev}.md`);
   fs.writeFileSync(manifestPath, manifest, "utf8");
 
   console.log(
-    `[review-snapshot] base=${base} rev=${rev} files=${files.length} intent-to-add=${intended}`,
+    `[review-snapshot] base=${base} rev=${rev} files=${files.length} review=${reviewFiles.length} generated-excluded=${generatedFiles.length} intent-to-add=${intended}`,
   );
   console.log(`[review-snapshot] out=${path.relative(repoRoot, outDir) || "."}`);
   console.log(`[review-snapshot] manifest=${path.relative(repoRoot, manifestPath)}`);

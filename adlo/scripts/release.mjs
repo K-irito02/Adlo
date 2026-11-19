@@ -152,6 +152,9 @@ function resolveSigningPassword() {
 }
 
 function build() {
+  // 发布包必须带与锁文件一致的全量第三方声明；离线校验提交的生成物，
+  // 依赖升级后忘了重新生成会在这里失败，而不是等用户打开关于页才发现。
+  run("node", ["scripts/generate-third-party-notices.mjs", "--check", "--offline"]);
   // 先看环境里是否已有私钥（CI 用内容注入），只有都没给时才要求默认文件存在。
   if (!process.env.TAURI_SIGNING_PRIVATE_KEY) {
     const keyPath =

@@ -8,7 +8,9 @@ export const aboutEn = {
   aboutTagline: 'A desktop host that integrates third-party agent harnesses.',
   aboutLicenseLine: 'Released under the MIT License.',
   aboutRepository: 'GitHub repository',
+  aboutGiteeRepository: 'Gitee repository',
   aboutIssues: 'Issue tracker',
+  aboutIssuesChecking: 'Choosing…',
   aboutLicense: 'License',
   aboutCredits: 'Credits',
   aboutThirdPartyNotices: 'Third-party notices',
@@ -30,56 +32,19 @@ export const aboutEn = {
 
   // Credits dialog
   aboutCreditsTitle: 'Credits',
-  aboutCreditsSubtitle: 'Adlo uses the following fonts, assets, open-source projects and tools.',
-  aboutCreditsFonts: 'Fonts & typography',
-  aboutCreditsAssets: 'Icons & assets',
-  aboutCreditsCharts: 'Charts & visualization',
-  aboutCreditsEditors: 'Editor & preview',
-  aboutCreditsFramework: 'Framework & infrastructure',
-  aboutCreditsTools: 'External tools',
-  aboutCreditsInter: 'Preferred UI font. Not bundled; falls back to the system UI font.',
-  aboutCreditsJetbrains:
-    'Preferred monospace font. Not bundled; falls back to the system monospace font.',
-  aboutCreditsReactSymbols: 'File-type icons.',
-  aboutCreditsUntitledUi: 'File-type icon assets.',
-  aboutCreditsDevicons:
-    'Developer and technology icons; the DeepSeek mark in the launcher comes from here and was recolored to a neutral tone.',
-  aboutCreditsLucide: 'Some animated icons (animation feedback only).',
-  aboutCreditsReactFileIcon: 'Office document file icons.',
-  aboutCreditsBklit:
-    'Base implementation for the Git visualization charts; parts ported and adapted.',
-  aboutCreditsVisx: 'Chart primitives.',
-  aboutCreditsD3: 'Data visualization utilities.',
-  aboutCreditsCodemirror: 'Code editor.',
-  aboutCreditsXterm: 'Terminal rendering.',
-  aboutCreditsMarkdownIt: 'Markdown rendering.',
-  aboutCreditsStarryNight: 'Markdown syntax highlighting.',
-  aboutCreditsPdfjs: 'PDF preview.',
-  aboutCreditsDocx: 'Word document preview.',
-  aboutCreditsPptx: 'PowerPoint preview.',
-  aboutCreditsSheetjs: 'Spreadsheet parsing.',
-  aboutCreditsDompurify: 'HTML sanitization.',
-  aboutCreditsGithubMarkdownCss: 'Markdown preview styling.',
-  aboutCreditsTauri: 'Desktop runtime and app shell.',
-  aboutCreditsReact: 'UI rendering.',
-  aboutCreditsVite: 'Frontend build tooling.',
-  aboutCreditsZustand: 'State management.',
-  aboutCreditsRadix: 'Accessible UI controls.',
-  aboutCreditsDndkit: 'Drag-and-drop interactions.',
-  aboutCreditsMotion: 'Animation.',
-  aboutCreditsTailwind: 'Styling utilities.',
-  aboutCreditsDsh:
-    'Provided and maintained by DeepSeek under its own license; Adlo only handles host integration and process supervision.',
-  aboutCreditsOpencode:
-    'Provided and maintained by its project under its own license; Adlo only handles version management and terminal availability.',
-  aboutCreditsGeneralThanks:
-    'The app also drew on many open-source projects, icon and design resources, and the frontend UI/UX community during development. Space does not allow listing them all; sincere thanks to every author, maintainer and community.',
+  aboutCreditsSalutation: 'To the open-source community',
+  aboutCreditsLetterBody:
+    'Adlo · 安洛 is built on the work of the open-source community. Without this foundation, this app would not exist.',
+  aboutCreditsLetterThanks: 'Thank you to every author, maintainer and user.',
+  aboutCreditsSignature: '— Adlo · 安洛',
+  aboutCreditsThirdPartyNames: 'Third-party names',
   aboutCreditsTrademarkNote:
     'Third-party names and marks mentioned here belong to their respective owners.',
 
-  // Third-party notices dialog (currently known scope)
+  // Third-party notices dialog
   aboutThirdPartyNoticesTitle: 'Third-party notices',
-  aboutThirdPartyNoticesSubtitle: 'Licenses for bundled assets and ported code.',
+  aboutThirdPartyNoticesSubtitle:
+    'Licenses for bundled assets, ported code and all npm / Cargo dependencies',
   aboutNoticeLicenseText: 'License text',
   aboutNoticeNoCopyright: 'Upstream license file does not provide a copyright line',
   aboutNoticeBklit: 'Git visualization chart components; portions ported and adapted.',
@@ -87,6 +52,19 @@ export const aboutEn = {
   aboutNoticeUntitledUi: 'File-type icon assets.',
   aboutNoticeDevicons:
     'Developer and technology icons; the DeepSeek mark in the launcher comes from here and was recolored.',
+  aboutNoticeLucide:
+    'Icon source for some animated icons; the icon paths in lucide-animated come from Lucide.',
+  aboutNoticesTotals:
+    '{total} packages, {unknown} without a declared license, {missing} without license text',
+  aboutNoticesSearchPlaceholder: 'Search name, version, license or description',
+  aboutNoticesNoResults: 'No matching entries.',
+  aboutNoticesLoading: 'Loading dependency inventory…',
+  aboutNoticesLoadFailed: 'Failed to load the dependency inventory. Close and try again.',
+  aboutNoticesShowingFirst: 'Showing the first {shown} of {total}; narrow the list with search.',
+  aboutNoticesUnknownLicense: 'No declared license',
+  aboutNoticesMissingText: 'Upstream does not bundle the license text.',
+  aboutNoticesCanonicalText:
+    'Upstream does not bundle a license file; the standard license text is shown below.',
   aboutThirdPartyNoticesScope:
-    'This version lists licenses for bundled assets and ported code; the full dependency list and license texts will be generated before release.',
+    'Inventory from Cargo.lock and pnpm-lock.yaml (including transitive dependencies); licenses and texts follow upstream; nothing is invented when missing. Fonts and external tools that are not bundled are outside this inventory.',
 };

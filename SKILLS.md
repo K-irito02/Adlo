@@ -105,7 +105,7 @@
 | 技能目录 | 调用名 | 说明 |
 |----------|--------|------|
 | `codegraph-knowledge-graph` | `codegraph-knowledge-graph` | 查询本地 CodeGraph 代码知识图谱，追踪符号、调用链与变更影响范围；需要理解代码结构、追踪调用关系或评估变更影响时优先使用，替代逐文件 `grep` / 读取。 |
-| `adlo-release` | `adlo-release` | 发布 Adlo 桌面应用新版本：`release:bump` 四处同步版本号、`release:build` 产出 NSIS + minisign 签名、`release:publish` 双源（GitHub + Gitee）发布并更新 `latest.json`、`release:verify` 自检两个更新源；用户说发版、打 tag、升版本号、同步 Gitee、补发 Release 时使用。 |
+| `adlo-release` | `adlo-release` | 发布 Adlo 桌面应用新版本：`release:bump` 同步三处版本号（`tauri.conf` + 两个 `package.json`，Cargo workspace 版本不动）、`release:build` 产出 NSIS + minisign 签名、`release:publish` 双源（GitHub + Gitee）发布并更新 `latest.json`、`release:verify` 自检两个更新源；也覆盖只构建不发布与离线验签。用户说发版、打 tag、升版本号、同步 Gitee、补发 Release 时使用。 |
 | `desktop-e2e-wdio` | `desktop-e2e-wdio` | 当需要验证 Tauri 桌面端真实交互（原生点击、窗口/面板、窗口几何、真实 IPC）、运行桌面冒烟、排查 WDIO 的 5s 超时/窗口焦点警告/adl-server 残留，或维护 `adlo/e2e/` 时使用；用 embedded WebDriver 驱动真实窗口，无需 `tauri-driver`/`msedgedriver`，不进 `check:all`。 |
 | `documentation-organizer` | `documentation-organizer` | 将项目文档整理为清晰、规范的层级结构；用户要求整理文档、清理文档结构、修复散乱文档文件或建立文档约定时调用。 |
 | `governance-audit` | `governance-audit` | 审计并同步治理文档（规则文件、`AGENTS.md`、各级 README、根文档、docs 目录、工程基线）以及三个规则目录与三个技能目录，输出发现并在获批后修复；不用于源码审计。 |

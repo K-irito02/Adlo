@@ -10,6 +10,7 @@ export const ABOUT_URLS = {
   repository: 'https://github.com/K-irito02/Adlo',
   gitee: 'https://gitee.com/K_irito/Adlo',
   issues: 'https://github.com/K-irito02/Adlo/issues',
+  giteeIssues: 'https://gitee.com/K_irito/Adlo/issues',
 } as const;
 
 /**

@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   collectClaimHints,
   findSuspiciousUntracked,
+  isGeneratedArtifact,
   parseArgs,
   safeSnapshotName,
   validateClaimAck,
@@ -49,6 +50,19 @@ test("parses the new escape hatches", () => {
   assert.equal(options.rev, 3);
   assert.equal(options.allowUntracked, true);
   assert.equal(options.allowClaims, true);
+  assert.equal(options.excludeGenerated, false);
+});
+
+test("recognizes generated artifacts and honors --exclude-generated", () => {
+  assert.equal(isGeneratedArtifact("adlo/frontend/src/a.generated.ts"), true);
+  assert.equal(isGeneratedArtifact("adlo/frontend/src/a.generated.css"), true);
+  assert.equal(isGeneratedArtifact("adlo/frontend/src/shared/generated/types.ts"), true);
+  assert.equal(isGeneratedArtifact("adlo/frontend/src/shared/ipc-types.generated.ts"), true);
+  assert.equal(
+    isGeneratedArtifact("adlo/frontend/src/app/features/about/thirdPartyNotices.ts"),
+    false,
+  );
+  assert.equal(parseArgs(["--exclude-generated"]).excludeGenerated, true);
 });
 
 test("requires an [x] acknowledgement per claim", () => {

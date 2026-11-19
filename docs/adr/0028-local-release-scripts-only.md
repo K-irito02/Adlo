@@ -2,7 +2,7 @@
 
 **Status**: accepted（2026-11-18）
 
-应用发布保持为**仓库内的本地 Node 脚本**：`release:bump`（四处版本号）、`release:build`（NSIS + 签名）、`release:publish`（GitHub + Gitee 双源）、`release:verify`（双源清单与安装包可达性）。**不引入 GitHub Actions 或其它云端 CI 来发布**；构建在发布者机器上完成，minisign 私钥与 Gitee 令牌只存在于本机（用户级环境变量或会话），不进入任何云端 Secret。
+应用发布保持为**仓库内的本地 Node 脚本**：`release:bump`（三处版本号：`tauri.conf.json` + 两个 `package.json`）、`release:build`（NSIS + 签名）、`release:publish`（GitHub + Gitee 双源）、`release:verify`（双源清单与安装包可达性）。**不引入 GitHub Actions 或其它云端 CI 来发布**；构建在发布者机器上完成，minisign 私钥与 Gitee 令牌只存在于本机（用户级环境变量或会话），不进入任何云端 Secret。
 
 ## Considered Options
 

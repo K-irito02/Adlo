@@ -5,8 +5,9 @@ import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { openUrlByMethod } from '@features/preview/openByMethod';
 import { ABOUT_URLS, MIT_LICENSE_TEXT } from './aboutContent';
-import { CREDIT_GROUPS } from './creditsData';
-import { THIRD_PARTY_NOTICES } from './thirdPartyNotices';
+import { CreditsPanel } from './CreditsPanel';
+import { chooseIssueTrackerUrl } from './issueTracker';
+import { ThirdPartyNoticesPanel } from './ThirdPartyNoticesPanel';
 import { formatArch, formatOs } from './runtimeLabels';
 import { AboutTextDialog } from './AboutTextDialog';
 import { formatRelativeTime } from '@utils/relativeTime';
@@ -24,13 +25,15 @@ type AboutDialog = 'license' | 'credits' | 'notices' | null;
  */
 export function AboutSettings() {
   const { t } = useTCopy();
-  const { appInfo, showToast } = useAppStore(
+  const { appInfo, showToast, testSource } = useAppStore(
     useShallow((state) => ({
       appInfo: state.appInfo,
       showToast: state.showToast,
+      testSource: state.testSource,
     })),
   );
   const [dialog, setDialog] = useState<AboutDialog>(null);
+  const [issuesProbing, setIssuesProbing] = useState(false);
   const {
     updateStatus,
     updateVersion,
@@ -168,6 +171,19 @@ export function AboutSettings() {
     }
   }, [runtime?.logDir, showToast, t.operationFailed]);
 
+  const handleOpenIssues = useCallback(async () => {
+    if (issuesProbing) {
+      return;
+    }
+    setIssuesProbing(true);
+    try {
+      const url = await chooseIssueTrackerUrl(testSource);
+      openUrlByMethod(url);
+    } finally {
+      setIssuesProbing(false);
+    }
+  }, [issuesProbing, testSource]);
+
   return (
     <div className="adl-about">
       <img className="adl-about__mark" src="/adlo-icon.png" alt="" aria-hidden="true" />
@@ -234,9 +250,18 @@ export function AboutSettings() {
         <button
           type="button"
           className="adl-about__link"
-          onClick={() => openUrlByMethod(ABOUT_URLS.issues)}
+          onClick={() => openUrlByMethod(ABOUT_URLS.gitee)}
         >
-          {t.aboutIssues}
+          {t.aboutGiteeRepository}
+        </button>
+        <button
+          type="button"
+          className="adl-about__link"
+          onClick={() => void handleOpenIssues()}
+          disabled={issuesProbing}
+          aria-busy={issuesProbing}
+        >
+          {issuesProbing ? t.aboutIssuesChecking : t.aboutIssues}
         </button>
       </div>
 
@@ -278,77 +303,19 @@ export function AboutSettings() {
       ) : null}
 
       {dialog === 'credits' ? (
-        <AboutTextDialog
-          title={t.aboutCreditsTitle}
-          subtitle={t.aboutCreditsSubtitle}
-          onClose={() => setDialog(null)}
-        >
-          {CREDIT_GROUPS.map((group) => (
-            <section className="adl-about-credits" key={group.titleKey}>
-              <h3 className="adl-about-credits__title">{t[group.titleKey]}</h3>
-              <ul className="adl-about-credits__list">
-                {group.items.map((item) => {
-                  const url = item.url;
-                  return (
-                    <li className="adl-about-credits__item" key={item.name}>
-                      <div className="adl-about-credits__head">
-                        {url ? (
-                          <button
-                            type="button"
-                            className="adl-about-credits__name adl-about-credits__link"
-                            onClick={() => openUrlByMethod(url)}
-                          >
-                            {item.name}
-                          </button>
-                        ) : (
-                          <span className="adl-about-credits__name">{item.name}</span>
-                        )}
-                        {item.license ? (
-                          <span className="adl-about-credits__license">{item.license}</span>
-                        ) : null}
-                      </div>
-                      <span className="adl-about-credits__desc">{t[item.detailKey]}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
-          <p className="adl-about-credits__thanks">{t.aboutCreditsGeneralThanks}</p>
-          <p className="adl-about-credits__trademark">{t.aboutCreditsTrademarkNote}</p>
+        <AboutTextDialog title={t.aboutCreditsTitle} onClose={() => setDialog(null)}>
+          <CreditsPanel />
         </AboutTextDialog>
       ) : null}
 
       {dialog === 'notices' ? (
         <AboutTextDialog
           title={t.aboutThirdPartyNoticesTitle}
-          subtitle={t.aboutThirdPartyNoticesSubtitle}
           wide
+          footer={<p className="adl-about-notices__scope">{t.aboutThirdPartyNoticesScope}</p>}
           onClose={() => setDialog(null)}
         >
-          {THIRD_PARTY_NOTICES.map((notice) => (
-            <section className="adl-about-notice" key={notice.name}>
-              <div className="adl-about-notice__head">
-                <button
-                  type="button"
-                  className="adl-about-notice__name adl-about-credits__link"
-                  onClick={() => openUrlByMethod(notice.url)}
-                >
-                  {notice.name}
-                </button>
-                <span className="adl-about-notice__license">{notice.license}</span>
-              </div>
-              <p className="adl-about-notice__meta">
-                {notice.copyright ?? t.aboutNoticeNoCopyright}
-              </p>
-              <p className="adl-about-notice__desc">{t[notice.detailKey]}</p>
-              <details className="adl-about-notice__details">
-                <summary>{t.aboutNoticeLicenseText}</summary>
-                <pre className="adl-about-dialog__license">{notice.text}</pre>
-              </details>
-            </section>
-          ))}
-          <p className="adl-about-notice__scope">{t.aboutThirdPartyNoticesScope}</p>
+          <ThirdPartyNoticesPanel />
         </AboutTextDialog>
       ) : null}
     </div>

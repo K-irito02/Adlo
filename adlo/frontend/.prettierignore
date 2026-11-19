@@ -8,6 +8,7 @@ src/shared/ipc-types.generated.ts
 src/shared/ipc/generated/
 src/vite-env.d.ts
 src/styles/vendor/markdown-theme-vars.css
+src/app/features/about/*.generated.ts
 
 # Test fixtures & mocks (mirrors ESLint ignores)
 src/test-fixtures/

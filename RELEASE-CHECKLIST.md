@@ -7,15 +7,15 @@
 ## 1. 法务与声明
 
 - [ ] 根目录 [`LICENSE`](./LICENSE) 存在（MIT，2026 K-irito02），且随安装包一起分发
-- [ ] **第三方声明（全量生成，最容易漏）**：构建期扫描 `Cargo.lock` 与 `adlo/pnpm-lock.yaml`，
-      生成完整依赖清单与各自许可全文，内嵌进应用并在「关于」中提供入口（可展开 License text）。
-      当前 v1 的「致谢」只是精选项，**不能替代**本项
+- [ ] **第三方声明与锁文件同步（最容易漏）**：`pnpm --dir adlo run notices:check` 通过。
+      生成器扫描 `Cargo.lock` 与 `adlo/pnpm-lock.yaml`，把全部 npm / Cargo 依赖的清单与
+      许可正文内嵌进「关于 → 第三方声明」；依赖升级后必须重新运行
+      `pnpm --dir adlo run notices:generate` 并提交生成物（`release:build` 会离线复核）。
+      缺失许可证 / 正文的条目在弹窗中如实标出，不补造
 - [ ] 抽查 3 个第三方声明的版本号/许可证与锁文件一致；清单可随依赖升级重新生成
-- [ ] **第三方声明补全（当前只收录已知项）**：现仅含随包素材与移植代码
-      （bklit-ui / React Symbols / Untitled UI / Devicons）；发布前把全部 npm / Cargo 依赖
-      的清单与许可全文并入
 - [ ] **素材来源审计**：所有随包图标、图片、字体登记「名称 / 来源 URL / 作者 / 许可 / 是否修改」；
-      当前已知素材均为 MIT（React Symbols、Untitled UI、Devicons）；新增素材入库前先登记。
+      当前已知素材：React Symbols / Untitled UI / Devicons 为 MIT，Lucide 为 ISC
+      （官方 LICENSE 含派生自 Feather 的 MIT 段，两段都必须保留）；新增素材入库前先登记。
       其中 **Untitled UI File Icons 资源页** 的使用条款需与 GitHub 仓库的 MIT 许可再次核对
 - [ ] 若界面展示 provider 第三方 Logo（DeepSeek/OpenAI 等）：确认来源与使用许可，
       在第三方声明中补商标说明（署名不等于授权，不暗示背书）
@@ -27,14 +27,15 @@
 ## 2. 仓库与链接
 
 - [ ] 仓库 `K-irito02/Adlo` 转为公开
-- [ ] 「关于」页链接逐一打开验证：网站 `https://www.xiaogans.online/`、仓库、Issues
+- [ ] 「关于」页链接逐一打开验证：网站 `https://www.xiaogans.online/`、GitHub 仓库、Gitee 仓库、
+      问题反馈（确认网络选择落到 GitHub 或 Gitee issues）
 - [ ] 产出首个 GitHub Release 后，在「关于」页补「Releases」入口
 - [ ] 站点侧为 Adlo 增加独立产品页或锚点（当前 `xiaogans.online` 为作品集总入口）
 
 ## 3. 版本与构建
 
-- [ ] 版本号升位并保持一致：`pnpm --dir adlo run release:bump -- X.Y.Z` 一次改四处
-      （`adlo/Cargo.toml` workspace、`adlo/src-tauri/tauri.conf.json`、两个 `package.json`）
+- [ ] 版本号升位并保持一致：`pnpm --dir adlo run release:bump -- X.Y.Z` 一次改三处
+      （`tauri.conf.json` + 两个 `package.json`；`Cargo.toml` workspace 版本是 crate 版本，不动）
 - [ ] 应用内「关于」页显示的版本与安装包版本一致
 - [ ] 应用图标若已更新：`src-tauri/icons/128x128.png` 与 `adlo/frontend/public/adlo-icon.png`（关于页）同步替换
 - [ ] 生产构建用 **`pnpm --dir adlo run release:build`**（NSIS + 签名；需要

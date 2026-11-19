@@ -107,6 +107,8 @@ function changedFiles(git) {
           /\.(tsx|ts)$/.test(file) &&
           !/i18n\//.test(file) &&
           !/__tests__\//.test(file) &&
+          // 生成物按上游原文逐字内嵌（如第三方许可正文），不是可本地化文案。
+          !/\.generated\.ts$/.test(file) &&
           !/\.(test|spec)\.(tsx|ts)$/.test(file),
       ),
     ),

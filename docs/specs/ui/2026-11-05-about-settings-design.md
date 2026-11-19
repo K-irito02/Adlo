@@ -13,10 +13,10 @@
 |------|--------|
 | 应用名、版本、一句定位 | Node.js / Git / Bash / DSH / OpenCode CLI 的版本（属「环境」组，随用户安装时机变化） |
 | 应用运行时（Tauri / 渲染引擎 / OS / 架构） | 构建 commit / 构建时间（仅进诊断单，见 §5） |
-| 网站 / 仓库 / 问题反馈 | 「检查更新」（当前无更新通道，不做假按钮） |
+| 网站 / GitHub 仓库 / Gitee 仓库 / 问题反馈（按网络选择 GitHub 或 Gitee） | 「检查更新」（当前无更新通道，不做假按钮） |
 | 许可（MIT 全文，独立弹窗） | 商标声明（未注册，不写 `®`） |
 | 致谢（字体 / 素材 / 图表 / 编辑器 / 框架 / 外部工具，独立弹窗） | 与致谢无关的「灵感名单」分组 |
-| 第三方声明（随包素材与移植代码，独立弹窗） | 全量依赖许可（发布前生成后并入，见 §6） |
+| 第三方声明（随包素材、移植代码与全量 npm / Cargo 依赖，独立弹窗） | 与致谢无关的「灵感名单」分组 |
 | 打开日志目录（有效日志目录） | 数据目录、占用等（属「存储」组） |
 
 文案事实纪律：未知值显示「未知」，不回退成猜测值；不写无法核验的宣称。
@@ -29,7 +29,7 @@
         桌面应用宿主。
         基于 MIT 许可证发布。
         ───
-        网站 / GitHub 仓库 / 问题反馈
+        网站 / GitHub 仓库 / Gitee 仓库 / 问题反馈
         ───
         许可   致谢   第三方声明
         运行时 · 引擎 · 系统
@@ -56,6 +56,7 @@
 | 运行形态 | `appInfo.runtime.shell` | `tauri` / `browser` |
 | 许可全文 | `aboutContent.ts::MIT_LICENSE_TEXT` | 必须与根目录 `LICENSE` 逐字一致（发布清单复核项） |
 | 链接 | `aboutContent.ts::ABOUT_URLS` | 网站 `https://www.xiaogans.online/`、仓库、Issues |
+| 第三方声明（全量） | `thirdPartyNotices.generated.ts` | 由 `adlo/scripts/generate-third-party-notices.mjs` 扫描 `Cargo.lock` + `pnpm-lock.yaml` 生成；`notices:check` 校验漂移 |
 
 `RuntimeInfo` 属于 `AppInfo` 契约（Rust `crates/types`），kernel 的 `app_info::build` 由调用方传入，
 不反向依赖 tauri；两端各自填充，避免「同一个字段在两种形态下都猜错」。
@@ -63,13 +64,19 @@
 ## 4. 交互
 
 - 外部链接：统一 `openUrlByMethod`，遵循用户「网址链接打开方式」（面板标签 / 中心标签 / 外部浏览器）。
+- 仓库与问题反馈：GitHub 仓库、Gitee 仓库各一个入口；「问题反馈」在点击时用下载源探针
+  （`testSource`，与真实下载共用代理语义）并发探测两个 issue 入口，先可达者胜出
+  （Gitee 候选在前），2.5s 超时/全失败回退 GitHub；成功后缓存 5 分钟。
 - 许可 / 致谢 / 第三方声明：三个独立模态（`AboutTextDialog`），正文左对齐（模态挂在居中容器内，
   需显式覆盖 `text-align`）；Escape、遮罩点击、右上角关闭键可关闭，**不设底部按钮行**；打开时
   焦点进关闭键，关闭后归还焦点。许可正文用等宽可滚动区（宽版 600px）。
-  - 致谢：字体与排版 / 图标与素材 / 图表与可视化 / 编辑器与预览 / 应用框架与基础设施 / 外部工具；
-    条目含名称（可点击来源）、许可证短名与用途；结尾一段笼统致谢。
-  - 第三方声明：当前收录随包素材与移植代码（bklit-ui / React Symbols / Untitled UI / Devicons）
-    的版权行与许可全文（`<details>` 展开）；全量依赖由发布前生成任务补入。
+  - 致谢：A 布局的克制版感谢信（居中 420px、`A LETTER / 2026` 眉题、衬线称呼、
+    两段短正文、落款 `— Adlo · 安洛`）；底部折叠「第三方名称（N）」，
+    展开后按名称去重排序、`·` 分隔流式换行（含全量依赖、随包素材与外部工具名称）；
+    完整许可与版本仍在「第三方声明」，致谢不重复。
+  - 第三方声明：顶部常驻合并提示（范围 + 依赖计数）与无边框搜索框；搜索同时过滤随包素材
+    与全量依赖清单；清单按需加载、先截断 200 条；缺失许可证/正文按上游原文降级展示
+    （`<details>` 展开）；来源说明常驻弹窗底部。
 - 打开日志目录：优先用 `appInfo.runtime.logDir`（后端解析的有效目录）；为空时回退
   `storage.getStatus()` 的 `logs` 分类路径，再调 `window.openPath(path)`。
 - 不提供「复制诊断信息」与「环境」跳转：诊断单是 Node/Git/Bash/harness 的环境检测信息，
@@ -87,7 +94,6 @@
 
 | 项 | 原因 | 落点 |
 |----|------|------|
-| 第三方声明（全量） | 当前只收录已知的随包素材与移植代码；全部 npm/Cargo 依赖需构建期扫描 lockfile 并生成许可全文 | `RELEASE-CHECKLIST.md` 第 1 节，发布前必做 |
 | 构建 commit / 构建时间 | 无更新通道时页面无收益；排障靠诊断单 | 需要时加入诊断单，不上页面 |
 | 检查更新 | 无发布源与版本清单 | 有发布流水线后再接 |
 | Releases 链接 | 当前离线仓库且无 Release | 仓库转公开并出首个 Release 后补 |
@@ -96,9 +102,12 @@
 
 ## 7. 验证
 
-- 前端：`AboutSettings` 行为测试（渲染事实、两种链接落点、三个弹窗互不混排、致谢分组与许可证短名、
-  第三方声明展开、打开日志目录、支持行只保留日志入口）；`SettingsPanel` / `settingsSearchAnchors` /
-  `settingsGroups` 回归。
+- 前端：`AboutSettings` 行为测试（渲染事实、GitHub/Gitee/问题反馈链接落点与网络选择、三个弹窗互不混排、
+  致谢信与折叠名称索引、第三方声明展开、全量依赖搜索与缺失许可证/正文降级、打开日志目录、
+  支持行只保留日志入口）；`SettingsPanel` / `settingsSearchAnchors` / `settingsGroups` 回归。
+- 问题反馈探针：`issueTracker.test.ts` 覆盖最快可达者、Gitee 平局优先、仅 GitHub、全失败/超时回退。
+- 生成器：`adlo/scripts/third-party-notices.test.mjs` 覆盖锁文件解析、SPDX 表达式、版权剥离、
+  自定义/ `SEE LICENSE IN` 降级、去重与统计；`thirdPartyNotices.generated.test.ts` 校验生成物结构。
 - 桥接：`window.openPath` 的 Tauri invoke 与 preview HTTP 路由各一条。
 - Rust：`RuntimeInfo` 序列化形状、kernel 透传、UA 引擎解析。
 - 全量门禁与双端人工验证按 `RELEASE-CHECKLIST.md` / `quality-gates.md` 执行。

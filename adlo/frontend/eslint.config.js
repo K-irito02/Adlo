@@ -20,6 +20,7 @@ export default tseslint.config(
       'src/types/**',
       'src/shared/ipc-types.generated.ts',
       'src/shared/ipc/generated/**',
+      'src/app/features/about/*.generated.ts',
       '*.d.ts',
     ],
   },

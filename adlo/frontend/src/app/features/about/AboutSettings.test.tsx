@@ -8,8 +8,56 @@ import type { AppInfo } from '../../../kernel/types';
 import { AboutSettings } from './AboutSettings';
 
 const openUrlByMethod = vi.hoisted(() => vi.fn());
+const loadThirdPartyNoticeData = vi.hoisted(() => vi.fn());
+const chooseIssueTrackerUrl = vi.hoisted(() => vi.fn());
 
 vi.mock('@features/preview/openByMethod', () => ({ openUrlByMethod }));
+vi.mock('./thirdPartyNoticeData', () => ({ loadThirdPartyNoticeData }));
+vi.mock('./issueTracker', () => ({ chooseIssueTrackerUrl }));
+
+const noticeData = {
+  schemaVersion: 1 as const,
+  sources: { cargoLock: 'cargo-sha', pnpmLock: 'npm-sha' },
+  totals: { total: 3, npm: 2, cargo: 1, unknownLicense: 1, missingText: 1 },
+  licenseTexts: {
+    'spdx:MIT': 'MIT License\n\nPermission is hereby granted…',
+    'spdx:Apache-2.0': 'Apache License\n\nVersion 2.0, January 2004…',
+  },
+  packages: [
+    {
+      name: 'alpha',
+      version: '1.0.0',
+      ecosystem: 'npm' as const,
+      license: 'MIT',
+      licenseIds: ['MIT'],
+      url: 'https://example.com/alpha',
+      copyright: 'Copyright (c) 2024 Alpha',
+      texts: [{ label: 'LICENSE', key: 'spdx:MIT' }],
+      textSource: 'package' as const,
+    },
+    {
+      name: 'beta',
+      version: '2.0.0',
+      ecosystem: 'cargo' as const,
+      license: 'MIT OR Apache-2.0',
+      licenseIds: ['MIT', 'Apache-2.0'],
+      texts: [
+        { label: 'LICENSE-MIT', key: 'spdx:MIT' },
+        { label: 'LICENSE-APACHE', key: 'spdx:Apache-2.0' },
+      ],
+      textSource: 'package' as const,
+    },
+    {
+      name: 'gamma',
+      version: '3.0.0',
+      ecosystem: 'npm' as const,
+      license: '',
+      licenseIds: [],
+      texts: [],
+      textSource: 'none' as const,
+    },
+  ],
+};
 
 const aboutT = new Proxy({} as Record<string, string>, {
   get: (_, key) => {
@@ -24,8 +72,12 @@ const aboutT = new Proxy({} as Record<string, string>, {
         return '基于 MIT 许可证发布。';
       case 'aboutRepository':
         return 'GitHub 仓库';
+      case 'aboutGiteeRepository':
+        return 'Gitee 仓库';
       case 'aboutIssues':
         return '问题反馈';
+      case 'aboutIssuesChecking':
+        return '正在选择…';
       case 'aboutLicense':
         return '许可';
       case 'aboutCredits':
@@ -50,34 +102,16 @@ const aboutT = new Proxy({} as Record<string, string>, {
         return 'Adlo 基于 MIT 许可证发布。';
       case 'aboutCreditsTitle':
         return '致谢';
-      case 'aboutCreditsSubtitle':
-        return 'Adlo 使用了以下字体、素材、开源项目与外部工具。';
-      case 'aboutCreditsFonts':
-        return '字体与排版';
-      case 'aboutCreditsAssets':
-        return '图标与素材';
-      case 'aboutCreditsCharts':
-        return '图表与可视化';
-      case 'aboutCreditsEditors':
-        return '编辑器与预览';
-      case 'aboutCreditsFramework':
-        return '应用框架与基础设施';
-      case 'aboutCreditsTools':
-        return '外部工具';
-      case 'aboutCreditsInter':
-        return '界面字体首选。';
-      case 'aboutCreditsReactSymbols':
-        return '文件类型图标。';
-      case 'aboutCreditsBklit':
-        return 'Git 可视化图表。';
-      case 'aboutCreditsDevicons':
-        return '开发者与技术图标。';
-      case 'aboutCreditsDsh':
-        return '由 DeepSeek 提供并维护。';
-      case 'aboutCreditsOpencode':
-        return '由其项目提供并维护。';
-      case 'aboutCreditsGeneralThanks':
-        return '此外，谨向所有作者、维护者与社区致以诚挚感谢。';
+      case 'aboutCreditsSalutation':
+        return '致开源社区';
+      case 'aboutCreditsLetterBody':
+        return 'Adlo · 安洛 建立在开源社区的工作之上。没有这些基础设施，就没有这个应用。';
+      case 'aboutCreditsLetterThanks':
+        return '感谢每一位作者、维护者与用户。';
+      case 'aboutCreditsSignature':
+        return '— Adlo · 安洛';
+      case 'aboutCreditsThirdPartyNames':
+        return '第三方名称';
       case 'aboutCreditsTrademarkNote':
         return '文中提及的第三方名称与标识归各自所有者。';
       case 'aboutThirdPartyNotices':
@@ -85,7 +119,7 @@ const aboutT = new Proxy({} as Record<string, string>, {
       case 'aboutThirdPartyNoticesTitle':
         return '第三方声明';
       case 'aboutThirdPartyNoticesSubtitle':
-        return '随包分发的素材与移植代码的许可声明。';
+        return '随包素材、移植代码与全部 npm / Cargo 依赖的许可声明';
       case 'aboutNoticeLicenseText':
         return '许可全文';
       case 'aboutNoticeNoCopyright':
@@ -98,8 +132,28 @@ const aboutT = new Proxy({} as Record<string, string>, {
         return '文件类型图标素材。';
       case 'aboutNoticeDevicons':
         return '开发者与技术图标。';
+      case 'aboutNoticeLucide':
+        return '部分动画图标的图标来源。';
+      case 'aboutNoticesTotals':
+        return '共 {total} 项，{unknown} 项未声明许可证，{missing} 项缺许可全文';
+      case 'aboutNoticesSearchPlaceholder':
+        return '搜索名称、版本、许可证或说明';
+      case 'aboutNoticesNoResults':
+        return '没有匹配的条目。';
+      case 'aboutNoticesLoading':
+        return '正在加载依赖清单…';
+      case 'aboutNoticesLoadFailed':
+        return '依赖清单加载失败，请关闭后重试。';
+      case 'aboutNoticesShowingFirst':
+        return '仅显示前 {shown} 项（共 {total} 项），请用搜索缩小范围。';
+      case 'aboutNoticesUnknownLicense':
+        return '未声明许可证';
+      case 'aboutNoticesMissingText':
+        return '上游未随包提供许可全文。';
+      case 'aboutNoticesCanonicalText':
+        return '上游未随包提供许可文件，以下为标准许可正文。';
       case 'aboutThirdPartyNoticesScope':
-        return '本版本收录随包分发的素材与移植代码的许可。';
+        return '清单来自锁文件（含间接依赖）；许可与正文按上游原文展示。未随包分发的字体与外部工具不在本清单内。';
       case 'operationFailed':
         return '操作失败';
       case 'close':
@@ -183,6 +237,8 @@ function renderAbout() {
 describe('AboutSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    loadThirdPartyNoticeData.mockResolvedValue(noticeData);
+    chooseIssueTrackerUrl.mockResolvedValue('https://gitee.com/K_irito/Adlo/issues');
     seedStore();
   });
 
@@ -228,14 +284,31 @@ describe('AboutSettings', () => {
     expect(screen.getByText(/渲染引擎 未知/)).toBeTruthy();
   });
 
-  it('opens links through openUrlByMethod with the documented destinations', () => {
+  it('opens GitHub, Gitee and the network-selected issue tracker', async () => {
+    chooseIssueTrackerUrl.mockResolvedValue('https://gitee.com/K_irito/Adlo/issues');
     renderAbout();
 
     fireEvent.click(screen.getByText('GitHub 仓库'));
+    fireEvent.click(screen.getByText('Gitee 仓库'));
     fireEvent.click(screen.getByText('问题反馈'));
 
+    await waitFor(() =>
+      expect(openUrlByMethod).toHaveBeenNthCalledWith(3, 'https://gitee.com/K_irito/Adlo/issues'),
+    );
     expect(openUrlByMethod).toHaveBeenNthCalledWith(1, 'https://github.com/K-irito02/Adlo');
-    expect(openUrlByMethod).toHaveBeenNthCalledWith(2, 'https://github.com/K-irito02/Adlo/issues');
+    expect(openUrlByMethod).toHaveBeenNthCalledWith(2, 'https://gitee.com/K_irito/Adlo');
+    expect(chooseIssueTrackerUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the GitHub issue tracker when the probe selects it', async () => {
+    chooseIssueTrackerUrl.mockResolvedValue('https://github.com/K-irito02/Adlo/issues');
+    renderAbout();
+
+    fireEvent.click(screen.getByText('问题反馈'));
+
+    await waitFor(() =>
+      expect(openUrlByMethod).toHaveBeenCalledWith('https://github.com/K-irito02/Adlo/issues'),
+    );
   });
 
   it('shows the MIT license in its own dialog, separate from credits', () => {
@@ -265,41 +338,84 @@ describe('AboutSettings', () => {
     expect(document.activeElement).toBe(closeButton);
   });
 
-  it('lists fonts, assets, charts, editors, framework and tools in the credits dialog', () => {
+  it('shows a thank-you letter and a collapsed third-party name index', () => {
     renderAbout();
 
     fireEvent.click(screen.getByText('致谢'));
     const dialog = screen.getByRole('dialog');
-    expect(dialog.textContent).toContain('Inter');
-    expect(dialog.textContent).toContain('JetBrains Mono');
-    expect(dialog.textContent).toContain('React Symbols');
-    expect(dialog.textContent).toContain('Untitled UI');
-    expect(dialog.textContent).toContain('Devicons');
-    expect(dialog.textContent).toContain('bklit-ui');
-    expect(dialog.textContent).toContain('CodeMirror');
-    expect(dialog.textContent).toContain('Tauri');
-    expect(dialog.textContent).toContain('DSH');
-    expect(dialog.textContent).toContain('OpenCode CLI');
-    expect(dialog.textContent).toContain('谨向所有作者、维护者与社区致以诚挚感谢');
+    const letter = dialog.querySelector('.adl-about-credits__letter');
+    expect(letter?.textContent).toContain('致开源社区');
+    expect(letter?.textContent).toContain('Adlo · 安洛 建立在开源社区的工作之上');
+    expect(letter?.textContent).toContain('感谢每一位作者、维护者与用户');
+    expect(letter?.textContent).toContain('— Adlo · 安洛');
     expect(dialog.textContent).toContain('第三方名称与标识归各自所有者');
-    expect(screen.getAllByText('MIT').length).toBeGreaterThanOrEqual(3);
-    expect(dialog.textContent).not.toContain('MIT License');
+
+    const toggle = screen.getByRole('button', { name: /第三方名称/ });
+    const names = dialog.querySelector('.adl-about-credits__names-list');
+    expect(names?.hasAttribute('hidden')).toBe(true);
+    const count = Number(dialog.querySelector('.adl-about-credits__names-count')?.textContent);
+    expect(count).toBeGreaterThan(1000);
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(names?.hasAttribute('hidden')).toBe(false);
+    expect(names?.textContent).toContain('react');
+    expect(names?.textContent).toContain('bklit-ui');
+    expect(names?.textContent).toContain('Inter');
+    expect(names?.textContent).toContain('DSH');
+    expect(names?.textContent).toContain(' · ');
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(names?.hasAttribute('hidden')).toBe(true);
   });
 
-  it('shows third-party notices with copyright lines and expandable license text', () => {
+  it('shows a combined hint, a search over curated + generated entries, and a sticky footer', async () => {
     renderAbout();
 
     fireEvent.click(screen.getByText('第三方声明'));
     const dialog = screen.getByRole('dialog');
     expect(dialog.textContent).toContain('bklit-ui');
     expect(dialog.textContent).toContain('Copyright (c) 2026 uixmat');
-    expect(dialog.textContent).toContain('React Symbols');
-    expect(dialog.textContent).toContain('Copyright (c) 2022 Pablo Hernández');
-    expect(dialog.textContent).toContain('Untitled UI');
-    expect(dialog.textContent).toContain('Copyright (c) 2025 Untitled UI');
-    expect(dialog.textContent).toContain('上游许可文件未提供版权行');
-    expect(dialog.querySelectorAll('details')).toHaveLength(4);
-    expect(screen.getAllByText('许可全文')).toHaveLength(4);
+    expect(dialog.textContent).toContain('Lucide');
+    expect(dialog.textContent).toContain('Copyright (c) 2026 Lucide Icons and Contributors');
+    expect(dialog.textContent).not.toContain('随包素材与移植代码');
+    expect(dialog.querySelectorAll('.adl-about-notices__title')).toHaveLength(0);
+    expect(dialog.querySelector('.adl-about-dialog__foot')?.textContent).toContain(
+      '清单来自锁文件',
+    );
+
+    await waitFor(() => expect(dialog.textContent).toContain('alpha'));
+    expect(dialog.textContent).not.toContain('依赖清单');
+    expect(dialog.textContent).toContain(
+      '随包素材、移植代码与全部 npm / Cargo 依赖的许可声明 · 共 3 项，1 项未声明许可证，1 项缺许可全文',
+    );
+    expect(dialog.textContent).toContain('MIT OR Apache-2.0');
+    expect(dialog.textContent).toContain('未声明许可证');
+    expect(dialog.textContent).toContain('上游未随包提供许可全文。');
+    expect(dialog.textContent).toContain('Copyright (c) 2024 Alpha');
+    // 5 条随包声明（含 Lucide）+ alpha 1 + beta 1（gamma 没有正文）。
+    expect(dialog.querySelectorAll('details')).toHaveLength(7);
+
+    const search = screen.getByRole('searchbox');
+    const top = dialog.querySelector('.adl-about-notices__top');
+    expect(top?.querySelector('.adl-about-notices__intro')).toBeTruthy();
+    expect(top?.querySelector('.adl-about-notices__search')).toBeTruthy();
+    const firstNotice = dialog.querySelector('.adl-about-notice');
+    expect(
+      firstNotice && search.compareDocumentPosition(firstNotice) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    fireEvent.change(search, { target: { value: 'bklit' } });
+    expect(screen.getByText('bklit-ui')).toBeTruthy();
+    expect(screen.queryByText('alpha')).toBeNull();
+
+    fireEvent.change(search, { target: { value: 'beta' } });
+    expect(screen.getByText('beta')).toBeTruthy();
+    expect(screen.queryByText('bklit-ui')).toBeNull();
+
+    fireEvent.change(search, { target: { value: 'zzz' } });
+    expect(screen.getByText('没有匹配的条目。')).toBeTruthy();
   });
 
   it('keeps only the logs entry in the support row', () => {

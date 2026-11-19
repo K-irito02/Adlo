@@ -1,0 +1,1205 @@
+{
+  "source": "https://registry.npmjs.org",
+  "note": "本机未安装的可选依赖元数据缓存；仅许可证/仓库/主页，不含许可正文。",
+  "packages": {
+    "@emnapi/core@1.10.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/toyobayashi/emnapi.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/toyobayashi/emnapi#readme"
+    },
+    "@emnapi/runtime@1.10.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/toyobayashi/emnapi.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/toyobayashi/emnapi#readme"
+    },
+    "@emnapi/wasi-threads@1.2.1": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/toyobayashi/emnapi.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/toyobayashi/emnapi#readme"
+    },
+    "@esbuild/aix-ppc64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/aix-ppc64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/aix-ppc64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/android-arm@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/android-arm@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/android-arm@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/android-arm64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/android-arm64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/android-arm64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/android-x64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/android-x64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/android-x64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/darwin-arm64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/darwin-arm64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/darwin-arm64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/darwin-x64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/darwin-x64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/darwin-x64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/freebsd-arm64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/freebsd-arm64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/freebsd-arm64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/freebsd-x64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/freebsd-x64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/freebsd-x64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-arm@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-arm@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-arm@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-arm64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-arm64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-arm64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-ia32@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-ia32@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-ia32@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-loong64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-loong64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-loong64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-mips64el@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-mips64el@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-mips64el@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-ppc64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-ppc64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-ppc64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-riscv64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-riscv64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-riscv64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-s390x@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-s390x@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-s390x@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-x64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-x64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/linux-x64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/netbsd-arm64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/netbsd-arm64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/netbsd-arm64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/netbsd-x64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/netbsd-x64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/netbsd-x64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/openbsd-arm64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/openbsd-arm64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/openbsd-arm64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/openbsd-x64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/openbsd-x64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/openbsd-x64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/openharmony-arm64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/openharmony-arm64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/sunos-x64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/sunos-x64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/sunos-x64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/win32-arm64@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/win32-arm64@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/win32-arm64@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/win32-ia32@0.25.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/win32-ia32@0.28.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@esbuild/win32-ia32@0.28.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/evanw/esbuild.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/evanw/esbuild#readme"
+    },
+    "@napi-rs/canvas-android-arm64@0.1.100": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/Brooooooklyn/canvas.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/Brooooooklyn/canvas#readme"
+    },
+    "@napi-rs/canvas-darwin-arm64@0.1.100": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/Brooooooklyn/canvas.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/Brooooooklyn/canvas#readme"
+    },
+    "@napi-rs/canvas-darwin-x64@0.1.100": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/Brooooooklyn/canvas.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/Brooooooklyn/canvas#readme"
+    },
+    "@napi-rs/canvas-linux-arm-gnueabihf@0.1.100": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/Brooooooklyn/canvas.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/Brooooooklyn/canvas#readme"
+    },
+    "@napi-rs/canvas-linux-arm64-gnu@0.1.100": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/Brooooooklyn/canvas.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/Brooooooklyn/canvas#readme"
+    },
+    "@napi-rs/canvas-linux-arm64-musl@0.1.100": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/Brooooooklyn/canvas.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/Brooooooklyn/canvas#readme"
+    },
+    "@napi-rs/canvas-linux-riscv64-gnu@0.1.100": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/Brooooooklyn/canvas.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/Brooooooklyn/canvas#readme"
+    },
+    "@napi-rs/canvas-linux-x64-gnu@0.1.100": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/Brooooooklyn/canvas.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/Brooooooklyn/canvas#readme"
+    },
+    "@napi-rs/canvas-linux-x64-musl@0.1.100": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/Brooooooklyn/canvas.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/Brooooooklyn/canvas#readme"
+    },
+    "@napi-rs/canvas-win32-arm64-msvc@0.1.100": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/Brooooooklyn/canvas.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/Brooooooklyn/canvas#readme"
+    },
+    "@napi-rs/wasm-runtime@1.1.4": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/napi-rs/napi-rs.git",
+        "type": "git",
+        "directory": "wasm-runtime"
+      },
+      "homepage": "https://napi.rs/"
+    },
+    "@rolldown/binding-android-arm64@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rolldown/binding-darwin-arm64@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rolldown/binding-darwin-x64@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rolldown/binding-freebsd-x64@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rolldown/binding-linux-arm-gnueabihf@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rolldown/binding-linux-arm64-gnu@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rolldown/binding-linux-arm64-musl@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rolldown/binding-linux-ppc64-gnu@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rolldown/binding-linux-s390x-gnu@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rolldown/binding-linux-x64-gnu@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rolldown/binding-linux-x64-musl@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rolldown/binding-openharmony-arm64@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rolldown/binding-wasm32-wasi@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rolldown/binding-win32-arm64-msvc@1.0.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rolldown/rolldown.git",
+        "type": "git",
+        "directory": "packages/rolldown"
+      },
+      "homepage": "https://rolldown.rs/"
+    },
+    "@rollup/rollup-android-arm-eabi@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-android-arm64@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-darwin-arm64@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-darwin-x64@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-freebsd-arm64@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-freebsd-x64@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-linux-arm-gnueabihf@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-linux-arm-musleabihf@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-linux-arm64-gnu@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-linux-arm64-musl@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-linux-loong64-gnu@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-linux-loong64-musl@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-linux-ppc64-gnu@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-linux-ppc64-musl@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-linux-riscv64-gnu@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-linux-riscv64-musl@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-linux-s390x-gnu@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-linux-x64-gnu@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-linux-x64-musl@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-openbsd-x64@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-openharmony-arm64@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-win32-arm64-msvc@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@rollup/rollup-win32-ia32-msvc@4.61.0": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/rollup/rollup.git",
+        "type": "git"
+      },
+      "homepage": "https://rollupjs.org/"
+    },
+    "@tailwindcss/oxide-android-arm64@4.3.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "crates/node/npm/android-arm64"
+      }
+    },
+    "@tailwindcss/oxide-darwin-arm64@4.3.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "crates/node/npm/darwin-arm64"
+      }
+    },
+    "@tailwindcss/oxide-darwin-x64@4.3.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "crates/node/npm/darwin-x64"
+      }
+    },
+    "@tailwindcss/oxide-freebsd-x64@4.3.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "crates/node/npm/freebsd-x64"
+      }
+    },
+    "@tailwindcss/oxide-linux-arm-gnueabihf@4.3.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "crates/node/npm/linux-arm-gnueabihf"
+      }
+    },
+    "@tailwindcss/oxide-linux-arm64-gnu@4.3.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "crates/node/npm/linux-arm64-gnu"
+      }
+    },
+    "@tailwindcss/oxide-linux-arm64-musl@4.3.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "crates/node/npm/linux-arm64-musl"
+      }
+    },
+    "@tailwindcss/oxide-linux-x64-gnu@4.3.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "crates/node/npm/linux-x64-gnu"
+      }
+    },
+    "@tailwindcss/oxide-linux-x64-musl@4.3.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "crates/node/npm/linux-x64-musl"
+      }
+    },
+    "@tailwindcss/oxide-wasm32-wasi@4.3.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "crates/node"
+      }
+    },
+    "@tailwindcss/oxide-win32-arm64-msvc@4.3.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "crates/node/npm/win32-arm64-msvc"
+      }
+    },
+    "@tybys/wasm-util@0.10.2": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/toyobayashi/wasm-util.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/toyobayashi/wasm-util#readme"
+    },
+    "fsevents@2.3.3": {
+      "license": "MIT",
+      "repository": {
+        "url": "git+https://github.com/fsevents/fsevents.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/fsevents/fsevents"
+    },
+    "lightningcss-android-arm64@1.32.0": {
+      "license": "MPL-2.0",
+      "repository": {
+        "url": "git+https://github.com/parcel-bundler/lightningcss.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/parcel-bundler/lightningcss#readme"
+    },
+    "lightningcss-darwin-arm64@1.32.0": {
+      "license": "MPL-2.0",
+      "repository": {
+        "url": "git+https://github.com/parcel-bundler/lightningcss.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/parcel-bundler/lightningcss#readme"
+    },
+    "lightningcss-darwin-x64@1.32.0": {
+      "license": "MPL-2.0",
+      "repository": {
+        "url": "git+https://github.com/parcel-bundler/lightningcss.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/parcel-bundler/lightningcss#readme"
+    },
+    "lightningcss-freebsd-x64@1.32.0": {
+      "license": "MPL-2.0",
+      "repository": {
+        "url": "git+https://github.com/parcel-bundler/lightningcss.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/parcel-bundler/lightningcss#readme"
+    },
+    "lightningcss-linux-arm-gnueabihf@1.32.0": {
+      "license": "MPL-2.0",
+      "repository": {
+        "url": "git+https://github.com/parcel-bundler/lightningcss.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/parcel-bundler/lightningcss#readme"
+    },
+    "lightningcss-linux-arm64-gnu@1.32.0": {
+      "license": "MPL-2.0",
+      "repository": {
+        "url": "git+https://github.com/parcel-bundler/lightningcss.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/parcel-bundler/lightningcss#readme"
+    },
+    "lightningcss-linux-arm64-musl@1.32.0": {
+      "license": "MPL-2.0",
+      "repository": {
+        "url": "git+https://github.com/parcel-bundler/lightningcss.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/parcel-bundler/lightningcss#readme"
+    },
+    "lightningcss-linux-x64-gnu@1.32.0": {
+      "license": "MPL-2.0",
+      "repository": {
+        "url": "git+https://github.com/parcel-bundler/lightningcss.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/parcel-bundler/lightningcss#readme"
+    },
+    "lightningcss-linux-x64-musl@1.32.0": {
+      "license": "MPL-2.0",
+      "repository": {
+        "url": "git+https://github.com/parcel-bundler/lightningcss.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/parcel-bundler/lightningcss#readme"
+    },
+    "lightningcss-win32-arm64-msvc@1.32.0": {
+      "license": "MPL-2.0",
+      "repository": {
+        "url": "git+https://github.com/parcel-bundler/lightningcss.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/parcel-bundler/lightningcss#readme"
+    }
+  }
+}
