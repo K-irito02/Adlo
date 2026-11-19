@@ -24,7 +24,6 @@ interface FileNavigatorTreeProps {
   onRefreshOne: (workspaceId: string) => void;
   onHideFromRightPanels: (workspaceId: string) => void;
   onToggleFileTreePath: (workspaceId: string, path: string) => void;
-  onOpenFile: (relativePath: string) => void;
   onOpenFileForWorkspace: (
     workspaceId: string,
     workspacePath: string,
@@ -58,7 +57,6 @@ const FileNavigatorTree = React.memo(function FileNavigatorTree({
   onRefreshOne,
   onHideFromRightPanels,
   onToggleFileTreePath,
-  onOpenFile,
   onOpenFileForWorkspace,
   onNodeClicked,
   onSelectWorkspace,
@@ -95,7 +93,6 @@ const FileNavigatorTree = React.memo(function FileNavigatorTree({
         onSelectWorkspace={onSelectWorkspace}
         onHideFromRightPanels={onHideFromRightPanels}
         onToggleFileTreePath={onToggleFileTreePath}
-        onOpenFile={onOpenFile}
         onOpenFileForWorkspace={onOpenFileForWorkspace}
         onNodeClicked={onNodeClicked}
         getContextMenuItems={getContextMenuItems}

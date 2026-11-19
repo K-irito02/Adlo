@@ -83,7 +83,7 @@ describe('WorkspaceFileTreeEntry empty branch', () => {
   });
 });
 
-describe('WorkspaceFileTreeEntry work区菜单粘贴', () => {
+describe('WorkspaceFileTreeEntry 工作区菜单粘贴', () => {
   const originalDuplicate = useAppStore.getState().duplicateWorkspaceFile;
 
   afterEach(() => {
@@ -98,15 +98,15 @@ describe('WorkspaceFileTreeEntry work区菜单粘贴', () => {
     expect(screen.getByRole('menuitem', { name: t.fileContextPaste })).toBeDisabled();
 
     act(() => {
-      useAppStore.getState().setClipboard('copy', 'a.txt', 'file', 'C:/tmp/empty-ws');
+      useAppStore.getState().setClipboard('copy', 'a.txt', 'C:/tmp/empty-ws');
     });
     expect(screen.getByRole('menuitem', { name: t.fileContextPaste })).toBeEnabled();
   });
 
   it('粘贴到工作区根目录：目标相对路径 = 源文件名', async () => {
-    const duplicate = vi.fn(async () => {});
+    const duplicate = vi.fn(async () => true);
     useAppStore.setState({ duplicateWorkspaceFile: duplicate });
-    useAppStore.getState().setClipboard('copy', 'docs/a.txt', 'file', 'C:/tmp/empty-ws');
+    useAppStore.getState().setClipboard('copy', 'docs/a.txt', 'C:/tmp/empty-ws');
     renderEntry();
     fireEvent.click(screen.getByLabelText(t.fileMoreActions));
 

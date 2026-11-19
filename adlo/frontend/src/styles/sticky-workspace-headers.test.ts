@@ -51,6 +51,8 @@ describe('工作区标题吸顶样式契约', () => {
     expect(body).not.toBeNull();
     expect(body).toContain('position: sticky');
     expect(body).toContain('top: 0');
+    // 高于树行、低于自绘滚动条（z-index: 3），吸顶标题才能盖住滚过的内容。
+    expect(body).toContain('z-index: 2');
   });
 
   it('标题底色不透明，半透明态叠在 background-image 上而非直接当背景色', () => {
@@ -62,8 +64,17 @@ describe('工作区标题吸顶样式契约', () => {
     // 必须覆盖 `.is-current`（其原有 `background` 简写会把半透明 token 当底色）并清掉简写
     expect(selector).toContain('.adl-multitree-entry.is-current');
     expect(body).toContain('background-color: var(--bg)');
-    expect(body).toContain('background-image: none');
     expect(body).not.toContain('background: var(--bg-hover)');
+
+    // `--bg` 必须是不透明色（rgba 会让树行透出来）。
+    const themes = readRepoFile('./themes.css');
+    const bgValues = Array.from(themes.matchAll(/--bg:\s*([^;]+);/g)).map((match) =>
+      match[1].trim(),
+    );
+    expect(bgValues.length).toBeGreaterThanOrEqual(2);
+    for (const value of bgValues) {
+      expect(value).toMatch(/^#|^rgb\(/);
+    }
 
     const tinted = matchedRuleBodies(css, '.adl-multitree--sticky-headers .adl-multitree-entry');
     expect(tinted).toContain('background-image: linear-gradient(var(--bg-hover), var(--bg-hover))');
@@ -72,14 +83,24 @@ describe('工作区标题吸顶样式契约', () => {
     );
   });
 
-  it('标题不再有常驻分隔线', () => {
+  it('标题不再有常驻分隔线（含 files-panel-list.css 的同名基础规则）', () => {
     for (const block of findRuleGroups(css, HEADER_SELECTOR)) {
+      expect(block).not.toContain('border-bottom');
+    }
+    const duplicateCss = readRepoFile('./regions/rightpanel/files-panel-list.css');
+    for (const block of findRuleGroups(duplicateCss, '.adl-multitree-entry__header')) {
       expect(block).not.toContain('border-bottom');
     }
   });
 
   it('滚动容器顶部内边距归零，呼吸位由内容承担', () => {
-    expect(matchedRuleBodies(css, '.adl-multitree-scroll:has')).toContain('padding-top: 0');
+    const scrollBody = matchedRuleBodies(css, '.adl-multitree-scroll:has');
+    expect(scrollBody).toContain('padding-top: 0');
+    // 吸顶标题会盖住滚动区顶部：定位滚动按行预留一个标题高度（不用容器 scroll-padding）。
+    expect(scrollBody).not.toContain('scroll-padding-top');
+    expect(matchedRuleBodies(css, '.adl-multitree--sticky-headers li[data-path]')).toContain(
+      'scroll-margin-top: 34px',
+    );
     expect(matchedRuleBodies(css, '.adl-multitree--sticky-headers')).toContain(
       'padding-top: var(--space-1)',
     );

@@ -31,7 +31,6 @@ export interface MultiWorkspaceFileTreeProps {
   onSelectWorkspace: (workspaceId: string) => void;
   onHideFromRightPanels: (workspaceId: string) => void;
   onToggleFileTreePath: (workspaceId: string, path: string) => void;
-  onOpenFile: (relativePath: string) => void;
   onOpenFileForWorkspace: (
     workspaceId: string,
     workspacePath: string,
@@ -181,7 +180,6 @@ export function MultiWorkspaceFileTree({
             suffix={t.workspaceEmptyAddWorkspaceSuffix as string}
           />
         }
-        onToggleExpand={onToggleExpand}
         onClearSelection={onClearSelection}
         renderContent={renderContent}
         stickyHeaders

@@ -68,7 +68,7 @@ export function applyChildOrder<T extends FileTreeRenderableNode>(
   return sortSiblings(withSortedChildren, order[childOrderKey(workspacePath, dirPath)]);
 }
 
-/** 同目录内把 `movedName` 插到 `targetName` 之前/之后，返回新的名字序列。 */
+/** 把 `movedName` 插到 `targetName` 之前/之后（同目录顺序重排共用）。 */
 export function insertChildName(
   names: readonly string[],
   movedName: string,
@@ -82,4 +82,99 @@ export function insertChildName(
   const next = [...withoutMoved];
   next.splice(insertAt, 0, movedName);
   return next;
+}
+
+function splitDirPath(dirPath: string): { parent: string; name: string } {
+  const index = dirPath.lastIndexOf('/');
+  if (index === -1) {
+    return { parent: '', name: dirPath };
+  }
+  return { parent: dirPath.slice(0, index), name: dirPath.slice(index + 1) };
+}
+
+function replaceChildName(names: readonly string[], from: string, to: string): string[] {
+  const index = names.indexOf(from);
+  if (index === -1) {
+    return [...names];
+  }
+  const next = [...names];
+  next[index] = to;
+  return next;
+}
+
+/**
+ * 目录重命名后搬运顺序：目录自身与全部子孙的键前缀重映射，
+ * 同时把父目录顺序里的旧名字换成新名字（文件系统「移动」由拖拽写序处理，不走这里）。
+ */
+export function remapChildOrderForRename(
+  order: FileChildOrder,
+  workspacePath: string,
+  oldPath: string,
+  newPath: string,
+): FileChildOrder {
+  const oldParent = splitDirPath(oldPath);
+  const newName = splitDirPath(newPath).name;
+  const next: FileChildOrder = {};
+  let changed = false;
+
+  for (const [key, names] of Object.entries(order)) {
+    const dirPath = siblingKeyDirPath(key, workspacePath);
+    if (dirPath === undefined) {
+      next[key] = names;
+      continue;
+    }
+    if (dirPath === oldPath || dirPath.startsWith(`${oldPath}/`)) {
+      const nextDirPath = `${newPath}${dirPath.slice(oldPath.length)}`;
+      next[childOrderKey(workspacePath, nextDirPath)] = names;
+      changed = true;
+      continue;
+    }
+    if (dirPath === oldParent.parent) {
+      const renamed = replaceChildName(names, oldParent.name, newName);
+      next[key] = renamed;
+      changed = true;
+      continue;
+    }
+    next[key] = names;
+  }
+
+  return changed ? next : order;
+}
+
+/** 删除目录后剔除顺序：移除目录自身/子孙的键，并从父目录顺序里去掉该名字。 */
+export function dropChildOrderUnder(
+  order: FileChildOrder,
+  workspacePath: string,
+  removedPath: string,
+): FileChildOrder {
+  const removed = splitDirPath(removedPath);
+  const next: FileChildOrder = {};
+  let changed = false;
+
+  for (const [key, names] of Object.entries(order)) {
+    const dirPath = siblingKeyDirPath(key, workspacePath);
+    if (dirPath === undefined) {
+      next[key] = names;
+      continue;
+    }
+    if (dirPath === removedPath || dirPath.startsWith(`${removedPath}/`)) {
+      changed = true;
+      continue;
+    }
+    if (dirPath === removed.parent) {
+      const filtered = names.filter((name) => name !== removed.name);
+      next[key] = filtered;
+      changed = true;
+      continue;
+    }
+    next[key] = names;
+  }
+
+  return changed ? next : order;
+}
+
+/** 取出某个工作区的键对应的目录相对路径；不属于该工作区时返回 undefined。 */
+function siblingKeyDirPath(key: string, workspacePath: string): string | undefined {
+  const prefix = `${workspacePath}${KEY_SEPARATOR}`;
+  return key.startsWith(prefix) ? key.slice(prefix.length) : undefined;
 }

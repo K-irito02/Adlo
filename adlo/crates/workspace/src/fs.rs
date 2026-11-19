@@ -187,7 +187,7 @@ pub fn move_entry(
 
 /// 跨工作区移动：源与目标分属不同的工作区根。
 ///
-/// 同卷优先 `rename`；跨卷（`rename` 失败）退化为「复制 → 删除源」。
+/// 先尝试 `rename`；失败（跨卷、被占用等）时退化为「复制 → 删除源」。
 /// 复制成功后删除源失败时，回滚已复制的目标，避免同一份内容在两处各留一份。
 pub fn move_entry_across(
     source_root: &Path,
@@ -247,7 +247,11 @@ pub fn copy_entry_across(
         return Err(AppError::NotFound(format!("source not found: {src_relative_path}")));
     }
     let dst = adl_fs_ops::resolve_workspace_path(target_root, dst_relative_path)?;
-    if dst.exists() && !same_file(&src, &dst) {
+    if dst.exists() {
+        if same_file(&src, &dst) {
+            // 源与目标是同一个文件：复制是 no-op，绝不能继续走 fs::copy（会把源截断为 0 字节）。
+            return Ok(true);
+        }
         return Err(AppError::InvalidInput(format!("target already exists: {dst_relative_path}")));
     }
     if let Some(parent) = dst.parent() {
@@ -258,9 +262,7 @@ pub fn copy_entry_across(
     } else {
         fs::copy(&src, &dst)?;
     }
-    if source_root != target_root {
-        crate::tree::invalidate_tree_cache(source_root);
-    }
+    // 源未变化，只需让目标工作区的树缓存失效。
     crate::tree::invalidate_tree_cache(target_root);
     Ok(true)
 }
@@ -439,5 +441,17 @@ mod tests {
         assert_eq!(read(&target, "b.txt"), "content");
         fs::remove_dir_all(&source).unwrap();
         fs::remove_dir_all(&target).unwrap();
+    }
+
+    #[test]
+    fn copy_entry_across_same_source_and_target_is_noop() {
+        let root = temp_root();
+        write(&root, "a.txt", "content");
+
+        let result = copy_entry_across(&root, "a.txt", &root, "a.txt");
+
+        assert!(result.is_ok(), "same-file copy should be a no-op, got {result:?}");
+        assert_eq!(read(&root, "a.txt"), "content");
+        fs::remove_dir_all(&root).unwrap();
     }
 }

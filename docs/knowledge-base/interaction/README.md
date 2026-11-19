@@ -101,6 +101,7 @@ Git 可视化（分支图、热力图、文件热点、loading）。
 | [disabled-button-pointerup-fix-2026-07-19.md](./pointer-events/disabled-button-pointerup-fix-2026-07-19.md) | disabled 按钮 pointerup 丢失修复 |
 | [drag-overlay-pointer-event-penetration-2026-07-21.md](./pointer-events/drag-overlay-pointer-event-penetration-2026-07-21.md) | 拖拽覆盖层指针事件穿透修复 |
 | [css-transform-hit-area-pointer-events-2026-08-03.md](./pointer-events/css-transform-hit-area-pointer-events-2026-08-03.md) | 旋转元素命中区跟随 transform，交互属性须下沉到旋转元素本身 |
+| [tree-dnd-clipboard-source-2026-11-19.md](./pointer-events/tree-dnd-clipboard-source-2026-11-19.md) | 文件树拖拽副本几何、`copy-op` 菜单 id、同区粘贴失败保留剪贴板、吸顶行级 scroll-margin |
 
 ### [toast-hint-card/](./toast-hint-card/)
 

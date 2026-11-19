@@ -58,7 +58,6 @@ describe('右侧导航树工作区标题吸顶', () => {
         onSelectWorkspace={noop}
         onHideFromRightPanels={noop}
         onToggleFileTreePath={noop}
-        onOpenFile={noop}
         onOpenFileForWorkspace={noop}
         onNodeClicked={noop}
         getContextMenuItems={() => []}
@@ -109,13 +108,12 @@ describe('右侧导航树工作区标题吸顶', () => {
     expect(shell?.classList.contains('adl-multitree--dnd')).toBe(false);
   });
 
-  it('未开启的复用方（终端面板等）不受影响', () => {
+  it('默认不开启吸顶与拖拽（空态 shell 保持原行为）', () => {
     const { container } = render(
       <MultiWorkspaceTreeShell
         visibleWorkspaces={[]}
         expandedState={{}}
         emptyText={null}
-        onToggleExpand={noop}
         onClearSelection={noop}
         renderContent={() => null}
       />,
@@ -123,5 +121,6 @@ describe('右侧导航树工作区标题吸顶', () => {
 
     const shell = container.querySelector('.adl-multitree');
     expect(shell?.classList.contains('adl-multitree--sticky-headers')).toBe(false);
+    expect(shell?.classList.contains('adl-multitree--dnd')).toBe(false);
   });
 });

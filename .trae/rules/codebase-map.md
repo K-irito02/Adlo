@@ -65,7 +65,7 @@ adlo/
 | 目录 | 职责 |
 |------|------|
 | `app/components/` | React 组件（含 ContextMenu、ConfirmDialog、RenameInput、Tooltip 等） |
-| `app/hooks/` | 自定义 Hooks（含 useTooltip、useAppActions、useDragDropWorkspace、useEditorReveal、useKeyboardShortcuts、useNavigatorResize、useFileContextMenu、usePatchReview、useTaskCenterPolling、useThemeSync 等 11 个 hook） |
+| `app/hooks/` | 自定义 Hooks（含 useTooltip、useAppActions、useDragDropWorkspace、useEditorReveal、useKeyboardShortcuts、useNavigatorResize、usePatchReview、useTaskCenterPolling、useThemeSync 等） |
 | `app/utils/` | 纯函数（含 tooltipPosition、clipboard、preferencesMerger） |
 | `app/stores/` | Zustand 状态管理（切片合并模式 + actions/ 领域模块） |
 | `app/features/` | 按功能域分层的模块化组件（含 terminal/ 中 3 个子 hook、tree/ 中 MultiTreeEntryShell 共享骨架） |

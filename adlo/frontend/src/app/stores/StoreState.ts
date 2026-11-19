@@ -178,13 +178,13 @@ interface WorkspaceActions {
     relativePath: string,
     newPath: string,
     workspacePath?: string,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   deleteWorkspaceFile: (relativePath: string, workspacePath?: string) => Promise<void>;
   duplicateWorkspaceFile: (
     srcRelativePath: string,
     dstRelativePath: string,
     workspacePath?: string,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   /**
    * 跨工作区移动文件/目录；返回是否成功（剪贴板类调用方据此决定是否清空）。
    * 移动前先 flush 脏编辑器；成功后刷新源/目标两棵工作区树。

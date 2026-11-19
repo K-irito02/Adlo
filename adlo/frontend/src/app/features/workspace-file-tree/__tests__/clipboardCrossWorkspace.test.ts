@@ -34,7 +34,14 @@ async function invoke(items: FileTreeContextMenuItem<WorkspaceTreeNode>[], id: s
 }
 
 describe('bindWorkspaceClipboard', () => {
+  const originalDuplicate = useAppStore.getState().duplicateWorkspaceFile;
+  const originalMove = useAppStore.getState().moveWorkspaceFile;
+
   afterEach(() => {
+    useAppStore.setState({
+      duplicateWorkspaceFile: originalDuplicate,
+      moveWorkspaceFile: originalMove,
+    });
     useAppStore.getState().clearClipboard();
     vi.restoreAllMocks();
   });
@@ -60,7 +67,7 @@ describe('bindWorkspaceClipboard', () => {
   it('跨工作区粘贴走 copyFileAcross，成功后清空剪贴板', async () => {
     const copyAcross = vi.fn(async () => true);
     useAppStore.setState({ copyWorkspaceFileAcross: copyAcross });
-    useAppStore.getState().setClipboard('copy', 'docs/guide.md', 'file', '/ws-a');
+    useAppStore.getState().setClipboard('copy', 'docs/guide.md', '/ws-a');
 
     await invoke(bound(['paste']), 'paste');
 
@@ -76,12 +83,23 @@ describe('bindWorkspaceClipboard', () => {
   it('跨工作区粘贴失败保留剪贴板，便于重试', async () => {
     const copyAcross = vi.fn(async () => false);
     useAppStore.setState({ copyWorkspaceFileAcross: copyAcross });
-    useAppStore.getState().setClipboard('copy', 'docs/guide.md', 'file', '/ws-a');
+    useAppStore.getState().setClipboard('copy', 'docs/guide.md', '/ws-a');
 
     await invoke(bound(['paste']), 'paste');
 
     expect(copyAcross).toHaveBeenCalledTimes(1);
     expect(useAppStore.getState().clipboardOperation).toBe('copy');
     expect(useAppStore.getState().clipboardSourceWorkspacePath).toBe('/ws-a');
+  });
+
+  it('同工作区粘贴失败（如目标已存在）保留剪贴板', async () => {
+    const duplicate = vi.fn(async () => false);
+    useAppStore.setState({ duplicateWorkspaceFile: duplicate });
+    useAppStore.getState().setClipboard('copy', 'a.txt', '/ws-b');
+
+    await invoke(bound(['paste']), 'paste');
+
+    expect(duplicate).toHaveBeenCalledWith('a.txt', 'assets/a.txt', '/ws-b');
+    expect(useAppStore.getState().clipboardOperation).toBe('copy');
   });
 });

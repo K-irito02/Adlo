@@ -181,7 +181,6 @@ export function MultiWorkspaceChangesTree({
           suffix={t.workspaceEmptyAddWorkspaceSuffix as string}
         />
       }
-      onToggleExpand={onToggleExpand}
       onClearSelection={onClearSelection}
       renderContent={renderContent}
       stickyHeaders

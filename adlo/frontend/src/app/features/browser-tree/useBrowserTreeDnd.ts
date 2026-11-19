@@ -8,8 +8,9 @@ import {
   workspaceContainerKey,
 } from '@stores/slices/browserBookmarkOrder';
 import type { BookmarkMove } from '@stores/slices/browserBookmarkOrder';
-import { createDragGhost } from '@features/browser/dragGhost';
-import type { DragGhostHandle } from '@features/browser/dragGhost';
+import { createDragGhost } from '@features/dnd/dragGhost';
+import type { DragGhostHandle } from '@features/dnd/dragGhost';
+import { fileRowZone, rowZone } from '@features/dnd/rowZone';
 import type { BrowserCategoryState } from './types';
 
 const DRAG_THRESHOLD = 4;
@@ -140,17 +141,6 @@ function rowAtPoint(baseRow: HTMLElement, clientY: number): { row: HTMLElement; 
     }
   }
   return { row, rect };
-}
-
-function rowZone(clientY: number, rect: DOMRect): 'before' | 'after' | 'middle' {
-  const y = clientY - rect.top;
-  if (y <= rect.height * 0.2) {
-    return 'before';
-  }
-  if (y >= rect.height * 0.8) {
-    return 'after';
-  }
-  return 'middle';
 }
 
 export function useBrowserTreeDnd(categories: {
@@ -319,8 +309,7 @@ export function useBrowserTreeDnd(categories: {
           if (!info.container) {
             return null;
           }
-          const rectY = clientY - rect.top;
-          const after = rectY > rect.height / 2;
+          const after = fileRowZone(clientY, rect) === 'after';
           const index = after ? info.index + 1 : info.index;
           const move: BookmarkMove =
             payload.kind === 'folder'

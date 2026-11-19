@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { FileTreeRenderableNode } from './fileTree.utils';
-import { applyChildOrder, childOrderKey, insertChildName } from './childOrder';
+import {
+  applyChildOrder,
+  childOrderKey,
+  dropChildOrderUnder,
+  insertChildName,
+  remapChildOrderForRename,
+} from './childOrder';
 
 interface Node extends FileTreeRenderableNode {
   children: Node[];
@@ -75,5 +81,57 @@ describe('insertChildName', () => {
 
   it('目标不在列表时追加到末尾', () => {
     expect(insertChildName(['a'], 'b', 'missing', 'before')).toEqual(['a', 'b']);
+  });
+});
+
+describe('remapChildOrderForRename', () => {
+  it('目录改名后键前缀与父目录里的名字同步更新', () => {
+    const order = {
+      [childOrderKey('/ws', '')]: ['src', 'docs'],
+      [childOrderKey('/ws', 'src')]: ['b.ts', 'a.ts'],
+      [childOrderKey('/ws', 'src/app')]: ['x.ts'],
+      [childOrderKey('/ws', 'other')]: ['z.ts'],
+    };
+
+    const next = remapChildOrderForRename(order, '/ws', 'src', 'lib');
+
+    expect(next[childOrderKey('/ws', '')]).toEqual(['lib', 'docs']);
+    expect(next[childOrderKey('/ws', 'lib')]).toEqual(['b.ts', 'a.ts']);
+    expect(next[childOrderKey('/ws', 'lib/app')]).toEqual(['x.ts']);
+    expect(next[childOrderKey('/ws', 'src')]).toBeUndefined();
+    expect(next[childOrderKey('/ws', 'other')]).toEqual(['z.ts']);
+  });
+
+  it('其他工作区的同名键不受影响', () => {
+    const order = { [childOrderKey('/other', 'src')]: ['keep'] };
+
+    const next = remapChildOrderForRename(order, '/ws', 'src', 'lib');
+
+    expect(next).toBe(order);
+    expect(next[childOrderKey('/other', 'src')]).toEqual(['keep']);
+  });
+});
+
+describe('dropChildOrderUnder', () => {
+  it('删除目录时移除自身/子孙键，并从父目录顺序剔除名字', () => {
+    const order = {
+      [childOrderKey('/ws', '')]: ['src', 'docs'],
+      [childOrderKey('/ws', 'src')]: ['a'],
+      [childOrderKey('/ws', 'src/app')]: ['b'],
+      [childOrderKey('/ws', 'docs')]: ['c'],
+    };
+
+    const next = dropChildOrderUnder(order, '/ws', 'src');
+
+    expect(next[childOrderKey('/ws', '')]).toEqual(['docs']);
+    expect(next[childOrderKey('/ws', 'src')]).toBeUndefined();
+    expect(next[childOrderKey('/ws', 'src/app')]).toBeUndefined();
+    expect(next[childOrderKey('/ws', 'docs')]).toEqual(['c']);
+  });
+
+  it('没有匹配的键时返回原对象', () => {
+    const order = { [childOrderKey('/ws', 'docs')]: ['c'] };
+
+    expect(dropChildOrderUnder(order, '/ws', 'src')).toBe(order);
   });
 });

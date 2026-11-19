@@ -5,11 +5,14 @@ import { useAppStore } from '@stores/slicedStore';
 /**
  * 把剪贴板内容粘贴到指定工作区的目录（`targetDir` 传 `''` 表示工作区根）。
  *
+ * `workspacePath` 为 `undefined` 时走同工作区分支，由 store action 回落到当前激活工作区
+ * （非工作区树的通用右键菜单没有工作区上下文）。
+ *
  * 同工作区走现有 duplicate/move；跨工作区走 copyFileAcross / moveFileAcross。
  * 失败时保留剪贴板（用户可重试或换目标），成功才清空。
  */
 export async function pasteClipboardIntoWorkspace(
-  workspacePath: string,
+  workspacePath: string | undefined,
   targetDir: string,
 ): Promise<boolean> {
   const store = useAppStore.getState();
@@ -22,15 +25,21 @@ export async function pasteClipboardIntoWorkspace(
   const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
   const sourceWorkspacePath = store.clipboardSourceWorkspacePath;
 
-  if (!sourceWorkspacePath || sourceWorkspacePath === workspacePath) {
+  if (!sourceWorkspacePath || !workspacePath || sourceWorkspacePath === workspacePath) {
     if (operation === 'copy') {
-      await store.duplicateWorkspaceFile(sourcePath, newPath, workspacePath);
+      const ok = await store.duplicateWorkspaceFile(sourcePath, newPath, workspacePath);
+      if (!ok) {
+        return false;
+      }
     } else {
       if (sourcePath === newPath) {
         store.clearClipboard();
         return true;
       }
-      await store.moveWorkspaceFile(sourcePath, newPath, workspacePath);
+      const ok = await store.moveWorkspaceFile(sourcePath, newPath, workspacePath);
+      if (!ok) {
+        return false;
+      }
     }
     store.clearClipboard();
     return true;
@@ -74,7 +83,7 @@ export function bindWorkspaceClipboard(
         action: (targetNode: WorkspaceTreeNode) => {
           useAppStore
             .getState()
-            .setClipboard(isCut ? 'cut' : 'copy', targetNode.path, targetNode.kind, workspacePath);
+            .setClipboard(isCut ? 'cut' : 'copy', targetNode.path, workspacePath);
         },
       };
     }

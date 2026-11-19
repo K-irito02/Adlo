@@ -6,21 +6,20 @@ import { createDragGhost, type DragGhostHandle } from '@features/dnd/dragGhost';
 import type { DndIndicator } from '@features/dnd/DndOverlay';
 import { closestElement, fileRowZone, rowZone } from '@features/dnd/rowZone';
 import { insertChildName } from '@features/file-tree/childOrder';
+import { decideNodeDrop, isInvalidWorkspaceReorder } from './treeDndRules';
+import type { DndNodeKind } from './treeDndRules';
 
 const DRAG_THRESHOLD = 4;
 const AUTO_SCROLL_EDGE = 28;
 const AUTO_SCROLL_STEP = 14;
 const INDICATOR_INSET = 8;
 
-type NodeKind = 'file' | 'directory';
-
 interface NodeInfo {
   workspace: RecentWorkspaceEntry;
   path: string;
   name: string;
-  kind: NodeKind;
+  kind: DndNodeKind;
   parentPath: string;
-  siblings: WorkspaceTreeNode[];
 }
 
 type DragPayload = { type: 'node'; info: NodeInfo } | { type: 'workspace'; workspaceId: string };
@@ -47,12 +46,14 @@ interface DragSession {
   ghost?: DragGhostHandle;
 }
 
-export interface WorkspaceTreeDndResult {
+export interface WorkspaceTreeDndHandlers {
+  onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
+  onClickCapture: (event: ReactMouseEvent<HTMLElement>) => void;
+}
+
+interface WorkspaceTreeDndResult {
   indicator: DndIndicator | null;
-  handlers: {
-    onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
-    onClickCapture: (event: ReactMouseEvent<HTMLElement>) => void;
-  };
+  handlers: WorkspaceTreeDndHandlers;
 }
 
 /** 计算落点路径与是否真的需要移动（跨工作区即使相对路径相同也必须移动）。 */
@@ -89,7 +90,6 @@ function buildNodeMap(
         name: node.name,
         kind: node.kind,
         parentPath,
-        siblings: nodes,
       });
       if (node.kind === 'directory' && node.children.length > 0) {
         walk(workspace, node.children as WorkspaceTreeNode[], node.path);
@@ -167,13 +167,7 @@ export function reorderUnpinnedIds(
   const unpinned = workspaces
     .filter((workspace) => !workspace.isPinned)
     .map((workspace) => workspace.id);
-  const without = unpinned.filter((id) => id !== draggedId);
-  const targetIndex = without.indexOf(targetId);
-  const insertAt =
-    targetIndex === -1 ? without.length : targetIndex + (position === 'after' ? 1 : 0);
-  const next = [...without];
-  next.splice(insertAt, 0, draggedId);
-  return next;
+  return insertChildName(unpinned, draggedId, targetId, position);
 }
 
 export function useWorkspaceTreeDnd(
@@ -223,9 +217,12 @@ export function useWorkspaceTreeDnd(
           const dragged = workspacesRef.current.find((item) => item.id === payload.workspaceId);
           if (
             !dragged ||
-            dragged.isPinned ||
-            workspace.isPinned ||
-            workspace.id === payload.workspaceId
+            isInvalidWorkspaceReorder({
+              draggedId: dragged.id,
+              draggedPinned: dragged.isPinned,
+              targetId: workspace.id,
+              targetPinned: workspace.isPinned,
+            })
           ) {
             return { kind: 'invalid', indicator: invalidIndicator(rect) };
           }
@@ -271,45 +268,38 @@ export function useWorkspaceTreeDnd(
       if (payload.type === 'workspace') {
         return { kind: 'invalid', indicator: invalidIndicator(rect) };
       }
-      if (payload.info.workspace.id === info.workspace.id && payload.info.path === info.path) {
-        return { kind: 'invalid', indicator: invalidIndicator(rect) };
-      }
-      if (payload.info.kind === 'directory' && info.path.startsWith(`${payload.info.path}/`)) {
-        return { kind: 'invalid', indicator: invalidIndicator(rect) };
-      }
-      if (!info.workspace.available) {
-        return { kind: 'invalid', indicator: invalidIndicator(rect) };
-      }
 
-      if (info.kind === 'directory') {
-        const zone = rowZone(clientY, rect);
-        if (zone === 'middle') {
-          return {
-            kind: 'move',
-            from: payload.info,
-            toWorkspace: info.workspace,
-            toDir: info.path,
-            indicator: intoIndicator(rect),
-          };
-        }
-        return {
-          kind: 'move',
-          from: payload.info,
-          toWorkspace: info.workspace,
-          toDir: info.parentPath,
-          insertPosition: { targetName: info.name, position: zone },
-          indicator: insertIndicator(rect, zone === 'after'),
-        };
+      const zone = info.kind === 'directory' ? rowZone(clientY, rect) : fileRowZone(clientY, rect);
+      const decision = decideNodeDrop(
+        {
+          workspaceId: payload.info.workspace.id,
+          path: payload.info.path,
+          kind: payload.info.kind,
+        },
+        {
+          workspaceId: info.workspace.id,
+          path: info.path,
+          name: info.name,
+          kind: info.kind,
+          parentPath: info.parentPath,
+          available: info.workspace.available,
+        },
+        zone,
+      );
+      if (decision.kind === 'invalid') {
+        return { kind: 'invalid', indicator: invalidIndicator(rect) };
       }
-
-      const zone = fileRowZone(clientY, rect);
+      const indicator =
+        zone === 'middle' && info.kind === 'directory'
+          ? intoIndicator(rect)
+          : insertIndicator(rect, zone === 'after');
       return {
         kind: 'move',
         from: payload.info,
         toWorkspace: info.workspace,
-        toDir: info.parentPath,
-        insertPosition: { targetName: info.name, position: zone },
-        indicator: insertIndicator(rect, zone === 'after'),
+        toDir: decision.toDir,
+        insertPosition: decision.insertPosition,
+        indicator,
       };
     },
     [],
@@ -352,7 +342,10 @@ export function useWorkspaceTreeDnd(
 
       if (needsMove) {
         if (!workspaceChanged) {
-          await moveWorkspaceFile(from.path, targetPath, from.workspace.path);
+          const ok = await moveWorkspaceFile(from.path, targetPath, from.workspace.path);
+          if (!ok) {
+            return;
+          }
         } else {
           const ok = await moveWorkspaceFileAcross({
             sourceWorkspacePath: from.workspace.path,
@@ -458,6 +451,15 @@ export function useWorkspaceTreeDnd(
       if (!session) {
         return;
       }
+      // 只认发起拖拽的那根指针；鼠标拖拽在窗外松开时收不到 pointerup，
+      // 未激活阶段看到「按键已松开」的移动事件就收尾，避免无按键拖拽残留。
+      if (event.pointerId !== session.pointerId) {
+        return;
+      }
+      if (!session.active && event.pointerType === 'mouse' && event.buttons === 0) {
+        cleanup();
+        return;
+      }
       if (!session.active) {
         if (
           Math.hypot(event.clientX - session.startX, event.clientY - session.startY) <
@@ -487,6 +489,9 @@ export function useWorkspaceTreeDnd(
     const handleUp = (event: PointerEvent) => {
       const session = sessionRef.current;
       if (!session) {
+        return;
+      }
+      if (event.pointerId !== session.pointerId) {
         return;
       }
       const wasActive = session.active;

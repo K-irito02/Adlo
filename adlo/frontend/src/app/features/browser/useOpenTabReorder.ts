@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
-import { createDragGhost } from '@features/browser/dragGhost';
-import type { DragGhostHandle } from '@features/browser/dragGhost';
+import { createDragGhost } from '@features/dnd/dragGhost';
+import type { DragGhostHandle } from '@features/dnd/dragGhost';
 
 const DRAG_THRESHOLD = 4;
 

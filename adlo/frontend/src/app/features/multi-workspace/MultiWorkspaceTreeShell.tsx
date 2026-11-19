@@ -1,16 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
-
-export interface WorkspaceTreeDndHandlers {
-  onPointerDown: (event: React.PointerEvent<HTMLElement>) => void;
-  onClickCapture: (event: React.MouseEvent<HTMLElement>) => void;
-}
+import type { WorkspaceTreeDndHandlers } from '@features/workspace-file-tree/useWorkspaceTreeDnd';
 
 export interface MultiWorkspaceTreeShellProps {
   visibleWorkspaces: RecentWorkspaceEntry[];
   expandedState: Record<string, boolean>;
   emptyText: React.ReactNode;
-  onToggleExpand: (workspaceId: string) => void;
   onClearSelection: () => void;
   renderContent: (workspace: RecentWorkspaceEntry, isExpanded: boolean) => React.ReactNode;
   /**

@@ -13,6 +13,7 @@ import {
 } from '@app/icons';
 import { useAppStore } from '@stores/slicedStore';
 import { joinPathSegments } from '@app/utils/workspacePaths';
+import { pasteClipboardIntoWorkspace } from '@features/workspace-file-tree/workspaceClipboard';
 import type { FileTreeContextMenuItem, FileTreeRenderableNode } from '@features/file-tree';
 import type { CopyDict } from '@app/i18n/types';
 
@@ -183,7 +184,7 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
           label: t.fileContextCut as string,
           icon: <IconClipboardList size={14} />,
           action: (targetNode) => {
-            store.setClipboard('cut', targetNode.path, targetNode.kind);
+            store.setClipboard('cut', targetNode.path);
           },
         });
 
@@ -192,7 +193,7 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
           label: t.fileContextCopy as string,
           icon: <IconCopy size={14} />,
           action: (targetNode) => {
-            store.setClipboard('copy', targetNode.path, targetNode.kind);
+            store.setClipboard('copy', targetNode.path);
           },
         });
 
@@ -202,28 +203,11 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
           icon: <IconUpload size={14} />,
           disabled: !hasClipboard,
           action: async (targetNode) => {
-            const sourcePath = store.clipboardSourcePath;
-            const operation = store.clipboardOperation;
-            if (!sourcePath || !operation) {
-              return;
-            }
             const targetDir =
               targetNode.kind === 'directory'
                 ? targetNode.path
                 : targetNode.path.substring(0, targetNode.path.lastIndexOf('/') + 1);
-            const sourceName = sourcePath.split('/').pop() || sourcePath;
-            const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
-            const workspacePath = getWorkspacePath?.(targetNode);
-            if (operation === 'copy') {
-              await store.duplicateWorkspaceFile(sourcePath, newPath, workspacePath);
-            } else if (operation === 'cut') {
-              if (sourcePath === newPath) {
-                store.clearClipboard();
-                return;
-              }
-              await store.moveWorkspaceFile(sourcePath, newPath, workspacePath);
-            }
-            store.clearClipboard();
+            await pasteClipboardIntoWorkspace(getWorkspacePath?.(targetNode), targetDir);
           },
         });
       }

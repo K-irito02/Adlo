@@ -11,6 +11,7 @@ import { persistField } from '../persisted/apply';
 import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
 import { prunePathPrefix } from '../persisted/prune';
 import { repairManualCollapsed } from '../persisted/parsers';
+import { dropChildOrderUnder, remapChildOrderForRename } from '@features/file-tree/childOrder';
 const SCOPE = 'workspace';
 
 // Re-export for test convenience (tests import from workspaceActions)
@@ -73,54 +74,77 @@ export function createWorkspaceActions(
     ...createWorkspaceLifecycleActions(set, get),
 
     /**
-     * [carryExpandedPathsForRename - 重命名后搬运文件树展开态]
-     * @reads uiSlice.expandedFileTreePaths
-     * @writes uiSlice.expandedFileTreePaths（内存 + 经 persistField 落盘）
-     * @see workspaceTreeRename.ts → remapTreeExpansion（搬运两侧 + 保引用等价 + 不变量修复，复用 T12 实现）
+     * [carryExpandedPathsForRename - 重命名后搬运文件树展开态 + 目录自定义顺序]
+     * @reads uiSlice.expandedFileTreePaths, uiSlice.fileChildOrder
+     * @writes 两者（内存 + 经 persistField 落盘）
+     * @see workspaceTreeRename.ts → remapTreeExpansion
+     * @see file-tree/childOrder.ts → remapChildOrderForRename
      */
     carryExpandedPathsForRename: (workspaceId: string, oldPath: string, newPath: string) =>
       set((state) => {
         const current = state.expandedFileTreePaths[workspaceId];
-        if (!current) {
+        const workspacePath = state.recentWorkspaces.find((w) => w.id === workspaceId)?.path;
+        const remapped = current ? remapTreeExpansion(current, oldPath, newPath) : undefined;
+        const currentOrder = state.fileChildOrder;
+        const orderRemapped =
+          workspacePath === undefined
+            ? currentOrder
+            : remapChildOrderForRename(currentOrder, workspacePath, oldPath, newPath);
+        let expandedPatch: Partial<StoreState> = {};
+        if (current && remapped && remapped !== current) {
+          expandedPatch = persistField('adl:files.dirExpanded', {
+            ...state.expandedFileTreePaths,
+            [workspaceId]: remapped,
+          });
+        }
+        const orderChanged = orderRemapped !== currentOrder;
+        if (Object.keys(expandedPatch).length === 0 && !orderChanged) {
           return state;
         }
-        const remapped = remapTreeExpansion(current, oldPath, newPath);
-        if (remapped === current) {
-          return state;
-        }
-        return persistField('adl:files.dirExpanded', {
-          ...state.expandedFileTreePaths,
-          [workspaceId]: remapped,
-        });
+        return {
+          ...expandedPatch,
+          ...(orderChanged ? persistField('adl:files.childOrder', orderRemapped) : {}),
+        };
       }),
 
     /**
-     * [dropExpandedPathsUnder - 删除目录后剔除文件树展开态]
-     * @writes uiSlice.expandedFileTreePaths（内存 + 经 persistField 落盘）
+     * [dropExpandedPathsUnder - 删除目录后剔除文件树展开态 + 目录自定义顺序]
+     * @writes uiSlice.expandedFileTreePaths, uiSlice.fileChildOrder（内存 + 经 persistField 落盘）
      * @see persisted/prune.ts → prunePathPrefix（剔除路径自身及其子孙）
-     * @see persisted/parsers.ts → repairManualCollapsed（空标记归一为 undefined + 不变量修复）
+     * @see file-tree/childOrder.ts → dropChildOrderUnder
      */
     dropExpandedPathsUnder: (workspaceId: string, removedPath: string) =>
       set((state) => {
         const current = state.expandedFileTreePaths[workspaceId];
-        if (!current) {
+        const workspacePath = state.recentWorkspaces.find((w) => w.id === workspaceId)?.path;
+        const expandedPruned = current
+          ? prunePathPrefix(current.expanded, removedPath)
+          : { value: {}, changed: false };
+        const manualPruned = current
+          ? prunePathPrefix<Record<string, true>>(current.manualCollapsed ?? {}, removedPath)
+          : { value: {}, changed: false };
+        const currentOrder = state.fileChildOrder;
+        const orderPruned =
+          workspacePath === undefined
+            ? currentOrder
+            : dropChildOrderUnder(currentOrder, workspacePath, removedPath);
+        const expandedChanged = expandedPruned.changed || manualPruned.changed;
+        const orderChanged = orderPruned !== currentOrder;
+        if (!expandedChanged && !orderChanged) {
           return state;
         }
-        const expandedPruned = prunePathPrefix(current.expanded, removedPath);
-        const manualPruned = prunePathPrefix<Record<string, true>>(
-          current.manualCollapsed ?? {},
-          removedPath,
-        );
-        if (!expandedPruned.changed && !manualPruned.changed) {
-          return state;
-        }
-        return persistField('adl:files.dirExpanded', {
-          ...state.expandedFileTreePaths,
-          [workspaceId]: {
-            expanded: expandedPruned.value,
-            manualCollapsed: repairManualCollapsed(expandedPruned.value, manualPruned.value),
-          },
-        });
+        return {
+          ...(expandedChanged
+            ? persistField('adl:files.dirExpanded', {
+                ...state.expandedFileTreePaths,
+                [workspaceId]: {
+                  expanded: expandedPruned.value,
+                  manualCollapsed: repairManualCollapsed(expandedPruned.value, manualPruned.value),
+                },
+              })
+            : {}),
+          ...(orderChanged ? persistField('adl:files.childOrder', orderPruned) : {}),
+        };
       }),
 
     /**
@@ -212,8 +236,10 @@ export function createWorkspaceActions(
               [workspaceId]: renameTreeNodePaths(tree, relativePath, newPath),
             },
           });
-          get().carryExpandedPathsForRename(workspaceId, relativePath, newPath);
         }
+        // 展开态/目录顺序与 `workspaceTrees` 缓存无关：从变更面板改名时文件树可能尚未加载，
+        // 仍必须搬运，否则子目录顺序键留在旧路径、父目录顺序仍是旧名字。
+        get().carryExpandedPathsForRename(workspaceId, relativePath, newPath);
         get().carryChangesExpandedPathsForRename(ws.id, relativePath, newPath);
         if (get().filePreviewModeByPath[ws.id]?.[relativePath] !== undefined) {
           get().carryFilePreviewModeForRename(ws.id, relativePath, newPath);
@@ -346,7 +372,7 @@ export function createWorkspaceActions(
       // 同 rename：移动前先 flush，避免暂存键继续指向旧路径。
       const flush = await get().saveDirtyEditors();
       if (flush.failed > 0) {
-        return;
+        return false;
       }
       const result = await window.digitalLife.workspace.moveFile(
         relativePath,
@@ -355,9 +381,10 @@ export function createWorkspaceActions(
       );
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
-        return;
+        return false;
       }
       await refreshTreeByWorkspacePath(get, workspacePath);
+      return true;
     },
 
     /**
@@ -438,6 +465,10 @@ export function createWorkspaceActions(
       workspacePath?: string,
     ) => {
       clearError(get, SCOPE);
+      const flush = await get().saveDirtyEditors();
+      if (flush.failed > 0) {
+        return false;
+      }
       const result = await window.digitalLife.workspace.duplicateFile(
         srcRelativePath,
         dstRelativePath,
@@ -445,9 +476,10 @@ export function createWorkspaceActions(
       );
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
-        return;
+        return false;
       }
       await refreshTreeByWorkspacePath(get, workspacePath);
+      return true;
     },
 
     /**

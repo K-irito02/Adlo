@@ -455,7 +455,7 @@ export interface WorkspaceBridge {
   ) => Promise<IpcResult<boolean>>;
   /**
    * 跨工作区移动文件/目录（源与目标分属不同的工作区根）。
-   * 同一磁盘优先 `rename`，跨盘退化为「复制 → 删除源」；复制后删除源失败会回滚目标副本。
+   * 先尝试 `rename`；失败（跨卷、被占用等）时退化为「复制 → 删除源」；删除源失败会回滚目标副本。
    * @param input 源工作区根 + 源相对路径 → 目标工作区根 + 目标相对路径
    * @returns 是否移动成功
    * @command POST /workspace/move-across
