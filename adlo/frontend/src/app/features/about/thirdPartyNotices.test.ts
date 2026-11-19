@@ -4,8 +4,9 @@ import { THIRD_PARTY_NOTICES } from './thirdPartyNotices';
 /**
  * 人工维护的「随包素材 / 移植代码」声明数据。
  *
- * 生成物只覆盖锁文件依赖；这里的 5 条资产声明是手抄正文，必须逐条锁住，
- * 否则正文被替换、版权行被改写或 URL 退化都不会被发现。
+ * 生成物只覆盖锁文件依赖；这里的 5 条资产声明是手抄正文，必须锁住：
+ * 正文被替换、URL 退化，或 React Symbols / Untitled UI / Devicons 的版权行被改写，
+ * 都不会被其他用例发现（bklit-ui 与 Lucide 的版权行另有面板用例覆盖）。
  */
 describe('third-party notices', () => {
   it('keeps names unique and every entry complete', () => {

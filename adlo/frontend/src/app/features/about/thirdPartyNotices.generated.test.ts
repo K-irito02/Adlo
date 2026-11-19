@@ -100,8 +100,8 @@ describe('generated third-party notices', () => {
       if (left === right) {
         return true;
       }
-      const [short, long] = left.length <= right.length ? [left, right] : [right, left];
-      if (short.length >= long.length * 0.85 && long.includes(short)) {
+      // 合集文件（前一条）包含后面的标准正文时，不得再单独列一次。
+      if (left.includes(right)) {
         return true;
       }
       return similarity(left, right) >= 0.95;

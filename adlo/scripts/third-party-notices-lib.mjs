@@ -377,10 +377,10 @@ export function normalizedLicenseBody(text) {
 }
 
 /**
- * 两份正文是否是同一份许可：等长包含、或词袋相似度 ≥ 0.95。
+ * 两份正文是否是同一份许可：近似等长包含（短者 ≥ 长者 85%），或词袋相似度 ≥ 0.95。
  *
- * 包含判定保留 0.85 长度下限，避免把「见 LICENSE」这类短声明当作完整正文；
- * 完整标准正文被更长的随包文件包含属于覆盖，由 `coversLicenseText` 单独判定。
+ * 0.85 下限避免把「见 LICENSE」这类短声明当作完整正文；合集文件（标准正文远短于
+ * 随包文件）由 `coversLicenseText` 的显式包含判定覆盖。
  */
 export function isSameLicenseBody(a, b) {
   const left = normalizedLicenseBody(a);

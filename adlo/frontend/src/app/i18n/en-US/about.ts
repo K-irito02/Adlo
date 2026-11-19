@@ -65,7 +65,7 @@ export const aboutEn = {
   aboutNoticesUnknownLicense: 'No declared license',
   aboutNoticesMissingText: 'Upstream does not bundle the license text.',
   aboutNoticesCanonicalText:
-    'Upstream does not bundle a license file; the standard license text is shown below.',
+    'Upstream does not bundle the license text; the standard license text is shown below.',
   aboutNoticesCanonicalTextMixed:
     "Upstream does not bundle this license's text; the standard license text is shown below.",
   aboutThirdPartyNoticesScope:

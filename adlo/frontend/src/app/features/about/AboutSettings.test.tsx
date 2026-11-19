@@ -197,7 +197,7 @@ const aboutT = new Proxy({} as Record<string, string>, {
       case 'aboutNoticesMissingText':
         return '上游未随包提供许可全文。';
       case 'aboutNoticesCanonicalText':
-        return '上游未随包提供许可文件，以下为标准许可正文。';
+        return '上游未随包提供许可正文，以下为标准许可正文。';
       case 'aboutNoticesCanonicalTextMixed':
         return '上游未随包提供该许可证的正文，以下为标准许可正文。';
       case 'aboutThirdPartyNoticesScope':
@@ -501,7 +501,7 @@ describe('AboutSettings', () => {
     fireEvent.click(screen.getByText('第三方声明'));
     dialog = screen.getByRole('dialog');
     await waitFor(() => expect(dialog.textContent).toContain('delta'));
-    expect(dialog.textContent).toContain('上游未随包提供许可文件，以下为标准许可正文。');
+    expect(dialog.textContent).toContain('上游未随包提供许可正文，以下为标准许可正文。');
     expect(dialog.textContent).toContain('上游许可文件未提供版权行');
 
     // 混源包：来源说明只出现在回退的标准正文那一条，随包原文不加。
@@ -514,7 +514,8 @@ describe('AboutSettings', () => {
       textBlocks.find(
         (block) => block.querySelector('.adl-about-notices__text-label')?.textContent === label,
       );
-    expect(blockFor('Apache-2.0')?.querySelector('.adl-about-notices__note')).toBeTruthy();
+    const mixedNote = blockFor('Apache-2.0')?.querySelector('.adl-about-notices__note');
+    expect(mixedNote?.textContent).toContain('该许可证的正文');
     expect(blockFor('LICENSE-MIT')?.querySelector('.adl-about-notices__note')).toBeNull();
   });
 

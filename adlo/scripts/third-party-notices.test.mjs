@@ -4,7 +4,9 @@ import { describe, it } from "node:test";
 import {
   buildNoticeOutput,
   coversLicenseText,
+  isSameLicenseBody,
   mergeLicenseCorpus,
+  normalizedLicenseBody,
   normalizeNpmLicense,
   normalizeRepositoryUrl,
   parseCargoLock,
@@ -299,6 +301,25 @@ copies or substantial portions of the Software.`;
     assert.equal(coversLicenseText("MIT License", canonical), false);
     assert.equal(coversLicenseText("Licensed under MIT. See LICENSE for details.", body), false);
     assert.equal(coversLicenseText("", body), false);
+  });
+
+  it("accepts a collection file that embeds the standard text among others", () => {
+    const otherLicense = `Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+redistributions of source code must retain the above copyright notice and this
+list of conditions; redistributions in binary form must reproduce the above
+copyright notice in the documentation and/or other materials provided with the
+distribution; neither the name of the copyright holder nor the names of its
+contributors may be used to endorse or promote products derived from this
+software without specific prior written permission.`;
+    const collection = `${body}\n\n${otherLicense}`;
+    // 标准正文远短于合集文件（<85%），只能由显式包含判定接住。
+    assert.equal(
+      normalizedLicenseBody(body).length < normalizedLicenseBody(collection).length * 0.85,
+      true,
+    );
+    assert.equal(coversLicenseText(collection, body), true);
+    assert.equal(isSameLicenseBody(collection, body), false);
   });
 
   it("keeps a different license apart", () => {

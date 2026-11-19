@@ -575,7 +575,7 @@ function dedupeRefs(refs, store) {
   return kept;
 }
 
-/** 声明 id 中，已有随包正文与之等价的集合（标题行 / 缩进差异也算同一份正文）。 */
+/** 声明 id 中，已有随包正文覆盖的集合（完整正文出现在随包文件里即算覆盖）。 */
 function coveredLicenseIds(fileTexts, expression, corpus) {
   const covered = new Set();
   for (const id of [...expression.ids, ...expression.exceptions]) {
@@ -654,8 +654,9 @@ function buildPackageRecord({
     refs = added.refs;
     copyright = added.copyright;
     textSource = "package";
-    // 声明里未被随包正文覆盖的 id 回退标准正文；等价判定允许标题行 / 缩进差异，
-    // 既避免同一份正文重复出现，也补上「随包只有部分许可」的缺口。
+    // 声明里未被随包正文覆盖的 id 回退标准正文；覆盖判定允许随包文件带标题 /
+    // 附加说明（完整正文被包含即可），既避免同一份正文重复出现，也补上
+    // 「随包只有部分许可」的缺口。
     const covered = coveredLicenseIds(
       files.map((file) => file.text),
       expression,
