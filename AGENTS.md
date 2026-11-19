@@ -28,7 +28,7 @@
 
 ## 工具选择（Agent）
 
-- **内容检索一律用 `grep` 工具**（禁 PowerShell `Select-String`，包括用它过滤命令输出/管道；文件名/扩展名检索用 `glob` 工具或 `git ls-files`；禁任何 `git grep`）。**读取文本文件一律用 `read` 工具**（PowerShell `Get-Content`/`cat` 会把 UTF-8 中文在 GBK 控制台打成乱码，2026-11-12 retro 实测）；需要压缩命令输出时用工具自带参数（如 `--reporter=dot`）或 `Select-Object -Last`，不要用 `Select-String`。站点元数据缓存排查用 `dump-site-meta` 示例（`cargo run -p adl-browser --example dump-site-meta -- <data_dir> [url]`），免先给环境装 sqlite3 CLI。
+- **检索用 `grep` 工具、读文本用 `read` 工具**：`Select-String` 已被 shell 权限拦截；`Get-Content`/`cat` 会在 GBK 控制台把 UTF-8 中文打成乱码（2026-11-12 实测）。文件名检索用 `glob` / `git ls-files`，禁用 `git grep`。压缩**短**命令输出用工具自带参数（如 `--reporter=dot`）或 `Select-Object -Last`；**长门禁 / 开发服务器先落盘再读 tail**（管道会缓冲到进程退出，看似挂起，2026-11-19 实测）。站点元数据排查用 `dump-site-meta`（`cargo run -p adl-browser --example dump-site-meta -- <数据根> [url] [--missing-favicon]`），免装 sqlite3 CLI。
 - **外部产品对标 / 长文档调研**：优先用 `research` 技能派子代理；主上下文只收摘要、来源链接与适配结论。
 - **批量修改源码/文档一律用 `edit`/`write`**；禁 shell 内联 `-replace`/`Add-Content`/here-string/`sed`/`node -e` 等（破坏 CJK，见 [shell-encoding.md](.agents/rules/shell-encoding.md)，已由 `.opencode/opencode.json` 权限拒绝）。提交信息/参数含这些字样时用 `git commit -F <文件>`。
 
@@ -74,3 +74,4 @@ Issue tracker 存放在 GitHub Issues（`K-irito02/Adlo`，`gh` CLI）；五个�
 - [docs/development/project-engineering-constraints.md](./docs/development/project-engineering-constraints.md) — 工程约束
 - [docs/development/adding-an-ipc-domain.md](./docs/development/adding-an-ipc-domain.md) — 新增 IPC 域端到端接线清单
 - [docs/knowledge-base/README.md](./docs/knowledge-base/README.md) — 经验教训索引
+- [docs/agents/session-evidence.md](./docs/agents/session-evidence.md) — 会话证据来源（retro / 收尾排查）

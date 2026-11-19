@@ -10,7 +10,7 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 
 1. Follow the repo writing guidance: `.agents/rules/dev-rules.md` plus the `writing-skills` skill. (Upstream `writing-for-agents` is not installed in this repo.)
 
-2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine. If the user doesn't specify a session, default to the current one.
+2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine. If the user doesn't specify a session, default to the current one. 本仓库可用的证据来源见 [docs/agents/session-evidence.md](../../../docs/agents/session-evidence.md)；消息转录缺失时按该文档用进度文件 + 审查报告 + 命令输出重建，不要因此阻塞。
 
 3. Look for candidates for improvement in these categories.
 
