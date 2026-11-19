@@ -1,8 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
+import { applyChildOrder } from '@features/file-tree/childOrder';
+import { DndOverlay } from '@features/dnd/DndOverlay';
 import { MultiWorkspaceTreeShell } from '../multi-workspace/MultiWorkspaceTreeShell';
 import { WorkspaceFileTreeEntry } from './WorkspaceFileTreeEntry';
+import { useWorkspaceTreeDnd } from './useWorkspaceTreeDnd';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import type { TreeExpansion } from '@stores/slices/uiSliceTypes';
@@ -71,6 +74,23 @@ export function MultiWorkspaceFileTree({
   clearMenuHighlightRef,
 }: MultiWorkspaceFileTreeProps) {
   const { t } = useTCopy();
+  const fileChildOrder = useAppStore((state) => state.fileChildOrder);
+
+  // 目录自定义顺序（手动排过序的目录允许目录/文件混排；未列出项保持默认顺序）。
+  const orderedTreeData = useMemo(() => {
+    const next: Record<string, WorkspaceTreeNode[]> = {};
+    for (const workspace of workspaces) {
+      next[workspace.id] = applyChildOrder(
+        treeData[workspace.id] ?? [],
+        workspace.path,
+        '',
+        fileChildOrder,
+      );
+    }
+    return next;
+  }, [workspaces, treeData, fileChildOrder]);
+
+  const { indicator, handlers } = useWorkspaceTreeDnd(workspaces, orderedTreeData);
 
   const onClearSelection = useCallback(() => {
     useAppStore.getState().clearFileTreeClickedNode();
@@ -92,7 +112,7 @@ export function MultiWorkspaceFileTree({
             workspace={workspace}
             isCurrent={workspace.id === activeWorkspaceId}
             isExpanded={isExpanded}
-            treeNodes={treeData[workspace.id]}
+            treeNodes={orderedTreeData[workspace.id]}
             isLoading={loadingStates[workspace.id] ?? false}
             isRefreshing={refreshingStates?.[workspace.id] ?? false}
             error={errorStates[workspace.id]}
@@ -123,7 +143,7 @@ export function MultiWorkspaceFileTree({
     },
     [
       activeWorkspaceId,
-      treeData,
+      orderedTreeData,
       loadingStates,
       refreshingStates,
       errorStates,
@@ -151,19 +171,23 @@ export function MultiWorkspaceFileTree({
   );
 
   return (
-    <MultiWorkspaceTreeShell
-      visibleWorkspaces={workspaces}
-      expandedState={expandedStates}
-      emptyText={
-        <AddWorkspaceHint
-          prefix={t.workspaceEmptyAddWorkspacePrefix as string}
-          suffix={t.workspaceEmptyAddWorkspaceSuffix as string}
-        />
-      }
-      onToggleExpand={onToggleExpand}
-      onClearSelection={onClearSelection}
-      renderContent={renderContent}
-      stickyHeaders
-    />
+    <>
+      <MultiWorkspaceTreeShell
+        visibleWorkspaces={workspaces}
+        expandedState={expandedStates}
+        emptyText={
+          <AddWorkspaceHint
+            prefix={t.workspaceEmptyAddWorkspacePrefix as string}
+            suffix={t.workspaceEmptyAddWorkspaceSuffix as string}
+          />
+        }
+        onToggleExpand={onToggleExpand}
+        onClearSelection={onClearSelection}
+        renderContent={renderContent}
+        stickyHeaders
+        dndHandlers={handlers}
+      />
+      <DndOverlay indicator={indicator} />
+    </>
   );
 }

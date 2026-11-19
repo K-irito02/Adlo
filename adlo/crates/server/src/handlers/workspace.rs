@@ -908,6 +908,75 @@ pub async fn move_file(
     ipc::to_response(result)
 }
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MoveAcrossBody {
+    source_workspace_path: String,
+    source_relative_path: String,
+    target_workspace_path: String,
+    target_relative_path: String,
+}
+
+/// POST `/workspace/move-across` — 跨工作区移动（源/目标分别解析到各自工作区根）。
+pub async fn move_file_across(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: MoveAcrossBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let source_root = match workspace_root(&state, Some(input.source_workspace_path)) {
+        Ok(p) => p,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let target_root = match workspace_root(&state, Some(input.target_workspace_path)) {
+        Ok(p) => p,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        adl_workspace::move_entry_across(
+            std::path::Path::new(&source_root),
+            &input.source_relative_path,
+            std::path::Path::new(&target_root),
+            &input.target_relative_path,
+        )?;
+        Ok(serde_json::json!(true))
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// POST `/workspace/copy-across` — 跨工作区复制（源/目标分别解析到各自工作区根）。
+pub async fn copy_file_across(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: MoveAcrossBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let source_root = match workspace_root(&state, Some(input.source_workspace_path)) {
+        Ok(p) => p,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let target_root = match workspace_root(&state, Some(input.target_workspace_path)) {
+        Ok(p) => p,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        adl_workspace::copy_entry_across(
+            std::path::Path::new(&source_root),
+            &input.source_relative_path,
+            std::path::Path::new(&target_root),
+            &input.target_relative_path,
+        )?;
+        Ok(serde_json::json!(true))
+    })
+    .await;
+    ipc::to_response(result)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::router::app_router;

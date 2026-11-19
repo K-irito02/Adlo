@@ -185,6 +185,25 @@ interface WorkspaceActions {
     dstRelativePath: string,
     workspacePath?: string,
   ) => Promise<void>;
+  /**
+   * 跨工作区移动文件/目录；返回是否成功（剪贴板类调用方据此决定是否清空）。
+   * 移动前先 flush 脏编辑器；成功后刷新源/目标两棵工作区树。
+   */
+  moveWorkspaceFileAcross: (input: {
+    sourceWorkspacePath: string;
+    sourceRelativePath: string;
+    targetWorkspacePath: string;
+    targetRelativePath: string;
+  }) => Promise<boolean>;
+  /** 跨工作区复制（保留源）；返回是否成功，供剪贴板决定是否清空。 */
+  copyWorkspaceFileAcross: (input: {
+    sourceWorkspacePath: string;
+    sourceRelativePath: string;
+    targetWorkspacePath: string;
+    targetRelativePath: string;
+  }) => Promise<boolean>;
+  /** 重排侧栏非置顶工作区顺序（置顶区固定），所有右侧面板共用同一份 `recentWorkspaces`。 */
+  reorderSidebarWorkspaces: (orderedIds: string[]) => Promise<void>;
 }
 
 interface EditorActions {

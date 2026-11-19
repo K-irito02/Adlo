@@ -133,6 +133,16 @@ export interface WorkspaceBridge {
    */
   removeFromSidebar: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
   /**
+   * 重排侧栏工作区顺序（仅非置顶区；置顶项固定在前，不参与本次排序）。
+   * @param orderedIds 非置顶工作区的新顺序；未列出的非置顶项按旧顺序追加到末尾
+   * @returns 更新后的可呈现工作区列表（所有右侧面板共用同一份 `recentWorkspaces`）
+   * @command POST /sidebar/reorder
+   * @see httpBridge.ts → workspace.reorderSidebar
+   * @see mock/mock-workspace.ts → workspace.reorderSidebar
+   * @see preview-bridge/preview-workspace.ts → workspace.reorderSidebar
+   */
+  reorderSidebar: (orderedIds: string[]) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
+  /**
    * 获取指定工作区的文件目录树
    * @param workspacePath 工作区的绝对路径
    * @param options.force 为 true 时绕过服务端进程内缓存强制重新扫描（显式"刷新"用）
@@ -443,6 +453,35 @@ export interface WorkspaceBridge {
     newPath: string,
     workspacePath?: string,
   ) => Promise<IpcResult<boolean>>;
+  /**
+   * 跨工作区移动文件/目录（源与目标分属不同的工作区根）。
+   * 同一磁盘优先 `rename`，跨盘退化为「复制 → 删除源」；复制后删除源失败会回滚目标副本。
+   * @param input 源工作区根 + 源相对路径 → 目标工作区根 + 目标相对路径
+   * @returns 是否移动成功
+   * @command POST /workspace/move-across
+   * @see httpBridge.ts → workspace.moveFileAcross
+   * @see mock/mock-workspace.ts → workspace.moveFileAcross
+   * @see preview-bridge/preview-workspace.ts → workspace.moveFileAcross
+   */
+  moveFileAcross: (input: {
+    sourceWorkspacePath: string;
+    sourceRelativePath: string;
+    targetWorkspacePath: string;
+    targetRelativePath: string;
+  }) => Promise<IpcResult<boolean>>;
+  /**
+   * 跨工作区复制文件/目录（保留源；目标已存在即拒绝，不自动改名）。
+   * @command POST /workspace/copy-across
+   * @see httpBridge.ts → workspace.copyFileAcross
+   * @see mock/mock-workspace.ts → workspace.copyFileAcross
+   * @see preview-bridge/preview-workspace.ts → workspace.copyFileAcross
+   */
+  copyFileAcross: (input: {
+    sourceWorkspacePath: string;
+    sourceRelativePath: string;
+    targetWorkspacePath: string;
+    targetRelativePath: string;
+  }) => Promise<IpcResult<boolean>>;
   /**
    * 获取当前工作区的 Git 状态快照
    * @returns Git 状态快照 (isRepo/staged/unstaged/untracked/conflicts)

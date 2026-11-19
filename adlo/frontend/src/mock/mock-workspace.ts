@@ -90,6 +90,29 @@ export const mockWorkspace: WorkspaceBridge = {
     }
     return { ok: true, data: recentWorkspaces };
   },
+  reorderSidebar: async (orderedIds: string[]) => {
+    const ordered: typeof recentWorkspaces = [];
+    for (const id of orderedIds) {
+      const entry = recentWorkspaces.find((item) => item.id === id && !item.isPinned);
+      if (entry && !ordered.some((item) => item.id === id)) {
+        ordered.push(entry);
+      }
+    }
+    const orderedIdsSet = new Set(ordered.map((entry) => entry.id));
+    const rest = recentWorkspaces
+      .filter((entry) => !entry.isPinned && !orderedIdsSet.has(entry.id))
+      .sort((a, b) => a.unpinnedOrder - b.unpinnedOrder);
+    const unpinned = [...ordered, ...rest].map((entry, index) => ({
+      ...entry,
+      unpinnedOrder: index,
+    }));
+    const pinned = recentWorkspaces
+      .filter((entry) => entry.isPinned)
+      .sort((a, b) => a.pinnedOrder - b.pinnedOrder);
+    const next = [...pinned, ...unpinned];
+    recentWorkspaces.splice(0, recentWorkspaces.length, ...next);
+    return { ok: true, data: recentWorkspaces };
+  },
   listTreeForWorkspace: async (
     _workspacePath: string,
     _options?: { force?: boolean; allowStale?: boolean },
@@ -338,6 +361,61 @@ export const mockWorkspace: WorkspaceBridge = {
         const ver = fileVersions.get(key);
         fileVersions.delete(key);
         fileVersions.set(newPath + key.substring(relativePath.length), ver ?? Date.now());
+      }
+    }
+    return { ok: true, data: true };
+  },
+  moveFileAcross: async (input: {
+    sourceWorkspacePath: string;
+    sourceRelativePath: string;
+    targetWorkspacePath: string;
+    targetRelativePath: string;
+  }) => {
+    // mock 无真实磁盘：只在内存文档表里做等价的「搬走」。
+    const { sourceRelativePath, targetRelativePath } = input;
+    const content = documents.get(sourceRelativePath);
+    if (content !== undefined) {
+      documents.delete(sourceRelativePath);
+      documents.set(targetRelativePath, content);
+      const ver = fileVersions.get(sourceRelativePath);
+      fileVersions.delete(sourceRelativePath);
+      fileVersions.set(targetRelativePath, ver ?? Date.now());
+    } else {
+      const keys = Array.from(documents.keys()).filter((key) =>
+        key.startsWith(`${sourceRelativePath}/`),
+      );
+      for (const key of keys) {
+        const kcontent = documents.get(key);
+        documents.delete(key);
+        const nextKey = targetRelativePath + key.substring(sourceRelativePath.length);
+        documents.set(nextKey, kcontent ?? '');
+        const ver = fileVersions.get(key);
+        fileVersions.delete(key);
+        fileVersions.set(nextKey, ver ?? Date.now());
+      }
+    }
+    return { ok: true, data: true };
+  },
+  copyFileAcross: async (input: {
+    sourceWorkspacePath: string;
+    sourceRelativePath: string;
+    targetWorkspacePath: string;
+    targetRelativePath: string;
+  }) => {
+    // mock 无真实磁盘：把内存文档表里的条目「复制」到目标路径（源保留）。
+    const { sourceRelativePath, targetRelativePath } = input;
+    const content = documents.get(sourceRelativePath);
+    if (content !== undefined) {
+      documents.set(targetRelativePath, content);
+      fileVersions.set(targetRelativePath, Date.now());
+    } else {
+      const keys = Array.from(documents.keys()).filter((key) =>
+        key.startsWith(`${sourceRelativePath}/`),
+      );
+      for (const key of keys) {
+        const nextKey = targetRelativePath + key.substring(sourceRelativePath.length);
+        documents.set(nextKey, documents.get(key) ?? '');
+        fileVersions.set(nextKey, Date.now());
       }
     }
     return { ok: true, data: true };

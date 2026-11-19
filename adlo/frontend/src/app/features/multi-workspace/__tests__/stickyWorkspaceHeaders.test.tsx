@@ -69,6 +69,7 @@ describe('右侧导航树工作区标题吸顶', () => {
 
     const shell = container.querySelector('.adl-multitree');
     expect(shell?.classList.contains('adl-multitree--sticky-headers')).toBe(true);
+    expect(shell?.classList.contains('adl-multitree--dnd')).toBe(true);
   });
 
   it('变更面板开启吸顶修饰类', () => {
@@ -104,6 +105,7 @@ describe('右侧导航树工作区标题吸顶', () => {
 
     const shell = container.querySelector('.adl-multitree');
     expect(shell?.classList.contains('adl-multitree--sticky-headers')).toBe(true);
+    expect(shell?.classList.contains('adl-multitree--dnd')).toBe(true);
   });
 
   it('未开启的复用方（终端面板等）不受影响', () => {

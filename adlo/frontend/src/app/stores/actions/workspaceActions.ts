@@ -361,6 +361,71 @@ export function createWorkspaceActions(
     },
 
     /**
+     * [moveWorkspaceFileAcross - 跨工作区移动文件/目录]
+     * @writes workspaceSlice.workspaceTrees (源/目标两棵树分别静默校准)
+     * @see shared/ipc.ts → workspace.moveFileAcross
+     */
+    moveWorkspaceFileAcross: async (input: {
+      sourceWorkspacePath: string;
+      sourceRelativePath: string;
+      targetWorkspacePath: string;
+      targetRelativePath: string;
+    }) => {
+      clearError(get, SCOPE);
+      // 与同区移动同口径：先把脏编辑器落盘，避免暂存键继续指向旧路径。
+      const flush = await get().saveDirtyEditors();
+      if (flush.failed > 0) {
+        return false;
+      }
+      const result = await window.digitalLife.workspace.moveFileAcross(input);
+      if (!result.ok) {
+        captureError(get, result.error, SCOPE);
+        return false;
+      }
+      await refreshTreeByWorkspacePath(get, input.sourceWorkspacePath);
+      if (input.targetWorkspacePath !== input.sourceWorkspacePath) {
+        await refreshTreeByWorkspacePath(get, input.targetWorkspacePath);
+      }
+      return true;
+    },
+
+    /**
+     * [copyWorkspaceFileAcross - 跨工作区复制文件/目录]
+     * @writes workspaceSlice.workspaceTrees (目标工作区树静默校准)
+     * @see shared/ipc.ts → workspace.copyFileAcross
+     */
+    copyWorkspaceFileAcross: async (input: {
+      sourceWorkspacePath: string;
+      sourceRelativePath: string;
+      targetWorkspacePath: string;
+      targetRelativePath: string;
+    }) => {
+      clearError(get, SCOPE);
+      const result = await window.digitalLife.workspace.copyFileAcross(input);
+      if (!result.ok) {
+        captureError(get, result.error, SCOPE);
+        return false;
+      }
+      await refreshTreeByWorkspacePath(get, input.targetWorkspacePath);
+      return true;
+    },
+
+    /**
+     * [reorderSidebarWorkspaces - 重排侧栏非置顶工作区]
+     * @writes workspaceSlice.recentWorkspaces（所有右侧面板共用该数组，顺序自动同步）
+     * @see shared/ipc.ts → workspace.reorderSidebar
+     */
+    reorderSidebarWorkspaces: async (orderedIds: string[]) => {
+      clearError(get, SCOPE);
+      const result = await window.digitalLife.workspace.reorderSidebar(orderedIds);
+      if (!result.ok) {
+        captureError(get, result.error, SCOPE);
+        return;
+      }
+      set({ recentWorkspaces: result.data });
+    },
+
+    /**
      * [duplicateWorkspaceFile - 复制工作区中的文件]
      * @writes workspaceSlice.workspaceTrees (通过 refreshTreeByWorkspacePath 静默校准)
      * @see shared/ipc.ts → workspace.duplicateFile

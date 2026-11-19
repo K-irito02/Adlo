@@ -701,6 +701,70 @@ const routes: Route[] = [
     },
   },
   {
+    method: 'POST',
+    pathname: makePath('/workspace/move-across'),
+    handler: async (_req, body) => {
+      const b = body as
+        | {
+            sourceRootPath?: string;
+            sourceRelativePath?: string;
+            targetRootPath?: string;
+            targetRelativePath?: string;
+          }
+        | undefined;
+      if (
+        !b?.sourceRootPath?.trim() ||
+        !b?.sourceRelativePath?.trim() ||
+        !b?.targetRootPath?.trim() ||
+        !b?.targetRelativePath?.trim()
+      )
+        return fail(
+          'sourceRootPath, sourceRelativePath, targetRootPath, and targetRelativePath are required',
+          'INVALID_INPUT',
+        );
+      return ok(
+        await files.moveFileAcross(
+          b.sourceRootPath.trim(),
+          b.sourceRelativePath.trim(),
+          b.targetRootPath.trim(),
+          b.targetRelativePath.trim(),
+        ),
+      );
+    },
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/workspace/copy-across'),
+    handler: async (_req, body) => {
+      const b = body as
+        | {
+            sourceRootPath?: string;
+            sourceRelativePath?: string;
+            targetRootPath?: string;
+            targetRelativePath?: string;
+          }
+        | undefined;
+      if (
+        !b?.sourceRootPath?.trim() ||
+        !b?.sourceRelativePath?.trim() ||
+        !b?.targetRootPath?.trim() ||
+        !b?.targetRelativePath?.trim()
+      )
+        return fail(
+          'sourceRootPath, sourceRelativePath, targetRootPath, and targetRelativePath are required',
+          'INVALID_INPUT',
+        );
+      return ok(
+        await files.copyFileAcross(
+          b.sourceRootPath.trim(),
+          b.sourceRelativePath.trim(),
+          b.targetRootPath.trim(),
+          b.targetRelativePath.trim(),
+        ),
+      );
+    },
+  },
+  {
     method: 'GET',
     pathname: makePath('/workspace/tree'),
     handler: async (_req, _body, searchParams) => {

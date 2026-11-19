@@ -4,6 +4,7 @@
  */
 import type { StoreState } from '../StoreState';
 import { persistField } from '../persisted/apply';
+import { childOrderKey } from '@features/file-tree/childOrder';
 import type { TreeExpansion, UISlice } from './uiSliceTypes';
 
 /** 空展开态单例（按工作区缺省时复用，避免每次都 new 一个 {}） */
@@ -81,6 +82,8 @@ export type UIExpansionSlice = Pick<
   UISlice,
   | 'expandedFileTreePaths'
   | 'expandedChangesTreePaths'
+  | 'fileChildOrder'
+  | 'setFileChildOrder'
   | 'fileTreeRevealRequest'
   | 'requestFileTreeReveal'
   | 'consumeFileTreeReveal'
@@ -100,6 +103,14 @@ export function createUIExpansionSlice(
   return {
     expandedFileTreePaths: {},
     expandedChangesTreePaths: {},
+    fileChildOrder: {},
+    setFileChildOrder: (workspacePath, dirPath, childNames) =>
+      set((state) =>
+        persistField('adl:files.childOrder', {
+          ...state.fileChildOrder,
+          [childOrderKey(workspacePath, dirPath)]: childNames,
+        }),
+      ),
     fileTreeRevealRequest: null,
     requestFileTreeReveal: (workspaceId, path) => {
       fileTreeRevealNonce += 1;

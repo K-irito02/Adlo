@@ -1,0 +1,45 @@
+/* 文件 / 变更导航树拖拽：与书签树共用 --adl-dnd-* 中性色与 .adl-dnd-insert-line 视觉。 */
+
+.adl-tree-dnd-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* 无效落点：行 / 工作区头 / 按钮内部各自声明了 cursor，逐一覆盖。 */
+body.adl-tree-dnd-not-allowed,
+body.adl-tree-dnd-not-allowed .adl-multitree--dnd [data-path],
+body.adl-tree-dnd-not-allowed .adl-multitree--dnd .adl-multitree-entry__header,
+body.adl-tree-dnd-not-allowed .adl-multitree--dnd .adl-multitree-entry__namezone,
+body.adl-tree-dnd-not-allowed .adl-multitree--dnd button {
+  cursor: not-allowed;
+}
+
+.adl-multitree--dnd [data-path],
+.adl-multitree--dnd .adl-multitree-entry__header {
+  cursor: grab;
+}
+
+.adl-multitree--dnd [data-path]:active,
+.adl-multitree--dnd .adl-multitree-entry__header:active {
+  cursor: grabbing;
+}
+
+.adl-dnd-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.adl-dnd-overlay .adl-dnd-insert-line {
+  position: absolute;
+  /* 高于抬起副本（9999），插入线不被整行宽的 ghost 盖住。 */
+  z-index: 10000;
+}
+
+.adl-dnd-into {
+  position: absolute;
+  /* 低于抬起副本：高亮只作底色，不染到 ghost 上。 */
+  z-index: 9997;
+  border-radius: var(--radius-sm);
+  background: var(--adl-dnd-into);
+}

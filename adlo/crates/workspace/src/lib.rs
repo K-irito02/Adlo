@@ -14,8 +14,8 @@ pub use detect::{
     detect_root, open_workspace, stable_workspace_id, strip_verbatim_prefix, workspace_type,
 };
 pub use fs::{
-    create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry,
-    update_file,
+    copy_entry_across, create_file, create_folder, delete_entry, duplicate_entry, move_entry,
+    move_entry_across, rename_entry, update_file,
 };
 pub use git::git_vis::{
     capture_branch_graph, capture_code_evolution, capture_commit_stats,

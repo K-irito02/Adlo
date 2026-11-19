@@ -209,6 +209,23 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
             },
           };
         }
+        // 记录复制/剪切来源工作区：跨工作区粘贴必须按来源根解析源路径。
+        if (item.id === 'cut' || item.id === 'copy') {
+          const isCut = item.id === 'cut';
+          return {
+            ...item,
+            action: (targetNode: WorkspaceTreeNode) => {
+              useAppStore
+                .getState()
+                .setClipboard(
+                  isCut ? 'cut' : 'copy',
+                  targetNode.path,
+                  targetNode.kind,
+                  workspace.path,
+                );
+            },
+          };
+        }
         // Override paste to use this workspace's path
         if (item.id === 'paste') {
           return {
@@ -226,14 +243,36 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
                   : targetNode.path.substring(0, targetNode.path.lastIndexOf('/') + 1);
               const sourceName = sourcePath.split('/').pop() || sourcePath;
               const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
-              if (operation === 'copy') {
-                await store.duplicateWorkspaceFile(sourcePath, newPath, workspace.path);
-              } else if (operation === 'cut') {
-                if (sourcePath === newPath) {
-                  store.clearClipboard();
-                  return;
+              const sourceWorkspacePath = store.clipboardSourceWorkspacePath;
+
+              if (!sourceWorkspacePath || sourceWorkspacePath === workspace.path) {
+                if (operation === 'copy') {
+                  await store.duplicateWorkspaceFile(sourcePath, newPath, workspace.path);
+                } else {
+                  if (sourcePath === newPath) {
+                    store.clearClipboard();
+                    return;
+                  }
+                  await store.moveWorkspaceFile(sourcePath, newPath, workspace.path);
                 }
-                await store.moveWorkspaceFile(sourcePath, newPath, workspace.path);
+                store.clearClipboard();
+                return;
+              }
+
+              // 跨工作区：复制走 copyFileAcross（源保留），剪切走 moveFileAcross（源移除）。
+              const input = {
+                sourceWorkspacePath,
+                sourceRelativePath: sourcePath,
+                targetWorkspacePath: workspace.path,
+                targetRelativePath: newPath,
+              };
+              const ok =
+                operation === 'copy'
+                  ? await store.copyWorkspaceFileAcross(input)
+                  : await store.moveWorkspaceFileAcross(input);
+              if (!ok) {
+                // 失败保留剪贴板，用户可重试或换个目标。
+                return;
               }
               store.clearClipboard();
             },
