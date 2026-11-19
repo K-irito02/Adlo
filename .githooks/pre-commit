@@ -5,6 +5,9 @@
 # 设计原则：hook 内只跑秒级检查；任何失败都直接阻断提交并打印修复命令。
 set -e
 ROOT="$(git rev-parse --show-toplevel)"
+# 链接工作树里 git 会给 hook 注入 GIT_DIR；子进程继承后会操作真实仓库而非临时仓库，
+# 与 pre-push 同源，统一剥离（见 .githooks/pre-push 注释）。
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
 STAGED="$(git diff --cached --name-only --diff-filter=ACMR)"
 
 # 失败步骤名：`set -e` 只给退出码，排障时必须能看出停在哪一步。

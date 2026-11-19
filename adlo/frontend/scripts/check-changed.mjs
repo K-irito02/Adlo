@@ -83,7 +83,7 @@ function loadFlakyTests() {
 
 function run(label, command) {
   console.log(`\n[check:changed] ${label}`);
-  const result = spawnSync(command, { cwd, stdio: 'inherit', shell: true });
+  const result = spawnSync(command, { cwd, stdio: 'inherit', shell: true, env: cleanGitEnv });
   if (result.status !== 0) {
     console.log(`\n[check:changed] FAILED: ${label}`);
     process.exit(result.status ?? 1);
@@ -102,6 +102,7 @@ function runTests(label, command) {
     encoding: 'utf8',
     shell: true,
     maxBuffer: 64 * 1024 * 1024,
+    env: cleanGitEnv,
   });
   const stripAnsi = (text) => text.replace(/\x1b\[[0-9;]*m/g, '');
   const output = stripAnsi(`${result.stdout ?? ''}\n${result.stderr ?? ''}`);

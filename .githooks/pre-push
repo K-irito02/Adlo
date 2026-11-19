@@ -5,6 +5,11 @@
 set -e
 ROOT="$(git rev-parse --show-toplevel)"
 
+# 链接工作树里 git 会给 hook 注入 GIT_DIR（指向 .git/worktrees/<name>）；子进程会继承它，
+# 于是测试里的临时仓库 git 命令实际操作真实仓库（2026-11-19 实测：gitWorktree.test.ts
+# 全部报 "remote origin already exists" / 锁 .git/config 失败）。门禁子进程一律剥离。
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+
 # 失败步骤名：`set -e` 只给退出码，排障时必须能看出停在哪一步。
 STEP="init"
 on_exit() {
