@@ -21,14 +21,14 @@
       在第三方声明中补商标说明（署名不等于授权，不暗示背书）
 - [ ] 品牌资源复核：窗口图标与开屏均使用 Adlo 品牌；旧 Kora/可燃 资源已移除 <!-- brand-allow: historical asset check -->
 - [ ] 商标表述复核：未注册时不得出现「®」「注册商标」「XX 的注册商标」等字样
-- [ ] 「关于」页文案与事实一致：版本号、版权主体、官网/仓库/反馈链接、`MIT` 表述，
+- [ ] 「关于」页文案与事实一致：版本号、版权主体、GitHub / Gitee 仓库与问题反馈链接、`MIT` 表述，
       不含夸大或无法验证的宣称
 
 ## 2. 仓库与链接
 
 - [ ] 仓库 `K-irito02/Adlo` 转为公开
-- [ ] 「关于」页链接逐一打开验证：网站 `https://www.xiaogans.online/`、GitHub 仓库、Gitee 仓库、
-      问题反馈（确认网络选择落到 GitHub 或 Gitee issues）
+- [ ] 「关于」页链接逐一打开验证：GitHub 仓库、Gitee 仓库、问题反馈（确认网络选择落到
+      GitHub 或 Gitee issues）
 - [ ] 产出首个 GitHub Release 后，在「关于」页补「Releases」入口
 - [ ] 站点侧为 Adlo 增加独立产品页或锚点（当前 `xiaogans.online` 为作品集总入口）
 

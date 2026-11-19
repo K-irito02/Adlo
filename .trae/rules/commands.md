@@ -24,6 +24,8 @@ alwaysApply: false
 | `pnpm run worktree:sessions` | 会话注册表巡检；`-- --reap --older-than 3d` 把 stale `active` 改为 `paused`（人类运行） |
 | `pnpm run build` | 构建所有包 |
 | `pnpm run start` | 启动已构建应用 |
+| `pnpm run notices:generate` | 重新生成「关于 → 第三方声明」的全量依赖许可清单（离线加 `-- --offline`；缺元数据默认拒绝写盘，`-- --allow-partial` 显式放行） |
+| `pnpm run notices:check` | 离线校验生成物与锁文件是否一致（`release:build` 前自动执行） |
 
 > `cargo check/build/clippy` 报 `PermissionDenied` 时，先 `pnpm run dev:stop`：桌面实例会锁住 `target/debug/adlo.exe` 与 `adl-server.exe`。
 

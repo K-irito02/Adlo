@@ -146,7 +146,7 @@
 
 | 功能域 | 目录 |
 |--------|------|
-| 关于 | `features/about/`（关于页：AboutSettings / 开源致谢 creditsData） |
+| 关于 | `features/about/`（关于页：AboutSettings / ThirdPartyNoticesPanel / CreditsPanel / issueTracker / 生成物 thirdPartyNotices.generated） |
 | 内置浏览器 | `features/browser/` |
 | 书签 | `features/bookmarks/`（书签导入/导出、传输对话框） |
 | 浏览器设置 | `features/browser-settings/` |
