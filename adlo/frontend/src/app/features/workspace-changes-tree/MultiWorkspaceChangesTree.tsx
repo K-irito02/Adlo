@@ -167,6 +167,7 @@ export function MultiWorkspaceChangesTree({
       onToggleExpand={onToggleExpand}
       onClearSelection={onClearSelection}
       renderContent={renderContent}
+      stickyHeaders
     />
   );
 }

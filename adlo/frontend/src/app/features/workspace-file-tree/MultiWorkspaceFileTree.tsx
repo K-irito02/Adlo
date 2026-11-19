@@ -163,6 +163,7 @@ export function MultiWorkspaceFileTree({
       onToggleExpand={onToggleExpand}
       onClearSelection={onClearSelection}
       renderContent={renderContent}
+      stickyHeaders
     />
   );
 }
