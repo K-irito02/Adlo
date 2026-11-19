@@ -66,6 +66,8 @@ export const aboutEn = {
   aboutNoticesMissingText: 'Upstream does not bundle the license text.',
   aboutNoticesCanonicalText:
     'Upstream does not bundle a license file; the standard license text is shown below.',
+  aboutNoticesCanonicalTextMixed:
+    "Upstream does not bundle this license's text; the standard license text is shown below.",
   aboutThirdPartyNoticesScope:
     'Inventory from Cargo.lock and pnpm-lock.yaml (including transitive dependencies); licenses follow upstream declarations, bundled texts are reproduced verbatim, and when upstream bundles none the standard license text is shown and labeled. Fonts and external tools that are not bundled are outside this inventory.',
 };

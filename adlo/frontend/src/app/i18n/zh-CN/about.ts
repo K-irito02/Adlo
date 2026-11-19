@@ -60,6 +60,7 @@ export const aboutZh = {
   aboutNoticesUnknownLicense: '未声明许可证',
   aboutNoticesMissingText: '上游未随包提供许可全文。',
   aboutNoticesCanonicalText: '上游未随包提供许可文件，以下为标准许可正文。',
+  aboutNoticesCanonicalTextMixed: '上游未随包提供该许可证的正文，以下为标准许可正文。',
   aboutThirdPartyNoticesScope:
     '清单来自 Cargo.lock 与 pnpm-lock.yaml（含间接依赖）；许可证按上游声明展示，随包提供正文时照录原文，未提供时改用标准许可正文并在正文上方注明。未随包分发的字体与外部工具不在本清单内。',
 };

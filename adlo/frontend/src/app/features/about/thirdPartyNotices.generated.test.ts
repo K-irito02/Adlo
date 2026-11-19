@@ -67,8 +67,9 @@ describe('generated third-party notices', () => {
   });
 
   it('never lists the same license body twice in one package', () => {
+    const flat = (text: string) => text.replace(/\s+/g, ' ').trim();
     const words = (text: string) =>
-      text
+      flat(text)
         .toLowerCase()
         .replace(/[^a-z0-9\s]/g, ' ')
         .split(/\s+/)
@@ -93,15 +94,27 @@ describe('generated third-party notices', () => {
       }
       return (2 * shared) / (left.length + right.length);
     };
+    const sameBody = (a: string, b: string) => {
+      const left = flat(a);
+      const right = flat(b);
+      if (left === right) {
+        return true;
+      }
+      const [short, long] = left.length <= right.length ? [left, right] : [right, left];
+      if (short.length >= long.length * 0.85 && long.includes(short)) {
+        return true;
+      }
+      return similarity(left, right) >= 0.95;
+    };
 
     for (const pkg of THIRD_PARTY_NOTICES_DATA.packages) {
       const bodies = pkg.texts.map((ref) => THIRD_PARTY_NOTICES_DATA.licenseTexts[ref.key] ?? '');
       for (let i = 0; i < bodies.length; i += 1) {
         for (let j = i + 1; j < bodies.length; j += 1) {
           expect(
-            similarity(bodies[i], bodies[j]),
+            sameBody(bodies[i], bodies[j]),
             `${pkg.ecosystem}:${pkg.name}@${pkg.version} lists ${pkg.texts[i].label} and ${pkg.texts[j].label} twice`,
-          ).toBeLessThan(0.95);
+          ).toBe(false);
         }
       }
     }

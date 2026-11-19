@@ -371,17 +371,47 @@ export function licenseSimilarity(a, b) {
 
 const SIMILAR_LICENSE_THRESHOLD = 0.95;
 
+/** 空白归一后的正文（移出开头版权块；标题行保留，差异交给相似度吸收）。 */
+export function normalizedLicenseBody(text) {
+  return stripLeadingCopyright(text).body.replace(/\s+/g, " ").trim();
+}
+
 /**
- * 随包正文是否已覆盖标准正文：先剥掉标题行与开头版权块，再按词袋相似度判断。
- * 缺段、只有一句声明或链接时不算覆盖。
+ * 两份正文是否是同一份许可：等长包含、或词袋相似度 ≥ 0.95。
+ *
+ * 包含判定保留 0.85 长度下限，避免把「见 LICENSE」这类短声明当作完整正文；
+ * 完整标准正文被更长的随包文件包含属于覆盖，由 `coversLicenseText` 单独判定。
+ */
+export function isSameLicenseBody(a, b) {
+  const left = normalizedLicenseBody(a);
+  const right = normalizedLicenseBody(b);
+  if (left.length === 0 || right.length === 0) {
+    return false;
+  }
+  if (left === right) {
+    return true;
+  }
+  const [short, long] = left.length <= right.length ? [left, right] : [right, left];
+  if (short.length >= long.length * 0.85 && long.includes(short)) {
+    return true;
+  }
+  return licenseSimilarity(left, right) >= SIMILAR_LICENSE_THRESHOLD;
+}
+
+/**
+ * 随包正文是否已覆盖标准正文：完整正文被随包文件包含（可带附加说明/出处注记），
+ * 或两者本就是同一份正文。
  */
 export function coversLicenseText(sourceText, canonicalText) {
-  return (
-    licenseSimilarity(
-      stripLeadingCopyright(sourceText).body,
-      stripLeadingCopyright(canonicalText).body,
-    ) >= SIMILAR_LICENSE_THRESHOLD
-  );
+  const source = normalizedLicenseBody(sourceText);
+  const canonical = normalizedLicenseBody(canonicalText);
+  if (source.length === 0 || canonical.length === 0) {
+    return false;
+  }
+  if (source.includes(canonical)) {
+    return true;
+  }
+  return isSameLicenseBody(source, canonical);
 }
 
 function licenseWords(text) {
@@ -410,4 +440,3 @@ export function refusePartialMetadata(reason, allowPartial) {
 export function shouldWriteNpmCache({ check, fetchedCount }) {
   return !check && fetchedCount > 0;
 }
-

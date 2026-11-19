@@ -35,8 +35,9 @@ import {
   BASE_SPDX_IDS,
   buildNoticeOutput,
   coversLicenseText,
-  licenseSimilarity,
+  isSameLicenseBody,
   mergeLicenseCorpus,
+  normalizedLicenseBody,
   normalizeLicenseText,
   normalizeNpmLicense,
   normalizeRepositoryUrl,
@@ -487,7 +488,8 @@ function collectLicenseFiles(dir, licenseFile) {
   }
   const files = [];
   const seen = new Set();
-  const add = (path, label) => {    if (seen.has(path) || !existsSync(path)) {
+  const add = (path, label) => {
+    if (seen.has(path) || !existsSync(path)) {
       return;
     }
     let stat;
@@ -561,10 +563,11 @@ function addFileTexts(files, store, canonicalIndex) {
 function dedupeRefs(refs, store) {
   const kept = [];
   for (const ref of refs) {
-    const body = store[ref.key] ?? "";
-    const duplicate = kept.some(
-      (other) => licenseSimilarity(body, store[other.key] ?? "") >= 0.95,
-    );
+    const body = normalizedLicenseBody(store[ref.key] ?? "");
+    const duplicate = kept.some((other) => {
+      const previous = normalizedLicenseBody(store[other.key] ?? "");
+      return previous.includes(body) || isSameLicenseBody(previous, body);
+    });
     if (!duplicate) {
       kept.push(ref);
     }
@@ -609,9 +612,7 @@ function buildCanonicalBodyIndex(corpus) {
 
 function addCanonicalTexts(expression, corpus, store, skipIds) {
   const refs = [];
-  const ids = [...expression.ids, ...expression.exceptions].filter(
-    (id) => !skipIds?.has(id),
-  );
+  const ids = [...expression.ids, ...expression.exceptions].filter((id) => !skipIds?.has(id));
   for (const id of ids) {
     const entry = corpus[id];
     if (!entry?.text) {
@@ -797,9 +798,7 @@ async function main() {
   let fetchedCount = 0;
   if (missingNpm.length > 0) {
     if (OFFLINE) {
-      log(
-        `offline: ${missingNpm.length} npm packages have no local metadata or cache entry`,
-      );
+      log(`offline: ${missingNpm.length} npm packages have no local metadata or cache entry`);
     } else {
       log(`fetching ${missingNpm.length} npm manifests from the registry...`);
       const fetched = await fillMissingFromRegistry(missingNpm);

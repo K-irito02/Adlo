@@ -63,9 +63,7 @@ test("recognizes generated artifacts and honors --exclude-generated", () => {
     false,
   );
   assert.equal(
-    isGeneratedArtifact(
-      "adlo/frontend/src/app/features/about/thirdPartyNotices.generated.test.ts",
-    ),
+    isGeneratedArtifact("adlo/frontend/src/app/features/about/thirdPartyNotices.generated.test.ts"),
     false,
   );
   assert.equal(isGeneratedArtifact("adlo/frontend/src/a.generated.tsx"), true);

@@ -283,14 +283,41 @@ copies or substantial portions of the Software.`;
     );
   });
 
-  it("does not accept a short pointer file as the full text", () => {
+  it("accepts a bundled file that contains the full text plus a note", () => {
+    assert.equal(
+      coversLicenseText(
+        `${body}\n\nSPDX-License-Identifier: MIT — portions of this file come from elsewhere.`,
+        body,
+      ),
+      true,
+    );
+    assert.equal(coversLicenseText(`Preamble line.\n\n${body}`, body), true);
+  });
+
+  it("does not accept a bare title or short pointer as the full text", () => {
+    const canonical = `MIT License\n\n${body}`;
+    assert.equal(coversLicenseText("MIT License", canonical), false);
     assert.equal(coversLicenseText("Licensed under MIT. See LICENSE for details.", body), false);
     assert.equal(coversLicenseText("", body), false);
   });
 
-  it("keeps a license that drops a paragraph apart", () => {
-    const withoutSecondParagraph = body.split("\n\nThe above")[0];
-    assert.equal(coversLicenseText(withoutSecondParagraph, body), false);
+  it("keeps a different license apart", () => {
+    const isc = `ISC License
+
+Copyright (c) 2024 Someone
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.`;
+    assert.equal(coversLicenseText(isc, body), false);
   });
 });
 

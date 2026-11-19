@@ -28,7 +28,7 @@ function NoticeTextBlocks({
           ) : null}
           {/* 混源包（package + 回退标准正文）只给回退的那一条加来源说明。 */}
           {pkg.textSource === 'package' && isCanonicalRef(ref) ? (
-            <p className="adl-about-notices__note">{t.aboutNoticesCanonicalText}</p>
+            <p className="adl-about-notices__note">{t.aboutNoticesCanonicalTextMixed}</p>
           ) : null}
           <pre className="adl-about-dialog__license">{texts[ref.key] ?? ''}</pre>
         </div>
@@ -93,7 +93,7 @@ function DependencyNotice({
  * 顶部提示把范围与统计合成一行；搜索框同时过滤人工条目与生成清单。
  * 全量数据按需加载；搜索在全部依赖上过滤，渲染时只取前 200 条，超出以提示
  * 引导用户用搜索缩小范围。缺失许可证与多许可证照实标注；正文优先照录随包原文，
- * 包内没有正文时改用标准许可正文并在正文上方注明来源。
+ * 该许可证的正文缺失时改用标准许可正文并在正文上方注明来源。
  */
 export function ThirdPartyNoticesPanel() {
   const { t } = useTCopy();

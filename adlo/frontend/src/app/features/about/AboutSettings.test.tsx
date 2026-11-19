@@ -198,8 +198,10 @@ const aboutT = new Proxy({} as Record<string, string>, {
         return '上游未随包提供许可全文。';
       case 'aboutNoticesCanonicalText':
         return '上游未随包提供许可文件，以下为标准许可正文。';
+      case 'aboutNoticesCanonicalTextMixed':
+        return '上游未随包提供该许可证的正文，以下为标准许可正文。';
       case 'aboutThirdPartyNoticesScope':
-        return '清单来自锁文件（含间接依赖）；许可与正文按上游原文展示。未随包分发的字体与外部工具不在本清单内。';
+        return '清单来自锁文件（含间接依赖）；许可证按上游声明展示，随包提供正文时照录原文，未提供时改用标准许可正文并在正文上方注明。未随包分发的字体与外部工具不在本清单内。';
       case 'operationFailed':
         return '操作失败';
       case 'close':
