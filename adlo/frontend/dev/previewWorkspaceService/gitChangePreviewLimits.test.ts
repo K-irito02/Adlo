@@ -5,6 +5,10 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { readChangePreview } from './git';
+import { sanitizeGitEnvForTest } from './testing/cleanGitEnv';
+
+// 临时仓库测试：剥离 hook / 链接工作树注入的 GIT_DIR 等，否则 git 命令会落到真实仓库。
+sanitizeGitEnvForTest();
 
 function initRepo(root: string) {
   execFileSync('git', ['init'], { cwd: root });
