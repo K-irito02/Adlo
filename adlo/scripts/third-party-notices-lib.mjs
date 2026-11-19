@@ -80,11 +80,11 @@ export function parsePnpmLock(text) {
  */
 export function parseLicenseExpression(raw) {
   if (typeof raw !== "string" || raw.trim() === "") {
-    return { ids: [], exceptions: [], normalized: "" };
+    return { ids: [], exceptions: [] };
   }
   // npm 的非 SPDX 约定：不是许可证表达式，正文只能来自随包文件。
   if (/^(?:SEE LICENSE IN|UNLICENSED)\b/i.test(raw.trim())) {
-    return { ids: [], exceptions: [], normalized: raw.trim() };
+    return { ids: [], exceptions: [] };
   }
   const normalized = raw
     .replace(/\//g, " OR ")
@@ -118,7 +118,6 @@ export function parseLicenseExpression(raw) {
   return {
     ids: [...new Set(ids)],
     exceptions: [...new Set(exceptions)],
-    normalized: raw.trim(),
   };
 }
 
@@ -320,13 +319,13 @@ export function textKey(prefix, hash) {
 }
 
 /**
- * 网络补全的降级判定：返回 null 表示可以继续写盘；否则返回拒绝写盘的原因。
+ * 网络补全的降级判定：返回 null 表示元数据完整；否则返回原因。
  *
- * `--allow-partial` 是显式放行；离线或 registry 部分失败时不允许静默生成
- * 「看起来完整、实际缺许可证」的清单。
+ * 是否允许带着不完整元数据继续，由调用方的 `refusePartialMetadata(reason, allowPartial)`
+ * 统一决定，这里只负责判定。
  */
-export function partialNpmFailure({ offline, missingCount, fetchedCount, allowPartial }) {
-  if (missingCount === 0 || allowPartial) {
+export function partialNpmFailure({ offline, missingCount, fetchedCount }) {
+  if (missingCount === 0) {
     return null;
   }
   if (offline) {
@@ -348,7 +347,7 @@ export function mergeLicenseCorpus(existing, fetched) {
  * 语料内不同许可的最高相似度约 0.93（0BSD/ISC、BSD-2/BSD-3、MIT/MIT-0），
  * 因此 0.95 之上视为「同一份正文」，可安全去重。
  */
-export function licenseSimilarity(a, b) {
+function licenseSimilarity(a, b) {
   const left = licenseWords(a);
   const right = licenseWords(b);
   if (left.length === 0 || right.length === 0) {
@@ -381,6 +380,9 @@ export function normalizedLicenseBody(text) {
  *
  * 0.85 下限避免把「见 LICENSE」这类短声明当作完整正文；合集文件（标准正文远短于
  * 随包文件）由 `coversLicenseText` 的显式包含判定覆盖。
+ *
+ * 导出供 `coversLicenseText` 的分解测试使用（`normalizedLicenseBody` 同理），
+ * 生产路径只经 `coversLicenseText`。
  */
 export function isSameLicenseBody(a, b) {
   const left = normalizedLicenseBody(a);

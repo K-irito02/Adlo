@@ -35,9 +35,7 @@ import {
   BASE_SPDX_IDS,
   buildNoticeOutput,
   coversLicenseText,
-  isSameLicenseBody,
   mergeLicenseCorpus,
-  normalizedLicenseBody,
   normalizeLicenseText,
   normalizeNpmLicense,
   normalizeRepositoryUrl,
@@ -563,11 +561,12 @@ function addFileTexts(files, store, canonicalIndex) {
 function dedupeRefs(refs, store) {
   const kept = [];
   for (const ref of refs) {
-    const body = normalizedLicenseBody(store[ref.key] ?? "");
-    const duplicate = kept.some((other) => {
-      const previous = normalizedLicenseBody(store[other.key] ?? "");
-      return previous.includes(body) || isSameLicenseBody(previous, body);
-    });
+    const body = store[ref.key] ?? "";
+    // addFileTexts / addCanonicalTexts 入 ref 前必写 store；空正文属不可达防御。
+    if (body.length === 0) {
+      continue;
+    }
+    const duplicate = kept.some((other) => coversLicenseText(store[other.key] ?? "", body));
     if (!duplicate) {
       kept.push(ref);
     }
@@ -814,7 +813,6 @@ async function main() {
       offline: OFFLINE,
       missingCount: missingNpm.length,
       fetchedCount,
-      allowPartial: false,
     });
     if (refusePartialMetadata(partial, ALLOW_PARTIAL)) {
       warn(`${partial}; continuing because --allow-partial`);

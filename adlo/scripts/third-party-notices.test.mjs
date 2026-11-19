@@ -1,5 +1,29 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+/** 读取提交的生成物（属性行是单行 JSON），供「提交数据」级断言使用。 */
+function readGeneratedNotices() {
+  const file = join(
+    HERE,
+    "..",
+    "frontend",
+    "src",
+    "app",
+    "features",
+    "about",
+    "thirdPartyNotices.generated.ts",
+  );
+  const line = readFileSync(file, "utf8")
+    .split("\n")
+    .find((text) => text.startsWith("export const THIRD_PARTY_NOTICES_DATA"));
+  assert.ok(line, "generated notices declaration not found");
+  return JSON.parse(line.slice(line.indexOf("= ") + 2).replace(/;\s*$/, ""));
+}
 
 import {
   buildNoticeOutput,
@@ -78,12 +102,10 @@ describe("parseLicenseExpression", () => {
     assert.deepEqual(parseLicenseExpression("MIT/Apache-2.0"), {
       ids: ["MIT", "Apache-2.0"],
       exceptions: [],
-      normalized: "MIT/Apache-2.0",
     });
     assert.deepEqual(parseLicenseExpression("MIT OR Apache-2.0 OR LGPL-2.1-or-later"), {
       ids: ["MIT", "Apache-2.0", "LGPL-2.1-or-later"],
       exceptions: [],
-      normalized: "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
     });
   });
 
@@ -91,14 +113,12 @@ describe("parseLicenseExpression", () => {
     assert.deepEqual(parseLicenseExpression("(MIT and ISC)"), {
       ids: ["MIT", "ISC"],
       exceptions: [],
-      normalized: "(MIT and ISC)",
     });
     assert.deepEqual(
       parseLicenseExpression("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"),
       {
         ids: ["Apache-2.0", "MIT"],
         exceptions: ["LLVM-exception"],
-        normalized: "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
       },
     );
   });
@@ -224,30 +244,20 @@ describe("buildNoticeOutput", () => {
 });
 
 describe("partialNpmFailure", () => {
-  it("allows complete metadata and explicit partial mode", () => {
-    assert.equal(
-      partialNpmFailure({ offline: false, missingCount: 0, fetchedCount: 0, allowPartial: false }),
-      null,
-    );
-    assert.equal(
-      partialNpmFailure({ offline: true, missingCount: 2, fetchedCount: 0, allowPartial: true }),
-      null,
-    );
+  it("passes when nothing is missing", () => {
+    assert.equal(partialNpmFailure({ offline: false, missingCount: 0, fetchedCount: 0 }), null);
   });
 
   it("rejects offline or partially resolved metadata", () => {
     assert.match(
-      partialNpmFailure({ offline: true, missingCount: 2, fetchedCount: 0, allowPartial: false }),
+      partialNpmFailure({ offline: true, missingCount: 2, fetchedCount: 0 }),
       /offline: 2 npm packages/,
     );
     assert.match(
-      partialNpmFailure({ offline: false, missingCount: 2, fetchedCount: 1, allowPartial: false }),
+      partialNpmFailure({ offline: false, missingCount: 2, fetchedCount: 1 }),
       /registry: 1 of 2 npm packages/,
     );
-    assert.equal(
-      partialNpmFailure({ offline: false, missingCount: 2, fetchedCount: 2, allowPartial: false }),
-      null,
-    );
+    assert.equal(partialNpmFailure({ offline: false, missingCount: 2, fetchedCount: 2 }), null);
   });
 });
 
@@ -355,5 +365,26 @@ describe("shouldWriteNpmCache", () => {
     assert.equal(shouldWriteNpmCache({ check: true, fetchedCount: 5 }), false);
     assert.equal(shouldWriteNpmCache({ check: false, fetchedCount: 0 }), false);
     assert.equal(shouldWriteNpmCache({ check: false, fetchedCount: 5 }), true);
+  });
+});
+
+describe("generated notices data", () => {
+  it("never lists a body already covered by an earlier text of the same package", () => {
+    const data = readGeneratedNotices();
+    const offenders = [];
+    for (const pkg of data.packages) {
+      for (let i = 0; i < pkg.texts.length; i += 1) {
+        for (let j = i + 1; j < pkg.texts.length; j += 1) {
+          const earlier = data.licenseTexts[pkg.texts[i].key] ?? "";
+          const later = data.licenseTexts[pkg.texts[j].key] ?? "";
+          if (coversLicenseText(earlier, later)) {
+            offenders.push(
+              `${pkg.ecosystem}:${pkg.name}@${pkg.version} ${pkg.texts[i].label} covers ${pkg.texts[j].label}`,
+            );
+          }
+        }
+      }
+    }
+    assert.deepEqual(offenders, []);
   });
 });

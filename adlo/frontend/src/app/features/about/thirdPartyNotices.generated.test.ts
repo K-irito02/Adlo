@@ -66,60 +66,6 @@ describe('generated third-party notices', () => {
     expectText('cargo:brotli-decompressor@5.0.3', 'spdx:MIT');
   });
 
-  it('never lists the same license body twice in one package', () => {
-    const flat = (text: string) => text.replace(/\s+/g, ' ').trim();
-    const words = (text: string) =>
-      flat(text)
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .split(/\s+/)
-        .filter(Boolean);
-    const similarity = (a: string, b: string) => {
-      const left = words(a);
-      const right = words(b);
-      if (left.length === 0 || right.length === 0) {
-        return 0;
-      }
-      const counts = new Map<string, number>();
-      for (const word of left) {
-        counts.set(word, (counts.get(word) ?? 0) + 1);
-      }
-      let shared = 0;
-      for (const word of right) {
-        const remaining = counts.get(word) ?? 0;
-        if (remaining > 0) {
-          shared += 1;
-          counts.set(word, remaining - 1);
-        }
-      }
-      return (2 * shared) / (left.length + right.length);
-    };
-    const sameBody = (a: string, b: string) => {
-      const left = flat(a);
-      const right = flat(b);
-      if (left === right) {
-        return true;
-      }
-      // 合集文件（前一条）包含后面的标准正文时，不得再单独列一次。
-      if (left.includes(right)) {
-        return true;
-      }
-      return similarity(left, right) >= 0.95;
-    };
-
-    for (const pkg of THIRD_PARTY_NOTICES_DATA.packages) {
-      const bodies = pkg.texts.map((ref) => THIRD_PARTY_NOTICES_DATA.licenseTexts[ref.key] ?? '');
-      for (let i = 0; i < bodies.length; i += 1) {
-        for (let j = i + 1; j < bodies.length; j += 1) {
-          expect(
-            sameBody(bodies[i], bodies[j]),
-            `${pkg.ecosystem}:${pkg.name}@${pkg.version} lists ${pkg.texts[i].label} and ${pkg.texts[j].label} twice`,
-          ).toBe(false);
-        }
-      }
-    }
-  });
-
   it('generates a unique, sorted names index that matches the full data', () => {
     expect(new Set(THIRD_PARTY_NOTICE_NAMES).size).toBe(THIRD_PARTY_NOTICE_NAMES.length);
     expect([...THIRD_PARTY_NOTICE_NAMES].sort()).toEqual(THIRD_PARTY_NOTICE_NAMES);
