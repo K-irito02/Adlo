@@ -145,6 +145,29 @@ export function createPreviewWorkspaceBridge(
       persistRecentWorkspaces(ctx.recentWorkspaces);
       return { ok: true as const, data: ctx.recentWorkspaces };
     },
+    reorderSidebar: async (orderedIds: string[]) => {
+      const ordered: RecentWorkspaceEntry[] = [];
+      for (const id of orderedIds) {
+        const entry = ctx.recentWorkspaces.find((item) => item.id === id && !item.isPinned);
+        if (entry && !ordered.some((item) => item.id === id)) {
+          ordered.push(entry);
+        }
+      }
+      const orderedIdsSet = new Set(ordered.map((entry) => entry.id));
+      const rest = ctx.recentWorkspaces
+        .filter((entry) => !entry.isPinned && !orderedIdsSet.has(entry.id))
+        .sort((a, b) => a.unpinnedOrder - b.unpinnedOrder);
+      const unpinned = [...ordered, ...rest].map((entry, index) => ({
+        ...entry,
+        unpinnedOrder: index,
+      }));
+      const pinned = ctx.recentWorkspaces
+        .filter((entry) => entry.isPinned)
+        .sort((a, b) => a.pinnedOrder - b.pinnedOrder);
+      ctx.recentWorkspaces = [...pinned, ...unpinned];
+      persistRecentWorkspaces(ctx.recentWorkspaces);
+      return { ok: true as const, data: ctx.recentWorkspaces };
+    },
     listTreeForWorkspace: async (
       workspacePath: string,
       _options?: { force?: boolean; allowStale?: boolean },
@@ -332,6 +355,36 @@ export function createPreviewWorkspaceBridge(
         body: JSON.stringify({ rootPath, relativePath, newPath }),
       });
     },
+    moveFileAcross: async (input: {
+      sourceWorkspacePath: string;
+      sourceRelativePath: string;
+      targetWorkspacePath: string;
+      targetRelativePath: string;
+    }) =>
+      requestPreviewApi<boolean>('/workspace/move-across', {
+        method: 'POST',
+        body: JSON.stringify({
+          sourceRootPath: input.sourceWorkspacePath,
+          sourceRelativePath: input.sourceRelativePath,
+          targetRootPath: input.targetWorkspacePath,
+          targetRelativePath: input.targetRelativePath,
+        }),
+      }),
+    copyFileAcross: async (input: {
+      sourceWorkspacePath: string;
+      sourceRelativePath: string;
+      targetWorkspacePath: string;
+      targetRelativePath: string;
+    }) =>
+      requestPreviewApi<boolean>('/workspace/copy-across', {
+        method: 'POST',
+        body: JSON.stringify({
+          sourceRootPath: input.sourceWorkspacePath,
+          sourceRelativePath: input.sourceRelativePath,
+          targetRootPath: input.targetWorkspacePath,
+          targetRelativePath: input.targetRelativePath,
+        }),
+      }),
     setEditorDirtyPaths: async () => ({ ok: true as const, data: true }),
   };
 

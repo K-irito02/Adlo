@@ -3,9 +3,13 @@ import type { StoreState } from '../StoreState';
 export interface ClipboardSlice {
   clipboardOperation: 'cut' | 'copy' | null;
   clipboardSourcePath: string | null;
-  clipboardSourceKind: 'file' | 'directory' | null;
+  /**
+   * 剪贴板条目的来源工作区根：跨工作区粘贴/移动时必须按来源根解析源路径。
+   * 缺省为 `null` 时按当前激活工作区解析（非工作区树通用菜单的回落语义）。
+   */
+  clipboardSourceWorkspacePath: string | null;
 
-  setClipboard: (op: 'cut' | 'copy', path: string, kind: 'file' | 'directory') => void;
+  setClipboard: (op: 'cut' | 'copy', path: string, sourceWorkspacePath?: string) => void;
   clearClipboard: () => void;
 }
 
@@ -15,19 +19,19 @@ export const createClipboardSlice = (
 ): ClipboardSlice => ({
   clipboardOperation: null,
   clipboardSourcePath: null,
-  clipboardSourceKind: null,
+  clipboardSourceWorkspacePath: null,
 
-  setClipboard: (op, path, kind) =>
+  setClipboard: (op, path, sourceWorkspacePath) =>
     set({
       clipboardOperation: op,
       clipboardSourcePath: path,
-      clipboardSourceKind: kind,
+      clipboardSourceWorkspacePath: sourceWorkspacePath ?? null,
     }),
 
   clearClipboard: () =>
     set({
       clipboardOperation: null,
       clipboardSourcePath: null,
-      clipboardSourceKind: null,
+      clipboardSourceWorkspacePath: null,
     }),
 });

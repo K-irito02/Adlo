@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { TCopyProvider } from '@i18n';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { zhCN as t } from '@i18n/zh-CN';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
+import { useAppStore } from '@stores/slicedStore';
 import { WorkspaceFileTreeEntry } from '../WorkspaceFileTreeEntry';
 
 const noop = vi.fn();
@@ -79,5 +80,40 @@ describe('WorkspaceFileTreeEntry empty branch', () => {
     renderEntry({ isLoading: true });
     expect(screen.queryByText(t.workspaceTreeEmpty)).toBeNull();
     expect(screen.getByText(t.loading)).toBeTruthy();
+  });
+});
+
+describe('WorkspaceFileTreeEntry 工作区菜单粘贴', () => {
+  const originalDuplicate = useAppStore.getState().duplicateWorkspaceFile;
+
+  afterEach(() => {
+    useAppStore.setState({ duplicateWorkspaceFile: originalDuplicate });
+    useAppStore.getState().clearClipboard();
+  });
+
+  it('无剪贴板时「粘贴」禁用，有剪贴板时可用', () => {
+    renderEntry();
+    fireEvent.click(screen.getByLabelText(t.fileMoreActions));
+
+    expect(screen.getByRole('menuitem', { name: t.fileContextPaste })).toBeDisabled();
+
+    act(() => {
+      useAppStore.getState().setClipboard('copy', 'a.txt', 'C:/tmp/empty-ws');
+    });
+    expect(screen.getByRole('menuitem', { name: t.fileContextPaste })).toBeEnabled();
+  });
+
+  it('粘贴到工作区根目录：目标相对路径 = 源文件名', async () => {
+    const duplicate = vi.fn(async () => true);
+    useAppStore.setState({ duplicateWorkspaceFile: duplicate });
+    useAppStore.getState().setClipboard('copy', 'docs/a.txt', 'C:/tmp/empty-ws');
+    renderEntry();
+    fireEvent.click(screen.getByLabelText(t.fileMoreActions));
+
+    fireEvent.click(screen.getByRole('menuitem', { name: t.fileContextPaste }));
+
+    await waitFor(() =>
+      expect(duplicate).toHaveBeenCalledWith('docs/a.txt', 'a.txt', 'C:/tmp/empty-ws'),
+    );
   });
 });

@@ -265,3 +265,105 @@ pub async fn remove_from_sidebar(
     }
     ipc::to_response(result)
 }
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReorderSidebarBody {
+    ordered_ids: Vec<String>,
+}
+
+/// 只重写非置顶区顺序：`ordered_ids` 中存在的非置顶项按给定顺序排，
+/// 未列出的非置顶项按旧 `unpinned_order` 追加到末尾；置顶项一律不动。
+fn apply_unpinned_order(entries: &mut [RecentWorkspaceEntry], ordered_ids: &[String]) {
+    let mut next: Vec<String> = Vec::new();
+    for id in ordered_ids {
+        if !next.contains(id) && entries.iter().any(|e| e.id == *id && !e.is_pinned) {
+            next.push(id.clone());
+        }
+    }
+    let mut rest: Vec<(i32, String)> = entries
+        .iter()
+        .filter(|e| !e.is_pinned && !next.contains(&e.id))
+        .map(|e| (e.unpinned_order, e.id.clone()))
+        .collect();
+    rest.sort_by_key(|(order, _)| *order);
+    next.extend(rest.into_iter().map(|(_, id)| id));
+    for (index, id) in next.iter().enumerate() {
+        if let Some(entry) = entries.iter_mut().find(|e| &e.id == id && !e.is_pinned) {
+            entry.unpinned_order = index as i32;
+        }
+    }
+}
+
+/// POST `/sidebar/reorder` — 重排侧栏非置顶工作区（置顶区不动），返回最新可呈现列表。
+pub async fn reorder(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: ReorderSidebarBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let result = run_sidebar_op(state.db.clone(), move |db| {
+        let mut all = load_or_seed_sidebar_with_db(db)?;
+        apply_unpinned_order(&mut all, &input.ordered_ids);
+        save_sidebar_entries_with_db(db, &all)?;
+        presentable_recent_list_with_db(db)
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::apply_unpinned_order;
+    use adl_types::RecentWorkspaceEntry;
+
+    fn entry(id: &str, pinned: bool, order: i32) -> RecentWorkspaceEntry {
+        RecentWorkspaceEntry {
+            id: id.into(),
+            path: format!("/w/{id}"),
+            root_path: format!("/w/{id}"),
+            name: id.into(),
+            last_opened_at: 0,
+            is_pinned: pinned,
+            pinned_order: if pinned { order } else { 0 },
+            unpinned_order: order,
+            removed_from_sidebar: false,
+            available: true,
+        }
+    }
+
+    #[test]
+    fn reorder_rewrites_only_unpinned_entries() {
+        let mut entries = vec![entry("p1", true, 0), entry("a", false, 0), entry("b", false, 1)];
+
+        apply_unpinned_order(&mut entries, &["b".into(), "a".into(), "p1".into()]);
+
+        let pinned = entries.iter().find(|e| e.id == "p1").unwrap();
+        assert_eq!(pinned.unpinned_order, 0);
+        assert_eq!(entries.iter().find(|e| e.id == "b").unwrap().unpinned_order, 0);
+        assert_eq!(entries.iter().find(|e| e.id == "a").unwrap().unpinned_order, 1);
+    }
+
+    #[test]
+    fn reorder_appends_unlisted_entries_by_previous_order() {
+        let mut entries = vec![entry("a", false, 1), entry("b", false, 2), entry("c", false, 0)];
+
+        apply_unpinned_order(&mut entries, &["b".into()]);
+
+        assert_eq!(entries.iter().find(|e| e.id == "b").unwrap().unpinned_order, 0);
+        assert_eq!(entries.iter().find(|e| e.id == "c").unwrap().unpinned_order, 1);
+        assert_eq!(entries.iter().find(|e| e.id == "a").unwrap().unpinned_order, 2);
+    }
+
+    #[test]
+    fn reorder_ignores_unknown_and_duplicate_ids() {
+        let mut entries = vec![entry("a", false, 0), entry("b", false, 1)];
+
+        apply_unpinned_order(&mut entries, &["ghost".into(), "a".into(), "a".into()]);
+
+        assert_eq!(entries.iter().find(|e| e.id == "a").unwrap().unpinned_order, 0);
+        assert_eq!(entries.iter().find(|e| e.id == "b").unwrap().unpinned_order, 1);
+    }
+}

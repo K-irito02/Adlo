@@ -284,7 +284,7 @@ description: Use when a bug, test failure, regression, flaky or unexpected behav
 
 ### 4c. 两轮循环审查（顺序门控，两轮皆不可跳过）
 
-**生成快照前门禁：** 每次生成 rev 快照**之前**，先在当前工作区跑 `check:changed` / `check:rust:changed`；门禁失败项先修复，再生成快照，不得把门禁可发现的问题交给审查子代理。
+**生成快照前门禁：** 每次生成 rev 快照**之前**，先在当前工作区跑门禁：中间修复轮用 `check:changed -- --skip-tests`（lint / format / typecheck），只有**最终快照**跑完整 `check:changed`（含受影响测试）与 `check:rust:changed`；门禁失败项先修复，再生成快照，不得把门禁可发现的问题交给审查子代理。
 
 **修复循环用轻量门禁，最终快照才跑全量：**
 

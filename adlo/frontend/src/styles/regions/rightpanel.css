@@ -17,5 +17,6 @@
 @import './rightpanel/browser-toolbar.css';
 @import './rightpanel/browser-webview.css';
 @import './rightpanel/browser-tree-dnd.css';
+@import './rightpanel/tree-dnd.css';
 @import './rightpanel/terminal-panel.css';
 @import './rightpanel/git-visualization.css';

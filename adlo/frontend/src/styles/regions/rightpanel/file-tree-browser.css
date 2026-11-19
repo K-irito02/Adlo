@@ -44,9 +44,6 @@
   background: color-mix(in srgb, var(--text-muted) 54%, transparent);
 }
 
-.adl-multitree-entry {
-}
-
 .adl-multitree-entry.is-highlighted {
   background: var(--bg-hover);
   border-radius: var(--radius-md);
@@ -83,6 +80,47 @@
 }
 .adl-multitree-entry__header:hover {
   background: var(--bg-hover);
+}
+
+/* 工作区标题吸顶（仅文件 / 变更导航树经 .adl-multitree--sticky-headers 开启）：
+   当前所在工作区的标题滚到区域顶部后贴顶，下一组到达时把它连续顶出（无空隙、无重叠）；
+   折叠组没有内容，标题随自身分组正常滚出视口。
+   底色必须不透明：--bg-hover / --bg-active 是半透明 token，而现有 `.is-current` 规则用
+   `background` 简写直接把它们铺在标题上，贴顶时树行会从标题下面透出。因此这里先按足够
+   的优先级把底色固定为不透明 --bg、清掉半透明简写，再用 background-image 叠加半透明态。 */
+.adl-multitree--sticky-headers .adl-multitree-entry__header,
+.adl-multitree--sticky-headers .adl-multitree-entry.is-current .adl-multitree-entry__header {
+  background-color: var(--bg);
+}
+
+.adl-multitree--sticky-headers {
+  /* 顶部呼吸位放到内容里：滚动后随内容离开，标题贴顶时不留可穿透的缝 */
+  padding-top: var(--space-1);
+}
+
+.adl-multitree-scroll:has(> .adl-multitree--sticky-headers) {
+  padding-top: 0;
+}
+
+/* 吸顶标题会盖住滚动区顶部：定位滚动按行预留一个标题高度。
+   不用容器 `scroll-padding-top`——它会让「聚焦吸顶标题内按钮」也按居中补偿，导致视口跳动。 */
+.adl-multitree--sticky-headers li[data-path] {
+  scroll-margin-top: 34px;
+}
+
+.adl-multitree--sticky-headers .adl-multitree-entry__header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.adl-multitree--sticky-headers .adl-multitree-entry__header:hover,
+.adl-multitree--sticky-headers .adl-multitree-entry.is-current .adl-multitree-entry__header {
+  background-image: linear-gradient(var(--bg-hover), var(--bg-hover));
+}
+
+.adl-multitree--sticky-headers .adl-multitree-entry.is-current .adl-multitree-entry__header:hover {
+  background-image: linear-gradient(var(--bg-active), var(--bg-active));
 }
 
 .adl-multitree-entry__expand {

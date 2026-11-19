@@ -185,6 +185,88 @@ pub fn move_entry(
     Ok(true)
 }
 
+/// 跨工作区移动：源与目标分属不同的工作区根。
+///
+/// 先尝试 `rename`；失败（跨卷、被占用等）时退化为「复制 → 删除源」。
+/// 复制成功后删除源失败时，回滚已复制的目标，避免同一份内容在两处各留一份。
+pub fn move_entry_across(
+    source_root: &Path,
+    src_relative_path: &str,
+    target_root: &Path,
+    dst_relative_path: &str,
+) -> Result<bool, AppError> {
+    let src = adl_fs_ops::resolve_workspace_path(source_root, src_relative_path)?;
+    if !src.exists() {
+        return Err(AppError::NotFound(format!("source not found: {src_relative_path}")));
+    }
+    let dst = adl_fs_ops::resolve_workspace_path(target_root, dst_relative_path)?;
+    if dst.exists() && !same_file(&src, &dst) {
+        return Err(AppError::InvalidInput(format!("target already exists: {dst_relative_path}")));
+    }
+    if let Some(parent) = dst.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    if fs::rename(&src, &dst).is_err() {
+        let copied = if src.is_dir() {
+            copy_dir_recursive(&src, &dst)
+        } else {
+            fs::copy(&src, &dst).map(|_| ()).map_err(AppError::from)
+        };
+        if let Err(err) = copied {
+            remove_entry_best_effort(&dst);
+            return Err(err);
+        }
+        let removed = if src.is_dir() { fs::remove_dir_all(&src) } else { fs::remove_file(&src) };
+        if let Err(err) = removed {
+            remove_entry_best_effort(&dst);
+            return Err(AppError::from(err));
+        }
+    }
+
+    crate::tree::invalidate_tree_cache(source_root);
+    if source_root != target_root {
+        crate::tree::invalidate_tree_cache(target_root);
+    }
+    Ok(true)
+}
+
+fn remove_entry_best_effort(path: &Path) {
+    let _ = if path.is_dir() { fs::remove_dir_all(path) } else { fs::remove_file(path) };
+}
+
+/// 跨工作区复制：源/目标分属不同工作区根，目标已存在即拒绝（不自动改名）。
+pub fn copy_entry_across(
+    source_root: &Path,
+    src_relative_path: &str,
+    target_root: &Path,
+    dst_relative_path: &str,
+) -> Result<bool, AppError> {
+    let src = adl_fs_ops::resolve_workspace_path(source_root, src_relative_path)?;
+    if !src.exists() {
+        return Err(AppError::NotFound(format!("source not found: {src_relative_path}")));
+    }
+    let dst = adl_fs_ops::resolve_workspace_path(target_root, dst_relative_path)?;
+    if dst.exists() {
+        if same_file(&src, &dst) {
+            // 源与目标是同一个文件：复制是 no-op，绝不能继续走 fs::copy（会把源截断为 0 字节）。
+            return Ok(true);
+        }
+        return Err(AppError::InvalidInput(format!("target already exists: {dst_relative_path}")));
+    }
+    if let Some(parent) = dst.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    if src.is_dir() {
+        copy_dir_recursive(&src, &dst)?;
+    } else {
+        fs::copy(&src, &dst)?;
+    }
+    // 源未变化，只需让目标工作区的树缓存失效。
+    crate::tree::invalidate_tree_cache(target_root);
+    Ok(true)
+}
+
 pub(crate) fn file_modified_at(path: &Path) -> i64 {
     fs::metadata(path)
         .and_then(|meta| meta.modified())
@@ -283,6 +365,93 @@ mod tests {
         fs::create_dir_all(root.join("src")).unwrap();
         let err = create_file(&root, "src", "new").unwrap_err();
         assert!(err.to_string().contains("file already exists (directory)"), "got {err}");
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn move_entry_across_moves_file_between_roots() {
+        let source = temp_root();
+        let target = temp_root();
+        write(&source, "notes/a.txt", "content");
+
+        let result = move_entry_across(&source, "notes/a.txt", &target, "moved/a.txt");
+
+        assert!(result.is_ok(), "cross-workspace move should succeed, got {result:?}");
+        assert!(!source.join("notes/a.txt").exists());
+        assert_eq!(read(&target, "moved/a.txt"), "content");
+        fs::remove_dir_all(&source).unwrap();
+        fs::remove_dir_all(&target).unwrap();
+    }
+
+    #[test]
+    fn move_entry_across_moves_directory_tree_between_roots() {
+        let source = temp_root();
+        let target = temp_root();
+        write(&source, "pkg/src/main.rs", "fn main() {}");
+
+        move_entry_across(&source, "pkg", &target, "pkg-copy").unwrap();
+
+        assert!(!source.join("pkg").exists());
+        assert_eq!(read(&target, "pkg-copy/src/main.rs"), "fn main() {}");
+        fs::remove_dir_all(&source).unwrap();
+        fs::remove_dir_all(&target).unwrap();
+    }
+
+    #[test]
+    fn move_entry_across_rejects_existing_target() {
+        let source = temp_root();
+        let target = temp_root();
+        write(&source, "a.txt", "a");
+        write(&target, "a.txt", "b");
+
+        let err = move_entry_across(&source, "a.txt", &target, "a.txt").unwrap_err();
+
+        assert!(err.to_string().contains("target already exists"));
+        assert_eq!(read(&source, "a.txt"), "a");
+        assert_eq!(read(&target, "a.txt"), "b");
+        fs::remove_dir_all(&source).unwrap();
+        fs::remove_dir_all(&target).unwrap();
+    }
+
+    #[test]
+    fn move_entry_across_rejects_missing_source() {
+        let source = temp_root();
+        let target = temp_root();
+
+        let err = move_entry_across(&source, "missing.txt", &target, "missing.txt").unwrap_err();
+
+        assert!(err.to_string().contains("source not found"));
+        fs::remove_dir_all(&source).unwrap();
+        fs::remove_dir_all(&target).unwrap();
+    }
+
+    #[test]
+    fn copy_entry_across_keeps_source_and_rejects_conflicts() {
+        let source = temp_root();
+        let target = temp_root();
+        write(&source, "a.txt", "content");
+        write(&target, "a.txt", "existing");
+
+        let err = copy_entry_across(&source, "a.txt", &target, "a.txt").unwrap_err();
+        assert!(err.to_string().contains("target already exists"));
+        assert_eq!(read(&source, "a.txt"), "content");
+
+        copy_entry_across(&source, "a.txt", &target, "b.txt").unwrap();
+        assert_eq!(read(&source, "a.txt"), "content");
+        assert_eq!(read(&target, "b.txt"), "content");
+        fs::remove_dir_all(&source).unwrap();
+        fs::remove_dir_all(&target).unwrap();
+    }
+
+    #[test]
+    fn copy_entry_across_same_source_and_target_is_noop() {
+        let root = temp_root();
+        write(&root, "a.txt", "content");
+
+        let result = copy_entry_across(&root, "a.txt", &root, "a.txt");
+
+        assert!(result.is_ok(), "same-file copy should be a no-op, got {result:?}");
+        assert_eq!(read(&root, "a.txt"), "content");
         fs::remove_dir_all(&root).unwrap();
     }
 }

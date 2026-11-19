@@ -51,6 +51,7 @@ description: 启动 Adlo 的三种运行模式（浏览器预览、Tauri 桌面�
 - **长 HMR 后静态资源/图表不渲染**：长会话反复 HMR 后，可能出现动态导入 `ERR_PROXY_CONNECTION_FAILED`、右侧面板错误边界、或 `ParentSize` 高度为 0 导致热力图空白。先 `pnpm run dev:stop` 再重启 `dev:preview`、重开/刷新 tab，再判断是否为代码回归。
 - **`dev:preview` 首次构建**：没有预构建 `target/debug/adl-server.exe` 时会走 `cargo run` 冷编译（数分钟）；先看 `[adl-dev]` 日志确认 `adl-server bound` 与 `frontend ready at`，不要误判为启动失败。
 - **视觉验证顺序**：重启 dev server → 打开新 tab → 切到目标面板 → 等目标 DOM 出现 → 再读 `getComputedStyle`。不要在旧 HMR tab 上直接下结论。
+- **开屏层会挡住命中检测**：后台标签的 `.adl-splash` 可能保持 `display:block; pointer-events:auto; z-index:9999`，`document.elementFromPoint` 会命中 `.adl-splash__grid`，导致拖拽/落点类自动化全部失效（按钮 `click()` 却正常）。驱动前先 `tabs.focus` 并轮询等待 `.adl-splash` 消失（或仅本次会话内注入 `display:none` 探针），再计算坐标。
 
 ## 常见错误
 

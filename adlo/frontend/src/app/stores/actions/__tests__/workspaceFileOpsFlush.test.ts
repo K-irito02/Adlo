@@ -14,6 +14,7 @@ function makeStore(flush: { saved: number; failed: number }) {
     workspaceTrees: {},
     expandedFileTreePaths: {},
     expandedChangesTreePaths: {},
+    fileChildOrder: {},
     filePreviewModeByPath: {},
     errorToasts: [],
     clearErrorToasts: vi.fn(),

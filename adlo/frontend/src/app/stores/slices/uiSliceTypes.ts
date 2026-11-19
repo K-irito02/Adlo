@@ -11,6 +11,7 @@ import type {
 } from '../types';
 import type { SettingsGroupId } from '@adlo/kernel';
 import type { ChangeFileState } from '@regions/right-panel/changesTree';
+import type { FileChildOrder } from '@features/file-tree/childOrder';
 
 // ════════════════════════════════════════════════════════
 // LocalStorage 键名常量
@@ -136,6 +137,9 @@ export interface UISlice {
   expandedFileTreePaths: FileTreeExpansionState;
   expandedChangesTreePaths: ChangesTreeExpansionState;
   /** 文件树定位滚动请求（瞬态，不落盘；消费方见 useFileTreeRevealOnRequest）。 */
+  fileChildOrder: FileChildOrder;
+  /** 写入某目录的自定义子项顺序（键 = 工作区路径 + 目录相对路径；持久化到 `adl:files.childOrder`）。 */
+  setFileChildOrder: (workspacePath: string, dirPath: string, childNames: string[]) => void;
   fileTreeRevealRequest: FileTreeRevealRequest | null;
   filesNavigatorMode: FilesNavigatorMode;
   changesNavigatorMode: ChangesNavigatorMode;

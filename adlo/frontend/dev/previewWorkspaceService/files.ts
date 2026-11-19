@@ -517,6 +517,67 @@ export async function moveFile(
   return true;
 }
 
+/** 跨工作区移动：同盘 rename，跨盘复制后删除源；删除失败回滚目标副本。 */
+export async function moveFileAcross(
+  sourceRootPath: string,
+  sourceRelativePath: string,
+  targetRootPath: string,
+  targetRelativePath: string,
+): Promise<boolean> {
+  const src = resolveWorkspacePath(sourceRootPath, sourceRelativePath);
+  if (!fsSync.existsSync(src)) throw new Error(`source not found: ${sourceRelativePath}`);
+  const dst = resolveWorkspacePath(targetRootPath, targetRelativePath);
+  if (fsSync.existsSync(dst)) throw new Error(`target already exists: ${targetRelativePath}`);
+  await fs.mkdir(path.dirname(dst), { recursive: true });
+
+  const removeEntry = async (target: string) => {
+    if (fsSync.statSync(target).isDirectory()) {
+      await fs.rm(target, { recursive: true, force: true });
+    } else {
+      await fs.unlink(target);
+    }
+  };
+
+  try {
+    await fs.rename(src, dst);
+    return true;
+  } catch {
+    try {
+      if (fsSync.statSync(src).isDirectory()) {
+        await fs.cp(src, dst, { recursive: true });
+      } else {
+        await fs.copyFile(src, dst);
+      }
+      await removeEntry(src);
+      return true;
+    } catch (err) {
+      // 复制成功但删源失败：撤掉目标副本，避免同一份内容留在两处。
+      await removeEntry(dst).catch(() => {});
+      throw err;
+    }
+  }
+}
+
+/** 跨工作区复制：保留源，目标已存在即拒绝。 */
+export async function copyFileAcross(
+  sourceRootPath: string,
+  sourceRelativePath: string,
+  targetRootPath: string,
+  targetRelativePath: string,
+): Promise<boolean> {
+  const src = resolveWorkspacePath(sourceRootPath, sourceRelativePath);
+  if (!fsSync.existsSync(src)) throw new Error(`source not found: ${sourceRelativePath}`);
+  const dst = resolveWorkspacePath(targetRootPath, targetRelativePath);
+  if (fsSync.existsSync(dst)) throw new Error(`target already exists: ${targetRelativePath}`);
+  await fs.mkdir(path.dirname(dst), { recursive: true });
+  if (fsSync.statSync(src).isDirectory()) {
+    await fs.cp(src, dst, { recursive: true });
+  } else {
+    await fs.copyFile(src, dst);
+  }
+  return true;
+}
+
 export async function getAbsolutePath(rootPath: string, relativeTarget: string): Promise<string> {
   const resolved = resolveWorkspacePath(rootPath, relativeTarget);
   return normalizePath(resolved);

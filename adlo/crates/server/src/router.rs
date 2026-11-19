@@ -60,6 +60,8 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/workspace/duplicate", post(handlers::workspace::duplicate_file))
         .route("/workspace/absolute-path", post(handlers::workspace::get_absolute_path))
         .route("/workspace/move", post(handlers::workspace::move_file))
+        .route("/workspace/move-across", post(handlers::workspace::move_file_across))
+        .route("/workspace/copy-across", post(handlers::workspace::copy_file_across))
         // Snapshot domain
         .route("/snapshot/create", post(handlers::snapshot::create))
         .route("/snapshot/list", post(handlers::snapshot::list))
@@ -141,6 +143,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/ci/job-logs", post(handlers::ci::get_job_logs))
         // Workspace-sidebar domain
         .route("/sidebar/list", post(handlers::workspace_sidebar::list_recent))
+        .route("/sidebar/reorder", post(handlers::workspace_sidebar::reorder))
         .route("/sidebar/remove", post(handlers::workspace_sidebar::remove_from_sidebar))
         // Workspace-git domain
         .route("/workspace/git/status", post(handlers::workspace_git::get_git_status))

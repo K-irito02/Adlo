@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseArgs as parseReviewArgs, safeSnapshotName } from "./review-snapshot.mjs";
+import {
+  isDocsArtifact,
+  parseArgs as parseReviewArgs,
+  safeSnapshotName,
+} from "./review-snapshot.mjs";
 import {
   affectedCrateDirs,
   clippyArgs,
@@ -27,6 +31,7 @@ test("review-snapshot parses base/out/rev and rejects invalid rev", () => {
     allowUntracked: false,
     allowClaims: false,
     excludeGenerated: false,
+    includeDocs: false,
     progress: null,
   });
   assert.deepEqual(parseReviewArgs(["--base", "origin/main", "--out", ".diffs", "--rev", "3"]), {
@@ -37,6 +42,7 @@ test("review-snapshot parses base/out/rev and rejects invalid rev", () => {
     allowUntracked: false,
     allowClaims: false,
     excludeGenerated: false,
+    includeDocs: false,
     progress: null,
   });
   assert.deepEqual(parseReviewArgs(["--rev", "2", "--progress", "docs/p.md"]), {
@@ -47,10 +53,36 @@ test("review-snapshot parses base/out/rev and rejects invalid rev", () => {
     allowUntracked: false,
     allowClaims: false,
     excludeGenerated: false,
+    includeDocs: false,
     progress: "docs/p.md",
   });
+  assert.equal(parseReviewArgs(["--include-docs"]).includeDocs, true);
   assert.throws(() => parseReviewArgs(["--rev", "0"]), /positive integer/);
   assert.throws(() => parseReviewArgs(["--nope"]), /unknown argument/);
+});
+
+test("review-snapshot excludes docs by default but keeps code and config", () => {
+  for (const file of [
+    "docs/design-system/a.md",
+    "docs/root-cause-to-close/2026-11/progress-x.md",
+    ".agents/rules/dev-rules.md",
+    ".opencode/skills/x/SKILL.md",
+    ".trae/rules/codebase-map.md",
+    "GLOSSARY.md",
+    "AGENTS.md",
+    "CONTEXT.md",
+    "adlo/README.md",
+  ]) {
+    assert.equal(isDocsArtifact(file), true, file);
+  }
+  for (const file of [
+    "adlo/frontend/src/a.ts",
+    "adlo/crates/workspace/src/fs.rs",
+    "adlo/frontend/src/styles/a.css",
+    "adlo/package.json",
+  ]) {
+    assert.equal(isDocsArtifact(file), false, file);
+  }
 });
 
 test("check-rust identifies Rust paths only", () => {

@@ -65,6 +65,8 @@ await page.locator('.adl-multitree-entry__namezone').first().click({ button: 'ri
 await page.waitForSelector('.adl-multitree-entry__menu');
 ```
 
+> 菜单与「⋮ 更多操作」是同一份：包含「粘贴」。剪贴板为空时「粘贴」置灰；有内容时把剪切/复制的目录或文件放到该工作区根目录（同区走复制/移动，跨区走跨区复制/移动，失败保留剪贴板）。
+
 #### 切换到工作区
 
 ```javascript
@@ -104,6 +106,21 @@ await page.click('button[aria-label="展开全部"]');
 await page.click('button[aria-label="刷新"]');
 await page.click('button[aria-label="新建文件"]');
 ```
+
+#### 拖拽（放入 / 插入）
+
+> 仅「文件」面板的文件树按钮模式启用；右侧「变更」面板**不支持**拖拽（只共享目录显示顺序）。拖拽走 Pointer Events（4px 阈值 + `elementFromPoint`），不是 HTML5 DnD。
+
+| 操作 | 触发 | 结果 |
+|------|------|------|
+| 放入（Drop Into） | 拖到目录行中部 / 工作区标题中部 | 移动到该目录 / 该工作区根 |
+| 插入（Reorder Insert） | 目录行按上/下 20% 区、文件行按中线二分 | 移动到目标父目录并写入自定义顺序 |
+| 工作区重排 | 拖工作区标题到另一标题的上/下 | 仅非置顶区重排；置顶、自身、置顶区边界 → 非法 |
+| 跨工作区 | 拖到其它工作区标题或其目录 | 走跨区**移动**（复制请用右键「复制 → 粘贴」） |
+
+- 非法目标：目录拖进自己的子孙、拖到自身、目标工作区不可用；只显示 `cursor: not-allowed`，不渲染指示器。文件行只有「前/后插入」，不存在「放入文件」。
+- 顺序持久化：`adl:files.childOrder`（键 = 工作区路径 + 目录相对路径），默认仍是「目录优先 + 名字」，手动排序后允许目录/文件混排。
+- 选择器：`.adl-multitree--dnd`（开启类）、`.adl-dnd-overlay`、`.adl-dnd-insert-line`（插入线，`z-index: 10000`）、`.adl-dnd-into`（放入高亮，直角、`z-index: 9997`）、`.adl-browser-dnd-lift--tree`（抬起副本，整行宽、不放大）。
 
 ### 文件树节点（虚拟化 FileTree）
 

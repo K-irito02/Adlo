@@ -821,7 +821,6 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
           onRefreshOne={onRefreshOneWorkspace}
           onHideFromRightPanels={onHideFromRightPanels}
           onToggleFileTreePath={toggleFileTreePath}
-          onOpenFile={onOpenFile}
           onOpenFileForWorkspace={onOpenFileForWorkspace}
           onNodeClicked={handleNodeClicked}
           onSelectWorkspace={handleSelectWorkspace}

@@ -11,4 +11,5 @@
 | [drag-overlay-pointer-event-penetration-2026-07-21.md](./drag-overlay-pointer-event-penetration-2026-07-21.md) | 拖拽浮层 pointer-events: none 穿透问题 |
 | [resize-handle-pointer-events-diversion-2026-06-23.md](./resize-handle-pointer-events-diversion-2026-06-23.md) | Resize Handle 与 Scrollbar 重叠的 pointer-events 分流 |
 | [right-click-menu-positioning-2026-06-08.md](./right-click-menu-positioning-2026-06-08.md) | 右键菜单跟随鼠标位置修复 |
+| [tree-dnd-clipboard-source-2026-11-19.md](./tree-dnd-clipboard-source-2026-11-19.md) | 文件树拖拽副本几何、`copy-op` 菜单 id、同区粘贴失败保留剪贴板、吸顶行级 scroll-margin |
 | [jsdom-pointerevent-missing-clientx-2026-10-09.md](./jsdom-pointerevent-missing-clientx-2026-10-09.md) | jsdom 无 PointerEvent 致 fireEvent.pointer* 丢 clientX（MouseEvent 冒充派发） |

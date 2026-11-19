@@ -896,6 +896,8 @@ export function createHttpBridge({
       pickDirectory: () => taskNotSupported<string | undefined>('workspace.pickDirectory'),
       removeFromSidebar: (workspaceId: string) =>
         call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/remove', POST({ workspaceId })),
+      reorderSidebar: (orderedIds: string[]) =>
+        call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/reorder', POST({ orderedIds })),
       // 树载荷两方法统一显式 pick（不透传未知字段；force 优先——后端
       // `allow_stale = allowStale && !force`，并存时按全量扫执行）。
       listTreeForWorkspace: (
@@ -1019,6 +1021,18 @@ export function createHttpBridge({
         call<string>(baseUrl, '/workspace/absolute-path', POST({ relativePath, workspacePath })),
       moveFile: (relativePath: string, newPath: string, workspacePath?: string) =>
         call<boolean>(baseUrl, '/workspace/move', POST({ relativePath, newPath, workspacePath })),
+      moveFileAcross: (input: {
+        sourceWorkspacePath: string;
+        sourceRelativePath: string;
+        targetWorkspacePath: string;
+        targetRelativePath: string;
+      }) => call<boolean>(baseUrl, '/workspace/move-across', POST(input)),
+      copyFileAcross: (input: {
+        sourceWorkspacePath: string;
+        sourceRelativePath: string;
+        targetWorkspacePath: string;
+        targetRelativePath: string;
+      }) => call<boolean>(baseUrl, '/workspace/copy-across', POST(input)),
       updateFileContent: (relativePath: string, content: string, workspacePath?: string) =>
         call<WorkspaceFileDocument>(
           baseUrl,

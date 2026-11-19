@@ -1,7 +1,9 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
+import { applyChildOrder } from '@features/file-tree/childOrder';
 import type { TreeExpansion } from '@stores/slices/uiSliceTypes';
+import { useAppStore } from '@stores/slicedStore';
 import { MultiWorkspaceTreeShell } from '../multi-workspace/MultiWorkspaceTreeShell';
 import { AddWorkspaceHint } from '../multi-workspace/AddWorkspaceHint';
 import { WorkspaceChangesEntry } from './WorkspaceChangesEntry';
@@ -77,6 +79,21 @@ export function MultiWorkspaceChangesTree({
   renderCount,
 }: MultiWorkspaceChangesTreeProps) {
   const { t } = useTCopy();
+  const fileChildOrder = useAppStore((state) => state.fileChildOrder);
+
+  // 与文件面板共享同一份目录顺序（仅影响显示顺序）；变更面板不支持拖拽。
+  const orderedTreeData = useMemo(() => {
+    const next: Record<string, WorkspaceTreeNode[]> = {};
+    for (const workspace of workspaces) {
+      next[workspace.id] = applyChildOrder(
+        treeData[workspace.id] ?? [],
+        workspace.path,
+        '',
+        fileChildOrder,
+      );
+    }
+    return next;
+  }, [workspaces, treeData, fileChildOrder]);
 
   const renderContent = useCallback(
     (workspace: RecentWorkspaceEntry, isExpanded: boolean) => {
@@ -86,7 +103,7 @@ export function MultiWorkspaceChangesTree({
             workspace={workspace}
             isCurrent={workspace.id === activeWorkspaceId}
             isExpanded={isExpanded}
-            treeNodes={treeData[workspace.id]}
+            treeNodes={orderedTreeData[workspace.id]}
             isLoading={loadingStates[workspace.id] ?? false}
             isRefreshing={refreshingStates?.[workspace.id] ?? false}
             error={errorStates[workspace.id]}
@@ -122,7 +139,7 @@ export function MultiWorkspaceChangesTree({
     },
     [
       activeWorkspaceId,
-      treeData,
+      orderedTreeData,
       loadingStates,
       refreshingStates,
       errorStates,
@@ -164,9 +181,9 @@ export function MultiWorkspaceChangesTree({
           suffix={t.workspaceEmptyAddWorkspaceSuffix as string}
         />
       }
-      onToggleExpand={onToggleExpand}
       onClearSelection={onClearSelection}
       renderContent={renderContent}
+      stickyHeaders
     />
   );
 }

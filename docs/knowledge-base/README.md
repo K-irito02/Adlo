@@ -14,7 +14,7 @@
 | 目录 | 内容 | 文件数 |
 |------|------|--------|
 | [browser](./browser/) | 内置浏览器实现与修复（导航、标签、书签、下载、favicon/元数据、历史、WebView 嵌入） | 60 |
-| [interaction](./interaction/) | 跨功能面板交互/UX 修复（GitHub 面板、终端、检索、Git 可视化、指针事件、toast、编辑器自动保存竞态、开屏动画） | 60 |
+| [interaction](./interaction/) | 跨功能面板交互/UX 修复（GitHub 面板、终端、检索、Git 可视化、指针事件、toast、编辑器自动保存竞态、开屏动画） | 61 |
 | [refactoring](./refactoring/) | 重构方法论、执行记录与架构改进（process / store-ui / architecture） | 27 |
 | [code-quality](./code-quality/) | 代码质量检测与修复、工具链门禁（diff-viewer / git-vis-charts / toolchain-lint / 审计） | 38 |
 | [multi-workspace](./multi-workspace/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 16 |
@@ -47,7 +47,7 @@
 - `search/` — 检索交互、加载态、设置弹窗（4）
 - `git-vis/` — 分支图、热力图、文件热点、loading（5）
 - `outline-file-tree/` — 大纲树与文件树连接线/导航（3）
-- `pointer-events/` — 指针事件、命中区、拖拽、右键菜单（5）
+- `pointer-events/` — 指针事件、命中区、拖拽、右键菜单（6）
 - `toast-hint-card/` — toast、错误提示、hint card（5）
 - 根目录 — 综合（i18n、对话框、状态栏、动画、剪贴板历史等）
 

@@ -49,7 +49,6 @@ describe('无工作区空态提示', () => {
         onSelectWorkspace={noop}
         onHideFromRightPanels={noop}
         onToggleFileTreePath={noop}
-        onOpenFile={noop}
         onOpenFileForWorkspace={noop}
         onNodeClicked={noop}
         getContextMenuItems={() => []}

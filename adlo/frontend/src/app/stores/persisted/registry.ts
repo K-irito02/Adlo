@@ -542,6 +542,15 @@ export const registry = {
     read: readDirExpansionRecord,
     prune: pruneDirExpansion,
   }),
+  'adl:files.childOrder': defineEntry<Record<string, string[]>>({
+    key: 'adl:files.childOrder',
+    field: 'fileChildOrder',
+    fallback: {},
+    scope: 'global',
+    // 键 = 工作区路径 + NUL + 目录相对路径；只校验「字符串 → 字符串数组」形状。
+    // 陈旧工作区键不主动清理（体积小，工作区移除后再加回仍能命中旧顺序）。
+    read: readStringArrayRecord,
+  }),
   'adl:files.previewMode': defineEntry<Record<string, Record<string, boolean>>>({
     key: 'adl:files.previewMode',
     field: 'filePreviewModeByPath',

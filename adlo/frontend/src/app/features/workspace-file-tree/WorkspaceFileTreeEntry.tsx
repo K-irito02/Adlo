@@ -10,6 +10,7 @@ import {
   IconAlertTriangle,
   IconCopy,
   IconEyeOff,
+  IconUpload,
 } from '@icons';
 import { FileTree, type FileTreeContextMenuItem } from '@features/file-tree';
 import { TooltipSimple } from '@components/Tooltip';
@@ -19,6 +20,7 @@ import { BranchMenuItem, BranchSubCard } from '@regions/right-panel/panels/Branc
 import { MenuHintItem } from '@components/MenuHintItem';
 import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
 import { joinPathSegments } from '@app/utils/workspacePaths';
+import { bindWorkspaceClipboard, pasteClipboardIntoWorkspace } from './workspaceClipboard';
 
 export interface WorkspaceFileTreeEntryProps {
   workspace: RecentWorkspaceEntry;
@@ -93,6 +95,8 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const gitSnapshot = useAppStore((s) => s.gitSnapshots[workspace.id]);
   const currentBranch = gitSnapshot?.branch ?? '';
+  // 工作区菜单的「粘贴」只在剪贴板有内容时可用。
+  const hasClipboard = useAppStore((state) => state.clipboardOperation !== null);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -189,7 +193,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
   // Wrap getContextMenuItems to bind workspace.path for reveal/copy-full-path/paste/rename/delete
   const wrappedGetContextMenuItems = useCallback(
     (node: WorkspaceTreeNode) => {
-      const items = getContextMenuItems(node);
+      const items = bindWorkspaceClipboard(getContextMenuItems(node), workspace.path);
       return items.map((item) => {
         if (item.separator) {
           return item;
@@ -206,36 +210,6 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
               } else {
                 copyToClipboard(fullPath);
               }
-            },
-          };
-        }
-        // Override paste to use this workspace's path
-        if (item.id === 'paste') {
-          return {
-            ...item,
-            action: async (targetNode: WorkspaceTreeNode) => {
-              const store = useAppStore.getState();
-              const sourcePath = store.clipboardSourcePath;
-              const operation = store.clipboardOperation;
-              if (!sourcePath || !operation) {
-                return;
-              }
-              const targetDir =
-                targetNode.kind === 'directory'
-                  ? targetNode.path
-                  : targetNode.path.substring(0, targetNode.path.lastIndexOf('/') + 1);
-              const sourceName = sourcePath.split('/').pop() || sourcePath;
-              const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
-              if (operation === 'copy') {
-                await store.duplicateWorkspaceFile(sourcePath, newPath, workspace.path);
-              } else if (operation === 'cut') {
-                if (sourcePath === newPath) {
-                  store.clearClipboard();
-                  return;
-                }
-                await store.moveWorkspaceFile(sourcePath, newPath, workspace.path);
-              }
-              store.clearClipboard();
             },
           };
         }
@@ -422,6 +396,19 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
               >
                 <IconFolderOpen size={14} />
                 {t.sessionMenuRevealFolder as string}
+              </button>
+              <button
+                type="button"
+                className="adl-multitree-entry__menu-item"
+                role="menuitem"
+                disabled={!hasClipboard}
+                onClick={() => {
+                  closeMenu();
+                  void pasteClipboardIntoWorkspace(workspace.path, '');
+                }}
+              >
+                <IconUpload size={14} />
+                {t.fileContextPaste as string}
               </button>
               <div className="adl-multitree-entry__menu-sep" role="separator" />
               <button

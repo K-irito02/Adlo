@@ -1,0 +1,51 @@
+/* 文件导航树拖拽：与书签树共用 --adl-dnd-* 中性色与 .adl-dnd-insert-line 视觉。 */
+
+.adl-tree-dnd-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* 无效落点：行 / 工作区头 / 按钮内部各自声明了 cursor，逐一覆盖。 */
+body.adl-tree-dnd-not-allowed,
+body.adl-tree-dnd-not-allowed .adl-multitree--dnd [data-path],
+body.adl-tree-dnd-not-allowed .adl-multitree--dnd .adl-multitree-entry__header,
+body.adl-tree-dnd-not-allowed .adl-multitree--dnd .adl-multitree-entry__namezone,
+body.adl-tree-dnd-not-allowed .adl-multitree--dnd button {
+  cursor: not-allowed;
+}
+
+.adl-multitree--dnd [data-path],
+.adl-multitree--dnd .adl-multitree-entry__header {
+  cursor: grab;
+}
+
+.adl-multitree--dnd [data-path]:active,
+.adl-multitree--dnd .adl-multitree-entry__header:active {
+  cursor: grabbing;
+}
+
+.adl-dnd-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* 文件导航树的「抬起副本」是整行宽的 <li>：不放大（放大器会让副本比行宽、贴边溢出）。 */
+.adl-browser-dnd-lift--tree {
+  transform: translateY(-2px);
+}
+
+.adl-dnd-overlay .adl-dnd-insert-line {
+  position: absolute;
+  /* 高于抬起副本（9999），插入线不被整行宽的副本盖住。 */
+  z-index: 10000;
+}
+
+.adl-dnd-into {
+  position: absolute;
+  /* 低于抬起副本：高亮只作底色，不染到副本上。 */
+  z-index: 9997;
+  /* 文件导航树「放入」高亮：四角直角（与浏览器书签树一致）。 */
+  border-radius: 0;
+  background: var(--adl-dnd-into);
+}
