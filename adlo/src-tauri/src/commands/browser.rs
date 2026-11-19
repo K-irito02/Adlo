@@ -291,10 +291,61 @@ fn silent_backoff_active(e: &SiteMetaCacheEntry, now_ms: i64) -> bool {
     e.last_ok_at == 0 && now_ms < e.next_retry_at
 }
 
-/// 后台静默抓取抑制判定（warmup / get 共用）：有效缓存（真实标题或 favicon）
-/// 或退避期中的条目 → 跳过 WebView2 静默渲染。
-fn silent_fetch_suppressed(e: &SiteMetaCacheEntry, url: &str, now_ms: i64) -> bool {
-    silent_cache_hit(e, url) || silent_backoff_active(e, now_ms)
+/// 条目是否已有可显示图标（外部 URL 或内联 data-URI）。
+/// 与 `silent_cache_hit` 关注点不同：后者表达「可直接返回」（有效标题 **或** 非空
+/// `favicon_url`），本函数表达「有任何可显示图标」（`favicon_url` **或** data-URI）。
+fn has_favicon(e: &SiteMetaCacheEntry) -> bool {
+    !e.favicon_url.is_empty() || !e.favicon_data_uri.is_empty()
+}
+
+/// 无图标条目的补抓冷却（per cache key）：标题-only 条目在 `get` 缓存命中与启动
+/// `warmup` 时会各触发一次静默补抓；冷却避免同一会话对无图标站点反复创建 WebView。
+static FAVICON_LESS_REFETCH_COOLDOWN: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashMap<String, std::time::Instant>>,
+> = std::sync::OnceLock::new();
+
+fn favicon_less_refetch_cooldown()
+-> &'static std::sync::Mutex<std::collections::HashMap<String, std::time::Instant>> {
+    FAVICON_LESS_REFETCH_COOLDOWN
+        .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
+}
+
+const FAVICON_LESS_REFETCH_COOLDOWN_MS: u64 = 10 * 60 * 1000;
+
+/// 检查并记录该 cache key 的无图标补抓尝试：冷却期内返回 false（跳过本次）。
+fn favicon_less_refetch_allowed(key: &str) -> bool {
+    let now = std::time::Instant::now();
+    let mut map = favicon_less_refetch_cooldown().lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(&last) = map.get(key) {
+        if now.duration_since(last).as_millis() < FAVICON_LESS_REFETCH_COOLDOWN_MS as u128 {
+            return false;
+        }
+    }
+    map.insert(key.to_string(), now);
+    true
+}
+
+/// 冷却表键：与站点元数据缓存同口径（`get` 与 `warmup` 必须命中同一条记录，
+/// 否则 `https://a.com/p/` 与 `https://a.com/p` 会各抓一次）。
+fn favicon_less_refetch_key(url: &str) -> String {
+    adl_browser::normalize_cache_key(url)
+}
+
+/// warmup 目标判定（纯函数）：
+/// - 无条目 → 抓（首次预热）；
+/// - 退避期墓碑 → 跳过（失败退避与预览端同构）；
+/// - 标题不成立且 `favicon_url` 为空 → 抓（即便已有 data-URI 也会抓：warmup 顺带补标题）；
+/// - 有效缓存（`silent_cache_hit`）但没有任何图标 → 仍抓（标题-only 条目补 favicon）。
+///   这与预览端不再把「有标题」当有效命中一致；但预览端另有 `META_TTL_MS` 到期重抓
+///   （有图标也会重抓），桌面端本轮未引入 TTL 语义，此处只对齐「标题-only」这一条；
+/// - 有效缓存且已有图标 → 跳过。
+fn warmup_target_allowed(e: Option<&SiteMetaCacheEntry>, url: &str, now_ms: i64) -> bool {
+    match e {
+        None => true,
+        Some(entry) if silent_backoff_active(entry, now_ms) => false,
+        Some(entry) if !silent_cache_hit(entry, url) => true,
+        Some(entry) => !has_favicon(entry),
+    }
 }
 
 fn now_ms() -> i64 {
@@ -760,6 +811,13 @@ async fn fetch_silent_meta(
         let req_url_owned = url.to_string();
         let svc = state.browser_manager.page_meta_service().clone();
         spawn_favicon_download(&app, svc, cache_key, favicon_url, req_url_owned);
+    } else if page_meta.favicon.is_empty() {
+        // 惯例兜底：静默渲染一个图标都没拿到（页面未声明 / 隐藏渲染被登录墙挡住）时，
+        // 按 Chrome 语义回退 `{origin}/favicon.ico`。与预览端 `previewFetchPageMeta`
+        // 的「`<link rel=icon>` → origin 惯例兜底」对齐——否则同一网站浏览器模式有
+        // 图标、桌面端只显示首字母。
+        let svc = state.browser_manager.page_meta_service().clone();
+        spawn_convention_favicon(app.clone(), svc, url.to_string(), page_meta.title.clone());
     }
 
     tracing::info!(
@@ -944,6 +1002,10 @@ pub async fn browser_page_meta_get(
                 return Ok(ipc(Ok(PageMeta { url: url.clone(), ..PageMeta::default() })));
             }
             if silent_cache_hit(&e, &url) {
+                // 标题-only 缓存（无任何图标）：命中仍即时返回，但后台补抓一次
+                // 静默渲染补上 favicon 并广播自愈。否则该 URL 的图标会永久停在
+                // 兜底首字母，只能靠用户手动「刷新网站图标与标题」。
+                let needs_favicon_refetch = !has_favicon(&e);
                 let meta = PageMeta {
                     title: e.title,
                     favicon: e.favicon_url,
@@ -962,6 +1024,10 @@ pub async fn browser_page_meta_get(
                     let req_url = url.clone();
                     let svc_backfill = state.browser_manager.page_meta_service().clone();
                     spawn_favicon_download(&app, svc_backfill, cache_key, favicon_url, req_url);
+                } else if needs_favicon_refetch
+                    && favicon_less_refetch_allowed(&favicon_less_refetch_key(&url))
+                {
+                    spawn_meta_refetch(&app, url.clone());
                 }
                 return Ok(ipc(Ok(meta)));
             }
@@ -1016,22 +1082,44 @@ pub async fn browser_page_meta_warmup(
         ))));
     }
     let svc = state.browser_manager.page_meta_service();
-    // 静默预热：去重；仅对「有效缓存命中（真实标题或非空 favicon）」与「退避期中的
-    // 失败墓碑」均未覆盖的 URL 触发 WebView2 静默渲染抓取（复用主路径 fetch_silent_meta）。
-    // 每路都会创建一个隐藏 WebView2，故用信号量限制并发，避免一次性实例化过多浏览器。
+    // 静默预热：去重后按 `warmup_target_allowed` 选取目标——无条目 / 无有效缓存直接抓，
+    // 「标题-only」条目也纳入补抓（补 favicon；预览端同样不把它当有效命中），仅有图标的
+    // 有效缓存与退避期失败墓碑跳过（预览端另有 TTL 到期重抓，桌面端本轮未引入）。
+    // 每个目标各创建一个隐藏 WebView2，故用信号量限制并发；无图标补抓另设单次启动预算，
+    // 避免长期积累的条目集中建窗。
     // 消除 preload 竞态：入口显式等待一次（幂等——get_all + or_insert），
     // 保证下方 peek 过滤读到磁盘全量条目，而不是只有空内存镜像。
     if let Err(e) = svc.preload().await {
         tracing::warn!(error = %e, "browser_page_meta_warmup: preload failed (继续，过滤可能偏保守)");
     }
+    // 单次启动最多补抓多少个「标题-only」条目（正常首抓不设上限）。
+    const WARMUP_FAVICON_BACKFILL_MAX: usize = 40;
     let mut seen = std::collections::HashSet::new();
+    let mut favicon_backfills = 0usize;
     let now = now_ms();
     let targets: Vec<String> = urls
         .into_iter()
         .filter(|u| {
             let key = adl_browser::normalize_cache_key(u);
-            seen.insert(key.clone())
-                && !svc.peek(&key).is_some_and(|e| silent_fetch_suppressed(&e, u, now))
+            if !seen.insert(key.clone()) {
+                return false;
+            }
+            let entry = svc.peek(&key);
+            if !warmup_target_allowed(entry.as_ref(), u, now) {
+                return false;
+            }
+            // 仅「已有有效缓存但缺图标」的补抓消耗预算与冷却；首次预热不设限。
+            let is_favicon_backfill =
+                entry.as_ref().is_some_and(|e| silent_cache_hit(e, u) && !has_favicon(e));
+            if is_favicon_backfill {
+                if favicon_backfills >= WARMUP_FAVICON_BACKFILL_MAX
+                    || !favicon_less_refetch_allowed(&favicon_less_refetch_key(u))
+                {
+                    return false;
+                }
+                favicon_backfills += 1;
+            }
+            true
         })
         .collect();
     let sem = std::sync::Arc::new(tokio::sync::Semaphore::new(3));
@@ -1369,6 +1457,123 @@ fn favicon_download_cooldown_check(url: &str) -> bool {
     }
     map.insert(url.to_string(), now);
     true
+}
+
+/// 后台补抓无图标条目的元数据（静默 WebView 渲染 + 图标字节下载）：
+/// `get` 命中标题-only 缓存时的自愈入口。完成后广播，前端镜像即时换上真实图标。
+///
+/// 触发面与预算：仅"已结算成功但一个图标都没有"的条目，且受
+/// `FAVICON_LESS_REFETCH_COOLDOWN` 冷却（同一 URL 10 分钟一次）约束。
+fn spawn_meta_refetch(app: &tauri::AppHandle, url: String) {
+    let app = app.clone();
+    tokio::spawn(async move {
+        let state = app.state::<AppState>();
+        match fetch_silent_meta(app.clone(), &state, &url).await {
+            Ok(meta) => {
+                let src =
+                    if meta.source.is_empty() { META_SOURCE_COM } else { meta.source.as_str() };
+                emit_page_meta_updated(&app, &meta, src);
+                tracing::info!(
+                    url = %url,
+                    favicon_len = meta.favicon.len(),
+                    data_uri_len = meta.favicon_data_uri.len(),
+                    "spawn_meta_refetch: favicon-less entry refetched"
+                );
+            },
+            Err(e) => {
+                tracing::warn!(url = %url, error = %e, "spawn_meta_refetch: silent refetch failed");
+            },
+        }
+    });
+}
+
+/// 惯例 favicon 兜底：抓取 `{origin}/favicon.ico` 并写入站点元数据缓存。
+///
+/// 只在静默渲染完全没拿到图标时调用；下载失败（非图片 / 超时 / 404 / 超限）静默跳过。
+/// 与预览端 `previewFetchPageMeta` 的 origin 惯例兜底同语义（双端一致）。
+fn spawn_convention_favicon(
+    app: tauri::AppHandle,
+    svc: Arc<PageMetaService>,
+    req_url: String,
+    title: String,
+) {
+    let Some(origin) = url_origin(&req_url) else {
+        return;
+    };
+    let favicon_url = format!("{origin}/favicon.ico");
+    // 60s per-origin 冷却：避免同一站点被 warmup/get 反复探测惯例图标。
+    if !favicon_download_cooldown_check(&format!("convention:{favicon_url}")) {
+        return;
+    }
+    tokio::spawn(async move {
+        let Ok(_permit) = favicon_download_semaphore().acquire_owned().await else {
+            return;
+        };
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .user_agent(USER_AGENT)
+            .redirect(reqwest::redirect::Policy::limited(10))
+            .build();
+        let Ok(client) = client else {
+            return;
+        };
+        let data_uri = download_favicon_data_uri(&client, &favicon_url, Some(&req_url)).await;
+        if data_uri.is_empty() {
+            tracing::debug!(
+                req_url = %req_url,
+                favicon_url = %favicon_url,
+                "spawn_convention_favicon: no usable icon at convention path"
+            );
+            return;
+        }
+        // `report` 的质量门控只保护 favicon_url 一侧：图标被门控拒绝时 favicon_url
+        // 仍是既有（更优）图标。data-URI 必须与它所属的 URL 一致，否则会把惯例图标的
+        // 字节配到更优图标上，并被 `should_replace_favicon` 的 `data:` 锁永久固化。
+        // 因此回填前复核条目当前 favicon_url（与 `spawn_favicon_download` 的陈旧守卫同口径）。
+        if let Err(e) = svc.report(&req_url, &title, &favicon_url, META_SOURCE_COM).await {
+            tracing::warn!(url = %req_url, error = %e, "spawn_convention_favicon: report failed");
+            return;
+        }
+        if !svc.peek(&req_url).is_some_and(|e| e.favicon_url == favicon_url) {
+            tracing::debug!(
+                req_url = %req_url,
+                favicon_url = %favicon_url,
+                "spawn_convention_favicon: convention icon not adopted (entry kept a better icon)"
+            );
+            return;
+        }
+        match svc.update_favicon_data_uri(&req_url, &data_uri) {
+            Ok(true) => {
+                if let Some(e) = svc.peek(&req_url) {
+                    emit_page_meta_updated_raw(&app, &req_url, &e, META_SOURCE_COM);
+                }
+                tracing::info!(
+                    req_url = %req_url,
+                    favicon_url = %favicon_url,
+                    data_uri_len = data_uri.len(),
+                    "spawn_convention_favicon: convention icon persisted"
+                );
+            },
+            Ok(false) => {},
+            Err(e) => {
+                tracing::warn!(url = %req_url, error = %e, "spawn_convention_favicon: persist failed");
+            },
+        }
+    });
+}
+
+/// `scheme://host[:port]`（仅 http/https）；解析失败返回 `None`。
+fn url_origin(url: &str) -> Option<String> {
+    let parsed = reqwest::Url::parse(url).ok()?;
+    let scheme = parsed.scheme();
+    if scheme != "http" && scheme != "https" {
+        return None;
+    }
+    let host = parsed.host_str()?;
+    Some(match parsed.port() {
+        Some(port) => format!("{scheme}://{host}:{port}"),
+        None => format!("{scheme}://{host}"),
+    })
 }
 
 /// 后台补全 favicon data-URI（M2 共享入口）：`fetch_silent_meta`（静默渲染后）与
@@ -1866,8 +2071,9 @@ mod silent_meta_tests {
     }
 
     #[test]
-    fn silent_fetch_suppressed_union_of_cache_hit_and_backoff() {
-        // 统一的「跳过后台静默抓取」判定：有效缓存（标题/图标）或退避期 → 抑制。
+    fn warmup_target_allowed_heals_title_only_entries() {
+        // warmup 目标判定：标题-only 条目必须继续补抓 favicon（与预览端口径对齐），
+        // 已有图标的有效缓存 / 退避期墓碑才跳过。
         let mut e = SiteMetaCacheEntry {
             title: String::new(),
             title_source: String::new(),
@@ -1876,18 +2082,89 @@ mod silent_meta_tests {
             fetched_at: 0,
             last_ok_at: 0,
             next_retry_at: 0,
+            fail_count: 0,
+        };
+        let url = "https://a.example/";
+        let now = 1_800_000_000_000_i64;
+        // 无条目 → 抓
+        assert!(warmup_target_allowed(None, url, now));
+        // 全空 → 抓
+        assert!(warmup_target_allowed(Some(&e), url, now));
+        // 标题-only（有效缓存命中但无图标）→ 仍抓（本次修复的核心口径）
+        e.title = "Example".into();
+        e.last_ok_at = now;
+        assert!(silent_cache_hit(&e, url), "标题-only 条目仍算缓存命中");
+        assert!(!has_favicon(&e));
+        assert!(warmup_target_allowed(Some(&e), url, now));
+        // 有图标 → 跳过
+        e.favicon_url = "https://cdn.example/i.ico".into();
+        assert!(!warmup_target_allowed(Some(&e), url, now));
+        // 仅 data-URI 也算有图标 → 跳过
+        e.favicon_url.clear();
+        e.favicon_data_uri = "data:image/png;base64,AA".into();
+        assert!(!warmup_target_allowed(Some(&e), url, now));
+        // 退避期墓碑 → 跳过（即使无图标）
+        let tombstone = SiteMetaCacheEntry {
+            title: String::new(),
+            title_source: String::new(),
+            favicon_url: String::new(),
+            favicon_data_uri: String::new(),
+            fetched_at: now,
+            last_ok_at: 0,
+            next_retry_at: now + 60_000,
             fail_count: 1,
         };
-        let now = 1_800_000_000_000_i64;
-        // 全空且无退避 → 不抑制（正常抓取）
-        assert!(!silent_fetch_suppressed(&e, "https://a.example/", now));
-        // 有 favicon → 有效缓存命中 → 抑制
-        e.favicon_url = "https://cdn.example/i.ico".into();
-        assert!(silent_fetch_suppressed(&e, "https://a.example/", now));
-        // 全空 + 退避中 → 抑制
-        e.favicon_url.clear();
-        e.next_retry_at = now + 60_000;
-        assert!(silent_fetch_suppressed(&e, "https://a.example/", now));
+        assert!(!warmup_target_allowed(Some(&tombstone), url, now));
+    }
+
+    #[test]
+    fn favicon_less_refetch_cooldown_allows_retry_after_window() {
+        // 无图标补抓冷却：同一 cache key 10 分钟内只允许一次，窗口过后再放行。
+        let key = "https://cooldown-refetch.example/";
+        assert!(favicon_less_refetch_allowed(key));
+        assert!(!favicon_less_refetch_allowed(key));
+        {
+            let mut map = favicon_less_refetch_cooldown().lock().unwrap_or_else(|e| e.into_inner());
+            let stale = std::time::Instant::now()
+                - std::time::Duration::from_millis(FAVICON_LESS_REFETCH_COOLDOWN_MS + 1);
+            map.insert(key.to_string(), stale);
+        }
+        assert!(favicon_less_refetch_allowed(key));
+    }
+
+    #[test]
+    fn favicon_less_refetch_key_shares_one_cooldown_across_url_forms() {
+        // `get` 传原始 URL、`warmup` 传归一化 URL：冷却键必须同口径，否则同一缓存
+        // 条目在 10 分钟内会被抓两次（各建一个隐藏 WebView）。
+        assert_eq!(
+            favicon_less_refetch_key("https://shared-cooldown.example/p/"),
+            favicon_less_refetch_key("https://shared-cooldown.example/p")
+        );
+        assert_eq!(
+            favicon_less_refetch_key("https://shared-cooldown.example/p#section"),
+            favicon_less_refetch_key("https://shared-cooldown.example/p")
+        );
+        assert!(favicon_less_refetch_allowed(&favicon_less_refetch_key(
+            "https://shared-cooldown.example/p/"
+        )));
+        assert!(!favicon_less_refetch_allowed(&favicon_less_refetch_key(
+            "https://shared-cooldown.example/p"
+        )));
+    }
+
+    #[test]
+    fn url_origin_builds_conventional_favicon_base() {
+        // 惯例兜底 `{origin}/favicon.ico` 的 origin 口径：保留非默认端口、丢弃路径/查询。
+        assert_eq!(
+            url_origin("https://gitee.com/K_irito/Adlo?tab=readme"),
+            Some("https://gitee.com".to_string())
+        );
+        assert_eq!(
+            url_origin("http://127.0.0.1:8082/admin"),
+            Some("http://127.0.0.1:8082".to_string())
+        );
+        assert_eq!(url_origin("file:///C:/a.html"), None);
+        assert_eq!(url_origin("about:blank"), None);
     }
 
     #[tokio::test]

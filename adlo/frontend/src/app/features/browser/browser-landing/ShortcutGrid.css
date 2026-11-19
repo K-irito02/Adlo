@@ -73,13 +73,20 @@
   overflow: hidden;
 }
 
-.adl-shortcut-card__icon-img {
+/* 内部复用共享 favicon 组件（BrowserFavicon）：铺满圆形卡片，图标居中。
+   `<img>` 的宽高由组件 size prop（内联样式）给定，这里只管形状与兜底文字。 */
+.adl-shortcut-card__icon .adl-filetree__file-icon {
   width: 100%;
+  min-width: 0;
   height: 100%;
-  object-fit: cover;
 }
 
-.adl-shortcut-card__icon-placeholder {
+.adl-shortcut-card__icon .adl-browser-tree__favicon {
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.adl-shortcut-card__icon .adl-browser-tree__link-fallback {
   font-size: 14px;
   font-weight: 600;
   color: var(--accent);

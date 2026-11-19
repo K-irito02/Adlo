@@ -7,7 +7,7 @@ import {
   isRustPath,
   parseArgs as parseRustArgs,
   shouldStageSidecar,
-  testArgs,
+  testCommands,
 } from "./check-rust-changed.mjs";
 import { parseArgs as parseServeArgs } from "./serve-adl-server.mjs";
 
@@ -157,19 +157,27 @@ test("check-rust parses --all/--skip-fmt/--skip-test/--base/--verbose", () => {
 });
 
 test("check-rust scopes affected-crate unit tests", () => {
-  assert.deepEqual(testArgs(["adlo/crates/download-source/src/lib.rs"]), [
-    "test",
-    "-p",
-    "adl-download-source",
-    "--lib",
+  assert.deepEqual(testCommands(["adlo/crates/download-source/src/lib.rs"]), [
+    ["test", "-p", "adl-download-source", "--lib"],
   ]);
-  assert.deepEqual(testArgs(["adlo/Cargo.lock"]), [
-    "test",
-    "--workspace",
-    "--exclude",
-    "adlo",
-    "--lib",
+  assert.deepEqual(testCommands(["adlo/Cargo.lock"]), [
+    ["test", "--workspace", "--exclude", "adlo", "--lib"],
   ]);
+  // 外壳 crate 是 bin-only：`-p adlo --lib` 会报 no library targets，必须跑 bins。
+  assert.deepEqual(testCommands(["adlo/src-tauri/src/commands/browser.rs"]), [
+    ["test", "-p", "adlo", "--bins"],
+  ]);
+  // 混合受影响：普通 crate 跑 lib，外壳单独跑 bins（两条命令）。
+  assert.deepEqual(
+    testCommands([
+      "adlo/src-tauri/src/commands/browser.rs",
+      "adlo/crates/download-source/src/lib.rs",
+    ]),
+    [
+      ["test", "-p", "adl-download-source", "--lib"],
+      ["test", "-p", "adlo", "--bins"],
+    ],
+  );
 });
 
 test("serve-adl-server parses flags and validates the port", () => {

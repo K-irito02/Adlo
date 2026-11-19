@@ -20,3 +20,4 @@
 | [browser-tab-loading-redirect-favicon-2026-08-24.md](./browser-tab-loading-redirect-favicon-2026-08-24.md) | 浏览器面板标签加载状态与跨域重定向 favicon 处理 |
 | [browser-bookmark-favicon-snapshot-2026-11-12.md](./browser-bookmark-favicon-snapshot-2026-11-12.md) | 书签 favicon 重复转圈与导入图标快照：占位语义由调用方声明、快照只进镜像不写后端 |
 | [browser-silent-warmup-tombstone-2026-11-12.md](./browser-silent-warmup-tombstone-2026-11-12.md) | 启动预热重复静默抓取：失败零缓存 + 重定向键分叉（墓碑退避 + 请求键别名回写） |
+| [browser-favicon-title-only-selfheal-2026-11-19.md](./browser-favicon-title-only-selfheal-2026-11-19.md) | 标题-only 条目永不补图标（缓存命中语义 + 双端 warmup 口径不一致）+ 组件级自愈 + 惯例兜底 |

@@ -1,5 +1,7 @@
-import { useCallback, memo } from 'react';
+import { useCallback, useEffect, memo } from 'react';
 import type { ShortcutSite } from '@stores/slices/browserSlice';
+import { BrowserFavicon } from '@components/BrowserFavicon';
+import { ensureSiteFavicon } from '../faviconSelfHeal';
 
 interface ShortcutCardProps {
   site: ShortcutSite;
@@ -52,6 +54,12 @@ export const ShortcutCard = memo(function ShortcutCard({
 
   const handleClick = useCallback(() => onClick(site), [site, onClick]);
 
+  // 快捷站点不存图标快照：挂载即补抓站点图标（会话节流 + 并发上限），
+  // 抓到前/抓不到时才由 BrowserFavicon 显示名称首字母兜底。
+  useEffect(() => {
+    ensureSiteFavicon(site.url);
+  }, [site.url]);
+
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
@@ -80,13 +88,13 @@ export const ShortcutCard = memo(function ShortcutCard({
         }}
       >
         <div className="adl-shortcut-card__icon">
-          {site.icon ? (
-            <img src={site.icon} alt="" className="adl-shortcut-card__icon-img" />
-          ) : (
-            <span className="adl-shortcut-card__icon-placeholder">
-              {site.name.charAt(0).toUpperCase()}
-            </span>
-          )}
+          <BrowserFavicon
+            url={site.url}
+            size={24}
+            pending="initial"
+            snapshot={site.icon || undefined}
+            fallbackText={site.name}
+          />
         </div>
       </div>
       <span className="adl-shortcut-card__name" title={site.name}>

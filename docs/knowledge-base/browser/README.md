@@ -88,6 +88,7 @@ favicon、标题、站点元数据的同步/缓存/时序问题。
 | [browser-tab-loading-redirect-favicon-2026-08-24.md](./favicon-meta/browser-tab-loading-redirect-favicon-2026-08-24.md) | 标签加载重定向与 favicon 修复 |
 | [browser-bookmark-favicon-snapshot-2026-11-12.md](./favicon-meta/browser-bookmark-favicon-snapshot-2026-11-12.md) | 书签 favicon 重复转圈与导入图标快照：占位语义由调用方声明、快照只进镜像不写后端 |
 | [browser-silent-warmup-tombstone-2026-11-12.md](./favicon-meta/browser-silent-warmup-tombstone-2026-11-12.md) | 启动预热重复静默抓取：失败零缓存 + 重定向键分叉（墓碑退避 + 请求键别名回写） |
+| [browser-favicon-title-only-selfheal-2026-11-19.md](./favicon-meta/browser-favicon-title-only-selfheal-2026-11-19.md) | 标题-only 条目永不补图标（缓存命中语义 + 双端 warmup 口径不一致）+ 组件级自愈 + `{origin}/favicon.ico` 惯例兜底 |
 
 ### [history/](./history/)
 

@@ -205,26 +205,39 @@ export function clippyArgs(files) {
 }
 
 /**
- * 受影响 crate 的单元测试参数。默认只跑 `--lib`（快、稳），
+ * 受影响 crate 的单元测试命令（可能多条）。
+ *
+ * - 工作区级变更 / 无法定位 crate：`--workspace --lib`（保持快、稳）；
+ * - 只影响普通 crate：`-p <pkg...> --lib`；
+ * - 影响外壳 crate（`src-tauri`，**bin-only，无 lib.rs**）：单独 `-p adlo --bins`，
+ *   否则 `-p adlo --lib` 会直接以 "no library targets found" 失败（本仓实测）。
+ *
  * 变更的集成测试目前仍由开发者按需 `cargo test -p <crate> --tests` 覆盖。
  */
-export function testArgs(files) {
+export function testCommands(files) {
   const workspaceLevel = files.some((file) => WORKSPACE_LEVEL_FILES.has(file));
   const dirs = affectedCrateDirs(files);
   const shellChanged = shouldStageSidecar(files);
-  const args = ["test"];
-  if (workspaceLevel || dirs.length === 0) {
-    args.push("--workspace");
+  if (workspaceLevel) {
+    const args = ["test", "--workspace"];
     if (!shellChanged) {
       args.push("--exclude", "adlo");
     }
-  } else {
-    for (const pkg of dirs.map(packageNameOf)) {
-      args.push("-p", pkg);
-    }
+    args.push("--lib");
+    return [args];
   }
-  args.push("--lib");
-  return args;
+  if (dirs.length === 0) {
+    return [["test", "--workspace", "--exclude", "adlo", "--lib"]];
+  }
+  const commands = [];
+  const crateDirs = dirs.filter((dir) => dir !== "src-tauri");
+  if (crateDirs.length > 0) {
+    commands.push(["test", ...crateDirs.flatMap((dir) => ["-p", packageNameOf(dir)]), "--lib"]);
+  }
+  if (dirs.includes("src-tauri")) {
+    commands.push(["test", "-p", "adlo", "--bins"]);
+  }
+  return commands;
 }
 
 function main() {
@@ -301,8 +314,9 @@ function main() {
     }
     run(cargo, args, `cargo ${args.join(" ")}`);
     if (!options.skipTest) {
-      const test = testArgs(rustFiles);
-      run(cargo, test, `cargo ${test.join(" ")}`);
+      for (const test of testCommands(rustFiles)) {
+        run(cargo, test, `cargo ${test.join(" ")}`);
+      }
     }
   } else {
     console.log("[check-rust] clippy skipped (no Rust changes in this push)");

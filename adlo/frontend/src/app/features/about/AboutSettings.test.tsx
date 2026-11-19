@@ -115,9 +115,9 @@ const aboutT = new Proxy({} as Record<string, string>, {
       case 'aboutLicenseLine':
         return '基于 MIT 许可证发布。';
       case 'aboutRepository':
-        return 'GitHub 仓库';
+        return 'GitHub';
       case 'aboutGiteeRepository':
-        return 'Gitee 仓库';
+        return 'Gitee';
       case 'aboutIssues':
         return '问题反馈';
       case 'aboutIssuesChecking':
@@ -332,12 +332,26 @@ describe('AboutSettings', () => {
     expect(screen.getByText(/渲染引擎 未知/)).toBeTruthy();
   });
 
+  it('keeps GitHub and Gitee on one row and the issue tracker on its own row', () => {
+    // 结构：两行包裹（删掉任一 `.adl-about__links-row` 即变红）。
+    // 居中由 `src/styles/about-settings.test.ts` 的 `justify-content: center` 样式锁负责。
+    const { container } = renderAbout();
+    const rows = Array.from(container.querySelectorAll('.adl-about__links-row'));
+    expect(rows).toHaveLength(2);
+    const labelsOf = (row: Element) =>
+      Array.from(row.querySelectorAll('button.adl-about__link')).map((b) =>
+        (b.textContent ?? '').trim(),
+      );
+    expect(labelsOf(rows[0]!)).toEqual(['GitHub', 'Gitee']);
+    expect(labelsOf(rows[1]!)).toEqual(['问题反馈']);
+  });
+
   it('opens GitHub, Gitee and the network-selected issue tracker', async () => {
     chooseIssueTrackerUrl.mockResolvedValue('https://gitee.com/K_irito/Adlo/issues');
     renderAbout();
 
-    fireEvent.click(screen.getByText('GitHub 仓库'));
-    fireEvent.click(screen.getByText('Gitee 仓库'));
+    fireEvent.click(screen.getByText('GitHub'));
+    fireEvent.click(screen.getByText('Gitee'));
     fireEvent.click(screen.getByText('问题反馈'));
 
     await waitFor(() =>

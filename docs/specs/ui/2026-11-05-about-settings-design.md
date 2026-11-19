@@ -13,7 +13,7 @@
 |------|--------|
 | 应用名、版本、一句定位 | Node.js / Git / Bash / DSH / OpenCode CLI 的版本（属「环境」组，随用户安装时机变化） |
 | 应用运行时（Tauri / 渲染引擎 / OS / 架构） | 构建 commit / 构建时间（仅进诊断单，见 §5） |
-| 网站 / GitHub 仓库 / Gitee 仓库 / 问题反馈（按网络选择 GitHub 或 Gitee） | 「检查更新」（当前无更新通道，不做假按钮） |
+| GitHub / Gitee（同一行）/ 问题反馈（居中独占下一行；按网络选择 GitHub 或 Gitee） | 「检查更新」（当前无更新通道，不做假按钮） |
 | 许可（MIT 全文，独立弹窗） | 商标声明（未注册，不写 `®`） |
 | 致谢（字体 / 素材 / 图表 / 编辑器 / 框架 / 外部工具，独立弹窗） | 与致谢无关的「灵感名单」分组 |
 | 第三方声明（随包素材、移植代码与全量 npm / Cargo 依赖，独立弹窗） | 与致谢无关的「灵感名单」分组 |
@@ -29,7 +29,8 @@
         桌面应用宿主。
         基于 MIT 许可证发布。
         ───
-        网站 / GitHub 仓库 / Gitee 仓库 / 问题反馈
+        GitHub   Gitee          （同一行）
+           问题反馈              （居中独占一行）
         ───
         许可   致谢   第三方声明
         运行时 · 引擎 · 系统
@@ -38,6 +39,8 @@
 ```
 
 - 单列居中，层级靠字号/字距/留白，不使用 accent 色。
+- 仓库两个入口同一行（`.adl-about__links-row`）；「问题反馈」独占下一行并水平居中
+  （父级 `.adl-about__links` 为 column，行内 `justify-content: center`）——2026-11-19 用户指定。
 - 内容宽 280px 上限，右面板 320px 起仍成立。
 - 组件：`app/features/about/AboutSettings.tsx`；样式：`styles/regions/about-settings.css`。
 - 图标：`public/adlo-icon.png` 是 `src-tauri/icons/128x128.png` 的副本（Vite 不能直接引用 `src-tauri`），
@@ -64,7 +67,7 @@
 ## 4. 交互
 
 - 外部链接：统一 `openUrlByMethod`，遵循用户「网址链接打开方式」（面板标签 / 中心标签 / 外部浏览器）。
-- 仓库与问题反馈：GitHub 仓库、Gitee 仓库各一个入口；「问题反馈」在点击时用下载源探针
+- 仓库与问题反馈：GitHub、Gitee 各一个入口（同一行）；「问题反馈」在点击时用下载源探针
   （`testSource`，与真实下载共用代理语义）并发探测两个 issue 入口，先可达者胜出
   （Gitee 候选在前），2.5s 超时/全失败回退 GitHub；成功后缓存 5 分钟。
 - 许可 / 致谢 / 第三方声明：三个独立模态（`AboutTextDialog`），正文左对齐（模态挂在居中容器内，

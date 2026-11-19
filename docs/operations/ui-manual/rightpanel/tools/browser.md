@@ -615,8 +615,16 @@ await page.click('button[aria-label="新建目录"]');
 |--------|------|
 | `.adl-shortcut-grid__items` | 网格容器 |
 | `.adl-shortcut-card` | 快捷站点卡片（48×48px） |
+| `.adl-shortcut-card__icon` | 图标槽（32×32 圆形） |
+| `.adl-shortcut-card__icon .adl-browser-tree__favicon` | 站点图标（24×24，`border-radius: 4px`、`object-fit: contain`）；由共享站点元数据镜像供图，抓不到时才显示 `.adl-browser-tree__link-fallback` 名称首字母 |
 | `.adl-shortcut-card--drag-over` | 拖拽悬停状态 |
 | `.adl-shortcut-card__add-placeholder` | 虚线"+"占位卡片 |
+
+> 新增快捷站点后先显示名称首字母，随后由 `ensureSiteFavicon` 自动补抓真实图标（会话节流、并发 2），
+> 不需要手动刷新；等价于标签页的「刷新网站图标与标题」链路。实测（浏览器预览 5175，2026-11-19）：
+> 图标槽与图标尺寸 `32×32` / `24×24`（`getBoundingClientRect`）；`getComputedStyle` 读到
+> 图标槽 `border-radius: 50%`、`overflow: hidden`，图标 `border-radius: 4px`、`object-fit: contain`，
+> 兜底首字母 `display: none`（图标已就绪时）。
 
 ```javascript
 // 添加快捷站点（点击占位卡片或底部"管理快捷站点"）

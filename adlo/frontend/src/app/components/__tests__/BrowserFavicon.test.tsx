@@ -9,9 +9,14 @@ import {
   rememberPageFavicon,
 } from '../faviconDisplayCache';
 import * as cache from '../../utils/siteMetaCache';
+import { ensureSiteFavicon } from '../../features/browser/faviconSelfHeal';
+
+// 缺图标自愈会走网络（refresh）：组件测试只断言"是否请求补抓"，不真发请求。
+vi.mock('../../features/browser/faviconSelfHeal', () => ({ ensureSiteFavicon: vi.fn() }));
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  vi.mocked(ensureSiteFavicon).mockClear();
   __resetFaviconDisplayCacheForTest();
 });
 
@@ -244,6 +249,84 @@ describe('pending placeholder policy', () => {
   it('spinner (default) mode still keeps the spinner while meta has not settled', () => {
     const { container } = render(<BrowserFavicon url="https://live-tab.example" />);
     expect(container.querySelector('.adl-spinner')).not.toBeNull();
+  });
+
+  it('spinner mode requests a favicon backfill once meta settled without any icon', () => {
+    // 标题-only 条目（已结算、无图标）是「首字母→手动刷新才出真图标」的根因场景：
+    // 标签页宿主必须自动补抓一次，而不是等用户右键刷新。
+    mirrorFavicon('https://settled-empty.example', '');
+    render(<BrowserFavicon url="https://settled-empty.example" />);
+    expect(ensureSiteFavicon).toHaveBeenCalledWith('https://settled-empty.example');
+    expect(ensureSiteFavicon).toHaveBeenCalledTimes(1);
+  });
+
+  it('passive (initial) mode never triggers per-row backfill (list storm guard)', () => {
+    // 历史/书签树可能渲染数百行：被动列表不得逐行发起后台抓取（靠启动 warmup 批量补齐）。
+    mirrorFavicon('https://settled-empty-passive.example', '');
+    render(<BrowserFavicon url="https://settled-empty-passive.example" pending="initial" />);
+    expect(ensureSiteFavicon).not.toHaveBeenCalled();
+  });
+
+  it('force-refreshes once the external icon exhausts its retries (spinner mode)', () => {
+    vi.useFakeTimers();
+    try {
+      mirrorFavicon(
+        'https://spinner-exhaust.example',
+        'https://spinner-exhaust.example/favicon.ico',
+      );
+      const { container } = render(<BrowserFavicon url="https://spinner-exhaust.example" />);
+      for (let i = 0; i < 7; i += 1) {
+        act(() => {
+          fireEvent.error(probeImg(container)!);
+        });
+        act(() => {
+          vi.advanceTimersByTime(2000);
+        });
+      }
+      expect(probeImg(container)).toBeNull();
+      expect(ensureSiteFavicon).toHaveBeenCalledTimes(1);
+      expect(ensureSiteFavicon).toHaveBeenCalledWith('https://spinner-exhaust.example', {
+        force: true,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not carry an exhausted source across a URL change', () => {
+    vi.useFakeTimers();
+    try {
+      mirrorFavicon('https://exhaust-a.example', 'https://exhaust-a.example/favicon.ico');
+      const { container, rerender } = render(<BrowserFavicon url="https://exhaust-a.example" />);
+      for (let i = 0; i < 7; i += 1) {
+        act(() => {
+          fireEvent.error(probeImg(container)!);
+        });
+        act(() => {
+          vi.advanceTimersByTime(2000);
+        });
+      }
+      expect(ensureSiteFavicon).toHaveBeenCalledWith('https://exhaust-a.example', { force: true });
+      vi.mocked(ensureSiteFavicon).mockClear();
+
+      // 新页已带可用图标：上一页的「重试耗尽」不得触发新页的 force 补抓。
+      mirrorFavicon(
+        'https://exhaust-b.example',
+        'https://exhaust-b.example/favicon.ico',
+        'data:image/png;base64,BB',
+      );
+      rerender(<BrowserFavicon url="https://exhaust-b.example" />);
+      expect(ensureSiteFavicon).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('fallbackText drives the letter fallback (shortcut name instead of host)', () => {
+    const { container } = render(
+      <BrowserFavicon url="https://gitee.com/x" pending="initial" fallbackText="码云" />,
+    );
+    expect(fallback(container)?.textContent).toBe('码');
   });
 });
 

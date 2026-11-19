@@ -19,6 +19,7 @@ import {
   markFaviconSourceLoaded,
   rememberPageFavicon,
 } from './faviconDisplayCache';
+import { ensureSiteFavicon } from '@features/browser/faviconSelfHeal';
 
 /**
  * 取站点首字母作为终级兜底：解析 host 首字符，字母转大写；
@@ -52,6 +53,12 @@ interface BrowserFaviconProps {
    *   不挂 5s 计时器；真实图标到达后原地替换（书签树每次展开不再重复转圈）。
    */
   pending?: 'spinner' | 'initial';
+  /**
+   * 首字母兜底的显示文本（取首字符）。缺省用 host 首字母。
+   *
+   * 快捷站点等"用户给的名称比 host 更有意义"的场景传入名称，保持既有视觉。
+   */
+  fallbackText?: string;
 }
 
 /**
@@ -100,6 +107,7 @@ export function BrowserFavicon({
   size = 14,
   snapshot,
   pending = 'spinner',
+  fallbackText,
 }: BrowserFaviconProps) {
   const [ready, setReady] = useState(isSiteMetaCacheReady());
   // 渲染期同步读缓存：折叠/展开/切换导航模式通常会重挂树行，若初值为空、等 effect
@@ -123,6 +131,9 @@ export function BrowserFavicon({
   const [resolvedFaviconEmpty, setResolvedFaviconEmpty] = useState(() =>
     Boolean(url && !initial.preferred && isSiteMetaResolvedOrRedirected(url)),
   );
+  // 上述两个「失败事实」各自记住所属页面 URL：换页的同一提交里，旧页的
+  // 「已结算空图标 / 重试耗尽」不得被当成新页的事实（否则会给新页多建一次隐藏 WebView）。
+  const [resolvedEmptyUrl, setResolvedEmptyUrl] = useState(url);
   // 重试预算/计时器 + 强制重挂 probe <img> 的 key（瞬时失败恢复用）。
   const [retryKey, setRetryKey] = useState(0);
   const retryLeftRef = useRef(FAVICON_RETRY_MAX);
@@ -134,6 +145,7 @@ export function BrowserFavicon({
   // 本次挂载内已耗尽重试预算的来源：阻止协调 effect 立刻重新探测造成死循环。
   // 换源/重挂后自动失效（模块级只记录"成功过"的来源，不记录永久失败）。
   const [exhaustedSrc, setExhaustedSrc] = useState('');
+  const [exhaustedUrl, setExhaustedUrl] = useState('');
 
   const preferredSrc = faviconUrl || snapshot || '';
   // 该页面上次成功显示过的图标（会话级），作为「无候选来源」时的稳定兜底。
@@ -146,6 +158,24 @@ export function BrowserFavicon({
     }
   }, []);
 
+  /** 「确认无 favicon」与所属 URL 成对提交（换页提交里旧值不得冒充新页事实）。 */
+  const markResolvedEmpty = useCallback(
+    (value: boolean) => {
+      setResolvedFaviconEmpty(value);
+      setResolvedEmptyUrl(url);
+    },
+    [url],
+  );
+
+  /** 「该来源重试耗尽」与所属 URL 成对提交；清空时清掉归属。 */
+  const markExhausted = useCallback(
+    (src: string) => {
+      setExhaustedSrc(src);
+      setExhaustedUrl(src ? url : '');
+    },
+    [url],
+  );
+
   const applyMetaUpdate = useCallback(() => {
     const prev = faviconUrlRef.current;
     const next = url ? getFaviconUrl(url) : '';
@@ -153,7 +183,7 @@ export function BrowserFavicon({
       faviconUrlRef.current = next;
       setFaviconUrl(next);
       setDegraded(false);
-      setExhaustedSrc('');
+      markExhausted('');
       // 拿到（变化的）favicon → 重置重试预算并取消在途重试。
       retryLeftRef.current = FAVICON_RETRY_MAX;
       clearRetryTimer();
@@ -161,9 +191,9 @@ export function BrowserFavicon({
     // 已结算但 favicon URL 仍为空，标记为"确认无 favicon"（无条件检查，处理初始已结算场景）；
     // 反过来，拿到图标后必须解除该闩锁，否则迟到的图标仍会被兜底字母遮住。
     if (url && isSiteMetaResolvedOrRedirected(url)) {
-      setResolvedFaviconEmpty(!next);
+      markResolvedEmpty(!next);
     }
-  }, [url, clearRetryTimer]);
+  }, [url, clearRetryTimer, markExhausted, markResolvedEmpty]);
 
   useEffect(() => {
     void initSiteMetaCache();
@@ -184,9 +214,9 @@ export function BrowserFavicon({
     faviconUrlRef.current = initialMeta;
     setFaviconUrl(initialMeta);
     const preferred = initialMeta || snapshot || '';
-    setResolvedFaviconEmpty(Boolean(url && !preferred && isSiteMetaResolvedOrRedirected(url)));
+    markResolvedEmpty(Boolean(url && !preferred && isSiteMetaResolvedOrRedirected(url)));
     setDegraded(false);
-    setExhaustedSrc('');
+    markExhausted('');
     retryLeftRef.current = FAVICON_RETRY_MAX;
     clearRetryTimer();
     // 旧 probe 属于上一个 URL，换页后必须丢弃，避免旧图 onLoad 落到新页。
@@ -201,7 +231,7 @@ export function BrowserFavicon({
     }
     // 有候选但未就绪时保留旧图标过渡；`displayUrlRef` 仍指向旧 URL，不会被误记。
     // snapshot 由父级随书签数据更新；其变化也走同一套候选来源协调（下方 effect）。
-  }, [url, clearRetryTimer, snapshot]);
+  }, [url, clearRetryTimer, snapshot, markExhausted, markResolvedEmpty]);
 
   // 说明：snapshot 变化时同样需要重置重试/耗尽状态（换了图标快照相当于换源）。
 
@@ -298,11 +328,11 @@ export function BrowserFavicon({
       // 已结算但 favicon URL 仍为空时标记为"确认无 favicon"（兜底字母）。
       // 若期间拿到了 favicon（faviconUrlRef 非空）则跳过降级。
       if (!faviconUrlRef.current) {
-        setResolvedFaviconEmpty(true);
+        markResolvedEmpty(true);
       }
     }, 5000);
     return () => clearTimeout(timer);
-  }, [pending, url, resolvedFaviconEmpty, preferredSrc]);
+  }, [pending, url, resolvedFaviconEmpty, preferredSrc, markResolvedEmpty]);
 
   const handleProbeLoad = useCallback(() => {
     const loaded = probeSrc;
@@ -341,7 +371,7 @@ export function BrowserFavicon({
     }
     // 重试耗尽：标记本次挂载不再探测该来源，并在有内联快照时退回快照，
     // 避免有图标时仍长期停在首字母。
-    setExhaustedSrc(failed);
+    markExhausted(failed);
     if (probeOwnerUrl === url) {
       if (displayUrlRef.current !== url) {
         setDisplaySrc(
@@ -353,7 +383,7 @@ export function BrowserFavicon({
       }
     }
     setProbe({ src: '', ownerUrl: '' });
-  }, [probeSrc, probeOwnerUrl, clearRetryTimer, snapshot, url]);
+  }, [probeSrc, probeOwnerUrl, clearRetryTimer, snapshot, url, markExhausted]);
 
   const handleDisplayError = useCallback(() => {
     const failed = displaySrc;
@@ -369,6 +399,33 @@ export function BrowserFavicon({
       setProbe({ src: preferredSrc, ownerUrl: url });
     }
   }, [displaySrc, preferredSrc, url]);
+
+  // 缺图标自愈（仅标签页这类 `pending='spinner'` 宿主）：
+  // 1. 元数据已结算但一个图标都没有 → 触发一次补抓（受会话节流约束，等价手动
+  //    「刷新网站图标与标题」）；
+  // 2. 外部图标存在但重试耗尽（防盗链/瞬态） → 带 force 重抓（独立 60s 冷却，
+  //    不受常规 10 分钟节流影响），取回 data-URI。
+  //
+  // 被动列表（`initial`）刻意不挂这条路径：历史/书签树可能渲染数百行，逐行后台抓取
+  // 会建出大量 WebView2；它们靠启动 `warmup` 批量补齐（标题-only 条目已在后端修正为
+  // 可重抓）。
+  //
+  // 两个失败事实都带所属 URL：换页的同一提交里旧页的「空图标 / 重试耗尽」不会被当作
+  // 新页的事实（否则会给新页提前建一次隐藏 WebView）。
+  const resolvedEmptyForUrl = resolvedFaviconEmpty && resolvedEmptyUrl === url;
+  const exhaustedForUrl = Boolean(exhaustedSrc) && exhaustedUrl === url;
+  useEffect(() => {
+    if (!url || pending !== 'spinner') {
+      return;
+    }
+    if (exhaustedForUrl) {
+      ensureSiteFavicon(url, { force: true });
+      return;
+    }
+    if (!preferredSrc && resolvedEmptyForUrl) {
+      ensureSiteFavicon(url);
+    }
+  }, [url, pending, preferredSrc, resolvedEmptyForUrl, exhaustedForUrl]);
 
   // 命中浏览器缓存时 onLoad 可能在监听挂载前就已触发：挂载后补一次 complete 检查。
   useEffect(() => {
@@ -404,6 +461,10 @@ export function BrowserFavicon({
     pending === 'spinner' && !showImg && !preferredSrc && !degraded && !resolvedFaviconEmpty;
   // 首字母只在没有可显示图标时出现；加载新来源期间旧图标保持可见（不闪）。
   const showLetter = !showImg && !isLoading;
+  // 兜底字母：优先用调用方给的名称首字符（快捷站点），否则站点 host 首字母。
+  const fallbackLabel = fallbackText?.trim()
+    ? fallbackText.trim().charAt(0).toUpperCase()
+    : siteInitial(url);
 
   return (
     <span
@@ -439,7 +500,7 @@ export function BrowserFavicon({
         className="adl-browser-tree__link-fallback"
         style={showLetter ? undefined : { display: 'none' }}
       >
-        {showLetter ? siteInitial(url) : ''}
+        {showLetter ? fallbackLabel : ''}
       </span>
     </span>
   );

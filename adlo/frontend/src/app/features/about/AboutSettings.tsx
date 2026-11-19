@@ -240,29 +240,34 @@ export function AboutSettings() {
       <span className="adl-about__rule" aria-hidden="true" />
 
       <div className="adl-about__links">
-        <button
-          type="button"
-          className="adl-about__link"
-          onClick={() => openUrlByMethod(ABOUT_URLS.repository)}
-        >
-          {t.aboutRepository}
-        </button>
-        <button
-          type="button"
-          className="adl-about__link"
-          onClick={() => openUrlByMethod(ABOUT_URLS.gitee)}
-        >
-          {t.aboutGiteeRepository}
-        </button>
-        <button
-          type="button"
-          className="adl-about__link"
-          onClick={() => void handleOpenIssues()}
-          disabled={issuesProbing}
-          aria-busy={issuesProbing}
-        >
-          {issuesProbing ? t.aboutIssuesChecking : t.aboutIssues}
-        </button>
+        {/* 仓库入口同一行，问题反馈单独一行（用户 2026-11-19 指定）。 */}
+        <div className="adl-about__links-row">
+          <button
+            type="button"
+            className="adl-about__link"
+            onClick={() => openUrlByMethod(ABOUT_URLS.repository)}
+          >
+            {t.aboutRepository}
+          </button>
+          <button
+            type="button"
+            className="adl-about__link"
+            onClick={() => openUrlByMethod(ABOUT_URLS.gitee)}
+          >
+            {t.aboutGiteeRepository}
+          </button>
+        </div>
+        <div className="adl-about__links-row">
+          <button
+            type="button"
+            className="adl-about__link"
+            onClick={() => void handleOpenIssues()}
+            disabled={issuesProbing}
+            aria-busy={issuesProbing}
+          >
+            {issuesProbing ? t.aboutIssuesChecking : t.aboutIssues}
+          </button>
+        </div>
       </div>
 
       <span className="adl-about__rule" aria-hidden="true" />

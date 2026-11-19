@@ -84,6 +84,15 @@
   gap: var(--space-2-5);
 }
 
+/* 仓库入口（GitHub / Gitee）同一行；「问题反馈」独占下一行并居中于链接块。 */
+.adl-about__links-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2-5);
+}
+
 .adl-about__actions {
   display: flex;
   gap: var(--space-4);
