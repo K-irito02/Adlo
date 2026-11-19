@@ -25,7 +25,7 @@
 - 需求真源：进度文件 `docs/root-cause-to-close/YYYY-MM/progress-*.md` + 相关 ADR。
 - 工具：审查「关于 → 第三方声明」数据时，用 `pnpm --dir adlo run notices:inspect`（`-- --package <name>` 看单包明细）复算重复正文 / 未覆盖 id / 来源分布，不要自写复算脚本。
 
-**审查范围**：代码与其注释、i18n 文案、测试、配置。**不审** `docs/root-cause-to-close/**` 进度文件与 `docs/superpowers/specs/**` 设计文档的事实漂移——这些由主代理在 P5 统一修正并逐项表态；发现代码注释/i18n 与实现不符仍必须报（属代码范围）。
+**审查范围**：代码与其注释、i18n 文案、测试、配置。**不审文档**：`docs/**`（含 `docs/operations`、`docs/knowledge-base`、`docs/design-system`、`docs/root-cause-to-close`、`docs/superpowers`）、`GLOSSARY.md`、根与 `adlo` 的治理/说明文档（`AGENTS.md`、`README.md`、`CONTRIBUTING.md`、`RULES.md`、`SKILLS.md`、`SECURITY.md` 等）、`.agents|.opencode|.trae/**` 规则与技能——这些由主代理在 P5 统一同步并逐项表态，快照默认也不生成它们的 diff。发现文档问题不要写进「需修复项」，可在「记录不修」注明留给 P5；代码注释/i18n 与实现不符仍必须报（属代码范围）。
 
 仓库明文规约优先于下面的气味基线。基线只做启发式判断。
 
@@ -99,7 +99,7 @@
 - 需修复项：N（critical/high/medium/low 各 N）；N=0 写「本轮零问题」
 ```
 
-「需修复」= critical/high/medium，或会改变行为/事实的 low（错误注释、失效引用、错误文案）。纯风格、可选优化、已记录理由的保留项不算。**docs-only 的 low（进度/设计文档事实、测试标题措辞）只要主代理写入 P5 台账，即视为关闭，不阻塞本轮零问题；代码注释/i18n 的 low 仍按需修复计。**
+「需修复」= critical/high/medium，或会改变行为/事实的 low（错误注释、失效引用、错误文案）。纯风格、可选优化、已记录理由的保留项不算。**文档类 low（`docs/**`、治理文档、`.agents|.opencode|.trae` 中的事实/措辞/测试标题）不在 R1/R2 范围：不要写进主表，放「记录不修」并注明 P5 处理。**
 
 **降噪约定：**
 

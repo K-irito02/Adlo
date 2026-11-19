@@ -9,10 +9,12 @@
  *
  * 用法：
  *   node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>]
- *     [--allow-untracked] [--allow-claims] [--exclude-generated]
+ *     [--allow-untracked] [--allow-claims] [--exclude-generated] [--include-docs]
  * 默认 base = merge-base(origin/HEAD, HEAD)，无远端时 HEAD；out = 仓库根 .review-diffs。
  * `--exclude-generated` 不给生成物写 diff（仍列进 changed-files 与 manifest），
  * 用于动辄数 MB 的生成数据；生成物由对应生成器与漂移门禁负责。
+ * 默认排除文档（`docs/**`、根治理文档、`.agents|.opencode|.trae/**`）：P4 只审代码，
+ * 文档事实与措辞由 P5 统一同步；确需一并审查时传 `--include-docs`。
  *
  * 未跟踪的纯数字名 / `.tmp/.log/.out/.bak` 会被拒绝（审查子代理临时产物）。
  * 新增注释里的绝对断言必须先在 claims-ack-rev<N>.md 逐条标 [x]，否则退出码为 1。
@@ -56,6 +58,34 @@ export function isGeneratedArtifact(file) {
   );
 }
 
+/** 文档/治理文件：P4 不审（P5 统一同步），避免文档措辞把审查轮次拖长。 */
+const ROOT_DOC_FILES = new Set([
+  "AGENTS.md",
+  "CONTEXT.md",
+  "CONTRIBUTING.md",
+  "FUTURE-ROADMAP.md",
+  "GLOSSARY.md",
+  "README.md",
+  "RELEASE-CHECKLIST.md",
+  "RULES.md",
+  "SECURITY.md",
+  "SKILLS.md",
+]);
+
+export function isDocsArtifact(file) {
+  const normalized = file.replace(/\\/g, "/");
+  return (
+    normalized.startsWith("docs/") ||
+    normalized.startsWith(".agents/") ||
+    normalized.startsWith(".opencode/") ||
+    normalized.startsWith(".trae/") ||
+    normalized === "adlo/AGENTS.md" ||
+    normalized === "adlo/README.md" ||
+    normalized === "adlo/CONTRIBUTING.md" ||
+    ROOT_DOC_FILES.has(normalized)
+  );
+}
+
 export function parseArgs(argv) {
   const options = {
     base: null,
@@ -65,6 +95,7 @@ export function parseArgs(argv) {
     allowUntracked: false,
     allowClaims: false,
     excludeGenerated: false,
+    includeDocs: false,
     progress: null,
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -83,6 +114,10 @@ export function parseArgs(argv) {
     }
     if (arg === "--exclude-generated") {
       options.excludeGenerated = true;
+      continue;
+    }
+    if (arg === "--include-docs") {
+      options.includeDocs = true;
       continue;
     }
     const next = () => {
@@ -413,7 +448,7 @@ function main() {
   }
   if (options.help) {
     console.log(
-      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--progress <file>] [--allow-untracked] [--allow-claims] [--exclude-generated]",
+      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--progress <file>] [--allow-untracked] [--allow-claims] [--exclude-generated] [--include-docs]",
     );
     return;
   }
@@ -458,9 +493,10 @@ function main() {
     process.exit(1);
   }
   const generatedFiles = options.excludeGenerated ? files.filter(isGeneratedArtifact) : [];
-  const reviewFiles = options.excludeGenerated
-    ? files.filter((file) => !isGeneratedArtifact(file))
-    : files;
+  const docsFiles = options.includeDocs ? [] : files.filter(isDocsArtifact);
+  const reviewFiles = files
+    .filter((file) => options.includeDocs || !isDocsArtifact(file))
+    .filter((file) => !options.excludeGenerated || !isGeneratedArtifact(file));
 
   for (const file of reviewFiles) {
     const diffPath = path.join(outDir, `${safeSnapshotName(file)}-rev${options.rev}.diff`);
@@ -523,12 +559,21 @@ function main() {
           "",
         ]
       : []),
+    ...(docsFiles.length > 0
+      ? [
+          "## 文档（未写 diff，P5 同步）",
+          "",
+          "P4 只审代码与代码内注释；以下文档/治理文件的事实与措辞留给 P5 统一同步，不要作为 R1/R2 的需修复项：",
+          ...docsFiles.map((file) => `- ${file}`),
+          "",
+        ]
+      : []),
   ].join("\n");
   const manifestPath = path.join(outDir, `manifest-rev${rev}.md`);
   fs.writeFileSync(manifestPath, manifest, "utf8");
 
   console.log(
-    `[review-snapshot] base=${base} rev=${rev} files=${files.length} review=${reviewFiles.length} generated-excluded=${generatedFiles.length} intent-to-add=${intended}`,
+    `[review-snapshot] base=${base} rev=${rev} files=${files.length} review=${reviewFiles.length} generated-excluded=${generatedFiles.length} docs-excluded=${docsFiles.length} intent-to-add=${intended}`,
   );
   console.log(`[review-snapshot] out=${path.relative(repoRoot, outDir) || "."}`);
   console.log(`[review-snapshot] manifest=${path.relative(repoRoot, manifestPath)}`);

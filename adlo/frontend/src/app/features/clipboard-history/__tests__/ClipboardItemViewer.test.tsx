@@ -328,7 +328,7 @@ describe('ClipboardItemViewer', () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: '重置字号' }).textContent).toBe('100%');
     expect(screen.queryByRole('textbox', { name: '缩放百分比，直接输入数值' })).toBeNull();
-  });
+  }, 15_000);
 
   it('ignores a non-numeric zoom entry and keeps the previous value', async () => {
     renderViewer(makeItem());

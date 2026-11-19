@@ -1,6 +1,7 @@
 import type { FileTreeContextMenuItem } from '@features/file-tree';
 import type { WorkspaceTreeNode } from '@shared/ipc';
 import { useAppStore } from '@stores/slicedStore';
+import { FILE_CLIPBOARD_MENU_IDS } from '@regions/right-panel/hooks/fileMenuIds';
 
 /**
  * 把剪贴板内容粘贴到指定工作区的目录（`targetDir` 传 `''` 表示工作区根）。
@@ -76,8 +77,8 @@ export function bindWorkspaceClipboard(
     if (item.separator) {
       return item;
     }
-    if (item.id === 'cut' || item.id === 'copy-op') {
-      const isCut = item.id === 'cut';
+    if (item.id === FILE_CLIPBOARD_MENU_IDS.cut || item.id === FILE_CLIPBOARD_MENU_IDS.copy) {
+      const isCut = item.id === FILE_CLIPBOARD_MENU_IDS.cut;
       return {
         ...item,
         action: (targetNode: WorkspaceTreeNode) => {
@@ -87,7 +88,7 @@ export function bindWorkspaceClipboard(
         },
       };
     }
-    if (item.id !== 'paste') {
+    if (item.id !== FILE_CLIPBOARD_MENU_IDS.paste) {
       return item;
     }
     return {

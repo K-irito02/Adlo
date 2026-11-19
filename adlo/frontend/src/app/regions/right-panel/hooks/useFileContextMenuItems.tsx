@@ -14,6 +14,7 @@ import {
 import { useAppStore } from '@stores/slicedStore';
 import { joinPathSegments } from '@app/utils/workspacePaths';
 import { pasteClipboardIntoWorkspace } from '@features/workspace-file-tree/workspaceClipboard';
+import { FILE_CLIPBOARD_MENU_IDS } from './fileMenuIds';
 import type { FileTreeContextMenuItem, FileTreeRenderableNode } from '@features/file-tree';
 import type { CopyDict } from '@app/i18n/types';
 
@@ -180,7 +181,7 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
         items.push({ id: 'sep2', separator: true });
 
         items.push({
-          id: 'cut',
+          id: FILE_CLIPBOARD_MENU_IDS.cut,
           label: t.fileContextCut as string,
           icon: <IconClipboardList size={14} />,
           action: (targetNode) => {
@@ -189,7 +190,7 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
         });
 
         items.push({
-          id: 'copy-op',
+          id: FILE_CLIPBOARD_MENU_IDS.copy,
           label: t.fileContextCopy as string,
           icon: <IconCopy size={14} />,
           action: (targetNode) => {
@@ -198,7 +199,7 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
         });
 
         items.push({
-          id: 'paste',
+          id: FILE_CLIPBOARD_MENU_IDS.paste,
           label: t.fileContextPaste as string,
           icon: <IconUpload size={14} />,
           disabled: !hasClipboard,

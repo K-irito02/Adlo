@@ -189,6 +189,11 @@ const srcChanges = changed.filter((f) => /^(src|dev)\//.test(f) && /\.(ts|tsx|js
 // CSS 文本锁（测试用 `readFileSync` 读样式表）没有 ES import 边，`vitest related` 永远
 // 选不中它们；只改 CSS 时门禁会一个测试都不跑。这里显式补跑样式锁。
 const cssChanges = changed.filter((f) => /^src\/.*\.css$/.test(f));
+// 文档/治理变更：`check:repo` 里的 docs-links / kb-counts / ui-manual / context-budget
+// 平时只在 pre-push 跑；P5 文档同步常发生在收尾，这里按变更自动带上，避免漂移到推送才暴露。
+const DOC_PATH_PATTERN =
+  /^(?:docs\/|\.agents\/|\.opencode\/|\.trae\/|GLOSSARY\.md$|CONTEXT\.md$|AGENTS\.md$|README\.md$|RULES\.md$|SKILLS\.md$|CONTRIBUTING\.md$|SECURITY\.md$|FUTURE-ROADMAP\.md$|RELEASE-CHECKLIST\.md$|adlo\/(?:AGENTS|README|CONTRIBUTING)\.md$)/;
+const docsChanged = repoChanged.filter((file) => DOC_PATH_PATTERN.test(file));
 
 console.log(
   `[check:changed] base=${base} changed(frontend)=${changed.length} src=${srcChanges.length}`,
@@ -259,6 +264,15 @@ run('i18n coverage', 'npx tsx scripts/check-i18n-coverage.ts');
 run('i18n orphan regressions', 'npx tsx scripts/check-i18n-orphans.ts --changed');
 run('no bare CJK source', 'node scripts/check-no-cjk-source.mjs');
 run('glossary', 'npx tsx scripts/check-glossary.ts');
+
+if (docsChanged.length > 0) {
+  run('docs links', 'node ../scripts/check-docs-links.mjs');
+  run('knowledge base counts', 'node ../scripts/check-kb-counts.mjs');
+  run('ui manual selectors', 'node ../scripts/check-ui-manual-selectors.mjs');
+  run('context budget', 'node ../scripts/check-context-budget.mjs');
+} else {
+  console.log('[check:changed] docs checks skipped (no docs/rules changes)');
+}
 run('generated artifacts', 'node scripts/generate-md-theme-vars.mjs');
 run(
   'generated artifact drift',
