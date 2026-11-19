@@ -100,6 +100,8 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 
 **桌面 E2E（opt-in）**：需 `pnpm install`（`e2e` 为独立 workspace 包）且端口 4445 空闲；**不进** `check:all`，仅在桌面-only 改动或用户要求时跑。排障与用例规则见技能 `desktop-e2e-wdio`。
 
+> **长门禁的输出**：`check:changed` / `check:repo` 是分阶段打印的，但**管道 `| Select-Object -Last N` 会缓冲到进程退出**，看起来像挂起（2026-11-19 实测：1 分钟输出文件仍为 0 字节，误判后杀掉了一次健康运行）。改为 `... > $env:TEMP\<name>.log 2>&1`（或后台运行）后读 tail；需要实时观察时不要接管道。
+
 ### 受影响测试优先执行
 
 日常开发中无需执行全量测试，优先运行受影响的测试：

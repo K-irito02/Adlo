@@ -262,8 +262,8 @@ export function BrowserFavicon({
       setDegraded(false);
       return;
     }
-    // 站点图标还没就绪，但书签快照可用：先显示快照（首字母不出现），
-    // 同时继续把站点图标放进 probe，加载成功后升级。
+    // 网站图标还没就绪，但书签快照可用：先显示快照（首字母不出现），
+    // 同时继续把网站图标放进 probe，加载成功后升级。
     if (!displaySrc && snapshot && isFaviconSourceReady(snapshot)) {
       setDisplaySrc(snapshot);
       displayUrlRef.current = url;

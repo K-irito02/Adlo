@@ -224,7 +224,8 @@ export function testCommands(files) {
       args.push("--exclude", "adlo");
     }
     args.push("--lib");
-    return [args];
+    // `--workspace --lib` 会静默跳过 bin-only 的 `adlo`：含壳层改动时补跑 bins。
+    return shellChanged ? [args, ["test", "-p", "adlo", "--bins"]] : [args];
   }
   if (dirs.length === 0) {
     return [["test", "--workspace", "--exclude", "adlo", "--lib"]];

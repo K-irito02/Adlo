@@ -28,6 +28,14 @@ alwaysApply: false
 
 桌面-only 交互（标题栏/面板开合、窗口几何、真实 IPC）可先跑 `pnpm run e2e`（命令与前置见 [commands.md](commands.md#测试命令)，流程见技能 `desktop-e2e-wdio`）。**自动化通过 ≠ 视觉验收通过**：仍须按上方清单在真实窗口内人工确认。
 
+### 样式回归锁
+
+改/新增 CSS 时，凡是「被改回去就会出错」的关键约束（flex 方向、居中、层叠顺序、宽度上限），在 `frontend/src/styles/*.test.ts` 补一条规则锁：
+
+- 复用 `src/styles/testing/cssRules.ts` 的 `findRuleGroups` / `ruleBody`（单一真源，禁止复制解析实现）；既有 13 个样式锁可作范例。
+- 锁只钉声明字符串，真实级联仍按上一节的 `getComputedStyle` 取证；两层各管一半。
+- 交付前做删除性推演：删掉该声明，锁必须变红。`check:changed` 只改 CSS 时会跑 `src/styles` 下的样式锁，因此这是日常门禁能覆盖到的退化路径。
+
 ## 验证手段排障（2026-11-13）
 
 - **内置 browser 工具**：`screenshot` 要求桌面窗口可见；报 `needs visible tab` 时改用

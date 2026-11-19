@@ -10,6 +10,7 @@ import {
   testCommands,
 } from "./check-rust-changed.mjs";
 import { parseArgs as parseServeArgs } from "./serve-adl-server.mjs";
+import { isCrashWithoutOutput } from "./e2e-typecheck.mjs";
 
 test("safeSnapshotName keeps paths readable but filesystem-safe", () => {
   assert.equal(safeSnapshotName("adlo/frontend/src/a.ts"), "adlo_frontend_src_a.ts");
@@ -163,6 +164,12 @@ test("check-rust scopes affected-crate unit tests", () => {
   assert.deepEqual(testCommands(["adlo/Cargo.lock"]), [
     ["test", "--workspace", "--exclude", "adlo", "--lib"],
   ]);
+  // 工作区级变更 + 壳层改动：`--workspace --lib` 会静默跳过 bin-only 的 adlo，
+  // 必须补一条 `--bins`，否则壳层单测在推送门禁里漏跑。
+  assert.deepEqual(testCommands(["adlo/Cargo.lock", "adlo/src-tauri/src/commands/browser.rs"]), [
+    ["test", "--workspace", "--lib"],
+    ["test", "-p", "adlo", "--bins"],
+  ]);
   // 外壳 crate 是 bin-only：`-p adlo --lib` 会报 no library targets，必须跑 bins。
   assert.deepEqual(testCommands(["adlo/src-tauri/src/commands/browser.rs"]), [
     ["test", "-p", "adlo", "--bins"],
@@ -178,6 +185,15 @@ test("check-rust scopes affected-crate unit tests", () => {
       ["test", "-p", "adlo", "--bins"],
     ],
   );
+});
+
+test("e2e typecheck wrapper only retries crashes without output", () => {
+  // 真实类型错误一定带诊断输出 → 不重试、原样失败。
+  assert.equal(isCrashWithoutOutput(0, ""), false);
+  assert.equal(isCrashWithoutOutput(1, "src/x.ts(1,1): error TS2322: bad type"), false);
+  // 进程级崩溃的特征：非零退出 + 完全无输出。
+  assert.equal(isCrashWithoutOutput(3221226505, ""), true);
+  assert.equal(isCrashWithoutOutput(1, "  \n"), true);
 });
 
 test("serve-adl-server parses flags and validates the port", () => {

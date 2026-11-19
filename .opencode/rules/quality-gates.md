@@ -52,6 +52,8 @@ alwaysApply: false
 
 > `check:changed` 检测到 Rust 变更时会调用 `scripts/check-rust-changed.mjs`：`cargo fmt --all -- --check` 总是执行，clippy 与受影响 crate 的单测仅在 Rust 变更时执行（普通 crate 跑 `--lib`；bin-only 的 `src-tauri`/`adlo` 跑 `--bins`，否则 `-p adlo --lib` 会以「no library targets」失败）；`--skip-test` 只用于排查脚本本身。`--base HEAD` 的参数由前端脚本透传，最终提交前必须去掉以恢复 upstream 口径。
 
+> `check:repo` 的 e2e 类型检查经 `adlo/scripts/e2e-typecheck.mjs` 包装：Windows 上 `tsc --noEmit` 偶发进程级崩溃（`0xC0000409`，stdout/stderr 全空），同一命令重跑即过；包装只在「非零退出且没有任何输出」时自动重试一次，带诊断输出的真实类型错误原样失败（2026-11-19 实测两次）。
+
 > **共享 test setup**：`frontend/src/test-setup.ts` 变更会让 `vitest related` 扩到全量（本次实测 503 文件 / 约 10–13 min）。修复循环用 `check:changed -- --skip-tests` + 定向用例，最终快照再跑全量并预留 1800s；多轮审查前先提交 checkpoint，可用 `--base HEAD` 只查本轮。
 
 ## 浏览器模式真实 UI/样式验证（隔离实例）

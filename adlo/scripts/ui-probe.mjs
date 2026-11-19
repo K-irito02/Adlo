@@ -12,6 +12,9 @@
  *   node scripts/ui-probe.mjs --url <url> --selector A --selector B --pseudo ::after
  *   node scripts/ui-probe.mjs --url <url> --selector .adl-terminal-region-actions \
  *     --props opacity --hover .adl-terminal-region-actions
+ *   # 面板内 UI（设置 → 关于）：先点击进入目标面板，再取样式；`text=` 精确匹配可见文本
+ *   node scripts/ui-probe.mjs --url <url> --click 'button[aria-label="设置"]' \
+ *     --click 'text=关于' --selector '.adl-about__links' --props flex-direction,justify-content
  *
  * 输出：JSON（每个 selector 的计算样式；缺失的 selector 标记 missing）。
  */
@@ -30,6 +33,9 @@ export function parseArgs(argv) {
     props: [...DEFAULT_PROPS],
     pseudo: "",
     hover: "",
+    clicks: [],
+    prelude: "",
+    settle: 300,
     timeout: 60000,
     port: 9333,
     headless: true,
@@ -61,6 +67,15 @@ export function parseArgs(argv) {
       case "--hover":
         options.hover = next();
         break;
+      case "--click":
+        options.clicks.push(next());
+        break;
+      case "--eval":
+        options.prelude = next();
+        break;
+      case "--settle":
+        options.settle = Number.parseInt(next(), 10);
+        break;
       case "--timeout":
         options.timeout = Number.parseInt(next(), 10);
         break;
@@ -77,6 +92,27 @@ export function parseArgs(argv) {
   if (!options.url) throw new Error("--url is required");
   if (options.selectors.length === 0) throw new Error("at least one --selector is required");
   return options;
+}
+
+/**
+ * `--click` 目标解析：普通 CSS 选择器，或 `text=<可见文本>`（精确匹配去空白后的
+ * textContent，优先交互元素）。返回「是否存在」与「点击」两个表达式，分别用于
+ * 等待与执行——`Runtime.evaluate` 的 returnByValue 不能回传 DOM 节点。
+ */
+export function buildClickExpressions(selector) {
+  if (selector.startsWith("text=")) {
+    const text = JSON.stringify(selector.slice("text=".length));
+    const find = `Array.from(document.querySelectorAll('button,a,[role="button"],[role="tab"],[role="option"],.adl-settings-nav__item')).find((el) => (el.textContent || '').trim() === ${text})`;
+    return {
+      exists: `Boolean(${find})`,
+      click: `(() => { const el = ${find}; if (!el) return false; el.click(); return true; })()`,
+    };
+  }
+  const quoted = JSON.stringify(selector);
+  return {
+    exists: `Boolean(document.querySelector(${quoted}))`,
+    click: `(() => { const el = document.querySelector(${quoted}); if (!el) return false; el.click(); return true; })()`,
+  };
 }
 
 export function buildProbeExpression(selectors, props, pseudo) {
@@ -205,14 +241,22 @@ async function evaluate(client, expression) {
   return result.result.value;
 }
 
-async function waitForSelector(client, selector, timeout) {
+async function waitForExpression(client, expression, timeout, label) {
   const deadline = Date.now() + timeout;
-  const expression = `Boolean(document.querySelector(${JSON.stringify(selector)}))`;
   while (Date.now() < deadline) {
     if (await evaluate(client, expression)) return;
     await delay(300);
   }
-  throw new Error(`selector not found within ${timeout}ms: ${selector}`);
+  throw new Error(`${label} not found within ${timeout}ms`);
+}
+
+async function waitForSelector(client, selector, timeout) {
+  await waitForExpression(
+    client,
+    `Boolean(document.querySelector(${JSON.stringify(selector)}))`,
+    timeout,
+    `selector ${selector}`,
+  );
 }
 
 /** 把真实指针移到目标元素中心，使 `:hover` / `:focus-within` 等状态生效后再读计算样式。 */
@@ -266,6 +310,18 @@ async function main() {
     const page = await waitForPageTarget(options.port, Math.min(options.timeout, 15000));
     client = await connectCdp(page.webSocketDebuggerUrl);
     await client.send("Runtime.enable");
+
+    // 进入目标面板：先执行前置脚本，再依次点击；每一步都等目标元素出现，
+    // 最后等探测 selector 出现再读样式。
+    if (options.prelude) {
+      await evaluate(client, options.prelude);
+    }
+    for (const selector of options.clicks) {
+      const target = buildClickExpressions(selector);
+      await waitForExpression(client, target.exists, options.timeout, `click target ${selector}`);
+      await evaluate(client, target.click);
+      await delay(options.settle);
+    }
 
     // 等应用启动（dev 模式首屏可能 30s+）；hover 目标也必须存在。
     for (const selector of new Set([...options.selectors, options.hover].filter(Boolean))) {

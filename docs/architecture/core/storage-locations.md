@@ -6,6 +6,20 @@
 
 - 所有应用数据路径由 `adl-kernel::storage` 的 `StoragePaths` 统一解析；locator 文件为 `<dirs::config_dir()>/adlo/storage-locator.json`（Plan A 阶段只读，缺失时回退默认；Plan B 起由启动期迁移写入指针切换结果），默认统一根 = 优先「与安装目录同级的 `<安装目录名>-data`」，该路径不可写（如 Windows 拦截的 Program Files 只读位置）时回退系统用户数据目录（壳层 `app_data_dir()`，见 `src-tauri/src/setup.rs::default_data_root`）。
 - 日志目录：debug（dev）构建写仓库根 `.adl-logs`，release 构建写 `<root>/logs`。
+
+### 多工作树 dev 实例的磁盘落点（排查用）
+
+并行开发时每个工作树有独立实例标识（`adlo/scripts/instance-id.mjs`：主工作树 `com.adlo.app`，工作树目录 `slot-N` → `com.adlo.app.slot-N`），**数据根并不都在 `adlo/.adl-instance/`**：
+
+| 内容 | 路径 |
+| --- | --- |
+| 实例登记（端口 / serverUrl / pid） | `<worktree>/adlo/.adl-instance/dev-instance.json` |
+| locator 指针（使用实例隔离时） | `<worktree>/adlo/.adl-instance/storage-locator.json`（经 `ADL_STORAGE_LOCATOR_PATH` 注入；不存在时按默认根解析） |
+| adl-server（预览 / `serve:server`）数据根 | `<worktree>/adlo/.adl-instance/ad-server-data/`（`data.db`、`tree-cache.db`、`harnesses/`、`clipboard/`、`env-hosted/`） |
+| 桌面壳数据根 | `%APPDATA%\<identifier>\`（`data.db`、`downloads.db`、`site-meta-cache.db`、`tree-cache.db`、`config/`、`webview/`）——WebView2 profile 与站点元数据库都在这里 |
+| 运行日志 | `<worktree>/.adl-logs/`（壳层与 adl-server 同名文件，`terminal-logs*.txt` / `adl-server-logs*.txt`） |
+
+站点元数据（网站图标 / 标题）排查：`cargo run -p adl-browser --example dump-site-meta -- "%APPDATA%\<identifier>" [url]`；只读批量查询可用 Node 22 的 `node:sqlite`（`DatabaseSync(..., { readOnly: true })`）直接读 `site-meta-cache.db`。
 - **已知行为**：补丁快照路径为 adl-server 的 `storage.paths().snapshot_dir`；默认目录外的旧快照不自动迁移，需手动移动（Plan B 只处理用户发起的路径变更）。
 
 ## 启动期存储迁移（Plan B）

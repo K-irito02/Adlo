@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildProbeExpression, parseArgs, resolveBrowserPath } from "./ui-probe.mjs";
+import {
+  buildClickExpressions,
+  buildProbeExpression,
+  parseArgs,
+  resolveBrowserPath,
+} from "./ui-probe.mjs";
 
 test("parseArgs collects repeatable selectors and prop lists", () => {
   const options = parseArgs([
@@ -28,10 +33,47 @@ test("parseArgs accepts a hover selector", () => {
   assert.equal(options.hover, ".trigger");
 });
 
+test("parseArgs collects click steps and a prelude for panel-gated UI", () => {
+  const options = parseArgs([
+    "--url",
+    "http://x",
+    "--selector",
+    ".adl-about__links",
+    "--click",
+    'button[aria-label="设置"]',
+    "--click",
+    ".adl-settings-nav__item",
+    "--eval",
+    "document.title",
+    "--settle",
+    "0",
+  ]);
+  assert.deepEqual(options.clicks, ['button[aria-label="设置"]', ".adl-settings-nav__item"]);
+  assert.equal(options.prelude, "document.title");
+  assert.equal(options.settle, 0);
+  // 默认值：不点击、不执行前置脚本、点击后等 300ms 让 React 完成渲染。
+  const defaults = parseArgs(["--url", "http://x", "--selector", ".a"]);
+  assert.deepEqual(defaults.clicks, []);
+  assert.equal(defaults.prelude, "");
+  assert.equal(defaults.settle, 300);
+});
+
 test("parseArgs rejects missing url / selectors / unknown flags", () => {
   assert.throws(() => parseArgs(["--selector", ".a"]), /--url is required/);
   assert.throws(() => parseArgs(["--url", "http://x"]), /at least one --selector/);
   assert.throws(() => parseArgs(["--url", "http://x", "--bogus"]), /unknown argument/);
+});
+
+test("buildClickExpressions supports CSS selectors and text= targets", () => {
+  const css = buildClickExpressions('button[aria-label="设置"]');
+  assert.match(css.exists, /document\.querySelector/);
+  assert.match(css.click, /\.click\(\)/);
+  assert.doesNotThrow(() => new Function(`return ${css.click}`));
+
+  const text = buildClickExpressions("text=关于");
+  assert.match(text.exists, /textContent/);
+  assert.match(text.exists, /"关于"/);
+  assert.doesNotThrow(() => new Function(`return ${text.click}`));
 });
 
 test("buildProbeExpression embeds selector, props and pseudo", () => {

@@ -77,7 +77,7 @@ it('renders img immediately when a data-URI is available', () => {
   const img = visibleImg(container);
   expect(img).not.toBeNull();
   expect(img?.src).toContain('data:image/png;base64,AA');
-  // 站点图标是 drag ghost 的常见起拖命中区，必须禁用浏览器原生图片拖拽。
+  // 网站图标是 drag ghost 的常见起拖命中区，必须禁用浏览器原生图片拖拽。
   expect(img?.getAttribute('draggable')).toBe('false');
   expect(fallback(container)?.style.display).toBe('none');
 });
@@ -441,7 +441,7 @@ describe('重挂不闪烁（2026-11-15 用户报告）', () => {
     expect(fallback(container)?.style.display).toBe('none');
   });
 
-  it('站点图标持续加载失败时退回书签快照（不会永远只剩首字母）', () => {
+  it('网站图标持续加载失败时退回书签快照（不会永远只剩首字母）', () => {
     vi.useFakeTimers();
     try {
       mirrorFavicon(
@@ -455,7 +455,7 @@ describe('重挂不闪烁（2026-11-15 用户报告）', () => {
           snapshot="data:image/png;base64,SF"
         />,
       );
-      // 快照先立即显示；站点图标在后台探测
+      // 快照先立即显示；网站图标在后台探测
       expect(visibleImg(container)?.src).toContain('data:image/png;base64,SF');
       // 首次失败 + 6 次重试 = 7 次尝试，之后预算耗尽
       for (let i = 0; i < 7; i += 1) {
