@@ -4,13 +4,13 @@
 
 ## 1. 快照与只读约束
 
-- 仓库根：`E:/AI-DIGITAL-LIFE/SourceWorkspace-worktrees/slot-1`（以实际工作树为准；由主代理在提示词里给出）。
+- 仓库根：以主代理在提示词里给出的工作树为准。
 - 快照目录：`.review-diffs/`；本轮清单：`manifest-rev<N>.md`（由 `review-snapshot.mjs` 生成）。
 - 快照文件命名：仓库相对路径中的 `/` 和 `.` 换成 `_`，后缀 `-rev<N>.diff`。
 - **只看本轮 rev**，不要复用旧快照、不要看增量 diff。
 - 子代理禁止运行 `git diff/log/show`，禁止修改源码/配置；只允许写自己的报告文件。
 - **自行启动的 dev server / 浏览器 / headless Chrome 必须在返回前终止**，使用临时端口与临时数据目录；报告需列出用过的端口并确认已关闭，禁止留下后台进程。
-- 临时脚本、复算输出、重定向文件只能写到 `$env:TEMP` 或 `.review-diffs/tmp/`；禁止写进源码树（`adlo/frontend/11` 这类纯数字临时文件会被快照拒绝）。
+- 临时脚本、复算输出、重定向文件只能写到 `$env:TEMP` 或 `.review-diffs/tmp/`；禁止写进源码树（快照会拒绝纯数字等临时文件名）。
 - 需要上下文时读取工作区源码（绝对路径）。
 - **不运行测试套件**：不跑 `check:changed`、多文件/全量 vitest、`cargo test --workspace`。判断测试有效性用删除性推演：读用例 + 读实现，说明删掉修复后哪个断言会变红。只有「必须实跑才能判定」时才跑单个测试文件，并在报告里注明跑了哪个；最终门禁由主代理执行。
 - `review-snapshot.mjs` 现在会为新增注释中的绝对断言生成 `claims-ack-rev<N>.md`；未逐条标 `[x]` 时快照命令以非零退出，先核对代码/测试再放行。
@@ -23,6 +23,7 @@
 - `docs/design-system/`（UI 变更）
 - `GLOSSARY.md`、`CONTEXT.md`
 - 需求真源：进度文件 `docs/root-cause-to-close/YYYY-MM/progress-*.md` + 相关 ADR。
+- 工具：审查「关于 → 第三方声明」数据时，用 `pnpm --dir adlo run notices:inspect`（`-- --package <name>` 看单包明细）复算重复正文 / 未覆盖 id / 来源分布，不要自写复算脚本。
 
 **审查范围**：代码与其注释、i18n 文案、测试、配置。**不审** `docs/root-cause-to-close/**` 进度文件与 `docs/superpowers/specs/**` 设计文档的事实漂移——这些由主代理在 P5 统一修正并逐项表态；发现代码注释/i18n 与实现不符仍必须报（属代码范围）。
 

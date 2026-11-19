@@ -63,7 +63,7 @@ alwaysApply: false
 3. 浏览器打开 Vite 地址验证；结束后终止 Vite 与 ad-server，删除临时数据目录。
 4. 审查子代理自行启动的服务也必须在返回前关闭（见 `review-brief.md`）。
 
-**聚合门禁**：`pnpm run check:all`（在 `adlo/` 执行）= `check:repo`（`check:css-globals` / `check:brand` / `check:stale-terms` / `check:context-budget` / `check:ui-manual` + `test:scripts` + `scripts:format:check` + `e2e:typecheck`）+ Rust fmt/clippy/check/test + 前端 `check:full`（`check:static` + 全量测试）。合并后必须跑它；它是语义冲突的唯一兜底，但不替代日常的受影响范围检查。
+**聚合门禁**：`pnpm run check:all`（在 `adlo/` 执行）= `check:repo`（`check:css-globals` / `check:brand` / `check:stale-terms` / `check:context-budget` / `check:ui-manual` + `test:scripts` + `scripts:format:check` + `e2e:typecheck`）+ Rust fmt/clippy/check + `notices:check`（第三方声明与锁文件漂移，离线）+ cargo test + 前端 `check:full`（`check:static` + 全量测试）。合并后必须跑它；它是语义冲突的唯一兜底，但不替代日常的受影响范围检查。
 
 > `check:repo` 是合并门禁与 pre-push 的**共用**仓库级聚合（pre-push 直接调用它），其组成以 `adlo/package.json` 的 `check:repo` 字段为准；pre-push 不得另写一套。
 

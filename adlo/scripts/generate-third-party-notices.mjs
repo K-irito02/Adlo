@@ -7,6 +7,8 @@
  *   pnpm --dir adlo run notices:check             # 离线漂移门禁
  *   pnpm --dir adlo run notices:generate -- --refresh-spdx  # 刷新内嵌的标准许可正文
  *   pnpm --dir adlo run notices:generate -- --allow-partial  # 显式允许不完整元数据
+ *   pnpm --dir adlo run notices:inspect                # 体检：重复正文 / 未覆盖 id / 来源分布
+ *   pnpm --dir adlo run notices:inspect -- --package <name>  # 单个包的正文来源与覆盖明细
  *
  * 设计约束：
  * - **锁文件是包清单的唯一真源**：Cargo.lock + pnpm-lock.yaml；包管理器元数据只补许可证。
@@ -81,6 +83,10 @@ const OFFLINE = argv.has("--offline");
 const CHECK = argv.has("--check");
 const REFRESH_SPDX = argv.has("--refresh-spdx");
 const ALLOW_PARTIAL = argv.has("--allow-partial");
+const STATS = argv.has("--stats");
+const PACKAGE_FLAG = process.argv.indexOf("--package");
+const PACKAGE_NAME = PACKAGE_FLAG >= 0 ? (process.argv[PACKAGE_FLAG + 1] ?? "") : "";
+const INSPECT = STATS || PACKAGE_NAME !== "";
 
 function log(message) {
   process.stdout.write(`[notices] ${message}\n`);
@@ -774,7 +780,118 @@ export const THIRD_PARTY_NOTICE_NAMES: readonly string[] = `;
   return `${header}${JSON.stringify(names)};\n`;
 }
 
+/* -------------------------------------------------------------------------- */
+/* 体检（--stats / --package）                                                 */
+/* -------------------------------------------------------------------------- */
+
+/** 同包内被前一条正文覆盖的后一条（与生成时的去重判据一致）。 */
+function duplicateBodyPairs(packages, licenseTexts) {
+  const pairs = [];
+  for (const pkg of packages) {
+    for (let i = 0; i < pkg.texts.length; i += 1) {
+      for (let j = i + 1; j < pkg.texts.length; j += 1) {
+        const earlier = licenseTexts[pkg.texts[i].key] ?? "";
+        const later = licenseTexts[pkg.texts[j].key] ?? "";
+        if (coversLicenseText(earlier, later)) {
+          pairs.push(
+            `${pkg.ecosystem}:${pkg.name}@${pkg.version} ${pkg.texts[i].label} covers ${pkg.texts[j].label}`,
+          );
+        }
+      }
+    }
+  }
+  return pairs;
+}
+
+/** 声明了 id、语料也有正文，但包内没有任何一条正文与之等价的条目。 */
+function uncoveredLicenseIds(packages, licenseTexts) {
+  const missing = [];
+  for (const pkg of packages) {
+    for (const id of pkg.licenseIds ?? []) {
+      const canonical = licenseTexts[textKey("spdx", id)];
+      if (!canonical) {
+        continue;
+      }
+      const covered = pkg.texts.some((ref) =>
+        coversLicenseText(licenseTexts[ref.key] ?? "", canonical),
+      );
+      if (!covered) {
+        missing.push(`${pkg.ecosystem}:${pkg.name}@${pkg.version} ${id}`);
+      }
+    }
+  }
+  return missing;
+}
+
+function refKind(ref) {
+  if (ref.key.startsWith("file:")) {
+    return "file";
+  }
+  return ref.label === ref.key.slice("spdx:".length) ? "canonical" : "package";
+}
+
+function printStats(data) {
+  const refs = data.packages.reduce((sum, pkg) => sum + pkg.texts.length, 0);
+  const sources = { package: 0, canonical: 0, none: 0 };
+  for (const pkg of data.packages) {
+    sources[pkg.textSource] = (sources[pkg.textSource] ?? 0) + 1;
+  }
+  const duplicates = duplicateBodyPairs(data.packages, data.licenseTexts);
+  const uncovered = uncoveredLicenseIds(data.packages, data.licenseTexts);
+  log(
+    `packages ${data.totals.total} (npm ${data.totals.npm} / cargo ${data.totals.cargo}); ` +
+      `unknown license ${data.totals.unknownLicense}, missing text ${data.totals.missingText}`,
+  );
+  log(
+    `texts: ${refs} refs across ${Object.keys(data.licenseTexts).length} unique bodies; ` +
+      `textSource package ${sources.package} / canonical ${sources.canonical} / none ${sources.none}`,
+  );
+  log(`duplicate bodies within a package: ${duplicates.length}`);
+  for (const line of duplicates.slice(0, 20)) {
+    log(`  - ${line}`);
+  }
+  log(`declared ids with no matching text: ${uncovered.length}`);
+  for (const line of uncovered.slice(0, 20)) {
+    log(`  - ${line}`);
+  }
+}
+
+function printPackage(data, name) {
+  const matches = data.packages.filter(
+    (pkg) => pkg.name === name || `${pkg.name}@${pkg.version}` === name,
+  );
+  if (matches.length === 0) {
+    log(`no package matched "${name}"`);
+    return;
+  }
+  for (const pkg of matches) {
+    log(`${pkg.ecosystem}:${pkg.name}@${pkg.version}`);
+    log(`  license: ${pkg.license || "(none)"} -> ids: ${pkg.licenseIds.join(", ") || "(none)"}`);
+    log(`  textSource: ${pkg.textSource}; copyright: ${pkg.copyright ?? "(none)"}`);
+    pkg.texts.forEach((ref, index) => {
+      const body = data.licenseTexts[ref.key] ?? "";
+      log(`  [${index}] ${ref.label} (${refKind(ref)}) key=${ref.key} bytes=${body.length}`);
+    });
+    for (const id of pkg.licenseIds) {
+      const canonical = data.licenseTexts[textKey("spdx", id)];
+      if (!canonical) {
+        log(`  id ${id}: no canonical text in corpus`);
+        continue;
+      }
+      const covered = pkg.texts.some((ref) =>
+        coversLicenseText(data.licenseTexts[ref.key] ?? "", canonical),
+      );
+      log(`  id ${id}: ${covered ? "covered" : "MISSING"}`);
+    }
+  }
+}
+
 async function main() {
+  if (argv.has("--package") && PACKAGE_NAME === "") {
+    throw new Error(
+      "--package requires a package name, e.g. --package pako or --package pako@1.0.11",
+    );
+  }
   if (!existsSync(CARGO_LOCK) || !existsSync(PNPM_LOCK)) {
     throw new Error("Cargo.lock / pnpm-lock.yaml not found; run from the adlo workspace");
   }
@@ -873,6 +990,15 @@ async function main() {
       pnpmLock: sha256(pnpmLockText).slice(0, 12),
     },
   });
+  if (INSPECT) {
+    if (STATS) {
+      printStats(data);
+    }
+    if (PACKAGE_NAME !== "") {
+      printPackage(data, PACKAGE_NAME);
+    }
+    return;
+  }
   const output = formatOutput(data);
   const namesOutput = formatNamesOutput(data);
 

@@ -49,6 +49,26 @@ else
   echo "[pre-commit] prettier: no staged formattable files, skipped"
 fi
 
+# 2b) adlo/ 下的开发脚本与 vite 配置：与 `scripts:format` 同一集合（前端 glob 覆盖不到）
+STEP="prettier (adlo tooling)"
+TOOLFILES="$(echo "$STAGED" | grep -E '^adlo/(scripts/.*\.mjs|frontend/dev/.*\.mjs|frontend/vite\.config\.ts|frontend/scripts/check-vite-config\.mjs)$' || true)"
+if [ -n "$TOOLFILES" ]; then
+  echo "$TOOLFILES" | sed 's|^adlo/||' | ( cd "$ROOT/adlo" && xargs -d '\n' -n 20 node frontend/node_modules/prettier/bin/prettier.cjs --write )
+  REFORMATTED_TOOLS="$(echo "$TOOLFILES" | while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    if ! git -C "$ROOT" diff --quiet -- "$f"; then echo "$f"; fi
+  done)"
+  if [ -n "$REFORMATTED_TOOLS" ]; then
+    echo "[pre-commit] prettier 规范化了以下 dev tooling 文件："
+    echo "$REFORMATTED_TOOLS" | sed 's/^/  - /'
+  fi
+  echo "$TOOLFILES" | while IFS= read -r f; do
+    [ -n "$f" ] && git -C "$ROOT" add -- "$f"
+  done
+else
+  echo "[pre-commit] prettier (adlo tooling): no staged files, skipped"
+fi
+
 # 3) staged 脚本语法（dev tooling 在 eslint/tsc 范围外，pre-push 只在推送时查）
 STEP="node --check"
 MJSFILES="$(echo "$STAGED" | grep -E '^adlo/.*\.mjs$' || true)"

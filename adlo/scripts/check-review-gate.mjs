@@ -6,9 +6,11 @@
  * （2026-11-15 实测 4 次误派发）。本脚本从 `.review-diffs` 读取每个 R1 scope
  * 的**最新** rev 报告，要求全部明确写「需修复项：0」；任一缺失/非零即退出 1。
  *
- * 用法：`node adlo/scripts/check-review-gate.mjs --phase r1|r2 [--dir .review-diffs] [--progress <file>]`
+ * 用法：`node adlo/scripts/check-review-gate.mjs --phase r1|r2|exit [--dir .review-diffs] [--progress <file>]`
  * - `r1`：检查进度文件的 P3→P4 用户批准标记（防止未经用户验收就开审）。
  * - `r2`：检查每个 R1 scope 的最新报告是否「需修复项：0」。
+ * - `exit`：P4 退出前检查——R1 与 R2 各自最新一轮都必须「需修复项：0」，
+ *   且 R2 至少有一份报告（防止「R2 未派发」或「R2 有未闭合项」直接进 P5）。
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -17,6 +19,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const REPORT_RE = /^(.+)-r1-rev(\d+)-report\.md$/;
+const R2_REPORT_RE = /^(.+)-r2-rev(\d+)-report\.md$/;
 const ZERO_RE = /需修复项\s*[:：]\s*0(?:\D|$)/;
 
 /**
@@ -85,10 +88,10 @@ const parseArgs = (argv) => {
 };
 
 /** 每个 scope 取 rev 最大的一份（rev 数字按数值比较，避免 rev10 < rev9）。 */
-export function latestR1Reports(entries) {
+function latestReports(entries, reportRe) {
   const latest = new Map();
   for (const entry of entries) {
-    const match = REPORT_RE.exec(entry.name);
+    const match = reportRe.exec(entry.name);
     if (!match) {
       continue;
     }
@@ -102,12 +105,16 @@ export function latestR1Reports(entries) {
   return [...latest.values()].sort((a, b) => a.scope.localeCompare(b.scope));
 }
 
-/**
- * @param {{name: string, text: string}[]} entries
- * @returns {{ok: boolean, scopes: {scope: string, rev: number}[], failing: {scope: string, rev: number}[]}}
- */
-export function evaluateR2Gate(entries) {
-  const reports = latestR1Reports(entries);
+export function latestR1Reports(entries) {
+  return latestReports(entries, REPORT_RE);
+}
+
+export function latestR2Reports(entries) {
+  return latestReports(entries, R2_REPORT_RE);
+}
+
+/** 最新一轮报告是否每个 scope 都写「需修复项：0」。 */
+function scopeGate(reports) {
   if (reports.length === 0) {
     return { ok: false, scopes: [], failing: [] };
   }
@@ -126,6 +133,28 @@ export function evaluateR2Gate(entries) {
   };
 }
 
+/**
+ * @param {{name: string, text: string}[]} entries
+ * @returns {{ok: boolean, scopes: {scope: string, rev: number}[], failing: {scope: string, rev: number}[]}}
+ */
+export function evaluateR2Gate(entries) {
+  return scopeGate(latestR1Reports(entries));
+}
+
+/**
+ * P4 退出：R1 与 R2 都必须是「最新一轮零问题」，且各自至少有一份报告。
+ * @param {{name: string, text: string}[]} entries
+ */
+export function evaluateExitGate(entries) {
+  const r1 = evaluateR2Gate(entries);
+  const r2 = scopeGate(latestR2Reports(entries));
+  return {
+    ok: r1.ok && r2.ok,
+    r1,
+    r2,
+  };
+}
+
 function main() {
   let options;
   try {
@@ -133,12 +162,12 @@ function main() {
   } catch (error) {
     console.error(`[review-gate] ${String(error)}`);
     console.error(
-      "usage: node scripts/check-review-gate.mjs --phase r1|r2 [--dir .review-diffs] [--progress <file>]",
+      "usage: node scripts/check-review-gate.mjs --phase r1|r2|exit [--dir .review-diffs] [--progress <file>]",
     );
     process.exit(1);
   }
-  if (options.phase !== "r1" && options.phase !== "r2") {
-    console.error(`[review-gate] unsupported phase: ${options.phase} (expected r1 or r2)`);
+  if (options.phase !== "r1" && options.phase !== "r2" && options.phase !== "exit") {
+    console.error(`[review-gate] unsupported phase: ${options.phase} (expected r1, r2 or exit)`);
     process.exit(1);
   }
   if (options.phase === "r1") {
@@ -167,8 +196,35 @@ function main() {
     process.exit(1);
   }
   const entries = readdirSync(options.dir)
-    .filter((name) => REPORT_RE.test(name))
+    .filter((name) => REPORT_RE.test(name) || R2_REPORT_RE.test(name))
     .map((name) => ({ name, text: readFileSync(path.join(options.dir, name), "utf8") }));
+  if (options.phase === "exit") {
+    const result = evaluateExitGate(entries);
+    if (!result.ok) {
+      console.error("[review-gate] P4 exit blocked: R1 and R2 must both be at zero.");
+      if (result.r1.scopes.length === 0) {
+        console.error("  no *-r1-rev*-report.md found in the review dir");
+      }
+      for (const { scope, rev } of result.r1.failing) {
+        console.error(`  ${scope} rev${rev}: latest R1 report is not at "需修复项：0"`);
+      }
+      if (result.r2.scopes.length === 0) {
+        console.error("  no *-r2-rev*-report.md found in the review dir (R2 not dispatched?)");
+      }
+      for (const { scope, rev } of result.r2.failing) {
+        console.error(`  ${scope} rev${rev}: latest R2 report is not at "需修复项：0"`);
+      }
+      process.exit(1);
+    }
+    console.log(
+      `[review-gate] OK (P4 exit: R1 zero ${result.r1.scopes
+        .map(({ scope, rev }) => `${scope}@rev${rev}`)
+        .join(", ")}; R2 zero ${result.r2.scopes
+        .map(({ scope, rev }) => `${scope}@rev${rev}`)
+        .join(", ")})`,
+    );
+    return;
+  }
   const result = evaluateR2Gate(entries);
   if (!result.ok) {
     console.error("[review-gate] R1 is not at zero; R2 must not start.");

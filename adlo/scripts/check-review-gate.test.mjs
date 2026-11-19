@@ -1,9 +1,19 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { evaluateR2Gate, hasP3P4Approval, latestR1Reports } from "./check-review-gate.mjs";
+import {
+  evaluateExitGate,
+  evaluateR2Gate,
+  hasP3P4Approval,
+  latestR1Reports,
+} from "./check-review-gate.mjs";
 
 const report = (scope, rev, conclusion) => ({
   name: `${scope}-r1-rev${rev}-report.md`,
+  text: `# Report\n\n## 结论\n\n- 需修复项：${conclusion}\n`,
+});
+
+const r2report = (scope, rev, conclusion) => ({
+  name: `${scope}-r2-rev${rev}-report.md`,
   text: `# Report\n\n## 结论\n\n- 需修复项：${conclusion}\n`,
 });
 
@@ -50,6 +60,47 @@ describe("check-review-gate", () => {
     const result = evaluateR2Gate([{ name: "core-rev3-report.md", text: "需修复项：0" }]);
     assert.equal(result.ok, false);
     assert.deepEqual(result.scopes, []);
+  });
+});
+
+describe("P4 exit gate", () => {
+  it("passes only when both R1 and R2 latest rounds are zero", () => {
+    const result = evaluateExitGate([
+      report("favicon", 5, 0),
+      report("notices", 5, 0),
+      r2report("cleanup", 2, 0),
+    ]);
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.r2.scopes, [{ scope: "cleanup", rev: 2 }]);
+  });
+
+  it("blocks when R2 was never dispatched", () => {
+    const result = evaluateExitGate([report("favicon", 5, 0)]);
+    assert.equal(result.ok, false);
+    assert.equal(result.r1.ok, true);
+    assert.equal(result.r2.ok, false);
+    assert.deepEqual(result.r2.scopes, []);
+  });
+
+  it("blocks when the latest R2 round still has findings", () => {
+    const result = evaluateExitGate([
+      report("favicon", 5, 0),
+      r2report("cleanup", 1, 3),
+      r2report("cleanup", 2, 1),
+    ]);
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.r2.failing, [{ scope: "cleanup", rev: 2 }]);
+  });
+
+  it("blocks when R1 regressed after the pre-R2 gate", () => {
+    const result = evaluateExitGate([report("notices", 6, 2), r2report("cleanup", 1, 0)]);
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.r1.failing, [{ scope: "notices", rev: 6 }]);
+  });
+
+  it("ignores R1 report names when evaluating the R2 side", () => {
+    const result = evaluateExitGate([report("favicon", 5, 0), r2report("cleanup", 1, 0)]);
+    assert.deepEqual(result.r2.scopes, [{ scope: "cleanup", rev: 1 }]);
   });
 });
 
