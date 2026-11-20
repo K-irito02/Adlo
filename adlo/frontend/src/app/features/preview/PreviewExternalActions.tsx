@@ -4,7 +4,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '@shared/env';
 import {
-  isWebViewRenderableFile,
+  isBrowserTabViewableFile,
   openLocalFileInBrowser,
   resolveBrowserFileUrl,
 } from './previewExternal';
@@ -16,8 +16,15 @@ export interface PreviewExternalActionsProps {
 }
 
 /**
- * 「在中心浏览器标签打开 / 在右侧浏览器面板打开」（事项4）：
- * 仅在内部渲染器不支持的占位态出现，且扩展名必须在 WebView2 原生可渲染白名单内。
+ * 「中间打开 / 右侧打开」：只在**浏览器标签能看、内部渲染器看不了**时出现
+ * （目前只有 HTML 系列），且必须文件确实存在（not-found 不显示——文件都没了，
+ * 浏览器同样打不开）。
+ *
+ * 媒体/图片不再走这条入口：事项 7 的 Range 流式预览已覆盖任意体积，而内置浏览器
+ * 与内部预览是同一个 Chromium 解码器，解不了的编码换标签也解不了；早期版本把大媒体
+ * 塞进子 WebView 还会把宿主窗口拖到无响应（打包态实测）。
+ *
+ * 可见文字保持简短，完整说明放在 `title` 与无障碍名称里。
  */
 export function PreviewExternalActions({ filePath, workspaceId }: PreviewExternalActionsProps) {
   const { t } = useTCopy();
@@ -30,7 +37,7 @@ export function PreviewExternalActions({ filePath, workspaceId }: PreviewExterna
     void recentWorkspaces;
     void appInfo;
     void externalFileRoots;
-    return isWebViewRenderableFile(filePath) ? resolveBrowserFileUrl(workspaceId, filePath) : null;
+    return isBrowserTabViewableFile(filePath) ? resolveBrowserFileUrl(workspaceId, filePath) : null;
     // recentWorkspaces/appInfo/externalFileRoots 变化时重算（selector 值参与依赖）。
   }, [filePath, workspaceId, recentWorkspaces, appInfo, externalFileRoots]);
   // 浏览器模式（非 Tauri）的浏览器面板是 iframe，WebView 会拦截 file:// 子框架；
@@ -43,6 +50,8 @@ export function PreviewExternalActions({ filePath, workspaceId }: PreviewExterna
       <button
         type="button"
         className="adl-unsupported-preview__action"
+        title={t.previewOpenInBrowserTabHint as string}
+        aria-label={t.previewOpenInBrowserTabHint as string}
         onClick={() => openLocalFileInBrowser(url, 'center')}
       >
         {t.previewOpenInBrowserTab as string}
@@ -50,6 +59,8 @@ export function PreviewExternalActions({ filePath, workspaceId }: PreviewExterna
       <button
         type="button"
         className="adl-unsupported-preview__action"
+        title={t.previewOpenInBrowserPanelHint as string}
+        aria-label={t.previewOpenInBrowserPanelHint as string}
         onClick={() => openLocalFileInBrowser(url, 'panel')}
       >
         {t.previewOpenInBrowserPanel as string}

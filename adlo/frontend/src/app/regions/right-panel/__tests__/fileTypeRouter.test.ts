@@ -1,5 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { categorizeFile, isLegacyOfficeFile, isOfficeTempFile } from '../fileTypeRouter';
+import {
+  categorizeFile,
+  isLegacyOfficeFile,
+  isOfficeTempFile,
+  usesBinaryMediaChannel,
+} from '../fileTypeRouter';
+
+describe('usesBinaryMediaChannel（二进制不按文本读）', () => {
+  it('routes binary categories through the media channel', () => {
+    // odt/zip/exe/ttf：历史上按文本读会以 "binary files are not readable" 失败。
+    for (const path of ['a.odt', 'b.zip', 'c.exe', 'd.ttf']) {
+      expect(categorizeFile(path)).toBe('binary');
+      expect(usesBinaryMediaChannel(categorizeFile(path))).toBe(true);
+    }
+  });
+
+  it('keeps media/office on the media channel and text/code on the text channel', () => {
+    for (const path of ['a.png', 'b.mp4', 'c.docx', 'd.pdf', 'e.xlsx', 'f.pptx']) {
+      expect(usesBinaryMediaChannel(categorizeFile(path))).toBe(true);
+    }
+    for (const path of ['a.md', 'b.ts', 'c.txt', 'd.csv']) {
+      expect(usesBinaryMediaChannel(categorizeFile(path))).toBe(false);
+    }
+  });
+});
 
 describe('categorizeFile media/office split', () => {
   it('routes common image extensions to image', () => {

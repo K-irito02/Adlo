@@ -142,10 +142,9 @@ export const commonZh = {
   centerTabOpenAllInCenter: '全部在「中间区」打开', // glossary-allow: 用户指定文案
 
   jobCount: '{count} 个 Job',
-  debugCopyLogs: '复制调试日志',
-  debugCopied: '已复制!',
-  debugCopyFailed: '复制失败',
   appMenu: '应用菜单',
+  // 行内可跳转链接之间的分隔符（中文顿号，与提示小字的列举口径一致）。
+  inlineLinkSeparator: '、',
 
   options: '选项',
   panelControls: '面板控制',

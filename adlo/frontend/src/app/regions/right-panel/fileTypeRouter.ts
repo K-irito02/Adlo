@@ -212,7 +212,7 @@ export function categorizeFile(filePath: string | undefined): FileCategory {
 
 /**
  * 是否走二进制媒体通道（图片/音视频/办公文档）：调用端据此选择
- * readMediaFile（字节）还是 readFile（文本），与 EditorSurfaceShell 渲染分支保持一致。
+ * mediaSource（Range URL）还是 readFile（文本），与 EditorSurfaceShell 渲染分支保持一致。
  */
 export function isMediaFileCategory(category: FileCategory): boolean {
   return (
@@ -224,6 +224,17 @@ export function isMediaFileCategory(category: FileCategory): boolean {
     category === 'spreadsheet' ||
     category === 'presentation'
   );
+}
+
+/**
+ * 走「Range 媒体通道」的品类 = 媒体/办公 + 其它二进制（zip/exe/ttf/odt…）。
+ *
+ * 二进制文件**不能按文本读**：历史上会以 "binary files are not readable as context"
+ * 报错，用户只看到一句打不开。走媒体通道后只做 HEAD 探测（存在性/体积/URL），
+ * 渲染层统一给「无法预览此格式 + 用系统播放器打开」，不再产生无效的读文本错误。
+ */
+export function usesBinaryMediaChannel(category: FileCategory): boolean {
+  return category === 'binary' || isMediaFileCategory(category);
 }
 
 /**

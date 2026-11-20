@@ -63,6 +63,8 @@ html:not(.no-transition) [data-theme] {
   --surface-hover: rgba(34, 34, 34, 0.06);
   --surface-active: rgba(34, 34, 34, 0.08);
   --surface-raised: #ffffff;
+  /* 透明图片的棋盘格底纹（亮色）：中性灰块，避免与白底混淆。 */
+  --checker-tile: rgba(34, 34, 34, 0.07);
   /* 编辑态底色（可编辑区域：剪贴板正文编辑器、缩放百分比输入框）。
      中性灰，不使用 accent 系；与相邻 surface-raised 拉开明度以在亮色下可见。 */
   --surface-editing: #f0f0f1;
@@ -91,6 +93,8 @@ html:not(.no-transition) [data-theme] {
   --accent-strong: #1d4ed8;
   --accent-subtle: rgba(37, 99, 235, 0.08);
   --accent-orange: #d97706;
+  /* 蓝紫强调色：用于「添加工作区」加载圈等需要区别于常规蓝的点缀（高亮电光紫）。 */
+  --accent-violet: #7c4dff;
   --adl-drag-border: #000000;
 
   /* === Semantic Colors (per UI spec) === */
@@ -354,6 +358,8 @@ html:not(.no-transition) [data-theme] {
   --surface-hover: rgba(255, 255, 255, 0.08);
   --surface-active: rgba(255, 255, 255, 0.12);
   --surface-raised: #1c1c1c;
+  /* 透明图片的棋盘格底纹（暗色）：浅色块，暗底上可辨。 */
+  --checker-tile: rgba(255, 255, 255, 0.08);
   /* 编辑态底色（可编辑区域：剪贴板正文编辑器、缩放百分比输入框）。
      中性灰，不使用 accent 系；较 surface-raised 提亮以在暗色下可见。 */
   --surface-editing: #242427;
@@ -382,6 +388,8 @@ html:not(.no-transition) [data-theme] {
   --accent-strong: #93bbfd;
   --accent-subtle: rgba(96, 165, 250, 0.1);
   --accent-orange: #fbbf24;
+  /* 蓝紫强调色（暗色档用高亮薰衣草紫，保持醒目）。 */
+  --accent-violet: #b49cff;
   --adl-drag-border: #ffffff;
 
   /* === Semantic Colors (dark variants) === */

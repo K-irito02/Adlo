@@ -18,7 +18,7 @@ import { TEXT_HEAVY_PREVIEW_CHARS } from '../../regions/right-panel/heavyPreview
 import {
   categorizeFile,
   isLegacyOfficeFile,
-  isMediaFileCategory,
+  usesBinaryMediaChannel,
 } from '../../regions/right-panel/fileTypeRouter';
 import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
 import {
@@ -34,11 +34,12 @@ import {
   isCurrentFileGen,
 } from '../shared';
 import { clearError, captureError } from '../cacheHelpers';
+import { requestMediaSource } from '../mediaSourceResolver';
 import type {
   FileOutlineItem,
   IpcResult,
   WorkspaceFileDocument,
-  WorkspaceMediaDocument,
+  WorkspaceMediaSource,
   WorkspaceChangePreview,
 } from '@adlo/kernel';
 
@@ -212,7 +213,8 @@ export async function openFileGeneric(
 export interface OpenMediaFileConfig {
   workspaceId: string | undefined;
   workspacePath?: string;
-  readMediaFile: () => Promise<IpcResult<WorkspaceMediaDocument>>;
+  /** 解析可寻址媒体来源（HEAD 探测，不传字节；事项 7）。 */
+  mediaSource: () => Promise<IpcResult<WorkspaceMediaSource>>;
   /** 同 `OpenFileConfig.silentError`：会话恢复时不弹全局错误卡。 */
   silentError?: boolean;
 }
@@ -220,7 +222,7 @@ export interface OpenMediaFileConfig {
 /**
  * 媒体/办公二进制打开（与 openFileGeneric 同"就绪才切换"语义）：
  * 成功时置 fileMedia 并清空 fileContent/outline；失败走同一 submitOpenFailure。
- * 媒体不进文本缓存（base64 体积大，按次读取）。
+ * 媒体不进文本缓存（URL 按次解析；字节由 Range 端点按需读取，不占内存）。
  */
 export async function openMediaFileGeneric(
   set: StoreApi<StoreState>['setState'],
@@ -234,7 +236,7 @@ export async function openMediaFileGeneric(
   beginFileOpen(set, get, relativePath);
   set({ fileMediaLoading: true });
 
-  // 已知旧格式短路（收尾 F-18）：`.doc/.dot/.ppt` 解析必失败，不读字节， // compat-allow: OLE 办公文件是外部文件格式，不是本产品数据格式
+  // 已知旧格式短路（收尾 F-18）：`.doc/.dot/.ppt` 解析必失败，不解析字节， // compat-allow: OLE 办公文件是外部文件格式，不是本产品数据格式
   // 直接落占位文档；渲染层按 fileName 给转存指引。lastModifiedAt 取此刻
   // （占位文档不参与外部变更比对，可接受）。
   if (isLegacyOfficeFile(relativePath)) {
@@ -254,9 +256,9 @@ export async function openMediaFileGeneric(
         fileMedia: {
           path: relativePath,
           mime: 'application/octet-stream',
-          base64: '',
           size: 0,
           lastModifiedAt: Date.now(),
+          url: '',
         },
         fileMediaLoading: false,
         fileLastModifiedAt: undefined,
@@ -270,9 +272,9 @@ export async function openMediaFileGeneric(
     return true;
   }
 
-  let mediaResult: IpcResult<WorkspaceMediaDocument>;
+  let mediaResult: IpcResult<WorkspaceMediaSource>;
   try {
-    mediaResult = await config.readMediaFile();
+    mediaResult = await config.mediaSource();
   } catch (err) {
     if (requestSeq !== fileRequestSeq) {
       return false;
@@ -328,7 +330,7 @@ export async function openMediaFileGeneric(
 export interface OpenChangePreviewConfig {
   cacheKey: string;
   workspaceId: string | undefined;
-  /** 媒体/办公变更预览按工作区读取字节（事项4）；文本预览不需要。 */
+  /** 媒体/办公变更预览按工作区解析来源（事项4）；文本预览不需要。 */
   workspacePath?: string;
   getPreview: () => Promise<IpcResult<WorkspaceChangePreview>>;
 }
@@ -342,9 +344,9 @@ export async function openChangePreviewGeneric(
 ) {
   set({ changePreviewLoading: true, changePreviewMediaLoading: false });
 
-  // 事项4：媒体/办公文件在变更面板走字节读取（与文件面板同一渲染器），
+  // 事项4：媒体/办公文件在变更面板走字节通道（与文件面板同一渲染器），
   // 不做逐行 diff；文本文件继续走 change-preview。
-  if (isMediaFileCategory(categorizeFile(relativePath))) {
+  if (usesBinaryMediaChannel(categorizeFile(relativePath))) {
     set({
       selectedChangePreviewPath: relativePath,
       selectedChangePreviewWorkspaceId: config.workspaceId,
@@ -355,26 +357,23 @@ export async function openChangePreviewGeneric(
     });
     setPendingChangePreviewPath(relativePath);
     // 与文本链共用 `preview:` 代际命名空间：`cancelPreviewLanding` 只推进该命名空间，
-    // 独立命名空间会让被清空的媒体预览在迟到的读盘落地时「复活」。
+    // 独立命名空间会让被清空的媒体预览在迟到的解析落地时「复活」。
     const previewGen = nextFileGen(`preview:${config.cacheKey}`);
-    // 旧版 OLE 办公（.doc/.dot/.ppt）与文件面板同短路：不读字节，渲染器给转存指引。
+    // 旧版 OLE 办公（.doc/.dot/.ppt）与文件面板同短路：不解析字节，渲染器给转存指引。
     const result = isLegacyOfficeFile(relativePath)
       ? ({
           ok: true,
           data: {
             path: relativePath.replace(/\\/g, '/'),
             mime: 'application/octet-stream',
-            base64: '',
             size: 0,
             lastModifiedAt: 0,
+            url: '',
           },
-        } satisfies IpcResult<WorkspaceMediaDocument>)
+        } satisfies IpcResult<WorkspaceMediaSource>)
       : config.workspacePath
-        ? await window.digitalLife.workspace.readMediaFileForWorkspace(
-            config.workspacePath,
-            relativePath,
-          )
-        : await window.digitalLife.workspace.readMediaFile(relativePath);
+        ? await window.digitalLife.workspace.mediaSource(config.workspacePath, relativePath)
+        : await requestMediaSource(get(), config.workspaceId, relativePath);
     if (requestSeq !== changePreviewRequestSeq) {
       return;
     }

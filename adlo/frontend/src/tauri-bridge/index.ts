@@ -50,12 +50,14 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
     ...http,
 
     // `workspace.pickDirectory` (native folder dialog), `workspace.revealInFileManager`
-    // (OS file-manager reveal) and `workspace.onFileChanged` (a Tauri channel
-    // subscription) are Tauri shell capabilities with NO ad-server HTTP route.
+    // (OS file-manager reveal), `workspace.openInDefaultApp` (OS default player) and
+    // `workspace.onFileChanged` (a Tauri channel subscription) are Tauri shell
+    // capabilities with NO ad-server HTTP route.
     workspace: {
       ...http.workspace,
       pickDirectory: tauriWorkspace.pickDirectory,
       revealInFileManager: tauriWorkspace.revealInFileManager,
+      openInDefaultApp: tauriWorkspace.openInDefaultApp,
       onFileChanged: tauriWorkspace.onFileChanged,
     },
 

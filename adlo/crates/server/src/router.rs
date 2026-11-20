@@ -47,7 +47,8 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/workspace/update-file", post(handlers::workspace::update_file))
         .route("/workspace/folder", post(handlers::workspace::create_folder))
         .route("/workspace/read", post(handlers::workspace::read_file))
-        .route("/workspace/read-media", post(handlers::workspace::read_media_file))
+        // 媒体流式端点（事项 7）：Range 读取，`<img>/<audio>/<video>` 直接用，不再 base64。
+        .route("/workspace/media", get(handlers::workspace::stream_media))
         .route("/workspace/change-preview", post(handlers::workspace::get_change_preview))
         .route("/workspace/tree", post(handlers::workspace::list_tree))
         .route("/workspace/search", post(handlers::workspace::search))

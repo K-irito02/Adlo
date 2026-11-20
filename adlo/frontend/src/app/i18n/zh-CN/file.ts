@@ -147,7 +147,6 @@ export const fileZh = {
   fileOpenErrorNotFound: '文件不存在，可能已被删除、移动或重命名。',
   fileOpenErrorDetail: '原因：{message}',
   fileOpenErrorRetry: '重试',
-  mediaPreviewFailed: '媒体预览失败: {error}',
   mediaPreviewDecodeFailed: '当前环境无法解码或播放该文件',
   mediaEmptyFile: '文件为空，无内容可预览',
   fileMediaLoading: '正在加载文件…',

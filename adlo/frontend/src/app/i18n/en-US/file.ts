@@ -149,7 +149,6 @@ export const fileEn = {
   fileOpenErrorNotFound: 'The file does not exist. It may have been deleted, moved, or renamed.',
   fileOpenErrorDetail: 'Reason: {message}',
   fileOpenErrorRetry: 'Retry',
-  mediaPreviewFailed: 'Media preview failed: {error}',
   mediaPreviewDecodeFailed: 'This environment cannot decode or play this file',
   mediaEmptyFile: 'The file is empty, nothing to preview',
   fileMediaLoading: 'Loading file...',

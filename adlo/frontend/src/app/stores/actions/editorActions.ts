@@ -43,6 +43,7 @@ import {
   dropPendingEditorText,
 } from '../cacheHelpers';
 import { persistField } from '../persisted/apply';
+import { requestMediaSource } from '../mediaSourceResolver';
 import type { FileConflictChoice } from '../slices/fileOpNoticeSlice';
 import {
   openFileGeneric,
@@ -52,7 +53,7 @@ import {
 import {
   categorizeFile,
   isLegacyOfficeFile,
-  isMediaFileCategory,
+  usesBinaryMediaChannel,
 } from '../../regions/right-panel/fileTypeRouter';
 import { refreshTreeByWorkspacePath } from './workspaceActions';
 import { insertTreeNode } from './workspaceTreeRename';
@@ -225,10 +226,7 @@ async function reconcileSelectedMedia(
   const norm = normalizeWorkspaceRelativePath(selected);
   try {
     clearError(get, SCOPE);
-    const result =
-      targetWs.id === get().appInfo?.currentWorkspace?.id
-        ? await window.digitalLife.workspace.readMediaFile(selected)
-        : await window.digitalLife.workspace.readMediaFileForWorkspace(targetWs.path, selected);
+    const result = await window.digitalLife.workspace.mediaSource(targetWs.path, selected);
     if (!isCurrentFileGen(genKey, gen)) {
       return;
     }
@@ -525,11 +523,11 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         return;
       }
       const category = categorizeFile(relativePath);
-      const opened = isMediaFileCategory(category)
+      const opened = usesBinaryMediaChannel(category)
         ? await openMediaFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
             workspaceId,
             workspacePath: get().appInfo?.currentWorkspace?.path,
-            readMediaFile: () => window.digitalLife.workspace.readMediaFile(relativePath),
+            mediaSource: () => requestMediaSource(get(), workspaceId, relativePath),
           })
         : await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
             cacheKey: getWorkspaceScopedCacheKey(get().appInfo, relativePath),
@@ -568,13 +566,13 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         return;
       }
       const category = categorizeFile(relativePath);
-      const opened = isMediaFileCategory(category)
+      const opened = usesBinaryMediaChannel(category)
         ? await openMediaFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
             workspaceId,
             workspacePath,
             silentError: options.silentError,
-            readMediaFile: () =>
-              window.digitalLife.workspace.readMediaFileForWorkspace(workspacePath, relativePath),
+            mediaSource: () =>
+              window.digitalLife.workspace.mediaSource(workspacePath, relativePath),
           })
         : await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
             cacheKey: scopedFileKey(workspaceId, relativePath),
@@ -1376,7 +1374,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         return;
       }
       const norm = normalizeWorkspaceRelativePath(selected);
-      if (isMediaFileCategory(categorizeFile(selected))) {
+      if (usesBinaryMediaChannel(categorizeFile(selected))) {
         await reconcileSelectedMedia(get, set, selected, {
           id: targetWs.id,
           path: targetWs.path,

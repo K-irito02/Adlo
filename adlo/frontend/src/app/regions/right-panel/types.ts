@@ -3,7 +3,7 @@ import type {
   FileOutlineItem,
   FilePatch,
   WorkspaceChangePreview,
-  WorkspaceMediaDocument,
+  WorkspaceMediaSource,
   GitSnapshot,
   PatchApplicationResult,
   PatchSet,
@@ -18,6 +18,7 @@ import type { FileOpenError } from '@stores/slices/editorSlice';
 import type { EditorTabState } from '@utils/editorTabs';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
 import type { PatchDirection, PatchReviewFilter } from '@features/patch-review';
+import { visibleWorkspacesOf } from './visibleWorkspaces';
 
 export interface RightPanelViewProps {
   appInfo?: AppInfo;
@@ -30,13 +31,13 @@ export interface RightPanelViewProps {
   changePreview?: WorkspaceChangePreview;
   changePreviewLoading: boolean;
   /** 变更预览的媒体/办公字节（事项4，与 changePreview 互斥） */
-  changePreviewMedia?: WorkspaceMediaDocument | null;
+  changePreviewMedia?: WorkspaceMediaSource | null;
   changePreviewMediaLoading: boolean;
   changePreviewMediaError?: { path: string; message: string } | null;
   fileContent?: string;
   fileLastModifiedAt?: number;
   /** 媒体/办公二进制文档（与 fileContent 互斥，见 editorSlice.fileMedia） */
-  fileMedia?: WorkspaceMediaDocument | null;
+  fileMedia?: WorkspaceMediaSource | null;
   /** 媒体读取中：区分加载骨架与空态（见 editorSlice.fileMediaLoading） */
   fileMediaLoading?: boolean;
   /** 内容区开文件失败信息（事项 46 调整项）：失败时内容区展示友好错误，不回退旧内容 */
@@ -248,6 +249,35 @@ export function countGitChanges(snapshot?: GitSnapshot): number {
     snapshot.untracked.length +
     snapshot.conflicts.length
   );
+}
+
+/**
+ * 变更徽章的数量：与变更面板同源（可见工作区 × `gitSnapshots`）。
+ *
+ * 历史缺陷（2026-11-20 事项 10）：徽章只看「当前工作区」单例，而面板汇总全部
+ * 可见工作区；变更落在非当前工作区时面板有内容、徽章恒为 0（用户看到「有时有
+ * 有时没有」）。这里按面板口径求和；一个快照都还没到（启动/切换早期）才回退
+ * 到当前工作区单例，避免徽章空窗。
+ */
+export function countVisibleChanges(
+  workspaces: readonly RecentWorkspaceEntry[] | undefined,
+  gitSnapshots: Record<string, GitSnapshot> | undefined,
+  currentSnapshot?: GitSnapshot,
+): number {
+  const visible = visibleWorkspacesOf(workspaces);
+  let total = 0;
+  let matched = 0;
+  for (const workspace of visible) {
+    const snapshot = gitSnapshots?.[workspace.id];
+    if (snapshot) {
+      matched += 1;
+      total += countGitChanges(snapshot);
+    }
+  }
+  if (matched === 0) {
+    return countGitChanges(currentSnapshot);
+  }
+  return total;
 }
 
 export function getPathSegments(pathValue?: string): string[] {

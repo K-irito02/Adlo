@@ -8,8 +8,10 @@ export {
 } from './LazyPreviews';
 export { PreviewLoadingGate } from './PreviewLoadingGate';
 export { PreviewExternalActions } from './PreviewExternalActions';
+export { UnsupportedPreviewCard } from './UnsupportedPreviewCard';
+export { MediaZoomViewport } from './MediaZoomViewport';
 export {
-  isWebViewRenderableFile,
+  isBrowserTabViewableFile,
   openLocalFileInBrowser,
   resolveBrowserFileUrl,
 } from './previewExternal';

@@ -25,37 +25,17 @@ export function resolveWorkspaceRootStrict(workspaceId?: string): string | null 
 }
 
 /**
- * WebView2（Chromium）能原生渲染的扩展名白名单（事项4）。
- * 只对白名单内的文件提供"浏览器打开"兜底：白名单外（zip/exe/字体/odt/旧版
- * doc|ppt 等）Chromium 同样打不开，显示按钮只会误导用户。
+ * 「浏览器标签能看、内部渲染器看不了」的扩展名（事项 7 收窄）。
+ *
+ * 只保留**文档类**：HTML 系列内部没有渲染器，浏览器标签是唯一可读方式。
+ * 图片/音视频已被事项 7 的 Range 流式预览覆盖（任意体积、可拖动进度），
+ * 且浏览器与内部用的是同一个 Chromium 解码器——内部解不了的编码（mkv/avi 等）
+ * 浏览器同样解不了，给按钮只会误导，还会把大媒体塞进子 WebView（打包态实测会把
+ * 宿主窗口拖到无响应）。PDF/Office 由内置渲染器负责，也不需要该入口。
  */
-const WEBVIEW_RENDERABLE_EXTENSIONS = new Set([
-  'html',
-  'htm',
-  'xhtml',
-  'pdf',
-  'svg',
-  'png',
-  'jpg',
-  'jpeg',
-  'gif',
-  'bmp',
-  'webp',
-  'avif',
-  'ico',
-  'mp3',
-  'wav',
-  'ogg',
-  'm4a',
-  'aac',
-  'flac',
-  'mp4',
-  'webm',
-  'ogv',
-  'm4v',
-]);
+const BROWSER_TAB_VIEWABLE_EXTENSIONS = new Set(['html', 'htm', 'xhtml']);
 
-export function isWebViewRenderableFile(filePath: string | undefined): boolean {
+export function isBrowserTabViewableFile(filePath: string | undefined): boolean {
   if (!filePath) {
     return false;
   }
@@ -65,7 +45,7 @@ export function isWebViewRenderableFile(filePath: string | undefined): boolean {
   if (dotIndex <= 0) {
     return false;
   }
-  return WEBVIEW_RENDERABLE_EXTENSIONS.has(fileName.slice(dotIndex + 1).toLowerCase());
+  return BROWSER_TAB_VIEWABLE_EXTENSIONS.has(fileName.slice(dotIndex + 1).toLowerCase());
 }
 
 /** 工作区相对路径 → `file://` URL；工作区不可解析时返回 null。 */

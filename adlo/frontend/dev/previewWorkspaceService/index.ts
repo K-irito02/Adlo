@@ -13,6 +13,7 @@ import * as gitVis from './gitVisualization';
 import * as siteMetaCache from './siteMetaCache';
 import { workspaceWatchers } from './workspaceWatcher';
 import { createPreviewPageMetaService } from './pageMetaService';
+import { handleMediaStream } from './mediaStream';
 import type { MetaSource } from '../../src/shared/ipc/browser';
 
 export { git, files, search, ciModule as ci, logging };
@@ -439,6 +440,43 @@ export async function systemOpenPathRoute(body: unknown) {
   return ok(await openPathInFileManager(b.path.trim()));
 }
 
+/**
+ * 用系统默认程序打开**文件**（与桌面 `workspace_open_in_default_app` 同语义）。
+ * 浏览器模式同样跑在本机，具备该能力；入口只在内置解码器失败时出现。
+ */
+async function openFileWithDefaultApp(targetPath: string): Promise<boolean> {
+  const normalizedPath =
+    process.platform === 'win32' ? targetPath.replace(/\//g, '\\') : targetPath;
+  const absolutePath = path.resolve(normalizedPath);
+  if (!fsSync.existsSync(absolutePath)) {
+    throw new Error(`path does not exist: ${targetPath}`);
+  }
+  const command =
+    process.platform === 'win32'
+      ? { exe: 'explorer', args: [absolutePath] }
+      : { exe: process.platform === 'darwin' ? 'open' : 'xdg-open', args: [absolutePath] };
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(command.exe, command.args, {
+      windowsHide: false,
+      detached: true,
+      shell: false,
+    });
+    child.on('error', reject);
+    child.on('spawn', () => resolve());
+    child.unref();
+  });
+  return true;
+}
+
+/** `/system/open-file`（导出供路由单测）：系统默认程序打开文件。 */
+export async function systemOpenFileRoute(body: unknown) {
+  const b = body as { path?: string } | undefined;
+  if (!b?.path?.trim()) {
+    return fail('path is required', 'INVALID_INPUT');
+  }
+  return ok(await openFileWithDefaultApp(b.path.trim()));
+}
+
 // --- Route table ---
 
 interface Route {
@@ -567,6 +605,11 @@ const routes: Route[] = [
     method: 'POST',
     pathname: makePath('/system/open-path'),
     handler: async (_req, body) => systemOpenPathRoute(body),
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/system/open-file'),
+    handler: async (_req, body) => systemOpenFileRoute(body),
   },
   {
     method: 'POST',
@@ -1336,6 +1379,17 @@ export async function handlePreviewWorkspaceApi(
   if (!isPreviewWorkspaceApiRequest(requestUrl.pathname)) return false;
 
   try {
+    // 媒体流式端点（事项 7）：不走 JSON 路由表（要写原始字节 + Range 状态码）。
+    if (
+      (request.method === 'GET' || request.method === 'HEAD') &&
+      requestUrl.pathname === makePath('/workspace/media')
+    ) {
+      await handleMediaStream(request, response, requestUrl.searchParams, {
+        resolveAbsolute: files.resolveWorkspacePath,
+        guessMime: files.guessMediaMime,
+      });
+      return true;
+    }
     const route = routes.find(
       (r) => r.method === request.method && requestUrl.pathname === r.pathname,
     );

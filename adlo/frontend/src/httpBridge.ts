@@ -39,6 +39,7 @@ import type {
   UpdatePreferencesResult,
 } from '@adlo/kernel';
 import type { DigitalLifeBridge } from './shared/ipc/digital-life';
+import { IpcErrorCode } from './shared/ipc/shared';
 import type { AppBridge } from './shared/ipc/app';
 import type { PtyOutputEvent, PtySessionInfo } from './shared/ipc/pty';
 import type { AcpConfig, CodeModeConfig, HttpApiConfig } from './shared/ipc/reserved';
@@ -63,7 +64,7 @@ import type {
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
   WorkspaceFilesChangedBatch,
-  WorkspaceMediaDocument,
+  WorkspaceMediaSource,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
@@ -188,6 +189,70 @@ function notSupported<T>(what: string): IpcResult<T> {
       message: `[httpBridge] ${what} is a Tauri shell capability with no ad-server HTTP route; the shell bridge overrides it.`,
     },
   };
+}
+
+/**
+ * 探测媒体/办公文件的可寻址来源（事项 7）：HEAD 只取元信息，不传字节。
+ *
+ * 返回的 `url` 是 Range 流式端点，`<img>/<audio>/<video>` 直接引用；Office/PDF
+ * 预览再 `fetch` 成 ArrayBuffer。用 HEAD 而不是直接给 URL，是为了在打开阶段就能把
+ * 「文件不存在」与「文件存在但解码失败」分开——前者显示友好错误，后者才给兜底入口。
+ */
+export async function probeMediaSource(
+  endpoint: string,
+  workspacePath: string,
+  relativePath: string,
+): Promise<IpcResult<WorkspaceMediaSource>> {
+  const url = new URL(endpoint, typeof window !== 'undefined' ? window.location.origin : undefined);
+  url.searchParams.set('workspacePath', workspacePath);
+  url.searchParams.set('path', relativePath);
+  const href = url.toString();
+  try {
+    const resp = await fetch(href, { method: 'HEAD' });
+    if (resp.status === 404) {
+      return {
+        ok: false,
+        error: { code: IpcErrorCode.NOT_FOUND, message: `file not found: ${relativePath}` },
+      };
+    }
+    if (!resp.ok) {
+      return {
+        ok: false,
+        error: {
+          code: IpcErrorCode.IO_ERROR,
+          message: `media probe failed (${resp.status}): ${relativePath}`,
+        },
+      };
+    }
+    const mime = (resp.headers.get('content-type') ?? 'application/octet-stream')
+      .split(';')[0]
+      .trim();
+    const rawSize = Number(resp.headers.get('content-length') ?? '0');
+    const rawMtime = Number(resp.headers.get('x-adl-mtime-ms') ?? '0');
+    const lastModifiedAt = Number.isFinite(rawMtime) ? rawMtime : 0;
+    // mtime 进查询串：同一路径的外部变更会换 URL，从而让 `<video>/<img>` 重新取帧，
+    // 不必依赖元素自身的缓存策略（端点本身是 no-store，但元素不会主动重发）。
+    const versioned = new URL(href);
+    versioned.searchParams.set('v', String(lastModifiedAt));
+    return {
+      ok: true,
+      data: {
+        path: relativePath.replace(/\\/g, '/'),
+        mime,
+        size: Number.isFinite(rawSize) ? rawSize : 0,
+        lastModifiedAt,
+        url: versioned.toString(),
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        code: IpcErrorCode.NETWORK_ERROR,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
 }
 
 /**
@@ -923,6 +988,9 @@ export function createHttpBridge({
         call<GitSnapshot>(baseUrl, '/workspace/git/init', POST({ workspacePath })),
       revealInFileManager: (_workspacePath: string) =>
         taskNotSupported<boolean>('workspace.revealInFileManager'),
+      // 系统默认程序打开是纯壳体能力（浏览器模式没有「系统默认应用」语义）。
+      openInDefaultApp: (_workspacePath: string, _relativePath: string) =>
+        taskNotSupported<boolean>('workspace.openInDefaultApp'),
       createFile: (relativePath: string, content = '', workspacePath?: string) =>
         call<WorkspaceFileDocument>(
           baseUrl,
@@ -939,14 +1007,8 @@ export function createHttpBridge({
           '/workspace/read',
           POST({ workspacePath, relativePath }),
         ),
-      readMediaFile: (relativePath: string) =>
-        call<WorkspaceMediaDocument>(baseUrl, '/workspace/read-media', POST({ relativePath })),
-      readMediaFileForWorkspace: (workspacePath: string, relativePath: string) =>
-        call<WorkspaceMediaDocument>(
-          baseUrl,
-          '/workspace/read-media',
-          POST({ workspacePath, relativePath }),
-        ),
+      mediaSource: (workspacePath: string, relativePath: string) =>
+        probeMediaSource(`${baseUrl}/workspace/media`, workspacePath, relativePath),
       getChangePreview: (relativePath: string) =>
         call<WorkspaceChangePreview>(baseUrl, '/workspace/change-preview', POST({ relativePath })),
       getChangePreviewForWorkspace: (workspacePath: string, relativePath: string) =>

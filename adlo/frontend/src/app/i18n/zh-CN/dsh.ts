@@ -149,7 +149,8 @@ export const dshZh = {
   dshVersionBusyRetry: '版本操作进行中，请稍候再试',
   dshInstallFailed: '安装版本失败',
   dshOfficialLinksLabel: '官方版本信息',
-  dshOfficialLinksDesc: '完整版本列表、发布时间和更新详情都在官方这里：',
+  dshOfficialLinksDesc: '完整版本列表、发布时间和更新详情见官方渠道：',
+  dshOfficialSite: '官网',
   dshNpmPage: 'npm 包页面',
   dshGithubReleases: 'GitHub Releases',
 } as const;

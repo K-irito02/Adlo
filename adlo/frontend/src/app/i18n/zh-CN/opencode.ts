@@ -40,7 +40,8 @@ export const opencodeZh = {
   opencodePrereleaseHint:
     '预发布版本是还没正式发布的新版本，能提前体验新功能，但也可能有没发现的问题。\n· 版本选择下拉框与右侧按钮的用法和正式版本完全一致，区别只在于版本本身可能不稳定。',
   opencodeOfficialLinksLabel: '官方版本信息',
-  opencodeOfficialLinksDesc: '完整版本列表、发布时间和更新详情都在官方这里：',
+  opencodeOfficialLinksDesc: '完整版本列表、发布时间和更新详情见官方渠道：',
+  opencodeOfficialSite: '官网',
   opencodeNpmPage: 'npm 包页面',
   opencodeGithubReleases: 'GitHub Releases',
   opencodeSourceSummaryTitle: '当前下载源',

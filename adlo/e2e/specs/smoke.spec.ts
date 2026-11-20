@@ -2,84 +2,11 @@ import path from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { $, browser, expect } from '@wdio/globals';
+import { dismissSetupWizards, waitForTitlebarClickable } from './helpers';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const artifactsDir = path.join(here, '..', 'artifacts');
 const APP_TITLE = 'Adlo';
-
-/**
- * First run of a fresh instance shows the environment wizard on top of the shell.
- * Dismiss it by the wizard's testid, never by localized text.
- */
-async function dismissSetupWizards(): Promise<void> {
-  const envWizard = await $('[data-testid="env-wizard"]');
-  if (await envWizard.isExisting()) {
-    const skip = await envWizard.$('[data-testid="env-wizard-skip"]');
-    if (await skip.isExisting()) {
-      await skip.click();
-    }
-    await browser.waitUntil(async () => !(await envWizard.isExisting()), {
-      timeout: 10_000,
-      timeoutMsg: 'environment wizard stayed open after clicking skip',
-    });
-  }
-
-  // 环境向导之后还会串行出现 harness 向导；它的全屏 overlay 会盖住标题栏，
-  // 原生点击用例必须先把它关掉（否则 waitForTitlebarClickable 永远等不到）。
-  const harnessDone = await browser.execute(() =>
-    localStorage.getItem('adl.harnessWizardDone'),
-  );
-  if (harnessDone) {
-    return;
-  }
-  const harnessWizard = await $('[data-testid="harness-wizard"]');
-  try {
-    await browser.waitUntil(async () => await harnessWizard.isExisting(), {
-      timeout: 2_000,
-      interval: 100,
-    });
-  } catch {
-    return;
-  }
-  const harnessSkip = await harnessWizard.$('[data-testid="harness-wizard-skip"]');
-  if (await harnessSkip.isExisting()) {
-    await harnessSkip.click();
-  }
-  await browser.waitUntil(async () => !(await harnessWizard.isExisting()), {
-    timeout: 10_000,
-    timeoutMsg: 'harness wizard stayed open after clicking skip',
-  });
-}
-
-/**
- * The app keeps a full-screen startup overlay for at least 3.5s. Instead of sleeping,
- * wait until the titlebar toggle is the topmost element at its own center.
- */
-async function waitForTitlebarClickable(): Promise<void> {
-  await browser.waitUntil(
-    async () =>
-      (await browser.execute(() => {
-        const el = document.querySelector('.adl-iconstrip__button--paneltoggle');
-        if (!el) {
-          return false;
-        }
-        const rect = el.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) {
-          return false;
-        }
-        const top = document.elementFromPoint(
-          rect.left + rect.width / 2,
-          rect.top + rect.height / 2,
-        );
-        return top !== null && (top === el || el.contains(top));
-      })) === true,
-    {
-      timeout: 30_000,
-      interval: 250,
-      timeoutMsg: 'titlebar toggle never became clickable (startup overlay still on top?)',
-    },
-  );
-}
 
 describe('Adlo desktop shell', () => {
   beforeEach(async () => {
@@ -220,5 +147,73 @@ describe('Adlo desktop shell', () => {
     expect(result.tone).not.toBe('');
     expect(result.color).not.toBe(result.labelColor);
     expect(result.background).not.toBe('rgba(0, 0, 0, 0)');
+  });
+
+  it('keeps runtime-injected <style> effective in the packaged CSP (no style-src nonce)', async () => {    // CodeMirror 的结构/主题 CSS（style-mod）与 Markdown 预览主题都靠运行时注入 <style>；
+    // 构建产物 index.html 自带内联 <style>，若 Tauri 给 style-src 追加 'nonce-…'，
+    // 按 CSP3 会忽略 'unsafe-inline'，这些样式全部失效（变更面板差异视图行号跑到最右、
+    // 变更块变整宽色条）。frontend/src/tauri-csp-config.test.ts 守配置文本，本用例在真实
+    // 打包 WebView 里守实际效果。
+    const color = (await browser.execute(() => {
+      const probeId = '__adl_runtime_style_probe__';
+      const style = document.createElement('style');
+      style.textContent = `#${probeId} { color: rgb(1, 2, 3); }`;
+      document.head.appendChild(style);
+
+      const el = document.createElement('div');
+      el.id = probeId;
+      el.textContent = 'probe';
+      document.body.appendChild(el);
+
+      const computed = getComputedStyle(el).color;
+      style.remove();
+      el.remove();
+      return computed;
+    })) as string;
+
+    expect(color).toBe('rgb(1, 2, 3)');
+  });
+
+  it('keeps blob: media usable in the packaged CSP (img-src/media-src must list blob:)', async () => {
+    // 事项 8：打包态 `img-src`/`media-src` 曾缺 `blob:`，`MediaPreview` 的 object URL 被拦，
+    // 用户看到「媒体预览失败：当前环境无法解码或播放该文件」；dev 由 Vite 供页、不注入 CSP，
+    // 所以只在打包版复现。`frontend/src/tauri-csp-config.test.ts` 守配置文本，本用例在真实
+    // 打包 WebView 里守实际效果（Office 内嵌媒体/pptx 预览仍依赖 blob）。
+    type BlobProbe = { ok: true; width: number } | { ok: false; reason: string };
+    const result = (await browser.executeAsync((done) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 4;
+      canvas.height = 4;
+      const ctx = canvas.getContext('2d');
+      ctx?.fillRect(0, 0, 4, 4);
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          done({ ok: false, reason: 'canvas.toBlob produced no blob' });
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        const timer = setTimeout(() => {
+          URL.revokeObjectURL(url);
+          done({ ok: false, reason: 'blob image never decoded (CSP blocked?)' });
+        }, 3_000);
+        img.onload = () => {
+          clearTimeout(timer);
+          URL.revokeObjectURL(url);
+          done({ ok: true, width: img.naturalWidth });
+        };
+        img.onerror = () => {
+          clearTimeout(timer);
+          URL.revokeObjectURL(url);
+          done({ ok: false, reason: 'blob image fired error (CSP or decode)' });
+        };
+        img.src = url;
+      }, 'image/png');
+    })) as BlobProbe;
+
+    if (!result.ok) {
+      throw new Error(result.reason);
+    }
+    expect(result.width).toBe(4);
   });
 });

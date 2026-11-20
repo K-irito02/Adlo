@@ -7,20 +7,20 @@ import {
   LazyXlsxPreviewWrapper,
   LazyPptxPreviewWrapper,
   PreviewLoadingGate,
+  UnsupportedPreviewCard,
   buildPreviewCacheKey,
 } from '@features/preview';
-import { base64ToArrayBuffer } from '@features/preview/mediaBlob';
 import { openMarkdownFileLink, openUrlByMethod } from '@features/preview/openByMethod';
 import { RevealHighlightLayers } from '@components/RevealHighlight';
 import { HeavyPreviewGate } from './HeavyPreviewGate';
 import { formatBytes } from '@root/design-system/html';
-import { type FileCategory, isMediaFileCategory, isOfficeTempFile } from './fileTypeRouter';
+import { type FileCategory, isOfficeTempFile, usesBinaryMediaChannel } from './fileTypeRouter';
 import {
   HEAVY_PREVIEW_BYTES,
   confirmHeavyPreview,
   isHeavyPreviewConfirmed,
 } from './heavyPreviewLimits';
-import type { WorkspaceMediaDocument } from '@adlo/kernel';
+import type { WorkspaceMediaSource } from '@adlo/kernel';
 import { useTCopy } from '@i18n/useTCopy';
 
 interface FilePreviewRenderersProps {
@@ -28,7 +28,7 @@ interface FilePreviewRenderersProps {
   fileCategory: FileCategory;
   fileContent: string | null;
   /** 二进制媒体文档（图片/音视频/办公）：image/audio/video/docx/pdf/spreadsheet/presentation 分支使用 */
-  fileMedia: WorkspaceMediaDocument | null;
+  fileMedia: WorkspaceMediaSource | null;
   /** 当前文件路径：markdown 预览 key 挂载用（切换文件重置滚动/状态，防串扰） */
   filePath?: string;
   /** 当前文件所属工作区：与 filePath 共同组成重型门确认 key（跨工作区同路径隔离） */
@@ -101,49 +101,154 @@ function PreviewSurface({
  * 大文件直接渲染阈值见 ./heavyPreviewLimits（媒体/办公分支与文本分支同源）。
  */
 
+type OfficeBytesState =
+  | { status: 'loading' }
+  | { status: 'ready'; data: ArrayBuffer }
+  | { status: 'error' };
+
 /**
- * 办公分支壳（Phase 4 审查 F3/S-01）：base64 解码只在分支挂载后执行——
- * 即重型门确认之后，确认前零解码、零 ArrayBuffer 分配。
+ * 办公分支壳（事项 7）：字节在分支挂载后按需 `fetch` —— 即重型门确认之后，
+ * 确认前零请求、零 ArrayBuffer 分配；也不再有 base64 体积上限。
  */
-function useOfficeBytes(fileMedia: WorkspaceMediaDocument | null): ArrayBuffer | null {
-  return useMemo(() => {
-    if (!fileMedia) {
-      return null;
+function useOfficeBytes(url: string): OfficeBytesState {
+  const [state, setState] = useState<OfficeBytesState>({ status: 'loading' });
+  useEffect(() => {
+    if (!url) {
+      setState({ status: 'error' });
+      return undefined;
     }
-    try {
-      return base64ToArrayBuffer(fileMedia.base64);
-    } catch {
-      return null;
-    }
-  }, [fileMedia]);
+    const controller = new AbortController();
+    let active = true;
+    setState({ status: 'loading' });
+    fetch(url, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`office fetch failed: ${response.status}`);
+        }
+        return response.arrayBuffer();
+      })
+      .then((buffer) => {
+        if (active) {
+          setState({ status: 'ready', data: buffer });
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setState({ status: 'error' });
+        }
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [url]);
+  return state;
 }
 
 type OfficeBranchKind = 'docx' | 'pdf' | 'spreadsheet' | 'presentation';
 
-/** 四个办公分支的通用壳：解码 + 按品类渲染，消除四份重复分支（B34 优化项）。 */
+const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04];
+const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46];
+
+/** 前 4 字节签名判定（Office/PDF 容器），用于在调解析库前给"可能已损坏"的明确出口。 */
+function hasMagic(bytes: ArrayBuffer, magic: number[]): boolean {
+  if (bytes.byteLength < magic.length) {
+    return false;
+  }
+  const head = new Uint8Array(bytes, 0, magic.length);
+  return magic.every((value, index) => head[index] === value);
+}
+
+function legacyExt(filePath: string): string {
+  const name = filePath.split(/[\\/]/).pop() ?? filePath;
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
+}
+
+/** 四个办公分支的通用壳：取字节（Range URL）+ 签名预检 + 按品类渲染。 */
 function OfficeBranch({
   fileMedia,
   kind,
   theme,
   cacheKey,
   gateStartedAt,
+  workspaceId,
 }: {
-  fileMedia: WorkspaceMediaDocument;
+  fileMedia: WorkspaceMediaSource;
   kind: OfficeBranchKind;
   theme: 'dark' | 'light';
   cacheKey?: string;
   gateStartedAt?: number | null;
+  workspaceId?: string;
 }) {
-  const { t } = useTCopy();
-  const data = useOfficeBytes(fileMedia);
-  // 解码失败不再静默 blank（收尾 F-06/H1）：base64 来自可信后端，
-  // 触发率极低，但空白面无任何反馈；此处给友好错误 + alert。
-  if (!data) {
+  const { t, formatT } = useTCopy();
+  // Hook 必须在分支前无条件调用（hooks 顺序稳定）：旧版占位 url 为空时，
+  // 该 hook 内部直接落 error 态，下面的 legacy 分支不会再使用它。
+  const bytes = useOfficeBytes(fileMedia.url);
+  // 旧版 OLE（.doc/.dot/.ppt）在 store 里已短路成 url='' 的占位：给转存指引，
+  // 不再走"取字节失败"（那是上一版的回归）。
+  if (!fileMedia.url) {
+    const suggest = kind === 'presentation' ? '.pptx' : '.docx';
     return (
-      <div className="adl-unsupported-preview" role="alert">
-        <span className="adl-unsupported-preview__text">{t.officeDecodeFailed as string}</span>
-      </div>
+      <UnsupportedPreviewCard
+        title={formatT(t, 'officeLegacyFormat', { suggest })}
+        filePath={fileMedia.path}
+        workspaceId={workspaceId}
+      />
     );
+  }
+
+  if (bytes.status === 'loading') {
+    return <PreviewLoadingGate active variant="plain" minVisibleMs={0} startedAt={gateStartedAt} />;
+  }
+  if (bytes.status === 'error') {
+    return (
+      <UnsupportedPreviewCard
+        title={t.officeDecodeFailed as string}
+        filePath={fileMedia.path}
+        workspaceId={workspaceId}
+        alert
+      />
+    );
+  }
+
+  const failWith = (title: string) => (
+    <UnsupportedPreviewCard
+      title={title}
+      filePath={fileMedia.path}
+      workspaceId={workspaceId}
+      alert
+    />
+  );
+
+  // ODP 是 ODF zip：pptx 解析库读不了，明确告知而不是留空白。
+  if (kind === 'presentation' && legacyExt(fileMedia.path) === 'odp') {
+    return failWith(t.changesPreviewNotSupported as string);
+  }
+
+  const data = bytes.data;
+  if (kind === 'pdf') {
+    if (!hasMagic(data, PDF_MAGIC)) {
+      return failWith(t.officeDecodeFailed as string);
+    }
+    return (
+      <LazyPdfPreviewWrapper
+        data={data}
+        theme={theme}
+        cacheKey={cacheKey}
+        gateStartedAt={gateStartedAt}
+      />
+    );
+  }
+  // OOXML（docx/xlsx/pptx）都是 zip 容器；签名不符即内容损坏。
+  if (!hasMagic(data, ZIP_MAGIC)) {
+    const unreadable =
+      kind === 'docx'
+        ? t.docxUnreadable
+        : kind === 'spreadsheet'
+          ? t.spreadsheetUnreadable
+          : t.presentationUnreadable;
+    return failWith(unreadable as string);
   }
   switch (kind) {
     case 'docx':
@@ -152,15 +257,6 @@ function OfficeBranch({
           data={data}
           theme={theme}
           fileName={fileMedia.path}
-          cacheKey={cacheKey}
-          gateStartedAt={gateStartedAt}
-        />
-      );
-    case 'pdf':
-      return (
-        <LazyPdfPreviewWrapper
-          data={data}
-          theme={theme}
           cacheKey={cacheKey}
           gateStartedAt={gateStartedAt}
         />
@@ -234,7 +330,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
   // 大文件确认门：超过分类阈值时先显示友好提示，用户点"仍然打开"才渲染。
   // 确认态模块级 Set 记忆（多文件往返不重复打扰），tick 仅触发重渲染。
   const [, setHeavyConfirmTick] = useState(0);
-  const heavyThreshold = HEAVY_PREVIEW_BYTES[fileCategory];
+  const heavyThreshold = fileCategory === 'binary' ? undefined : HEAVY_PREVIEW_BYTES[fileCategory];
   if (
     fileMedia &&
     heavyThreshold !== undefined &&
@@ -266,10 +362,8 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
     isOfficeTempFile(fileMedia.path)
   ) {
     return (
-      <UnsupportedPreview
-        editorSurfaceRef={editorSurfaceRef}
-        icon={svgBinary}
-        text={t.officeTempFileTitle as string}
+      <UnsupportedPreviewCard
+        title={t.officeTempFileTitle as string}
         hint={t.officeTempFileHint as string}
       />
     );
@@ -277,7 +371,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
 
   // 媒体加载骨架（Phase 4 审查 F4）：fileMedia 为空时区分"读取中"与"真空"，
   // 前者给扫光占位（不再显示“加载中…”文字），后者（失败/未发起）保持 null 由错误视图接管。
-  if (!fileMedia && fileMediaLoading && isMediaFileCategory(fileCategory)) {
+  if (!fileMedia && fileMediaLoading && usesBinaryMediaChannel(fileCategory)) {
     return (
       <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
         {/* 读取阶段的分支会随 fileMedia 到达被整体替换，组件内的最短展示时长无法兑现；
@@ -341,6 +435,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
           theme={theme}
           cacheKey={previewCacheKey}
           gateStartedAt={gateStartedAt}
+          workspaceId={workspaceId}
         />
       </PreviewSurface>
     );
@@ -348,11 +443,11 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
 
   if (fileCategory === 'binary') {
     return (
-      <UnsupportedPreview
-        editorSurfaceRef={editorSurfaceRef}
-        icon={svgBinary}
-        text={t.changesPreviewBinary as string}
-        hint={t.changesPreviewNotSupported as string}
+      <UnsupportedPreviewCard
+        title={t.changesPreviewNotSupported as string}
+        hint={t.changesPreviewBinary as string}
+        filePath={filePath}
+        workspaceId={workspaceId}
       />
     );
   }

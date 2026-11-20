@@ -3,7 +3,7 @@ import type { ChangesPanelProps } from '../types';
 import type { DiffEditorRef, EditorRef } from '@stores/types';
 
 import { detectEditorLanguage } from '@utils/workspacePaths';
-import { categorizeFile, isMediaFileCategory } from '../fileTypeRouter';
+import { categorizeFile, usesBinaryMediaChannel } from '../fileTypeRouter';
 import {
   classifyDiffTier,
   confirmHeavyPreview,
@@ -16,7 +16,7 @@ import { HeavyPreviewGate } from '../HeavyPreviewGate';
 import { formatBytes } from '@root/design-system/html';
 import { computePreviewDiffVisualRanges } from '@features/diff-viewer';
 import type { PreviewDiffCollapsedRange } from '@features/diff-viewer';
-import { LazyMarkdownPreviewWrapper, PreviewExternalActions } from '@features/preview';
+import { LazyMarkdownPreviewWrapper } from '@features/preview';
 import { resolvePreviewOwner } from '@features/preview/previewExternal';
 import { FilePreviewRenderers } from '../FilePreviewRenderers';
 import { openMarkdownFileLink, openUrlByMethod } from '@features/preview/openByMethod';
@@ -194,7 +194,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   // 只有文本变更才要求 changePreview 存在。
   const previewPath = changePreview?.path ?? selectedChangePreviewPath;
   const previewCategory = previewPath ? categorizeFile(previewPath) : undefined;
-  const isMediaPreview = previewCategory ? isMediaFileCategory(previewCategory) : false;
+  const isMediaPreview = previewCategory ? usesBinaryMediaChannel(previewCategory) : false;
   if (!changePreview && !isMediaPreview && previewCategory !== 'binary') {
     if (changePreviewLoading || changePreviewMediaLoading) {
       return <ChunkLoadingFallback />;
@@ -270,10 +270,6 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
                 >
                   {t.fileOpenErrorRetry as string}
                 </button>
-                <PreviewExternalActions
-                  filePath={previewPath}
-                  workspaceId={selectedChangePreviewWorkspaceId}
-                />
               </div>
             </div>
           ) : (

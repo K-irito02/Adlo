@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  isWebViewRenderableFile,
+  isBrowserTabViewableFile,
   openLocalFileInBrowser,
   resolveBrowserFileUrl,
   resolvePreviewOwner,
@@ -8,27 +8,33 @@ import {
 } from './previewExternal';
 import { useAppStore } from '@stores/slicedStore';
 
-describe('isWebViewRenderableFile', () => {
-  it('accepts Chromium-native formats', () => {
-    for (const path of ['a.mp4', 'dir/b.html', 'c.PDF', 'd.svg', 'e.png', 'f.webm']) {
-      expect(isWebViewRenderableFile(path), path).toBe(true);
+describe('isBrowserTabViewableFile', () => {
+  it('accepts HTML documents (internal renderer has none)', () => {
+    for (const path of ['a.html', 'dir/b.htm', 'c.XHTML']) {
+      expect(isBrowserTabViewableFile(path), path).toBe(true);
+    }
+  });
+
+  it('rejects media/images (streaming preview owns them, same Chromium decoder)', () => {
+    for (const path of ['a.mp4', 'b.mp3', 'c.jpg', 'd.svg', 'e.pdf', 'f.webm']) {
+      expect(isBrowserTabViewableFile(path), path).toBe(false);
     }
   });
 
   it('rejects formats WebView2 cannot render', () => {
     for (const path of ['a.zip', 'b.exe', 'c.docx', 'd.doc', 'e.ttf', 'f.odt']) {
-      expect(isWebViewRenderableFile(path), path).toBe(false);
+      expect(isBrowserTabViewableFile(path), path).toBe(false);
     }
   });
 
   it('rejects files without an extension or with a hidden name only', () => {
-    expect(isWebViewRenderableFile('Makefile')).toBe(false);
-    expect(isWebViewRenderableFile('.gitignore')).toBe(false);
-    expect(isWebViewRenderableFile(undefined)).toBe(false);
+    expect(isBrowserTabViewableFile('Makefile')).toBe(false);
+    expect(isBrowserTabViewableFile('.gitignore')).toBe(false);
+    expect(isBrowserTabViewableFile(undefined)).toBe(false);
   });
 
   it('normalizes windows separators', () => {
-    expect(isWebViewRenderableFile('C:\\ws\\clip.mp4')).toBe(true);
+    expect(isBrowserTabViewableFile('C:\\ws\\page.html')).toBe(true);
   });
 });
 

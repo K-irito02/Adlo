@@ -6,13 +6,13 @@ import type {
   RetrievalSnapshot,
   WorkspaceChangePreview,
   WorkspaceFileDocument,
-  WorkspaceMediaDocument,
   WorkspaceMeta,
   WorkspaceTreeNode,
   WorkspaceTreePayload,
 } from '@adlo/kernel';
 import { IpcErrorCode } from '../shared/ipc/shared';
-import { requestPreviewApi } from '../shared/ipc/preview-api';
+import { requestPreviewApi, PREVIEW_API_PREFIX } from '../shared/ipc/preview-api';
+import { probeMediaSource } from '../httpBridge';
 import {
   persistRecentWorkspaces,
   updateRecentWorkspaces,
@@ -20,6 +20,7 @@ import {
   persistActiveWorkspacePath,
 } from './preview-storage';
 import { repoMapEntriesToTree } from '../shared/repoMapFromEntries';
+import { joinPathSegments } from '../app/utils/workspacePaths';
 
 /** Preview bridge shared mutable context (subset previously exported by preview-context). */
 export interface PreviewWorkspaceContext {
@@ -242,15 +243,23 @@ export function createPreviewWorkspaceBridge(
       const params = new URLSearchParams({ rootPath: workspacePath, relativePath });
       return requestPreviewApi<WorkspaceFileDocument>(`/workspace/file?${params.toString()}`);
     },
-    readMediaFile: withWorkspace<WorkspaceMediaDocument, [string]>(
-      async (rootPath, relativePath) => {
-        const params = new URLSearchParams({ rootPath, relativePath });
-        return requestPreviewApi<WorkspaceMediaDocument>(`/workspace/media?${params.toString()}`);
-      },
-    ),
-    readMediaFileForWorkspace: async (workspacePath: string, relativePath: string) => {
-      const params = new URLSearchParams({ rootPath: workspacePath, relativePath });
-      return requestPreviewApi<WorkspaceMediaDocument>(`/workspace/media?${params.toString()}`);
+    mediaSource: async (workspacePath: string, relativePath: string) =>
+      // 浏览器模式：同源相对 URL，`<img>/<audio>/<video>` 直接引用即可（Range 由
+      // 预览服务的 `/workspace/media` 同构实现提供）。
+      probeMediaSource(`${PREVIEW_API_PREFIX}/workspace/media`, workspacePath, relativePath),
+    // 浏览器模式同样跑在本机：走预览服务的 `/system/open-file`（与桌面同语义）。
+    openInDefaultApp: async (
+      workspacePath: string,
+      relativePath: string,
+    ): Promise<IpcResult<boolean>> => {
+      const result = await requestPreviewApi<boolean>('/system/open-file', {
+        method: 'POST',
+        body: JSON.stringify({ path: joinPathSegments(workspacePath, relativePath) }),
+      });
+      if (!result.ok) {
+        return result;
+      }
+      return { ok: true, data: result.data ?? true };
     },
     getChangePreview: withWorkspace<WorkspaceChangePreview, [string]>(
       async (rootPath, relativePath) => {

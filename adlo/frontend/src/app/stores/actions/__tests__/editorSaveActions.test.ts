@@ -73,7 +73,7 @@ function bridge() {
 
 /** 额外桥接替身（保持强类型引用，避免类型擦除式断言 —— check-no-new-any）。 */
 const readFileForWorkspaceMock = vi.fn();
-const readMediaFileMock = vi.fn();
+const mediaSourceMock = vi.fn();
 
 describe('saveFile', () => {
   beforeEach(() => {
@@ -626,11 +626,11 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
         readFile: vi.fn(),
         setEditorDirtyPaths: vi.fn(async () => ({ ok: true, data: true })),
         readFileForWorkspace: readFileForWorkspaceMock,
-        readMediaFile: readMediaFileMock,
+        mediaSource: mediaSourceMock,
       },
     });
     readFileForWorkspaceMock.mockReset();
-    readMediaFileMock.mockReset();
+    mediaSourceMock.mockReset();
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -753,27 +753,27 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
     expect(after.externalFileChange).toBeUndefined();
   });
 
-  it('媒体预览：外部变更后重读字节并替换 fileMedia', async () => {
+  it('媒体预览：外部变更后重新解析来源并替换 fileMedia', async () => {
     const { store } = makeStore();
     store.setState({
       selectedFilePath: 'pic.png',
       fileMedia: {
         path: 'pic.png',
         mime: 'image/png',
-        base64: 'old',
         size: 3,
         lastModifiedAt: 1,
+        url: 'http://127.0.0.1:1/workspace/media?path=pic.png&v=1',
       },
       fileLastModifiedAt: 1,
     });
-    readMediaFileMock.mockImplementation(async () => ({
+    mediaSourceMock.mockImplementation(async () => ({
       ok: true as const,
       data: {
         path: 'pic.png',
         mime: 'image/png',
-        base64: 'new',
         size: 5,
         lastModifiedAt: 9,
+        url: 'http://127.0.0.1:1/workspace/media?path=pic.png&v=2',
       },
     }));
     handleExternalBatch(() => store.getState() as never, {
@@ -782,8 +782,11 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
       removed: [],
     });
     await vi.advanceTimersByTimeAsync(500);
-    expect(readMediaFileMock).toHaveBeenCalledWith('pic.png');
-    expect(store.getState().fileMedia).toMatchObject({ base64: 'new', lastModifiedAt: 9 });
+    expect(mediaSourceMock).toHaveBeenCalledWith(expect.any(String), 'pic.png');
+    expect(store.getState().fileMedia).toMatchObject({
+      url: 'http://127.0.0.1:1/workspace/media?path=pic.png&v=2',
+      lastModifiedAt: 9,
+    });
   });
 
   it('媒体预览：文件消失时清空为 NOT_FOUND 错误视图', async () => {
@@ -793,13 +796,13 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
       fileMedia: {
         path: 'pic.png',
         mime: 'image/png',
-        base64: 'old',
         size: 3,
         lastModifiedAt: 1,
+        url: 'http://127.0.0.1:1/workspace/media?path=pic.png',
       },
       fileLastModifiedAt: 1,
     });
-    readMediaFileMock.mockImplementation(async () => ({
+    mediaSourceMock.mockImplementation(async () => ({
       ok: false as const,
       error: { code: 'NOT_FOUND', message: 'file gone' },
     }));
@@ -823,7 +826,7 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
       removed: [],
     });
     await vi.advanceTimersByTimeAsync(500);
-    expect(readMediaFileMock).not.toHaveBeenCalled();
+    expect(mediaSourceMock).not.toHaveBeenCalled();
   });
 
   it('媒体重载：读盘期间切换选中时不写入旧文件', async () => {
@@ -833,7 +836,7 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
     const gate = new Promise((resolve) => {
       resolveRead = resolve;
     });
-    readMediaFileMock.mockImplementation(() => gate);
+    mediaSourceMock.mockImplementation(() => gate);
 
     handleExternalBatch(() => store.getState() as never, {
       rootPath: '/repo',
@@ -848,9 +851,9 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
       data: {
         path: 'pic.png',
         mime: 'image/png',
-        base64: 'new',
         size: 5,
         lastModifiedAt: 9,
+        url: 'http://127.0.0.1:1/workspace/media?path=pic.png',
       },
     });
     await Promise.resolve();
@@ -866,7 +869,7 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
     const gate = new Promise((resolve) => {
       resolveRead = resolve;
     });
-    readMediaFileMock.mockImplementation(() => gate);
+    mediaSourceMock.mockImplementation(() => gate);
 
     handleExternalBatch(() => store.getState() as never, {
       rootPath: '/repo',
@@ -882,9 +885,9 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
       data: {
         path: 'pic.png',
         mime: 'image/png',
-        base64: 'stale',
         size: 5,
         lastModifiedAt: 9,
+        url: 'http://127.0.0.1:1/workspace/media?path=pic.png',
       },
     });
     await Promise.resolve();
@@ -927,11 +930,11 @@ describe('handleExternalBatch git 元数据批次', () => {
         readFile: vi.fn(),
         setEditorDirtyPaths: vi.fn(async () => ({ ok: true, data: true })),
         readFileForWorkspace: readFileForWorkspaceMock,
-        readMediaFile: readMediaFileMock,
+        mediaSource: mediaSourceMock,
       },
     });
     readFileForWorkspaceMock.mockReset();
-    readMediaFileMock.mockReset();
+    mediaSourceMock.mockReset();
   });
 
   afterEach(() => {

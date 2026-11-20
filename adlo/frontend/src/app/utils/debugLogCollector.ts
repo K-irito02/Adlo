@@ -1,10 +1,10 @@
 /**
  * 调试日志收集器
- * 自动将所有 console 输出（log, warn, error, info, debug）写入文件或显示可拖拽复制按钮
+ * 自动将所有 console 输出（log, warn, error, info, debug）写入选定日志文件，
+ * 并暴露 `window.__dl*` API 供 Agent / 控制台读取（界面不再提供复制按钮）。
  */
 
 import { isTauriShell } from '../../tauri-bridge';
-import { loadLocale } from '@app/i18n/i18nLoader';
 import { resolveEffectiveDebugLogModeFromParts } from '@utils/debugLogMode';
 import type { LogMode } from '@shared/ipc-types.generated';
 
@@ -338,149 +338,6 @@ function restoreConsole() {
 }
 
 // ============================================
-// 可拖拽按钮功能
-// ============================================
-
-async function createDraggableCopyButton() {
-  if (typeof document === 'undefined') {
-    return;
-  }
-
-  // 缓存运行模式（窗口生命周期内不变）
-  const isTauri = isTauriShell();
-  const detectedLocale =
-    typeof navigator !== 'undefined' && navigator.language?.startsWith('zh') ? 'zh-CN' : 'en-US';
-  const i18n = await loadLocale(detectedLocale as 'zh-CN' | 'en-US');
-
-  // 移除已存在的按钮
-  const existing = document.getElementById('__dl-debug-button');
-  if (existing) {
-    existing.remove();
-  }
-
-  const btn = document.createElement('button');
-  btn.id = '__dl-debug-button';
-  btn.textContent = i18n.debugCopyLogs;
-  const initialTop = isTauri ? '36px' : '10px';
-  btn.style.cssText = `
-    position: fixed;
-    top: ${initialTop};
-    right: 10px;
-    z-index: var(--z-toast-top);
-    padding: 8px 16px;
-    background: #007acc;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: move;
-    font-size: 12px;
-    user-select: none;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-    transition: opacity 0.2s;
-  `;
-
-  // 拖拽状态
-  let hasMoved = false;
-  let isDragging = false;
-  let startX = 0;
-  let startY = 0;
-  let startLeft = 0;
-  let startTop = 0;
-
-  // 点击复制（只有非拖拽时才会触发）
-  btn.onclick = async (e) => {
-    if (hasMoved) {
-      return;
-    }
-    e.stopPropagation();
-    try {
-      const logs = exportLogsAsText();
-      try {
-        await navigator.clipboard.writeText(logs);
-      } catch {
-        const textarea = document.createElement('textarea');
-        textarea.value = logs;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-      }
-      btn.textContent = i18n.debugCopied;
-      btn.style.background = '#4caf50';
-      setTimeout(() => {
-        btn.textContent = i18n.debugCopyLogs;
-        btn.style.background = '#007acc';
-      }, 1500);
-    } catch (err) {
-      originalError('[DebugLogCollector] Failed to copy logs:', err);
-      btn.textContent = i18n.debugCopyFailed;
-      btn.style.background = '#f44336';
-      setTimeout(() => {
-        btn.textContent = i18n.debugCopyLogs;
-        btn.style.background = '#007acc';
-      }, 1500);
-    }
-  };
-
-  // 拖拽开始
-  btn.onmousedown = (e) => {
-    isDragging = true;
-    hasMoved = false;
-    startX = e.clientX;
-    startY = e.clientY;
-    const rect = btn.getBoundingClientRect();
-    startLeft = rect.left;
-    startTop = rect.top;
-    btn.style.cursor = 'grabbing';
-    btn.style.opacity = '0.8';
-  };
-
-  // 拖拽移动
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging) {
-      return;
-    }
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-      hasMoved = true;
-    }
-    const newLeft = Math.max(0, Math.min(startLeft + dx, window.innerWidth - btn.offsetWidth));
-    // Tauri 模式：top 最小 36px（标题栏高度）以避免与 data-tauri-drag-region 重叠
-    // Tauri 使用 elementsFromPoint API 穿透 z-index 检测后台拖拽区
-    const topMin = isTauri ? 36 : 0;
-    const newTop = Math.max(topMin, Math.min(startTop + dy, window.innerHeight - btn.offsetHeight));
-    btn.style.left = newLeft + 'px';
-    btn.style.top = newTop + 'px';
-    btn.style.right = 'auto';
-  };
-
-  // 拖拽结束
-  const handleMouseUp = () => {
-    if (isDragging) {
-      isDragging = false;
-    }
-    btn.style.cursor = 'move';
-    btn.style.opacity = '1';
-  };
-
-  document.addEventListener('mousemove', handleMouseMove);
-  document.addEventListener('mouseup', handleMouseUp);
-
-  // 按钮移除时清理事件监听
-  const originalRemove = btn.remove.bind(btn);
-  btn.remove = () => {
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
-    originalRemove();
-  };
-
-  document.body.appendChild(btn);
-}
-
-// ============================================
 // 初始化和暴露
 // ============================================
 
@@ -504,13 +361,6 @@ if (typeof window !== 'undefined') {
     }
     await writeLogsToProjectFile();
   };
-
-  // 页面加载后显示可拖拽按钮
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', createDraggableCopyButton, { once: true });
-  } else {
-    createDraggableCopyButton();
-  }
 }
 
 export { getDebugLogs, exportLogsAsText, clearLogs, restoreConsole };

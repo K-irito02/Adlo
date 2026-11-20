@@ -16,7 +16,7 @@ import type {
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
   WorkspaceFilesChangedBatch,
-  WorkspaceMediaDocument,
+  WorkspaceMediaSource,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
@@ -49,7 +49,7 @@ export type {
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
   WorkspaceFilesChangedBatch,
-  WorkspaceMediaDocument,
+  WorkspaceMediaSource,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
@@ -239,29 +239,37 @@ export interface WorkspaceBridge {
     relativePath: string,
   ) => Promise<IpcResult<WorkspaceFileDocument>>;
   /**
-   * 读取当前工作区内的二进制/媒体文件（图片/音视频/办公文档）
-   * @param relativePath 相对于工作区的路径
-   * @returns base64 字节 + MIME + 体积及元信息（50 MiB 上限，超限返回 InvalidInput）
-   * @command workspace_read_media_file（HTTP: POST /workspace/read-media）
-   * @see tauri-bridge.ts → workspace.readMediaFile（继承 http 实现）
-   * @see mock-bridge.ts → workspace.readMediaFile
-   * @see preview-bridge/index.ts → workspace.readMediaFile
-   */
-  readMediaFile: (relativePath: string) => Promise<IpcResult<WorkspaceMediaDocument>>;
-  /**
-   * 读取指定工作区内的二进制/媒体文件
+   * 解析媒体/办公文件的可寻址来源（图片/音视频/办公文档，事项 7）。
+   *
+   * 只做 HEAD 探测（存在性 + 体积 + MIME + mtime），**不传输字节**：返回的 `url`
+   * 指向 Range 流式端点，由 `<img>/<audio>/<video>` 或 Office/PDF 预览按需读取，
+   * 因此没有体积上限（旧的 base64 通道已移除）。
    * @param workspacePath 工作区的绝对路径
    * @param relativePath 相对于工作区的路径
-   * @returns base64 字节 + MIME + 体积及元信息
-   * @command workspace_read_media_file（HTTP: POST /workspace/read-media）
-   * @see tauri-bridge.ts → workspace.readMediaFileForWorkspace（继承 http 实现）
-   * @see mock-bridge.ts → workspace.readMediaFileForWorkspace
-   * @see preview-bridge/index.ts → workspace.readMediaFileForWorkspace
+   * @returns 可寻址的媒体来源；文件不存在返回 `NOT_FOUND`
+   * @command 无（HTTP: GET/HEAD /workspace/media）
+   * @see tauri-bridge.ts → workspace.mediaSource（继承 http 实现）
+   * @see mock-bridge.ts → workspace.mediaSource
+   * @see preview-bridge/index.ts → workspace.mediaSource
    */
-  readMediaFileForWorkspace: (
+  mediaSource: (
     workspacePath: string,
     relativePath: string,
-  ) => Promise<IpcResult<WorkspaceMediaDocument>>;
+  ) => Promise<IpcResult<WorkspaceMediaSource>>;
+  /**
+   * 用系统默认程序打开工作区内文件（桌面能力，仅 Tauri 壳实现）。
+   *
+   * 用途：内部预览与内置浏览器都解不了的编码（`.mkv` / `.avi` 等）交给系统播放器，
+   * 避免「无法解码」成为死路。路径在工作区内部完成越界校验，不做内容解析。
+   * 浏览器模式没有「系统默认应用」概念，返回 `NOT_SUPPORTED`（入口也会隐藏）。
+   * @param workspacePath 工作区的绝对路径
+   * @param relativePath 相对于工作区的路径
+   * @command workspace_open_in_default_app
+   * @see tauri-bridge.ts → workspace.openInDefaultApp
+   * @see mock-bridge.ts → workspace.openInDefaultApp
+   * @see preview-bridge/index.ts → workspace.openInDefaultApp
+   */
+  openInDefaultApp: (workspacePath: string, relativePath: string) => Promise<IpcResult<boolean>>;
   /**
    * 获取当前工作区内文件的变更预览 (diff)
    * @param relativePath 相对于工作区的路径

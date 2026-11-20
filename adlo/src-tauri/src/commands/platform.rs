@@ -65,6 +65,26 @@ pub fn workspace_open_in_file_manager(path: String) -> IpcResult<bool> {
     ipc(open_in_os_file_manager(&path).map(|()| true))
 }
 
+/// 用系统默认程序打开工作区内的一个文件（事项 9 后续）。
+///
+/// 用途：内部预览与内置浏览器都解不了的编码（`.mkv` / `.avi` 等）交给系统播放器，
+/// 而不是让用户对着「无法解码」无路可走。路径经 `get_absolute_path` 做工作区越界
+/// 校验（与其它工作区命令同一信任链），不做任何内容解析。
+#[tauri::command]
+pub fn workspace_open_in_default_app(
+    workspace_path: String,
+    relative_path: String,
+) -> IpcResult<bool> {
+    let absolute = match adl_workspace::get_absolute_path(
+        PathBuf::from(&workspace_path).as_path(),
+        &relative_path,
+    ) {
+        Ok(path) => path,
+        Err(error) => return ipc(Err(error)),
+    };
+    ipc(open_file(&absolute).map(|()| true))
+}
+
 /// Open any directory in the OS file manager ("关于" → 日志目录).
 /// Missing directories are created first so the target is always openable.
 #[tauri::command]

@@ -12,6 +12,7 @@ commands.allow = [
   "workspace_pick_directory",
   "workspace_reveal_in_file_manager",
   "workspace_open_in_file_manager",
+  "workspace_open_in_default_app",
   "platform_open_path",
   "app_save_file",
   "browser_create_for_tab",

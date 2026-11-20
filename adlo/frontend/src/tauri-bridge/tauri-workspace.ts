@@ -10,7 +10,7 @@ import { invokeIpc, subscribeChannel } from './tauri-shared';
  */
 export function createTauriWorkspaceBridge(): Pick<
   WorkspaceBridge,
-  'pickDirectory' | 'revealInFileManager' | 'onFileChanged'
+  'pickDirectory' | 'revealInFileManager' | 'openInDefaultApp' | 'onFileChanged'
 > {
   return {
     pickDirectory: async () => {
@@ -19,6 +19,10 @@ export function createTauriWorkspaceBridge(): Pick<
     },
     revealInFileManager: (workspacePath: string) =>
       invokeIpc<boolean>('workspace_reveal_in_file_manager', { path: workspacePath }),
+    // 系统默认程序打开（mkv/avi 等内置解码器不支持的编码）：纯壳体能力，
+    // 浏览器模式无对应语义 → HTTP/preview 桥返回 NOT_SUPPORTED。
+    openInDefaultApp: (workspacePath: string, relativePath: string) =>
+      invokeIpc<boolean>('workspace_open_in_default_app', { workspacePath, relativePath }),
     onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) =>
       subscribeChannel<WorkspaceFileChangedEvent>(
         'digital-life://workspace-file-changed',

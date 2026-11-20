@@ -364,9 +364,9 @@ describe('openMediaFileGeneric', () => {
     const media = {
       path: 'clip.mp4',
       mime: 'video/mp4',
-      base64: 'AAECAw==',
       size: 4,
       lastModifiedAt: 7,
+      url: 'http://127.0.0.1:1/workspace/media?path=clip.mp4',
     };
 
     const opened = await openMediaFileGeneric(
@@ -376,7 +376,7 @@ describe('openMediaFileGeneric', () => {
       getNextFileRequestSeq(),
       {
         workspaceId: 'ws-1',
-        readMediaFile: () => Promise.resolve({ ok: true, data: media }) as never,
+        mediaSource: () => Promise.resolve({ ok: true, data: media }) as never,
       },
     );
 
@@ -402,7 +402,7 @@ describe('openMediaFileGeneric', () => {
       getNextFileRequestSeq(),
       {
         workspaceId: 'ws-1',
-        readMediaFile: () =>
+        mediaSource: () =>
           Promise.resolve({
             ok: false,
             error: { code: 'INVALID_INPUT', message: 'too large' },
@@ -475,7 +475,7 @@ describe('cross-type open race', () => {
     const textGate = deferred<{ ok: true; data: { content: string; lastModifiedAt: number } }>();
     const mediaGate = deferred<{
       ok: true;
-      data: { path: string; mime: string; base64: string; size: number; lastModifiedAt: number };
+      data: { path: string; mime: string; size: number; lastModifiedAt: number; url: string };
     }>();
 
     const textPending = openFileGeneric(
@@ -496,13 +496,19 @@ describe('cross-type open race', () => {
       getNextFileRequestSeq(),
       {
         workspaceId: 'ws-1',
-        readMediaFile: () => mediaGate.promise as never,
+        mediaSource: () => mediaGate.promise as never,
       },
     );
 
     mediaGate.resolve({
       ok: true,
-      data: { path: 'fast.mp4', mime: 'video/mp4', base64: 'AA==', size: 1, lastModifiedAt: 1 },
+      data: {
+        path: 'fast.mp4',
+        mime: 'video/mp4',
+        size: 1,
+        lastModifiedAt: 1,
+        url: 'http://127.0.0.1:1/workspace/media?path=fast.mp4',
+      },
     });
     await mediaPending;
     expect(get().selectedFilePath).toBe('fast.mp4');
@@ -525,7 +531,7 @@ describe('fileMediaLoading flag', () => {
     });
     const gate = deferred<{
       ok: true;
-      data: { path: string; mime: string; base64: string; size: number; lastModifiedAt: number };
+      data: { path: string; mime: string; size: number; lastModifiedAt: number; url: string };
     }>();
 
     const pending = openMediaFileGeneric(
@@ -535,14 +541,20 @@ describe('fileMediaLoading flag', () => {
       getNextFileRequestSeq(),
       {
         workspaceId: 'ws-1',
-        readMediaFile: () => gate.promise as never,
+        mediaSource: () => gate.promise as never,
       },
     );
     expect((get() as unknown as { fileMediaLoading: boolean }).fileMediaLoading).toBe(true);
 
     gate.resolve({
       ok: true,
-      data: { path: 'clip.mp4', mime: 'video/mp4', base64: 'AA==', size: 1, lastModifiedAt: 1 },
+      data: {
+        path: 'clip.mp4',
+        mime: 'video/mp4',
+        size: 1,
+        lastModifiedAt: 1,
+        url: 'http://127.0.0.1:1/workspace/media?path=clip.mp4',
+      },
     });
     await pending;
     expect((get() as unknown as { fileMediaLoading: boolean }).fileMediaLoading).toBe(false);
@@ -835,22 +847,22 @@ describe('openChangePreviewGeneric 媒体/办公分支（事项4）', () => {
     return {
       path,
       mime: 'video/mp4',
-      base64: 'AAAA',
       size: 4,
       lastModifiedAt: 1,
+      url: `http://127.0.0.1:1/workspace/media?path=${encodeURIComponent(path)}`,
     };
   }
 
-  function stubMediaRead(impl: () => Promise<unknown>) {
+  function stubMediaRead(impl: (workspacePath: string, relativePath: string) => Promise<unknown>) {
     vi.stubGlobal('digitalLife', {
-      workspace: { readMediaFileForWorkspace: vi.fn(impl), readMediaFile: vi.fn(impl) },
+      workspace: { mediaSource: vi.fn(impl) },
     });
   }
 
-  it('媒体变更走字节读取并把结果写入 changePreviewMedia', async () => {
+  it('媒体变更走来源解析并把结果写入 changePreviewMedia', async () => {
     const { set, get } = setup({ selectedChangePreviewPath: 'old.ts' } as never);
     const read = vi.fn(async () => ({ ok: true, data: media('clip.mp4') }));
-    vi.stubGlobal('digitalLife', { workspace: { readMediaFileForWorkspace: read } });
+    vi.stubGlobal('digitalLife', { workspace: { mediaSource: read } });
 
     await openChangePreviewGeneric(
       set as never,
@@ -906,10 +918,10 @@ describe('openChangePreviewGeneric 媒体/办公分支（事项4）', () => {
     });
   });
 
-  it('旧版 OLE 办公不读字节，直接落占位媒体文档', async () => {
+  it('旧版 OLE 办公不解析字节，直接落占位媒体来源', async () => {
     const { set, get } = setup({} as never);
     const read = vi.fn(async () => ({ ok: true, data: media('legacy.doc') }));
-    vi.stubGlobal('digitalLife', { workspace: { readMediaFileForWorkspace: read } });
+    vi.stubGlobal('digitalLife', { workspace: { mediaSource: read } });
 
     await openChangePreviewGeneric(
       set as never,
@@ -926,7 +938,7 @@ describe('openChangePreviewGeneric 媒体/办公分支（事项4）', () => {
 
     expect(read).not.toHaveBeenCalled();
     const state = get();
-    expect(state.changePreviewMedia?.base64).toBe('');
+    expect(state.changePreviewMedia?.url).toBe('');
     expect(state.changePreviewMedia?.path).toBe('legacy.doc');
   });
 

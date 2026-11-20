@@ -11,6 +11,7 @@ use tauri::webview::PageLoadEvent;
 use tracing::info;
 
 mod adl_server;
+mod app_identity;
 mod commands;
 mod error;
 mod setup;
@@ -22,6 +23,10 @@ const BROWSER_TITLE_SCRIPT: &str = include_str!("../scripts/browser-title-eval.j
 
 fn main() {
     tracing::info!("[ADL-PERF] app start");
+
+    // 应用身份（AUMID）必须在窗口 / WebView2 创建前落定：WebView2 在宿主未设置时会
+    // 自造一个未注册的 AUMID，Windows 媒体卡片因此显示「未知应用」且没有图标（事项 17）。
+    app_identity::init_app_identity();
 
     // CLI 日志覆盖（session-only，不写 config.json）：解析成环境变量，供本 shell 与
     // 它派生的 adl-server 子进程共同读取（子进程继承环境变量）。
@@ -84,6 +89,11 @@ fn main() {
                 // 窗口配置了 visible: false，在页面加载完成后才显示窗口，
                 // 消除 WebView2 默认白色背景导致的启动闪烁。
                 let window = webview.window();
+                // 事项 17：WebView2 会在创建期给根窗口写入「生成的 AUMID」，系统媒体卡片
+                // 也因此显示「未知应用」。WebView 就绪后再写一次窗口身份，覆盖该生成值。
+                if let Some(webview_window) = webview.app_handle().get_webview_window("main") {
+                    app_identity::apply_window_identity(&webview_window);
+                }
                 let _ = window.show();
                 tracing::info!("[ADL-PERF] main window shown after page load");
             }
@@ -148,6 +158,7 @@ fn main() {
             commands::workspace::workspace_pick_directory,
             commands::file_save::app_save_file,
             commands::platform::workspace_reveal_in_file_manager,
+            commands::platform::workspace_open_in_default_app,
             commands::browser::browser_create_for_tab,
             commands::browser::browser_activate_tab,
             commands::browser::browser_destroy_tab,

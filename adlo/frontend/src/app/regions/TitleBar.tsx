@@ -99,7 +99,7 @@ const TitleBar = React.memo(function TitleBar({
           >
             <button
               type="button"
-              className="adl-icon-btn adl-iconstrip__button"
+              className={`adl-icon-btn adl-iconstrip__button${isOpeningWorkspace ? ' is-loading' : ''}`}
               onClick={onOpenFolder}
               disabled={isOpeningWorkspace}
               aria-label={isOpeningWorkspace ? t.loading : t.addWorkspace}
