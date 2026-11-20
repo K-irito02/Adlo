@@ -5,7 +5,7 @@ export const aboutEn = {
   // Colophon
   aboutVersion: 'Version {version}',
   aboutAppNameZh: '安洛',
-  aboutTagline: 'A desktop host that integrates third-party agent harnesses.',
+  aboutTagline: 'Let ideas stop being just ideas — let them become real.',
   aboutLicenseLine: 'Released under the MIT License.',
   aboutRepository: 'GitHub',
   aboutGiteeRepository: 'Gitee',

@@ -5,7 +5,7 @@ export const aboutZh = {
   // Colophon
   aboutVersion: '版本 {version}',
   aboutAppNameZh: '安洛',
-  aboutTagline: '桌面应用宿主，集成第三方 Agent harness',
+  aboutTagline: '让想法不再是想法，让想法变成现实',
   aboutLicenseLine: '基于 MIT 许可证发布',
   aboutRepository: 'GitHub',
   aboutGiteeRepository: 'Gitee',

@@ -111,7 +111,7 @@ const aboutT = new Proxy({} as Record<string, string>, {
       case 'aboutAppNameZh':
         return '安洛';
       case 'aboutTagline':
-        return '桌面应用宿主，集成第三方 Agent harness。';
+        return '让想法不再是想法，让想法变成现实';
       case 'aboutLicenseLine':
         return '基于 MIT 许可证发布。';
       case 'aboutRepository':

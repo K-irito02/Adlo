@@ -7,11 +7,11 @@
 
 ## 1. 目标与边界
 
-「关于」回答的是**这个应用自己是什么**，不是「用户机器上装了什么」。
+「关于」回答的是**这个应用自己是什么**，不是「用户机器上装了什么」；标签行只放一句独立的愿景，不承担产品介绍。
 
 | 展示 | 不展示 |
 |------|--------|
-| 应用名、版本、一句定位 | Node.js / Git / Bash / DSH / OpenCode CLI 的版本（属「环境」组，随用户安装时机变化） |
+| 应用名、版本、一句愿景（格言） | Node.js / Git / Bash / DSH / OpenCode CLI 的版本（属「环境」组，随用户安装时机变化） |
 | 应用运行时（Tauri / 渲染引擎 / OS / 架构） | 构建 commit / 构建时间（仅进诊断单，见 §5） |
 | GitHub / Gitee（同一行）/ 问题反馈（居中独占下一行；按网络选择 GitHub 或 Gitee） | 「检查更新」（当前无更新通道，不做假按钮） |
 | 许可（MIT 全文，独立弹窗） | 商标声明（未注册，不写 `®`） |
@@ -26,7 +26,7 @@
 ```
 [图标]  Adlo · 安洛
         版本 0.1.0
-        桌面应用宿主。
+        让想法不再是想法，让想法变成现实
         基于 MIT 许可证发布。
         ───
         GitHub   Gitee          （同一行）
@@ -42,6 +42,7 @@
 - 仓库两个入口同一行（`.adl-about__links-row`）；「问题反馈」独占下一行并水平居中
   （父级 `.adl-about__links` 为 column，行内 `justify-content: center`）——2026-11-19 用户指定。
 - 内容宽 280px 上限，右面板 320px 起仍成立。
+- 标签行（`aboutTagline`）是一句独立愿景（格言），不承担产品介绍；产品定义以 README / GLOSSARY 为准。
 - 组件：`app/features/about/AboutSettings.tsx`；样式：`styles/regions/about-settings.css`。
 - 图标：`public/adlo-icon.png` 是 `src-tauri/icons/128x128.png` 的副本（Vite 不能直接引用 `src-tauri`），
   同时用于关于页、开屏与窗口图标；更换应用图标时两处同时替换（发布清单含该项复核）。
