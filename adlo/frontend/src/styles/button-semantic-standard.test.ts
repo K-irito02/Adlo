@@ -42,9 +42,17 @@ describe('按钮语义色与加载态标准（石墨墨水 / 全柔和 / 2px / �
     // 不带 :not([class*='-soft']) 的通用覆盖（0-2-0+）会压过 .adl-btn 的 --btn-*，
     // 导致 FileCreationDialog 的 primary-soft 名存实亡。
     expect(exactRuleBody(composerCoreCss, '.adl-prompt-modal .adl-btn')).toBeNull();
-    expect(
-      exactRuleBody(composerCoreCss, ".adl-prompt-modal .adl-btn:not([class*='-soft'])"),
-    ).not.toBeNull();
+    const legacy = exactRuleBody(
+      composerCoreCss,
+      ".adl-prompt-modal .adl-btn:not([class*='-soft'])",
+    );
+    expect(legacy).not.toBeNull();
+    // 只允许自定义属性：直接写 background/color 会压过忙碌扫光（同特异性、更晚加载），
+    // 使文字被 background-clip:text 填成底色而不可见。
+    expect(legacy).toContain('--btn-bg:');
+    expect(legacy).toContain('--btn-fg:');
+    expect(legacy).not.toMatch(/^\s*background:/m);
+    expect(legacy).not.toMatch(/^\s*color:/m);
     expect(
       exactRuleBody(
         composerCoreCss,

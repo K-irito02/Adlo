@@ -40,9 +40,10 @@ describe('useBrowserFolderReorder history root', () => {
   it('非空历史折叠时 allTreeExpanded 为 false', () => {
     useAppStore.setState({
       recentWorkspaces: [],
-      browserBookmarkFolders: [],
+      // 一个已展开的非历史条目：确保结果由 history 的折叠态决定，而不是空集合提前返回 false。
+      browserBookmarkFolders: [{ id: 'f1', name: 'f', parentId: undefined }] as never,
       browserHistory: [{ id: 'h1', url: 'https://a', title: 'a', visitedAt: 1 }] as never,
-      browserTabTreeExpanded: { 'history:root': false },
+      browserTabTreeExpanded: { 'history:root': false, 'folder:f1': true },
     });
     const { result } = renderHook(() => useBrowserFolderReorder());
 

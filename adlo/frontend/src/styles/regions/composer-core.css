@@ -156,14 +156,16 @@
 }
 
 /* prompt 对话框的既有紧凑按钮外观（ghost/primary 等）保持原样；
-   语义 soft 变体必须排除在外，让 button.css 的 --btn-* token 生效
-   （否则 0-3-0 会压过 .adl-btn 的 soft 底色）。 */
+   语义 soft 变体必须排除在外，让 button.css 的 --btn-* token 生效。
+   只用自定义属性、不写 background/color：忙碌态规则（0-3-0，同特异性）
+   需要直接接管 background/color 做扫光，直接声明会把文字变成不可见。 */
 .adl-prompt-modal .adl-btn:not([class*='-soft']) {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
+  --btn-bg: var(--bg-elevated);
+  --btn-fg: var(--text-primary);
+  --btn-bd: transparent;
   border: none;
 }
 
 .adl-prompt-modal .adl-btn:not([class*='-soft']):hover:not(:disabled) {
-  background: var(--bg-hover);
+  --btn-bg: var(--bg-hover);
 }
