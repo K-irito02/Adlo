@@ -31,6 +31,11 @@ adlo/
 | `frontend/dev/previewWorkspaceService/` | 浏览器开发态服务端 API 目录（index + 按域模块，含文件操作、Git、工作区管理等） |
 | `frontend/dev/previewTerminalService.ts` | 浏览器开发态终端服务（Node.js `child_process.spawn` + `/pty/output-since` 增量输出接口） |
 
+## 桌面壳（src-tauri）要点
+
+- **取主窗口做系统集成**（媒体卡片 / 焦点 / DWM / 原生句柄）用 `app.get_window("main")`；`get_webview_window("main")` 在本仓存在浏览器标签子 WebView 时返回 `None`（2026-11-20 实测一次「恢复的标签页没有媒体卡片」往返）。SMTC 实现在 `src-tauri/src/commands/media_session.rs`，诊断入口 `cargo run -p adlo --example smtc-probe`。
+- 系统媒体卡片的运行时约束（关闭 Chromium `MediaSessionService`、浏览器标签镜像进宿主 SMTC）见 [知识库记录](../../docs/knowledge-base/code-quality/frontend-render-pitfalls-2026-10-18.md)。
+
 ## Crates 层
 
 | crate | 职责 |

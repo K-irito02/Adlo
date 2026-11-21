@@ -22,6 +22,7 @@ alwaysApply: false
 | `pnpm run worktree:env` | 输出并行开发所需的 `[ENV]` 快照（分支 / base / dirty / instance / hooks / graph）；加 `-- --all` 追加 `[WORKTREES]` 全仓对照表 |
 | `pnpm run worktree:disk` | 跨工作树磁盘报告（target / debug / release / `.adl-instance` / node_modules）；`-- --clean` 清产物，`-- --dry-run` 预览 |
 | `pnpm run worktree:sessions` | 会话注册表巡检；`-- --reap --older-than 3d` 把 stale `active` 改为 `paused`（人类运行） |
+| `pnpm run push:both -- <branch…>` | 一次推 `origin` + `gitee`；第二个远程跳过重复 pre-push（同一批 SHA 已过门禁），结束用 `ls-remote` 校验两端 SHA |
 | `pnpm run build` | 构建所有包 |
 | `pnpm run start` | 启动已构建应用 |
 | `pnpm run notices:generate` | 重新生成「关于 → 第三方声明」的全量依赖许可清单（离线加 `-- --offline`；缺元数据默认拒绝写盘，`-- --allow-partial` 显式放行） |
@@ -87,6 +88,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `pnpm --dir frontend run check:i18n` | 前端 i18n 覆盖检查（CI 门禁） |
 | `pnpm --dir frontend run check:changed` | 受影响范围门禁（前端 + 自动带 Rust 受影响 crate 的 fmt/clippy/test） |
 | `pnpm --dir frontend run check:changed -- --base HEAD` | 修复循环只查本轮改动；最终提交前去掉 `--base` |
+| `pnpm run check:comment-claims` | 新增代码注释里的绝对/计数断言（`唯一`/`总是`/`覆盖 N 个用例`…）；行尾 `claim-allow: <证据>` 放行，`check:changed` 自动执行 |
 | `pnpm run cargo:test` | Rust 全量测试（内部先 `stage:sidecar`；裸 `cargo test --workspace` 需先 staging） |
 | `cargo test -p <crate>` | Rust 指定 crate 测试 |
 | `cargo test -p <crate> <test_name>` | Rust 按名称过滤测试（限定 crate，避免编译壳层） |
@@ -99,6 +101,12 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `pnpm --dir e2e run test:smoke` | 只跑 `specs/smoke.spec.ts` |
 
 **桌面 E2E（opt-in）**：需 `pnpm install`（`e2e` 为独立 workspace 包）且端口 4445 空闲；**不进** `check:all`，仅在桌面-only 改动或用户要求时跑。排障与用例规则见技能 `desktop-e2e-wdio`。
+
+### 桌面壳诊断（Windows 系统集成）
+
+| 命令 | 用途 |
+|------|------|
+| `cargo run -p adlo --example smtc-probe` | 打印当前 Windows 媒体会话的 AUMID/标题与顶层窗口 AUMID（系统媒体卡片排查：会话是否存在、窗口身份是否写入）；需先起桌面实例并有媒体播放/暂停 |
 
 > **长门禁的输出**：`check:changed` / `check:repo` 是分阶段打印的，但**管道 `| Select-Object -Last N` 会缓冲到进程退出**，看起来像挂起（2026-11-19 实测：1 分钟输出文件仍为 0 字节，误判后杀掉了一次健康运行）。改为 `... > $env:TEMP\<name>.log 2>&1`（或后台运行）后读 tail；需要实时观察时不要接管道。
 

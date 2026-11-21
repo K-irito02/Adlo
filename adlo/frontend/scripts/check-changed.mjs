@@ -252,15 +252,12 @@ run('typecheck (dev tooling)', 'npx tsc --noEmit -p dev/tsconfig.json');
 // 最后一次提交才暴露（2026-11-15 R2 实测 22 处）。
 run('store cast ratchet', `node ../scripts/check-no-new-any.mjs --base ${quote(base)}`);
 
-if (process.env.ADL_SKIP_RUST === '1') {
-  console.log('[check:changed] rust skipped (ADL_SKIP_RUST=1)');
-} else if (rustChanged) {
-  const baseArg = options.base ? ` --base ${quote(options.base)}` : '';
-  run('rust (affected crates)', `node ../scripts/check-rust-changed.mjs${baseArg}`);
-} else {
-  console.log('[check:changed] rust skipped (no Rust changes)');
-}
-
+// 秒级检查先跑（i18n / 注释断言 / 术语表 / 文档），失败即停：这些检查放在 Rust 与
+// vitest 之后时，一处措辞错误会让整条门禁重跑一遍（2026-11-21 retro 实测多花约 5 分钟）。
+run(
+  'comment claims (new code comments)',
+  `node ../scripts/check-comment-claims.mjs --base ${quote(base)}`,
+);
 run('i18n coverage', 'npx tsx scripts/check-i18n-coverage.ts');
 run('i18n orphan regressions', 'npx tsx scripts/check-i18n-orphans.ts --changed');
 run('no bare CJK source', 'node scripts/check-no-cjk-source.mjs');
@@ -274,6 +271,16 @@ if (docsChanged.length > 0) {
 } else {
   console.log('[check:changed] docs checks skipped (no docs/rules changes)');
 }
+
+if (process.env.ADL_SKIP_RUST === '1') {
+  console.log('[check:changed] rust skipped (ADL_SKIP_RUST=1)');
+} else if (rustChanged) {
+  const baseArg = options.base ? ` --base ${quote(options.base)}` : '';
+  run('rust (affected crates)', `node ../scripts/check-rust-changed.mjs${baseArg}`);
+} else {
+  console.log('[check:changed] rust skipped (no Rust changes)');
+}
+
 run('generated artifacts', 'node scripts/generate-md-theme-vars.mjs');
 run(
   'generated artifact drift',

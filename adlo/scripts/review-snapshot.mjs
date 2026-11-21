@@ -25,6 +25,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { findLatestProgressFile, hasP3P4Approval } from "./check-review-gate.mjs";
+import { claimKind, isCommentLine } from "./comment-claims.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..", "..");
@@ -200,14 +201,6 @@ function stageIntentToAdd(allowUntracked) {
   return untracked.length;
 }
 
-/** 注释里的「绝对断言」：默认门控，确认后由 claims-ack 放行。 */
-const CLAIM_PATTERN =
-  /必然|总是|永远|从不|唯一|一定|不可达|不会走到|所有[^，。；]*都|全部[^，。；]*都|都会|一律|always|never|unreachable/i;
-/** 「数字断言」：注释/文案里的计数容易随代码漂移（本次实测 3 处），与绝对断言同等门控。 */
-const NUMERIC_CLAIM_PATTERN =
-  /\b\d+\s*(?:files?|tests?|passed)\b|\d+\s*个(?:用例|测试|文件|入口|步骤)|上限\s*\d+/i;
-const COMMENT_LINE_PATTERN = /^\s*(\/\/|\/\*|\*|<!--)/;
-
 /**
  * 从本轮快照里挑出「新增注释 + 断言类措辞」的行，写 `claims-rev<N>.md`。
  *
@@ -239,12 +232,8 @@ export function collectClaimHints(files, outDir, rev) {
       }
       if (line.startsWith("+")) {
         const text = line.slice(1);
-        if (COMMENT_LINE_PATTERN.test(text)) {
-          const kind = CLAIM_PATTERN.test(text)
-            ? "absolute"
-            : NUMERIC_CLAIM_PATTERN.test(text)
-              ? "numeric"
-              : null;
+        if (isCommentLine(text)) {
+          const kind = claimKind(text);
           if (kind) {
             hints.push({ file, line: newLine, text: text.trim(), kind });
           }
@@ -374,10 +363,16 @@ export function writeClaimAckTemplate(ackPath, rev, hints) {
     const carry =
       !existingChecked.has(key) && (priorCheckedKeys.has(key) || priorText.has(hit.text));
     const checked = existingChecked.has(key) || carry;
-    const suffix = checked && !existingChecked.has(key) ? "（carried over from previous rev）" : "";
+    const CARRIED_SUFFIX = "（carried over from previous rev）";
+    const suffix = checked && !existingChecked.has(key) ? CARRIED_SUFFIX : "";
     // 人工写下的证据优先于断言原文：脚本重写模板时曾把「- [x] file:line — 证据：…」
     // 覆写成断言原文，审查方因此看不到放行理由（2026-11-14 retro）。
-    const custom = existingCheckedText.get(key) ?? priorEvidence.get(key) ?? "";
+    // 跨 rev 携带的证据里可能已经带过 carried 后缀；先剥掉再决定是否追加，
+    // 否则会逐轮累积成「（carried…）（carried…）…」（2026-11-21 retro）。
+    const custom = (existingCheckedText.get(key) ?? priorEvidence.get(key) ?? "")
+      .split(CARRIED_SUFFIX)
+      .join("")
+      .trim();
     const keepCustom = custom.length > 0 && !custom.startsWith(hit.text);
     body.push(`- ${checked ? "[x]" : "[ ]"} ${key} — ${keepCustom ? custom : hit.text}${suffix}`);
   }

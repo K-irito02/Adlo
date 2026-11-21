@@ -80,6 +80,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+// 满载并行（254 文件）时这套用例偶发超过默认 5s；单独跑稳定通过。
+// 2026-11-21 retro：优先放大超时，而不是隔离进 flaky 清单。
 describe('BrowserTreeEntryFlatList 窗口化', () => {
   it('首屏只渲染一页，哨兵进入视口后追加下一页', () => {
     const { container } = renderList(makeItems(100));
@@ -89,13 +91,13 @@ describe('BrowserTreeEntryFlatList 窗口化', () => {
     const observer = MockIntersectionObserver.instances.at(-1)!;
     act(() => observer.trigger());
     expect(container.querySelectorAll('.adl-filetree__row')).toHaveLength(100);
-  });
+  }, 15000);
 
   it('数据量小于一页时全部渲染，不输出哨兵', () => {
     const { container } = renderList(makeItems(10));
     expect(container.querySelectorAll('.adl-filetree__row')).toHaveLength(10);
     expect(container.querySelector('.adl-browser-entry__flat-sentinel')).toBeNull();
-  });
+  }, 15000);
 
   it('同长度的数据变化也重置回一页', () => {
     const { container, rerender } = renderList(makeItems(90));
@@ -120,7 +122,7 @@ describe('BrowserTreeEntryFlatList 窗口化', () => {
       </TCopyProvider>,
     );
     expect(container.querySelectorAll('.adl-filetree__row')).toHaveLength(FLAT_LIST_PAGE_SIZE);
-  });
+  }, 15000);
 
   it('内容相同的重建（元数据刷新）不重置窗口', () => {
     const { container, rerender } = renderList(makeItems(90));
@@ -144,7 +146,7 @@ describe('BrowserTreeEntryFlatList 窗口化', () => {
       </TCopyProvider>,
     );
     expect(container.querySelectorAll('.adl-filetree__row')).toHaveLength(90);
-  });
+  }, 15000);
 
   it('选中项在窗口之外时仍纳入渲染，并暴露 setsize/posinset', () => {
     const items = makeItems(90);
@@ -156,5 +158,5 @@ describe('BrowserTreeEntryFlatList 窗口化', () => {
     expect(selectedRow).not.toBeNull();
     expect(selectedRow?.getAttribute('aria-setsize')).toBe('90');
     expect(selectedRow?.getAttribute('aria-posinset')).toBe('86');
-  });
+  }, 15000);
 });

@@ -4,6 +4,29 @@ import { readFileSync } from "node:fs";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
+test("comment claims and fast checks run before the slow legs in check:changed", () => {
+  const text = readFileSync(
+    new URL("../frontend/scripts/check-changed.mjs", import.meta.url),
+    "utf8",
+  );
+  // 2026-11-21 retro：措辞类失败必须排在 Rust / vitest 之前，避免整条门禁重跑。
+  const rustLeg = text.indexOf("run('rust (affected crates)'");
+  assert.ok(rustLeg > 0, "rust leg must be identifiable in check:changed");
+  for (const fast of ["check-comment-claims.mjs", "check-i18n-coverage.ts", "check-glossary.ts"]) {
+    const fastAt = text.indexOf(fast);
+    assert.ok(fastAt > 0, `${fast} must be wired into check:changed`);
+    assert.ok(fastAt < rustLeg, `${fast} must run before the Rust leg (fast checks first)`);
+  }
+});
+
+test("push:both pushes both remotes and verifies the resulting SHAs", () => {
+  assert.equal(pkg.scripts["push:both"], "node ./scripts/push-both.mjs");
+  const text = readFileSync(new URL("./push-both.mjs", import.meta.url), "utf8");
+  assert.match(text, /origin/);
+  assert.match(text, /gitee/);
+  assert.match(text, /ls-remote/);
+});
+
 test("check:all includes the full frontend gate (static + tests)", () => {
   assert.match(pkg.scripts["check:all"], /frontend:check:full/);
   assert.equal(pkg.scripts["frontend:check:full"], "pnpm --dir frontend run check:full");
