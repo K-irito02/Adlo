@@ -312,9 +312,11 @@ export function useWorkspaceChangesActions({
             actions: [
               {
                 label: t.changesPushRetry,
-                run: () => {
-                  void beginPush();
-                  return true;
+                // 重新走完整预检；返回 false 表示“由本次重试推进”，卡片交给
+                // 成功清理 / 失败重新上报，不在动作返回时抢先关闭。
+                run: async () => {
+                  await beginPush();
+                  return false;
                 },
               },
             ],

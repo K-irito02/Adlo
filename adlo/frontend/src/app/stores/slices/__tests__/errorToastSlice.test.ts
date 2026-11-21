@@ -183,18 +183,6 @@ describe('errorToastSlice 队列上限（keepVisibleFirst 回归，Phase 4 F9）
     expect(current()).toHaveLength(0);
   });
 
-  it('supports prefix clearing for grouped scopes (git:push:<ws>)', () => {
-    const { slice, current } = makeSlice();
-    slice.reportError('WORKSPACE_ERROR', 'push failed', 'git:push:ws-1');
-    slice.reportError('WORKSPACE_ERROR', 'branch list failed', 'git:push:ws-1');
-    slice.reportError('WORKSPACE_ERROR', 'other workspace', 'git:push:ws-2');
-    slice.reportError('WORKSPACE_ERROR', 'pull failed', 'git:pull:ws-1');
-
-    slice.clearErrorToasts('git:push:ws-1', { prefix: true });
-
-    expect(current().map((t) => t.detail)).toEqual(['other workspace', 'pull failed']);
-  });
-
   it('dismiss removes only the matching entry', () => {
     const { slice, current } = makeSlice();
     const first = slice.reportError('IO_ERROR', 'a', 'sysmon');

@@ -49,8 +49,10 @@ describe('按钮语义色与加载态标准（石墨墨水 / 全柔和 / 2px / �
     expect(legacy).not.toBeNull();
     // 只允许自定义属性：直接写 background/color 会压过忙碌扫光（同特异性、更晚加载），
     // 使文字被 background-clip:text 填成底色而不可见。
-    expect(legacy).toContain('--btn-bg:');
-    expect(legacy).toContain('--btn-fg:');
+    expect(legacy).toContain('--btn-bg: var(--bg-elevated);');
+    expect(legacy).toContain('--btn-fg: var(--text-primary);');
+    expect(legacy).toContain('--btn-bd: transparent;');
+    expect(legacy).toContain('border: none;');
     expect(legacy).not.toMatch(/^\s*background:/m);
     expect(legacy).not.toMatch(/^\s*color:/m);
     expect(

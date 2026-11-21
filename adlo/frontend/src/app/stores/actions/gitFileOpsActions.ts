@@ -217,8 +217,8 @@ export function createGitFileOpsActions(
           return false;
         }
         await refreshWorkspaceSnapshot(get, target);
-        // 成功后清掉该工作区此前残留的推送失败卡（含分支列表失败，同 scope 前缀）。
-        get().clearErrorToasts(`git:push:${target.id}`, { prefix: true });
+        // 成功后清掉该工作区此前残留的推送失败卡（与失败上报使用同一 scope）。
+        get().clearErrorToasts(`git:push:${target.id}`);
         const dict = changesDict(get);
         const count = options?.ahead ?? 0;
         const hasUpstream = options?.hasUpstream ?? true;
@@ -260,7 +260,7 @@ export function createGitFileOpsActions(
           return false;
         }
         await refreshWorkspaceSnapshot(get, target);
-        get().clearErrorToasts(`git:pull:${target.id}`, { prefix: true });
+        get().clearErrorToasts(`git:pull:${target.id}`);
         get().showToast(changesDict(get).changesPullSuccess, 'success');
         return true;
       } finally {

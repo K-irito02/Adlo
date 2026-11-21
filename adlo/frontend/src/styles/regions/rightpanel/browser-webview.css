@@ -434,10 +434,6 @@
   line-height: 1.5;
 }
 
-.adl-browser-category__empty-title {
-  color: var(--text-muted);
-}
-
 .adl-browser-category__empty-guide {
   display: inline-flex;
   flex-wrap: wrap;

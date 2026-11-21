@@ -10,9 +10,9 @@ const normalizedLines = (body: string) => body.split('\n').map((line) => line.tr
 /**
  * 加载文案扫光的样式锁。
  *
- * 唯一失败模式是静默的：删掉设置面板作用域的复合选择器后，`color: transparent` 被
- * `.adl-settings-row__label small`（0-1-1）压掉，DOM 文案照旧、组件测试全绿，只是
- * 扫光"看不见"。这里把选择器与关键声明变成可执行约束。
+ * 设置面板这条的失败模式是静默的：删掉设置面板作用域的复合选择器后，`color: transparent` 被
+ * `.adl-settings-row__label small`（0-1-1）压掉，DOM 文案照旧、组件测试仍绿，只是
+ * 扫光“看不见”。这里把选择器与关键声明变成可执行约束。
  */
 describe('loading row text shimmer styles', () => {
   const COMPOUND = '.adl-settings-row__label small.adl-loading-row__text--shimmer';
@@ -22,7 +22,7 @@ describe('loading row text shimmer styles', () => {
     expect(body).not.toBeNull();
     const lines = normalizedLines(body!);
     expect(lines).toContain('color: transparent;');
-    // 渐变本体与尺寸任一丢失都会让"扫光"变成透明/静态文本。
+    // 渐变本体与尺寸丢失会让"扫光"变成透明/静态文本。
     expect(body).toContain('linear-gradient(');
     expect(lines).toContain('background-size: 300% 100%;');
     // 两条按整行精确匹配：`-webkit-background-clip: text;` 不能替 `background-clip: text;` 过关。

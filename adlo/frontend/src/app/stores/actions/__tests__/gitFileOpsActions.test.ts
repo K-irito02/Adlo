@@ -6,7 +6,7 @@ interface TestState {
   appInfo?: { currentWorkspace?: { id: string; path?: string; rootPath?: string } };
   recentWorkspaces: { id: string; path: string; rootPath?: string }[];
   reportError: (code: string, detail: string, scope?: string, options?: unknown) => string;
-  clearErrorToasts: (scope?: string, options?: { prefix?: boolean }) => void;
+  clearErrorToasts: (scope?: string) => void;
   showToast: (message: string, type?: string) => void;
   refreshGitSnapshot: (
     workspaceId: string,
@@ -238,7 +238,7 @@ describe('gitFileOpsActions bulk operations', () => {
 
     await actions.pushWorkspaceChanges('/ws', { ahead: 1 });
 
-    expect(state.clearErrorToasts).toHaveBeenCalledWith('git:push:ws-1', { prefix: true });
+    expect(state.clearErrorToasts).toHaveBeenCalledWith('git:push:ws-1');
   });
 
   it('retry action re-reads ahead/upstream before pushing again', async () => {
@@ -275,7 +275,7 @@ describe('gitFileOpsActions bulk operations', () => {
 
     await actions.pullWorkspaceChanges('/ws');
 
-    expect(state.clearErrorToasts).toHaveBeenCalledWith('git:pull:ws-1', { prefix: true });
+    expect(state.clearErrorToasts).toHaveBeenCalledWith('git:pull:ws-1');
     expect(state.setGitOpsBusy).toHaveBeenNthCalledWith(1, 'ws-1', 'pull');
     expect(state.setGitOpsBusy).toHaveBeenLastCalledWith('ws-1', null);
   });

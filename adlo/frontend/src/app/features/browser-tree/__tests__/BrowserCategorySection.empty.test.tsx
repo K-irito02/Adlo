@@ -10,7 +10,6 @@ vi.mock('@i18n/useTCopy', () => ({
       browserCategoryEmptyWorkspaceGuideSuffix: '按钮创建工作区目录',
       browserCategoryEmptyUserFolderGuidePrefix: '点击此侧边栏上方',
       browserCategoryEmptyUserFolderGuideSuffix: '按钮创建自建目录',
-      browserCategoryEmptyHistory: '暂无历史记录',
     },
     locale: 'zh-CN',
     formatT: vi.fn(),
@@ -68,18 +67,6 @@ describe('BrowserCategorySection 空态', () => {
     expect(container.textContent).toContain('按钮创建自建目录');
     expect(container.textContent).not.toContain('暂无目录');
     expectNewFolderBrowserIcon(container);
-  });
-
-  it('历史为空时只显示「暂无历史记录」', () => {
-    const { container } = render(
-      <BrowserCategorySection
-        {...baseProps}
-        category={{ label: '历史目录', nodes: [] }}
-        categoryType="history"
-      />,
-    );
-    expect(container.textContent).toContain('暂无历史记录');
-    expect(container.querySelector('.adl-empty-hint__icon')).toBeNull();
   });
 
   it('非空分类不渲染空态', () => {

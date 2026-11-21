@@ -91,31 +91,25 @@ export function BrowserCategorySection({
         ))}
         {category.nodes.length === 0 ? (
           <div className="adl-browser-category__empty">
-            {categoryType === 'history' ? (
-              <span className="adl-browser-category__empty-title">
-                {t.browserCategoryEmptyHistory as string}
-              </span>
-            ) : (
-              <span className="adl-browser-category__empty-guide">
-                <AddWorkspaceHint
-                  prefix={
-                    categoryType === 'workspace'
-                      ? (t.browserCategoryEmptyWorkspaceGuidePrefix as string)
-                      : (t.browserCategoryEmptyUserFolderGuidePrefix as string)
-                  }
-                  suffix={
-                    categoryType === 'workspace'
-                      ? (t.browserCategoryEmptyWorkspaceGuideSuffix as string)
-                      : (t.browserCategoryEmptyUserFolderGuideSuffix as string)
-                  }
-                  icon={
-                    categoryType === 'userFolder' ? (
-                      <IconNewFolderBrowser size={14} decorative />
-                    ) : undefined
-                  }
-                />
-              </span>
-            )}
+            <span className="adl-browser-category__empty-guide">
+              <AddWorkspaceHint
+                prefix={
+                  categoryType === 'workspace'
+                    ? (t.browserCategoryEmptyWorkspaceGuidePrefix as string)
+                    : (t.browserCategoryEmptyUserFolderGuidePrefix as string)
+                }
+                suffix={
+                  categoryType === 'workspace'
+                    ? (t.browserCategoryEmptyWorkspaceGuideSuffix as string)
+                    : (t.browserCategoryEmptyUserFolderGuideSuffix as string)
+                }
+                icon={
+                  categoryType === 'userFolder' ? (
+                    <IconNewFolderBrowser size={14} decorative />
+                  ) : undefined
+                }
+              />
+            </span>
           </div>
         ) : null}
       </div>

@@ -285,8 +285,8 @@ interface GitActions {
   collapseAllWorkspaceChanges: () => void;
   expandAllWorkspaceChanges: () => Promise<void>;
   /**
-   * 静默刷新所有可见已展开工作区的 Git 快照（手动"刷新全部"的静默版）。
-   * 供窗口焦点回归补刷：覆盖 watcher 够不着的非当前工作区。
+   * 静默刷新所有已添加且可用工作区的 Git 快照（与展开状态无关；跳过 5s 新鲜期）。
+   * 供启动、新增工作区、窗口焦点回归与变更面板 15s 轮询补刷。
    */
   refreshAllGitSnapshotsSilent: () => Promise<void>;
   fetchGitStatus: () => Promise<void>;
