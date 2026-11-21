@@ -97,6 +97,37 @@ html:not(.no-transition) [data-theme] {
   --accent-violet: #7c4dff;
   --adl-drag-border: #000000;
 
+  /* === Semantic Button Tokens (Graphite) ===
+     按钮语义色与全局 accent 解耦：accent 继续用于链接/焦点/选中；
+     按钮只消费 --btn-*。新增语义按钮默认使用 *-soft；已有实心按钮保留实心。 */
+  --btn-radius: 2px;
+  --btn-primary: #2b2b28;
+  --btn-primary-fg: #f7f5ef;
+  --btn-primary-hover: #3a3a35;
+  --btn-primary-soft-bg: rgba(43, 43, 40, 0.08);
+  --btn-primary-soft-fg: #2b2b28;
+  --btn-primary-soft-border: rgba(43, 43, 40, 0.28);
+  --btn-danger: #a33a2a;
+  --btn-danger-fg: #ffffff;
+  --btn-danger-hover: #8a2f21;
+  --btn-danger-soft-bg: rgba(163, 58, 42, 0.1);
+  --btn-danger-soft-fg: #8a2f21;
+  --btn-danger-soft-border: rgba(163, 58, 42, 0.35);
+  --btn-warning: #9a5b00;
+  --btn-warning-fg: #ffffff;
+  --btn-warning-hover: #7a4a00;
+  --btn-warning-soft-bg: rgba(154, 91, 0, 0.1);
+  --btn-warning-soft-fg: #7a4a00;
+  --btn-warning-soft-border: rgba(154, 91, 0, 0.35);
+  --btn-success: #2f6b3a;
+  --btn-success-fg: #ffffff;
+  --btn-success-hover: #24552d;
+  --btn-success-soft-bg: rgba(47, 107, 58, 0.1);
+  --btn-success-soft-fg: #24552d;
+  --btn-success-soft-border: rgba(47, 107, 58, 0.35);
+  --btn-neutral-soft-fg: #55524b;
+  --btn-neutral-soft-border: rgba(31, 30, 27, 0.18);
+
   /* === Semantic Colors (per UI spec) === */
   --color-primary: #2563eb;
   --color-danger: #e9967a;
@@ -391,6 +422,35 @@ html:not(.no-transition) [data-theme] {
   /* 蓝紫强调色（暗色档用高亮薰衣草紫，保持醒目）。 */
   --accent-violet: #b49cff;
   --adl-drag-border: #ffffff;
+
+  /* === Semantic Button Tokens (Graphite, dark) === */
+  --btn-radius: 2px;
+  --btn-primary: #e8e3d8;
+  --btn-primary-fg: #1c1b18;
+  --btn-primary-hover: #f2eee5;
+  --btn-primary-soft-bg: rgba(232, 227, 216, 0.12);
+  --btn-primary-soft-fg: #e8e3d8;
+  --btn-primary-soft-border: rgba(232, 227, 216, 0.38);
+  --btn-danger: #d9776a;
+  --btn-danger-fg: #2a120e;
+  --btn-danger-hover: #e58a7d;
+  --btn-danger-soft-bg: rgba(217, 119, 106, 0.16);
+  --btn-danger-soft-fg: #e79a8e;
+  --btn-danger-soft-border: rgba(217, 119, 106, 0.42);
+  --btn-warning: #e0a33a;
+  --btn-warning-fg: #2a1c05;
+  --btn-warning-hover: #eab253;
+  --btn-warning-soft-bg: rgba(224, 163, 58, 0.16);
+  --btn-warning-soft-fg: #e3b45e;
+  --btn-warning-soft-border: rgba(224, 163, 58, 0.42);
+  --btn-success: #7fb98a;
+  --btn-success-fg: #10240f;
+  --btn-success-hover: #92c99c;
+  --btn-success-soft-bg: rgba(127, 185, 138, 0.16);
+  --btn-success-soft-fg: #9ccaa6;
+  --btn-success-soft-border: rgba(127, 185, 138, 0.42);
+  --btn-neutral-soft-fg: #c2bcb0;
+  --btn-neutral-soft-border: rgba(236, 233, 226, 0.2);
 
   /* === Semantic Colors (dark variants) === */
   --color-primary: #60a5fa;

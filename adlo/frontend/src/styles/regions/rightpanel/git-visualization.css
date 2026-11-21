@@ -264,13 +264,13 @@
   display: inline-block;
   padding: 1px 5px;
   border-radius: 3px;
-  background: var(--bg-hover);
+  background: var(--bg-active);
   color: var(--text-secondary);
   font-size: 9px;
   font-weight: 600;
   line-height: 1.4;
   white-space: nowrap;
-  border: 1px solid var(--border-subtle);
+  border: none;
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -182,7 +182,7 @@ export function CommitDialog({
         <div className="adl-confirm-dialog__footer">
           <button
             type="button"
-            className="adl-btn adl-btn--secondary"
+            className="adl-btn adl-btn--neutral-soft"
             onClick={onCancel}
             disabled={submitting}
           >
@@ -190,9 +190,10 @@ export function CommitDialog({
           </button>
           <button
             type="button"
-            className="adl-btn adl-btn--primary"
+            className="adl-btn adl-btn--primary-soft"
             onClick={submit}
             disabled={submitting || trimmed.length === 0}
+            aria-busy={submitting ? 'true' : undefined}
           >
             {submitting ? submittingLabel : submitLabel}
           </button>

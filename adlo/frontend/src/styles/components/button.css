@@ -13,10 +13,13 @@
   justify-content: center;
   gap: var(--space-2);
   padding: var(--space-2-5) var(--space-4);
-  border-radius: var(--radius-lg);
-  border: 1px solid transparent;
-  background: var(--accent);
-  color: var(--text-on-accent);
+  border-radius: var(--btn-radius);
+  border: 1px solid var(--btn-bd);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  --btn-bg: var(--btn-primary);
+  --btn-fg: var(--btn-primary-fg);
+  --btn-bd: var(--btn-primary);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   line-height: var(--leading-tight);
@@ -27,11 +30,11 @@
 }
 
 .btn:hover:not([disabled]):not([aria-busy='true']) {
-  background: var(--accent-hover);
+  --btn-bg: var(--btn-primary-hover);
 }
 
 .btn:active:not([disabled]) {
-  background: var(--accent-active);
+  --btn-bg: var(--btn-primary-hover);
   transform: translateY(1px);
 }
 
@@ -42,59 +45,78 @@
   pointer-events: none;
 }
 
-.btn[aria-busy='true'] {
+.btn[aria-busy='true']:not(.btn--icon):not(.adl-icon-btn),
+.adl-btn[aria-busy='true']:not(.adl-icon-btn) {
   cursor: progress;
   pointer-events: none;
+  --btn-shimmer-base: color-mix(in srgb, var(--btn-fg) 30%, transparent);
+  --btn-shimmer-highlight: var(--btn-fg);
+  background: linear-gradient(
+    90deg,
+    var(--btn-shimmer-base) 0%,
+    var(--btn-shimmer-base) 35%,
+    var(--btn-shimmer-highlight) 50%,
+    var(--btn-shimmer-base) 65%,
+    var(--btn-shimmer-base) 100%
+  );
+  background-size: 300% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
   color: transparent;
+  animation: adl-text-shimmer 2s ease-in-out infinite;
 }
 
-.btn[aria-busy='true']::after {
+.btn[aria-busy='true']:not(.btn--icon):not(.adl-icon-btn)::before,
+.adl-btn[aria-busy='true']:not(.adl-icon-btn)::before {
   content: '';
   position: absolute;
   inset: 0;
-  margin: auto;
-  width: 16px;
-  height: 16px;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  border-radius: var(--radius-full);
-  color: var(--text-on-accent);
-  animation: spin 800ms linear infinite;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--btn-bg);
+}
+
+.btn--icon[aria-busy='true'] {
+  cursor: progress;
+  opacity: 0.7;
 }
 
 .btn--secondary {
-  background: transparent;
-  color: var(--text-primary);
-  border-color: var(--border-default);
+  --btn-bg: transparent;
+  --btn-fg: var(--text-primary);
+  --btn-bd: var(--border-default);
+  border-color: var(--btn-bd);
 }
 
 .btn--secondary:hover:not([disabled]) {
-  background: var(--bg-muted);
-  border-color: var(--border-strong);
+  --btn-bg: var(--bg-muted);
+  --btn-bd: var(--border-strong);
 }
 
 .btn--secondary:active:not([disabled]) {
-  background: var(--bg-muted);
+  --btn-bg: var(--bg-muted);
 }
 
 .btn--ghost {
-  background: transparent;
-  color: var(--text-secondary);
+  --btn-bg: transparent;
+  --btn-fg: var(--text-secondary);
+  --btn-bd: transparent;
 }
 
 .btn--ghost:hover:not([disabled]) {
-  background: var(--bg-muted);
-  color: var(--text-primary);
+  --btn-bg: var(--bg-muted);
+  --btn-fg: var(--text-primary);
 }
 
 .btn--danger {
-  background: var(--danger);
-  color: var(--text-inverse);
+  --btn-bg: var(--btn-danger);
+  --btn-fg: var(--btn-danger-fg);
+  --btn-bd: var(--btn-danger);
 }
 
 .btn--danger:hover:not([disabled]) {
-  background: var(--danger);
-  filter: brightness(0.92);
+  --btn-bg: var(--btn-danger-hover);
+  filter: none;
 }
 
 .btn--icon {
@@ -107,7 +129,7 @@
 .btn--sm {
   padding: var(--space-1-5) var(--space-3);
   font-size: var(--text-xs);
-  border-radius: var(--radius-md);
+  border-radius: var(--btn-radius);
 }
 
 .btn--lg {
@@ -157,24 +179,29 @@
    -------------------------------------------------------------------------- */
 
 .adl-btn {
+  --btn-bg: var(--bg-elevated);
+  --btn-fg: var(--text-primary);
+  --btn-bd: var(--border);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-1-5);
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
+  border-radius: var(--btn-radius);
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
+  border: 1px solid var(--btn-bd);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
   cursor: pointer;
   transition: var(--transition-colors);
   white-space: nowrap;
+  position: relative;
+  isolation: isolate;
 }
 
 .adl-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
+  --btn-bg: var(--bg-hover);
 }
 
 .adl-btn:disabled {
@@ -183,22 +210,24 @@
 }
 
 .adl-btn--primary {
-  background: var(--accent);
-  color: var(--text-inverse);
-  border-color: var(--accent);
+  --btn-bg: var(--btn-primary);
+  --btn-fg: var(--btn-primary-fg);
+  --btn-bd: var(--btn-primary);
 }
 
 .adl-btn--primary:hover:not(:disabled) {
-  background: var(--accent-strong);
+  --btn-bg: var(--btn-primary-hover);
 }
 
 .adl-btn--ghost {
-  border-color: transparent;
-  background: transparent;
+  --btn-bg: transparent;
+  --btn-fg: var(--text-secondary);
+  --btn-bd: transparent;
 }
 
 .adl-btn--ghost:hover:not(:disabled) {
-  background: var(--bg-hover);
+  --btn-bg: var(--bg-hover);
+  --btn-fg: var(--text-primary);
 }
 
 .adl-btn--sm {
@@ -207,17 +236,68 @@
 }
 
 .adl-btn--secondary {
-  background: transparent;
-  color: var(--text-primary);
+  --btn-bg: transparent;
+  --btn-fg: var(--text-primary);
+  --btn-bd: var(--border-default);
 }
 
 .adl-btn--danger {
-  background: var(--danger);
-  color: var(--danger-foreground, white);
-  border-color: var(--danger);
+  --btn-bg: var(--btn-danger);
+  --btn-fg: var(--btn-danger-fg);
+  --btn-bd: var(--btn-danger);
 }
 
 .adl-btn--danger:hover:not(:disabled) {
-  background: var(--danger);
-  filter: brightness(0.92);
+  --btn-bg: var(--btn-danger-hover);
+  filter: none;
+}
+
+/* 语义柔和变体：新对话框按钮默认使用；已有实心按钮仍走上面的 solid 变体。 */
+.adl-btn--primary-soft {
+  --btn-bg: var(--btn-primary-soft-bg);
+  --btn-fg: var(--btn-primary-soft-fg);
+  --btn-bd: var(--btn-primary-soft-border);
+}
+
+.adl-btn--danger-soft {
+  --btn-bg: var(--btn-danger-soft-bg);
+  --btn-fg: var(--btn-danger-soft-fg);
+  --btn-bd: var(--btn-danger-soft-border);
+}
+
+.adl-btn--warning-soft {
+  --btn-bg: var(--btn-warning-soft-bg);
+  --btn-fg: var(--btn-warning-soft-fg);
+  --btn-bd: var(--btn-warning-soft-border);
+}
+
+.adl-btn--success-soft {
+  --btn-bg: var(--btn-success-soft-bg);
+  --btn-fg: var(--btn-success-soft-fg);
+  --btn-bd: var(--btn-success-soft-border);
+}
+
+.adl-btn--neutral-soft {
+  --btn-bg: transparent;
+  --btn-fg: var(--btn-neutral-soft-fg);
+  --btn-bd: var(--btn-neutral-soft-border);
+}
+
+.adl-btn--primary-soft:hover:not(:disabled),
+.adl-btn--danger-soft:hover:not(:disabled),
+.adl-btn--warning-soft:hover:not(:disabled),
+.adl-btn--success-soft:hover:not(:disabled),
+.adl-btn--neutral-soft:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn[aria-busy='true']:not(.btn--icon):not(.adl-icon-btn),
+  .adl-btn[aria-busy='true']:not(.adl-icon-btn) {
+    animation: none;
+    color: var(--btn-fg);
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+  }
 }

@@ -100,9 +100,10 @@ function FileCreationDialog({
           </button>
           <button
             type="button"
-            className="adl-btn adl-btn--primary adl-btn--square"
+            className="adl-btn adl-btn--primary-soft adl-btn--square"
             onClick={() => void handleSubmit()}
             disabled={submitting}
+            aria-busy={submitting ? 'true' : undefined}
           >
             {submitting ? t.processing : t.confirm}
           </button>
