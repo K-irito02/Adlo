@@ -54,6 +54,9 @@ windows = { version = "0.61", features = [
   "Win32_Storage_EnhancedStorage",
   # 诊断 example（src-tauri/examples/smtc-probe.rs）：读取系统媒体会话归属
   "Media_Control",
+  # 事项 17 路线 A：宿主侧自建系统媒体会话（SMTC）
+  "Media",
+  "Win32_System_WinRT",
   "Foundation",
   "Foundation_Collections",
 ] }

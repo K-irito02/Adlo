@@ -108,6 +108,7 @@ import type {
   TreeCacheStats,
 } from './shared/ipc/storage';
 import type { AppUpdateCheckResult, UpdateBridge } from './shared/ipc/update';
+import type { MediaSessionBridge } from './shared/ipc/mediaSession';
 import { repoMapEntriesToTree } from './shared/repoMapFromEntries';
 import {
   subscribeEventSource,
@@ -929,6 +930,9 @@ export function createHttpBridge({
       setAgentIntercept: () => Promise.resolve(),
       muteTab: () => Promise.resolve(),
       onAudioStateChanged: () => () => {},
+      // 事项 17 路线 A：浏览器模式没有 Rust SMTC，系统卡片由 navigator.mediaSession 负责。
+      onMediaStateChanged: () => () => {},
+      mediaControlTab: () => Promise.resolve(),
       setBrowserColorScheme: () => Promise.resolve(),
       setZoom: () => Promise.resolve(),
       clearCookies: () => Promise.resolve(),
@@ -1385,6 +1389,15 @@ export function createHttpBridge({
       onProgress: () => () => undefined,
       onInstalling: () => () => undefined,
     } satisfies UpdateBridge,
+
+    // ── 系统媒体卡片：桌面由 Rust SMTC 实现（`createTauriMediaSessionBridge`），
+    // 浏览器模式由标准 `navigator.mediaSession` 承担，所以这里是 `supported: false` 空实现。
+    mediaSession: {
+      supported: false,
+      update: async () => undefined,
+      clear: async () => undefined,
+      onCommand: () => () => undefined,
+    } satisfies MediaSessionBridge,
 
     // ── Storage domain (crates/server/src/handlers/storage.rs). B5: no
     // `/storage/restart-backend` route exists — adl-server never restarts

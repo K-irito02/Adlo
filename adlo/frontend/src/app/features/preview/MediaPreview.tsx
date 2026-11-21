@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
-import { useAppStore } from '@stores/slicedStore';
 import { MediaZoomViewport } from './MediaZoomViewport';
 import { UnsupportedPreviewCard } from './UnsupportedPreviewCard';
 import { useMediaSession } from './useMediaSession';
@@ -36,8 +35,6 @@ export function MediaPreview({ media, kind, workspaceId }: MediaPreviewProps) {
   const { t } = useTCopy();
   // 解码/播放失败（损坏文件、浏览器不支持的编码）：URL 有效但元素 onError。
   const [renderFailed, setRenderFailed] = useState(false);
-  // 系统媒体卡片的副标题（应用名）：hooks 必须在任何 early return 之前调用。
-  const appName = useAppStore((state) => state.appInfo?.appName) ?? 'Adlo';
 
   // 换文件即复位：失败态不能跨文件残留（旧文件坏掉不该让新文件显示错误）。
   useEffect(() => {
@@ -85,7 +82,6 @@ export function MediaPreview({ media, kind, workspaceId }: MediaPreviewProps) {
           src={media.url}
           alt={media.path}
           mediaTitle={mediaTitle}
-          mediaArtist={appName}
           onRenderError={handleRenderError}
         />
       </div>
@@ -94,24 +90,14 @@ export function MediaPreview({ media, kind, workspaceId }: MediaPreviewProps) {
 
   return (
     <div className="adl-media-preview adl-media-preview--audio">
-      <AudioMedia src={media.url} title={mediaTitle} artist={appName} onError={handleRenderError} />
+      <AudioMedia src={media.url} title={mediaTitle} onError={handleRenderError} />
     </div>
   );
 }
 
 /** 音频元素 + 系统媒体卡片接线（元素自带 ref，hook 只能在这里挂）。 */
-function AudioMedia({
-  src,
-  title,
-  artist,
-  onError,
-}: {
-  src: string;
-  title: string;
-  artist: string;
-  onError: () => void;
-}) {
+function AudioMedia({ src, title, onError }: { src: string; title: string; onError: () => void }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  useMediaSession(audioRef, { title, artist }, true);
+  useMediaSession(audioRef, { title }, true);
   return <audio ref={audioRef} controls preload="metadata" src={src} onError={onError} />;
 }

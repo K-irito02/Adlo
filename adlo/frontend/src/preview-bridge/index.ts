@@ -238,6 +238,8 @@ export async function setupPreviewBridge(): Promise<void> {
         audioMonitor.setMuted(tabId, muted);
         return Promise.resolve();
       },
+      onMediaStateChanged: () => () => {},
+      mediaControlTab: () => Promise.resolve(),
       onAudioStateChanged: (listener: (payload: AudioStatePayload) => void) =>
         audioMonitor.onStateChange(listener),
       setBrowserColorScheme: (_resolvedTheme: 'light' | 'dark') => Promise.resolve(),
@@ -310,6 +312,7 @@ export async function setupPreviewBridge(): Promise<void> {
     // preferHttpWhenReachable).
     reserved: mockDigitalLifeBridge.reserved,
     update: mockDigitalLifeBridge.update,
+    mediaSession: mockDigitalLifeBridge.mediaSession,
     subscribeModelStream: http.subscribeModelStream,
     subscribeRunActivity: http.subscribeRunActivity,
     subscribeTerminalStream: http.subscribeTerminalStream,

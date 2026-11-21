@@ -37,12 +37,16 @@ fn main() {
 
     // 移除了 --disable-gpu-compositing 以启用 GPU 合成加速，
     // 解决软件渲染导致的启动绘制缓慢和主线程阻塞问题。
+    //
+    // 事项 17 路线 A：`MediaSessionService` 关掉 Chromium 自带的媒体会话（它归属
+    // `msedgewebview2.exe`，卡片恒显示「未知应用」），改由 Rust 侧自建 SMTC
+    // （见 `commands::media_session`）。与 `tauri.conf.json` 的 additionalBrowserArgs 同步。
     // SAFETY: Called once at startup before any other threads. Safe despite
     // Rust 2024 marking set_var as unsafe (no concurrent reads of these vars).
     unsafe {
         std::env::set_var(
             "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-            "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection",
+            "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,MediaSessionService",
         );
     }
 
@@ -91,9 +95,7 @@ fn main() {
                 let window = webview.window();
                 // 事项 17：WebView2 会在创建期给根窗口写入「生成的 AUMID」，系统媒体卡片
                 // 也因此显示「未知应用」。WebView 就绪后再写一次窗口身份，覆盖该生成值。
-                if let Some(webview_window) = webview.app_handle().get_webview_window("main") {
-                    app_identity::apply_window_identity(&webview_window);
-                }
+                app_identity::apply_window_identity(&window);
                 let _ = window.show();
                 tracing::info!("[ADL-PERF] main window shown after page load");
             }
@@ -159,6 +161,8 @@ fn main() {
             commands::file_save::app_save_file,
             commands::platform::workspace_reveal_in_file_manager,
             commands::platform::workspace_open_in_default_app,
+            commands::media_session::media_session_update,
+            commands::media_session::media_session_clear,
             commands::browser::browser_create_for_tab,
             commands::browser::browser_activate_tab,
             commands::browser::browser_destroy_tab,
@@ -170,6 +174,7 @@ fn main() {
             commands::browser::browser_can_go_forward_tab,
             commands::browser::browser_reload_tab,
             commands::browser::browser_mute_tab,
+            commands::browser::browser_media_control_tab,
             commands::browser::browser_set_color_scheme,
             commands::browser::browser_set_agent_intercept,
             commands::browser::browser_set_zoom,

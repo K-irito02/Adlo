@@ -19,8 +19,6 @@ export interface MediaZoomViewportProps {
   alt: string;
   /** 系统媒体卡片标题（视频用；图片忽略）。 */
   mediaTitle?: string;
-  /** 系统媒体卡片副标题（通常是应用名）。 */
-  mediaArtist?: string;
   onRenderError: () => void;
 }
 
@@ -58,18 +56,13 @@ export function MediaZoomViewport({
   src,
   alt,
   mediaTitle,
-  mediaArtist,
   onRenderError,
 }: MediaZoomViewportProps) {
   const { t } = useTCopy();
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   // 视频播放时把歌名/动作接进 Windows 系统媒体卡片（事项 17）。
-  useMediaSession(
-    videoRef,
-    { title: mediaTitle ?? alt, artist: mediaArtist ?? 'Adlo' },
-    kind === 'video',
-  );
+  useMediaSession(videoRef, { title: mediaTitle ?? alt }, kind === 'video');
   const [view, setView] = useState<ZoomView>(INITIAL_VIEW);
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef<{

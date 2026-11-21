@@ -33,8 +33,14 @@ use tauri::{Emitter, Manager};
 /// scripts) per the "trusted local document" product decision. The flag also
 /// applies to remote pages, but Chromium still forbids non-file origins from
 /// reading `file:` URLs, so the exposure is limited to user-opened local files.
-pub(crate) const WEBVIEW_ADDITIONAL_ARGS: &str =
-    "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --allow-file-access-from-files";
+///
+/// `MediaSessionService` is disabled on purpose (事项 17 路线 A): Chromium's own
+/// media session is attributed to `msedgewebview2.exe`, so the Windows media card
+/// always showed「未知应用」+ no icon, and no host AUMID could change it. The host
+/// now owns the SMTC session (`src-tauri/src/commands/media_session.rs`); browser
+/// tabs mirror their site media into it through `init_script.js`
+/// (`{type:'adl-media'}`) so tabs still reach the card.
+pub(crate) const WEBVIEW_ADDITIONAL_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,MediaSessionService --allow-file-access-from-files";
 
 /// Download-URL heuristics shared across the stack. This extension list must be
 /// kept in sync with `crates/browser/src/init_script.js` (JS `isDownloadUrl`) and

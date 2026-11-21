@@ -24,15 +24,19 @@ pub fn init_app_identity() {}
 /// 为什么还要窗口级：WebView2 文档说宿主未设置时会「给根窗口生成一个 AUMID」——系统媒体
 /// 卡片取的是**窗口**身份。仅设进程 AUMID 时，WebView2 在创建期写下的生成值仍会覆盖归属，
 /// 于是卡片继续显示「未知应用」。窗口创建后再写一次即可让卡片解析到 `com.adlo.app`。
+///
+/// 入参是 `tauri::Window`（而不是 `WebviewWindow`）：浏览器标签是挂在主窗口上的子 WebView，
+/// 存在子 WebView 时 `get_webview_window("main")` 会返回 None（Tauri 的 `is_webview_window()`
+/// 要求窗口下所有 WebView 的 label 相同），直接用 `webview.window()` 更稳。
 #[cfg(windows)]
-pub fn apply_window_identity(window: &tauri::WebviewWindow) {
+pub fn apply_window_identity(window: &tauri::Window) {
     if let Err(error) = imp::set_window_aumid(window) {
         tracing::warn!(error = %error, "app identity: setting window AUMID failed");
     }
 }
 
 #[cfg(not(windows))]
-pub fn apply_window_identity(_window: &tauri::WebviewWindow) {}
+pub fn apply_window_identity(_window: &tauri::Window) {}
 
 #[cfg(windows)]
 mod imp {
@@ -114,7 +118,7 @@ mod imp {
     }
 
     /// 在窗口属性存储上写 `PKEY_AppUserModel_ID`（覆盖 WebView2 生成值）。
-    pub fn set_window_aumid(window: &tauri::WebviewWindow) -> Result<(), String> {
+    pub fn set_window_aumid(window: &tauri::Window) -> Result<(), String> {
         use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
         use windows::Win32::System::Com::StructuredStorage::{
             PROPVARIANT, PROPVARIANT_0, PROPVARIANT_0_0, PROPVARIANT_0_0_0, PropVariantClear,

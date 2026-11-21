@@ -31,6 +31,7 @@ import type { DurableBridge } from './durable';
 import type { ReservedBridge } from './reserved';
 import type { StorageBridge } from './storage';
 import type { UpdateBridge } from './update';
+import type { MediaSessionBridge } from './mediaSession';
 
 /** SSE wire event type (formerly in part-stream/partStoreTypes) */
 export type SseWireEvent =
@@ -162,4 +163,11 @@ export interface DigitalLifeBridge {
   storage: StorageBridge;
   /** 应用自身更新子模块（仅桌面端；浏览器模式 `supported: false`） */
   update: UpdateBridge;
+  /**
+   * 系统媒体卡片（仅桌面端 Rust SMTC；浏览器模式 `supported: false`，
+   * 由 `navigator.mediaSession` 承担）
+   * @see tauri-bridge/tauri-media-session.ts → createTauriMediaSessionBridge
+   * @see mock-bridge.ts → mediaSession
+   */
+  mediaSession: MediaSessionBridge;
 }

@@ -54,6 +54,27 @@ impl WebView2EventBridge for TauriWebView2EventBridge {
         );
     }
 
+    fn emit_media_state(
+        &self,
+        tab_id: &str,
+        state: &adl_browser::webview_handle::BrowserMediaState,
+    ) {
+        // 事项 17 路线 A：标签页的站点媒体快照 → 前端统一定夺归属 → Rust SMTC。
+        let _ = self.app.emit(
+            "digital-life://browser-media-state",
+            serde_json::json!({
+                "tabId": tab_id,
+                "title": state.title,
+                "artist": state.artist,
+                "album": state.album,
+                "paused": state.paused,
+                "ended": state.ended,
+                "position": state.position,
+                "duration": state.duration,
+            }),
+        );
+    }
+
     fn spawn_spa_fallback(&self, label: &str, url: &str) {
         let app = self.app.clone();
         let label = label.to_string();

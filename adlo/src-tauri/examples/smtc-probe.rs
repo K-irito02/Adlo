@@ -82,18 +82,16 @@ fn print_window_aumids() {
 fn read_window_aumid(hwnd: windows::Win32::Foundation::HWND) -> Option<String> {
     use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
     use windows::Win32::System::Com::StructuredStorage::PropVariantClear;
-    use windows::Win32::UI::Shell::PropertiesSystem::{IPropertyStore, SHGetPropertyStoreForWindow};
+    use windows::Win32::UI::Shell::PropertiesSystem::{
+        IPropertyStore, SHGetPropertyStoreForWindow,
+    };
 
     unsafe {
         let store: IPropertyStore = SHGetPropertyStoreForWindow(hwnd).ok()?;
         let key = PKEY_AppUserModel_ID;
         let mut value = store.GetValue(&key).ok()?;
         let raw = value.Anonymous.Anonymous.Anonymous.pwszVal;
-        let text = if raw.is_null() {
-            None
-        } else {
-            Some(raw.to_string().ok()?)
-        };
+        let text = if raw.is_null() { None } else { Some(raw.to_string().ok()?) };
         let _ = PropVariantClear(&mut value);
         text
     }

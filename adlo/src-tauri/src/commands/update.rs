@@ -208,7 +208,11 @@ pub fn app_update_install(app: AppHandle) -> IpcResult<()> {
         Err(error) => {
             // 解压或启动安装器失败时，on_before_exit 可能已经隐藏窗口并结束了 sidecar：
             // 直接重启应用，避免把用户留在不可恢复的半死状态。
-            if let Some(window) = app.get_webview_window("main") {
+            //
+            // 注意用 `get_window` 而不是 `get_webview_window`：浏览器标签是挂在主窗口上的
+            // 子 WebView，只要存在一个，Tauri 的 `is_webview_window()` 就为 false，
+            // `get_webview_window("main")` 会恒返回 None（2026-11-21 实测）。
+            if let Some(window) = app.get_window("main") {
                 let _ = window.show();
             }
             tracing::error!("[update] install failed, restarting app: {error}");
@@ -298,10 +302,13 @@ async fn check_one(app: &AppHandle, source: &str) -> Result<Option<Update>, Stri
 
 /// 安装器即将启动时的收尾：先隐藏窗口（避免满屏网络错误），再结束 sidecar
 /// （否则 NSIS 覆盖 `adl-server.exe` 会被文件锁拦住）。
+///
+/// `get_window` 同理不能用 `get_webview_window`：存在浏览器标签（主窗口的子 WebView）时
+/// `get_webview_window("main")` 恒为 None，窗口就不会被隐藏（2026-11-21 实测）。
 fn before_install_hook(app: &AppHandle) -> impl Fn() + Send + Sync + 'static {
     let handle = app.clone();
     move || {
-        if let Some(window) = handle.get_webview_window("main") {
+        if let Some(window) = handle.get_window("main") {
             let _ = window.hide();
         }
         handle.state::<AppState>().ad_server.terminate();
