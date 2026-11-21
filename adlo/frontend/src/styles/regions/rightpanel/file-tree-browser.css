@@ -304,8 +304,12 @@
   text-align: left;
   white-space: nowrap;
 }
-.adl-multitree-entry__menu-item:hover {
+.adl-multitree-entry__menu-item:hover:not(:disabled) {
   background: var(--bg-hover);
+}
+.adl-multitree-entry__menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .adl-multitree-entry__menu-sep {

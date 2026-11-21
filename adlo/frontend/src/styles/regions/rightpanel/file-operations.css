@@ -158,8 +158,13 @@
   margin-right: 16px;
 }
 
-.adl-multitree-entry__menu-item:hover {
+.adl-multitree-entry__menu-item:hover:not(:disabled) {
   background: var(--bg-hover);
+}
+
+.adl-multitree-entry__menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* 危险项标准：平时与默认项一致，仅悬停时变红（文字红 + 浅红底）。 */
@@ -167,8 +172,8 @@
   color: var(--text-primary);
 }
 
-.adl-multitree-entry__menu-item.is-danger:hover,
-.adl-multitree-entry__menu-item.is-danger:focus-visible {
+.adl-multitree-entry__menu-item.is-danger:hover:not(:disabled),
+.adl-multitree-entry__menu-item.is-danger:focus-visible:not(:disabled) {
   background: var(--danger-soft);
   color: var(--danger);
 }
@@ -290,4 +295,16 @@
   color: var(--text-primary);
   font-weight: var(--font-semibold);
   font-size: var(--text-sm);
+}
+
+/* 工作区标题的推送/拉取进行中文案：复用全局 adl-text-shimmer 扫光，不再用圆圈 spinner。 */
+.adl-multitree-entry__busy {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1;
+  white-space: nowrap;
+}
+.adl-multitree-entry__busy.adl-loading-row__text--shimmer {
+  color: transparent;
 }
