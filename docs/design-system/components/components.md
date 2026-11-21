@@ -36,6 +36,15 @@ States covered by CSS:
 
 `renderButton` always renders `type="button"` unless `type="submit"` is requested explicitly.
 
+### 应用内语义按钮（`.btn` / `.adl-btn`）
+
+- **配色**：石墨墨水（`--btn-*`，亮/暗两套），实心主/危险按钮不再使用品牌蓝或鲑红。
+- **圆角**：`--btn-radius: 2px`；紧凑对话框里沿用既有 `.adl-btn--square`（0）。
+- **变体**：新增 `adl-btn--{primary,danger,warning,success,neutral}-soft`，新对话框语义按钮默认 soft；已有实心按钮保留实心但改石墨底色。
+- **忙碌**：`aria-busy="true"` 时文案做扫光（`adl-text-shimmer` + `background-clip: text`），不再使用圆圈 spinner；减少动效时回退为静态 muted 文案。
+- **对话框**：`ConfirmDialog` 的 `tone` 映射到 soft 变体；`CommitDialog` / `FileCreationDialog` / `PushPreflightDialog` 同步；prompt 对话框不再用 `.adl-prompt-modal .adl-btn` 覆盖底色（会压掉 soft token）。
+- **分支名 chip**：`git-visualization.css` 中为实心无边框。
+
 ## Pill / Badge
 
 ```ts
@@ -386,6 +395,15 @@ React API: `Toast` and `ToastContainer` from `frontend/src/app/components/Toast.
 - Toasts with different `source` values stack vertically in order of appearance
 - `source` can be any string identifier (e.g. 'browser', 'editor', 'terminal')
 - When a toast is removed, remaining toasts automatically adjust positions
+
+### 持久错误卡片（右下角）
+
+`ErrorToast` + `ToastCard` 负责不自动消失的失败提示（如推送/拉取失败），结构为两行：
+
+- **head**：错误图标 + 标题 + 右侧 展开/复制/关闭 图标按钮；
+- **body**：详情 + 底部动作行（如「重试推送」）。
+
+布局约定：详情从错误图标左缘开始（与标题/图标左对齐），底部动作行右对齐到卡片内容右缘；body 占满卡片宽度，不因右侧图标按钮列而变窄。摘要卡（`toast-card--summary`）保持横排，并单独拥有条间距。错误卡片支持 `level=error` 与 `actions`，动作 `run()` 返回 true 时卡片自动关闭。源码：`frontend/src/app/components/ErrorToast.tsx`、`ToastCard.tsx`、`styles/components/toast-card.css`。
 
 ### Source Grouping Example
 

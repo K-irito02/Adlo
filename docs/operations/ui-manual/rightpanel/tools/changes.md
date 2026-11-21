@@ -210,13 +210,17 @@ await page.waitForSelector(".adl-sidebar-menu");
 | 暂存全部     | `git add -A`（含未跟踪与删除），成功后重读快照                       | `button[role="menuitem"]` 文本「暂存全部」  |
 | 取消暂存     | 有 HEAD 时 `git restore --staged`（unborn 时 `git reset`）           | 文本「取消暂存」                            |
 | 提交         | 打开提交弹窗（默认勾选「暂存全部并提交」），失败原因在弹窗内展示     | 文本「提交」                                |
-| 推送         | 有 upstream 直接 push；无 upstream 时优先 `origin` 或唯一远程并 `-u` | 文本「推送」                                |
-| 拉取         | `git pull --ff-only`（分叉由 git 报错原样展示）                      | 文本「拉取」                                |
+| 推送         | 先刷新快照并查 upstream；干净且有 upstream 直接 push；否则弹推送预检对话框（详见下节） | 文本「推送」                                |
+| 拉取         | `git pull --ff-only`（分叉由 git 报错原样展示）；失败进全局错误卡片并可重试            | 文本「拉取」                                |
 | 放弃全部     | 二次确认后 restore + clean（无 HEAD 时先清索引再 clean）             | 文本「放弃全部」                            |
 
 - 无变更时「暂存全部/提交/放弃全部」禁用；无已暂存内容时「取消暂存」禁用。
 - **提交弹窗**：`.adl-commit-dialog`，多行输入 `#adl-commit-message`，`Ctrl/Cmd+Enter` 提交；提交中禁用输入与按钮；失败原因常驻 `role="alert"`。
 - **放弃全部确认**：`.adl-confirm-dialog`；无 HEAD 的仓库使用专用文案，说明会清空索引并删除全部未忽略文件（`.gitignore` 项保留）。
+- **推送预检**：仅当「有未提交变更」或「当前分支无 upstream」时出现 `.adl-confirm-dialog`。脏工作区显示未提交提示；无 upstream 显示建立上游提示（`.adl-push-preflight__notice`，无边框）。三个动作：`提交并推送`（打开提交弹窗，提交成功后自动推送，ahead 按 +1 计）、`仅推送已提交`（直接推送已有提交）、`取消`。绝不把未提交内容自动提交。
+- **忙碌与结果**：推送/拉取期间工作区标题显示「推送中… / 拉取中…」文字扫光并隐藏变更计数，按钮禁用；成功后顶部 toast（首次无 upstream 推送为通用「推送成功」，有 upstream 显示「已推送 N 个提交」或「已是最新」）。
+- **失败与重试**：失败写右下角全局错误卡片（`.toast-card--error`，`level=error`），卡片底部有「重试推送 / 重试拉取」；重试前会重读 ahead/upstream，成功后清掉该工作区残留的失败卡。提交成功但推送失败时，提交对话框关闭并直接显示推送失败卡片（不会误报「提交失败」）。
+- **忙碌互斥**：同一工作区的推送/拉取共享 `gitOpsBusy`，菜单、行内按钮、错误卡重试不会并发触发。
 
 ### 操作
 

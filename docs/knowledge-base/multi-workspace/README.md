@@ -11,6 +11,7 @@ Lessons and fixes related to multi-workspace terminal, panel, and UI alignment f
 - [file-selection-fix.md](./file-selection-fix.md) — File selection fix
 - [file-tree.md](./file-tree.md) — File tree implementation
 - [git-metadata-watch-silent-miss-2026-11-09.md](./git-metadata-watch-silent-miss-2026-11-09.md) — 变更面板 commit/push 后不刷新：git 元数据盲区与 linked worktree gitdir/commondir 双监听
+- [git-push-no-upstream-ux-2026-11-22.md](./git-push-no-upstream-ux-2026-11-22.md) — 无 upstream 推送：后端自动 `push -u`、前端预检/错误卡前缀清理/忙碌互斥
 - [interactive-terminal.md](./interactive-terminal.md) — Interactive terminal implementation
 - [interactive-terminal.md](./interactive-terminal.md) — Interactive terminal implementation
 - [large-file-diff-degradation-2026-10-14.md](./large-file-diff-degradation-2026-10-14.md) — 超大变更文件差异渲染：挂载成本、双侧取大门、plain 降级、fold 轮询风暴、就绪才切换

@@ -113,6 +113,24 @@ Strict layering tokens — nothing else may declare arbitrary z-index numbers:
 - `--focus-ring-width` (3 px, boosted to 4 px under `prefers-contrast: more`)
 - `--focus-ring` (theme-aware, see `themes.css`)
 
+## Button（石墨墨水语义色）
+
+应用内按钮自 2026-11 起统一消费 `--btn-*`，定义在 `themes.css`（亮/暗两套同名 token）。`button.css` 的 `.btn` / `.adl-btn` 是唯一消费方；不要在组件样式里直接写按钮底色。
+
+| Token | Light | Dark | 用途 |
+|-------|-------|------|------|
+| `--btn-radius` | `2px` | `2px` | 所有语义按钮圆角（`.adl-btn--square` 显式改 0） |
+| `--btn-primary` / `-fg` / `-hover` | `#2b2b28` / `#f7f5ef` / `#3a3a35` | `#e8e3d8` / `#1c1b18` / `#f2eee5` | 实心主操作（石墨） |
+| `--btn-danger` / `-fg` / `-hover` | `#a33a2a` / `#ffffff` / `#8a2f21` | `#d9776a` / `#2a120e` / `#e58a7d` | 危险操作（实心） |
+| `--btn-primary-soft-bg` / `-fg` / `-border` | `rgba(43,43,40,.08)` / `#2b2b28` / `rgba(43,43,40,.28)` | `rgba(232,227,216,.12)` / `#e8e3d8` / `rgba(232,227,216,.38)` | 对话框主按钮（soft） |
+| `--btn-*-soft-*`（danger / warning / success） | 见 `themes.css` | 见 `themes.css` | 语义柔和按钮 |
+| `--btn-neutral-soft-fg` / `-border` | `#55524b` / `rgba(31,30,27,.18)` | 见 `themes.css` | 取消 / 次按钮（soft） |
+
+- 新对话框的语义按钮一律用 soft 变体（`adl-btn--{primary,danger,warning,success,neutral}-soft`）。
+- 已有实心按钮保留实心，但底色改为石墨 `--btn-primary` / `--btn-danger`。
+- 忙碌按钮使用文字扫光（`adl-text-shimmer` + `background-clip: text`），不再插入圆圈 spinner；`prefers-reduced-motion` 下回退为静态 `--text-muted` 文案。
+- 分支名 chip 使用实心无边框样式（`git-visualization.css`）。
+
 ## Tooltip
 
 | Token | Value | Source |

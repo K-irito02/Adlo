@@ -17,7 +17,7 @@
 | [interaction](./interaction/) | 跨功能面板交互/UX 修复（GitHub 面板、终端、检索、Git 可视化、指针事件、toast、编辑器自动保存竞态、开屏动画） | 61 |
 | [refactoring](./refactoring/) | 重构方法论、执行记录与架构改进（process / store-ui / architecture） | 27 |
 | [code-quality](./code-quality/) | 代码质量检测与修复、工具链门禁（diff-viewer / git-vis-charts / toolchain-lint / 审计） | 38 |
-| [multi-workspace](./multi-workspace/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 16 |
+| [multi-workspace](./multi-workspace/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 17 |
 | [ci-monitoring](./ci-monitoring/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离） | 6 |
 | [tauri-backend](./tauri-backend/) | Tauri 命令性能、Rust 异步模式、主线程阻塞、serde JSON 等后端经验 | 14 |
 | [toolchain](./toolchain/) | 开发工具链与环境配置经验（Git、Node、Rust、技能体系演进等） | 8 |
@@ -81,6 +81,7 @@
 | [file-selection-fix.md](./multi-workspace/file-selection-fix.md) | 文件选择修复经验 |
 | [file-tree.md](./multi-workspace/file-tree.md) | 多工作区文件树 11 条经验 |
 | [git-metadata-watch-silent-miss-2026-11-09.md](./multi-workspace/git-metadata-watch-silent-miss-2026-11-09.md) | 变更面板 commit/push 后不刷新：git 元数据盲区与 linked worktree gitdir/commondir 双监听 |
+| [git-push-no-upstream-ux-2026-11-22.md](./multi-workspace/git-push-no-upstream-ux-2026-11-22.md) | 无 upstream 推送：后端自动 `push -u`、前端预检/错误卡前缀清理/忙碌互斥 |
 | [interactive-terminal.md](./multi-workspace/interactive-terminal.md) | 交互式终端讨论总结 |
 | [large-file-diff-degradation-2026-10-14.md](./multi-workspace/large-file-diff-degradation-2026-10-14.md) | 超大变更文件差异渲染：挂载成本、双侧取大门、plain 降级、fold 轮询风暴；2026-11-17 追加分档信号与滚动同步回环 |
 | [search-workspace-binding-2026-10-14.md](./multi-workspace/search-workspace-binding-2026-10-14.md) | 文件检索工作区绑定、命中显式打开、ripgrep 式大文件检索、覆盖锚重定 |
