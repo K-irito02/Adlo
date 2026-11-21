@@ -9,6 +9,7 @@ import {
   isPlaceholderTitle,
 } from '@utils/browserDisplayUtils';
 import type { BrowserHistoryState } from './browserTypes';
+import { HISTORY_MAX_ENTRIES, pruneBrowserHistory } from '../browserHistoryRetention';
 
 export type { BrowserHistoryState };
 
@@ -132,7 +133,14 @@ export const createBrowserHistorySlice = (
         title: title || url,
         visitedAt: now,
       };
-      const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100);
+      const nextHistory = pruneBrowserHistory([newHistoryItem, ...filteredHistory], now);
+      const pruned = filteredHistory.length + 1 - nextHistory.length;
+      if (pruned > 0) {
+        // 静默维护：只记一条 INFO，便于排查“历史变短”时确认是保留策略而非丢失。
+        console.info(
+          `[browserHistory] pruned ${pruned} entries (180d / ${HISTORY_MAX_ENTRIES} cap)`,
+        );
+      }
       persist('adl:browser.history', nextHistory);
       return { browserHistory: nextHistory };
     });

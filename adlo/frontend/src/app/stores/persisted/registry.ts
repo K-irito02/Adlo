@@ -1,4 +1,5 @@
 import { defineEntry, readBooleanRecord, type PersistEntry } from './entry';
+import { pruneBrowserHistory } from '../browserHistoryRetention';
 import {
   readFlag,
   readNumberInRange,
@@ -316,7 +317,7 @@ function readBackgroundConfig(raw: unknown): BackgroundConfig | undefined {
 /** 浏览器历史：与写入侧一致，最多保留最近 100 条 */
 function readBrowserHistory(raw: unknown): BrowserHistoryState[] | undefined {
   const entries = readObjectArray<BrowserHistoryState>(isHistoryEntry)(raw);
-  return entries?.slice(0, 100);
+  return entries ? pruneBrowserHistory(entries) : undefined;
 }
 
 /**
