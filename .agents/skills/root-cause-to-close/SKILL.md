@@ -340,6 +340,7 @@ pnpm --dir frontend run check:changed                   # 落盘/提交前最终
 | 规则           | `.agents/rules/`（真源）→ `.opencode/rules/`、`.trae/rules/`                                                                                                                         | 编码、架构、工具链变化；增删规则在根 `RULES.md` 规则清单登记                                                   |
 | 技能           | `.agents/skills/`（真源）→ `.opencode/skills/`、`.trae/skills/`                                                                                                                      | 指令/触发条件变化；改后按子目录递归做三目录哈希比对（如 `Get-FileHash`）                                       |
 | 治理           | `AGENTS.md`、`adlo/AGENTS.md`、`CONTEXT.md`                                                                                                                                          | 术语、功能、架构层级                                                                                           |
+| 领域模型       | `GLOSSARY.md`、`docs/adr/`                                                                                                                                                           | 用户可感知行为/术语/契约变化时更新术语定义、补或改 ADR；新术语登记 `_Avoid_`；对外契约变化须有决策记录          |
 | 根文档         | `README.md`、`adlo/README.md`、`CONTRIBUTING.md`、`adlo/CONTRIBUTING.md`、`SECURITY.md`、`FUTURE-ROADMAP.md`、`docs/development/project-engineering-constraints.md`                  | 安装使用、协作流程、安全策略、后续规划、工程约束                                                               |
 | 架构/开发/分析 | `docs/architecture/`、`docs/development/`（上行点名文件除外）、`docs/analysis/`                                                                                                      | 决策、流程、分析结论                                                                                           |
 | 设计/运维      | `docs/design-system/`、`docs/operations/`（UI 交互落 `ui-manual/`）                                                                                                                  | 可复用 UI 模式、运维手册                                                                                       |
@@ -347,7 +348,7 @@ pnpm --dir frontend run check:changed                   # 落盘/提交前最终
 | 工程基线       | `.githooks/pre-push`、`adlo/src-tauri/capabilities/*.json`、`adlo/src-tauri/tauri.conf.json`、`adlo/.cargo/config.toml`、`adlo/clippy.toml`、`adlo/rustfmt.toml`、根 `.editorconfig` | 触及门禁命令 / 新增 Command 登记与通配 / CSP 与 `withGlobalTauri` / 构建基线时同步；未触及表态无需             |
 | 本技能归档     | `docs/root-cause-to-close/YYYY-MM/README.md`                                                                                                                                         | 追加 `progress-...md` 链接（最新在最后）；用过 brainstorming 则确认设计文档（`docs/superpowers/specs/`）已索引 |
 
-UI 引入可复用模式或修正规范时，提取为标准并更新 `docs/design-system/` 与对应手册。
+UI 引入可复用模式或修正规范时，提取为标准并更新 `docs/design-system/` 与对应手册。用户可感知行为或术语变化时，同步 `GLOSSARY.md`（定义是否仍成立、`_Avoid_` 是否需调整）与 `docs/adr/`（新决策或被推翻的旧决策）；只改代码不改领域模型，视为 P5 未完成。
 
 P5 逐项表态完成后直接进 P6（阶段之间不停留；结算性工作，无需再批）。
 
@@ -378,6 +379,7 @@ P5 逐项表态完成后直接进 P6（阶段之间不停留；结算性工作�
 | 日志 | ✅ 无未解 ERROR |
 | 质量检测 | ✅ 通过（受影响范围） |
 | 文档同步 | ✅ 更新 N 个 |
+| 领域模型 | ✅ GLOSSARY / ADR 已核对 |
 | 清理 | ✅ |
 | 提交 | ✅ <hash> <subject> |
 

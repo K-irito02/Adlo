@@ -234,6 +234,13 @@ function main() {
     for (const { scope, rev } of result.failing) {
       console.error(`  ${scope} rev${rev}: latest R1 report is not at "需修复项：0"`);
     }
+    console.error(
+      [
+        "  hint: after fixing R1 findings, write a targeted confirmation as <scope>-r1-rev<N+1>-report.md.",
+        "        The report prefix follows the current phase, not the review content; only after this gate passes",
+        "        may you dispatch <scope>-r2-rev<N>-report.md.",
+      ].join("\n"),
+    );
     process.exit(1);
   }
   console.log(

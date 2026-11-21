@@ -4,6 +4,17 @@
 
 ## 1. 快照与只读约束
 
+**主代理每轮命令（子代理不执行）**：
+
+```powershell
+# 修复轮：只跑静态项（lint/format/typecheck/注释断言/术语/链接），预计 <1 分钟
+pnpm --dir frontend run check:changed -- --base HEAD --skip-tests
+# 最终快照：完整门禁（含 vitest），预计 4–5 分钟；后台运行并设 ≥600s 超时
+pnpm --dir frontend run check:changed
+```
+
+中间轮不要跑完整门禁。2026-11-22 实测：完整门禁单次 230–237s，4 次完整运行 + 1 次 300s 默认超时被截断，约 20 分钟耗在重复测试上；实际失败项都是秒级静态检查。
+
 - 仓库根：以主代理在提示词里给出的工作树为准。
 - 快照目录：`.review-diffs/`；本轮清单：`manifest-rev<N>.md`（由 `review-snapshot.mjs` 生成）。
 - 快照文件命名：仓库相对路径中的 `/` 和 `.` 换成 `_`，后缀 `-rev<N>.diff`。
@@ -85,6 +96,8 @@
 
 ## 6. 报告契约
 
+**报告前缀由当前阶段决定，不由审查内容决定**：针对 R1 finding 的定向确认仍写 `<scope>-r1-rev<N>-report.md`；只有 `check-review-gate.mjs --phase r2` 通过后，才写 `<scope>-r2-rev<N>-report.md`。把 R1 复核写成 r2 会让门控继续读到 R1 非零（2026-11-22 实测：多花一轮三份确认）。
+
 写入主代理指定的 `.review-diffs/<scope>-r1-rev<N>-report.md`（R2 用 `<scope>-r2-rev<N>-report.md`），包含：
 
 ```
@@ -106,6 +119,7 @@
 
 - 主表只列「需修复」项；可选/风格/记录不修项统一放在「记录不修」一节，一行一条，不进入主表。
 - 每个 scope 的 low 最多 3 条；超过时合并为一条概括，细节放报告末尾，避免淹没高价值发现。
+- **同一 rev 批量修低危项**：R1/R2 的多条 low 在同一轮一次修完，下一轮只对已修项做定向复核；禁止一项一个 rev（2026-11-22 实测：R2 的注释/测试锁类 low 分散修导致 rev2→rev6 五个快照）。
 
 返回消息只给：报告路径 + ≤5 行摘要 + 「需修复项：N」。
 

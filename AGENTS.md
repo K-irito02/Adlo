@@ -63,7 +63,7 @@
 
 ## Agent skills
 
-Issue tracker 存放在 GitHub Issues（`K-irito02/Adlo`，`gh` CLI）；五个规范 triage 标签（`needs-triage` / `needs-info` / `ready-for-agent` / `ready-for-human` / `wontfix`）见 `docs/agents/triage-labels.md`；术语表 `GLOSSARY.md`、决策记录 [docs/adr/](docs/adr/)（按域索引见 `docs/adr/README.md`）。详见 `docs/agents/`。
+Issue tracker 存放在 GitHub Issues（`K-irito02/Adlo`，`gh` CLI）；五个规范 triage 标签（`needs-triage` / `needs-info` / `ready-for-agent` / `ready-for-human` / `wontfix`）见 `docs/agents/triage-labels.md`；术语表 `GLOSSARY.md`、决策记录 [docs/adr/](docs/adr/)（按域索引见 `docs/adr/README.md`）。行为、术语或契约变化时用技能 `domain-modeling` 同步两者（P5 强制项）。详见 `docs/agents/`。
 
 ## 相关文档
 
