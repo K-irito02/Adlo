@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getChildNodeMoreMenuItems, getTabContextMenuItems } from './browserEntrySubEntriesUtils';
+import {
+  getChildNodeHoverButtons,
+  getChildNodeMoreMenuItems,
+  getTabContextMenuItems,
+} from './browserEntrySubEntriesUtils';
 import type { CopyDict } from '@i18n';
 import type { BrowserTreeNode } from './types';
 
@@ -31,6 +35,7 @@ const t = {
   nestedBadge: '嵌套',
   browserContextDeleteSelfTabs: '删除自身',
   browserContextDeleteDir: '删除目录',
+  browserContextDeleteHistoryDir: '删除目录',
   browserDeleteAllTabsHint: 'h',
   browserDeleteSelfTabsHint: 'h',
   browserDeleteDirHint: 'h',
@@ -76,6 +81,25 @@ describe('getChildNodeMoreMenuItems', () => {
     const item = items.find((i) => i.id === 'delete-all-tabs')!;
     expect(item.label).not.toContain('[嵌套]');
     expect(item.badge).toBe('嵌套');
+  });
+});
+
+describe('history year/month/day directory controls', () => {
+  it.each(['year', 'month', 'day'])('%s 悬停只显示「删除目录」按钮', (nodeType) => {
+    const btns = getChildNodeHoverButtons(nodeType, 'history', t);
+    expect(btns.map((b) => b.id)).toEqual(['delete-history-dir']);
+    expect(btns[0].label).toBe('删除目录');
+  });
+
+  it.each(['year', 'month', 'day'])('%s 不再提供右键菜单', (nodeType) => {
+    const items = getChildNodeMoreMenuItems(
+      nodeType,
+      'history',
+      `history:${nodeType}:2026`,
+      makeCallbacks(),
+      t,
+    );
+    expect(items).toEqual([]);
   });
 });
 

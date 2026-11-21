@@ -6,6 +6,7 @@ import {
 } from './browserTreeEntryUtils';
 import type { CopyDict } from '@i18n';
 import type { BrowserTreeNode } from './types';
+import { browserZh } from '@i18n/zh-CN/browser';
 
 function makeTabNode(tabId: string, name: string): BrowserTreeNode {
   return {
@@ -93,6 +94,7 @@ const t = {
   nestedBadge: '嵌套',
   browserContextDeleteSelfTabs: '删除自身',
   browserContextDeleteDir: '删除目录',
+  browserContextDeleteAllHistory: '删除全部历史记录',
   browserDeleteAllTabsHint: 'h',
   browserDeleteSelfTabsHint: 'h',
   browserDeleteDirHint: 'h',
@@ -125,12 +127,27 @@ describe('getEntryMoreMenuItems', () => {
     expect(item.label).not.toContain('[嵌套]');
     expect(item.badge).toBe('嵌套');
   });
+
+  it('历史记录顶层不再提供右键菜单（含失效的年/月/日删除项）', () => {
+    const callbacks = makeCallbacks();
+    expect(getEntryMoreMenuItems('history', 'history', 'history:root', callbacks, t)).toEqual([]);
+  });
 });
 
 describe('getEntryHoverButtons', () => {
-  it('history category returns only the more button', () => {
+  it('history 子目录不使用顶层悬停按钮（由 getChildNodeHoverButtons 接管）', () => {
     const btns = getEntryHoverButtons('year', 'history', t);
-    expect(btns.map((b) => b.id)).toEqual(['more']);
+    expect(btns).toEqual([]);
+  });
+
+  it('历史记录顶层只显示「删除全部历史记录」按钮，不再显示更多操作', () => {
+    const btns = getEntryHoverButtons('history', 'history', t);
+    expect(btns.map((b) => b.id)).toEqual(['delete-history-label']);
+    expect(btns[0].label).toBe(t.browserContextDeleteAllHistory);
+  });
+
+  it('历史记录顶层文案统一为「删除全部历史记录」', () => {
+    expect(browserZh.browserContextDeleteAllHistory).toBe('删除全部历史记录');
   });
 
   it('non-workspace/folder node type returns only the more button', () => {

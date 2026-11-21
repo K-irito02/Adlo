@@ -62,9 +62,6 @@ export const browserEn = {
   browserCreateDir: 'New Directory',
   browserCreateDirHint:
     '· When a directory is selected, creates a subdirectory under it.\n· When no directory is selected, creates a top-level directory under "Custom Directory".',
-  browserDeleteHistoryYearLabel: 'Delete all history · Year',
-  browserDeleteHistoryMonthLabel: 'Delete all history · Month',
-  browserDeleteHistoryDayLabel: 'Delete all history · Day',
   browserNoContent: 'No content',
   browserEmptyDirectory: 'Empty directory',
   browserOpenTabsEmpty: 'No open tabs yet',
@@ -154,16 +151,10 @@ export const browserEn = {
     'Only delete child tabs directly under this directory, excluding nested directories and their child tabs, but keep the directory structure.',
   browserDeleteDirHint:
     'Delete this directory and all directory structures and child tabs under it.',
-  browserContextDeleteAllHistory: 'Delete all history labels',
-  browserDeleteHistoryLabelHint:
-    'Delete all history entries, clearing all year/month/day directory structures and their tags.',
-  browserDeleteHistoryYearHint:
-    'Only delete "year" directories, including nested sub-directories (month, day) and tags under "day" directories.',
-  browserDeleteHistoryMonthHint:
-    'Only delete "month" directories, including nested sub-directories (day) and tags under "day" directories.',
-  browserDeleteHistoryDayHint: 'Only delete "day" directories, including tags under them.',
+  browserContextDeleteAllHistory: 'Delete all history',
   browserContextOpenAllNewTabs: 'Open all in new tabs',
   browserContextDeleteDir: 'Delete this directory',
+  browserContextDeleteHistoryDir: 'Delete directory',
   browserCannotOpenEmbedded:
     'This site cannot be displayed in the embedded view. Try opening it in an external browser.',
   browserConnectionFailed:

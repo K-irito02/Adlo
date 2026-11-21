@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconPlus, IconMoreVertical } from '@icons';
+import { IconDelete, IconMoreVertical, IconPlus } from '@icons';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
 import type { CopyDict } from '@i18n';
@@ -70,7 +70,20 @@ export function getEntryHoverButtons(
   categoryType: BrowserCategoryType,
   t: CopyDict,
 ): { id: string; label: string; icon: React.ReactNode }[] {
-  if (categoryType === 'history' || (nodeType !== 'workspace' && nodeType !== 'folder')) {
+  if (categoryType === 'history') {
+    // 历史记录顶层：只保留「删除全部历史记录」；右键菜单已取消。
+    if (nodeType === 'history') {
+      return [
+        {
+          id: 'delete-history-label',
+          label: t.browserContextDeleteAllHistory,
+          icon: <IconDelete size={12} decorative />,
+        },
+      ];
+    }
+    return [];
+  }
+  if (nodeType !== 'workspace' && nodeType !== 'folder') {
     return [
       {
         id: 'more',
@@ -109,36 +122,8 @@ export function getEntryMoreMenuItems(
   action: () => void;
 }[] {
   if (categoryType === 'history') {
-    return [
-      {
-        id: 'delete-history-label',
-        label: t.browserContextDeleteAllHistory,
-        danger: true,
-        hint: t.browserDeleteHistoryLabelHint,
-        action: () => callbacks.onDeleteHistory('label', nodePath),
-      },
-      {
-        id: 'delete-history-year',
-        label: t.browserDeleteHistoryYearLabel,
-        danger: true,
-        hint: t.browserDeleteHistoryYearHint,
-        action: () => callbacks.onDeleteHistory('year', nodePath),
-      },
-      {
-        id: 'delete-history-month',
-        label: t.browserDeleteHistoryMonthLabel,
-        danger: true,
-        hint: t.browserDeleteHistoryMonthHint,
-        action: () => callbacks.onDeleteHistory('month', nodePath),
-      },
-      {
-        id: 'delete-history-day',
-        label: t.browserDeleteHistoryDayLabel,
-        danger: true,
-        hint: t.browserDeleteHistoryDayHint,
-        action: () => callbacks.onDeleteHistory('day', nodePath),
-      },
-    ];
+    // 本函数对 history 返回空数组；删除入口由悬停图标按钮提供（顶层删除全部、年/月/日删除目录）。
+    return [];
   }
 
   const items: {

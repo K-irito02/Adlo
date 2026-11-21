@@ -140,3 +140,54 @@ describe('书签列表右键菜单（列表模式）', () => {
     expect(historyMenu.textContent).not.toContain('centerTabShowInCenter');
   });
 });
+
+describe('历史记录顶层（树模式）', () => {
+  function renderHistoryRoot() {
+    const onDeleteHistory = vi.fn();
+    const view = render(
+      <TCopyProvider t={t} locale="zh-CN">
+        <BrowserTreeEntry
+          node={{
+            path: 'history:root',
+            name: '历史记录',
+            kind: 'directory',
+            nodeType: 'history',
+            children: [],
+          }}
+          categoryType="history"
+          expandedPaths={{}}
+          selectedTreePath={null}
+          onSelectTreePath={vi.fn()}
+          onTogglePath={vi.fn()}
+          onOpenFile={vi.fn()}
+          callbacks={{ ...callbacks, onDeleteHistory }}
+          counts={new Map()}
+        />
+      </TCopyProvider>,
+    );
+    return { ...view, onDeleteHistory };
+  }
+
+  it('悬停只显示「删除全部历史记录」按钮，点击删除全部', () => {
+    const { container, onDeleteHistory } = renderHistoryRoot();
+    const deleteBtn = container.querySelector(
+      '[aria-label="browserContextDeleteAllHistory"]',
+    ) as HTMLButtonElement;
+    expect(deleteBtn).not.toBeNull();
+    expect(container.querySelector('[aria-label="browserContextMore"]')).toBeNull();
+    fireEvent.click(deleteBtn);
+    expect(onDeleteHistory).toHaveBeenCalledWith('label', 'history:root');
+  });
+
+  it('右键不打开菜单卡片', () => {
+    const { container } = renderHistoryRoot();
+    const header = container.querySelector('.adl-browser-entry__header') as HTMLElement;
+    fireEvent.contextMenu(header, { clientX: 10, clientY: 10 });
+    expect(document.querySelector('[data-menu-id="browser-entry-menu-history:root"]')).toBeNull();
+  });
+
+  it('空历史时默认展开并显示「暂无历史记录」空态', () => {
+    const { container } = renderHistoryRoot();
+    expect(container.textContent).toContain('browserCategoryEmptyHistory');
+  });
+});

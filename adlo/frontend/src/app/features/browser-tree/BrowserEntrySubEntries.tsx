@@ -196,8 +196,14 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
                     });
                   } else if (btn.id === 'create-bookmark') {
                     callbacks.onCreateTab(childNode.workspaceId, childNode.folderId);
-                  } else if (btn.id === 'delete-self-tabs') {
-                    callbacks.onDeleteOwnChildTabs(categoryType, childNode.path);
+                  } else if (btn.id === 'delete-history-dir') {
+                    if (
+                      childNode.nodeType === 'year' ||
+                      childNode.nodeType === 'month' ||
+                      childNode.nodeType === 'day'
+                    ) {
+                      callbacks.onDeleteHistory(childNode.nodeType, childNode.path);
+                    }
                   }
                 }}
                 aria-label={btn.label}

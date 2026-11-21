@@ -326,9 +326,9 @@ export function buildHistoryCategoryTree(
     nodeType: 'history',
   };
 
-  // 无历史时不渲染空的「历史记录」根目录：分类头已经表达「历史目录」，
-  // 再挂一个 0 条目的同名根只会造成「历史目录 1 / 历史记录 0」的噪音。
-  return history.length === 0 ? [] : [historyRoot];
+  // 空历史也保留「历史记录」根目录：删除全部后顶层不能消失；
+  // 展开时由 BrowserTreeEntry 显示「暂无历史记录」空态。
+  return [historyRoot];
 }
 
 export interface UseBrowserTreeDataResult {

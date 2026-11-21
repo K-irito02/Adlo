@@ -57,7 +57,9 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     node: BrowserTreeNode;
   } | null>(null);
 
-  const isExpanded = expandedPaths[node.path] ?? false;
+  // 空历史时顶层默认展开，直接显示「暂无历史记录」；用户手动折叠后以持久化值为准。
+  const isExpanded =
+    expandedPaths[node.path] ?? (node.nodeType === 'history' && node.children.length === 0);
   const isFlatMode = browserViewMode === 'list' || browserViewMode === 'all';
   const showSeparators = browserViewMode === 'list';
   const menuId = `browser-entry-menu-${node.path}`;
@@ -67,6 +69,10 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      // 历史记录（顶层及年/月/日）不再提供右键菜单；删除走悬停图标按钮。
+      if (categoryType === 'history') {
+        return;
+      }
       if (node.nodeType === 'tab') {
         onSelectTreePath(node.path);
         setContextMenuForTab({
@@ -79,7 +85,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
         setMenuOpen(true);
       }
     },
-    [node, onSelectTreePath],
+    [categoryType, node, onSelectTreePath],
   );
 
   const count = useMemo(() => {
@@ -111,6 +117,9 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
           setMenuOpen((prev) => !prev);
           break;
         }
+        case 'delete-history-label':
+          callbacks.onDeleteHistory('label', node.path);
+          break;
       }
     },
     [callbacks, node],
@@ -179,7 +188,9 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
       onNameKeyDown={handleNameKeyDown}
       expandLabel={t.expand}
       collapseLabel={t.collapse}
-      emptyText={t.browserEmptyDirectory}
+      emptyText={
+        node.nodeType === 'history' ? t.browserCategoryEmptyHistory : t.browserEmptyDirectory
+      }
       actionButtonsSlot={actionButtonsSlot}
       entryMenuSlot={menuSlots.entryMenuSlot}
       dataPath={node.path}

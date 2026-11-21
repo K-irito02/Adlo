@@ -318,8 +318,11 @@ describe('count rules per category type', () => {
     expect(tree).toHaveLength(1);
   });
 
-  it('空历史不渲染 history:root', () => {
-    expect(buildHistoryCategoryTree([], [], mockDateLabels)).toEqual([]);
+  it('空历史仍保留 history:root（删除全部后顶层不消失）', () => {
+    const tree = buildHistoryCategoryTree([], [], mockDateLabels);
+    expect(tree).toHaveLength(1);
+    expect(tree[0].path).toBe('history:root');
+    expect(tree[0].children).toEqual([]);
   });
 
   it('filters out history leaves with an empty resolved name', () => {

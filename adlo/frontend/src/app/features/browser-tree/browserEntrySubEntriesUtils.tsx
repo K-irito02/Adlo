@@ -33,17 +33,13 @@ export function getChildNodeHoverButtons(
   t: CopyDict,
 ): { id: string; label: string; icon: React.ReactNode }[] {
   if (categoryType === 'history') {
-    if (nodeType === 'day') {
+    if (nodeType === 'year' || nodeType === 'month' || nodeType === 'day') {
+      // 三种目录统一：悬停只显示「删除目录」，删除自身及全部嵌套内容。
       return [
         {
-          id: 'delete-self-tabs',
-          label: t.browserContextDeleteSelfTabs,
+          id: 'delete-history-dir',
+          label: t.browserContextDeleteHistoryDir,
           icon: <IconDelete size={12} decorative />,
-        },
-        {
-          id: 'more',
-          label: t.browserContextMore,
-          icon: <IconMoreVertical size={12} decorative />,
         },
       ];
     }
@@ -84,33 +80,12 @@ export function getChildNodeMoreMenuItems(
   hint?: string;
   action: () => void;
 }[] {
-  if (categoryType === 'history' && nodeType === 'day') {
-    return [
-      {
-        id: 'open-all-tabs',
-        label: t.browserContextOpenAllNewTabs,
-        action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
-      },
-      {
-        id: 'open-all-center',
-        label: t.centerTabOpenAllInCenter,
-        action: () => callbacks.onOpenAllInCenter?.(categoryType, nodePath),
-      },
-      {
-        id: 'delete-self-tabs',
-        label: t.browserContextDeleteSelfTabs,
-        danger: true,
-        hint: t.browserDeleteSelfTabsHint,
-        action: () => callbacks.onDeleteOwnChildTabs(categoryType, nodePath),
-      },
-      {
-        id: 'delete-this-dir',
-        label: t.browserContextDeleteDir,
-        danger: true,
-        hint: t.browserDeleteDirHint,
-        action: () => callbacks.onDeleteDirectory(nodePath),
-      },
-    ];
+  if (
+    categoryType === 'history' &&
+    (nodeType === 'year' || nodeType === 'month' || nodeType === 'day')
+  ) {
+    // 年/月/日目录不再提供右键菜单（与悬停「删除目录」按钮统一）。
+    return [];
   }
 
   if (nodeType === 'folder') {

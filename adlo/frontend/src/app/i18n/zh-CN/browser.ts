@@ -143,15 +143,10 @@ export const browserZh = {
   browserDeleteSelfTabsHint:
     '仅删除自身目录下的子标签，不包括嵌套目录及嵌套目录下的子标签，但保留所有目录结构。',
   browserDeleteDirHint: '删除此目录，并包括此目录下的所有目录结构及所有子标签。',
-  browserContextDeleteAllHistory: '删除全部历史记录标签',
-  browserDeleteHistoryLabelHint: '删除全部历史记录标签，所有年/月/日目录结构及子标签一并清除。',
-  browserDeleteHistoryYearHint:
-    '仅删除所有"年"目录，但包括"年"目录下的嵌套子目录（月、日），以及包括"日"目录下的子标签。',
-  browserDeleteHistoryMonthHint:
-    '仅删除所有"月"目录，但包括"月"目录下的嵌套子目录（日），以及包括"日"目录下的子标签。',
-  browserDeleteHistoryDayHint: '仅删除所有"日"目录，但包括"日"目录下的子标签。',
+  browserContextDeleteAllHistory: '删除全部历史记录',
   browserContextOpenAllNewTabs: '全部在新标签打开',
   browserContextDeleteDir: '删除此目录',
+  browserContextDeleteHistoryDir: '删除目录',
   browserCannotOpenEmbedded: '该网站无法在嵌入式视图中显示，请尝试在外部浏览器中打开。',
   browserConnectionFailed: '无法连接到该网站，请检查网址是否正确或尝试在外部浏览器中打开。',
   browserSelectDirFirst: '请先选择一个目录',
@@ -169,9 +164,6 @@ export const browserZh = {
   browserBookmark: '收藏标签',
   browserUnbookmark: '取消收藏',
   browserNewTabAlways: '始终新建标签页',
-  browserDeleteHistoryYearLabel: '删除全部历史记录 · 年',
-  browserDeleteHistoryMonthLabel: '删除全部历史记录 · 月',
-  browserDeleteHistoryDayLabel: '删除全部历史记录 · 日',
   browserExpandAll: '全部展开',
   browserCollapseAll: '全部折叠',
   browserBookmarkToFolderTitle: '收藏标签',
