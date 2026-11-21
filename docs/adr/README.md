@@ -40,7 +40,7 @@
 - [0024 智能体站点规则合并：站点优先、同 id 替换、停用只作用全局](./0024-agent-site-rule-merge-order.md) — 规则顺序有语义；停用站点规则不回退全局同 id；命中需可解析目标
 - [0025 内部拖拽使用 Pointer Events，保留 Tauri 原生文件拖入](./0025-pointer-events-for-internal-drag.md) — HTML5 DnD 与 `dragDropEnabled` 互斥；内部拖拽走 pointer，原生文件拖入保留
 - [0029 文件导航树拖拽只作用于文件面板；目录顺序存前端偏好，跨区操作走独立 IPC](./0029-file-navigator-drag-scope-and-child-order.md) — 变更面板不支持拖拽；顺序按工作区路径存偏好；跨区复制拒绝冲突
-
+- [0030 无上游推送：后端保留自动建立上游，前端必须先预检且绝不自动提交](./0030-push-preflight-without-upstream.md) — 脏/无上游合并确认；提交成功续推；失败错误卡重试；忙碌互斥
 ## 品牌、工具链与 Git 可视化
 
 - [0013 品牌改名后保留 `adl` 工程前缀](./0013-retain-adl-prefix-after-rename.md)
