@@ -63,8 +63,8 @@ export interface WorkspaceSlice {
    * 每个工作区正在执行的远端 Git 操作（push / pull）。
    *
    * 放在 store 而不是工作区行组件的局部 state：右下角错误卡片的「重试」在
-   * 组件树之外触发，只有共享状态才能让重试同样进入忙碌扫光，并与菜单/行内
-   * 按钮互斥（同一工作区同时只允许一个远端操作）。
+   * 组件树之外触发，只有共享状态才能让重试同样进入忙碌扫光，并与侧栏菜单
+   * 互斥（同一工作区同时只允许一个远端操作）。
    */
   gitOpsBusy: Record<string, 'push' | 'pull' | undefined>;
 

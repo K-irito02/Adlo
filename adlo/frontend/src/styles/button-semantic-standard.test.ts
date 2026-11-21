@@ -55,11 +55,10 @@ describe('按钮语义色与加载态标准（石墨墨水 / 全柔和 / 2px / �
     expect(legacy).toContain('border: none;');
     expect(legacy).not.toMatch(/^\s*background:/m);
     expect(legacy).not.toMatch(/^\s*color:/m);
-    expect(
-      exactRuleBody(
-        composerCoreCss,
-        ".adl-prompt-modal .adl-btn:not([class*='-soft']):hover:not(:disabled)",
-      ),
-    ).not.toBeNull();
+    const hover = exactRuleBody(
+      composerCoreCss,
+      ".adl-prompt-modal .adl-btn:not([class*='-soft']):hover:not(:disabled)",
+    );
+    expect(hover).toContain('--btn-bg: var(--bg-hover);');
   });
 });

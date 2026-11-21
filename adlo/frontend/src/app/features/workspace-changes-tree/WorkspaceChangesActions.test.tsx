@@ -436,10 +436,13 @@ describe('WorkspaceChangesActions push preflight (事项 7)', () => {
       actions: { run: () => Promise<boolean> }[];
     };
 
+    let runResult: boolean | undefined;
     await act(async () => {
-      await options.actions[0].run();
+      runResult = await options.actions[0].run();
     });
 
+    // false = 不自动关闭卡片；成功由 scope 清理，失败会重新上报。
+    expect(runResult).toBe(false);
     expect(refreshGitSnapshot).toHaveBeenCalledTimes(2);
     expect(listGitBranches).toHaveBeenCalledTimes(2);
     expect(pushWorkspaceChanges).toHaveBeenCalledWith('/workspace-one', {

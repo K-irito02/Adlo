@@ -190,7 +190,7 @@ export function createGitFileOpsActions(
       if (!target) {
         return false;
       }
-      // 同一工作区只允许一个远端操作在跑：菜单、行内按钮、错误卡「重试」共享此守卫。
+      // 同一工作区只允许一个远端操作在跑：侧栏菜单与错误卡「重试」共享此守卫。
       if (get().gitOpsBusy[target.id]) {
         return false;
       }

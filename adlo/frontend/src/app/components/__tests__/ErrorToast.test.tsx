@@ -281,4 +281,30 @@ describe('ErrorToastContainer', () => {
     expect(screen.getByText('Workspace error: fatal ×3')).toBeTruthy();
     expect(screen.getByText('once')).toBeTruthy();
   });
+
+  it('only dismisses the card when the action resolves true', async () => {
+    const onDismiss = vi.fn();
+    const run = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    render(
+      <TestProvider>
+        <ErrorToastContainer
+          errorToasts={[entry({ actions: [{ label: 'Retry', run }] })]}
+          onDismiss={onDismiss}
+          onClearAll={vi.fn()}
+        />
+      </TestProvider>,
+    );
+    const retry = screen.getByRole('button', { name: 'Retry' });
+
+    await act(async () => {
+      fireEvent.click(retry);
+    });
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(onDismiss).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(retry);
+    });
+    expect(onDismiss).toHaveBeenCalledWith('e1');
+  });
 });

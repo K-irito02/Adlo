@@ -421,7 +421,7 @@
   display: none;
 }
 
-/* 分类内联空态：标题 + 创建目录指导，水平居中（用户 2026-11-07 指定）。 */
+/* 分类内联空态：创建目录指导，水平居中（用户 2026-11-07 指定）。 */
 .adl-browser-category__empty {
   display: flex;
   flex-direction: column;
