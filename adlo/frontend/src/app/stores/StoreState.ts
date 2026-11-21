@@ -324,9 +324,12 @@ interface GitActions {
     options?: { stageAll?: boolean; workspacePath?: string },
   ) => Promise<string | undefined>;
   /** 「推送」：无 upstream 时自动建立跟踪。 */
-  pushWorkspaceChanges: (workspacePath?: string) => Promise<void>;
+  pushWorkspaceChanges: (
+    workspacePath?: string,
+    options?: { ahead?: number; hasUpstream?: boolean },
+  ) => Promise<boolean>;
   /** 「拉取」：仅快进。 */
-  pullWorkspaceChanges: (workspacePath?: string) => Promise<void>;
+  pullWorkspaceChanges: (workspacePath?: string) => Promise<boolean>;
 }
 
 interface PatchActions {

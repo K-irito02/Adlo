@@ -1,9 +1,9 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTCopy, formatT } from '../i18n';
 import { renderIcon, type IconName } from '../../design-system/icons';
 import { resolveErrorToastLevel, type ErrorToastLevel } from './errorToastLevel';
-import type { ErrorToastEntry } from '../stores/slices/errorToastSlice';
+import type { ErrorToastAction, ErrorToastEntry } from '../stores/slices/errorToastSlice';
 import type { CopyKey } from '../i18n/types';
 import { ToastCard } from './ToastCard';
 
@@ -44,12 +44,48 @@ const LEVEL_ICON: Record<ErrorToastLevel, IconName> = {
   info: 'info',
 };
 
+function ErrorToastActions({
+  actions,
+  onDone,
+}: {
+  actions: ErrorToastAction[];
+  onDone: () => void;
+}) {
+  const [busyIndex, setBusyIndex] = useState<number | null>(null);
+  return (
+    <div className="toast-card__action-row">
+      {actions.map((action, index) => (
+        <button
+          key={`${action.label}-${index}`}
+          type="button"
+          className="adl-btn adl-btn--primary-soft adl-btn--sm"
+          aria-busy={busyIndex === index ? 'true' : undefined}
+          disabled={busyIndex !== null}
+          onClick={async () => {
+            setBusyIndex(index);
+            try {
+              const ok = await action.run();
+              if (ok) {
+                onDone();
+              }
+            } finally {
+              setBusyIndex(null);
+            }
+          }}
+        >
+          {action.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const ErrorToast = forwardRef<HTMLDivElement, ErrorToastProps>(function ErrorToast(
   { entry, onDismiss },
   ref,
 ) {
   const { t } = useTCopy();
-  const level = resolveErrorToastLevel(entry.code, entry.detail);
+  const level = entry.level ?? resolveErrorToastLevel(entry.code, entry.detail);
   const title =
     level === 'info' ? t.errorsInfo : t[ERROR_TITLE_BY_CODE[entry.code] ?? 'errorsGenericTitle'];
   // 重复计数后缀（Phase 4 F7）：纯数字标记、与语言无关；仅 count > 1 时显示。
@@ -64,6 +100,11 @@ const ErrorToast = forwardRef<HTMLDivElement, ErrorToastProps>(function ErrorToa
       icon={LEVEL_ICON[level]}
       title={title}
       detail={detail}
+      actions={
+        entry.actions && entry.actions.length > 0 ? (
+          <ErrorToastActions actions={entry.actions} onDone={() => onDismiss(entry.id)} />
+        ) : undefined
+      }
       onDismiss={() => onDismiss(entry.id)}
       role={level === 'info' ? 'status' : 'alert'}
       ariaLive={level === 'info' ? 'polite' : 'assertive'}

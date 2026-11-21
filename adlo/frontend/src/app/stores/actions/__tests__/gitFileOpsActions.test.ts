@@ -7,6 +7,7 @@ interface TestState {
   recentWorkspaces: { id: string; path: string; rootPath?: string }[];
   reportError: (code: string, detail: string, scope?: string) => void;
   clearErrorToasts: (scope?: string) => void;
+  showToast: (message: string, type?: string) => void;
   refreshGitSnapshot: (
     workspaceId: string,
     workspacePath: string,
@@ -21,6 +22,7 @@ function createHarness(overrides: Partial<TestState> = {}) {
     recentWorkspaces: [{ id: 'ws-1', path: '/ws', rootPath: '/ws' }],
     reportError: vi.fn(),
     clearErrorToasts: vi.fn(),
+    showToast: vi.fn(),
     refreshGitSnapshot: vi.fn(async () => {}),
     ...overrides,
   };
@@ -133,5 +135,50 @@ describe('gitFileOpsActions bulk operations', () => {
     await actions.pullWorkspaceChanges();
 
     expect(bridge.pullChanges).not.toHaveBeenCalled();
+  });
+
+  it('reports push failure on the global error card with a retry action', async () => {
+    stubWorkspaceBridge({
+      pushChanges: vi.fn(async () => ({
+        ok: false,
+        error: { code: 'NETWORK_ERROR', message: 'connection refused' },
+      })),
+    });
+    const { state, actions } = createHarness();
+
+    const ok = await actions.pushWorkspaceChanges('/ws', { ahead: 2 });
+
+    expect(ok).toBe(false);
+    expect(state.reportError).toHaveBeenCalledWith(
+      'NETWORK_ERROR',
+      'connection refused',
+      'git:push:ws-1',
+      expect.objectContaining({ actions: expect.any(Array) }),
+    );
+    expect(state.refreshGitSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('shows a success toast with the ahead count after push', async () => {
+    stubWorkspaceBridge();
+    const { state, actions } = createHarness();
+
+    const ok = await actions.pushWorkspaceChanges('/ws', { ahead: 2 });
+
+    expect(ok).toBe(true);
+    expect(state.refreshGitSnapshot).toHaveBeenCalledWith('ws-1', '/ws', { silent: true });
+    expect(state.showToast).toHaveBeenCalledWith(expect.stringContaining('2'), 'success');
+  });
+
+  it('uses a generic success message for the first push without upstream', async () => {
+    stubWorkspaceBridge();
+    const { state, actions } = createHarness();
+
+    const ok = await actions.pushWorkspaceChanges('/ws', { ahead: 0, hasUpstream: false });
+
+    expect(ok).toBe(true);
+    expect(state.showToast).toHaveBeenCalledWith(
+      expect.stringMatching(/推送成功|Pushed successfully/),
+      'success',
+    );
   });
 });

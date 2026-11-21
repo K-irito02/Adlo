@@ -2,7 +2,23 @@ import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import { clearError, captureError, expandSingle, batchExpandAll } from '../shared';
 import { applyGitOperation } from './gitSnapshotActions';
+import { changesZh } from '../../i18n/zh-CN/changes';
+import { changesEn } from '../../i18n/en-US/changes';
+import { resolveAppLanguage } from '../../i18n/resolveLanguage';
 const SCOPE = 'git';
+
+function changesDict(get: () => StoreState) {
+  const locale = resolveAppLanguage(get().appInfo?.config?.language);
+  return locale === 'en-US' ? changesEn : changesZh;
+}
+
+function fill(template: string, vars: Record<string, string | number>): string {
+  let out = template;
+  for (const [key, value] of Object.entries(vars)) {
+    out = out.replace(`{${key}}`, String(value));
+  }
+  return out;
+}
 
 export function createGitFileOpsActions(
   set: StoreApi<StoreState>['setState'],
@@ -166,32 +182,65 @@ export function createGitFileOpsActions(
       return undefined;
     },
 
-    pushWorkspaceChanges: async (workspacePath?: string) => {
+    pushWorkspaceChanges: async (
+      workspacePath?: string,
+      options?: { ahead?: number; hasUpstream?: boolean },
+    ): Promise<boolean> => {
       clearError(get, SCOPE);
       const target = resolveWorkspaceTarget(get(), workspacePath);
       if (!target) {
-        return;
+        return false;
       }
       const result = await window.digitalLife.workspace.pushChanges(target.path);
       if (!result.ok) {
-        captureError(get, result.error, SCOPE);
-        return;
+        const dict = changesDict(get);
+        get().reportError(result.error.code, result.error.message, `git:push:${target.id}`, {
+          level: 'error',
+          actions: [
+            {
+              label: dict.changesPushRetry,
+              run: () => get().pushWorkspaceChanges(target.path, options),
+            },
+          ],
+        });
+        return false;
       }
       await refreshWorkspaceSnapshot(get, target);
+      const dict = changesDict(get);
+      const count = options?.ahead ?? 0;
+      const hasUpstream = options?.hasUpstream ?? true;
+      const message = !hasUpstream
+        ? dict.changesPushSuccessGeneric
+        : count > 0
+          ? fill(dict.changesPushSuccess, { count })
+          : dict.changesPushUpToDate;
+      get().showToast(message, 'success');
+      return true;
     },
 
-    pullWorkspaceChanges: async (workspacePath?: string) => {
+    pullWorkspaceChanges: async (workspacePath?: string): Promise<boolean> => {
       clearError(get, SCOPE);
       const target = resolveWorkspaceTarget(get(), workspacePath);
       if (!target) {
-        return;
+        return false;
       }
       const result = await window.digitalLife.workspace.pullChanges(target.path);
       if (!result.ok) {
-        captureError(get, result.error, SCOPE);
-        return;
+        const dict = changesDict(get);
+        get().reportError(result.error.code, result.error.message, `git:pull:${target.id}`, {
+          level: 'error',
+          actions: [
+            {
+              label: dict.changesPullRetry,
+              run: () => get().pullWorkspaceChanges(target.path),
+            },
+          ],
+        });
+        return false;
       }
       await refreshWorkspaceSnapshot(get, target);
+      get().showToast(changesDict(get).changesPullSuccess, 'success');
+      return true;
     },
   };
 }

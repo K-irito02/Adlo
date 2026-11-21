@@ -34,8 +34,8 @@
 .toast-card {
   pointer-events: auto;
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-2-5);
+  flex-direction: column;
+  align-items: stretch;
   padding: var(--space-3);
   background: var(--surface-elevated);
   border: 1px solid var(--border-subtle);
@@ -43,6 +43,14 @@
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(8px);
   color: var(--text-primary);
+}
+
+.toast-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2-5);
+  min-width: 0;
+  width: 100%;
 }
 
 .toast-card--warning .toast-card__icon,
@@ -70,11 +78,14 @@
 }
 
 .toast-card__body {
-  flex: 1;
+  width: 100%;
   min-width: 0;
 }
 
 .toast-card__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   line-height: var(--leading-normal);
@@ -104,6 +115,7 @@
   align-items: center;
   gap: var(--space-1);
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .toast-card__btn {
@@ -161,6 +173,14 @@
   margin-top: var(--space-2);
 }
 
+.toast-card__action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+  flex: 1 1 100%;
+  justify-content: flex-end;
+}
+
 .toast-card__text-btn {
   padding: var(--space-1) var(--space-2-5);
   border: 1px solid var(--border-subtle);
@@ -186,6 +206,7 @@
 
 /* 摘要卡片（条目超限时） */
 .toast-card--summary {
+  flex-direction: row;
   align-items: center;
   padding: var(--space-2) var(--space-3);
 }

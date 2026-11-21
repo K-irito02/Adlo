@@ -161,6 +161,17 @@
   line-height: 1.4;
 }
 
+.adl-push-preflight__notice {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--btn-radius);
+  background: var(--btn-warning-soft-bg);
+  color: var(--btn-warning-soft-fg);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
 /* 聚合恢复框的执行进度行：恒占位（闲时 NBSP 撑高），执行中替换文本不增删节点，
    对话框高度稳定；清掉 message 的下边距，避免闲时占位把 footer 顶开。 */
 .adl-confirm-dialog__message.adl-confirm-dialog__progress {
@@ -181,6 +192,17 @@
 .adl-confirm-dialog__footer .adl-btn {
   min-width: 0;
   max-width: 100%;
+  min-height: 28px;
+  padding-top: var(--space-1-5);
+  padding-bottom: var(--space-1-5);
+  line-height: 1.2;
+}
+
+.adl-prompt-modal__actions .adl-btn {
+  min-height: 28px;
+  padding-top: var(--space-1-5);
+  padding-bottom: var(--space-1-5);
+  line-height: 1.2;
 }
 
 /* 迁移对话框 footer 内的浏览器模式提示：独占一行右对齐，

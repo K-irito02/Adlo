@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   createErrorToastSlice,
   ERROR_TOAST_STORE_LIMIT,
@@ -46,6 +46,24 @@ describe('errorToastSlice 去重', () => {
     slice.reportSilentError('IO_ERROR', 'boom', 'boot');
     expect(current()).toHaveLength(2);
     expect(current().filter((t) => t.silent)).toHaveLength(1);
+  });
+
+  it('keeps action buttons on the card and refreshes them when a duplicate re-reports', () => {
+    const { slice, current } = makeSlice();
+    const firstRun = vi.fn(() => true);
+    const secondRun = vi.fn(() => true);
+    const first = slice.reportError('NETWORK_ERROR', 'push failed', 'git:push:ws-1', {
+      actions: [{ label: 'Retry push', run: firstRun }],
+    });
+    expect(current()[0]?.actions?.[0]?.label).toBe('Retry push');
+
+    const second = slice.reportError('NETWORK_ERROR', 'push failed', 'git:push:ws-1', {
+      actions: [{ label: 'Retry again', run: secondRun }],
+    });
+    expect(second).toBe(first);
+    expect(current()).toHaveLength(1);
+    expect(current()[0]?.actions?.[0]?.label).toBe('Retry again');
+    expect(current()[0]?.count).toBe(2);
   });
 
   it('allows the same error again after it was dismissed', () => {

@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import { useAppStore } from '@stores/slicedStore';
 import { joinPathSegments } from '@app/utils/workspacePaths';
@@ -44,6 +44,13 @@ export interface WorkspaceChangesActions {
   handleRequestCommit: () => void;
   handlePush: () => Promise<void>;
   handlePull: () => Promise<void>;
+  pushPreflightOpen: boolean;
+  pushPreflightDirty: boolean;
+  pushPreflightHasUpstream: boolean;
+  pushPreflightBranch: string;
+  handlePushOnly: () => Promise<void>;
+  handleCommitAndPush: () => void;
+  cancelPushPreflight: () => void;
   handleRequestDiscardAll: () => void;
   commitOpen: boolean;
   commitBusy: boolean;
@@ -54,6 +61,7 @@ export interface WorkspaceChangesActions {
   confirmDiscardAll: () => Promise<void>;
   closeDiscard: () => void;
   gitBusy: boolean;
+  gitBusyLabel: 'push' | 'pull' | null;
   hasChanges: boolean;
   hasStaged: boolean;
 }
@@ -77,6 +85,14 @@ export function useWorkspaceChangesActions({
   const [commitError, setCommitError] = useState<string | undefined>(undefined);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [gitBusy, setGitBusy] = useState(false);
+  const [gitBusyLabel, setGitBusyLabel] = useState<'push' | 'pull' | null>(null);
+  const [pushPreflight, setPushPreflight] = useState<{
+    dirty: boolean;
+    hasUpstream: boolean;
+    branch: string;
+    ahead: number;
+  } | null>(null);
+  const pushAfterCommitRef = useRef<{ ahead: number; hasUpstream: boolean } | null>(null);
   const menuId = `ws-changes-menu-${workspace.id}`;
   const gitSnapshot = useAppStore((s) => s.gitSnapshots[workspace.id]);
   const hasChanges =
@@ -237,16 +253,28 @@ export function useWorkspaceChangesActions({
   );
 
   const runGitAction = useCallback(
-    async (action: () => Promise<unknown>) => {
+    async (action: () => Promise<unknown>, label: 'push' | 'pull' | null = null) => {
       closeMenu();
       setGitBusy(true);
+      setGitBusyLabel(label);
       try {
         await action();
       } finally {
         setGitBusy(false);
+        setGitBusyLabel(null);
       }
     },
     [closeMenu],
+  );
+
+  const pushNow = useCallback(
+    async (info: { ahead: number; hasUpstream: boolean }) => {
+      await runGitAction(
+        () => useAppStore.getState().pushWorkspaceChanges(workspace.path, info),
+        'push',
+      );
+    },
+    [runGitAction, workspace.path],
   );
 
   const handleStageAll = useCallback(
@@ -259,13 +287,62 @@ export function useWorkspaceChangesActions({
     [runGitAction, workspace.path],
   );
 
-  const handlePush = useCallback(
-    () => runGitAction(() => useAppStore.getState().pushWorkspaceChanges(workspace.path)),
-    [runGitAction, workspace.path],
-  );
+  const handlePush = useCallback(async () => {
+    closeMenu();
+    // 先刷新目标工作区快照：预检的「未提交变更」判断不能依赖 15s 前的旧数据。
+    await useAppStore.getState().refreshGitSnapshot(workspace.id, workspace.path, { silent: true });
+    const fresh = useAppStore.getState().gitSnapshots[workspace.id];
+    const dirty =
+      (fresh?.staged.length ?? 0) + (fresh?.unstaged.length ?? 0) + (fresh?.untracked.length ?? 0) >
+      0;
+    const branches = await window.digitalLife.workspace.listGitBranches(workspace.path);
+    if (!branches.ok) {
+      useAppStore
+        .getState()
+        .reportError(branches.error.code, branches.error.message, `git:push:${workspace.id}`);
+      return;
+    }
+    const current = branches.data.find((branch) => branch.isCurrent);
+    const hasUpstream = Boolean(current?.upstream);
+    const ahead = current?.ahead ?? 0;
+    if (!dirty && hasUpstream) {
+      await pushNow({ ahead, hasUpstream });
+      return;
+    }
+    setPushPreflight({
+      dirty,
+      hasUpstream,
+      branch: current?.name ?? '',
+      ahead,
+    });
+  }, [closeMenu, pushNow, workspace.id, workspace.path]);
+
+  const handlePushOnly = useCallback(async () => {
+    const info = pushPreflight;
+    setPushPreflight(null);
+    if (!info) {
+      return;
+    }
+    await pushNow({ ahead: info.ahead, hasUpstream: info.hasUpstream });
+  }, [pushPreflight, pushNow]);
+
+  const handleCommitAndPush = useCallback(() => {
+    const info = pushPreflight;
+    setPushPreflight(null);
+    if (!info) {
+      return;
+    }
+    pushAfterCommitRef.current = { ahead: info.ahead, hasUpstream: info.hasUpstream };
+    setCommitError(undefined);
+    setCommitOpen(true);
+  }, [pushPreflight]);
+
+  const cancelPushPreflight = useCallback(() => {
+    setPushPreflight(null);
+  }, []);
 
   const handlePull = useCallback(
-    () => runGitAction(() => useAppStore.getState().pullWorkspaceChanges(workspace.path)),
+    () => runGitAction(() => useAppStore.getState().pullWorkspaceChanges(workspace.path), 'pull'),
     [runGitAction, workspace.path],
   );
 
@@ -293,16 +370,25 @@ export function useWorkspaceChangesActions({
           return;
         }
         setCommitOpen(false);
+        const pendingPush = pushAfterCommitRef.current;
+        pushAfterCommitRef.current = null;
+        if (pendingPush) {
+          await pushNow({
+            ahead: pendingPush.ahead + 1,
+            hasUpstream: pendingPush.hasUpstream,
+          });
+        }
       } finally {
         setCommitBusy(false);
       }
     },
-    [workspace.path],
+    [pushNow, workspace.path],
   );
 
   const closeCommit = useCallback(() => {
     setCommitOpen(false);
     setCommitError(undefined);
+    pushAfterCommitRef.current = null;
   }, []);
 
   const confirmDiscardAll = useCallback(async () => {
@@ -339,6 +425,13 @@ export function useWorkspaceChangesActions({
     handleRequestCommit,
     handlePush,
     handlePull,
+    pushPreflightOpen: pushPreflight !== null,
+    pushPreflightDirty: pushPreflight?.dirty ?? false,
+    pushPreflightHasUpstream: pushPreflight?.hasUpstream ?? true,
+    pushPreflightBranch: pushPreflight?.branch ?? '',
+    handlePushOnly,
+    handleCommitAndPush,
+    cancelPushPreflight,
     handleRequestDiscardAll,
     commitOpen,
     commitBusy,
@@ -349,6 +442,7 @@ export function useWorkspaceChangesActions({
     confirmDiscardAll,
     closeDiscard,
     gitBusy,
+    gitBusyLabel,
     hasChanges,
     hasStaged,
   };

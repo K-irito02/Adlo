@@ -21,6 +21,12 @@ function keepVisibleFirst(entries: ErrorToastEntry[]): ErrorToastEntry[] {
   return [...visible.slice(-ERROR_TOAST_STORE_LIMIT), ...silent.slice(-SILENT_DIAGNOSTIC_LIMIT)];
 }
 
+export interface ErrorToastAction {
+  label: string;
+  /** 返回 true 表示处理成功，卡片可自动关闭。 */
+  run: () => boolean | Promise<boolean>;
+}
+
 export interface ErrorToastEntry {
   id: string;
   code: string;
@@ -36,11 +42,26 @@ export interface ErrorToastEntry {
   count?: number;
   /** 同一归一化错误最近一次发生的时间（Date.now()，供"仍在发生"感知） */
   lastSeenAt?: number;
+  /** 卡片底部动作按钮；有则渲染（如推送失败后的「重试推送」）。 */
+  actions?: ErrorToastAction[];
+  /** 可选的级别覆盖（缺省按 code/detail 推导）。 */
+  level?: 'error' | 'warning' | 'info';
+}
+
+export interface ErrorToastOptions {
+  actions?: ErrorToastAction[];
+  /** 覆盖由 code 推导的级别（如推送失败即使 code=WORKSPACE_ERROR 也按 error 展示）。 */
+  level?: 'error' | 'warning' | 'info';
 }
 
 export interface ErrorToastSlice {
   errorToasts: ErrorToastEntry[];
-  reportError: (code: string, detail: string, scope?: string) => string;
+  reportError: (
+    code: string,
+    detail: string,
+    scope?: string,
+    options?: ErrorToastOptions,
+  ) => string;
   /**
    * 静默上报：与 reportError 同队列同上限，但渲染层过滤（见 ErrorToastContainer），
    * 用户无感知；排查时可从 store 快照/errorToasts 中看到。
@@ -118,7 +139,7 @@ export const createErrorToastSlice = (
   get: () => StoreState,
 ): ErrorToastSlice => ({
   errorToasts: [],
-  reportError: (code, detail, scope) => {
+  reportError: (code, detail, scope, options) => {
     const duplicateId = findDuplicateId(get().errorToasts, code, detail, scope, false);
     if (duplicateId) {
       // 命中去重：不入队，但更新计数与最近发生时间（Phase 4 F7 —— 故障持续
@@ -134,7 +155,13 @@ export const createErrorToastSlice = (
         return {
           errorToasts: keepVisibleFirst([
             ...state.errorToasts.filter((entry) => entry.id !== duplicateId),
-            { ...hit, count: (hit.count ?? 1) + 1, lastSeenAt: now },
+            {
+              ...hit,
+              count: (hit.count ?? 1) + 1,
+              lastSeenAt: now,
+              ...(options?.actions ? { actions: options.actions } : {}),
+              ...(options?.level ? { level: options.level } : {}),
+            },
           ]),
         };
       });
@@ -143,8 +170,25 @@ export const createErrorToastSlice = (
     const id = createUiId('error-toast');
     const entry: ErrorToastEntry =
       scope !== undefined
-        ? { id, code, detail, scope, count: 1, lastSeenAt: Date.now() }
-        : { id, code, detail, count: 1, lastSeenAt: Date.now() };
+        ? {
+            id,
+            code,
+            detail,
+            scope,
+            count: 1,
+            lastSeenAt: Date.now(),
+            ...(options?.actions ? { actions: options.actions } : {}),
+            ...(options?.level ? { level: options.level } : {}),
+          }
+        : {
+            id,
+            code,
+            detail,
+            count: 1,
+            lastSeenAt: Date.now(),
+            ...(options?.actions ? { actions: options.actions } : {}),
+            ...(options?.level ? { level: options.level } : {}),
+          };
     set((state) => ({
       errorToasts: keepVisibleFirst([...state.errorToasts, entry]),
     }));

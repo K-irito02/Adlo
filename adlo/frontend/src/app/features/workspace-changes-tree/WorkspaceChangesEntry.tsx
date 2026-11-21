@@ -18,6 +18,7 @@ import { ConfirmDialog } from '@components/ConfirmDialog';
 import { BranchSubCard } from '@regions/right-panel/panels/BranchSubCard';
 import { useWorkspaceChangesActions } from './WorkspaceChangesActions';
 import { WorkspaceChangesMenu } from './WorkspaceChangesMenu';
+import { PushPreflightDialog } from './PushPreflightDialog';
 import { GitInitEmptyState } from './GitInitEmptyState';
 import { shouldShowGitInitEmptyState } from './gitInitEmptyStateUtils';
 
@@ -114,6 +115,13 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
     handleRequestCommit,
     handlePush,
     handlePull,
+    pushPreflightOpen,
+    pushPreflightDirty,
+    pushPreflightHasUpstream,
+    pushPreflightBranch,
+    handlePushOnly,
+    handleCommitAndPush,
+    cancelPushPreflight,
     handleRequestDiscardAll,
     commitOpen,
     commitBusy,
@@ -124,6 +132,7 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
     confirmDiscardAll,
     closeDiscard,
     gitBusy,
+    gitBusyLabel,
     hasChanges,
     hasStaged,
   } = useWorkspaceChangesActions({
@@ -200,7 +209,13 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
             {workspace.name}
           </span>
 
-          <span className="adl-multitree-entry__count">{changeCount}</span>
+          {gitBusyLabel ? (
+            <span className="adl-multitree-entry__busy adl-loading-row__text--shimmer">
+              {gitBusyLabel === 'push' ? t.changesPushing : t.changesPulling}
+            </span>
+          ) : (
+            <span className="adl-multitree-entry__count">{changeCount}</span>
+          )}
 
           <div className="adl-multitree-entry__actions">
             <TooltipSimple content={t.fileRefresh} placement="top">
@@ -254,6 +269,17 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
         hasChanges={hasChanges}
         hasStaged={hasStaged}
         busy={gitBusy}
+      />
+
+      <PushPreflightDialog
+        open={pushPreflightOpen}
+        dirty={pushPreflightDirty}
+        hasUpstream={pushPreflightHasUpstream}
+        branch={pushPreflightBranch}
+        t={t}
+        onCancel={cancelPushPreflight}
+        onPushOnly={handlePushOnly}
+        onCommitAndPush={handleCommitAndPush}
       />
 
       <CommitDialog

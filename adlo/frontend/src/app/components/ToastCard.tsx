@@ -170,9 +170,44 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.15 }}
     >
-      <span className="toast-card__icon" dangerouslySetInnerHTML={{ __html: iconHtml(icon) }} />
-      <div ref={bodyRef} className="toast-card__body">
+      <div className="toast-card__head">
+        <span className="toast-card__icon" dangerouslySetInnerHTML={{ __html: iconHtml(icon) }} />
         {title ? <p className="toast-card__title">{title}</p> : null}
+        <div className="toast-card__actions">
+          {hasDetail ? (
+            <button
+              type="button"
+              className="toast-card__btn toast-card__btn--detail"
+              aria-label={expanded ? t.errorsCollapse : t.errorsExpand}
+              onClick={toggleExpanded}
+              dangerouslySetInnerHTML={{
+                __html: iconHtml(expanded ? 'chevron-down' : 'chevron-up', 'sm'),
+              }}
+            />
+          ) : null}
+          {hasDetail ? (
+            <button
+              type="button"
+              className="toast-card__btn toast-card__btn--detail"
+              aria-label={copied ? t.errorsCopied : t.errorsCopy}
+              onClick={() => void handleCopy()}
+              dangerouslySetInnerHTML={{
+                __html: iconHtml(copied ? 'check' : 'copy', 'sm'),
+              }}
+            />
+          ) : null}
+          {onDismiss ? (
+            <button
+              type="button"
+              className="toast-card__btn"
+              aria-label={t.errorsClose}
+              onClick={onDismiss}
+              dangerouslySetInnerHTML={{ __html: iconHtml('close', 'sm') }}
+            />
+          ) : null}
+        </div>
+      </div>
+      <div ref={bodyRef} className="toast-card__body">
         {hasDetail ? (
           <p
             ref={detailRef}
@@ -190,39 +225,6 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
           </p>
         ) : null}
         {actions ? <div className="toast-card__text-actions">{actions}</div> : null}
-      </div>
-      <div className="toast-card__actions">
-        {hasDetail ? (
-          <button
-            type="button"
-            className="toast-card__btn toast-card__btn--detail"
-            aria-label={expanded ? t.errorsCollapse : t.errorsExpand}
-            onClick={toggleExpanded}
-            dangerouslySetInnerHTML={{
-              __html: iconHtml(expanded ? 'chevron-down' : 'chevron-up', 'sm'),
-            }}
-          />
-        ) : null}
-        {hasDetail ? (
-          <button
-            type="button"
-            className="toast-card__btn toast-card__btn--detail"
-            aria-label={copied ? t.errorsCopied : t.errorsCopy}
-            onClick={() => void handleCopy()}
-            dangerouslySetInnerHTML={{
-              __html: iconHtml(copied ? 'check' : 'copy', 'sm'),
-            }}
-          />
-        ) : null}
-        {onDismiss ? (
-          <button
-            type="button"
-            className="toast-card__btn"
-            aria-label={t.errorsClose}
-            onClick={onDismiss}
-            dangerouslySetInnerHTML={{ __html: iconHtml('close', 'sm') }}
-          />
-        ) : null}
       </div>
     </motion.div>
   );
