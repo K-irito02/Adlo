@@ -31,6 +31,8 @@ alwaysApply: false
 
 > `cargo check/build/clippy` 报 `PermissionDenied` 时，先 `pnpm run dev:stop`：桌面实例会锁住 `target/debug/adlo.exe` 与 `adl-server.exe`。
 
+> **文件枚举与输出**：列文件用 `glob` / `git ls-files`；不要在仓库根做无界 `Get-ChildItem -Recurse`（本会话实测 120s 超时），必须递归时加 `-Depth` 或限定目录。受跟踪文本用 `read`，不要用 `Get-Content`（GBK 控制台会把 UTF-8 中文打乱）；长命令输出按上方「长门禁」落盘后读 tail。
+
 ## 双端验证命令
 
 | 命令 | 用途 |
