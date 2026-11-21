@@ -343,6 +343,91 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
       return moved;
     };
 
+    const coversTrigger = (result: PositionResult): boolean => {
+      return (
+        result.x < triggerRect.right &&
+        result.x + tooltipRect.width > triggerRect.left &&
+        result.y < triggerRect.bottom &&
+        result.y + tooltipRect.height > triggerRect.top
+      );
+    };
+
+    /** 首选边贴边收紧：沿主轴把 tooltip 挪到避让矩形边缘之外，保持首选边。
+     * 仅当挪动后仍完整位于视口内、且不越过触发按钮时返回；否则交给滑移/换边。 */
+    const snugAgainstAvoidRects = (
+      base: PositionResult,
+      placementToUse: Placement,
+    ): PositionResult | null => {
+      // 仅处理上下两种主轴：左右侧贴边收紧会改变「远滑移拒绝后换边」的既有取舍，
+      // 且本次问题只发生在标题栏（bottom/top 主轴）。
+      if (!isHorizontalPlacement(placementToUse)) {
+        return null;
+      }
+      const size = isHorizontalPlacement(placementToUse) ? tooltipRect.height : tooltipRect.width;
+      let current: PositionResult = { ...base };
+      // 一次只挪一条边；最多迭代「矩形数 + 1」次，避免多矩形窄缝下死循环。
+      for (let attempt = 0; attempt <= avoidRects.length; attempt += 1) {
+        const overlapping = avoidRects.filter(
+          (r) =>
+            current.x < r.right &&
+            current.x + tooltipRect.width > r.left &&
+            current.y < r.bottom &&
+            current.y + tooltipRect.height > r.top,
+        );
+        if (overlapping.length === 0) {
+          return attempt === 0 ? null : current;
+        }
+        const currentMain = getMainAxisCoord(current, placementToUse);
+        const escapes: number[] = [];
+        for (const r of overlapping) {
+          let escape: number;
+          switch (placementToUse) {
+            case 'bottom':
+              escape = r.top - tooltipRect.height;
+              break;
+            case 'top':
+              escape = r.bottom;
+              break;
+            case 'right':
+              escape = r.left - tooltipRect.width;
+              break;
+            case 'left':
+              escape = r.right;
+              break;
+          }
+          // 收紧后必须仍位于触发按钮的首选侧（不越过按钮）。
+          const staysOnPreferredSide =
+            placementToUse === 'bottom'
+              ? escape >= triggerRect.bottom
+              : placementToUse === 'top'
+                ? escape + tooltipRect.height <= triggerRect.top
+                : placementToUse === 'right'
+                  ? escape >= triggerRect.right
+                  : escape + tooltipRect.width <= triggerRect.left;
+          if (staysOnPreferredSide) {
+            escapes.push(escape);
+          }
+        }
+        if (escapes.length === 0) {
+          return null;
+        }
+        escapes.sort((a, b) => Math.abs(a - currentMain) - Math.abs(b - currentMain));
+        const next = escapes[0]!;
+        if (next === currentMain) {
+          return null;
+        }
+        const moved: PositionResult = { ...current };
+        setMainAxisCoord(moved, placementToUse, next);
+        clampMainAxis(moved, placementToUse, size, viewportPadding);
+        if (getMainAxisCoord(moved, placementToUse) !== next) {
+          // 收紧后会被视口裁切：放弃该策略，交给滑移/换边。
+          return null;
+        }
+        current = moved;
+      }
+      return null;
+    };
+
     for (const trial of trialOrder) {
       const base = calculate(trial);
       if (!mainAxisFits(base, trial)) {
@@ -354,6 +439,17 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
         // padding 量级的触发器边缘覆盖（瞬态层，远优于翻边远甩），钳后重叠仍由
         // 滑移/换边接管。
         clampMainAxis(base, trial, mainSize, viewportPadding);
+      }
+      // 首选边贴边收紧（标题栏按钮场景）：tooltip 底边只跨进 WebView 几像素时，
+      // 优先沿主轴挪回 WebView 边缘之内（间距变小），而不是翻到按钮上方再被
+      // 钳进标题栏、压住触发按钮。仅在仍完整位于视口内且不越过触发按钮时生效。
+      const snug = snugAgainstAvoidRects(base, trial);
+      if (snug) {
+        // 非首选边不得压住触发按钮：翻边后盖住按钮会抢点击，正是本次要修的现象。
+        // 首选边保留既有容差（贴边钳入视口时允许覆盖按钮边缘几个像素）。
+        if (trial === placement || !coversTrigger(snug)) {
+          return snug;
+        }
       }
       // 视口内但横向压住 Webview → 先滑移；滑不动才换边。
       const cleared = slideCrossAxis(base, trial);
@@ -368,7 +464,9 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
           Math.abs((horizontal ? cleared.x : cleared.y) - (horizontal ? base.x : base.y)) -
           crossSize;
         if (edgeGap <= MAX_SLIDE_DETACH_PX) {
-          return cleared;
+          if (trial === placement || !coversTrigger(cleared)) {
+            return cleared;
+          }
         }
         // 否则继续换边。
       }

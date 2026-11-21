@@ -276,6 +276,64 @@ describe('tooltipPosition', () => {
       expect(result.x).toBe(810);
     });
 
+    it('标题栏按钮下方刚好压住 WebView 时贴边收紧，不翻到按钮上方', () => {
+      // 标题栏 trigger 被 CSS 拉伸为整条标题栏（top 0..36）；中心浏览器工具栏
+      // 高 36px，内容区（原生 WebView）从 y=72 开始。bottom + offset 8 的
+      // tooltip 为 44..74，底边跨进 WebView 2px。
+      // 期望：保持 bottom，上移到 42（72 - 30），间距从 8 收紧到 6；
+      // 旧实现会翻到 top 再钳进视口（y=8），压在标题栏按钮上。
+      const triggerRect = createMockDOMRect({
+        top: 0,
+        left: 1800,
+        width: 30,
+        height: 36,
+        right: 1830,
+        bottom: 36,
+      });
+      const tooltipRect = { width: 90, height: 30 };
+      const webview = { left: 0, top: 72, right: 1920, bottom: 1080 };
+
+      const result = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'bottom',
+        offset: 8,
+        avoidRects: [webview],
+      });
+
+      expect(result.placement).toBe('bottom');
+      expect(result.y).toBe(42);
+      expect(result.y).toBeGreaterThanOrEqual(triggerRect.bottom);
+    });
+
+    it('下方放不下且翻上方会压住按钮时，改放按钮左侧而不是压按钮', () => {
+      // tooltip 高 60，标题栏下方只有 36px 带宽，放不下；翻到 top 会被钳进
+      // 视口（y=8）并压住 trigger（0..36）。期望改放左侧：x=1000-60-8=932、
+      // y 钳到 8（8..68 仍在 WebView 顶边 72 之上），不压按钮。
+      const triggerRect = createMockDOMRect({
+        top: 0,
+        left: 1000,
+        width: 30,
+        height: 36,
+        right: 1030,
+        bottom: 36,
+      });
+      const tooltipRect = { width: 60, height: 60 };
+      const webview = { left: 0, top: 72, right: 1920, bottom: 1080 };
+
+      const result = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'bottom',
+        offset: 8,
+        avoidRects: [webview],
+      });
+
+      expect(result.placement).toBe('left');
+      expect(result.x).toBe(932);
+      expect(result.y).toBe(8);
+    });
+
     it('顶部差一点放不下时钳住留在上方（事项 9：按钮上方标题栏区）', () => {
       // 真实日志几何：工具栏按钮 y=36（贴近视口顶部，top 槽 y=-2 差 2px），
       // 旧实现翻到底部（y=74..104 压住中心内容矩形 top=67）再沿 X 滑到矩形右缘 x=571。
