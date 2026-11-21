@@ -11,6 +11,11 @@ import {
 import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
 import { buildGitSnapshotSyncPatch } from '../gitSnapshotSync';
 
+/** 后台批量刷新的并发上限：避免多工作区同时拉起大量 git 子进程。 */
+const SNAPSHOT_REFRESH_CONCURRENCY = 3;
+/** 同一工作区快照的新鲜期：focus / 15s 轮询 / 启动补刷共用，避免重复 IO。 */
+const SNAPSHOT_FRESHNESS_MS = 5_000;
+
 function moveInSnapshot(
   snapshot: GitSnapshot,
   relativePath: string,
@@ -427,12 +432,13 @@ export function createGitSnapshotActions(
     },
 
     /**
-     * [refreshAllGitSnapshotsSilent - 静默刷新所有可见已展开工作区的 Git 快照]
-     * 手动"刷新全部"的静默版（范围语义与其一致：可见 + 导航器已展开）：
-     * watcher 已按侧栏全部工作区监听并按根推送批次；本函数是焦点回归/面板可见时的
-     * 兜底补刷（漏事件、断线、分批超限）。不转刷新图标，
-     * 单个失败只记 workspaceChangesTreeErrors（与 refreshGitSnapshot 同口径）。
-     * @reads workspaceSlice.recentWorkspaces, workspaceSlice.workspaceChangesExpanded
+     * [refreshAllGitSnapshotsSilent - 静默刷新所有已添加可用工作区的 Git 快照]
+     * 与展开状态解耦：折叠的工作区也要有计数/分支/ahead-behind，供工作区头与
+     * 工具徽章显示。启动、新增工作区、窗口聚焦、变更面板 15s 轮询都走这里；
+     * 跳过 `SNAPSHOT_FRESHNESS_MS` 内的快照；worker 数量取
+     * `min(SNAPSHOT_REFRESH_CONCURRENCY, targets.length)`。
+     * 不转刷新图标；单个失败只记 workspaceChangesTreeErrors（与 refreshGitSnapshot 同口径）。
+     * @reads workspaceSlice.recentWorkspaces, workspaceSlice.gitSnapshots
      * @writes gitSlice.gitSnapshots, workspaceSlice.workspaceChangesTreeErrors (经 refreshGitSnapshot)
      * @see shared/ipc.ts → workspace.listGitStatusForWorkspace (经 refreshGitSnapshot)
      * @see mock-bridge.ts → workspace.listGitStatusForWorkspace (经 refreshGitSnapshot)
@@ -440,22 +446,33 @@ export function createGitSnapshotActions(
      */
     refreshAllGitSnapshotsSilent: async () => {
       const state = get();
-      const targets = (state.recentWorkspaces ?? []).filter(
-        (w) => !w.removedFromSidebar && w.available && state.workspaceChangesExpanded[w.id],
-      );
+      const now = Date.now();
+      const targets = (state.recentWorkspaces ?? []).filter((w) => {
+        if (w.removedFromSidebar || !w.available) {
+          return false;
+        }
+        const snapshot = state.gitSnapshots[w.id];
+        return !snapshot || now - snapshot.capturedAt >= SNAPSHOT_FRESHNESS_MS;
+      });
       if (targets.length === 0) {
         return;
       }
-      const results = await Promise.allSettled(
-        targets.map((w) => get().refreshGitSnapshot(w.id, w.path, { silent: true })),
-      );
-      // 桥接层 reject（如断网抛错）在此被 allSettled 捕获——记录原因，
-      // 避免静默吞掉（与 useChangesPanelStateUtils.refreshAllChanges 同口径）。
-      for (const result of results) {
-        if (result.status === 'rejected') {
-          console.warn('[refreshAllGitSnapshotsSilent] refreshGitSnapshot rejected', result.reason);
+      let cursor = 0;
+      const worker = async () => {
+        while (cursor < targets.length) {
+          const target = targets[cursor]!;
+          cursor += 1;
+          try {
+            await get().refreshGitSnapshot(target.id, target.path, { silent: true });
+          } catch (err) {
+            // 桥接层 reject（如断网抛错）在此记录原因，避免静默吞掉。
+            console.warn('[refreshAllGitSnapshotsSilent] refreshGitSnapshot rejected', err);
+          }
         }
-      }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(SNAPSHOT_REFRESH_CONCURRENCY, targets.length) }, worker),
+      );
     },
   };
 }

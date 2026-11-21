@@ -371,11 +371,11 @@ export function refreshOneWorkspace(
 
 export async function refreshAllChanges(
   visibleWorkspaces: RecentWorkspaceEntry[],
-  expandedWorkspaceIds: ReadonlySet<string>,
+  targetWorkspaceIds: ReadonlySet<string>,
   setRefreshingAll: (refreshing: boolean) => void,
   refreshGitSnapshot: (id: string, path: string, options?: { silent?: boolean }) => Promise<void>,
 ): Promise<void> {
-  const targets = visibleWorkspaces.filter((ws) => expandedWorkspaceIds.has(ws.id));
+  const targets = visibleWorkspaces.filter((ws) => targetWorkspaceIds.has(ws.id));
   if (targets.length === 0) {
     return;
   }

@@ -340,11 +340,8 @@ function scheduleTreeFollowQuietly(get: () => StoreState, target: WatchTarget): 
 }
 
 function scheduleChangesFollowQuietly(get: () => StoreState, target: WatchTarget): void {
-  const state = get();
-  // 变更面板已展开，或该工作区快照已加载过：静默重拍快照（含已打开的 diff 预览）。
-  if (state.gitSnapshots[target.id] === undefined && !state.workspaceChangesExpanded[target.id]) {
-    return;
-  }
+  // 与展开状态解耦：折叠的工作区也要保持快照新鲜（计数/徽章/提交推送后的状态）。
+  // 快照未加载时同样刷新：refreshGitSnapshot 会写入该工作区槽位。
   scheduleGitFollowQuietly(get, target.id, target.path);
 }
 

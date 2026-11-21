@@ -186,9 +186,8 @@ export function useChangesActions(params: UseChangesActionsParams) {
     const s = useAppStore.getState();
     void refreshAllChanges(
       visibleWorkspaces,
-      new Set(
-        Object.keys(s.workspaceChangesExpanded).filter((id) => s.workspaceChangesExpanded[id]),
-      ),
+      // 手动「刷新全部」覆盖全部可见工作区（与自动刷新同范围，不再只看展开项）。
+      new Set(visibleWorkspaces.map((ws) => ws.id)),
       s.setRefreshingAllChanges,
       (id, p, opts) => s.refreshGitSnapshot(id, p, opts),
     );

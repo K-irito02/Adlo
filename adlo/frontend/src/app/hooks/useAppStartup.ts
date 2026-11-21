@@ -77,7 +77,21 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
   // 覆盖侧栏全部「已添加」工作区（与服务端 `watch_roots_with_db` 同口径：只排除
   // removedFromSidebar），并补当前工作区兜底；新增/移除后即时重算。
   const recentWorkspaces = useAppStore(useShallow((state) => state.recentWorkspaces));
+  const appReady = useAppStore((state) => state.appReady);
   const currentWorkspacePath = appInfo?.currentWorkspace?.path;
+  // 工作区集合签名：新增/移除/可用性变化时重跑全量快照补刷；排序/置顶不触发。
+  const workspaceRefreshSignature = (recentWorkspaces ?? [])
+    .filter((entry) => !entry.removedFromSidebar && entry.available)
+    .map((entry) => entry.id)
+    .join('|');
+  useEffect(() => {
+    // 启动就绪 / 新增工作区时，为所有已添加可用工作区加载 Git 快照（与展开状态无关）。
+    // 5s 新鲜期在 refreshAllGitSnapshotsSilent 内去重，bootstrap 已取的当前工作区不会重复。
+    if (!appReady || workspaceRefreshSignature === '') {
+      return;
+    }
+    void actions.refreshAllGitSnapshotsSilent();
+  }, [appReady, workspaceRefreshSignature, actions, actions.refreshAllGitSnapshotsSilent]);
   useEffect(() => {
     const roots = (recentWorkspaces ?? [])
       .filter((entry) => !entry.removedFromSidebar)

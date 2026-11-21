@@ -31,6 +31,7 @@ import { rightPanelRootClassName } from './right-panel/rightPanelLayout';
 import { useRightPanelViewProps } from './right-panel/hooks/useRightPanelViewProps';
 import { useFilesPanelProps } from './right-panel/hooks/useFilesPanelProps';
 import { useChangesPanelProps } from './right-panel/hooks/useChangesPanelProps';
+import { useChangesAutoRefresh } from './right-panel/hooks/useChangesAutoRefresh';
 import { useBrowserPanelProps } from './right-panel/hooks/useBrowserPanelProps';
 
 import { useSettingsPanelProps } from './right-panel/hooks/useSettingsPanelProps';
@@ -145,6 +146,8 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
 
   const { activeRightTool, setActiveRightTool, badges, diffSideBySide, onSetDiffLayout } =
     useRightPanelViewProps();
+  // 变更面板可见（未被折叠）时每 15s 兜底刷新所有工作区快照；折叠/隐藏时不轮询。
+  useChangesAutoRefresh(activeRightTool === 'changes' && !collapsed);
   const {
     panelRef,
     handleResizeStart,

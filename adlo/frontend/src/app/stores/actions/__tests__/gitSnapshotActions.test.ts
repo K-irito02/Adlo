@@ -345,7 +345,7 @@ describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
     { id: 'ws-offline', path: '/d', available: false },
   ];
 
-  it('只刷可见且导航器已展开的工作区（与手动刷新全部同范围），一律 silent', async () => {
+  it('刷新所有已添加可用工作区（隐藏/离线除外），不受展开状态影响，一律 silent', async () => {
     const bridge = gitStatusBridge();
     bridge.mockResolvedValue({
       ok: true,
@@ -358,18 +358,18 @@ describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
     await (
       store.getState() as unknown as { refreshAllGitSnapshotsSilent: () => Promise<void> }
     ).refreshAllGitSnapshotsSilent();
-    expect(bridge).toHaveBeenCalledTimes(1);
+    expect(bridge).toHaveBeenCalledTimes(2);
     expect(bridge).toHaveBeenCalledWith('/a');
-    expect(store.getState().gitSnapshots['ws-1']).toBeDefined();
-    expect(store.getState().gitSnapshots['ws-2']).toBeUndefined();
+    expect(bridge).toHaveBeenCalledWith('/b');
+    expect(store.getState().gitSnapshots['ws-2']).toBeDefined();
     // silent：不转刷新图标
     expect(store.getState().changesTreeRefreshing['ws-1']).toBeUndefined();
   });
 
-  it('无目标时不调桥', async () => {
+  it('无已添加工作区时不调桥', async () => {
     const bridge = gitStatusBridge();
     const { store } = makeStore({
-      recentWorkspaces: entries,
+      recentWorkspaces: [],
       workspaceChangesExpanded: {},
     });
     await (
