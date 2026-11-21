@@ -144,6 +144,7 @@ describe('书签列表右键菜单（列表模式）', () => {
 describe('历史记录顶层（树模式）', () => {
   function renderHistoryRoot(expandedPaths: Record<string, boolean> = {}) {
     const onDeleteHistory = vi.fn();
+    const onTogglePath = vi.fn();
     const view = render(
       <TCopyProvider t={t} locale="zh-CN">
         <BrowserTreeEntry
@@ -158,14 +159,14 @@ describe('历史记录顶层（树模式）', () => {
           expandedPaths={expandedPaths}
           selectedTreePath={null}
           onSelectTreePath={vi.fn()}
-          onTogglePath={vi.fn()}
+          onTogglePath={onTogglePath}
           onOpenFile={vi.fn()}
           callbacks={{ ...callbacks, onDeleteHistory }}
           counts={new Map()}
         />
       </TCopyProvider>,
     );
-    return { ...view, onDeleteHistory };
+    return { ...view, onDeleteHistory, onTogglePath };
   }
 
   it('悬停只显示「删除全部历史记录」按钮，点击删除全部', () => {
@@ -194,5 +195,18 @@ describe('历史记录顶层（树模式）', () => {
   it('空历史即使持久化为折叠也强制展开（决策 5）', () => {
     const { container } = renderHistoryRoot({ 'history:root': false });
     expect(container.textContent).toContain('browserCategoryEmptyHistory');
+  });
+
+  it('空历史顶层头部与折叠按钮不再翻转持久化折叠值', () => {
+    const { container, onTogglePath } = renderHistoryRoot({ 'history:root': false });
+    const header = container.querySelector('.adl-browser-entry__header') as HTMLElement;
+    const expandBtn = container.querySelector(
+      '.adl-browser-entry__expand-btn',
+    ) as HTMLButtonElement;
+
+    fireEvent.click(expandBtn);
+    fireEvent.click(header);
+
+    expect(onTogglePath).not.toHaveBeenCalled();
   });
 });

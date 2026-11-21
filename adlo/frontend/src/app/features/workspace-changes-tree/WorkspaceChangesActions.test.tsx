@@ -272,6 +272,7 @@ describe('WorkspaceChangesActions push preflight (事项 7)', () => {
     await act(async () => {
       await result.current.handlePush();
     });
+    expect(refreshGitSnapshot).toHaveBeenCalledWith('ws-1', '/workspace-one', { silent: true });
     expect(pushWorkspaceChanges).toHaveBeenCalledWith('/workspace-one', {
       ahead: 2,
       hasUpstream: true,
@@ -376,6 +377,27 @@ describe('WorkspaceChangesActions push preflight (事项 7)', () => {
     expect(pushWorkspaceChanges).not.toHaveBeenCalled();
   });
 
+  it('closeCommit 清掉待推送标记：关闭提交框后提交不再推送', async () => {
+    snapshots = { 'ws-1': { staged: ['a'], unstaged: [], untracked: [], conflicts: [] } };
+    const { result } = renderActions();
+    await act(async () => {
+      await result.current.handlePush();
+    });
+    act(() => {
+      result.current.handleCommitAndPush();
+    });
+    act(() => {
+      result.current.closeCommit();
+    });
+
+    await act(async () => {
+      await result.current.submitCommit('feat: x', true);
+    });
+
+    expect(commitWorkspaceChanges).toHaveBeenCalled();
+    expect(pushWorkspaceChanges).not.toHaveBeenCalled();
+  });
+
   it('分支列表失败：全局错误卡按 error 级别上报并带重试动作', async () => {
     listGitBranches.mockResolvedValueOnce({
       ok: false,
@@ -394,5 +416,35 @@ describe('WorkspaceChangesActions push preflight (事项 7)', () => {
     );
     const options = reportError.mock.calls[0][3] as { actions: { run: () => Promise<boolean> }[] };
     expect(options.actions).toHaveLength(1);
+  });
+
+  it('分支列表失败的重试动作重新走完整预检（刷新 + 重新查分支）', async () => {
+    listGitBranches
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: 'WORKSPACE_ERROR', message: 'branch list failed' },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: [{ name: 'main', isCurrent: true, ahead: 2, upstream: 'origin/main' }],
+      });
+    const { result } = renderActions();
+    await act(async () => {
+      await result.current.handlePush();
+    });
+    const options = reportError.mock.calls[0][3] as {
+      actions: { run: () => Promise<boolean> }[];
+    };
+
+    await act(async () => {
+      await options.actions[0].run();
+    });
+
+    expect(refreshGitSnapshot).toHaveBeenCalledTimes(2);
+    expect(listGitBranches).toHaveBeenCalledTimes(2);
+    expect(pushWorkspaceChanges).toHaveBeenCalledWith('/workspace-one', {
+      ahead: 2,
+      hasUpstream: true,
+    });
   });
 });

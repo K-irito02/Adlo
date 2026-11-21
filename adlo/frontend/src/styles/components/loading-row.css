@@ -65,8 +65,7 @@
   .adl-loading-row__text--shimmer,
   .adl-settings-row__label small.adl-loading-row__text--shimmer,
   .adl-about__update-status.adl-loading-row__text--shimmer,
-  .adl-update-card__line.adl-loading-row__text--shimmer,
-  .adl-multitree-entry__busy.adl-loading-row__text--shimmer {
+  .adl-update-card__line.adl-loading-row__text--shimmer {
     animation: none;
     color: var(--text-muted);
     background: none;

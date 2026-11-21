@@ -31,8 +31,6 @@ const css = readRepoFile('./regions/rightpanel/file-tree-browser.css');
 
 const HEADER_SELECTOR = '.adl-multitree--sticky-headers .adl-multitree-entry__header';
 
-/** 选择器与传入值完全一致的规则体（排除 `.is-current` 等复合变体）。 */
-
 describe('工作区标题吸顶样式契约', () => {
   it('标题使用 sticky 且贴顶位置为 0', () => {
     const body = exactRuleBody(css, HEADER_SELECTOR);

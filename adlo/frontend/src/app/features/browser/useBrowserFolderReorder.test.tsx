@@ -36,4 +36,29 @@ describe('useBrowserFolderReorder history root', () => {
 
     expect(expandAll).toHaveBeenCalledWith(['history:root']);
   });
+
+  it('非空历史折叠时 allTreeExpanded 为 false', () => {
+    useAppStore.setState({
+      recentWorkspaces: [],
+      browserBookmarkFolders: [],
+      browserHistory: [{ id: 'h1', url: 'https://a', title: 'a', visitedAt: 1 }] as never,
+      browserTabTreeExpanded: { 'history:root': false },
+    });
+    const { result } = renderHook(() => useBrowserFolderReorder());
+
+    expect(result.current.allTreeExpanded).toBe(false);
+  });
+
+  it('空历史被强制展开时不再参与 allTreeExpanded 判定', () => {
+    useAppStore.setState({
+      recentWorkspaces: [],
+      browserBookmarkFolders: [{ id: 'f1', name: 'f', parentId: undefined }] as never,
+      browserHistory: [],
+      // 历史曾持久化为折叠，但空历史视觉上强制展开；其余条目已展开 → 全部展开。
+      browserTabTreeExpanded: { 'history:root': false, 'folder:f1': true },
+    });
+    const { result } = renderHook(() => useBrowserFolderReorder());
+
+    expect(result.current.allTreeExpanded).toBe(true);
+  });
 });

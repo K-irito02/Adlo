@@ -43,11 +43,17 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
 }: BrowserTreeEntryProps) {
   const { t } = useTCopy();
   const isSelected = selectedTreePath === node.path;
+  // 空历史时顶层强制展开，直接显示「暂无历史记录」；即使曾持久化为折叠也不生效
+  // （决策 5：空历史时顶层常驻并展开）。
+  const isForcedExpandedEmptyHistory = node.nodeType === 'history' && node.children.length === 0;
 
   const handleHeaderClick = useCallback(() => {
-    onTogglePath(node.path);
+    // 空历史顶层常驻展开，折叠按钮/头部点击不再翻转持久化值（否则视觉无效）。
+    if (!isForcedExpandedEmptyHistory) {
+      onTogglePath(node.path);
+    }
     onSelectTreePath(node.path);
-  }, [node.path, onSelectTreePath, onTogglePath]);
+  }, [isForcedExpandedEmptyHistory, node.path, onSelectTreePath, onTogglePath]);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
@@ -57,11 +63,8 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     node: BrowserTreeNode;
   } | null>(null);
 
-  // 空历史时顶层强制展开，直接显示「暂无历史记录」；即使曾持久化为折叠也不生效
-  // （决策 5：空历史时顶层常驻并展开）。
-  const isExpanded =
-    (node.nodeType === 'history' && node.children.length === 0) ||
-    (expandedPaths[node.path] ?? false);
+  // 空历史时顶层强制展开（isForcedExpandedEmptyHistory 见上方）。
+  const isExpanded = isForcedExpandedEmptyHistory || (expandedPaths[node.path] ?? false);
   const isFlatMode = browserViewMode === 'list' || browserViewMode === 'all';
   const showSeparators = browserViewMode === 'list';
   const menuId = `browser-entry-menu-${node.path}`;
@@ -130,9 +133,12 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   const handleExpandBtnClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      if (isForcedExpandedEmptyHistory) {
+        return;
+      }
       onTogglePath(node.path);
     },
-    [onTogglePath, node.path],
+    [isForcedExpandedEmptyHistory, onTogglePath, node.path],
   );
 
   const handleNameKeyDown = useCallback(

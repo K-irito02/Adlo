@@ -38,12 +38,18 @@ describe('按钮语义色与加载态标准（石墨墨水 / 全柔和 / 2px / �
     expect(buttonCss).not.toContain(".btn[aria-busy='true']::after");
   });
 
-  it('prompt 对话框不再用高特异度覆盖按钮底色（soft/实心变体按 token 生效）', () => {
-    // `.adl-prompt-modal .adl-btn`（0-2-0）曾直接写 background/color/border，
-    // 压过 `.adl-btn`（0-1-0）消费的 --btn-*，导致 FileCreationDialog 的 primary-soft 名存实亡。
+  it('prompt 对话框不再覆盖 soft 变体的底色（token 生效），保留既有紧凑外观', () => {
+    // 不带 :not([class*='-soft']) 的通用覆盖（0-2-0+）会压过 .adl-btn 的 --btn-*，
+    // 导致 FileCreationDialog 的 primary-soft 名存实亡。
     expect(exactRuleBody(composerCoreCss, '.adl-prompt-modal .adl-btn')).toBeNull();
     expect(
-      exactRuleBody(composerCoreCss, '.adl-prompt-modal .adl-btn:hover:not(:disabled)'),
-    ).toBeNull();
+      exactRuleBody(composerCoreCss, ".adl-prompt-modal .adl-btn:not([class*='-soft'])"),
+    ).not.toBeNull();
+    expect(
+      exactRuleBody(
+        composerCoreCss,
+        ".adl-prompt-modal .adl-btn:not([class*='-soft']):hover:not(:disabled)",
+      ),
+    ).not.toBeNull();
   });
 });

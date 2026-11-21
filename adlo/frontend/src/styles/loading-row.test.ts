@@ -50,9 +50,15 @@ describe('loading row text shimmer styles', () => {
     expect(rule).toContain('background: none;');
   });
 
-  it('includes the workspace busy compound selector in the reduced-motion fallback', () => {
+  it('includes the workspace busy compound selector in file-operations.css reduced-motion fallback', () => {
+    // 该选择器的 color: transparent 在 file-operations.css（更晚加载），
+    // 回退必须写在同一文件同特异性位置才能胜出。
+    const fileOpsCss = readFileSync(
+      new URL('./regions/rightpanel/file-operations.css', import.meta.url),
+      'utf-8',
+    );
     const busy = '.adl-multitree-entry__busy.adl-loading-row__text--shimmer';
-    const mediaBody = ruleBody(css, '@media (prefers-reduced-motion');
+    const mediaBody = ruleBody(fileOpsCss, '@media (prefers-reduced-motion');
     expect(mediaBody).not.toBeNull();
     const rule = ruleBody(mediaBody!, busy);
     expect(rule).not.toBeNull();

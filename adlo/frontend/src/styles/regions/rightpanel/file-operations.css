@@ -309,3 +309,15 @@
 .adl-multitree-entry__busy.adl-loading-row__text--shimmer {
   color: transparent;
 }
+
+/* 减少动效时扫光停用；本文件选择器比 loading-row.css 的通用回退更晚加载，
+   必须在这里同特异性覆盖，否则 color: transparent 会让「推送中/拉取中」不可见。 */
+@media (prefers-reduced-motion: reduce) {
+  .adl-multitree-entry__busy.adl-loading-row__text--shimmer {
+    animation: none;
+    color: var(--text-muted);
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+  }
+}
