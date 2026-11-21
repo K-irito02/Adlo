@@ -1,11 +1,14 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useTCopy } from '../i18n/useTCopy';
-import { WorkspaceSplitButton } from './WorkspaceSplitButton';
+import { WorkspaceSplitButton, type WorkspaceActionMode } from './WorkspaceSplitButton';
 
 interface CreateWorkspaceModalProps {
   open: boolean;
   onPickWorkspaceDirectory: () => Promise<string | undefined>;
-  onOpenWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }>;
+  onOpenWorkspace: (
+    path: string,
+    options?: { create?: boolean },
+  ) => Promise<{ ok: boolean; error?: string }>;
   onClose: () => void;
 }
 
@@ -16,6 +19,13 @@ export function CreateWorkspaceModal({
   onClose,
 }: CreateWorkspaceModalProps) {
   const { t } = useTCopy();
+  const [mode, setMode] = useState<WorkspaceActionMode>('create');
+  const hint =
+    mode === 'pick'
+      ? t.workspaceHintPick
+      : mode === 'open'
+        ? t.workspaceHintOpen
+        : t.workspaceHintCreate;
   const handleBackdrop = useCallback(
     (e: React.MouseEvent) => {
       if (e.target === e.currentTarget) {
@@ -54,10 +64,12 @@ export function CreateWorkspaceModal({
               onClose={onClose}
               initialMode="create"
               persistMode={false}
+              onModeChange={setMode}
             />
           </div>
         </div>
-        <div className="adl-prompt-modal__actions">
+        <div className="adl-prompt-modal__actions adl-prompt-modal__actions--split">
+          <span className="adl-prompt-modal__hint">{hint}</span>
           <button type="button" className="adl-btn adl-btn--ghost" onClick={onClose}>
             {t.cancel}
           </button>

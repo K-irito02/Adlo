@@ -7,7 +7,7 @@
 | 菜单项 | 快捷键 | 说明 | 文档链接 |
 |--------|--------|------|----------|
 | 新建工作区 | `Ctrl+N` | 创建新的工作区 | [新建工作区](#新建工作区) |
-| 打开文件夹 | `Ctrl+O` | 打开现有文件夹作为工作区 | [打开文件夹](#打开文件夹) |
+| 添加工作区 | `Ctrl+O` | 打开现有文件夹作为工作区 | [添加工作区](#添加工作区) |
 | ────────── | - | 分隔线 | - |
 | 退出 | `Alt+F4`（macOS `⌘Q`） | 关闭应用 | [退出](#退出) |
 
@@ -64,11 +64,11 @@ await page.waitForSelector('.adl-multitree');
 
 ---
 
-### 打开文件夹
+### 添加工作区
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-hamburger__item` (包含 "打开文件夹" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "添加工作区" 文本) |
 | 快捷键 | `Ctrl+O` |
 
 #### 前置条件
@@ -81,7 +81,7 @@ await page.waitForSelector('.adl-multitree');
 // 方式1：通过菜单
 await page.click('.adl-hamburger__trigger');
 await page.waitForSelector('.adl-hamburger__dropdown');
-await page.click('.adl-hamburger__item:has-text("打开文件夹")');
+await page.click('.adl-hamburger__item:has-text("添加工作区")');
 
 // 方式2：通过快捷键
 await page.keyboard.down('Control');

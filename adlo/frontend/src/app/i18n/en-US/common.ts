@@ -96,7 +96,6 @@ export const commonEn = {
   languageSystem: 'System',
   languageChinese: '中文',
   mainContentAria: 'Main content area',
-  defaultNewDir: 'default-dir/my-project',
   resizeSidebar: 'Resize the sidebar width',
 
   collapseAll: 'Collapse all',

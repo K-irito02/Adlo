@@ -31,7 +31,10 @@ import { useBookmarkToFolderDialog } from '@features/browser/useBookmarkToFolder
 import { BookmarkToFolderDialogs } from '@features/browser/BookmarkToFolderDialogs';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
-import { isUrlBookmarked } from '@utils/browserDisplayUtils';
+import { isRealTitle, isUrlBookmarked } from '@utils/browserDisplayUtils';
+import { buildReswitchedSearch } from '@features/browser/searchEngineReswitch';
+import { shouldApplyEngineReswitch } from '@features/browser/engineReswitchGuard';
+import type { SearchEngine } from '@stores/slices/browserSearchEnginesSlice';
 import { useCenterBrowserAddressSubmit } from './useCenterBrowserAddressSubmit';
 import { checkEmbed, isEmbedBlocked } from '@features/browser/checkEmbed';
 import { useCenterObscured } from './useCenterObscured';
@@ -58,6 +61,10 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
   const activeTab = useAppStore((s) =>
     browserTabId ? s.browserTabsById[browserTabId] : undefined,
   );
+  // 异步嵌入预检期间可能切换中心标签：落定后用它判断目标标签是否仍在展示，
+  // 避免把地址栏/iframe 写成上一个标签的引擎切换结果。
+  const activeCenterTabIdRef = useRef<string | undefined>(activeTab?.id);
+  activeCenterTabIdRef.current = activeTab?.id;
   const browserTabs = useAppStore((s) => s.browserTabs);
   const browserBookmarks = useAppStore((s) => s.browserBookmarks);
   const browserHistory = useAppStore((s) => s.browserHistory);
@@ -197,6 +204,94 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
   });
 
   const activeTabUrl = activeTab?.url && activeTab.url !== 'about:blank' ? activeTab.url : '';
+
+  // 切换搜索引擎：只处理中心宿主当前正在显示的标签。当前页不是可识别的搜索结果页时
+  // 保持页面不动（引擎选择本身已由 store 全局同步，后台标签无需刷新）。
+  // 浏览器模式先做嵌入预检并登记 validated；被拒时仍落标签状态再显示兜底（与地址栏
+  // 提交一致），通过后才导航 iframe，避免先加载一次未受检页面（F5 同类回归）。
+  const handleEngineSelected = useCallback(
+    (engine: SearchEngine) => {
+      if (!activeTab?.id || !activeTab.url) {
+        return;
+      }
+      const tabId = activeTab.id;
+      const startUrl = activeTab.url;
+      const next = buildReswitchedSearch(startUrl, searchEngines, engine);
+      if (!next) {
+        return;
+      }
+
+      const applyNavigation = (navigateIframe: boolean) => {
+        const state = useAppStore.getState();
+        state.browserAddToHistory(next.url, next.title);
+        state.browserUpdateTab(tabId, {
+          url: next.url,
+          title: next.title,
+          titleResolved: isRealTitle(next.title, next.url),
+        });
+        setAddress(next.url);
+        setSearchQueryDisplay(next.query);
+        if (isTauri) {
+          if (isTabInPool(tabId)) {
+            void navigateTabInPool(tabId, next.url).catch((err) => {
+              console.warn('[centerEngineSwitch] navigateTabInPool failed:', err);
+            });
+          }
+          return;
+        }
+        if (navigateIframe) {
+          navigateBrowser(next.url);
+        }
+      };
+
+      if (isTauri) {
+        applyNavigation(true);
+        return;
+      }
+
+      void (async () => {
+        let blocked = isEmbedBlocked(next.url);
+        if (blocked === undefined) {
+          try {
+            blocked = await checkEmbed(next.url);
+          } catch {
+            blocked = false;
+          }
+        }
+        if (
+          !shouldApplyEngineReswitch({
+            activeHostTabId: activeCenterTabIdRef.current,
+            sourceTabId: tabId,
+            currentTabUrl: useAppStore.getState().browserTabsById[tabId]?.url,
+            startUrl,
+          })
+        ) {
+          return;
+        }
+        if (blocked) {
+          setIframeBlockedDetected(true);
+          setIframeLoadError(true);
+          applyNavigation(false);
+          return;
+        }
+        validatedUrlsRef.current.add(next.url);
+        applyNavigation(true);
+      })();
+    },
+    [
+      activeTab,
+      searchEngines,
+      isTauri,
+      isTabInPool,
+      navigateTabInPool,
+      navigateBrowser,
+      setAddress,
+      setSearchQueryDisplay,
+      setIframeBlockedDetected,
+      setIframeLoadError,
+      validatedUrlsRef,
+    ],
+  );
 
   const urlState = useBrowserUrlState({
     address,
@@ -468,6 +563,7 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
           open={searchEnginePopoverOpen}
           onClose={() => setSearchEnginePopoverOpen(false)}
           anchorRef={searchEngineBtnRef as unknown as RefObject<HTMLElement>}
+          onEngineSelected={handleEngineSelected}
         />
       </div>
 

@@ -20,15 +20,17 @@ function setup(flush: { saved: number; failed: number } = { saved: 0, failed: 0 
   } as unknown as StoreState;
   const get = () => state;
   const set = vi.fn();
+  const openWorkspaceMock = vi.fn().mockResolvedValue({ ok: true, data: {} });
   (window as unknown as { digitalLife: unknown }).digitalLife = {
     workspace: {
-      open: vi.fn().mockResolvedValue({ ok: true, data: {} }),
+      open: openWorkspaceMock,
       clearCurrent: vi.fn().mockResolvedValue({ ok: true, data: true }),
     },
   };
   const actions = createWorkspaceLifecycleActions(set as never, get as never);
   return {
     actions,
+    openWorkspaceMock,
     cancelPendingSearch,
     bootstrap,
     saveDirtyEditors,
@@ -56,6 +58,12 @@ describe('workspaceLifecycleActions search hygiene (事项 45 Phase 4)', () => {
     const { actions, saveDirtyEditors } = setup();
     await actions.openWorkspace('/new');
     expect(saveDirtyEditors).toHaveBeenCalledTimes(1);
+  });
+
+  it('openWorkspace passes create options through to the bridge', async () => {
+    const { actions, openWorkspaceMock } = setup();
+    await actions.openWorkspace('my-project', { create: true });
+    expect(openWorkspaceMock).toHaveBeenCalledWith('my-project', { create: true });
   });
 
   it('openWorkspace aborts on flush failure without bootstrap or toast-less switch (P4 L1)', async () => {

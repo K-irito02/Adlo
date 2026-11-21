@@ -56,6 +56,9 @@ fn workspace_root(state: &ServerState, explicit: Option<String>) -> Result<Strin
 #[serde(rename_all = "camelCase")]
 struct WorkspacePathBody {
     workspace_path: String,
+    /// 「创建文件夹」模式：路径不存在时先递归创建（相对名称解析到系统默认工作区根）。
+    #[serde(default)]
+    create: bool,
 }
 
 /// POST `/workspace/open` — open a workspace path, persist it as the active
@@ -73,6 +76,7 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
     let workspace_path_str = input.workspace_path.clone();
+    let create = input.create;
     let path = PathBuf::from(input.workspace_path);
 
     // Phase 1 (blocking): open workspace (file I/O) + build retrieval snapshot.
@@ -80,6 +84,8 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
     let (meta, snapshot) =
         match run_blocking(move || -> Result<(WorkspaceMeta, RetrievalSnapshot), AppError> {
             let t_open = std::time::Instant::now();
+            let path =
+                if create { adl_workspace::ensure_workspace_dir(path.as_path())? } else { path };
             let (meta, _recent) = adl_workspace::open_workspace(path.as_path())?;
             tracing::debug!(
                 elapsed_ms = t_open.elapsed().as_millis(),

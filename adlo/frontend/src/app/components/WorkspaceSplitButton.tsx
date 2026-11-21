@@ -6,10 +6,15 @@ export type WorkspaceActionMode = 'pick' | 'open' | 'create';
 
 interface WorkspaceSplitButtonProps {
   onPickWorkspaceDirectory: () => Promise<string | undefined>;
-  onOpenWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }>;
+  onOpenWorkspace: (
+    path: string,
+    options?: { create?: boolean },
+  ) => Promise<{ ok: boolean; error?: string }>;
   onClose?: () => void;
   initialMode?: WorkspaceActionMode;
   persistMode?: boolean;
+  /** 模式变化回调：供宿主（如创建对话框）在页脚按当前模式展示对应引导文案。 */
+  onModeChange?: (mode: WorkspaceActionMode) => void;
 }
 
 export function WorkspaceSplitButton({
@@ -18,6 +23,7 @@ export function WorkspaceSplitButton({
   onClose,
   initialMode,
   persistMode = true,
+  onModeChange,
 }: WorkspaceSplitButtonProps) {
   const { t } = useTCopy();
   const [actionMode, setActionMode] = useState<WorkspaceActionMode>(() => {
@@ -53,6 +59,10 @@ export function WorkspaceSplitButton({
       }
     };
   }, []);
+
+  useEffect(() => {
+    onModeChange?.(actionMode);
+  }, [actionMode, onModeChange]);
 
   const handlePickDirectory = async () => {
     setProcessing(true);
@@ -96,13 +106,17 @@ export function WorkspaceSplitButton({
     setActionError('');
     try {
       const isSimpleName = !/[\\/]/.test(trimmed);
+      if (isSimpleName && (trimmed === '.' || trimmed === '..')) {
+        setActionError(t.workspaceInvalidFolderName);
+        return;
+      }
       let resolvedPath: string;
       if (isSimpleName && defaultCreateDir) {
         resolvedPath = `${defaultCreateDir.replace(/\\/g, '/').replace(/\/+$/, '')}/${trimmed}`;
       } else {
         resolvedPath = trimmed;
       }
-      const result = await onOpenWorkspace(resolvedPath);
+      const result = await onOpenWorkspace(resolvedPath, { create: true });
       if (!result.ok) {
         setActionError(result.error || t.workspacePathNotFound);
       } else {
@@ -246,6 +260,7 @@ export function WorkspaceSplitButton({
           onMouseEnter={handleSplitDropEnter}
           onMouseLeave={handleSplitDropLeave}
           aria-haspopup="menu"
+          aria-label={t.workspaceSwitchActionMode}
         >
           <IconChevronRight size={12} />
         </button>
@@ -370,11 +385,12 @@ export function WorkspaceSplitButton({
                       console.warn('[WorkspaceSplitButton] failed to persist create dir default');
                     }
                   }}
-                  placeholder={t.workspacePlaceholder}
+                  placeholder={t.workspaceCreateDefaultDirPlaceholder}
                 />
                 <button
                   type="button"
                   className="adl-split-btn__dots"
+                  aria-label={t.workspacePickDefaultDir}
                   onClick={() => {
                     void onPickWorkspaceDirectory().then((path) => {
                       if (path) {
@@ -392,26 +408,22 @@ export function WorkspaceSplitButton({
                   <IconFolderOpen size={14} />
                 </button>
               </div>
+              <p className="adl-split-btn__settings-empty">
+                {t.workspaceCreateDefaultDirEmptyHint}
+              </p>
               <div className="adl-split-btn__settings-desc">
                 <p>
                   <strong>{t.workspaceCreateDirDescName}</strong>
-                </p>
-                <p>
-                  {t.workspaceCreateDirDescNameDetail
-                    .replace('{name}', 'my-project')
-                    .replace(
-                      '{path}',
-                      defaultCreateDir ? `${defaultCreateDir}/my-project` : t.defaultNewDir,
-                    )}
+                  <span>{t.workspaceCreateDirDescNameDetail.replace('{name}', 'my-project')}</span>
                 </p>
                 <p>
                   <strong>{t.workspaceCreateDirDescFull}</strong>
+                  <span>{t.workspaceCreateDirDescFullDetail}</span>
                 </p>
-                <p>{t.workspaceCreateDirDescFullDetail}</p>
                 <p>
                   <strong>{t.workspaceCreateDirDescExists}</strong>
+                  <span>{t.workspaceCreateDirDescExistsDetail}</span>
                 </p>
-                <p>{t.workspaceCreateDirDescExistsDetail}</p>
               </div>
             </div>
           ) : null}

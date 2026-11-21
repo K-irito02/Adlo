@@ -105,7 +105,6 @@ export const commonZh = {
   // ======== Main Content ========
   mainContentAria: '主内容区域',
   // ======== Workspace Split Button ========
-  defaultNewDir: '默认目录/my-project',
   // ======== Resize Handles ========
   resizeSidebar: '调整侧边栏宽度',
 

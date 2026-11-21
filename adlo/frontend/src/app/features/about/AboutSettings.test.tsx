@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, cleanup, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
@@ -267,6 +267,7 @@ function seedStore(runtime: AppInfo['runtime'] = tauriRuntime()) {
       runtime,
     } as AppInfo,
     showToast,
+    aboutDialogRequest: null,
   });
   (window as unknown as { digitalLife: unknown }).digitalLife = {
     storage: { getStatus },
@@ -387,6 +388,18 @@ describe('AboutSettings', () => {
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens the license dialog when an external entry requests it while mounted', () => {
+    renderAbout();
+
+    act(() => {
+      useAppStore.setState({ aboutDialogRequest: 'license' });
+    });
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.textContent).toContain('MIT License');
+    expect(useAppStore.getState().aboutDialogRequest).toBeNull();
   });
 
   it('keeps Tab focus inside the dialog', () => {

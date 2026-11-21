@@ -5,8 +5,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { shouldHostHideTab } from './browserPoolSingleton';
 import { getResolvedTheme } from './useBrowserThemeSync';
 import { HIDDEN_WEBVIEW_OFFSCREEN_COORD } from './useWebViewVisibility';
-import { isDownloadUrl } from '@utils/downloadUrl';
-import { isLocalViewableFileUrl } from './localFileInput';
+import { consumeFreshAndDecideWebViewCreation } from './webViewLifecyclePolicy';
 import { isLoopbackHttpUrl, waitForLoopbackReachable } from './loopbackReadiness';
 import { clearRevealPending, isRevealPending, markRevealPending } from './browserRevealGate';
 
@@ -68,11 +67,6 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
    *  same-tab URL changes (e.g. "current tab" mode navigation) and call
    *  `navigateTab` instead of just `activateTab`. */
   const tabUrlMapRef = useRef<Map<string, string>>(new Map());
-  /** Tabs created during the current session (not hydrated from restart).
-   *  The isDownloadUrl check is skipped for these tabs so that download links
-   *  clicked in-page (target="_blank") can open a new tab and trigger
-   *  DownloadStarting normally. Only hydrated restart tabs are suppressed. */
-  const freshTabIdsRef = useRef<Set<string>>(new Set());
   /** Per-tab fallback timers for the reveal gate (see `revealTab`). */
   const revealTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   /** Tabs whose page-ready event arrived since their current WebView was created.
@@ -224,11 +218,12 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
           // hydrated (restart) tabs. Tabs created during the current session
           // (e.g. from browser-open-new-tab for in-page download links) must
           // NOT be suppressed — they need a WebView to trigger DownloadStarting.
-          const isFresh = freshTabIdsRef.current.has(currentTabId);
-          if (isFresh) {
-            freshTabIdsRef.current.delete(currentTabId);
-          }
-          if (!isFresh && isDownloadUrl(tab.url) && !isLocalViewableFileUrl(tab.url)) {
+          // fresh 标记由 store 持有，两个宿主（面板 / 中心）共享同一份登记。
+          const { isFresh, suppressDownload } = consumeFreshAndDecideWebViewCreation(
+            currentTabId,
+            tab.url,
+          );
+          if (suppressDownload) {
             webViewActiveRef.current = false;
             return;
           }
@@ -341,16 +336,14 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     clearRevealTimer,
   ]);
 
-  // Cleanup on unmount: clear active flag/fresh set AND hide the host's current
-  // active tab WebView, so unmounting a host (e.g. switching center tabs or
-  // closing the center host) never leaves a stale native surface behind.
+  // Cleanup on unmount: clear active flag AND hide the host's current active tab
+  // WebView, so an unmount (e.g. switching center tabs or closing the center host)
+  // hides the surface this host was showing.
   // E1 守卫同上：tab 已归属另一宿主时不隐藏（另一宿主正在显示它）。
   useEffect(() => {
-    const freshTabIds = freshTabIdsRef.current;
     const revealTimers = revealTimersRef.current;
     return () => {
       webViewActiveRef.current = false;
-      freshTabIds.clear();
       for (const timer of revealTimers.values()) {
         clearTimeout(timer);
       }
@@ -375,12 +368,5 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     };
   }, [webViewActiveRef, isTabInPool, hostId]);
 
-  /** Mark a tab as freshly created (current session, not restart-hydrated).
-   *  Call this immediately after creating a new tab so the lifecycle hook
-   *  knows to skip the restart download suppression for that tab. */
-  const markTabFresh = useCallback((tabId: string) => {
-    freshTabIdsRef.current.add(tabId);
-  }, []);
-
-  return { loadingTabId, markTabFresh };
+  return { loadingTabId };
 }

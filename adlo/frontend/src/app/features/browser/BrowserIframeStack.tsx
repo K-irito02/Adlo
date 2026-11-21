@@ -117,7 +117,7 @@ export const BrowserIframeStack = memo(function BrowserIframeStack() {
               );
             })}
 
-          {isTauri && (
+          {isTauri || iframeBlockedDetected || iframeLoadError ? (
             <BrowserIframeErrorOverlay
               t={t}
               activeTab={activeTab}
@@ -126,7 +126,7 @@ export const BrowserIframeStack = memo(function BrowserIframeStack() {
               iframeLoadError={iframeLoadError}
               isEmbedPending={isEmbedPending}
             />
-          )}
+          ) : null}
         </div>
       )}
     </>

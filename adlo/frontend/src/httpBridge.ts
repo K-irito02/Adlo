@@ -957,8 +957,12 @@ export function createHttpBridge({
     // ── Workspace domain (workspace_* + sidebar + git + git-vis).
     workspace: {
       listRecent: () => call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/list', POST({})),
-      open: (workspacePath: string) =>
-        call<WorkspaceMeta>(baseUrl, '/workspace/open', POST({ workspacePath })),
+      open: (workspacePath: string, options?: { create?: boolean }) =>
+        call<WorkspaceMeta>(
+          baseUrl,
+          '/workspace/open',
+          POST({ workspacePath, ...(options?.create ? { create: true } : {}) }),
+        ),
       addToSidebar: (workspacePath: string) =>
         call<RecentWorkspaceEntry>(baseUrl, '/workspace/add', POST({ workspacePath })),
       clearCurrent: () => call<boolean>(baseUrl, '/workspace/clear-current', POST({})),

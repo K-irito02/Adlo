@@ -267,7 +267,9 @@ export function extractSearchQueryFromUrl(url: string, engines: SearchEngine[]):
         }
         const raw = u.searchParams.get(paramName);
         if (raw) {
-          return decodeURIComponent(raw);
+          // `URLSearchParams.get` 已经解码一次；再 decodeURIComponent 会把字面量
+          // `%20` 二次解码、查询含孤立 `%`（如「50% off」）时抛 URIError 被吞掉。
+          return raw;
         }
       } catch {
         // 跳过无效模板

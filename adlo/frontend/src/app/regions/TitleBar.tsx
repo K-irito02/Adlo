@@ -62,9 +62,10 @@ const TitleBar = React.memo(function TitleBar({
 
   const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds) ?? EMPTY_KEYBINDS;
   const openShortcutsSettings = useCallback(() => {
-    const state = useAppStore.getState();
-    state.navigateRightTool('settings');
-    state.setActiveSettingsGroup('shortcuts');
+    useAppStore.getState().openShortcutsSettings();
+  }, []);
+  const openLicense = useCallback(() => {
+    useAppStore.getState().openAboutLicense();
   }, []);
   const fileItems = useFileMenuItems(
     t,
@@ -81,7 +82,7 @@ const TitleBar = React.memo(function TitleBar({
     onOpenSettings,
     navigateRightTool,
   );
-  const helpItems = useHelpMenuItems(t, keybinds, openShortcutsSettings);
+  const helpItems = useHelpMenuItems(t, keybinds, openShortcutsSettings, openLicense);
 
   return (
     <header className="adl-titlebar" role="banner">

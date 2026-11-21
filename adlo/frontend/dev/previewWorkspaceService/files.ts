@@ -1,5 +1,6 @@
 import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { buildOutlineFromContent } from '../../src/shared/outline';
@@ -768,15 +769,65 @@ async function buildRetrievalSnapshotInner(
   };
 }
 
-export async function openWorkspace(workspacePath: string): Promise<{
+export function previewDefaultWorkspaceRoot(): string {
+  // 桌面使用 `dirs::document_dir()`；预览服务在 Node 侧取 `<home>/Documents` 近似。
+  // Windows 上若文档目录被 OneDrive 重定向，两者可能指向不同位置。
+  return path.join(os.homedir(), 'Documents', 'Adlo Workspaces');
+}
+
+/**
+ * 解析「创建/打开工作区」的目标目录（create 分支与桌面 `ensure_workspace_dir`
+ * 同口径；默认根的取值见 [`previewDefaultWorkspaceRoot`]）：
+ * - 绝对路径直接使用；
+ * - 相对路径只接受单段名称，落到默认根；
+ * - `create` 为真时递归创建，否则不存在即报错；
+ * - `create` 时为已存在的文件报错；open 模式保留文件路径，由 `detectWorkspaceRoot`
+ *   取所在目录（与桌面 `open_workspace` 对文件的处理一致）。
+ */
+export function resolveWorkspaceTarget(
+  input: string,
+  create: boolean,
+  defaultRoot: string = previewDefaultWorkspaceRoot(),
+): string {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    throw new PreviewServiceError('workspacePath is required');
+  }
+  let target: string;
+  if (path.isAbsolute(trimmed)) {
+    target = trimmed;
+  } else {
+    if (trimmed === '.' || trimmed === '..' || /[\\/]/.test(trimmed)) {
+      throw new PreviewServiceError(
+        'workspace name must be a single folder name or an absolute path',
+      );
+    }
+    target = path.join(defaultRoot, trimmed);
+  }
+
+  if (fsSync.existsSync(target)) {
+    if (create && !fsSync.statSync(target).isDirectory()) {
+      throw new PreviewServiceError(`path is not a directory: ${target}`);
+    }
+  } else if (create) {
+    fsSync.mkdirSync(target, { recursive: true });
+  } else {
+    throw new PreviewServiceError(`path does not exist: ${target}`, 'NOT_FOUND');
+  }
+
+  return target;
+}
+
+export async function openWorkspace(
+  workspacePath: string,
+  create = false,
+): Promise<{
   meta: import('../src/kernel/index').WorkspaceMeta;
   recent: import('../src/kernel/index').RecentWorkspaceEntry;
   retrieval: import('../src/kernel/index').RetrievalSnapshot;
 }> {
-  if (!fsSync.existsSync(workspacePath)) {
-    fsSync.mkdirSync(workspacePath, { recursive: true });
-  }
-  const rootPath = await detectWorkspaceRoot(workspacePath);
+  const target = resolveWorkspaceTarget(workspacePath, create);
+  const rootPath = await detectWorkspaceRoot(target);
   const name = path.basename(rootPath) || rootPath;
   const id = createWorkspaceId(rootPath);
   const currentTime = nowMs();

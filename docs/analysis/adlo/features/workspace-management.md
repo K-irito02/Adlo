@@ -60,7 +60,7 @@
 
 | 文件 | 导出项 | 说明 |
 |------|--------|------|
-| `detect.rs` | `detect_root`, `open_workspace`, `stable_workspace_id`, `strip_verbatim_prefix`, `workspace_type` | 项目根检测（向上遍历找 `.git` 等标记）、工作区打开、稳定 ID 生成、Windows 路径前缀处理 |
+| `detect.rs` | `detect_root`, `open_workspace`, `ensure_workspace_dir`, `stable_workspace_id`, `strip_verbatim_prefix`, `workspace_type` | 项目根检测（向上遍历找 `.git` 等标记）、工作区打开、创建模式目录确保（递归创建 / 单段名称落默认工作区根）、稳定 ID 生成、Windows 路径前缀处理 |
 | `fs.rs` | `create_file`, `create_folder`, `delete_entry`, `duplicate_entry`, `move_entry`, `rename_entry` | 文件系统操作，支持工作区路径内的文件 CRUD |
 | `git.rs` | `capture_git_snapshot`, `capture_git_snapshot_async`, `create_git_branch`, `git_has_local_changes`, `list_git_branches`, `switch_git_branch` | Git 操作：快照捕获（分支/HEAD/暂存/未暂存/未跟踪/冲突）、分支管理、本地变更检测（30 秒超时） |
 | `search.rs` | `search_text`, `search_text_async` | 工作区文本搜索 |
@@ -90,7 +90,7 @@ GitSnapshot {
 
 | 命令 | 说明 |
 |------|------|
-| `open_workspace` | 打开工作区（路径规范化、检测、持久化） |
+| `open_workspace` | 打开工作区（路径规范化、检测、持久化）；可选 `create=true` 时先确保目录存在（单段名称解析到默认工作区根） |
 | `close_workspace` | 关闭工作区 |
 | `list_workspaces` | 列出最近工作区 |
 | `reorder_workspaces` | 工作区排序（固定/非固定） |

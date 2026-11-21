@@ -40,7 +40,7 @@
 | 处理器 | 文件 | 说明 |
 |--------|------|------|
 | `navigation_handler` | `browser_events.rs` | 捕获所有 WebView 导航事件，4s URL 去重 |
-| `new_window_handler` | `browser_events.rs` | 拦截新窗口请求，在当前 WebView 中导航 |
+| `new_window_handler` | `browser_events.rs` | 拦截新窗口请求（`target=_blank` / `window.open`），按来源标签所在宿主开新标签（中心 → 中心标签条，面板 → 面板） |
 | `setup_history_changed_handler` | `webview2_message.rs` | COM HistoryChanged 事件，SPA pushState 检测 |
 
 ### 2. JavaScript 端拦截点
@@ -152,8 +152,14 @@ while (target) {
 - [browser-tree-fix.md](./browser-tree-fix.md) - 浏览器树修复
 - [browser-spa-navigation-title-sync-fix-2026-06-28.md](./navigation/browser-spa-navigation-title-sync-fix-2026-06-28.md) - SPA 导航标题同步修复
 
-## 附：智能体站点链接拦截（2026-10-18）
+## 附：新窗口请求的宿主归属（2026-11-22）
 
+- 症状：中心打开的 B 站站内搜索回车后，新标签出现在右侧面板。
+- 根因：`browser-open-new-tab` 事件只带 URL、不带来源 tab；前端唯一订阅固定在面板开标签。
+- 修复：Rust 两条路径（`init_script` postMessage / Tauri `on_new_window`）都带 `tabId`；前端 `browserOpenNewWindowTab` 按来源 `location` 路由，fresh 标记提升为 store 级供两宿主共享。
+- 教训：跨宿主事件必须携带「谁发起」；只在事件消费端猜宿主会把中心操作落到面板。
+
+## 附：智能体站点链接拦截（2026-10-18）
 在上述通用拦截之上，为 dsh 等智能体站点正文链接增加了白名单分支（未发布阶段；仅 WebView2 可注入，浏览器模式开关置灰）：
 
 - **注入侧门控**：`window.__adlAgentOrigins`（整站 origin 精确匹配 `location.origin`）+ `window.__adlAgentInterceptEnabled`；仅覆盖 `click` 与 `window.open`，`location.assign/replace` 与 `<area>` 维持原生行为（覆盖语义待产品决策）。

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
@@ -34,6 +34,21 @@ export function AboutSettings() {
   );
   const [dialog, setDialog] = useState<AboutDialog>(null);
   const [issuesProbing, setIssuesProbing] = useState(false);
+  const { aboutDialogRequest, clearAboutDialogRequest } = useAppStore(
+    useShallow((state) => ({
+      aboutDialogRequest: state.aboutDialogRequest,
+      clearAboutDialogRequest: state.clearAboutDialogRequest,
+    })),
+  );
+
+  // 外部入口（标题栏「帮助 → 查看许可证」等）置位的一次性信号：挂载或刷新时消费。
+  useEffect(() => {
+    if (!aboutDialogRequest) {
+      return;
+    }
+    setDialog(aboutDialogRequest);
+    clearAboutDialogRequest();
+  }, [aboutDialogRequest, clearAboutDialogRequest]);
   const {
     updateStatus,
     updateVersion,

@@ -583,9 +583,9 @@ const routes: Route[] = [
     method: 'POST',
     pathname: makePath('/workspace/open'),
     handler: async (_req, body) => {
-      const b = body as { workspacePath?: string } | undefined;
+      const b = body as { workspacePath?: string; create?: boolean } | undefined;
       if (!b?.workspacePath?.trim()) return fail('workspacePath is required', 'INVALID_INPUT');
-      return ok(await files.openWorkspace(b.workspacePath.trim()));
+      return ok(await files.openWorkspace(b.workspacePath.trim(), b.create === true));
     },
   },
   {

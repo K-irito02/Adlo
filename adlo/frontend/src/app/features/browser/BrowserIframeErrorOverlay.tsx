@@ -13,14 +13,15 @@ export interface BrowserIframeErrorOverlayProps {
 }
 
 /**
- * Tauri 模式下 iframe 错误/加载态覆盖层。
+ * iframe 错误/加载态覆盖层。
  *
  * 渲染优先级：
  * 1. 无 activeTab.url → null
  * 2. 正在加载（loadingTabId === activeTab.id）→ OrbitalLoader
  * 3. 否则按状态渲染嵌入阻断 / 连接失败 / Embed pending 三类提示
  *
- * 仅在 Tauri 模式下由 BrowserIframeStack 调用（外层负责 isTauriShell() 判定）。
+ * Tauri 模式下持续渲染；浏览器模式仅在嵌入预检被拒或 iframe 加载失败时渲染
+ * （否则会与 ErrorBoundary 的正常 iframe 渲染重叠）。
  */
 export function BrowserIframeErrorOverlay({
   t,

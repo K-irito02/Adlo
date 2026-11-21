@@ -204,6 +204,8 @@ export const browserZh = {
   browserSearchEngineSettings: '搜索引擎设置',
   browserSearchEngineManage: '自定义管理搜索引擎',
   browserSearchEngineBuiltIn: '切换搜索引擎',
+  browserSearchEngineAutoSelect: '自动选择',
+  browserSearchEngineAutoSelecting: '正在检测…',
   browserSearchEngineCustom: '自定义引擎',
   browserSearchEngineAdd: '添加搜索引擎',
   browserSearchEngineEdit: '编辑',

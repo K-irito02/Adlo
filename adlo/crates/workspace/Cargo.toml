@@ -12,6 +12,7 @@ adl-errors = { path = "../errors" }
 adl-fs-ops = { path = "../fs-ops" }
 adl-outline = { path = "../outline" }
 adl-kernel = { path = "../kernel" }
+dirs.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 rusqlite.workspace = true

@@ -82,14 +82,19 @@ export interface WorkspaceBridge {
   listRecent: () => Promise<IpcResult<RecentWorkspaceEntry[]>>;
   /**
    * 打开指定路径的工作区
-   * @param workspacePath 工作区的绝对路径
+   * @param workspacePath 工作区的绝对路径；`create` 为 true 时也接受单段文件夹名
+   * @param options.create true = 「创建文件夹」模式：目录不存在时递归创建，
+   *   单段名称解析到系统默认工作区根（`<Documents>/Adlo Workspaces`）
    * @returns 已打开工作区的元数据信息
    * @command workspace_open
    * @see tauri-bridge.ts → workspace.open
    * @see mock-bridge.ts → workspace.open
    * @see preview-bridge/index.ts → workspace.open
    */
-  open: (workspacePath: string) => Promise<IpcResult<WorkspaceMeta>>;
+  open: (
+    workspacePath: string,
+    options?: { create?: boolean },
+  ) => Promise<IpcResult<WorkspaceMeta>>;
   /**
    * 将指定路径登记为侧栏工作区（不切换当前工作区）。
    *

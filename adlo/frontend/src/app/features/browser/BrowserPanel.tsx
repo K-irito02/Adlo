@@ -26,8 +26,11 @@ import { useBrowserDialogs } from './useBrowserDialogs';
 import { useBrowserToast } from './useBrowserToast';
 import { useBrowserPanelHandlers } from './useBrowserPanelHandlers';
 import { useBrowserPanelMetaWiring } from './useBrowserPanelMetaWiring';
-import { useBrowserNewTabSubscription } from './useBrowserNewTabSubscription';
 import { useBrowserDownloads } from './useBrowserDownloads';
+import { checkEmbed, isEmbedBlocked } from './checkEmbed';
+import { buildReswitchedSearch } from './searchEngineReswitch';
+import { shouldApplyEngineReswitch } from './engineReswitchGuard';
+import type { SearchEngine } from '@stores/slices/browserSearchEnginesSlice';
 import { BrowserPanelActionsCtx } from './BrowserPanelActionsContext';
 import { BrowserPanelStateCtx } from './BrowserPanelStateContext';
 import { useBrowserPanelActions } from './useBrowserPanelActions';
@@ -159,6 +162,71 @@ export function BrowserPanel(props: BrowserPanelProps) {
     markUrlSeen,
     navigateBrowser,
   } = useBrowserIframeState({ activeTab });
+
+  // 切换搜索引擎：只重载面板当前显示的标签（中心标签与后台标签都不动）。
+  // 浏览器模式先做嵌入预检并登记 validated；被拒时仍落标签状态再显示兜底（与地址栏
+  // 提交一致），通过后才导航，避免 iframe 先加载一次未受检页面。
+  const handleEngineSelected = useCallback(
+    (engine: SearchEngine) => {
+      if (!activeTab?.id || !activeTab.url) {
+        return;
+      }
+      const tabId = activeTab.id;
+      const startUrl = activeTab.url;
+      const next = buildReswitchedSearch(startUrl, useAppStore.getState().searchEngines, engine);
+      if (!next) {
+        return;
+      }
+
+      const applyNavigation = () => {
+        useAppStore.getState().browserAddToHistory(next.url, next.title);
+        void navigateTabExplicit(tabId, next.url, next.title);
+      };
+
+      if (useAppStore.getState().isTauri) {
+        applyNavigation();
+        return;
+      }
+
+      void (async () => {
+        let blocked = isEmbedBlocked(next.url);
+        if (blocked === undefined) {
+          try {
+            blocked = await checkEmbed(next.url);
+          } catch {
+            blocked = false;
+          }
+        }
+        const state = useAppStore.getState();
+        if (
+          !shouldApplyEngineReswitch({
+            activeHostTabId: activeTabRef.current?.id,
+            sourceTabId: tabId,
+            currentTabUrl: state.browserTabsById[tabId]?.url,
+            startUrl,
+          })
+        ) {
+          return;
+        }
+        if (blocked) {
+          setIframeBlockedDetected(true);
+          setIframeLoadError(true);
+          applyNavigation();
+          return;
+        }
+        validatedUrlsRef.current.add(next.url);
+        applyNavigation();
+      })();
+    },
+    [
+      activeTab,
+      activeTabRef,
+      navigateTabExplicit,
+      setIframeBlockedDetected,
+      setIframeLoadError,
+      validatedUrlsRef,
+    ],
+  );
 
   const {
     pendingNavigationsRef,
@@ -314,20 +382,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
     browserMenuOpen ||
     contextMenu.open;
 
-  const {
-    primaryRef,
-    removeFromPool,
-    isTabInPool,
-    navigateTabInPool,
-    loadingTabId,
-    markTabFresh,
-    poolVersion,
-  } = useBrowserWebView({
-    activeTab,
-    webViewDisabled: false,
-    isVisible: isBrowserVisible,
-    overlayActive: hasOverlayActive,
-  });
+  const { primaryRef, removeFromPool, isTabInPool, navigateTabInPool, loadingTabId, poolVersion } =
+    useBrowserWebView({
+      activeTab,
+      webViewDisabled: false,
+      isVisible: isBrowserVisible,
+      overlayActive: hasOverlayActive,
+    });
 
   // render 期镜像最新 helper，供显式导航函数运行时读取
   navigationHelpersRef.current = { isTabInPool, navigateTabInPool };
@@ -373,17 +434,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     zoomLevel,
     setZoomLevel,
     t,
-  });
-
-  useBrowserNewTabSubscription((url) => {
-    browserOpenTab(url, undefined, undefined);
-    // Mark the newly created tab as fresh (current session) so the lifecycle
-    // hook skips restart download suppression for it — allowing DownloadStarting
-    // to fire when the WebView navigates to a download URL.
-    const freshId = useAppStore.getState().browserActiveTabId;
-    if (freshId) {
-      markTabFresh(freshId);
-    }
   });
 
   useBrowserDownloads();
@@ -498,6 +548,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       showToast,
       handleToggleNavigateMode,
       handleAlwaysNewTab,
+      handleEngineSelected,
     },
     [
       wrappedHandleCloseTab,
@@ -543,6 +594,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       showToast,
       handleToggleNavigateMode,
       handleAlwaysNewTab,
+      handleEngineSelected,
     ],
   );
 

@@ -63,7 +63,7 @@ export function useBrowserViewHost(options: UseBrowserViewHostOptions) {
     contentSelector: hostId === 'panel' ? PANEL_CONTENT_SELECTOR : undefined,
   });
 
-  const { loadingTabId, markTabFresh } = useWebViewLifecycle({
+  const { loadingTabId } = useWebViewLifecycle({
     hostId,
     activeTab,
     webViewDisabled,
@@ -95,7 +95,6 @@ export function useBrowserViewHost(options: UseBrowserViewHostOptions) {
     updateBounds: updateWebViewBounds,
     webViewActiveRef,
     loadingTabId,
-    markTabFresh,
     isTabInPool,
     createWebViewForTab,
     activateTabInPool,

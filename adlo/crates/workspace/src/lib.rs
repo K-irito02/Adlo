@@ -11,7 +11,8 @@ pub mod tree_cache_store;
 mod watch;
 
 pub use detect::{
-    detect_root, open_workspace, stable_workspace_id, strip_verbatim_prefix, workspace_type,
+    detect_root, ensure_workspace_dir, open_workspace, stable_workspace_id, strip_verbatim_prefix,
+    workspace_type,
 };
 pub use fs::{
     copy_entry_across, create_file, create_folder, delete_entry, duplicate_entry, move_entry,

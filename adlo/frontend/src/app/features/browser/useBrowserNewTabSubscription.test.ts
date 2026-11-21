@@ -18,30 +18,33 @@ describe('useBrowserNewTabSubscription', () => {
     delete (window as unknown as Record<string, unknown>).digitalLife;
   });
 
-  it('opens a new tab when a new-window request arrives', () => {
-    const listener = vi.fn((_cb: (url: string) => void) => () => {});
+  it('forwards the requesting tab and URL to the caller', () => {
+    const listener = vi.fn((_cb: (request: { tabId: string; url: string }) => void) => () => {});
     setMockBrowser({ onOpenNewTab: listener });
-    const browserOpenTab = vi.fn();
+    const onOpenNewTab = vi.fn();
 
-    renderHook(() => useBrowserNewTabSubscription(browserOpenTab));
+    renderHook(() => useBrowserNewTabSubscription(onOpenNewTab));
 
     expect(listener).toHaveBeenCalledTimes(1);
     const callback = listener.mock.calls[0][0];
-    callback('https://www.bilibili.com/video/BV1xx');
+    callback({ tabId: 'browser-1', url: 'https://www.bilibili.com/video/BV1xx' });
 
-    expect(browserOpenTab).toHaveBeenCalledWith('https://www.bilibili.com/video/BV1xx');
+    expect(onOpenNewTab).toHaveBeenCalledWith({
+      tabId: 'browser-1',
+      url: 'https://www.bilibili.com/video/BV1xx',
+    });
   });
 
   it('ignores empty URLs', () => {
-    const listener = vi.fn((_cb: (url: string) => void) => () => {});
+    const listener = vi.fn((_cb: (request: { tabId: string; url: string }) => void) => () => {});
     setMockBrowser({ onOpenNewTab: listener });
-    const browserOpenTab = vi.fn();
+    const onOpenNewTab = vi.fn();
 
-    renderHook(() => useBrowserNewTabSubscription(browserOpenTab));
+    renderHook(() => useBrowserNewTabSubscription(onOpenNewTab));
 
     const callback = listener.mock.calls[0][0];
-    callback('');
-    expect(browserOpenTab).not.toHaveBeenCalled();
+    callback({ tabId: 'browser-1', url: '' });
+    expect(onOpenNewTab).not.toHaveBeenCalled();
   });
 
   it('unsubscribes on unmount', () => {

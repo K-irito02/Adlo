@@ -37,6 +37,26 @@ describe('createHttpBridge', () => {
     expect(JSON.parse(body)).toEqual({ workspacePath: '/repo' });
   });
 
+  it('maps workspace.open create option into the request body', async () => {
+    const fetchMock = mockFetch(jsonResponse(200, { ok: true, data: { id: 'w-1' } }));
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({ baseUrl: 'http://127.0.0.1:9999' });
+
+    await bridge.workspace.open('/repo', { create: true });
+    const withCreate = fetchMock.mock.calls[0]?.[1];
+    expect(JSON.parse(typeof withCreate?.body === 'string' ? withCreate.body : '{}')).toEqual({
+      workspacePath: '/repo',
+      create: true,
+    });
+
+    await bridge.workspace.open('/repo', { create: false });
+    const withoutCreate = fetchMock.mock.calls[1]?.[1];
+    const withoutCreateBody = typeof withoutCreate?.body === 'string' ? withoutCreate.body : '{}';
+    expect(JSON.parse(withoutCreateBody)).toEqual({
+      workspacePath: '/repo',
+    });
+  });
+
   it('maps github.getJobLogs to POST /ci/job-logs with { config, runId }', async () => {
     const fetchMock = mockFetch(jsonResponse(200, { ok: true, data: {} }));
     const { createHttpBridge } = await import('../../httpBridge');

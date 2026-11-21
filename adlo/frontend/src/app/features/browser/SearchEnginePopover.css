@@ -107,6 +107,12 @@
   background: var(--bg-hover);
 }
 
+.adl-search-engine-popover__manage-btn:disabled {
+  color: var(--text-muted);
+  cursor: default;
+  background: transparent;
+}
+
 .adl-search-engine-popover__header {
   display: flex;
   align-items: center;

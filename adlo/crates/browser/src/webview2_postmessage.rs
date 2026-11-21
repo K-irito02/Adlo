@@ -93,7 +93,7 @@ mod imp {
                         }
 
                         if let Some(url) = super::open_new_tab_url_from_message(&json_str) {
-                            bridge_for_handler.emit_open_new_tab(&url);
+                            bridge_for_handler.emit_open_new_tab(&tab_id_for_handler, &url);
                             return Ok(());
                         }
                         if let Some(state) = super::browser_media_state_from_message(&json_str) {

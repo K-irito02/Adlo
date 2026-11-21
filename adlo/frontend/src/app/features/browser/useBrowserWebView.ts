@@ -24,7 +24,6 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     updateBounds,
     webViewActiveRef,
     loadingTabId,
-    markTabFresh,
     isTabInPool,
     createWebViewForTab,
     activateTabInPool,
@@ -57,7 +56,6 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     activateTabInPool,
     navigateTabInPool,
     loadingTabId,
-    markTabFresh,
     poolVersion,
   };
 }
