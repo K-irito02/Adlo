@@ -174,7 +174,7 @@ describe('Adlo desktop shell', () => {
     expect(color).toBe('rgb(1, 2, 3)');
   });
 
-  it('keeps blob: media usable in the packaged CSP (img-src/media-src must list blob:)', async () => {
+  it('keeps blob: images usable in the packaged CSP (img-src must list blob:)', async () => {
     // 事项 8：打包态 `img-src`/`media-src` 曾缺 `blob:`，`MediaPreview` 的 object URL 被拦，
     // 用户看到「媒体预览失败：当前环境无法解码或播放该文件」；dev 由 Vite 供页、不注入 CSP，
     // 所以只在打包版复现。`frontend/src/tauri-csp-config.test.ts` 守配置文本，本用例在真实

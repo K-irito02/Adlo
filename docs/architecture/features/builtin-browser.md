@@ -80,6 +80,7 @@
 | 本地文件地址栏 | 支持 `file:///`、Windows 盘符与 UNC；路径段百分号编码（`#`/`?`/`%` 不再被当 URL 语法）；可渲染扩展（HTML/图片/文本/Markdown/JSON/XML/CSV/PDF/音视频）内嵌打开；浏览器预览模式只 toast。 |
 | WebView2 环境 | 同一 UDF 的所有 WebView 必须使用逐字一致的 `WEBVIEW_ADDITIONAL_ARGS`（含 wry 默认 `--disable-features` + `--allow-file-access-from-files`），否则 `0x8007139F`。主窗口、面板、中心、静默、分隔条同源。 |
 | 本地页元数据 | App 根 `useGlobalBrowserMeta` 单点订阅原生 meta 与广播；`file:` 允许更新标签标题且不写 HTTP 元数据缓存；`browser-page-ready` 对 `file:` 放行，本地页加载完成即揭示。 |
+| 系统媒体卡片镜像 | Adlo 关闭 Chromium `MediaSessionService`（其会话归属 `msedgewebview2.exe`，卡片恒「未知应用」），系统卡片由宿主 Rust SMTC 承载。注入脚本 `init_script.js` 把站点 `navigator.mediaSession` 标题与页面媒体元素状态以 `{type:'adl-media'}` postMessage 上报（播放事件即时报，`timeupdate` 约 900ms 节流）；Rust 解析后发 `digital-life://browser-media-state`（`{tabId,title,paused,ended,position,duration}`）。前端 `useBrowserSystemMedia` 把每个标签登记为 `tab:<id>` 媒体源，由 `systemMediaSession` 统一仲裁（本地预览与标签页**同级、无优先级**，多播放源每 3s 轮播，暂停源回退，播放快照 5s / 暂停 5min 过期）；卡片按钮经 `browser_media_control_tab` 注入 `play/pause/stop`。浏览器预览模式该域 `supported:false`（no-op），页面音频仍由 `navigator.mediaSession` 自行接管。 |
 
 
 

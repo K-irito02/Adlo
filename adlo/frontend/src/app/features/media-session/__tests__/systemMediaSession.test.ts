@@ -166,7 +166,7 @@ describe('systemMediaSession 归属与轮播', () => {
     offBrowser();
   });
 
-  it('浏览器/预览模式（supported=false）下不下发任何命令', () => {
+  it('浏览器/预览模式（supported=false）下不向桥接下发布内容', () => {
     const update = vi.fn(async () => undefined);
     (window as unknown as { digitalLife: { mediaSession: MediaSessionBridge } }).digitalLife = {
       mediaSession: { supported: false, update, clear: vi.fn(), onCommand: () => () => undefined },

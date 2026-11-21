@@ -27,7 +27,7 @@ export function resolveWorkspaceRootStrict(workspaceId?: string): string | null 
 /**
  * 「浏览器标签能看、内部渲染器看不了」的扩展名（事项 7 收窄）。
  *
- * 只保留**文档类**：HTML 系列内部没有渲染器，浏览器标签是唯一可读方式。
+ * 只保留**文档类**：HTML 系列内部没有渲染器，浏览器标签是唯一能看到渲染结果的方式。
  * 图片/音视频已被事项 7 的 Range 流式预览覆盖（任意体积、可拖动进度），
  * 且浏览器与内部用的是同一个 Chromium 解码器——内部解不了的编码（mkv/avi 等）
  * 浏览器同样解不了，给按钮只会误导，还会把大媒体塞进子 WebView（打包态实测会把

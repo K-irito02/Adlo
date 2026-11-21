@@ -2,11 +2,14 @@ import type { IpcResult, WorkspaceMediaSource } from '@adlo/kernel';
 import type { StoreState } from './StoreState';
 
 /**
- * 工作区解析的唯一来源（媒体/办公预览的绝对根）。
+ * 媒体/办公预览的工作区根解析（权威实现）。
  *
  * `workspaceId` 缺省时取当前工作区；给出时严格按 id 查找（`recentWorkspaces` →
  * `externalFileRoots`），找不到返回 `null`，**不回退**到当前工作区——否则会把另一个
  * 工作区的同名相对路径拼成本工作区的文件（跨工作区串读）。
+ *
+ * 拿到权威 `workspacePath` 的调用点（如 `editorActions` 对账）可直接用它拼源，
+ * 不必再经这里解析。
  */
 export function resolveWorkspaceRootForMedia(
   state: StoreState,
@@ -17,7 +20,15 @@ export function resolveWorkspaceRootForMedia(
     return current?.rootPath ?? current?.path ?? null;
   }
   const entry = state.recentWorkspaces?.find((workspace) => workspace.id === workspaceId);
-  return entry?.rootPath ?? entry?.path ?? state.externalFileRoots?.[workspaceId] ?? null;
+  if (entry?.rootPath || entry?.path) {
+    return entry.rootPath ?? entry.path ?? null;
+  }
+  // 运行时键查表必须走自有属性：`constructor` / `__proto__` 会沿原型链命中函数。
+  const externalRoots = state.externalFileRoots;
+  if (externalRoots && Object.hasOwn(externalRoots, workspaceId)) {
+    return externalRoots[workspaceId] ?? null;
+  }
+  return null;
 }
 
 /**

@@ -6,13 +6,23 @@
  * 大视频永久打不开。这里按 HTTP Range 只读请求区间：双端同一 URL 形态、同一行为，
  * 大文件秒开且可拖动进度。
  *
- * 单测覆盖 `parseSingleRange`（纯函数）；I/O 分支由 E2E / 手工验收覆盖。
+ * 与桌面端对齐的边界：空文件/带 Range 的空文件 → 200 空响应；目录 → 400；
+ * 缺失文件 → 404；畸形 Range → 忽略（200 整文件）；不可满足 → 416。
+ *
+ * 单测覆盖 `parseSingleRange` 与 `handleMediaStream` 的路由级 I/O 分支（HEAD/206/416/403/404）。
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 
-/** 单段 Range 解析结果：`undefined` = 无 Range（整文件）；`null` = 不可满足（416）。 */
+/**
+ * 单段 Range 解析结果（与桌面**端点**行为对齐）：
+ * `undefined` = 无 Range / 语法无效（按 RFC 忽略，返回整文件）/ 空文件（桌面在解析前
+ * 直接返回 200）；`null` = 不可满足（416）；对象 = 可满足的闭区间。
+ * 非空文件时的 `+N`、u64 上限与越界语义与 Rust `parse_single_range` 一致
+ * （空文件例外：Rust 解析器会给 416，但桌面路由层提前返回 200）。
+ */
+const U64_MAX = BigInt('18446744073709551615');
 export function parseSingleRange(
   raw: string | undefined,
   total: number,
@@ -32,27 +42,57 @@ export function parseSingleRange(
   }
   const startRaw = first.slice(0, dash).trim();
   const endRaw = first.slice(dash + 1).trim();
+  // 空文件：合法但无字节——即使带 Range 也返回 200（与桌面端提前返回一致）。
   if (total <= 0) {
-    return null;
+    return undefined;
   }
+
+  /** 与 Rust `u64` 解析对齐：允许 `+` 前缀，超过 u64::MAX 视为无效。 */
+  const parseIndex = (raw: string): bigint | undefined => {
+    if (!/^\+?\d+$/u.test(raw)) {
+      return undefined;
+    }
+    const value = BigInt(raw);
+    return value > U64_MAX ? undefined : value;
+  };
+  const totalBig = BigInt(total);
+
   if (startRaw === '') {
-    // 后缀区间 `bytes=-N`：最后 N 字节。
-    const suffix = Number(endRaw);
-    if (!Number.isFinite(suffix) || suffix <= 0) {
+    // 后缀区间 `bytes=-N`：最后 N 字节；`-` 后不是整数按无效 Range 忽略。
+    if (endRaw === '') {
+      return undefined;
+    }
+    const suffix = parseIndex(endRaw);
+    if (suffix === undefined) {
+      return undefined;
+    }
+    if (suffix === 0n) {
       return null;
     }
-    const length = Math.min(Math.floor(suffix), total);
-    return { start: total - length, end: total - 1 };
+    const length = suffix < totalBig ? suffix : totalBig;
+    return { start: total - Number(length), end: total - 1 };
   }
-  const start = Number(startRaw);
-  if (!Number.isFinite(start) || start < 0 || start >= total) {
+  const start = parseIndex(startRaw);
+  if (start === undefined) {
+    return undefined;
+  }
+  if (start >= totalBig) {
     return null;
   }
-  const end = endRaw === '' ? total - 1 : Math.min(Math.floor(Number(endRaw)), total - 1);
-  if (!Number.isFinite(end) || end < start) {
+  let end: bigint;
+  if (endRaw === '') {
+    end = totalBig - 1n;
+  } else {
+    const parsed = parseIndex(endRaw);
+    if (parsed === undefined) {
+      return undefined;
+    }
+    end = parsed < totalBig ? parsed : totalBig - 1n;
+  }
+  if (end < start) {
     return null;
   }
-  return { start, end };
+  return { start: Number(start), end: Number(end) };
 }
 
 export interface MediaStreamRouteDeps {
@@ -63,8 +103,7 @@ export interface MediaStreamRouteDeps {
 }
 
 /**
- * 处理 `GET <prefix>/workspace/media?path=…&workspacePath=…`。
- * 返回 true 表示已响应（调用方不再走 JSON 路由）。
+ * 处理 `GET <prefix>/workspace/media?path=…&workspacePath=…`（HTTP 响应由本函数写出）。
  */
 export async function handleMediaStream(
   request: IncomingMessage,
@@ -90,9 +129,14 @@ export async function handleMediaStream(
   }
 
   const info = await stat(absolute).catch(() => null);
-  if (!info || !info.isFile()) {
+  if (!info) {
     response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
     response.end('media file not found');
+    return;
+  }
+  if (!info.isFile()) {
+    response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
+    response.end('media target is not a file');
     return;
   }
 
@@ -117,7 +161,7 @@ export async function handleMediaStream(
     'accept-ranges': 'bytes',
     // 与桌面端同名的 mtime 毫秒头：前端 `mediaSource` 用它做外部变更比对。
     'x-adl-mtime-ms': String(Math.floor(info.mtimeMs)),
-    // 面板里看到的永远是磁盘现状：禁用缓存，编辑后刷新即生效。
+    // 面板里看到的始终是磁盘现状：禁用缓存，编辑后刷新即生效。
     'cache-control': 'no-store',
   };
   if (parsed) {

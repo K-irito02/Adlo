@@ -35,4 +35,4 @@
 ## 调试入口
 
 - dev 模式在 DevTools Performance 面板看 `adl:terminal:*` 标记（attach/pty-return/first-output）。
-- 终端日志按进程落 `.adl-logs/`；前端调试日志用右上角「复制调试日志」。
+- 终端日志按进程落 `.adl-logs/`；前端调试日志写入同名目录（界面不再提供复制按钮，Agent / 控制台通过 `window.__exportDebugLogs` 读取）。

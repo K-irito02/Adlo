@@ -97,15 +97,13 @@ pub trait WebView2EventBridge: Send + Sync {
 
 /// 浏览器标签页的媒体快照（事项 17 路线 A）。
 ///
-/// 来源：`init_script.js` 的 `{type:'adl-media', ...}` postMessage。`title/artist/album`
-/// 优先取站点自己的 `navigator.mediaSession.metadata`（与 Edge 卡片同源），回退到
+/// 来源：`init_script.js` 的 `{type:'adl-media', ...}` postMessage。`title` 优先取站点
+/// 自己的 `navigator.mediaSession.metadata.title`（与 Edge 卡片同源），回退
 /// `document.title`；`paused/ended/position/duration` 取自页面里「正在播放优先、
-/// 其次进度最大」的那个 `<video>/<audio>`。
+/// 其次进度最大」的那个 `<video>/<audio>`。系统卡片只显示标题，因此没有 artist/album。
 #[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BrowserMediaState {
     pub title: String,
-    pub artist: String,
-    pub album: String,
     pub paused: bool,
     pub ended: bool,
     /// 秒。

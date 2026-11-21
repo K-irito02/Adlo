@@ -286,8 +286,6 @@ pub fn browser_media_state_from_message(
     };
     Some(crate::webview_handle::BrowserMediaState {
         title: text("title"),
-        artist: text("artist"),
-        album: text("album"),
         paused: value.get("paused").and_then(|v| v.as_bool()).unwrap_or(true),
         ended: value.get("ended").and_then(|v| v.as_bool()).unwrap_or(false),
         position: seconds("position"),
@@ -440,11 +438,9 @@ mod tests {
 
     #[test]
     fn media_state_parses_site_metadata_and_progress() {
-        let json = r#"{"type":"adl-media","title":"视频标题","artist":"UP 主","album":"合集","paused":false,"ended":false,"position":42.5,"duration":300}"#;
+        let json = r#"{"type":"adl-media","title":"视频标题","paused":false,"ended":false,"position":42.5,"duration":300}"#;
         let state = browser_media_state_from_message(json).unwrap();
         assert_eq!(state.title, "视频标题");
-        assert_eq!(state.artist, "UP 主");
-        assert_eq!(state.album, "合集");
         assert!(!state.paused);
         assert_eq!(state.position, 42.5);
         assert_eq!(state.duration, 300.0);

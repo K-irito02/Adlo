@@ -23,6 +23,8 @@ const TAB: BrowserTabState = {
   isDownloading: false,
 };
 
+const TAB_TWO: BrowserTabState = { ...TAB, id: 'tab-2', title: '第二个标签' };
+
 interface Harness {
   update: ReturnType<typeof vi.fn>;
   clear: ReturnType<typeof vi.fn>;
@@ -78,8 +80,6 @@ function state(overrides: Partial<BrowserMediaStatePayload>): BrowserMediaStateP
   return {
     tabId: 'tab-1',
     title: '',
-    artist: '',
-    album: '',
     paused: false,
     ended: false,
     position: 0,
@@ -95,6 +95,7 @@ beforeEach(() => {
 
 afterEach(() => {
   resetSystemMediaSession();
+  vi.useRealTimers();
   Reflect.deleteProperty(window as unknown as Record<string, unknown>, 'digitalLife');
 });
 
@@ -103,7 +104,7 @@ describe('useBrowserSystemMedia（标签页 → 系统卡片镜像）', () => {
     const harness = install();
     const { unmount } = renderHook(() => useBrowserSystemMedia());
 
-    harness.emitState(state({ title: '视频标题', artist: 'UP 主', position: 12.5, duration: 200 }));
+    harness.emitState(state({ title: '视频标题', position: 12.5, duration: 200 }));
 
     expect(harness.update).toHaveBeenLastCalledWith({
       title: '视频标题',
@@ -170,8 +171,31 @@ describe('useBrowserSystemMedia（标签页 → 系统卡片镜像）', () => {
     unmount();
   });
 
-  it('浏览器模式（supported=false）完全不接管卡片', () => {
+  it('停止上报的标签页会过期：其它标签页的心跳不给它续命', () => {
+    vi.useFakeTimers();
+    useAppStore.setState({ browserTabs: [TAB, TAB_TWO] });
+    const harness = install();
+    const { unmount } = renderHook(() => useBrowserSystemMedia());
+
+    harness.emitState(state({ tabId: 'tab-1', title: 'A', position: 1, duration: 100 }));
+    harness.emitState(state({ tabId: 'tab-2', title: 'B', position: 1, duration: 100 }));
+    harness.update.mockClear();
+
+    // tab-1 停止上报，只有 tab-2 每秒心跳；6 秒后 tab-1 必须过期。
+    for (let second = 0; second < 6; second += 1) {
+      vi.advanceTimersByTime(1000);
+      harness.emitState(state({ tabId: 'tab-2', title: 'B', position: 2 + second, duration: 100 }));
+    }
+
+    const titles = harness.update.mock.calls.map(([claim]) => (claim as { title: string }).title);
+    expect(titles).not.toContain('A');
+    expect(currentMediaSessionSource()).toBe('tab:tab-2');
+    unmount();
+  });
+
+  it('浏览器模式（supported=false）不订阅标签页媒体、也不接管卡片', () => {
     const update = vi.fn(async () => undefined);
+    let stateListener: ((payload: BrowserMediaStatePayload) => void) | undefined;
     (window as unknown as { digitalLife: unknown }).digitalLife = {
       mediaSession: {
         supported: false,
@@ -179,10 +203,24 @@ describe('useBrowserSystemMedia（标签页 → 系统卡片镜像）', () => {
         clear: vi.fn(async () => undefined),
         onCommand: () => () => {},
       },
-      browser: { onMediaStateChanged: () => () => {}, mediaControlTab: vi.fn() },
+      browser: {
+        onMediaStateChanged: (listener: (payload: BrowserMediaStatePayload) => void) => {
+          stateListener = listener;
+          return () => {
+            stateListener = undefined;
+          };
+        },
+        mediaControlTab: vi.fn(),
+      },
     };
     const { unmount } = renderHook(() => useBrowserSystemMedia());
-    unmount();
+
+    // 即便桥接真的推来快照，非桌面模式也不得下发布内容（守卫被删时这里会红）。
+    act(() => {
+      stateListener?.(state({ title: '视频标题', position: 1, duration: 100 }));
+    });
+    expect(stateListener).toBeUndefined();
     expect(update).not.toHaveBeenCalled();
+    unmount();
   });
 });

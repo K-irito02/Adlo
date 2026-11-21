@@ -311,7 +311,7 @@ export function clearWorkspaceCaches(workspacePrefix: string) {
 
 /**
  * 变更预览的统一清空补丁：文本与媒体两条链共用，避免新增字段时漏清
- * （媒体 base64 可达 50MB，遗漏会长期驻留）。
+ * （媒体来源虽只是 URL，但遗漏会让旧文件的预览继续显示）。
  */
 export function clearedChangePreviewState() {
   return {

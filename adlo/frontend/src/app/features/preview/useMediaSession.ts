@@ -73,12 +73,29 @@ function attachDesktopSession(media: HTMLMediaElement, meta: MediaSessionMeta): 
   }
 
   let lastPositionMs = media.currentTime * 1000;
-  const onPlay = () => push('playing');
-  const onPause = () => push('paused');
-  const onEnded = release;
+  // stop 后 pause/timeupdate 会异步到达；若继续 push 会把已清的卡片复活。
+  let stopped = false;
+  const onPlay = () => {
+    stopped = false;
+    push('playing');
+  };
+  const onPause = () => {
+    if (stopped) {
+      return;
+    }
+    push('paused');
+  };
+  const onEnded = () => {
+    stopped = true;
+    release();
+  };
   const onTimeUpdate = () => {
+    if (stopped) {
+      return;
+    }
     const positionMs = (Number.isFinite(media.currentTime) ? media.currentTime : 0) * 1000;
-    if (positionMs - lastPositionMs < POSITION_SYNC_INTERVAL_MS) {
+    // 用绝对值：向后 seek 时差值恒为负，不能让进度长期停在旧值。
+    if (Math.abs(positionMs - lastPositionMs) < POSITION_SYNC_INTERVAL_MS) {
       return;
     }
     lastPositionMs = positionMs;
@@ -99,6 +116,7 @@ function attachDesktopSession(media: HTMLMediaElement, meta: MediaSessionMeta): 
         media.pause();
         break;
       case 'stop':
+        stopped = true;
         media.pause();
         media.currentTime = 0;
         release();

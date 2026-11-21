@@ -411,7 +411,7 @@ const MEDIA_CONTROL_TEMPLATE: &str = r#"(function() {
     var target = null;
     for (var i = 0; i < nodes.length; i++) {
         var m = nodes[i];
-        if (!m.currentSrc && !m.src) continue;
+        if (!m.currentSrc && !m.src && !m.srcObject) continue;
         if (!target) { target = m; continue; }
         if (target.paused && !m.paused) { target = m; continue; }
         if (target.paused === m.paused && m.currentTime > target.currentTime) target = m;
@@ -459,6 +459,9 @@ mod tests {
             let script = media_control_script(action);
             assert!(script.contains(&format!("var action = \"{action}\";")));
             assert!(script.contains("querySelectorAll('video,audio')"));
+            // 与 init_script.js 的上报口径一致：仅 srcObject（MediaStream）的元素也算主媒体，
+            // 否则卡片会显示 A、按钮却作用到 B（P4 R1 F1）。
+            assert!(script.contains("!m.srcObject"), "control script must accept srcObject");
         }
         assert!(media_control_script("rm -rf").contains("var action = \"pause\";"));
     }

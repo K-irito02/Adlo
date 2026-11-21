@@ -27,16 +27,15 @@ export interface AudioStatePayload {
 /**
  * 标签页媒体快照（事项 17 路线 A）。
  *
- * 由注入脚本 `init_script.js` 上报：`title/artist/album` 优先取站点自己的
- * `navigator.mediaSession.metadata`（与 Edge 卡片同源），回退页面标题；
+ * 由注入脚本 `init_script.js` 上报：`title` 优先取站点自己的
+ * `navigator.mediaSession.metadata.title`（与 Edge 卡片同源），回退页面标题；
  * `paused/ended/position/duration` 取自页面里「正在播放优先」的那个媒体元素。
  * 仅桌面端（`MediaSessionService` 关闭后，系统卡片由 Rust SMTC 承载）会收到。
+ * 卡片只显示标题，因此不再携带 artist/album。
  */
 export interface BrowserMediaStatePayload {
   tabId: string;
   title: string;
-  artist: string;
-  album: string;
   paused: boolean;
   ended: boolean;
   /** 秒。 */

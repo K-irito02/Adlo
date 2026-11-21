@@ -1,7 +1,7 @@
 import type { RecentWorkspaceEntry } from '@adlo/kernel';
 
 /**
- * 「可见工作区」的唯一判定（单源）。
+ * 「可见工作区」判定：变更面板与顶部工具徽章共用这一份。
  *
  * 变更面板的树/计数与顶部工具徽章必须用同一口径：用户在变更面板看得到的
  * 工作区，其变更就应计入徽章；侧栏移除（removedFromSidebar）或路径不可用

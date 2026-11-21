@@ -247,7 +247,8 @@ export function createPreviewWorkspaceBridge(
       // 浏览器模式：同源相对 URL，`<img>/<audio>/<video>` 直接引用即可（Range 由
       // 预览服务的 `/workspace/media` 同构实现提供）。
       probeMediaSource(`${PREVIEW_API_PREFIX}/workspace/media`, workspacePath, relativePath),
-    // 浏览器模式同样跑在本机：走预览服务的 `/system/open-file`（与桌面同语义）。
+    // 浏览器预览同样跑在本机：交给预览服务的 `/system/open-file`（与桌面同样交给
+    // 系统默认程序；越界校验只在桌面命令里做，预览服务是 dev-only 实现）。
     openInDefaultApp: async (
       workspacePath: string,
       relativePath: string,

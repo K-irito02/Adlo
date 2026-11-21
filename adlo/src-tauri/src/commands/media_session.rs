@@ -93,16 +93,15 @@ mod imp {
     use tauri::{AppHandle, Emitter, Manager};
     use windows::Foundation::{TimeSpan, TypedEventHandler};
     use windows::Media::{
-        ISystemMediaTransportControls2, MediaPlaybackStatus, MediaPlaybackType,
-        SystemMediaTransportControls, SystemMediaTransportControlsButton,
-        SystemMediaTransportControlsButtonPressedEventArgs,
+        MediaPlaybackStatus, MediaPlaybackType, SystemMediaTransportControls,
+        SystemMediaTransportControlsButton, SystemMediaTransportControlsButtonPressedEventArgs,
         SystemMediaTransportControlsTimelineProperties,
     };
     use windows::Win32::System::WinRT::{
         ISystemMediaTransportControlsInterop, RO_INIT_SINGLETHREADED, RoGetActivationFactory,
         RoInitialize,
     };
-    use windows::core::{HSTRING, Interface};
+    use windows::core::HSTRING;
 
     const CLASS_NAME: &str = "Windows.Media.SystemMediaTransportControls";
 
@@ -121,8 +120,6 @@ mod imp {
 
     struct Session {
         controls: SystemMediaTransportControls,
-        /// 进度条（`UpdateTimelineProperties`）只在 `ISystemMediaTransportControls2` 上。
-        controls2: Option<ISystemMediaTransportControls2>,
         last_title: Option<String>,
     }
 
@@ -162,8 +159,8 @@ mod imp {
 
     /// 清空卡片：**保留会话对象**，只停帧/停用。
     ///
-    /// 为什么不再 drop：重建 `GetForWindow` 会话在系统侧并不总是可靠，长时间暂停后
-    /// 恢复播放会出现「卡片再也不出现」。会话与本进程 AUMID 绑定，生命周期内保活最稳。
+    /// 为什么不再 drop：重建会话会多一个失败面（`GetForWindow` / `SetIsEnabled`
+    /// 任一步失败都会让卡片消失），而本进程只服务一个主窗口，生命周期内保活成本更低。
     pub fn clear() {
         SESSION.with(|slot| {
             let mut borrowed = slot.borrow_mut();
@@ -228,10 +225,7 @@ mod imp {
             });
             controls.ButtonPressed(&handler).map_err(|e| format!("ButtonPressed: {e}"))?;
 
-            // `windows` 0.61 没有把这个接口的进度方法投影到类上，拿接口句柄自行调用。
-            let controls2 = controls.cast::<ISystemMediaTransportControls2>().ok();
-
-            Ok(Self { controls, controls2, last_title: None })
+            Ok(Self { controls, last_title: None })
         }
 
         fn apply(&mut self, now_playing: &NowPlaying) -> Result<(), String> {
@@ -244,7 +238,7 @@ mod imp {
             Ok(())
         }
 
-        /// 元数据只在曲目变化时写：`timeupdate` 每秒都会推一次快照。
+        /// 元数据只在曲目变化时写：`timeupdate` 约每秒一次快照。
         ///
         /// 只写标题：系统卡片不显示副标题（用户口径，2026-11-21）。
         fn update_metadata(&mut self, now_playing: &NowPlaying) -> Result<(), String> {
@@ -264,8 +258,8 @@ mod imp {
         }
 
         fn update_timeline(&mut self, now_playing: &NowPlaying) -> Result<(), String> {
-            let (Some(position_ms), Some(duration_ms), Some(controls2)) =
-                (now_playing.position_ms, now_playing.duration_ms, self.controls2.as_ref())
+            let (Some(position_ms), Some(duration_ms)) =
+                (now_playing.position_ms, now_playing.duration_ms)
             else {
                 return Ok(());
             };
@@ -282,8 +276,9 @@ mod imp {
             props.SetEndTime(end).map_err(|e| format!("SetEndTime: {e}"))?;
             props.SetMaxSeekTime(end).map_err(|e| format!("SetMaxSeekTime: {e}"))?;
             props.SetPosition(position).map_err(|e| format!("SetPosition: {e}"))?;
-            // SAFETY: 两个指针都指向有效的 WinRT 对象，属性结构在调用期间存活。
-            unsafe { update_timeline_properties(controls2, &props) }
+            // `windows` 0.61 在类上提供了安全方法（内部自动 cast 到 ISystemMediaTransportControls2）。
+            self.controls
+                .UpdateTimelineProperties(&props)
                 .map_err(|e| format!("UpdateTimelineProperties: {e}"))
         }
     }
@@ -311,20 +306,6 @@ mod imp {
     /// 毫秒 → WinRT `TimeSpan`（100ns 计时单位）。
     fn to_time_span(milliseconds: f64) -> TimeSpan {
         TimeSpan { Duration: (milliseconds.max(0.0) * 10_000.0).round() as i64 }
-    }
-
-    /// `windows` 0.61 只把 `ISystemMediaTransportControls2` 投影成裸接口（无方法），
-    /// 进度条所需的 `UpdateTimelineProperties` 只能按 vtable 调用。
-    unsafe fn update_timeline_properties(
-        controls: &ISystemMediaTransportControls2,
-        props: &SystemMediaTransportControlsTimelineProperties,
-    ) -> windows::core::Result<()> {
-        let vtable = Interface::vtable(controls);
-        // SAFETY: 由调用方保证两个对象有效；HRESULT 交给 `.ok()`。
-        unsafe {
-            (vtable.UpdateTimelineProperties)(Interface::as_raw(controls), Interface::as_raw(props))
-        }
-        .ok()
     }
 
     #[cfg(test)]

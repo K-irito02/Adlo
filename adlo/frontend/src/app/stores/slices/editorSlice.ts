@@ -47,7 +47,7 @@ export interface EditorSlice {
   changePreview?: WorkspaceChangePreview;
   changePreviewLoading: boolean;
   /**
-   * 变更预览的媒体/办公字节（事项4）：变更面板与文件面板可打开类型一致。
+   * 变更预览的媒体/办公来源（事项4）：变更面板与文件面板可打开类型一致。
    * 文本变更走 `changePreview`；媒体类走本字段，二者按当前选中变更互斥。
    */
   changePreviewMedia?: WorkspaceMediaSource | null;
@@ -68,7 +68,8 @@ export interface EditorSlice {
   /**
    * 媒体/办公二进制文档（图片/音视频/docx/pdf/表格/演示）。
    * 与 fileContent 互斥：媒体打开成功时置位并清空 fileContent；
-   * 文本打开成功/失败时清空。承载 base64 字节，前端解码为 Blob 后渲染。
+   * 文本打开成功/失败时清空。承载 Range URL（`WorkspaceMediaSource`），
+   * 媒体元素直接引用；Office/PDF 分支再按需 fetch 整份字节交给解析库。
    */
   fileMedia?: WorkspaceMediaSource | null;
   /**

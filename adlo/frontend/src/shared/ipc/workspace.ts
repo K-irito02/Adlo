@@ -257,11 +257,12 @@ export interface WorkspaceBridge {
     relativePath: string,
   ) => Promise<IpcResult<WorkspaceMediaSource>>;
   /**
-   * 用系统默认程序打开工作区内文件（桌面能力，仅 Tauri 壳实现）。
+   * 用系统默认程序打开工作区内文件（桌面用 Tauri invoke；浏览器预览走预览服务
+   * `/system/open-file`）。
    *
-   * 用途：内部预览与内置浏览器都解不了的编码（`.mkv` / `.avi` 等）交给系统播放器，
-   * 避免「无法解码」成为死路。路径在工作区内部完成越界校验，不做内容解析。
-   * 浏览器模式没有「系统默认应用」概念，返回 `NOT_SUPPORTED`（入口也会隐藏）。
+   * 用途：内部预览与内置浏览器都解不了的编码（`.mkv` / `.avi` 等）或文档交给系统
+   * 默认程序，避免「无法打开」成为死路。桌面实现的路径经工作区越界校验；
+   * 浏览器预览服务只做同级「拼路径 + 存在性检查」（dev-only，不替代桌面校验）。
    * @param workspacePath 工作区的绝对路径
    * @param relativePath 相对于工作区的路径
    * @command workspace_open_in_default_app

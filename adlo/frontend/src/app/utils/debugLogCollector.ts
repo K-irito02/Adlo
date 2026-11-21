@@ -1,7 +1,8 @@
 /**
  * 调试日志收集器
  * 自动将所有 console 输出（log, warn, error, info, debug）写入选定日志文件，
- * 并暴露 `window.__dl*` API 供 Agent / 控制台读取（界面不再提供复制按钮）。
+ * 并暴露 `window.__dlDebugLogs` / `window.__exportDebugLogs` 供 Agent / 控制台读取
+ * （界面不再提供复制按钮）。
  */
 
 import { isTauriShell } from '../../tauri-bridge';

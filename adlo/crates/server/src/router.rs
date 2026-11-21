@@ -28,6 +28,11 @@ async fn cors_layer(request: axum::http::Request<Body>, next: Next) -> Response<
             "content-type, last-event-id, x-ci-access-token, authorization",
         ),
     );
+    // 媒体端点用 `x-adl-mtime-ms` 做外部变更比对；跨源（浏览器模式）读取必须显式暴露。
+    headers.insert(
+        header::ACCESS_CONTROL_EXPOSE_HEADERS,
+        header::HeaderValue::from_static("x-adl-mtime-ms, content-range, accept-ranges"),
+    );
     response
 }
 

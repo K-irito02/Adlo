@@ -30,7 +30,7 @@ export interface RightPanelViewProps {
   selectedChangePreviewWorkspaceId?: string;
   changePreview?: WorkspaceChangePreview;
   changePreviewLoading: boolean;
-  /** 变更预览的媒体/办公字节（事项4，与 changePreview 互斥） */
+  /** 变更预览的媒体/办公来源（Range URL，事项4，与 changePreview 互斥） */
   changePreviewMedia?: WorkspaceMediaSource | null;
   changePreviewMediaLoading: boolean;
   changePreviewMediaError?: { path: string; message: string } | null;
@@ -218,7 +218,6 @@ export type ChangesPanelProps = Pick<
   | 'onTogglePatchHunkCollapse'
   | 'onSetAllPatchHunksCollapsed'
   | 'onSetPatchReviewFilter'
-  | 'onOpenFile'
   | 'onRefreshWorkspaceTree'
   | 'recentWorkspaces'
   | 'workspaceChangesExpanded'

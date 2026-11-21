@@ -18,7 +18,7 @@ export async function dismissSetupWizards(): Promise<void> {
   }
 
   // 环境向导之后还会串行出现 harness 向导；它的全屏 overlay 会盖住标题栏，
-  // 原生点击用例必须先把它关掉（否则 waitForTitlebarClickable 永远等不到）。
+  // 原生点击用例必须先把它关掉（否则 waitForTitlebarClickable 等不到）。
   const harnessDone = await browser.execute(() =>
     localStorage.getItem('adl.harnessWizardDone'),
   );

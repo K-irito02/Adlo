@@ -48,8 +48,11 @@ const INITIAL_VIEW: ZoomView = { zoom: 1, offset: { x: 0, y: 0 } };
  * - 切换文件不保留缩放（回到 100%）。
  *
  * 实现：视区固定，内层 stage 用 `translate(x,y) scale(z)`、`transform-origin: center`
- * 变换；图片/视频在 stage 内 `object-fit: contain`，letterbox 对称，因此指针锚点只需
- * 视区中心，无需测量媒体原始像素。
+ * 变换；图片/视频在 stage 内按 max-width/height 贴合（小于视区时保持固有尺寸）。
+ * 锚点换算按 `off₂ = off₁·r + (1−r)(A−C)`；平移边界按**画面盒子**（`img/video` 的
+ * 实际渲染尺寸）计算，画面小于视区的轴只允许居中。
+ * 滚轮监听用原生非 passive `addEventListener`，否则 React 19 的 passive wheel 会让
+ * `preventDefault()` 失效（浏览器模式会连带缩放页面）。
  */
 export function MediaZoomViewport({
   kind,
@@ -90,14 +93,30 @@ export function MediaZoomViewport({
   }, []);
 
   const clampOffset = useCallback(
-    (next: Point, nextZoom: number, size: { width: number; height: number }): Point => {
+    (
+      next: Point,
+      nextZoom: number,
+      size: { width: number; height: number },
+      layoutZoom: number,
+    ): Point => {
       if (nextZoom <= 1) {
         return { x: 0, y: 0 };
       }
-      // stage 尺寸 == 视区尺寸，放大后每边可移动 (size * (zoom - 1)) / 2，
-      // 夹在范围内可保证不会把画面拖出可视区。
-      const maxX = (size.width * (nextZoom - 1)) / 2;
-      const maxY = (size.height * (nextZoom - 1)) / 2;
+      // 画面盒子的**未缩放**尺寸：img/video 在 stage 内按 max-width/height 贴合，
+      // 竖图/全景图在未填满的轴上远小于 stage；若按 stage 计算边界，画面可被拖出视区。
+      let contentWidth = size.width;
+      let contentHeight = size.height;
+      const media = viewportRef.current?.querySelector<HTMLElement>('img, video');
+      if (media && layoutZoom > 0) {
+        const rect = media.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          contentWidth = rect.width / layoutZoom;
+          contentHeight = rect.height / layoutZoom;
+        }
+      }
+      // 放大后每边可移动 (content * zoom - viewport) / 2；画面仍小于视区的轴只允许居中。
+      const maxX = Math.max(0, (contentWidth * nextZoom - size.width) / 2);
+      const maxY = Math.max(0, (contentHeight * nextZoom - size.height) / 2);
       return {
         x: Math.min(maxX, Math.max(-maxX, next.x)),
         y: Math.min(maxY, Math.max(-maxY, next.y)),
@@ -119,17 +138,17 @@ export function MediaZoomViewport({
         if (nextZoom === current.zoom) {
           return current;
         }
-        // 让锚点下的内容在缩放前后保持不动（中心原点的等价位移）。
+        // 让锚点下的内容在缩放前后保持不动：
+        // 屏幕坐标 = C + off + z·(p−C)，故 off₂ = off₁·r + (1−r)(A−C)（r = z₂/z₁）。
         const ratio = nextZoom / current.zoom;
-        const nextOffset = clampOffset(
-          {
-            x: current.offset.x + (anchorX - centerX) * (1 - ratio),
-            y: current.offset.y + (anchorY - centerY) * (1 - ratio),
-          },
-          nextZoom,
-          size,
-        );
-        return { zoom: nextZoom, offset: nextOffset };
+        const next = {
+          x: current.offset.x * ratio + (anchorX - centerX) * (1 - ratio),
+          y: current.offset.y * ratio + (anchorY - centerY) * (1 - ratio),
+        };
+        return {
+          zoom: nextZoom,
+          offset: clampOffset(next, nextZoom, size, current.zoom),
+        };
       });
     },
     [clampOffset, readViewport],
@@ -139,21 +158,28 @@ export function MediaZoomViewport({
     setView(INITIAL_VIEW);
   }, []);
 
-  const handleWheel = useCallback(
-    (event: React.WheelEvent<HTMLDivElement>) => {
+  // Ctrl/⌘ + 滚轮：必须用原生非 passive 监听，React 19 的根容器 wheel 监听是
+  // passive 的，`preventDefault()` 会让整个页面跟着缩放（浏览器模式）。
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) {
+      return undefined;
+    }
+    const onWheel = (event: WheelEvent) => {
       // 只认 Ctrl/⌘ + 滚轮（触控板捏合同源）；普通滚轮保持默认行为（Q7）。
       if (!event.ctrlKey && !event.metaKey) {
         return;
       }
       event.preventDefault();
-      const rect = event.currentTarget.getBoundingClientRect();
+      const rect = viewport.getBoundingClientRect();
       zoomAt(event.deltaY < 0 ? ZOOM_STEP_WHEEL : 1 / ZOOM_STEP_WHEEL, {
         x: event.clientX - rect.left,
         y: event.clientY - rect.top,
       });
-    },
-    [zoomAt],
-  );
+    };
+    viewport.addEventListener('wheel', onWheel, { passive: false });
+    return () => viewport.removeEventListener('wheel', onWheel);
+  }, [zoomAt]);
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -191,7 +217,12 @@ export function MediaZoomViewport({
       const size = readViewport();
       setView((current) => ({
         zoom: current.zoom,
-        offset: clampOffset({ x: drag.originX + dx, y: drag.originY + dy }, current.zoom, size),
+        offset: clampOffset(
+          { x: drag.originX + dx, y: drag.originY + dy },
+          current.zoom,
+          size,
+          current.zoom,
+        ),
       }));
     },
     [clampOffset, readViewport],
@@ -220,7 +251,6 @@ export function MediaZoomViewport({
     <div
       ref={viewportRef}
       className={`adl-media-zoom${canPan ? ' is-zoomed' : ''}${dragging ? ' is-dragging' : ''}`}
-      onWheel={handleWheel}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={endDrag}

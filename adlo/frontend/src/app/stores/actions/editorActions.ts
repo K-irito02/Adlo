@@ -206,11 +206,11 @@ function baselineContentForTarget(
 }
 
 /**
- * 媒体/办公预览的对账：外部变更后重读字节并刷新预览。
+ * 媒体/办公预览的对账：外部变更后重新解析预览来源（HEAD/URL）并刷新。
  *
  * 文本通道的草稿保护不适用于媒体（没有可编辑缓冲区）：只要磁盘 mtime/size
  * 变了就整份替换；文件消失则清空为错误视图（与文本同语义）。旧的 OLE 办公格式
- * 不读字节（打开时即为占位文档），直接跳过。
+ * 不重新解析（打开时即为占位文档），直接跳过。
  */
 async function reconcileSelectedMedia(
   get: () => StoreState,

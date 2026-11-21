@@ -65,8 +65,6 @@ impl WebView2EventBridge for TauriWebView2EventBridge {
             serde_json::json!({
                 "tabId": tab_id,
                 "title": state.title,
-                "artist": state.artist,
-                "album": state.album,
                 "paused": state.paused,
                 "ended": state.ended,
                 "position": state.position,

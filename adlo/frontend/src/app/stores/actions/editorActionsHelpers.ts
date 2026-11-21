@@ -222,7 +222,8 @@ export interface OpenMediaFileConfig {
 /**
  * 媒体/办公二进制打开（与 openFileGeneric 同"就绪才切换"语义）：
  * 成功时置 fileMedia 并清空 fileContent/outline；失败走同一 submitOpenFailure。
- * 媒体不进文本缓存（URL 按次解析；字节由 Range 端点按需读取，不占内存）。
+ * 媒体不进文本缓存（URL 按次解析；媒体元素走 Range 端点，前端不持有整份媒体字节；
+ * Office/PDF 分支按需 fetch 整份字节交给解析库）。
  */
 export async function openMediaFileGeneric(
   set: StoreApi<StoreState>['setState'],
@@ -344,7 +345,7 @@ export async function openChangePreviewGeneric(
 ) {
   set({ changePreviewLoading: true, changePreviewMediaLoading: false });
 
-  // 事项4：媒体/办公文件在变更面板走字节通道（与文件面板同一渲染器），
+  // 事项4：媒体/办公文件在变更面板走二进制来源通道（Range URL，与文件面板同一渲染器），
   // 不做逐行 diff；文本文件继续走 change-preview。
   if (usesBinaryMediaChannel(categorizeFile(relativePath))) {
     set({

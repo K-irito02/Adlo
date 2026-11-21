@@ -219,7 +219,7 @@ export function onMediaSessionCommand(
   };
 }
 
-/** 当前显示的源 id（测试/排障用）。 */
+/** 当前显示的源 id（卡片按钮路由依赖它；也供测试/排障读取）。 */
 export function currentMediaSessionSource(): string | null {
   return displayedId;
 }

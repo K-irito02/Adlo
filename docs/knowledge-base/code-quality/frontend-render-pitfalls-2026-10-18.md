@@ -48,6 +48,9 @@ const innerHtml = useMemo(() => ({ __html: sanitizedHtml }), [sanitizedHtml]);
 
 ## 4. 双端 / 构建注意
 
-- `?inline` 把 CSS 作为模块字符串打包，注入 `<style>` 需 CSP 允许 `style-src 'unsafe-inline'`（本项目已允许）。用 `el.textContent = css`（非 `innerHTML`）可避免 `</style>` 破出。
+- `?inline` 把 CSS 作为模块字符串打包，注入 `<style>` 需 CSP 允许 `style-src 'unsafe-inline'`（本项目已允许）。用 `el.textContent = css`（非 `innerHTML`）可避免 `</style>` 破出。打包态 Tauri 会给 `style-src` 追加 nonce/hash（令 `'unsafe-inline'` 失效），因此 `tauri.conf.json` 必须配置 `app.security.dangerousDisableAssetCspModification: ["style-src"]`——漏了只在**安装包**里白屏/无样式，dev 永远正常。
+- `img-src` / `media-src` 必须包含 `blob:`：Office 内嵌媒体与运行时 object URL 依赖它；同样只在打包态暴露（dev 的 CSP 不生效）。
+- 本地大媒体**不要**用内置浏览器标签承载：子 WebView + `file://` 大视频实测会让宿主窗口失去响应；媒体一律走 `GET /workspace/media` 的 Range 流式端点（任意体积、可拖动进度），内置解不了的编码给「用系统默认程序打开」。
+- 系统媒体卡片（事项 17）：Chromium 自己的媒体会话归属 `msedgewebview2.exe`（卡片恒「未知应用」），宿主 AUMID 改不掉；本项目关闭 `MediaSessionService` 并由 Rust 自建 SMTC，浏览器标签页经注入脚本镜像进同一张卡片。
 - WASM（starry-night 的 `onig.wasm`）放 `public/vendor/` 随包发布，运行时按 **`import.meta.env.BASE_URL`** 拼 URL 而非相对 `baseURI`（子路径部署下相对路径会 404）；加载失败要有**失败锁存**（否则每次打开都重试取数）+ 纯文本回退（永不白屏）。
 - 语言别名：`starry-night` 的 `flagToScope` 不认 `tsx/mts/cts`，需自建别名表；查表要用 `Object.hasOwn` 而非 `in`（`in` 会命中原型链，`constructor`/`__proto__` 这类围栏语言名会让它抛异常 → 把原本的纯文本回退变成渲染期崩溃），并整体包 `try`。

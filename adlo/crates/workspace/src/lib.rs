@@ -79,10 +79,10 @@ pub fn read_file(root: &Path, relative_path: &str) -> Result<WorkspaceFileDocume
     })
 }
 
-/// 按扩展名推断媒体 MIME（仅用于流式端点与预览器渲染，不做安全判定）。
-/// 未命中时回落 `application/octet-stream`：前端按扩展名二次路由渲染器，
-/// MIME 只决定 Blob 类型串（见 FilePreviewRenderers）；SVG 脚本风险由前端承担——
-/// SVG 必须只经 `<img>` 渲染，禁止内联/iframe/object（见 MediaPreview）。
+/// 按扩展名推断媒体 MIME（用作流式端点的 `Content-Type`；不做安全判定）。
+/// 未命中时回落 `application/octet-stream`：前端按扩展名二次路由渲染器；
+/// SVG 脚本风险由前端承担——SVG 必须只经 `<img>` 渲染，禁止内联/iframe/object
+/// （见 MediaPreview）。Office 分支用 `fetch().arrayBuffer()`，不依赖 MIME 造 Blob。
 pub fn guess_media_mime(relative_path: &str) -> &'static str {
     let normalized = relative_path.replace('\\', "/");
     let file_name = normalized.rsplit('/').next().unwrap_or(&normalized);

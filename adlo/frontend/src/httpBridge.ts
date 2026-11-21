@@ -992,7 +992,8 @@ export function createHttpBridge({
         call<GitSnapshot>(baseUrl, '/workspace/git/init', POST({ workspacePath })),
       revealInFileManager: (_workspacePath: string) =>
         taskNotSupported<boolean>('workspace.revealInFileManager'),
-      // 系统默认程序打开是纯壳体能力（浏览器模式没有「系统默认应用」语义）。
+      // 纯壳层能力：ad-server 没有该路由；桌面走 Tauri invoke，浏览器预览由
+      // preview-bridge 覆盖为 `/system/open-file`（不会落到这个 NOT_SUPPORTED 兜底）。
       openInDefaultApp: (_workspacePath: string, _relativePath: string) =>
         taskNotSupported<boolean>('workspace.openInDefaultApp'),
       createFile: (relativePath: string, content = '', workspacePath?: string) =>

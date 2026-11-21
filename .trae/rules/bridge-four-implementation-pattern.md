@@ -87,3 +87,16 @@ if (isTauri) { /* has code */ } else { /* nothing */ }
 | `mock/*` | 返回空实现/桩值（`''`、`() => {}`） |
 
 > 新增同步方法时，若忘记 preview-bridge 的 override，类型检查与测试都不会报错 —— 必须在 Code Review 中按名核对。
+
+## 桌面壳独有域（`supported` 回落）
+
+少数域只在桌面壳存在，浏览器环境没有等价系统能力（先例：`mediaSession` 系统媒体卡片）。它们仍必须四端接线，但用**能力标志 + 回落**表达差异，而不是在 UI 里判 `isTauri`：
+
+| 端 | 实现要求 |
+|----|---------|
+| `shared/ipc/*.ts` | 接口声明 `readonly supported: boolean`；文档写明不支持端的回落路径（如 `navigator.mediaSession`） |
+| `tauri-bridge` | `supported: true` + 真实 invoke / 事件订阅 |
+| `httpBridge` / `mock` / `preview-bridge` | `supported: false` + no-op（事件订阅返回同步 unsubscribe） |
+| 消费端 | 只在 `supported === true` 时走壳层实现；否则回落到 Web 标准能力，**不得依赖 `isTauriShell()` 分叉** |
+
+事件类壳层能力（如 `digital-life://browser-media-state`）同样要在不支持端显式 no-op；漏了会让浏览器模式订阅到不存在的通道或静默丢事件。

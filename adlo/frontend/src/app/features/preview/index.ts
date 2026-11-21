@@ -9,7 +9,6 @@ export {
 export { PreviewLoadingGate } from './PreviewLoadingGate';
 export { PreviewExternalActions } from './PreviewExternalActions';
 export { UnsupportedPreviewCard } from './UnsupportedPreviewCard';
-export { MediaZoomViewport } from './MediaZoomViewport';
 export {
   isBrowserTabViewableFile,
   openLocalFileInBrowser,

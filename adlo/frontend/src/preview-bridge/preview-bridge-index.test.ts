@@ -49,6 +49,9 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
       if (url.includes('/__adl_preview_api__/workspace/reveal')) {
         return Promise.resolve(okJson({ ok: true, data: true }));
       }
+      if (url.includes('/__adl_preview_api__/system/open-file')) {
+        return Promise.resolve(okJson({ ok: true, data: true }));
+      }
       if (url.includes('/__adl_preview_api__/file/save')) {
         return Promise.resolve(okJson({ ok: true, data: { path: 'E:/out.txt' } }));
       }
@@ -91,6 +94,21 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining('/__adl_preview_api__/workspace/pick-directory'),
         expect.anything(),
+      );
+    },
+  );
+
+  it(
+    'workspace.openInDefaultApp routes to the dev preview service when the ad-server is reachable',
+    { timeout: 10000 },
+    async () => {
+      const { bridge, fetchMock } = await setupBridge();
+      const res = await bridge.workspace.openInDefaultApp('C:/ws', 'clip.mp4');
+
+      expect(res).toEqual({ ok: true, data: true });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/__adl_preview_api__/system/open-file'),
+        expect.objectContaining({ method: 'POST' }),
       );
     },
   );

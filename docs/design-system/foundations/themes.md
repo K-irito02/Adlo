@@ -24,7 +24,7 @@ Background: `--bg`, `--bg-strong`, `--bg-elevated`, `--bg-muted`, `--bg-overlay`
 Surface: `--surface`, `--surface-elevated`, `--surface-raised`, `--surface-sunken`, `--surface-hover`, `--surface-active`
 Text: `--text-primary`, `--text-secondary`, `--text-muted`, `--text-disabled`, `--text-inverse`, `--text-on-accent`
 Border: `--border-subtle`, `--border-default`, `--border-strong`
-Accent: `--accent`, `--accent-hover`, `--accent-active`, `--accent-soft`, `--accent-contrast`
+Accent: `--accent`, `--accent-hover`, `--accent-active`, `--accent-soft`, `--accent-contrast`, `--accent-violet`（蓝紫强调：标题栏「添加工作区」加载圈）
 Status: `--info` / `--info-soft`, `--success` / `--success-soft`, `--warning` / `--warning-soft`, `--danger` / `--danger-soft`
 Misc: `--focus-ring`, `--shadow-soft`, `--shadow-inset-highlight`, `--shadow-panel`, `--shadow-panel-sm`, `--shadow-divider`, `--ring-neutral`, `--ring-error`
 

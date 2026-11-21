@@ -441,8 +441,9 @@ export async function systemOpenPathRoute(body: unknown) {
 }
 
 /**
- * 用系统默认程序打开**文件**（与桌面 `workspace_open_in_default_app` 同语义）。
- * 浏览器模式同样跑在本机，具备该能力；入口只在内置解码器失败时出现。
+ * 用系统默认程序打开**文件**。浏览器预览同样跑在本机具备该能力；
+ * 与桌面 `workspace_open_in_default_app` 的差别：不做工作区越界校验（dev-only）。
+ * 入口出现在内置预览无法处理的类型（解码失败、二进制、旧版 Office、odp/Office 解析失败）。
  */
 async function openFileWithDefaultApp(targetPath: string): Promise<boolean> {
   const normalizedPath =
@@ -468,8 +469,8 @@ async function openFileWithDefaultApp(targetPath: string): Promise<boolean> {
   return true;
 }
 
-/** `/system/open-file`（导出供路由单测）：系统默认程序打开文件。 */
-export async function systemOpenFileRoute(body: unknown) {
+/** `/system/open-file`：系统默认程序打开文件（仅内部路由表调用）。 */
+async function systemOpenFileRoute(body: unknown) {
   const b = body as { path?: string } | undefined;
   if (!b?.path?.trim()) {
     return fail('path is required', 'INVALID_INPUT');
@@ -825,17 +826,6 @@ const routes: Route[] = [
       if (!rootPath?.trim() || !relativePath?.trim())
         return fail('rootPath and relativePath are required', 'INVALID_INPUT');
       return ok(await files.readFile(rootPath, relativePath));
-    },
-  },
-  {
-    method: 'GET',
-    pathname: makePath('/workspace/media'),
-    handler: async (_req, _body, searchParams) => {
-      const rootPath = searchParams.get('rootPath');
-      const relativePath = searchParams.get('relativePath');
-      if (!rootPath?.trim() || !relativePath?.trim())
-        return fail('rootPath and relativePath are required', 'INVALID_INPUT');
-      return ok(await files.readMediaFile(rootPath, relativePath));
     },
   },
   {

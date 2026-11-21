@@ -148,6 +148,46 @@ describe('useMediaSession 桌面路径（Rust SMTC）', () => {
     expect(bridge.clear).toHaveBeenCalled();
   });
 
+  it('停止后异步到达的 pause/timeupdate 不会把卡片复活', () => {
+    const { bridge, emit } = installDesktopBridge();
+    render(<Probe title="clip" />);
+    const audio = document.querySelector('audio') as HTMLAudioElement;
+
+    audio.dispatchEvent(new Event('play'));
+    expect(bridge.update).toHaveBeenCalled();
+    emit('stop');
+    expect(bridge.clear).toHaveBeenCalledTimes(1);
+    bridge.update.mockClear();
+
+    // HTML 规范：pause() 的 pause 事件与 currentTime 变更的 timeupdate 都是异步派发。
+    audio.dispatchEvent(new Event('pause'));
+    audio.dispatchEvent(new Event('timeupdate'));
+    expect(bridge.update).not.toHaveBeenCalled();
+
+    // 重新播放后恢复正常。
+    audio.dispatchEvent(new Event('play'));
+    expect(bridge.update).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'clip', status: 'playing' }),
+    );
+  });
+
+  it('向后 seek 后立即推送新位置（进度不卡在旧值）', () => {
+    const { bridge } = installDesktopBridge();
+    render(<Probe title="clip" />);
+    const audio = document.querySelector('audio') as HTMLAudioElement;
+
+    audio.dispatchEvent(new Event('play'));
+    audio.currentTime = 100;
+    audio.dispatchEvent(new Event('timeupdate'));
+    expect(bridge.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ positionMs: 100_000 }),
+    );
+
+    audio.currentTime = 10;
+    audio.dispatchEvent(new Event('timeupdate'));
+    expect(bridge.update).toHaveBeenLastCalledWith(expect.objectContaining({ positionMs: 10_000 }));
+  });
+
   it('进度按秒节流推送，卸载时关闭卡片', () => {
     const { bridge } = installDesktopBridge();
     const { unmount } = render(<Probe title="clip" />);

@@ -83,13 +83,6 @@ export function useChangesPanelProps(
     [actions],
   );
 
-  const handleOpenFile = useCallback(
-    (path: string) => {
-      void actions.openFile(path);
-    },
-    [actions],
-  );
-
   const handleRefreshWorkspaceTree = useCallback(() => {
     void (async () => {
       await actions.refreshWorkspaceTree();
@@ -131,7 +124,6 @@ export function useChangesPanelProps(
       onTogglePatchHunkCollapse,
       onSetAllPatchHunksCollapsed,
       onSetPatchReviewFilter,
-      onOpenFile: handleOpenFile,
       onRefreshWorkspaceTree: handleRefreshWorkspaceTree,
       recentWorkspaces,
       workspaceChangesExpanded,
@@ -173,7 +165,6 @@ export function useChangesPanelProps(
       onTogglePatchHunkCollapse,
       onSetAllPatchHunksCollapsed,
       onSetPatchReviewFilter,
-      handleOpenFile,
       handleRefreshWorkspaceTree,
       recentWorkspaces,
       workspaceChangesExpanded,

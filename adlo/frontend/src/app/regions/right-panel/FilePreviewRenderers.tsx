@@ -148,15 +148,39 @@ function useOfficeBytes(url: string): OfficeBytesState {
 type OfficeBranchKind = 'docx' | 'pdf' | 'spreadsheet' | 'presentation';
 
 const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04];
-const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46];
+/** OLE/CFB 容器头：BIFF `.xls` 等旧二进制格式（SheetJS 可读，不能当损坏拒掉）。 */
+const CFB_MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+/** `%PDF-`。PDF 规范允许文件头出现在前 1024 字节内（BOM/前导字节很常见）。 */
+const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46, 0x2d];
+const PDF_HEADER_SEARCH_BYTES = 1024;
 
-/** 前 4 字节签名判定（Office/PDF 容器），用于在调解析库前给"可能已损坏"的明确出口。 */
-function hasMagic(bytes: ArrayBuffer, magic: number[]): boolean {
+/** ZIP 容器签名（OOXML 文档）必须在偏移 0。 */
+function hasSignature(bytes: ArrayBuffer, magic: number[]): boolean {
   if (bytes.byteLength < magic.length) {
     return false;
   }
   const head = new Uint8Array(bytes, 0, magic.length);
   return magic.every((value, index) => head[index] === value);
+}
+
+/** BIFF `.xls` 是 OLE/CFB 容器（SheetJS 可读）；`.xlsb` 仍是 ZIP/OPC。 */
+function hasCfbSignature(bytes: ArrayBuffer): boolean {
+  return hasSignature(bytes, CFB_MAGIC);
+}
+
+/** PDF 头允许出现在前 1024 字节内（ISO 32000-1 §7.5.2）；不要求偏移 0。 */
+function hasPdfHeader(bytes: ArrayBuffer): boolean {
+  const limit = Math.min(bytes.byteLength, PDF_HEADER_SEARCH_BYTES);
+  if (limit < PDF_MAGIC.length) {
+    return false;
+  }
+  const head = new Uint8Array(bytes, 0, limit);
+  for (let offset = 0; offset <= head.length - PDF_MAGIC.length; offset += 1) {
+    if (PDF_MAGIC.every((value, index) => head[offset + index] === value)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function legacyExt(filePath: string): string {
@@ -228,7 +252,7 @@ function OfficeBranch({
 
   const data = bytes.data;
   if (kind === 'pdf') {
-    if (!hasMagic(data, PDF_MAGIC)) {
+    if (!hasPdfHeader(data)) {
       return failWith(t.officeDecodeFailed as string);
     }
     return (
@@ -241,7 +265,10 @@ function OfficeBranch({
     );
   }
   // OOXML（docx/xlsx/pptx）都是 zip 容器；签名不符即内容损坏。
-  if (!hasMagic(data, ZIP_MAGIC)) {
+  // 例外：BIFF `.xls` 是 OLE/CFB 容器，SheetJS 可读（fileTypeRouter 有意不拦截）。
+  const containerOk =
+    hasSignature(data, ZIP_MAGIC) || (kind === 'spreadsheet' && hasCfbSignature(data));
+  if (!containerOk) {
     const unreadable =
       kind === 'docx'
         ? t.docxUnreadable
@@ -429,7 +456,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
     return (
       <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
         <OfficeBranch
-          key={fileMedia.path}
+          key={fileMedia.url}
           fileMedia={fileMedia}
           kind={fileCategory}
           theme={theme}

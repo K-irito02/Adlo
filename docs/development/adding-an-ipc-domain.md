@@ -1,7 +1,9 @@
 # 新增一个 IPC 域（端到端清单）
 
 > 用途：新增一个跨 Rust / 四端桥接 / store / UI 的功能域时，按本清单逐项接线，避免「只接了 Tauri、浏览器模式空白」这类返工。
-> 先例：`dsh`、`opencode`、`env`、`storage` 四个域。
+> 先例：`dsh`、`opencode`、`env`、`storage` 四个业务域；桌面壳独有域见 `mediaSession`（系统媒体卡片）。
+>
+> 媒体预览先例：`workspace.mediaSource` 只做 HEAD 探测并返回 Range URL，内容由 `GET /workspace/media` 流式读取——**不再有** `read-media` / base64 命令。新增媒体类 IPC 时不要回到整文件字节通道。
 
 ## 1. Rust 侧
 
@@ -9,7 +11,9 @@
 - [ ] `crates/server/src/handlers/<domain>.rs`：只做参数解析、状态读取、错误映射；返回 `Result<serde_json::Value, AppError>`。
 - [ ] `handlers/mod.rs` 注册模块；`router.rs` 注册路由（`POST /<domain>/<action>` 为主）。
 - [ ] 需要跨请求状态的，加到 `ServerState` 并在 `engine.rs` 与 `test_util.rs` 两处初始化。
-- [ ] 只有壳层独有能力（窗口/对话框/原生 API）才加 `#[tauri::command]`，并登记 `capabilities/*.json`；纯业务一律走 HTTP 路由。
+- [ ] 只有壳层独有能力（窗口/对话框/原生 API）才加 `#[tauri::command]`，并登记 `src-tauri/permissions/digital-life.toml` 与 `capabilities/*.json`；纯业务一律走 HTTP 路由。
+  - 例：`workspace_open_in_default_app`（系统默认程序打开）是壳体能力；浏览器预览由 `preview-bridge` 覆盖为 `/system/open-file`（dev 预览服务），不落 `NOT_SUPPORTED` 兜底。
+  - 例：`media_session_update` / `media_session_clear` / `browser_media_control_tab` 是 Windows 壳层能力（Rust SMTC），域接口用 `supported: boolean` 让浏览器模式回落到 `navigator.mediaSession`；四端仍必须接线（不支持端返回 `supported:false` + no-op），且事件（如 `digital-life://browser-media-state`）要在 `tauri-bridge` 订阅、`preview/mock` 显式 no-op。
 
 ## 2. 前端契约
 

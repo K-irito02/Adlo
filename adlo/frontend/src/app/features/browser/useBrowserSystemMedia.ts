@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { BrowserMediaCommand, BrowserMediaStatePayload } from '@shared/ipc/browser';
 import { useAppStore } from '@stores/slicedStore';
 import {
@@ -26,64 +26,90 @@ function sourceIdFor(tabId: string): string {
  *
  * 背景：Chromium 的 `MediaSessionService` 在 Adlo 内被关闭（会话归属
  * `msedgewebview2.exe`，卡片恒「未知应用」），系统卡片改由 Rust SMTC 承载。
- * 注入脚本把站点 `navigator.mediaSession` 元数据与页面媒体状态上报给 Rust，再经事件
+ * 注入脚本把站点 `navigator.mediaSession` 标题与页面媒体状态上报给 Rust，再经事件
  * 到这里；本 hook 把**每个标签页**登记为一个媒体源（`tab:<tabId>`），由
  * `systemMediaSession` 统一做归属与轮播（本地预览与标签页同级、无优先级）。
+ *
+ * 关键约束：快照事件只登记**收到事件的那个标签页**；`tabs` 变化（标题回退、标签关闭）
+ * 会重新发布仍存活的源。同一标签页的快照签名不变时不重发：否则重复上报会刷新
+ * `systemMediaSession` 的 `at`，该源的过期清理被推迟（长时间不播放也可能继续占位）。
  *
  * 卡片只显示标题（不显示副标题），所以这里只上报 title/status/进度。
  */
 export function useBrowserSystemMedia(): void {
   const tabs = useAppStore((s) => s.browserTabs);
-  const [version, bump] = useReducer((n: number) => n + 1, 0);
   const snapshotsRef = useRef(new Map<string, BrowserMediaStatePayload>());
-  const publishedRef = useRef(new Set<string>());
+  /** tabId → 上次下发的 claim 签名；同签名不重发（避免刷新 `systemMediaSession` 的心跳）。 */
+  const publishedRef = useRef(new Map<string, string>());
+
+  const unpublish = useCallback((tabId: string) => {
+    if (!publishedRef.current.delete(tabId)) {
+      return;
+    }
+    setMediaSessionSource(sourceIdFor(tabId), null);
+  }, []);
+
+  const publish = useCallback(
+    (tabId: string) => {
+      const snapshot = snapshotsRef.current.get(tabId);
+      if (!snapshot) {
+        return;
+      }
+      const tab = useAppStore.getState().browserTabs.find((candidate) => candidate.id === tabId);
+      const title = snapshot.title || tab?.title || '';
+      if (!title || isFinished(snapshot)) {
+        unpublish(tabId);
+        return;
+      }
+      const claim = {
+        title,
+        status: snapshot.paused ? ('paused' as const) : ('playing' as const),
+        positionMs: snapshot.position * 1000,
+        durationMs: snapshot.duration > 0 ? snapshot.duration * 1000 : undefined,
+      };
+      const signature = JSON.stringify(claim);
+      if (publishedRef.current.get(tabId) === signature) {
+        return;
+      }
+      publishedRef.current.set(tabId, signature);
+      setMediaSessionSource(sourceIdFor(tabId), claim);
+    },
+    [unpublish],
+  );
 
   useEffect(() => {
     if (!window.digitalLife?.mediaSession?.supported) {
       return undefined;
     }
-    const browser = window.digitalLife.browser;
-    if (!browser?.onMediaStateChanged) {
+    const browser = window.digitalLife?.browser;
+    if (!browser) {
       return undefined;
     }
     return browser.onMediaStateChanged((payload) => {
       snapshotsRef.current.set(payload.tabId, payload);
-      bump();
+      publish(payload.tabId);
     });
-  }, []);
+  }, [publish]);
 
   useEffect(() => {
     const liveTabIds = new Set(tabs.map((tab) => tab.id));
 
     // 标签关闭：撤销来源（快照也一并丢弃）。
-    for (const tabId of publishedRef.current) {
+    for (const tabId of [...publishedRef.current.keys()]) {
       if (!liveTabIds.has(tabId)) {
-        setMediaSessionSource(sourceIdFor(tabId), null);
-        publishedRef.current.delete(tabId);
+        unpublish(tabId);
         snapshotsRef.current.delete(tabId);
       }
     }
-
-    for (const [tabId, state] of snapshotsRef.current) {
+    for (const tabId of [...snapshotsRef.current.keys()]) {
       if (!liveTabIds.has(tabId)) {
+        snapshotsRef.current.delete(tabId);
         continue;
       }
-      const tab = tabs.find((candidate) => candidate.id === tabId);
-      const title = state.title || tab?.title || '';
-      if (!title || isFinished(state)) {
-        setMediaSessionSource(sourceIdFor(tabId), null);
-        publishedRef.current.delete(tabId);
-        continue;
-      }
-      setMediaSessionSource(sourceIdFor(tabId), {
-        title,
-        status: state.paused ? 'paused' : 'playing',
-        positionMs: state.position * 1000,
-        durationMs: state.duration > 0 ? state.duration * 1000 : undefined,
-      });
-      publishedRef.current.add(tabId);
+      // 标签标题/状态变化时刷新回退标题；同签名不会改心跳。
+      publish(tabId);
     }
-  }, [tabs, version]);
+  }, [tabs, publish, unpublish]);
 
   useEffect(() => {
     if (!window.digitalLife?.mediaSession?.supported) {

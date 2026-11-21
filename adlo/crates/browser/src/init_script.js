@@ -1031,7 +1031,8 @@
             try {
                 var md = navigator.mediaSession && navigator.mediaSession.metadata;
                 if (!md) return null;
-                return { title: md.title || '', artist: md.artist || '', album: md.album || '' };
+                // 系统卡片只显示标题（副标题已按用户要求移除），这里只回传 title。
+                return { title: md.title || '' };
             } catch (err) {
                 return null;
             }
@@ -1048,8 +1049,6 @@
             chrome.webview.postMessage(JSON.stringify({
                 type: 'adl-media',
                 title: (md && md.title) || document.title || '',
-                artist: (md && md.artist) || '',
-                album: (md && md.album) || '',
                 paused: !!media.paused,
                 ended: !!media.ended,
                 position: isFinite(media.currentTime) ? media.currentTime : 0,

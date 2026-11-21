@@ -61,7 +61,7 @@ export function App() {
   useDragDropWorkspace(actions);
   useBrowserAgentLinkSubscription();
   useGlobalBrowserMeta();
-  // 事项 17 路线 A：浏览器标签页的站点媒体 → 系统卡片（本地预览优先）。
+  // 事项 17 路线 A：浏览器标签页的站点媒体 → 系统卡片（与本地预览同级、多源 3s 轮播）。
   useBrowserSystemMedia();
   useAppUpdateWatcher();
 

@@ -131,6 +131,12 @@ mod imp {
 
         // Tauri 与 `windows` 依赖同为 0.61，`hwnd()` 直接就是同一 HWND 类型。
         let hwnd = window.hwnd().map_err(|error| format!("window handle unavailable: {error}"))?;
+        let app_user_model_id = PKEY_AppUserModel_ID;
+
+        // 先取 store（失败时还没构造 PROPVARIANT，不存在 BSTR 泄漏）。
+        // SAFETY: hwnd 有效；store 在作用域内释放。
+        let store: IPropertyStore = unsafe { SHGetPropertyStoreForWindow(hwnd) }
+            .map_err(|error| format!("SHGetPropertyStoreForWindow: {error}"))?;
 
         // 平台没有 `From<&str> for PROPVARIANT`：按 VT_BSTR 结构字面量构造一次。
         let mut value = PROPVARIANT {
@@ -146,18 +152,20 @@ mod imp {
                 }),
             },
         };
-        let app_user_model_id = PKEY_AppUserModel_ID;
 
-        // SAFETY: hwnd 有效；store 在作用域内释放；value 由 PropVariantClear 清理一次。
-        unsafe {
-            let store: IPropertyStore = SHGetPropertyStoreForWindow(hwnd)
-                .map_err(|error| format!("SHGetPropertyStoreForWindow: {error}"))?;
-            store
-                .SetValue(&app_user_model_id, &value)
-                .map_err(|error| format!("SetValue(PKEY_AppUserModel_ID): {error}"))?;
-            store.Commit().map_err(|error| format!("IPropertyStore::Commit: {error}"))?;
+        // SAFETY: value 已构造，Set/Commit 失败也会先 PropVariantClear 再返回错误。
+        let outcome = unsafe {
+            let outcome = (|| -> Result<(), String> {
+                store
+                    .SetValue(&app_user_model_id, &value)
+                    .map_err(|error| format!("SetValue(PKEY_AppUserModel_ID): {error}"))?;
+                store.Commit().map_err(|error| format!("IPropertyStore::Commit: {error}"))?;
+                Ok(())
+            })();
             let _ = PropVariantClear(&mut value);
-        }
+            outcome
+        };
+        outcome?;
         tracing::info!(aumid = AUMID, "app identity: window AUMID applied");
         Ok(())
     }
@@ -192,24 +200,25 @@ mod imp {
             Some(String::from_utf16_lossy(&buffer[..end]))
         }
 
-        /// 事项 17：AUMID 注册写入真实 HKCU（测试用独立 id，结束即删）。
-        /// 这条用例守的是「Windows 能把 AUMID 解析成 Adlo + 图标」的前置条件。
+        /// 事项 17：AUMID 注册写入真实 HKCU。
+        ///
+        /// 并行工作树会同时跑 `cargo test`：id 必须进程唯一，否则两个进程互删同一个键。
+        /// 读回后**先清理再断言**，断言失败也不会把测试身份留在用户注册表。
         #[test]
         fn aumid_registration_writes_display_name_and_icon() {
-            let test_id = "com.adlo.app.adl-selftest";
+            let test_id = format!("com.adlo.app.adl-selftest-{}", std::process::id());
             let subkey = wide(&format!("Software\\Classes\\AppUserModelId\\{test_id}"));
-            register_aumid(test_id, "Adlo Selftest", "C:\\Windows\\explorer.exe").unwrap();
-            assert_eq!(read_value(test_id, "DisplayName").as_deref(), Some("Adlo Selftest"));
-            assert_eq!(
-                read_value(test_id, "IconUri").as_deref(),
-                Some("C:\\Windows\\explorer.exe")
-            );
-            // 清理：不把测试身份留在用户注册表里。
+            register_aumid(&test_id, "Adlo Selftest", "C:\\Windows\\explorer.exe").unwrap();
+            let display_name = read_value(&test_id, "DisplayName");
+            let icon_uri = read_value(&test_id, "IconUri");
+            // 清理：不把测试身份留在用户注册表里（先于断言，避免失败残留）。
             // SAFETY: 仅删除本用例创建的子树。
             unsafe {
                 let _ = RegDeleteTreeW(HKEY_CURRENT_USER, PCWSTR(subkey.as_ptr()));
             }
-            assert!(read_value(test_id, "DisplayName").is_none());
+            assert_eq!(display_name.as_deref(), Some("Adlo Selftest"));
+            assert_eq!(icon_uri.as_deref(), Some("C:\\Windows\\explorer.exe"));
+            assert!(read_value(&test_id, "DisplayName").is_none());
         }
     }
 }

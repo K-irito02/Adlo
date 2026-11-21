@@ -473,7 +473,9 @@ pub struct MediaStreamQuery {
 }
 
 /// 单段 `Range: bytes=…` 解析结果。
-/// `None` = 无 Range（返回整文件）；`Some(Ok(..))` = 可满足的闭区间；`Some(Err(()))` = 不可满足。
+/// `None` = 无 Range 或**无法解析**（非数字、超过 u64::MAX；按 RFC 忽略，返回整文件）。
+/// 注意：`+N` 与首尾空白会被 `u64`/`trim` 接受，属已知的宽松形态（不是 RFC 语法）。
+/// `Some(Ok(..))` = 可满足的闭区间；`Some(Err(()))` = 不可满足（416）。
 fn parse_single_range(raw: &str, total: u64) -> Option<Result<(u64, u64), ()>> {
     let spec = raw.trim().strip_prefix("bytes=")?;
     // 媒体播放器只发单段；多段请求按首段处理（RFC 允许服务端降级）。
@@ -520,8 +522,8 @@ fn media_error_response(error: AppError) -> Response {
 ///
 /// 为什么不用 base64 IPC（2026-11-20 事项 7）：一次 base64 传整文件体积 ×1.33 且整文件
 /// 进内存，必须有 50 MiB 上限，大视频因此永久打不开；流式端点按需读盘，天然支持拖动进度、
-/// 不设体积上限。路径校验与 `/workspace/read` 同一信任链（`resolve_workspace_file`：
-/// canonicalize + 拒绝越界/symlink 逃逸）。
+/// 不设体积上限。路径校验与 `/workspace/read` 同一信任链（`resolve_existing_file`：
+/// canonicalize + 拒绝越界/symlink 逃逸；缺文件收敛为 404）。
 pub async fn stream_media(
     State(state): State<ServerState>,
     Query(query): Query<MediaStreamQuery>,
@@ -531,13 +533,11 @@ pub async fn stream_media(
         Ok(path) => path,
         Err(error) => return media_error_response(error),
     };
-    let absolute = match adl_fs_ops::resolve_workspace_file(
-        PathBuf::from(&root_path).as_path(),
-        &query.path,
-    ) {
-        Ok(path) => path,
-        Err(error) => return media_error_response(error),
-    };
+    let absolute =
+        match adl_fs_ops::resolve_existing_file(PathBuf::from(&root_path).as_path(), &query.path) {
+            Ok(path) => path,
+            Err(error) => return media_error_response(error),
+        };
     let meta = match tokio::fs::metadata(&absolute).await {
         Ok(meta) => meta,
         Err(error) => {
@@ -597,7 +597,8 @@ pub async fn stream_media(
     let mut file = match tokio::fs::File::open(&absolute).await {
         Ok(file) => file,
         Err(error) => {
-            return (StatusCode::NOT_FOUND, format!("cannot open media file: {error}"))
+            // 已存在但打不开（权限/占用）：不是“不存在”，不能返回 404。
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("cannot open media file: {error}"))
                 .into_response();
         },
     };

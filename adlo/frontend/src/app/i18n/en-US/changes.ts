@@ -101,9 +101,7 @@ export const changesEn = {
   changesPreviewBaseMissing: 'Missing in HEAD',
   changesPreviewWorking: 'Workspace',
   changesPreviewWorkingMissing: 'Deleted from the workspace',
-  changesPreviewOpenInFiles: 'Open in Files',
-  changesPreviewMediaFailed:
-    'Failed to read this file (it may be deleted or exceed the size limit).',
+  changesPreviewMediaFailed: 'Failed to read this file (deleted, or the read failed).',
   conflictViewDiff: 'View diff',
   batchAcceptAll: 'Accept all',
   batchRejectAll: 'Reject all',
@@ -158,9 +156,9 @@ export const changesEn = {
   previewOpenInBrowserPanel: 'Open in panel',
   previewOpenInBrowserTabHint: 'Open in the center browser tab',
   previewOpenInBrowserPanelHint: 'Open in the right browser panel',
-  mediaOpenWithSystem: 'Open with system player',
+  mediaOpenWithSystem: 'Open with system app',
   mediaOpenWithSystemHint:
-    'Open with the system default app (for codecs the built-in player cannot handle, e.g. mkv, avi)',
+    'Open with the system default app (codecs/documents the built-in preview cannot handle, e.g. mkv, avi)',
   mediaOpenWithSystemFailed: 'Could not open the file with the system default app',
   mediaUnsupportedFormat: 'The built-in player does not support this format (e.g. MKV/AVI)',
   mediaEmptyFileTitle: 'Empty file',

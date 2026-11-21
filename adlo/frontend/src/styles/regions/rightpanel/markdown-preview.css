@@ -103,7 +103,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* 让 Ctrl+滚轮与拖拽不被浏览器手势/文本选择抢走 */
+  /* 触摸手势/文本选择不抢事件；wheel 由组件的非 passive 原生监听拦截，不依赖这里 */
   touch-action: none;
   user-select: none;
 }
@@ -269,13 +269,6 @@
   max-width: 480px;
 }
 
-.adl-media-preview--error {
-  justify-content: center;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  text-align: center;
-}
-
 /* ---------------- 保真提示水印（右上角纯文字） ---------------- */
 /* 纯加粗文字、无边框装饰、不拦截交互；5 秒后淡出并移出 DOM（见组件 onAnimationEnd）。
    全类型统一偏移：上 4px（space-1）、右 12px（space-3）。 */
@@ -421,8 +414,7 @@
 .adl-docx-preview--error p,
 .adl-pdf-preview--error p,
 .adl-xlsx-preview--error p,
-.adl-pptx-preview--error p,
-.adl-media-preview--error p {
+.adl-pptx-preview--error p {
   margin: 0;
 }
 

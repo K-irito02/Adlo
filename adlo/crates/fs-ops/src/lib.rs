@@ -85,6 +85,20 @@ pub fn resolve_workspace_file(root: &Path, relative_path: &str) -> Result<PathBu
     Ok(canonical)
 }
 
+/// 媒体端点专用：目标不存在时收敛为 `AppError::NotFound`（HTTP 404）。
+///
+/// 读/写通道沿用 `resolve_workspace_file` 的 `Io` 语义（既有错误码契约不变）；
+/// `/workspace/media` 需要 404 来区分「文件不存在」与「存在但读失败」，与浏览器模式
+/// 的同构端点保持一致。实现上先做存在性预检（拒绝 `..` 后拼绝对路径），不依赖
+/// 本地化的 IO 错误串；界内/符号链接校验仍交给 `resolve_workspace_file`。
+pub fn resolve_existing_file(root: &Path, relative_path: &str) -> Result<PathBuf, AppError> {
+    let relative = normalize_relative_path(relative_path)?;
+    if !root.join(&relative).exists() {
+        return Err(AppError::NotFound(format!("file not found: {relative_path}")));
+    }
+    resolve_workspace_file(root, relative_path)
+}
+
 pub fn read_text_file(
     root: &Path,
     relative_path: &str,
@@ -126,37 +140,6 @@ pub fn read_text_file(
     String::from_utf8(bytes).map_err(|e| AppError::InvalidInput(e.to_string()))
 }
 
-pub fn read_binary_file(
-    root: &Path,
-    relative_path: &str,
-    max_bytes: u64,
-) -> Result<Vec<u8>, AppError> {
-    let path = resolve_workspace_file(root, relative_path)?;
-    // 目录预检（跨平台一致，见 read_text_file）：symlink 本体不跟随。
-    if fs::symlink_metadata(&path)?.is_dir() {
-        return Err(AppError::InvalidInput(format!("not a file: {relative_path}")));
-    }
-    let handle = fs::File::open(&path)?;
-    let meta = handle.metadata()?;
-    if !meta.is_file() {
-        return Err(AppError::InvalidInput(format!("not a file: {relative_path}")));
-    }
-    if meta.len() > max_bytes {
-        return Err(AppError::InvalidInput(format!(
-            "file exceeds configured media read limit ({max_bytes} bytes): {relative_path}"
-        )));
-    }
-    let mut bytes = Vec::new();
-    use std::io::Read as _;
-    handle.take(max_bytes.saturating_add(1)).read_to_end(&mut bytes)?;
-    if bytes.len() as u64 > max_bytes {
-        return Err(AppError::InvalidInput(format!(
-            "file exceeds configured media read limit ({max_bytes} bytes): {relative_path}"
-        )));
-    }
-    Ok(bytes)
-}
-
 pub fn atomic_write(root: &Path, relative_path: &str, content: &str) -> Result<(), AppError> {
     let path = resolve_workspace_path(root, relative_path)?;
     if let Some(parent) = path.parent() {
@@ -192,6 +175,19 @@ mod tests {
     fn rejects_parent_path_escape() {
         let err = normalize_relative_path("../secret.txt").unwrap_err();
         assert!(matches!(err, AppError::Security(_)));
+    }
+
+    #[test]
+    fn missing_file_resolves_to_not_found_for_media() {
+        // 媒体端点靠 404 区分「文件不存在」与「存在但读失败」；读/写通道语义不变。
+        let dir = std::env::temp_dir().join(format!("adl-fsops-missing-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let err = resolve_existing_file(&dir, "gone.mp3").unwrap_err();
+        assert!(matches!(err, AppError::NotFound(_)), "unexpected error: {err:?}");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -265,50 +261,50 @@ mod tests {
     }
 
     #[test]
-    fn read_binary_file_rejects_over_limit() {
+    fn read_text_file_rejects_over_limit() {
         let dir = std::env::temp_dir().join(format!("adl-fs-ops-media-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("clip.mp4"), vec![0u8; 16]).unwrap();
-        let err = read_binary_file(dir.as_path(), "clip.mp4", 8).unwrap_err();
+        std::fs::write(dir.join("clip.mp4"), vec![b'x'; 16]).unwrap();
+        let err = read_text_file(dir.as_path(), "clip.mp4", 8).unwrap_err();
         assert!(matches!(err, AppError::InvalidInput(_)));
         let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
-    fn read_binary_file_returns_bytes_within_limit() {
+    fn read_text_file_returns_content_within_limit() {
         let dir =
             std::env::temp_dir().join(format!("adl-fs-ops-media-ok-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("a.bin"), [1u8, 2u8, 3u8]).unwrap();
-        let bytes = read_binary_file(dir.as_path(), "a.bin", 1024).unwrap();
-        assert_eq!(bytes, vec![1u8, 2u8, 3u8]);
+        std::fs::write(dir.join("a.txt"), b"abc").unwrap();
+        let content = read_text_file(dir.as_path(), "a.txt", 1024).unwrap();
+        assert_eq!(content, "abc");
         let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
-    fn read_binary_file_rejects_directories() {
+    fn read_text_file_rejects_directories() {
         let dir =
             std::env::temp_dir().join(format!("adl-fs-ops-media-dir-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(dir.join("sub")).unwrap();
-        let err = read_binary_file(dir.as_path(), "sub", 1024).unwrap_err();
+        let err = read_text_file(dir.as_path(), "sub", 1024).unwrap_err();
         assert!(matches!(err, AppError::InvalidInput(_)));
         let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
-    fn read_binary_file_returns_empty_for_empty_file() {
+    fn read_text_file_returns_empty_for_empty_file() {
         let dir =
             std::env::temp_dir().join(format!("adl-fs-ops-media-empty-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("empty.bin"), []).unwrap();
-        let bytes = read_binary_file(dir.as_path(), "empty.bin", 1024).unwrap();
-        assert!(bytes.is_empty());
+        std::fs::write(dir.join("empty.txt"), []).unwrap();
+        let content = read_text_file(dir.as_path(), "empty.txt", 1024).unwrap();
+        assert!(content.is_empty());
         let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
     #[cfg(unix)]
-    fn read_binary_file_rejects_symlink_escape() {
+    fn read_text_file_rejects_symlink_escape() {
         use std::os::unix::fs::symlink;
         let outside =
             std::env::temp_dir().join(format!("adl-fs-ops-outside-{}", uuid::Uuid::new_v4()));
@@ -316,9 +312,9 @@ mod tests {
             std::env::temp_dir().join(format!("adl-fs-ops-inside-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&outside).unwrap();
         std::fs::create_dir_all(&inside).unwrap();
-        std::fs::write(outside.join("secret.bin"), [9u8; 8]).unwrap();
-        symlink(outside.join("secret.bin"), inside.join("evil-link")).unwrap();
-        let err = read_binary_file(inside.as_path(), "evil-link", 1024).unwrap_err();
+        std::fs::write(outside.join("secret.txt"), [b'x'; 8]).unwrap();
+        symlink(outside.join("secret.txt"), inside.join("evil-link")).unwrap();
+        let err = read_text_file(inside.as_path(), "evil-link", 1024).unwrap_err();
         assert!(matches!(err, AppError::Security(_)));
         let _ = std::fs::remove_dir_all(outside);
         let _ = std::fs::remove_dir_all(inside);
@@ -329,12 +325,10 @@ mod tests {
         // 收尾 F-11：不存在的文件经 canonicalize/metadata 失败，映射须稳定为
         // IO_ERROR（前端 isNotFoundCode 只认 NOT_FOUND/ENOENT，此处锁定"通用错误"
         // 语义，防止未来误改为友好不存在文案）。
-        let dir = std::env::temp_dir().join(format!("adl-fs-ops-missing-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("adl-fs-ops-missing-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let text_err = read_text_file(dir.as_path(), "missing.txt", 1024).unwrap_err();
         assert_eq!(text_err.error_code(), "IO_ERROR");
-        let bin_err = read_binary_file(dir.as_path(), "missing.bin", 1024).unwrap_err();
-        assert_eq!(bin_err.error_code(), "IO_ERROR");
         let _ = std::fs::remove_dir_all(dir);
     }
 }
