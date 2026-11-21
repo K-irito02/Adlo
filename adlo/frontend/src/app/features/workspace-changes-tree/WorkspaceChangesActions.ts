@@ -2,6 +2,7 @@ import type React from 'react';
 import { useCallback, useRef, useState } from 'react';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import { useAppStore } from '@stores/slicedStore';
+import { useTCopy } from '@i18n/useTCopy';
 import { joinPathSegments } from '@app/utils/workspacePaths';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
 export interface UseWorkspaceChangesActionsParams {
@@ -77,6 +78,7 @@ export function useWorkspaceChangesActions({
   setDeleteWorkspacePath,
   onRequestDiscardConfirm,
 }: UseWorkspaceChangesActionsParams): WorkspaceChangesActions {
+  const { t } = useTCopy();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [branchSubOpen, setBranchSubOpen] = useState(false);
@@ -84,8 +86,9 @@ export function useWorkspaceChangesActions({
   const [commitBusy, setCommitBusy] = useState(false);
   const [commitError, setCommitError] = useState<string | undefined>(undefined);
   const [discardOpen, setDiscardOpen] = useState(false);
-  const [gitBusy, setGitBusy] = useState(false);
-  const [gitBusyLabel, setGitBusyLabel] = useState<'push' | 'pull' | null>(null);
+  const [localGitBusy, setLocalGitBusy] = useState(false);
+  const gitBusyLabel = useAppStore((s) => s.gitOpsBusy[workspace.id] ?? null);
+  const gitBusy = localGitBusy || gitBusyLabel !== null;
   const [pushPreflight, setPushPreflight] = useState<{
     dirty: boolean;
     hasUpstream: boolean;
@@ -253,15 +256,13 @@ export function useWorkspaceChangesActions({
   );
 
   const runGitAction = useCallback(
-    async (action: () => Promise<unknown>, label: 'push' | 'pull' | null = null) => {
+    async (action: () => Promise<unknown>) => {
       closeMenu();
-      setGitBusy(true);
-      setGitBusyLabel(label);
+      setLocalGitBusy(true);
       try {
         await action();
       } finally {
-        setGitBusy(false);
-        setGitBusyLabel(null);
+        setLocalGitBusy(false);
       }
     },
     [closeMenu],
@@ -269,10 +270,7 @@ export function useWorkspaceChangesActions({
 
   const pushNow = useCallback(
     async (info: { ahead: number; hasUpstream: boolean }) => {
-      await runGitAction(
-        () => useAppStore.getState().pushWorkspaceChanges(workspace.path, info),
-        'push',
-      );
+      await runGitAction(() => useAppStore.getState().pushWorkspaceChanges(workspace.path, info));
     },
     [runGitAction, workspace.path],
   );
@@ -287,35 +285,63 @@ export function useWorkspaceChangesActions({
     [runGitAction, workspace.path],
   );
 
+  /**
+   * 推送预检主流程：刷新快照 → 判定脏 → 查 upstream。
+   * 独立成可自引用的函数，让「分支列表失败」错误卡的重试按钮能重新走完整预检
+   * （只重试 listGitBranches 会绕过脏判定/预检）。
+   */
+  const beginPush = useCallback(
+    async function beginPush() {
+      // 先刷新目标工作区快照：预检的「未提交变更」判断不能依赖 15s 前的旧数据。
+      await useAppStore
+        .getState()
+        .refreshGitSnapshot(workspace.id, workspace.path, { silent: true });
+      const fresh = useAppStore.getState().gitSnapshots[workspace.id];
+      const dirty =
+        (fresh?.staged.length ?? 0) +
+          (fresh?.unstaged.length ?? 0) +
+          (fresh?.untracked.length ?? 0) +
+          (fresh?.conflicts.length ?? 0) >
+        0;
+      const branches = await window.digitalLife.workspace.listGitBranches(workspace.path);
+      if (!branches.ok) {
+        useAppStore
+          .getState()
+          .reportError(branches.error.code, branches.error.message, `git:push:${workspace.id}`, {
+            level: 'error',
+            actions: [
+              {
+                label: t.changesPushRetry,
+                run: () => {
+                  void beginPush();
+                  return true;
+                },
+              },
+            ],
+          });
+        return;
+      }
+      const current = branches.data.find((branch) => branch.isCurrent);
+      const hasUpstream = Boolean(current?.upstream);
+      const ahead = current?.ahead ?? 0;
+      if (!dirty && hasUpstream) {
+        await pushNow({ ahead, hasUpstream });
+        return;
+      }
+      setPushPreflight({
+        dirty,
+        hasUpstream,
+        branch: current?.name ?? '',
+        ahead,
+      });
+    },
+    [pushNow, t.changesPushRetry, workspace.id, workspace.path],
+  );
+
   const handlePush = useCallback(async () => {
     closeMenu();
-    // 先刷新目标工作区快照：预检的「未提交变更」判断不能依赖 15s 前的旧数据。
-    await useAppStore.getState().refreshGitSnapshot(workspace.id, workspace.path, { silent: true });
-    const fresh = useAppStore.getState().gitSnapshots[workspace.id];
-    const dirty =
-      (fresh?.staged.length ?? 0) + (fresh?.unstaged.length ?? 0) + (fresh?.untracked.length ?? 0) >
-      0;
-    const branches = await window.digitalLife.workspace.listGitBranches(workspace.path);
-    if (!branches.ok) {
-      useAppStore
-        .getState()
-        .reportError(branches.error.code, branches.error.message, `git:push:${workspace.id}`);
-      return;
-    }
-    const current = branches.data.find((branch) => branch.isCurrent);
-    const hasUpstream = Boolean(current?.upstream);
-    const ahead = current?.ahead ?? 0;
-    if (!dirty && hasUpstream) {
-      await pushNow({ ahead, hasUpstream });
-      return;
-    }
-    setPushPreflight({
-      dirty,
-      hasUpstream,
-      branch: current?.name ?? '',
-      ahead,
-    });
-  }, [closeMenu, pushNow, workspace.id, workspace.path]);
+    await beginPush();
+  }, [closeMenu, beginPush]);
 
   const handlePushOnly = useCallback(async () => {
     const info = pushPreflight;
@@ -342,7 +368,7 @@ export function useWorkspaceChangesActions({
   }, []);
 
   const handlePull = useCallback(
-    () => runGitAction(() => useAppStore.getState().pullWorkspaceChanges(workspace.path), 'pull'),
+    () => runGitAction(() => useAppStore.getState().pullWorkspaceChanges(workspace.path)),
     [runGitAction, workspace.path],
   );
 

@@ -5,14 +5,21 @@ interface TestState {
   errorToasts: unknown[];
   appInfo?: { currentWorkspace?: { id: string; path?: string; rootPath?: string } };
   recentWorkspaces: { id: string; path: string; rootPath?: string }[];
-  reportError: (code: string, detail: string, scope?: string) => void;
-  clearErrorToasts: (scope?: string) => void;
+  reportError: (code: string, detail: string, scope?: string, options?: unknown) => string;
+  clearErrorToasts: (scope?: string, options?: { prefix?: boolean }) => void;
   showToast: (message: string, type?: string) => void;
   refreshGitSnapshot: (
     workspaceId: string,
     workspacePath: string,
     options?: { silent?: boolean },
   ) => Promise<void>;
+  gitOpsBusy: Record<string, 'push' | 'pull' | undefined>;
+  setGitOpsBusy: (workspaceId: string, label: 'push' | 'pull' | null) => void;
+  pushWorkspaceChanges?: (
+    workspacePath?: string,
+    options?: { ahead?: number; hasUpstream?: boolean },
+  ) => Promise<boolean>;
+  pullWorkspaceChanges?: (workspacePath?: string) => Promise<boolean>;
 }
 
 function createHarness(overrides: Partial<TestState> = {}) {
@@ -24,11 +31,16 @@ function createHarness(overrides: Partial<TestState> = {}) {
     clearErrorToasts: vi.fn(),
     showToast: vi.fn(),
     refreshGitSnapshot: vi.fn(async () => {}),
+    gitOpsBusy: {},
+    setGitOpsBusy: vi.fn(),
     ...overrides,
   };
   const set = vi.fn() as never;
   const get = () => state as never;
   const actions = createGitFileOpsActions(set, get);
+  // 错误卡「重试」通过 get() 重新调用 store action，harness 需把动作挂回 state。
+  state.pushWorkspaceChanges = actions.pushWorkspaceChanges;
+  state.pullWorkspaceChanges = actions.pullWorkspaceChanges;
   return { state, actions };
 }
 
@@ -40,6 +52,10 @@ function stubWorkspaceBridge(overrides: Record<string, unknown> = {}) {
     commitChanges: vi.fn(async () => ({ ok: true, data: undefined })),
     pushChanges: vi.fn(async () => ({ ok: true, data: undefined })),
     pullChanges: vi.fn(async () => ({ ok: true, data: undefined })),
+    listGitBranches: vi.fn(async () => ({
+      ok: true,
+      data: [{ name: 'main', isCurrent: true, ahead: 2, upstream: 'origin/main' }],
+    })),
     ...overrides,
   };
   vi.stubGlobal('digitalLife', { workspace: bridge });
@@ -141,7 +157,7 @@ describe('gitFileOpsActions bulk operations', () => {
     stubWorkspaceBridge({
       pushChanges: vi.fn(async () => ({
         ok: false,
-        error: { code: 'NETWORK_ERROR', message: 'connection refused' },
+        error: { code: 'WORKSPACE_ERROR', message: 'connection refused' },
       })),
     });
     const { state, actions } = createHarness();
@@ -150,12 +166,14 @@ describe('gitFileOpsActions bulk operations', () => {
 
     expect(ok).toBe(false);
     expect(state.reportError).toHaveBeenCalledWith(
-      'NETWORK_ERROR',
+      'WORKSPACE_ERROR',
       'connection refused',
       'git:push:ws-1',
-      expect.objectContaining({ actions: expect.any(Array) }),
+      expect.objectContaining({ level: 'error', actions: expect.any(Array) }),
     );
     expect(state.refreshGitSnapshot).not.toHaveBeenCalled();
+    // 忙碌标记必须复位，否则同一工作区后续推送会被守卫永久拦截。
+    expect(state.setGitOpsBusy).toHaveBeenLastCalledWith('ws-1', null);
   });
 
   it('shows a success toast with the ahead count after push', async () => {
@@ -180,5 +198,85 @@ describe('gitFileOpsActions bulk operations', () => {
       expect.stringMatching(/推送成功|Pushed successfully/),
       'success',
     );
+  });
+
+  it('reports up-to-date when there is nothing ahead', async () => {
+    stubWorkspaceBridge();
+    const { state, actions } = createHarness();
+
+    await actions.pushWorkspaceChanges('/ws', { ahead: 0, hasUpstream: true });
+
+    expect(state.showToast).toHaveBeenCalledWith(
+      expect.stringMatching(/已是最新|up to date/i),
+      'success',
+    );
+  });
+
+  it('marks the workspace busy during push and clears it afterwards', async () => {
+    stubWorkspaceBridge();
+    const { state, actions } = createHarness();
+
+    await actions.pushWorkspaceChanges('/ws', { ahead: 1 });
+
+    expect(state.setGitOpsBusy).toHaveBeenNthCalledWith(1, 'ws-1', 'push');
+    expect(state.setGitOpsBusy).toHaveBeenLastCalledWith('ws-1', null);
+  });
+
+  it('ignores a second remote operation while one is already running', async () => {
+    const bridge = stubWorkspaceBridge();
+    const { actions } = createHarness({ gitOpsBusy: { 'ws-1': 'push' } });
+
+    const ok = await actions.pushWorkspaceChanges('/ws', { ahead: 1 });
+
+    expect(ok).toBe(false);
+    expect(bridge.pushChanges).not.toHaveBeenCalled();
+  });
+
+  it('clears the workspace-scoped push failure cards after a later success', async () => {
+    stubWorkspaceBridge();
+    const { state, actions } = createHarness();
+
+    await actions.pushWorkspaceChanges('/ws', { ahead: 1 });
+
+    expect(state.clearErrorToasts).toHaveBeenCalledWith('git:push:ws-1', { prefix: true });
+  });
+
+  it('retry action re-reads ahead/upstream before pushing again', async () => {
+    const pushChanges = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: 'WORKSPACE_ERROR', message: 'push failed' },
+      })
+      .mockResolvedValueOnce({ ok: true, data: undefined });
+    const listGitBranches = vi.fn(async () => ({
+      ok: true,
+      data: [{ name: 'main', isCurrent: true, ahead: 5, upstream: 'origin/main' }],
+    }));
+    stubWorkspaceBridge({ pushChanges, listGitBranches });
+    const { state, actions } = createHarness();
+
+    await actions.pushWorkspaceChanges('/ws', { ahead: 1 });
+    const options = vi.mocked(state.reportError).mock.calls[0][3] as {
+      actions: { run: () => Promise<boolean> }[];
+    };
+    const ok = await options.actions[0].run();
+
+    expect(ok).toBe(true);
+    expect(pushChanges).toHaveBeenCalledTimes(2);
+    expect(listGitBranches).toHaveBeenCalledTimes(1);
+    // 第二次成功用的是重读后的 ahead=5，而不是失败时捕获的 1。
+    expect(state.showToast).toHaveBeenLastCalledWith(expect.stringContaining('5'), 'success');
+  });
+
+  it('pull success also clears its workspace-scoped failure cards', async () => {
+    stubWorkspaceBridge();
+    const { state, actions } = createHarness();
+
+    await actions.pullWorkspaceChanges('/ws');
+
+    expect(state.clearErrorToasts).toHaveBeenCalledWith('git:pull:ws-1', { prefix: true });
+    expect(state.setGitOpsBusy).toHaveBeenNthCalledWith(1, 'ws-1', 'pull');
+    expect(state.setGitOpsBusy).toHaveBeenLastCalledWith('ws-1', null);
   });
 });

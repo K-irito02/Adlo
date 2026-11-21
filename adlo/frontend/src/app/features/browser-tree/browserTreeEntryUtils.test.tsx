@@ -128,10 +128,13 @@ describe('getEntryMoreMenuItems', () => {
     expect(item.badge).toBe('嵌套');
   });
 
-  it('历史记录顶层不再提供右键菜单（含失效的年/月/日删除项）', () => {
-    const callbacks = makeCallbacks();
-    expect(getEntryMoreMenuItems('history', 'history', 'history:root', callbacks, t)).toEqual([]);
-  });
+  it.each(['history', 'year', 'month', 'day'] as const)(
+    '%s 节点不再提供右键菜单（含失效的删除项）',
+    (nodeType) => {
+      const callbacks = makeCallbacks();
+      expect(getEntryMoreMenuItems(nodeType, 'history', `${nodeType}:x`, callbacks, t)).toEqual([]);
+    },
+  );
 });
 
 describe('getEntryHoverButtons', () => {

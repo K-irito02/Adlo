@@ -59,6 +59,14 @@ export interface WorkspaceSlice {
   changesTreeRefreshing: Record<string, boolean>;
   /** Changes 面板「刷新全部」进行中标记 */
   refreshingAllChanges: boolean;
+  /**
+   * 每个工作区正在执行的远端 Git 操作（push / pull）。
+   *
+   * 放在 store 而不是工作区行组件的局部 state：右下角错误卡片的「重试」在
+   * 组件树之外触发，只有共享状态才能让重试同样进入忙碌扫光，并与菜单/行内
+   * 按钮互斥（同一工作区同时只允许一个远端操作）。
+   */
+  gitOpsBusy: Record<string, 'push' | 'pull' | undefined>;
 
   setAppInfo: (appInfo: AppInfo | undefined) => void;
   setRecentWorkspaces: (workspaces: RecentWorkspaceEntry[]) => void;
@@ -74,6 +82,7 @@ export interface WorkspaceSlice {
   setWorkspaceChangesTreeErrors: (errors: Record<string, string | undefined>) => void;
   setChangesTreeRefreshing: (refreshing: Record<string, boolean>) => void;
   setRefreshingAllChanges: (refreshing: boolean) => void;
+  setGitOpsBusy: (workspaceId: string, label: 'push' | 'pull' | null) => void;
 }
 
 /**
@@ -99,6 +108,7 @@ export const createWorkspaceSlice = (
     workspaceChangesTreeErrors: {},
     changesTreeRefreshing: {},
     refreshingAllChanges: false,
+    gitOpsBusy: {},
 
     setAppInfo: (appInfo) => set({ appInfo }),
     setRecentWorkspaces: (workspaces) => {
@@ -121,5 +131,15 @@ export const createWorkspaceSlice = (
     setWorkspaceChangesTreeErrors: (errors) => set({ workspaceChangesTreeErrors: errors }),
     setChangesTreeRefreshing: (refreshing) => set({ changesTreeRefreshing: refreshing }),
     setRefreshingAllChanges: (refreshing) => set({ refreshingAllChanges: refreshing }),
+    setGitOpsBusy: (workspaceId, label) =>
+      set((state) => {
+        const next: Record<string, 'push' | 'pull' | undefined> = { ...state.gitOpsBusy };
+        if (label) {
+          next[workspaceId] = label;
+        } else {
+          delete next[workspaceId];
+        }
+        return { gitOpsBusy: next };
+      }),
   };
 };

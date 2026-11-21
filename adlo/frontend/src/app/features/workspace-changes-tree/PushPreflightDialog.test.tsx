@@ -25,13 +25,22 @@ function renderDialog(overrides: Partial<Parameters<typeof PushPreflightDialog>[
 
 describe('PushPreflightDialog', () => {
   it('dirty + no upstream：合并展示两条提示与三个动作', () => {
-    const { onPushOnly, onCommitAndPush } = renderDialog();
+    const { onCancel, onPushOnly, onCommitAndPush } = renderDialog();
     expect(screen.getByText(zhCN.changesPushDirtyNotice)).toBeTruthy();
     expect(screen.getByText(zhCN.changesPushNoUpstreamNotice)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: zhCN.changesPushOnly }));
     expect(onPushOnly).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: zhCN.changesCommitAndPush }));
     expect(onCommitAndPush).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: zhCN.cancel }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('中间动作与取消/主按钮同属 soft 语义变体', () => {
+    renderDialog();
+    expect(screen.getByRole('button', { name: zhCN.changesPushOnly }).className).toContain(
+      'adl-btn--neutral-soft',
+    );
   });
 
   it('clean + no upstream：只保留推送并设置上游', () => {
@@ -46,5 +55,14 @@ describe('PushPreflightDialog', () => {
     const { onCancel } = renderDialog();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('初始焦点在主按钮，Tab 在对话框内环绕（aria-modal 契约）', () => {
+    renderDialog();
+    const primary = screen.getByRole('button', { name: zhCN.changesCommitAndPush });
+    expect(document.activeElement).toBe(primary);
+
+    fireEvent.keyDown(window, { key: 'Tab' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: zhCN.cancel }));
   });
 });

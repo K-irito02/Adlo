@@ -314,7 +314,7 @@ function readBackgroundConfig(raw: unknown): BackgroundConfig | undefined {
   return result;
 }
 
-/** 浏览器历史：与写入侧一致，最多保留最近 100 条 */
+/** 浏览器历史：与写入侧一致，最多 1000 条 / 180 天（读侧同样裁剪）。 */
 function readBrowserHistory(raw: unknown): BrowserHistoryState[] | undefined {
   const entries = readObjectArray<BrowserHistoryState>(isHistoryEntry)(raw);
   return entries ? pruneBrowserHistory(entries) : undefined;

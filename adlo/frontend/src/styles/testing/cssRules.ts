@@ -57,3 +57,27 @@ export function ruleBody(css: string, selector: string): string | null {
   const close = block.lastIndexOf('}');
   return open === -1 || close === -1 ? null : block.slice(open + 1, close);
 }
+
+/**
+ * 选择器与传入值**完全一致**的规则体（排除 `:hover:not(:disabled)` 等复合变体）。
+ * 与 `ruleBody` 同源（同一套注释/边界判定），供需要区分前缀选择器的负向断言使用。
+ */
+export function exactRuleBody(css: string, selector: string): string | null {
+  const block = findRuleGroups(css, selector).find((candidate) => {
+    // 组起点可能带上前一条规则后的注释（如 `/* 摘要卡片 */\n.selector`）；
+    // 剥离注释后再比较，使带前置注释的选择器也能命中。
+    const text = candidate
+      .slice(0, candidate.indexOf('{'))
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .trim();
+    return text === selector;
+  });
+  if (!block) {
+    return null;
+  }
+  const open = block.indexOf('{');
+  const close = block.lastIndexOf('}');
+  return open === -1 || close === -1
+    ? null
+    : block.slice(open + 1, close).replace(/\/\*[\s\S]*?\*\//g, '');
+}

@@ -49,4 +49,15 @@ describe('loading row text shimmer styles', () => {
     expect(rule).toContain('color: var(--text-muted);');
     expect(rule).toContain('background: none;');
   });
+
+  it('includes the workspace busy compound selector in the reduced-motion fallback', () => {
+    const busy = '.adl-multitree-entry__busy.adl-loading-row__text--shimmer';
+    const mediaBody = ruleBody(css, '@media (prefers-reduced-motion');
+    expect(mediaBody).not.toBeNull();
+    const rule = ruleBody(mediaBody!, busy);
+    expect(rule).not.toBeNull();
+    expect(rule).toContain('animation: none;');
+    expect(rule).toContain('color: var(--text-muted);');
+    expect(rule).toContain('background: none;');
+  });
 });

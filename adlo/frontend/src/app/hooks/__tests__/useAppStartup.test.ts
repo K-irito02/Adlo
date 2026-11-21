@@ -273,6 +273,61 @@ describe('useAppStartup focus refresh（变更面板补刷）', () => {
   });
 });
 
+describe('useAppStartup git snapshot backfill（事项 3）', () => {
+  const original = useAppStore.getState().refreshAllGitSnapshotsSilent;
+  let refreshAll: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupWindowDigitalLife();
+    refreshAll = vi.fn(async () => {});
+    useAppStore.setState({
+      adServerReachable: null,
+      appReady: false,
+      recentWorkspaces: [],
+      refreshAllGitSnapshotsSilent: refreshAll as never,
+    });
+  });
+
+  afterEach(() => {
+    useAppStore.setState({
+      appReady: false,
+      recentWorkspaces: [],
+      refreshAllGitSnapshotsSilent: original,
+    });
+  });
+
+  it('appReady 且工作区集合变化时为全部可用工作区补刷快照', async () => {
+    useAppStore.setState({
+      appReady: true,
+      recentWorkspaces: [
+        { id: 'ws-1', path: '/a', available: true, removedFromSidebar: false },
+        { id: 'ws-2', path: '/b', available: true, removedFromSidebar: false },
+      ] as never,
+      workspaceChangesExpanded: {},
+    });
+
+    renderHook(() => useAppStartup(undefined));
+    await act(async () => {});
+
+    const callsAfterMount = refreshAll.mock.calls.length;
+    expect(callsAfterMount).toBeGreaterThan(0);
+
+    act(() => {
+      useAppStore.setState({
+        recentWorkspaces: [
+          { id: 'ws-1', path: '/a', available: true, removedFromSidebar: false },
+          { id: 'ws-2', path: '/b', available: true, removedFromSidebar: false },
+          { id: 'ws-3', path: '/c', available: true, removedFromSidebar: false },
+        ] as never,
+      });
+    });
+    await act(async () => {});
+
+    expect(refreshAll.mock.calls.length).toBeGreaterThan(callsAfterMount);
+  });
+});
+
 describe('useAppStartup ad-server reachability (Phase 4 R2)', () => {
   beforeEach(() => {
     vi.clearAllMocks();

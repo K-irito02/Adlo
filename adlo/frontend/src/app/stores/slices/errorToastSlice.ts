@@ -68,8 +68,11 @@ export interface ErrorToastSlice {
    */
   reportSilentError: (code: string, detail: string, scope?: string) => string;
   dismissErrorToast: (id: string) => void;
-  /** scope 提供时仅清除该作用域的错误；缺省清空全部 */
-  clearErrorToasts: (scope?: string) => void;
+  /**
+   * scope 提供时仅清除该作用域的错误；缺省清空全部。
+   * `options.prefix` 为真时按作用域前缀清除（如 `git:push:` 清掉某工作区的全部推送失败卡）。
+   */
+  clearErrorToasts: (scope?: string, options?: { prefix?: boolean }) => void;
 }
 
 /**
@@ -229,9 +232,14 @@ export const createErrorToastSlice = (
     }));
   },
   // 注意：无 scope 的全清同样清除静默诊断（显式用户动作，排查链以本次动作为界）。
-  clearErrorToasts: (scope) =>
+  clearErrorToasts: (scope, options) =>
     set((state) => {
-      const next = scope !== undefined ? state.errorToasts.filter((t) => t.scope !== scope) : [];
+      const next =
+        scope === undefined
+          ? []
+          : state.errorToasts.filter((t) =>
+              options?.prefix ? !(t.scope ?? '').startsWith(scope) : t.scope !== scope,
+            );
       return next.length === state.errorToasts.length ? {} : { errorToasts: next };
     }),
 });

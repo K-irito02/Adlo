@@ -44,4 +44,14 @@ describe('useChangesAutoRefresh', () => {
     });
     expect(refresh).not.toHaveBeenCalled();
   });
+
+  it('卸载后停止轮询（清掉 interval）', () => {
+    const { unmount } = renderHook(() => useChangesAutoRefresh(true));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    unmount();
+    act(() => {
+      vi.advanceTimersByTime(CHANGES_AUTO_REFRESH_INTERVAL_MS * 3);
+    });
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
 });

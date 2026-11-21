@@ -57,9 +57,11 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     node: BrowserTreeNode;
   } | null>(null);
 
-  // 空历史时顶层默认展开，直接显示「暂无历史记录」；用户手动折叠后以持久化值为准。
+  // 空历史时顶层强制展开，直接显示「暂无历史记录」；即使曾持久化为折叠也不生效
+  // （决策 5：空历史时顶层常驻并展开）。
   const isExpanded =
-    expandedPaths[node.path] ?? (node.nodeType === 'history' && node.children.length === 0);
+    (node.nodeType === 'history' && node.children.length === 0) ||
+    (expandedPaths[node.path] ?? false);
   const isFlatMode = browserViewMode === 'list' || browserViewMode === 'all';
   const showSeparators = browserViewMode === 'list';
   const menuId = `browser-entry-menu-${node.path}`;

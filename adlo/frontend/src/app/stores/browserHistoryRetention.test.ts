@@ -5,6 +5,7 @@ import {
   pruneBrowserHistory,
 } from './browserHistoryRetention';
 import type { BrowserHistoryState } from './slices/browserTypes';
+import { registry } from './persisted/registry';
 
 function entry(id: string, visitedAt: number): BrowserHistoryState {
   return { id, url: `https://example.com/${id}`, title: id, visitedAt };
@@ -36,5 +37,20 @@ describe('pruneBrowserHistory', () => {
     const snapshot = [...history];
     pruneBrowserHistory(history, now);
     expect(history).toEqual(snapshot);
+  });
+});
+
+describe('adl:browser.history read-side retention', () => {
+  it('applies the same 1000-entry / 180-day policy when reading persisted data', () => {
+    const now = Date.now();
+    const raw = [
+      ...Array.from({ length: HISTORY_MAX_ENTRIES + 20 }, (_, i) => entry(`recent-${i}`, now - i)),
+      entry('expired', now - HISTORY_RETENTION_MS - 1),
+    ];
+
+    const read = registry['adl:browser.history'].read?.(raw);
+
+    expect(read).toHaveLength(HISTORY_MAX_ENTRIES);
+    expect(read?.some((item) => item.id === 'expired')).toBe(false);
   });
 });

@@ -142,7 +142,7 @@ describe('书签列表右键菜单（列表模式）', () => {
 });
 
 describe('历史记录顶层（树模式）', () => {
-  function renderHistoryRoot() {
+  function renderHistoryRoot(expandedPaths: Record<string, boolean> = {}) {
     const onDeleteHistory = vi.fn();
     const view = render(
       <TCopyProvider t={t} locale="zh-CN">
@@ -155,7 +155,7 @@ describe('历史记录顶层（树模式）', () => {
             children: [],
           }}
           categoryType="history"
-          expandedPaths={{}}
+          expandedPaths={expandedPaths}
           selectedTreePath={null}
           onSelectTreePath={vi.fn()}
           onTogglePath={vi.fn()}
@@ -188,6 +188,11 @@ describe('历史记录顶层（树模式）', () => {
 
   it('空历史时默认展开并显示「暂无历史记录」空态', () => {
     const { container } = renderHistoryRoot();
+    expect(container.textContent).toContain('browserCategoryEmptyHistory');
+  });
+
+  it('空历史即使持久化为折叠也强制展开（决策 5）', () => {
+    const { container } = renderHistoryRoot({ 'history:root': false });
     expect(container.textContent).toContain('browserCategoryEmptyHistory');
   });
 });

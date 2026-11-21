@@ -351,7 +351,7 @@
   white-space: nowrap;
 }
 
-/* 常驻主题底色（对标 .adl-prompt-modal .adl-btn），悬停灰，禁蓝 */
+/* 常驻主题底色（对标 .adl-btn 基座默认的 --btn-bg），悬停灰，禁蓝 */
 .adl-changes-branch-mode-actions .adl-btn,
 .adl-changes-branch-mode-row .adl-btn,
 .adl-changes-branch-confirm-actions .adl-btn {

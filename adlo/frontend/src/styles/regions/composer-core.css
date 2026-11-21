@@ -155,12 +155,6 @@
   border-radius: 0 !important;
 }
 
-.adl-prompt-modal .adl-btn {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  border: none;
-}
-
-.adl-prompt-modal .adl-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
-}
+/* 不在此覆盖 `.adl-prompt-modal .adl-btn` 的底色/文字/边框：
+   该选择器（0-2-0）会压过 `.adl-btn`（0-1-0）消费的 `--btn-*`，让 soft/实心
+   语义变体只剩 busy 态生效。prompt 对话框按钮统一走 button.css 的 token。 */

@@ -186,61 +186,86 @@ export function createGitFileOpsActions(
       workspacePath?: string,
       options?: { ahead?: number; hasUpstream?: boolean },
     ): Promise<boolean> => {
-      clearError(get, SCOPE);
       const target = resolveWorkspaceTarget(get(), workspacePath);
       if (!target) {
         return false;
       }
-      const result = await window.digitalLife.workspace.pushChanges(target.path);
-      if (!result.ok) {
-        const dict = changesDict(get);
-        get().reportError(result.error.code, result.error.message, `git:push:${target.id}`, {
-          level: 'error',
-          actions: [
-            {
-              label: dict.changesPushRetry,
-              run: () => get().pushWorkspaceChanges(target.path, options),
-            },
-          ],
-        });
+      // 同一工作区只允许一个远端操作在跑：菜单、行内按钮、错误卡「重试」共享此守卫。
+      if (get().gitOpsBusy[target.id]) {
         return false;
       }
-      await refreshWorkspaceSnapshot(get, target);
-      const dict = changesDict(get);
-      const count = options?.ahead ?? 0;
-      const hasUpstream = options?.hasUpstream ?? true;
-      const message = !hasUpstream
-        ? dict.changesPushSuccessGeneric
-        : count > 0
-          ? fill(dict.changesPushSuccess, { count })
-          : dict.changesPushUpToDate;
-      get().showToast(message, 'success');
-      return true;
+      get().setGitOpsBusy(target.id, 'push');
+      try {
+        clearError(get, SCOPE);
+        const result = await window.digitalLife.workspace.pushChanges(target.path);
+        if (!result.ok) {
+          const dict = changesDict(get);
+          get().reportError(result.error.code, result.error.message, `git:push:${target.id}`, {
+            level: 'error',
+            actions: [
+              {
+                label: dict.changesPushRetry,
+                // 重试前重读 ahead/upstream：失败到重试之间本地/远端可能已变化，
+                // 复用失败时捕获的旧值会让「已推送 N 个提交」显示过期数字。
+                run: async () => {
+                  const fresh = await readPushOptions(target.path);
+                  return get().pushWorkspaceChanges(target.path, fresh ?? { hasUpstream: false });
+                },
+              },
+            ],
+          });
+          return false;
+        }
+        await refreshWorkspaceSnapshot(get, target);
+        // 成功后清掉该工作区此前残留的推送失败卡（含分支列表失败，同 scope 前缀）。
+        get().clearErrorToasts(`git:push:${target.id}`, { prefix: true });
+        const dict = changesDict(get);
+        const count = options?.ahead ?? 0;
+        const hasUpstream = options?.hasUpstream ?? true;
+        const message = !hasUpstream
+          ? dict.changesPushSuccessGeneric
+          : count > 0
+            ? fill(dict.changesPushSuccess, { count })
+            : dict.changesPushUpToDate;
+        get().showToast(message, 'success');
+        return true;
+      } finally {
+        get().setGitOpsBusy(target.id, null);
+      }
     },
 
     pullWorkspaceChanges: async (workspacePath?: string): Promise<boolean> => {
-      clearError(get, SCOPE);
       const target = resolveWorkspaceTarget(get(), workspacePath);
       if (!target) {
         return false;
       }
-      const result = await window.digitalLife.workspace.pullChanges(target.path);
-      if (!result.ok) {
-        const dict = changesDict(get);
-        get().reportError(result.error.code, result.error.message, `git:pull:${target.id}`, {
-          level: 'error',
-          actions: [
-            {
-              label: dict.changesPullRetry,
-              run: () => get().pullWorkspaceChanges(target.path),
-            },
-          ],
-        });
+      if (get().gitOpsBusy[target.id]) {
         return false;
       }
-      await refreshWorkspaceSnapshot(get, target);
-      get().showToast(changesDict(get).changesPullSuccess, 'success');
-      return true;
+      get().setGitOpsBusy(target.id, 'pull');
+      try {
+        clearError(get, SCOPE);
+        const result = await window.digitalLife.workspace.pullChanges(target.path);
+        if (!result.ok) {
+          const dict = changesDict(get);
+          get().reportError(result.error.code, result.error.message, `git:pull:${target.id}`, {
+            level: 'error',
+            actions: [
+              {
+                label: dict.changesPullRetry,
+                run: () => get().pullWorkspaceChanges(target.path),
+              },
+            ],
+          });
+          return false;
+        }
+        await refreshWorkspaceSnapshot(get, target);
+        get().clearErrorToasts(`git:pull:${target.id}`, { prefix: true });
+        get().showToast(changesDict(get).changesPullSuccess, 'success');
+        return true;
+      } finally {
+        get().setGitOpsBusy(target.id, null);
+      }
     },
   };
 }
@@ -272,4 +297,20 @@ async function refreshWorkspaceSnapshot(
   target: WorkspaceTarget,
 ): Promise<void> {
   await get().refreshGitSnapshot(target.id, target.path, { silent: true });
+}
+
+/**
+ * 重试推送前读取当前分支的 ahead / upstream。
+ * 读取失败时返回 undefined —— 调用方降级为无 upstream 的通用成功文案，
+ * 避免把「已是最新」这类依赖旧数字的结论展示给用户。
+ */
+async function readPushOptions(
+  path: string,
+): Promise<{ ahead: number; hasUpstream: boolean } | undefined> {
+  const branches = await window.digitalLife.workspace.listGitBranches(path);
+  if (!branches.ok) {
+    return undefined;
+  }
+  const current = branches.data.find((branch) => branch.isCurrent);
+  return { ahead: current?.ahead ?? 0, hasUpstream: Boolean(current?.upstream) };
 }

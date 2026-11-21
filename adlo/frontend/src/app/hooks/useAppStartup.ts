@@ -109,8 +109,9 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
   useEffect(() => {
     // 焦点回归补刷（VSCode 对齐 `refresh on window focus`）：
     // 兜底 watcher 漏事件 / 断线 / 浏览器轮询间隙（后端已按侧栏全部工作区监听）。
-    // 树与 git 快照都按"可见已展开"范围静默补刷（与手动刷新按钮同范围），
-    // 无图标闪烁、无写循环。去抖 1s：切窗口抖动与 HMR 重挂载不连刷。
+    // 文件树按"已展开"范围补刷；Git 快照按"全部已添加且可用"的工作区补刷
+    // （与手动刷新按钮同范围口径不同，见事项 3）。无图标闪烁、无写循环。
+    // 去抖 1s：切窗口抖动与 HMR 重挂载不连刷。
     let timer: ReturnType<typeof setTimeout> | undefined;
     const refreshOnFocus = () => {
       if (timer !== undefined) {

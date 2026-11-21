@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { CopyDict } from '@i18n';
+import { useDialogFocusTrap } from '@app/hooks/useDialogFocusTrap';
 
 export interface PushPreflightDialogProps {
   open: boolean;
@@ -32,22 +33,7 @@ export function PushPreflightDialog({
   onCommitAndPush,
 }: PushPreflightDialogProps) {
   const primaryRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    primaryRef.current?.focus();
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        event.stopPropagation();
-        onCancel();
-      }
-    };
-    window.addEventListener('keydown', handleKeydown, true);
-    return () => window.removeEventListener('keydown', handleKeydown, true);
-  }, [open, onCancel]);
+  const dialogRef = useDialogFocusTrap(open, onCancel, primaryRef);
 
   if (!open) {
     return null;
@@ -63,7 +49,11 @@ export function PushPreflightDialog({
       aria-modal="true"
       aria-label={t.changesPushPreflightTitle as string}
     >
-      <div className="adl-confirm-dialog" onClick={(event) => event.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="adl-confirm-dialog"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="adl-confirm-dialog__header">
           <h3 className="adl-confirm-dialog__title">{t.changesPushPreflightTitle}</h3>
         </div>
@@ -82,7 +72,7 @@ export function PushPreflightDialog({
             {t.cancel}
           </button>
           {dirty ? (
-            <button type="button" className="adl-btn adl-btn--secondary" onClick={onPushOnly}>
+            <button type="button" className="adl-btn adl-btn--neutral-soft" onClick={onPushOnly}>
               {t.changesPushOnly}
             </button>
           ) : null}

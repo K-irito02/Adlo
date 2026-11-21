@@ -43,12 +43,14 @@ interface TestStore {
   selectedChangePreviewPath?: string;
   selectedChangePreviewWorkspaceId?: string;
   openChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => Promise<void>;
+  refreshAllGitSnapshotsSilent: () => Promise<void>;
 }
 
 function makeStore(opts?: {
   appInfo?: TestStore['appInfo'];
   recentWorkspaces?: TestWorkspaceEntry[];
   workspaceChangesExpanded?: Record<string, boolean>;
+  gitSnapshots?: Record<string, unknown>;
 }) {
   const reportSilentError = vi.fn(() => 'silent-id');
   const openChangePreviewForWorkspace = vi.fn(async () => {});
@@ -56,7 +58,7 @@ function makeStore(opts?: {
     const actions = createGitSnapshotActions(set as never, () => get() as never);
     return {
       gitSnapshot: undefined,
-      gitSnapshots: {},
+      gitSnapshots: opts?.gitSnapshots ?? {},
       workspaceChangesTreeLoading: {},
       workspaceChangesTreeErrors: {},
       changesTreeRefreshing: {},
@@ -427,6 +429,75 @@ describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
     } finally {
       warn.mockRestore();
     }
+  });
+
+  it('跳过 5s 新鲜期内的快照，只刷过期或缺失的工作区', async () => {
+    const bridge = gitStatusBridge();
+    bridge.mockResolvedValue({
+      ok: true,
+      data: { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 0 },
+    });
+    const now = Date.now();
+    const { store } = makeStore({
+      recentWorkspaces: entries,
+      workspaceChangesExpanded: {},
+      gitSnapshots: {
+        'ws-1': { capturedAt: now },
+        'ws-2': { capturedAt: now - 10_000 },
+      },
+    } as never);
+    await store.getState().refreshAllGitSnapshotsSilent();
+
+    // ws-1 仍在新鲜期 → 跳过；ws-2 已过期 → 刷新。
+    expect(bridge).toHaveBeenCalledTimes(1);
+    expect(bridge).toHaveBeenCalledWith('/b');
+  });
+
+  it('worker 池并发不超过 3', async () => {
+    const bridge = gitStatusBridge();
+    const releases: (() => void)[] = [];
+    let active = 0;
+    let maxActive = 0;
+    bridge.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          active += 1;
+          maxActive = Math.max(maxActive, active);
+          releases.push(() => {
+            active -= 1;
+            resolve({
+              ok: true,
+              data: { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 0 },
+            });
+          });
+        }),
+    );
+    const { store } = makeStore({
+      recentWorkspaces: Array.from({ length: 6 }, (_, i) => ({
+        id: `ws-${i}`,
+        path: `/p${i}`,
+        available: true,
+      })),
+      workspaceChangesExpanded: {},
+    });
+
+    const running = store.getState().refreshAllGitSnapshotsSilent();
+    // 让 worker 池启动并卡在桥接调用上。
+    for (let i = 0; i < 10; i += 1) {
+      await Promise.resolve();
+    }
+    expect(active).toBe(3);
+    expect(maxActive).toBeLessThanOrEqual(3);
+
+    while (releases.length > 0) {
+      releases.shift()!();
+      for (let i = 0; i < 10; i += 1) {
+        await Promise.resolve();
+      }
+    }
+    await running;
+    expect(bridge).toHaveBeenCalledTimes(6);
+    expect(maxActive).toBeLessThanOrEqual(3);
   });
 });
 

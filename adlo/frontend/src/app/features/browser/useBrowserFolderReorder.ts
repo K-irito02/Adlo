@@ -30,7 +30,11 @@ export function useBrowserFolderReorder() {
       .filter((f) => !f.parentId)
       .map((f) => `folder:${f.id}`);
     const allEntryPaths = [...wsPaths, ...folderPaths];
-    if (browserHistory.length > 0) {
+    // 空历史时顶层被强制展开（显示「暂无历史记录」），不能再按持久化折叠态
+    // 参与「全部展开/折叠」判定，否则按钮状态与真实视觉相反。
+    const historyExpanded =
+      browserHistory.length === 0 || (browserTabTreeExpanded['history:root'] ?? false);
+    if (historyExpanded) {
       allEntryPaths.push('history:root');
     }
     if (allEntryPaths.length === 0) {
@@ -56,9 +60,8 @@ export function useBrowserFolderReorder() {
     for (const folder of state.browserBookmarkFolders) {
       paths.push(`folder:${folder.id}`);
     }
-    if (state.browserHistory.length > 0) {
-      paths.push('history:root');
-    }
+    // 空历史也常驻顶层（展开显示「暂无历史记录」）。
+    paths.push('history:root');
     browserExpandAllTreePaths(paths);
   }, [browserExpandAllTreePaths]);
 

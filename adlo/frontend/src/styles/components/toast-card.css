@@ -208,6 +208,8 @@
 .toast-card--summary {
   flex-direction: row;
   align-items: center;
+  /* head/body 重构后 gap 只在 __head 上；摘要卡是横排，必须自己补回条间距。 */
+  gap: var(--space-2-5);
   padding: var(--space-2) var(--space-3);
 }
 

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { findRuleGroups, ruleBody } from './testing/cssRules';
+import { exactRuleBody, findRuleGroups, ruleBody } from './testing/cssRules';
 
 /**
  * 右侧导航树「工作区标题吸顶」的样式契约（文件 / 变更面板共用）。
@@ -32,21 +32,10 @@ const css = readRepoFile('./regions/rightpanel/file-tree-browser.css');
 const HEADER_SELECTOR = '.adl-multitree--sticky-headers .adl-multitree-entry__header';
 
 /** 选择器与传入值完全一致的规则体（排除 `.is-current` 等复合变体）。 */
-function exactRuleBody(selector: string): string | null {
-  const block = findRuleGroups(css, selector).find(
-    (candidate) => candidate.slice(0, candidate.indexOf('{')).trim() === selector,
-  );
-  if (!block) {
-    return null;
-  }
-  return block
-    .slice(block.indexOf('{') + 1, block.lastIndexOf('}'))
-    .replace(/\/\*[\s\S]*?\*\//g, '');
-}
 
 describe('工作区标题吸顶样式契约', () => {
   it('标题使用 sticky 且贴顶位置为 0', () => {
-    const body = exactRuleBody(HEADER_SELECTOR);
+    const body = exactRuleBody(css, HEADER_SELECTOR);
 
     expect(body).not.toBeNull();
     expect(body).toContain('position: sticky');

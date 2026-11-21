@@ -445,11 +445,9 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
       // 钳进标题栏、压住触发按钮。仅在仍完整位于视口内且不越过触发按钮时生效。
       const snug = snugAgainstAvoidRects(base, trial);
       if (snug) {
-        // 非首选边不得压住触发按钮：翻边后盖住按钮会抢点击，正是本次要修的现象。
-        // 首选边保留既有容差（贴边钳入视口时允许覆盖按钮边缘几个像素）。
-        if (trial === placement || !coversTrigger(snug)) {
-          return snug;
-        }
+        // snug 只在首选侧收紧（staysOnPreferredSide 保证不越过触发按钮），
+        // 不会出现覆盖按钮的落点；这里无需再重复检查。
+        return snug;
       }
       // 视口内但横向压住 Webview → 先滑移；滑不动才换边。
       const cleared = slideCrossAxis(base, trial);
@@ -464,6 +462,8 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
           Math.abs((horizontal ? cleared.x : cleared.y) - (horizontal ? base.x : base.y)) -
           crossSize;
         if (edgeGap <= MAX_SLIDE_DETACH_PX) {
+          // 非首选边不得压住触发按钮：翻边后盖住按钮会抢点击，正是本次要修的现象。
+          // 首选边保留既有容差（贴边钳入视口时允许覆盖按钮边缘几个像素）。
           if (trial === placement || !coversTrigger(cleared)) {
             return cleared;
           }

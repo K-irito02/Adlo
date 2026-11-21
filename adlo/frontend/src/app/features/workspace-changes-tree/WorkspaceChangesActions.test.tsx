@@ -5,6 +5,7 @@ import type { WorkspaceTreeNode } from '@shared/ipc';
 import type { CopyDict } from '@app/i18n/types';
 import { useAppStore } from '@stores/slicedStore';
 import { useFileContextMenuItems } from '@regions/right-panel/hooks/useFileContextMenuItems';
+import { TCopyProvider } from '@i18n/TCopyContext';
 import { useWorkspaceChangesActions } from './WorkspaceChangesActions';
 
 const mockT = {
@@ -40,6 +41,7 @@ const setDeleteConfirmPath = vi.fn((_p: string | null) => {});
 const setRenamingWorkspacePath = vi.fn((_p: string | undefined) => {});
 const setDeleteWorkspacePath = vi.fn((_p: string | undefined) => {});
 const onRequestDiscardConfirm = vi.fn((_p: string, _w: string) => {});
+const reportError = vi.fn();
 
 function dirNode(): WorkspaceTreeNode {
   return {
@@ -62,35 +64,44 @@ function fileNode(): WorkspaceTreeNode {
 }
 
 function renderActions() {
-  return renderHook(() => {
-    const contextMenuPersistRef = useRef(false);
-    const { getContextMenuItems } = useFileContextMenuItems({
-      t: mockT,
-      copyToClipboard,
-      contextMenuPersistRef,
-      setRenamingPath,
-      setRenameDialogOpen,
-      setDeleteConfirmPath,
-      setRenamingWorkspacePath,
-      setDeleteWorkspacePath,
-      includeOpenInFiles: false,
-      onOpenFile,
-      // 事项2 设计：变更树目录同样出菜单
-      showMenuForDirectories: true,
-      showClipboard: false,
-      showGitActions: true,
-    });
-    return useWorkspaceChangesActions({
-      workspace: WORKSPACE,
-      onToggleExpand: () => {},
-      onHideFromRightPanels: () => {},
-      onRefreshTree: () => {},
-      getContextMenuItems,
-      setRenamingWorkspacePath,
-      setDeleteWorkspacePath,
-      onRequestDiscardConfirm,
-    });
-  });
+  return renderHook(
+    () => {
+      const contextMenuPersistRef = useRef(false);
+      const { getContextMenuItems } = useFileContextMenuItems({
+        t: mockT,
+        copyToClipboard,
+        contextMenuPersistRef,
+        setRenamingPath,
+        setRenameDialogOpen,
+        setDeleteConfirmPath,
+        setRenamingWorkspacePath,
+        setDeleteWorkspacePath,
+        includeOpenInFiles: false,
+        onOpenFile,
+        // 事项2 设计：变更树目录同样出菜单
+        showMenuForDirectories: true,
+        showClipboard: false,
+        showGitActions: true,
+      });
+      return useWorkspaceChangesActions({
+        workspace: WORKSPACE,
+        onToggleExpand: () => {},
+        onHideFromRightPanels: () => {},
+        onRefreshTree: () => {},
+        getContextMenuItems,
+        setRenamingWorkspacePath,
+        setDeleteWorkspacePath,
+        onRequestDiscardConfirm,
+      });
+    },
+    {
+      wrapper: ({ children }) => (
+        <TCopyProvider t={mockT} locale="zh-CN">
+          {children}
+        </TCopyProvider>
+      ),
+    },
+  );
 }
 
 describe('WorkspaceChangesActions directory context menu (事项2)', () => {
@@ -211,5 +222,177 @@ describe('WorkspaceChangesActions directory context menu (事项2)', () => {
     del!.action?.(dirNode(), [dirNode()]);
     expect(setDeleteConfirmPath).toHaveBeenCalledWith('packages/foo');
     expect(setDeleteWorkspacePath).toHaveBeenCalledWith('/workspace-one');
+  });
+});
+
+/**
+ * 事项 7 的核心决策都落在 hook 里（直推门控 / 预检 / 提交后 ahead+1）。
+ * 本组用例覆盖这些分支，作为回归保护。
+ */
+describe('WorkspaceChangesActions push preflight (事项 7)', () => {
+  const pushWorkspaceChanges = vi.fn(async (_path?: string, _info?: unknown) => true);
+  const commitWorkspaceChanges = vi.fn(async () => undefined as string | undefined);
+  const refreshGitSnapshot = vi.fn(async () => {});
+  const listGitBranches = vi.fn();
+  let snapshots: Record<string, unknown> = {};
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    snapshots = {};
+    listGitBranches.mockResolvedValue({
+      ok: true,
+      data: [{ name: 'main', isCurrent: true, ahead: 2, upstream: 'origin/main' }],
+    });
+    vi.spyOn(useAppStore, 'getState').mockReturnValue({
+      clipboardOperation: null,
+      setClipboard,
+      stageWorkspaceFile,
+      unstageWorkspaceFile,
+      discardWorkspaceFile,
+      refreshGitSnapshot,
+      get gitSnapshots() {
+        return snapshots;
+      },
+      pushWorkspaceChanges,
+      commitWorkspaceChanges,
+      reportError,
+    } as never);
+    (window as never as { digitalLife: unknown }).digitalLife = {
+      workspace: { revealInFileManager, listGitBranches },
+    };
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete (window as never as { digitalLife?: unknown }).digitalLife;
+  });
+
+  it('干净 + 有 upstream：跳过预检直接推送', async () => {
+    const { result } = renderActions();
+    await act(async () => {
+      await result.current.handlePush();
+    });
+    expect(pushWorkspaceChanges).toHaveBeenCalledWith('/workspace-one', {
+      ahead: 2,
+      hasUpstream: true,
+    });
+    expect(result.current.pushPreflightOpen).toBe(false);
+  });
+
+  it.each([
+    ['未提交变更', { staged: ['a'], unstaged: [], untracked: [], conflicts: [] }, 'origin/main'],
+    ['冲突也算脏', { staged: [], unstaged: [], untracked: [], conflicts: ['c'] }, 'origin/main'],
+    ['无 upstream', { staged: [], unstaged: [], untracked: [], conflicts: [] }, undefined],
+  ])('%s：打开合并预检而不直接推送', async (_label, snapshot, upstream) => {
+    snapshots = { 'ws-1': snapshot };
+    listGitBranches.mockResolvedValue({
+      ok: true,
+      data: [{ name: 'main', isCurrent: true, ahead: 2, upstream }],
+    });
+    const { result } = renderActions();
+
+    await act(async () => {
+      await result.current.handlePush();
+    });
+
+    expect(result.current.pushPreflightOpen).toBe(true);
+    if (upstream === undefined) {
+      expect(result.current.pushPreflightHasUpstream).toBe(false);
+    }
+    expect(pushWorkspaceChanges).not.toHaveBeenCalled();
+  });
+
+  it('仅推送已提交：沿用预检时读取的 ahead', async () => {
+    snapshots = { 'ws-1': { staged: ['a'], unstaged: [], untracked: [], conflicts: [] } };
+    const { result } = renderActions();
+    await act(async () => {
+      await result.current.handlePush();
+    });
+    await act(async () => {
+      await result.current.handlePushOnly();
+    });
+    expect(pushWorkspaceChanges).toHaveBeenCalledWith('/workspace-one', {
+      ahead: 2,
+      hasUpstream: true,
+    });
+    expect(result.current.pushPreflightOpen).toBe(false);
+  });
+
+  it('提交并推送：提交成功后按 ahead + 1 推送', async () => {
+    snapshots = { 'ws-1': { staged: ['a'], unstaged: [], untracked: [], conflicts: [] } };
+    const { result } = renderActions();
+    await act(async () => {
+      await result.current.handlePush();
+    });
+    act(() => {
+      result.current.handleCommitAndPush();
+    });
+    expect(result.current.commitOpen).toBe(true);
+
+    await act(async () => {
+      await result.current.submitCommit('feat: x', true);
+    });
+
+    expect(commitWorkspaceChanges).toHaveBeenCalledWith('feat: x', {
+      stageAll: true,
+      workspacePath: '/workspace-one',
+    });
+    expect(pushWorkspaceChanges).toHaveBeenCalledWith('/workspace-one', {
+      ahead: 3,
+      hasUpstream: true,
+    });
+  });
+
+  it('提交失败：不推送，错误留在提交对话框', async () => {
+    snapshots = { 'ws-1': { staged: ['a'], unstaged: [], untracked: [], conflicts: [] } };
+    commitWorkspaceChanges.mockResolvedValueOnce('commit failed');
+    const { result } = renderActions();
+    await act(async () => {
+      await result.current.handlePush();
+    });
+    act(() => {
+      result.current.handleCommitAndPush();
+    });
+
+    await act(async () => {
+      await result.current.submitCommit('feat: x', true);
+    });
+
+    expect(pushWorkspaceChanges).not.toHaveBeenCalled();
+    expect(result.current.commitOpen).toBe(true);
+    expect(result.current.commitError).toBe('commit failed');
+  });
+
+  it('取消预检：不推送且对话框关闭', async () => {
+    snapshots = { 'ws-1': { staged: ['a'], unstaged: [], untracked: [], conflicts: [] } };
+    const { result } = renderActions();
+    await act(async () => {
+      await result.current.handlePush();
+    });
+    act(() => {
+      result.current.cancelPushPreflight();
+    });
+    expect(result.current.pushPreflightOpen).toBe(false);
+    expect(pushWorkspaceChanges).not.toHaveBeenCalled();
+  });
+
+  it('分支列表失败：全局错误卡按 error 级别上报并带重试动作', async () => {
+    listGitBranches.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'WORKSPACE_ERROR', message: 'branch list failed' },
+    });
+    const { result } = renderActions();
+    await act(async () => {
+      await result.current.handlePush();
+    });
+
+    expect(reportError).toHaveBeenCalledWith(
+      'WORKSPACE_ERROR',
+      'branch list failed',
+      'git:push:ws-1',
+      expect.objectContaining({ level: 'error', actions: expect.any(Array) }),
+    );
+    const options = reportError.mock.calls[0][3] as { actions: { run: () => Promise<boolean> }[] };
+    expect(options.actions).toHaveLength(1);
   });
 });

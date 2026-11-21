@@ -35,4 +35,16 @@ describe('ConfirmDialog', () => {
       true,
     );
   });
+
+  it('focuses the confirm button and traps Tab inside the dialog', () => {
+    render(<ConfirmDialog {...baseProps} />);
+    const confirm = screen.getByRole('button', { name: 'Discard' });
+    const cancel = screen.getByRole('button', { name: 'Cancel' });
+
+    expect(document.activeElement).toBe(confirm);
+    fireEvent.keyDown(window, { key: 'Tab' });
+    expect(document.activeElement).toBe(cancel);
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(confirm);
+  });
 });

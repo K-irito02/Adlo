@@ -4,7 +4,7 @@ import { createEditorActions, handleExternalBatch } from '../editorActions';
 import { clearWorkspaceCaches, dropPendingEditorText, nextFileGen } from '../../shared';
 import { setPendingChangePreviewPath } from '../../cacheHelpers';
 
-function makeStore() {
+function makeStore(overrides: Record<string, unknown> = {}) {
   const reportError = vi.fn(() => 'toast-id');
   const showToast = vi.fn(() => 'toast-id');
   const refreshGitSnapshot = vi.fn(async () => {});
@@ -42,6 +42,7 @@ function makeStore() {
       pushFileConflictNotice,
       dismissFileOpNotice,
       clearErrorToasts: vi.fn(),
+      ...overrides,
       ...actions,
     } as unknown as Record<string, unknown>;
   });
@@ -658,6 +659,16 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
     expect(bridge().readFile).not.toHaveBeenCalled();
     expect(refreshGitSnapshot).toHaveBeenCalledTimes(1);
     expect(refreshOneWorkspaceTree).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
+  });
+
+  it('折叠且无快照的工作区仍跟手刷新 Git 快照（事项 3）', async () => {
+    const { store, refreshGitSnapshot } = makeStore({
+      workspaceChangesExpanded: {},
+      gitSnapshots: {},
+    });
+    handleExternalBatch(() => store.getState() as never, { changed: ['other.txt'], removed: [] });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(refreshGitSnapshot).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
   });
 
   it('溢出批次（无批次归属）：逐根静默补刷已加载的树与变更快照', async () => {
