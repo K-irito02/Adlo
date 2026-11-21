@@ -28,7 +28,7 @@ interface SearchEnginePopoverProps {
   anchorRef: React.RefObject<HTMLElement>;
   /**
    * 切换引擎后的宿主回调：由中心 / 右侧面板各自实现，只对其「当前可见标签」
-   * 做搜索页重载；后台标签与另一宿主不受影响。
+   * 做搜索结果页重载；后台标签与另一宿主不受影响。
    */
   onEngineSelected?: (engine: SearchEngine) => void;
 }

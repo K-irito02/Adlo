@@ -40,7 +40,7 @@
 | 处理器 | 文件 | 说明 |
 |--------|------|------|
 | `navigation_handler` | `browser_events.rs` | 捕获所有 WebView 导航事件，4s URL 去重 |
-| `new_window_handler` | `browser_events.rs` | 拦截新窗口请求（`target=_blank` / `window.open`），按来源标签所在宿主开新标签（中心 → 中心标签条，面板 → 面板） |
+| `new_window_handler` | `browser_events.rs` | 拦截新窗口请求（`target=_blank` / `window.open`），按发起标签所在宿主开新标签（中心 → 中心标签条，面板 → 面板） |
 | `setup_history_changed_handler` | `webview2_message.rs` | COM HistoryChanged 事件，SPA pushState 检测 |
 
 ### 2. JavaScript 端拦截点

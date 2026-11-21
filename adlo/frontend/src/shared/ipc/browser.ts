@@ -44,7 +44,7 @@ export interface BrowserMediaStatePayload {
   duration: number;
 }
 
-/** 页面内新窗口请求（`target="_blank"` / `window.open`）的来源标签与目标 URL。 */
+/** 页面内新窗口请求（`target="_blank"` / `window.open`）的发起标签与目标 URL。 */
 export interface BrowserNewTabRequest {
   /** 发起请求的浏览器标签 id（前端据此决定开在中心还是右侧面板）。 */
   tabId: string;

@@ -39,7 +39,7 @@ export interface BrowserTabsSlice {
 
   browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) => void;
   /**
-   * 页面内新窗口请求（`target="_blank"` / `window.open`）：按来源标签所在宿主
+   * 页面内新窗口请求（`target="_blank"` / `window.open`）：按发起标签所在宿主
    * 开新标签（中心 → 中心标签条，面板 → 面板），并登记 fresh 标记。
    */
   browserOpenNewWindowTab: (request: BrowserNewTabRequest) => void;

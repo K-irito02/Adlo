@@ -56,7 +56,7 @@ export interface BrowserPanelActions {
   browserOpenTab: (url?: string, title?: string, folderId?: string) => void;
   handleToggleNavigateMode: (checked: boolean) => void;
   handleAlwaysNewTab: (title: string) => void;
-  /** 切换搜索引擎后重载面板当前可见标签（仅搜索结果页；后台标签不动）。 */
+  /** 切换搜索引擎后重载面板前台标签（仅搜索结果页；后台标签不动）。 */
   handleEngineSelected: (engine: SearchEngine) => void;
   toggleNavigator: (tool: string) => void;
 }

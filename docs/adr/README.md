@@ -40,6 +40,8 @@
 - [0024 智能体站点规则合并：站点优先、同 id 替换、停用只作用全局](./0024-agent-site-rule-merge-order.md) — 规则顺序有语义；停用站点规则不回退全局同 id；命中需可解析目标
 - [0025 内部拖拽使用 Pointer Events，保留 Tauri 原生文件拖入](./0025-pointer-events-for-internal-drag.md) — HTML5 DnD 与 `dragDropEnabled` 互斥；内部拖拽走 pointer，原生文件拖入保留
 - [0029 文件导航树拖拽只作用于文件面板；目录顺序存前端偏好，跨区操作走独立 IPC](./0029-file-navigator-drag-scope-and-child-order.md) — 变更面板不支持拖拽；顺序按工作区路径存偏好；跨区复制拒绝冲突
+- [0030 页面内新窗口请求跟随发起标签的宿主落地](./0030-browser-new-window-follows-source-tab.md) — 事件带 `tabId`；中心来源开中心标签，面板来源开面板标签
+- [0031 搜索引擎首次启动静默自动选择，手动选择后不再覆盖](./0031-search-engine-auto-selection-on-first-run.md) — `no-cors` 探测；首启静默；手动后不覆盖
 
 ## 品牌、工具链与 Git 可视化
 

@@ -63,7 +63,7 @@ export function App() {
   useDragDropWorkspace(actions);
   useBrowserAgentLinkSubscription();
 
-  // 页面内新窗口请求（target=_blank / window.open）：由 store 按来源标签所在宿主
+  // 页面内新窗口请求（target=_blank / window.open）：由 store 按发起标签所在宿主
   // 路由（中心 → 中心标签条，面板 → 面板）；全局只保留这一处订阅。
   const handleBrowserNewTab = useCallback((request: BrowserNewTabRequest) => {
     useAppStore.getState().browserOpenNewWindowTab(request);
