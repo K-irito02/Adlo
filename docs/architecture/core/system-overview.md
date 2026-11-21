@@ -65,7 +65,7 @@ Optional desktop smoke: `pnpm run e2e:build` then `pnpm run e2e` (WDIO + embedde
 
 ## Security Baseline
 
-- explicit `app.security.csp` in `tauri.conf.json` (no empty CSP)
+- explicit `app.security.csp` in `tauri.conf.json` (no empty CSP); packaged builds append nonce/hash to `style-src`, so `dangerousDisableAssetCspModification: ["style-src"]` is required for runtime `<style>` injection; `img-src` / `media-src` must include `blob:` (Office embedded media / object URLs)
 - capability-based command allowlist via `src-tauri/capabilities/*.json` (`default.json` + `browser-remote.json`, no `"all"` / `"**"`)
 - `withGlobalTauri` disabled
 - no raw filesystem, process, or SQL access from the WebView
@@ -98,6 +98,8 @@ SQLite stores schema version, workspaces, sessions, tasks, approvals, audit reco
 - 存储治理：`adl-kernel::storage` 统一路径解析 + 启动期迁移 + 设置面板存储组（见上文"存储路径解析"）
 - 运行环境依赖管理：`adl-env`（6 个 provider：node/git/bash/webview2/adlserver/netprobe；来源偏好 `env-sources.json` + 基线 `env-baseline.json` 资源；auto 优先宿主、强制来源不静默降级）+ `adl-hosted`（版本目录托管 `<数据根>/env-hosted/<dep>/installed/<v>`、原子换装与 adopt、`InstallLock`、进程宿主、进度任务）；adl-server 暴露 `GET /env/status` 与 `POST /env/{install,uninstall,select-source,set-custom-path,recheck}`（`EnvStatus` 含六依赖 + `task` + `dataDir` + `dshReady`）；设置面板「网络」组（源/代理/测试连接，自 DSH 搬迁）与「环境」组（7 依赖行、聚合条、复制给 agent、卸载/重装）+ 首启环境准备（五项任务清单，不可跳过）+ 6 份 runbook（`frontend/src/app/features/environment/runbooks/`，索引 `docs/runbooks/README.md`）；宿主 Git = PortableGit（含 Bash，Bash 也可取自系统 Git for Windows / WSL / MSYS2 / 手填路径）；adl-server 作为 sidecar 随包（`binaries/adl-server-<triple>.exe` 暂存、运行时 `adl-server.exe`、`scripts/build-stage-sidecar.ps1` 静态 CRT、`stage:sidecar` 预置）
 - Markdown 预览主题（文件/变更面板）：github-markdown-css 变量驱动单表（`frontend/scripts/generate-md-theme-vars.mjs` 生成 + 自校验，切换只翻容器 `data-md-theme`，零取数零闪烁）+ 6 主题按亮暗分组跟随应用主题并持久化（`adl:files.markdownTheme{Light,Dark}`）+ 工具栏主题按钮（水滴图标，交互同图表主题选择器：悬停即时预览/离开恢复/点击打勾确认）+ starry-night 语法高亮（common 约 35 语言，本地 `onig.wasm` 优先、失败回落纯文本）+ 正文链接可点击（章节锚点跳转/相对文件索引打开/`#fragment` 剥离/按所属工作区解析/裸域不自动成链）+ 「打开方式」设置组（网址落点三选一、文件打开二选一、智能体站点链接拦截 + 白名单）
+- 媒体预览：图片/音视频走 `GET /workspace/media` 的 **HTTP Range 流式**（任意体积、可拖动进度、无 base64/体积上限）；图片/视频缩放（100% = 适配视区、10%–800%、按钮 ×1.25 / Ctrl+滚轮 ×1.1 指针锚定、放大后拖拽平移、换文件复位）；Office/PDF 按需 `fetch` 字节并做大文件确认门；内置解码器不支持的编码（mkv/avi 等）统一「无法预览」卡片 + 「用系统默认程序打开」
+- 系统媒体卡片（Windows SMTC）：宿主自建 `SystemMediaTransportControls` 会话（身份 `com.adlo.app`，进程/窗口 AUMID + HKCU `DisplayName`/`IconUri`）；本地媒体预览与内置浏览器标签页**同级、无优先级**，多播放源每 3 秒轮播；Chromium `MediaSessionService` 已关闭，标签页的站点 `navigator.mediaSession` 元数据与进度经注入脚本镜像进同一张卡片，卡片按钮按当前源路由
 - 系统能力：剪贴板历史、系统监视器、凭据存储（keyring + 加密文件降级）（通信/CI/GitHub 面板已随 remove-communicate-panel 删除，能力面 bridge/IPC 保留）
 - Zustand 切片模式（切片/action 数量以 `slicedStore.ts` 实测为准）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条

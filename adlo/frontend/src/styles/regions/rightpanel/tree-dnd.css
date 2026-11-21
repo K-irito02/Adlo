@@ -14,14 +14,17 @@ body.adl-tree-dnd-not-allowed .adl-multitree--dnd button {
   cursor: not-allowed;
 }
 
+/* 悬停/按下统一用「手掌点击」光标（pointer）：文件树支持拖拽放入/插入，但
+   grab/grabbing 会让普通点击看起来像「抓起整行」——真拖拽中的副本由
+   .adl-tree-dnd-dragging 单独声明 grabbing。 */
 .adl-multitree--dnd [data-path],
 .adl-multitree--dnd .adl-multitree-entry__header {
-  cursor: grab;
+  cursor: pointer;
 }
 
 .adl-multitree--dnd [data-path]:active,
 .adl-multitree--dnd .adl-multitree-entry__header:active {
-  cursor: grabbing;
+  cursor: pointer;
 }
 
 .adl-dnd-overlay {

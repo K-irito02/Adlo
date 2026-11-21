@@ -27,12 +27,12 @@
         "resizable": true,
         "fullscreen": false,
         "visible": false,
-        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --allow-file-access-from-files"
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,MediaSessionService --allow-file-access-from-files"
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http:; img-src 'self' data: https: http:; media-src 'self' https: http:; frame-src 'self' https: http:",
-      "dangerousDisableAssetCspModification": false
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http:; img-src 'self' data: blob: https: http:; media-src 'self' data: blob: https: http:; frame-src 'self' https: http:",
+      "dangerousDisableAssetCspModification": ["style-src"]
     },
     "withGlobalTauri": false
   },

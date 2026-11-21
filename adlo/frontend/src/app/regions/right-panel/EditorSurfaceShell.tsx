@@ -226,11 +226,14 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
         >
           {t.fileOpenErrorRetry}
         </button>
-        {/* 事项4：内部读取/渲染打不开时，若 WebView2 可渲染则提供浏览器入口。 */}
-        <PreviewExternalActions
-          filePath={fileOpenError.path}
-          workspaceId={fileOpenError.workspaceId ?? selectedFileWorkspaceId}
-        />
+        {/* 事项 7：文件确实存在、只是内部读取/渲染打不开（权限、损坏、编码）时，
+            浏览器标签可渲染的扩展名仍给浏览器兜底；not-found 不给（文件都没了）。 */}
+        {isNotFound ? null : (
+          <PreviewExternalActions
+            filePath={fileOpenError.path}
+            workspaceId={fileOpenError.workspaceId ?? selectedFileWorkspaceId}
+          />
+        )}
       </div>
     );
   }

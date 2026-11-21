@@ -18,6 +18,7 @@ import { summarizePatchSet } from '@features/patch-review';
 import type { CopyDict } from '@app/i18n';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
 import { categorizeFile } from '@regions/right-panel/fileTypeRouter';
+import { visibleWorkspacesOf } from '@regions/right-panel/visibleWorkspaces';
 import { revealEditorLineSafely, revealSourceLine } from '@features/preview/revealSourceLine';
 import { normalizeWorkspaceRelativePath } from '@app/utils/workspacePaths';
 
@@ -75,7 +76,8 @@ export function computeChangesMenuItems(
 }
 
 export function computeVisibleWorkspaces(recentWorkspaces: RecentWorkspaceEntry[]) {
-  return recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available);
+  // 可见性谓词与顶部变更徽章共用一份（right-panel/visibleWorkspaces.ts，事项 10）。
+  return visibleWorkspacesOf(recentWorkspaces);
 }
 
 export function computeAllChangesExpanded(

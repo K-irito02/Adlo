@@ -74,7 +74,7 @@ icon-before (height: 16px, align-items: center)
 ### 排查方法
 
 1. 使用**调试日志收起器**排查 UI 交互类问题
-2. 通过 "复制调试日志" 按钮获取日志文件 `debug-logs.txt`
+2. 在控制台执行 `window.__exportDebugLogs()` 导出日志（界面已不提供「复制调试日志」按钮）
 3. 分析日志中的 `[ADL-DEBUG]` 标记可追踪音频状态变化
 
 ## Rust 端静音状态覆盖问题

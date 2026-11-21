@@ -1,8 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { BrowserBridge } from '../shared/ipc/browser';
+import type {
+  BrowserBridge,
+  BrowserMediaCommand,
+  BrowserMediaStatePayload,
+} from '../shared/ipc/browser';
 import type { AgentSiteOverride, AgentSiteRule } from '../shared/ipc-types.generated';
-import { invokeIpc } from './tauri-shared';
+import { invokeIpc, subscribeChannel } from './tauri-shared';
 
 export function createTauriBrowserBridge(): BrowserBridge {
   return {
@@ -205,6 +209,10 @@ export function createTauriBrowserBridge(): BrowserBridge {
         void Promise.resolve(ul?.()).catch(() => {});
       };
     },
+    onMediaStateChanged: (listener: (payload: BrowserMediaStatePayload) => void) =>
+      subscribeChannel<BrowserMediaStatePayload>('digital-life://browser-media-state', listener),
+    mediaControlTab: (tabId: string, action: BrowserMediaCommand) =>
+      invokeIpc<void>('browser_media_control_tab', { tabId, action }).then(() => undefined),
     setBrowserColorScheme: (resolvedTheme: 'light' | 'dark') =>
       invokeIpc<void>('browser_set_color_scheme', { colorScheme: resolvedTheme }).then(
         () => undefined,

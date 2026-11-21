@@ -11,6 +11,7 @@ use tauri::webview::PageLoadEvent;
 use tracing::info;
 
 mod adl_server;
+mod app_identity;
 mod commands;
 mod error;
 mod setup;
@@ -23,6 +24,10 @@ const BROWSER_TITLE_SCRIPT: &str = include_str!("../scripts/browser-title-eval.j
 fn main() {
     tracing::info!("[ADL-PERF] app start");
 
+    // 应用身份（AUMID）必须在窗口 / WebView2 创建前落定：WebView2 在宿主未设置时会
+    // 自造一个未注册的 AUMID，Windows 媒体卡片因此显示「未知应用」且没有图标（事项 17）。
+    app_identity::init_app_identity();
+
     // CLI 日志覆盖（session-only，不写 config.json）：解析成环境变量，供本 shell 与
     // 它派生的 adl-server 子进程共同读取（子进程继承环境变量）。
     // 支持 --log-level / --terminal-log-mode / --debug-log-mode 与兼容简写 --log-mode。
@@ -32,12 +37,16 @@ fn main() {
 
     // 移除了 --disable-gpu-compositing 以启用 GPU 合成加速，
     // 解决软件渲染导致的启动绘制缓慢和主线程阻塞问题。
+    //
+    // 事项 17 路线 A：`MediaSessionService` 关掉 Chromium 自带的媒体会话（它归属
+    // `msedgewebview2.exe`，卡片恒显示「未知应用」），改由 Rust 侧自建 SMTC
+    // （见 `commands::media_session`）。与 `tauri.conf.json` 的 additionalBrowserArgs 同步。
     // SAFETY: Called once at startup before any other threads. Safe despite
     // Rust 2024 marking set_var as unsafe (no concurrent reads of these vars).
     unsafe {
         std::env::set_var(
             "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-            "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection",
+            "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,MediaSessionService",
         );
     }
 
@@ -84,6 +93,9 @@ fn main() {
                 // 窗口配置了 visible: false，在页面加载完成后才显示窗口，
                 // 消除 WebView2 默认白色背景导致的启动闪烁。
                 let window = webview.window();
+                // 事项 17：WebView2 会在创建期给根窗口写入「生成的 AUMID」，系统媒体卡片
+                // 也因此显示「未知应用」。WebView 就绪后再写一次窗口身份，覆盖该生成值。
+                app_identity::apply_window_identity(&window);
                 let _ = window.show();
                 tracing::info!("[ADL-PERF] main window shown after page load");
             }
@@ -148,6 +160,9 @@ fn main() {
             commands::workspace::workspace_pick_directory,
             commands::file_save::app_save_file,
             commands::platform::workspace_reveal_in_file_manager,
+            commands::platform::workspace_open_in_default_app,
+            commands::media_session::media_session_update,
+            commands::media_session::media_session_clear,
             commands::browser::browser_create_for_tab,
             commands::browser::browser_activate_tab,
             commands::browser::browser_destroy_tab,
@@ -159,6 +174,7 @@ fn main() {
             commands::browser::browser_can_go_forward_tab,
             commands::browser::browser_reload_tab,
             commands::browser::browser_mute_tab,
+            commands::browser::browser_media_control_tab,
             commands::browser::browser_set_color_scheme,
             commands::browser::browser_set_agent_intercept,
             commands::browser::browser_set_zoom,

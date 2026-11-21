@@ -309,6 +309,7 @@ describe('i18n en-US namespace keys', () => {
       'dshPrereleaseHint',
       'dshOfficialLinksLabel',
       'dshOfficialLinksDesc',
+      'dshOfficialSite',
       'dshNpmPage',
       'dshGithubReleases',
       'dshVersionSourceDesc',

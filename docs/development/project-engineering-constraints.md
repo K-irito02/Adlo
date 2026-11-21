@@ -288,6 +288,7 @@
 - 集成测试（`crates/server/tests/`，`common/mod.rs` helpers）覆盖 Tauri Command、持久化、迁移、恢复和工作区关键链路
 - 桌面-only 交互回归可用 `pnpm run e2e` 冒烟（opt-in，真实 Tauri 窗口；**不进** `check:all`，见技能 `desktop-e2e-wdio`）
 - 验收矩阵覆盖首批双语、三态主题、首次启动、升级迁移、异常恢复
+- 媒体/预览类验收素材目录约定：`D:\AdloMediaLab`（按 `audio/`、`images/`、`videos/`、`docs/`、`edge-cases/` 分类，附 `README.md` 验收清单；含真 AAC、程序生成 ICO、AVS3 不支持编码、全透明 ICO 等边界样本），避免每次手搭；脚本生成方式见对应进度文件
 
 发布前必须验证：
 

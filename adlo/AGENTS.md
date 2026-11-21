@@ -78,7 +78,7 @@ CSS 选择器/层叠/布局/主题变更：按 [desktop-ui-verification.md](../.
 | 功能       | 说明                                                                                             |
 | ---------- | ------------------------------------------------------------------------------------------------ |
 | 日志收起器 | `frontend/src/app/utils/debugLogCollector.ts`，拦截所有 console 输出，自动收起存储               |
-| 复制按钮   | 页面右上角可拖拽"复制调试日志"按钮                                                               |
+| 导出 API   | 控制台 / Agent 读取 `window.__dlDebugLogs` / `window.__exportDebugLogs`（界面不提供复制按钮）    |
 | 自动写入   | `.adl-logs/`（debug 构建）；Tauri 桌面壳 `debug-logs*.txt`、浏览器模式 `debug-logs-browser*.txt` |
 | 后端命令   | `src-tauri/src/commands/app.rs` → `write_debug_logs_to_project`                                  |
 | 日志检索   | `pnpm --dir adlo run log:tail -- --file <path> --grep <regex> [--tail 80]`（UTF-8 安全，替代被禁的 `Select-String`） |

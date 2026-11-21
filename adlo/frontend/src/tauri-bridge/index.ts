@@ -21,6 +21,7 @@ import { createTauriWindowBridge } from './tauri-window';
 import { createTauriWorkspaceBridge } from './tauri-workspace';
 import { createTauriFileSaveBridge } from './tauri-file-save';
 import { createTauriUpdateBridge } from './tauri-update';
+import { createTauriMediaSessionBridge } from './tauri-media-session';
 import { invokeIpc } from './tauri-shared';
 
 /**
@@ -50,12 +51,14 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
     ...http,
 
     // `workspace.pickDirectory` (native folder dialog), `workspace.revealInFileManager`
-    // (OS file-manager reveal) and `workspace.onFileChanged` (a Tauri channel
-    // subscription) are Tauri shell capabilities with NO ad-server HTTP route.
+    // (OS file-manager reveal), `workspace.openInDefaultApp` (OS default player) and
+    // `workspace.onFileChanged` (a Tauri channel subscription) are Tauri shell
+    // capabilities with NO ad-server HTTP route.
     workspace: {
       ...http.workspace,
       pickDirectory: tauriWorkspace.pickDirectory,
       revealInFileManager: tauriWorkspace.revealInFileManager,
+      openInDefaultApp: tauriWorkspace.openInDefaultApp,
       onFileChanged: tauriWorkspace.onFileChanged,
     },
 
@@ -84,6 +87,7 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
     browser: createTauriBrowserBridge(),
     reserved: createTauriReservedBridge(),
     update: createTauriUpdateBridge(),
+    mediaSession: createTauriMediaSessionBridge(),
 
     // Storage path management stays on Tauri invoke (Plan C Task 1 commands):
     // the desktop owns the locator writes and the process restart. The

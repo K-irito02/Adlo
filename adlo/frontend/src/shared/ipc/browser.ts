@@ -25,6 +25,29 @@ export interface AudioStatePayload {
 }
 
 /**
+ * 标签页媒体快照（事项 17 路线 A）。
+ *
+ * 由注入脚本 `init_script.js` 上报：`title` 优先取站点自己的
+ * `navigator.mediaSession.metadata.title`（与 Edge 卡片同源），回退页面标题；
+ * `paused/ended/position/duration` 取自页面里「正在播放优先」的那个媒体元素。
+ * 仅桌面端（`MediaSessionService` 关闭后，系统卡片由 Rust SMTC 承载）会收到。
+ * 卡片只显示标题，因此不再携带 artist/album。
+ */
+export interface BrowserMediaStatePayload {
+  tabId: string;
+  title: string;
+  paused: boolean;
+  ended: boolean;
+  /** 秒。 */
+  position: number;
+  /** 秒；未知为 0。 */
+  duration: number;
+}
+
+/** 系统卡片按钮 → 标签页内媒体元素（仅桌面端）。 */
+export type BrowserMediaCommand = 'play' | 'pause' | 'stop';
+
+/**
  * 浏览器/预览面板桥接能力
  * 用于: 导航到 URL、前进/后退/刷新、订阅 URL 变更事件
  * Tauri 命令: browser_navigate / browser_go_back / browser_go_forward / browser_reload
@@ -106,6 +129,17 @@ export interface BrowserBridge {
   muteTab: (tabId: string, muted: boolean) => Promise<void>;
   /** Subscribe to audio state changes */
   onAudioStateChanged: (listener: (payload: AudioStatePayload) => void) => () => void;
+  /**
+   * 订阅标签页内的站点媒体快照（事项 17 路线 A，仅桌面端；浏览器/预览为 no-op）。
+   * 系统卡片由 Rust SMTC 承载，标签页的站点 `navigator.mediaSession` 元数据与
+   * 播放进度经这里进入前端，再统一定夺卡片归属。
+   */
+  onMediaStateChanged: (listener: (payload: BrowserMediaStatePayload) => void) => () => void;
+  /**
+   * 把系统卡片的播放/暂停/停止作用到标签页内的媒体元素（仅桌面端）。
+   * 浏览器/预览模式下卡片由 `navigator.mediaSession` 自己处理，这里为 no-op。
+   */
+  mediaControlTab: (tabId: string, action: BrowserMediaCommand) => Promise<void>;
   /** Subscribe to new-window requests (`target="_blank"` / `window.open`); open a new tab. */
   onOpenNewTab: (listener: (url: string) => void) => () => void;
   /** 订阅被拦截的智能体站点链接点击（仅 Tauri；白名单站点）。 */

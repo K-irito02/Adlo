@@ -28,6 +28,11 @@ async fn cors_layer(request: axum::http::Request<Body>, next: Next) -> Response<
             "content-type, last-event-id, x-ci-access-token, authorization",
         ),
     );
+    // 媒体端点用 `x-adl-mtime-ms` 做外部变更比对；跨源（浏览器模式）读取必须显式暴露。
+    headers.insert(
+        header::ACCESS_CONTROL_EXPOSE_HEADERS,
+        header::HeaderValue::from_static("x-adl-mtime-ms, content-range, accept-ranges"),
+    );
     response
 }
 
@@ -47,7 +52,8 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/workspace/update-file", post(handlers::workspace::update_file))
         .route("/workspace/folder", post(handlers::workspace::create_folder))
         .route("/workspace/read", post(handlers::workspace::read_file))
-        .route("/workspace/read-media", post(handlers::workspace::read_media_file))
+        // 媒体流式端点（事项 7）：Range 读取，`<img>/<audio>/<video>` 直接用，不再 base64。
+        .route("/workspace/media", get(handlers::workspace::stream_media))
         .route("/workspace/change-preview", post(handlers::workspace::get_change_preview))
         .route("/workspace/tree", post(handlers::workspace::list_tree))
         .route("/workspace/search", post(handlers::workspace::search))

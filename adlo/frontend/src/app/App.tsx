@@ -25,6 +25,7 @@ import { ConflictModal } from './components/ConflictModal';
 import { StartupOverlayWrapper } from './components/StartupOverlayWrapper';
 import { useBrowserAgentLinkSubscription } from './features/browser/useBrowserAgentLinkSubscription';
 import { useGlobalBrowserMeta } from './features/browser/useGlobalBrowserMeta';
+import { useBrowserSystemMedia } from './features/browser/useBrowserSystemMedia';
 import { useAppUpdateWatcher } from './hooks/useAppUpdateWatcher';
 
 export function App() {
@@ -60,6 +61,8 @@ export function App() {
   useDragDropWorkspace(actions);
   useBrowserAgentLinkSubscription();
   useGlobalBrowserMeta();
+  // 事项 17 路线 A：浏览器标签页的站点媒体 → 系统卡片（与本地预览同级、多源 3s 轮播）。
+  useBrowserSystemMedia();
   useAppUpdateWatcher();
 
   const { locale, t } = useAppStartup(appInfo);

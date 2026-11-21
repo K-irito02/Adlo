@@ -260,7 +260,6 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
                 lineNumbersEnabled={lineNumbersEnabled}
                 wordWrapEnabled={wordWrapEnabled}
                 onDiffMount={handleDiffMount}
-                onOpenFile={props.onOpenFile}
                 onOpenChangePreview={props.onOpenChangePreview}
                 selectedChangePreviewPath={selectedChangePreviewPath}
                 selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}

@@ -319,7 +319,7 @@ crates/adl-logging/            # 统一日志 crate
 ### Q: `pnpm dev:tauri -- --log-level trace` 报 `cargo run … unexpected argument '--log-level'`
 日志 flag **只经环境变量**传递，不再作为 argv 透传给 `cargo tauri dev`。若仍复现，检查启动脚本是否为当前版本。
 
-### Q: 浏览器模式界面空白（只有"复制调试日志"按钮）
+### Q: 浏览器模式界面空白（错误卡 / 无内容）
 浏览器模式语义为**失败即失败**：`app` 域不再回退 mock，`getInfo` 失败即以错误卡呈现。
 
 排查：看 `debug-logs-browser*.txt`。

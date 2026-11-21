@@ -13,10 +13,13 @@ use adl_types::{
     FileOutlineItem, RetrievalSnapshot, WorkspaceChangePreview, WorkspaceFileChangedEvent,
     WorkspaceMeta, WorkspaceTreeNode,
 };
-use axum::extract::State;
-use axum::response::IntoResponse;
+use axum::body::Body;
+use axum::extract::{Query, State};
+use axum::http::{HeaderMap, StatusCode, header};
+use axum::response::{IntoResponse, Response};
 use std::path::PathBuf;
-
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
+use tokio_util::io::ReaderStream;
 /// Run a blocking closure and collapse the `spawn_blocking` join error into an
 /// `AppError::Internal`. Keeps every handler free of the `?` operator so the
 /// `impl IntoResponse` signature stays a plain `(StatusCode, Json<Value>)`.
@@ -273,17 +276,6 @@ struct FileOpsBody {
     workspace_path: Option<String>,
 }
 
-/// POST `/workspace/read-media` 请求体：与 `FileOpsBody` 同形但无 `content`
-///（收尾 D5：媒体读取静默忽略 `content` 易误导，独立类型显式收敛；
-/// serde 默认忽略未知字段，本类型仅做文档性收敛，不做严格拒绝）。
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MediaReadBody {
-    relative_path: String,
-    #[serde(default)]
-    workspace_path: Option<String>,
-}
-
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RenameBody {
@@ -471,30 +463,169 @@ pub async fn read_file(
     ipc::to_response(result)
 }
 
-/// POST `/workspace/read-media` — read a binary/media file from the active
-/// workspace (or an explicit workspace path). Bytes are base64-encoded
-/// (`WorkspaceMediaDocument`) for JSON IPC transport.
-pub async fn read_media_file(
+/// GET `/workspace/media` 查询串：工作区相对路径 + 可选显式工作区根。
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaStreamQuery {
+    path: String,
+    #[serde(default)]
+    workspace_path: Option<String>,
+}
+
+/// 单段 `Range: bytes=…` 解析结果。
+/// `None` = 无 Range 或**无法解析**（非数字、超过 u64::MAX；按 RFC 忽略，返回整文件）。
+/// 注意：`+N` 与首尾空白会被 `u64`/`trim` 接受，属已知的宽松形态（不是 RFC 语法）。
+/// `Some(Ok(..))` = 可满足的闭区间；`Some(Err(()))` = 不可满足（416）。
+fn parse_single_range(raw: &str, total: u64) -> Option<Result<(u64, u64), ()>> {
+    let spec = raw.trim().strip_prefix("bytes=")?;
+    // 媒体播放器只发单段；多段请求按首段处理（RFC 允许服务端降级）。
+    let first = spec.split(',').next()?.trim();
+    let (start_raw, end_raw) = first.split_once('-')?;
+    if total == 0 {
+        return Some(Err(()));
+    }
+    if start_raw.is_empty() {
+        // 后缀区间 `bytes=-N`：最后 N 字节。
+        let suffix: u64 = end_raw.trim().parse().ok()?;
+        if suffix == 0 {
+            return Some(Err(()));
+        }
+        let len = suffix.min(total);
+        return Some(Ok((total - len, total - 1)));
+    }
+    let start: u64 = start_raw.trim().parse().ok()?;
+    if start >= total {
+        return Some(Err(()));
+    }
+    let end = if end_raw.trim().is_empty() {
+        total - 1
+    } else {
+        end_raw.trim().parse::<u64>().ok()?.min(total - 1)
+    };
+    if end < start {
+        return Some(Err(()));
+    }
+    Some(Ok((start, end)))
+}
+
+fn media_error_response(error: AppError) -> Response {
+    let status = match error {
+        AppError::Security(_) => StatusCode::FORBIDDEN,
+        AppError::NotFound(_) => StatusCode::NOT_FOUND,
+        _ => StatusCode::BAD_REQUEST,
+    };
+    (status, error.to_string()).into_response()
+}
+
+/// GET `/workspace/media?path=<相对路径>&workspacePath=<根>` — 以 **HTTP Range 流式**
+/// 返回工作区内文件（`<img>/<audio>/<video>` 直接作 `src`）。
+///
+/// 为什么不用 base64 IPC（2026-11-20 事项 7）：一次 base64 传整文件体积 ×1.33 且整文件
+/// 进内存，必须有 50 MiB 上限，大视频因此永久打不开；流式端点按需读盘，天然支持拖动进度、
+/// 不设体积上限。路径校验与 `/workspace/read` 同一信任链（`resolve_existing_file`：
+/// canonicalize + 拒绝越界/symlink 逃逸；缺文件收敛为 404）。
+pub async fn stream_media(
     State(state): State<ServerState>,
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
-    let input: MediaReadBody = match ipc::json_body(body).await {
-        Ok(v) => v,
-        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    Query(query): Query<MediaStreamQuery>,
+    headers: HeaderMap,
+) -> Response {
+    let root_path = match workspace_root(&state, query.workspace_path.clone()) {
+        Ok(path) => path,
+        Err(error) => return media_error_response(error),
     };
-    let root_path = match workspace_root(&state, input.workspace_path) {
-        Ok(p) => p,
-        Err(e) => return ipc::to_response(Err(e)),
+    let absolute =
+        match adl_fs_ops::resolve_existing_file(PathBuf::from(&root_path).as_path(), &query.path) {
+            Ok(path) => path,
+            Err(error) => return media_error_response(error),
+        };
+    let meta = match tokio::fs::metadata(&absolute).await {
+        Ok(meta) => meta,
+        Err(error) => {
+            return (StatusCode::NOT_FOUND, format!("cannot stat media file: {error}"))
+                .into_response();
+        },
     };
-    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        let doc = adl_workspace::read_media_file(
-            PathBuf::from(root_path).as_path(),
-            &input.relative_path,
-        )?;
-        Ok(serde_json::to_value(doc)?)
+    if !meta.is_file() {
+        return (StatusCode::BAD_REQUEST, "media target is not a file").into_response();
+    }
+
+    let total = meta.len();
+    let mime = adl_workspace::guess_media_mime(&query.path);
+    let cache_control = "no-store";
+    let modified_ms = meta
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis().to_string())
+        .unwrap_or_default();
+
+    // 空文件：合法但无字节，避免 range 计算下溢。
+    if total == 0 {
+        return Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, mime)
+            .header(header::CONTENT_LENGTH, 0u64)
+            .header(header::ACCEPT_RANGES, "bytes")
+            .header("x-adl-mtime-ms", modified_ms)
+            .header(header::CACHE_CONTROL, cache_control)
+            .body(Body::empty())
+            .unwrap_or_else(|error| {
+                (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
+            });
+    }
+
+    let parsed = headers
+        .get(header::RANGE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| parse_single_range(value, total));
+
+    let (status, start, end) = match parsed {
+        None => (StatusCode::OK, 0u64, total - 1),
+        Some(Ok((start, end))) => (StatusCode::PARTIAL_CONTENT, start, end),
+        Some(Err(())) => {
+            return Response::builder()
+                .status(StatusCode::RANGE_NOT_SATISFIABLE)
+                .header(header::CONTENT_RANGE, format!("bytes */{total}"))
+                .header(header::ACCEPT_RANGES, "bytes")
+                .body(Body::empty())
+                .unwrap_or_else(|error| {
+                    (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
+                });
+        },
+    };
+
+    let mut file = match tokio::fs::File::open(&absolute).await {
+        Ok(file) => file,
+        Err(error) => {
+            // 已存在但打不开（权限/占用）：不是“不存在”，不能返回 404。
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("cannot open media file: {error}"))
+                .into_response();
+        },
+    };
+    if start > 0 {
+        if let Err(error) = file.seek(std::io::SeekFrom::Start(start)).await {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("cannot seek media: {error}"))
+                .into_response();
+        }
+    }
+    let length = end - start + 1;
+    let stream = ReaderStream::with_capacity(file.take(length), 64 * 1024);
+
+    let mut builder = Response::builder()
+        .status(status)
+        .header(header::CONTENT_TYPE, mime)
+        .header(header::CONTENT_LENGTH, length)
+        .header(header::ACCEPT_RANGES, "bytes")
+        // mtime 用自定义毫秒头：前端 `mediaSource` 取它做外部变更比对，
+        // 避免为 HTTP-date 引入新依赖（`Last-Modified` 需要 IMF-fixdate）。
+        .header("x-adl-mtime-ms", modified_ms)
+        .header(header::CACHE_CONTROL, cache_control);
+    if status == StatusCode::PARTIAL_CONTENT {
+        builder = builder.header(header::CONTENT_RANGE, format!("bytes {start}-{end}/{total}"));
+    }
+    builder.body(Body::from_stream(stream)).unwrap_or_else(|error| {
+        (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response()
     })
-    .await;
-    ipc::to_response(result)
 }
 
 /// POST `/workspace/change-preview` — diff preview for a file.

@@ -40,7 +40,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     onTogglePatchHunkCollapse,
     onSetAllPatchHunksCollapsed,
     onSetPatchReviewFilter,
-    onOpenFile,
     recentWorkspaces,
     workspaceChangesExpanded,
     gitSnapshots,
@@ -205,12 +204,10 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     setRenamingPath: setChangesRenamingPath,
     setRenameDialogOpen: setChangesRenameDialogOpen,
     setDeleteConfirmPath: setChangesDeleteConfirmPath,
-    onOpenFile,
     isNodeDeleted,
     // 事项2：变更树目录同样出右键菜单（与文件面板对齐）。
     showMenuForDirectories: true,
-    // 事项2追加："在文件中打开（open-in-files）"不需要，右键菜单不再提供
-    // （DiffEditorSection 的"在文件中打开"按钮保留）。文件面板本就没有该项。
+    // 事项2追加："在文件中打开（open-in-files）"不需要，右键菜单不再提供；文件面板本就没有该项。
     includeOpenInFiles: false,
     showClipboard: false,
     showGitActions: true,
@@ -279,7 +276,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     onTogglePatchHunkCollapse,
     onSetAllPatchHunksCollapsed,
     onSetPatchReviewFilter,
-    onOpenFile,
     onHideFromRightPanels,
     navigatorCollapsed,
     changesNavigatorMode,

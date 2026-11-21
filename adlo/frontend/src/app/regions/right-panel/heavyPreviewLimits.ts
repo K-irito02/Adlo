@@ -3,7 +3,9 @@ import { profileDiffCost, type DiffCostProfile } from './diffCost';
 
 /**
  * 大文件直接渲染阈值（字节）：超过后先显示友好提示 + "仍然打开"，
- * 避免超大文件解码/渲染卡住界面。传输上限（文本 8MB / 媒体 50MB）之内的二次门禁。
+ * 避免超大文件解码/渲染卡住界面。文本读取上限为 8MB；媒体走 Range 流式端点，
+ * 不再有传输体积上限，这里的媒体阈值只是“先确认再渲染”的二次门禁；
+ * Office/PDF 分支会把整份字节 fetch 给解析库，阈值同时限制这一步。
  * 未列出的品类（text/code/markdown/binary）无字节门：文本走字符门，
  * binary 无预览——索引得 undefined 即"不设门"，新增品类默认亦如此（有意为之）。
  */
@@ -21,7 +23,7 @@ export const HEAVY_PREVIEW_BYTES: Partial<Record<FileCategory, number>> = {
  * 文本直接渲染阈值（字符数，按 JS string.length 即 UTF-16 码元计）：
  * txt/md/代码超 1MB 时先提示、确认后才渲染（编辑器高亮 + 大纲解析是大文本卡顿主因；
  * 读取上限 8MB 不变）。单位说明：ASCII 1 字符≈1 字节，CJK 约 3 字节，emoji 占 2 码元——
- * 阈值偏保守，hint 显示的体积经 TextEncoder 精确计算（见 EditorSurfaceShell）。
+ * 阈值偏保守；hint 显示的体积按 `fileContent.length` 近似（见 EditorSurfaceShell）。
  */
 export const TEXT_HEAVY_PREVIEW_CHARS = 1024 * 1024;
 

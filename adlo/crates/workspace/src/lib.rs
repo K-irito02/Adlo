@@ -53,8 +53,6 @@ pub fn outline(root: &Path, relative_path: &str) -> Result<Vec<FileOutlineItem>,
 }
 
 use adl_types::WorkspaceFileDocument;
-use adl_types::WorkspaceMediaDocument;
-use base64::Engine as _;
 use std::path::Path;
 
 /// 检索/树扫描/大纲共用门限（1MB）：语义是"后台批量通道上限"，
@@ -62,9 +60,6 @@ use std::path::Path;
 /// 变更预览的 current/base 双侧同样走 8MB（事项3）：读到之后是否渲染由前端
 /// HeavyPreviewGate（1M 字符确认门）决定，后端不再先于确认门拒掉。
 pub(crate) const DEFAULT_MAX_FILE_BYTES: u64 = 1024 * 1024;
-/// 媒体/办公二进制读取上限（50 MiB）：图片/文档通常远小于此值；
-/// 大视频超限时返回 InvalidInput，前端展示居中友好错误（含重试与体积说明）。
-pub(crate) const DEFAULT_MAX_MEDIA_BYTES: u64 = 50 * 1024 * 1024;
 
 /// 开文件文本上限（8MB）：搜索/树扫描/变更预览继续共用上面的 1MB，
 /// 只有用户主动打开文件的 read_file 走这里；超 1MB 内容由前端重型门
@@ -84,10 +79,10 @@ pub fn read_file(root: &Path, relative_path: &str) -> Result<WorkspaceFileDocume
     })
 }
 
-/// 按扩展名推断媒体 MIME（仅用于前端 Blob 构造与原生标签渲染，不做安全判定）。
-/// 未命中时回落 `application/octet-stream`：前端按扩展名二次路由渲染器，
-/// MIME 只决定 Blob 类型串（见 FilePreviewRenderers）；SVG 脚本风险由前端承担——
-/// SVG 必须只经 `<img>` 渲染，禁止内联/iframe/object（见 MediaPreview）。
+/// 按扩展名推断媒体 MIME（用作流式端点的 `Content-Type`；不做安全判定）。
+/// 未命中时回落 `application/octet-stream`：前端按扩展名二次路由渲染器；
+/// SVG 脚本风险由前端承担——SVG 必须只经 `<img>` 渲染，禁止内联/iframe/object
+/// （见 MediaPreview）。Office 分支用 `fetch().arrayBuffer()`，不依赖 MIME 造 Blob。
 pub fn guess_media_mime(relative_path: &str) -> &'static str {
     let normalized = relative_path.replace('\\', "/");
     let file_name = normalized.rsplit('/').next().unwrap_or(&normalized);
@@ -147,31 +142,6 @@ pub fn guess_media_mime(relative_path: &str) -> &'static str {
         "odp" => "application/vnd.oasis.opendocument.presentation",
         _ => "application/octet-stream",
     }
-}
-
-pub fn read_media_file(
-    root: &Path,
-    relative_path: &str,
-) -> Result<WorkspaceMediaDocument, AppError> {
-    read_media_file_with_limit(root, relative_path, DEFAULT_MAX_MEDIA_BYTES)
-}
-
-pub(crate) fn read_media_file_with_limit(
-    root: &Path,
-    relative_path: &str,
-    max_bytes: u64,
-) -> Result<WorkspaceMediaDocument, AppError> {
-    // mtime 取数走同一最终 canonical 路径（收尾 M1），与读内容同信任链。
-    let canonical = adl_fs_ops::resolve_workspace_file(root, relative_path)?;
-    let bytes = adl_fs_ops::read_binary_file(root, relative_path, max_bytes)?;
-    let modified = crate::fs::file_modified_at(&canonical);
-    Ok(WorkspaceMediaDocument {
-        path: relative_path.replace('\\', "/"),
-        mime: guess_media_mime(relative_path).to_string(),
-        base64: base64::engine::general_purpose::STANDARD.encode(&bytes),
-        size: bytes.len() as u64,
-        last_modified_at: modified,
-    })
 }
 
 pub fn get_absolute_path(root: &Path, relative_path: &str) -> Result<String, AppError> {
@@ -735,22 +705,6 @@ mod tests {
     }
 
     #[test]
-    fn read_media_file_returns_base64_with_mime() {
-        let dir =
-            std::env::temp_dir().join(format!("adl-workspace-media-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("clip.mp4"), [0u8, 1u8, 2u8, 3u8]).unwrap();
-
-        let doc = read_media_file(&dir, "clip.mp4").unwrap();
-        assert_eq!(doc.path, "clip.mp4");
-        assert_eq!(doc.mime, "video/mp4");
-        assert_eq!(doc.size, 4);
-        assert_eq!(doc.base64, "AAECAw==");
-
-        let _ = std::fs::remove_dir_all(dir);
-    }
-
-    #[test]
     fn read_file_allows_text_above_legacy_1mb_limit() {
         // 开文件文本上限 8MB：2MB 文本可读（旧 1MB 上限会拒），渲染侧由前端重型门把关。
         let dir =
@@ -761,19 +715,6 @@ mod tests {
 
         let doc = read_file(&dir, "big.txt").unwrap();
         assert_eq!(doc.content.len(), big.len());
-
-        let _ = std::fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn read_media_file_rejects_over_limit() {
-        let dir = std::env::temp_dir()
-            .join(format!("adl-workspace-media-limit-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("big.mp4"), vec![9u8; 32]).unwrap();
-
-        let err = read_media_file_with_limit(&dir, "big.mp4", 8).unwrap_err();
-        assert!(matches!(err, AppError::InvalidInput(_)));
 
         let _ = std::fs::remove_dir_all(dir);
     }

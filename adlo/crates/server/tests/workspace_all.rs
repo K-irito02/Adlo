@@ -771,3 +771,310 @@ async fn search_window_pages_with_precise_has_more() {
         common::send_request(state.clone(), Method::POST, "/workspace/clear-current", None).await;
     let _ = std::fs::remove_dir_all(ws);
 }
+
+// ===========================================================================
+// 媒体流式端点（事项 7：GET /workspace/media，HTTP Range）
+// ===========================================================================
+
+/// 发送原始 GET（返回 status/headers/body bytes），供流式端点断言使用。
+async fn send_raw_get(
+    state: adl_server::ServerState,
+    uri: &str,
+    range: Option<&str>,
+) -> (axum::http::StatusCode, axum::http::HeaderMap, Vec<u8>) {
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    let mut builder = Request::builder().method(Method::GET).uri(uri);
+    if let Some(range) = range {
+        builder = builder.header("range", range);
+    }
+    let request = builder.body(Body::empty()).unwrap();
+    let response = common::app(state).oneshot(request).await.unwrap();
+    let status = response.status();
+    let headers = response.headers().clone();
+    let bytes = axum::body::to_bytes(response.into_body(), 8 * 1024 * 1024).await.unwrap().to_vec();
+    (status, headers, bytes)
+}
+
+fn encode_query_value(value: &str) -> String {
+    value
+        .bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b':' | b'/' => {
+                (b as char).to_string()
+            },
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
+
+/// 全量读取：200 + `Accept-Ranges: bytes` + 扩展名推断的 MIME + 完整字节。
+#[tokio::test]
+async fn media_stream_returns_full_file_with_range_support() {
+    let state = common::state("ws-media").await;
+    let ws = common::make_workspace("ws-media-src");
+    let bytes: Vec<u8> = (0..=255u8).cycle().take(64 * 1024).collect();
+    std::fs::write(ws.join("clip.mp4"), &bytes).unwrap();
+
+    let uri = format!(
+        "/workspace/media?path=clip.mp4&workspacePath={}",
+        encode_query_value(&ws.to_string_lossy())
+    );
+    let (status, headers, body) = send_raw_get(state.clone(), &uri, None).await;
+
+    assert_eq!(status, axum::http::StatusCode::OK);
+    assert_eq!(headers["content-type"], "video/mp4");
+    assert_eq!(headers["accept-ranges"], "bytes");
+    assert_eq!(headers["content-length"], bytes.len().to_string());
+    // 跨源（浏览器模式）必须能读到 mtime 头，否则外部变更刷新失效。
+    assert_eq!(
+        headers["access-control-expose-headers"],
+        "x-adl-mtime-ms, content-range, accept-ranges"
+    );
+    // mtime 头必须真实存在且是毫秒整数（前端据此做外部变更比对）。
+    assert!(
+        headers["x-adl-mtime-ms"]
+            .to_str()
+            .ok()
+            .and_then(|value| value.parse::<u128>().ok())
+            .is_some(),
+        "missing/invalid x-adl-mtime-ms: {:?}",
+        headers.get("x-adl-mtime-ms")
+    );
+    assert_eq!(body, bytes);
+
+    // 畸形 Range 按 RFC 忽略：仍返回完整 200，而不是 416/半截数据。
+    let (status, _, body) = send_raw_get(state.clone(), &uri, Some("bytes=abc")).await;
+    assert_eq!(status, axum::http::StatusCode::OK);
+    assert_eq!(body, bytes);
+
+    let _ = std::fs::remove_dir_all(ws);
+}
+
+/// 缺失文件：GET / HEAD 都返回 404（与浏览器模式端点一致；前端据此走 not-found 视图）。
+#[tokio::test]
+async fn media_stream_missing_file_is_404() {
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    let state = common::state("ws-media").await;
+    let ws = common::make_workspace("ws-media-src");
+    let uri = format!(
+        "/workspace/media?path=gone.mp3&workspacePath={}",
+        encode_query_value(&ws.to_string_lossy())
+    );
+
+    let get = Request::builder().method(Method::GET).uri(&uri).body(Body::empty()).unwrap();
+    let response = common::app(state.clone()).oneshot(get).await.unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
+
+    let head = Request::builder().method(Method::HEAD).uri(&uri).body(Body::empty()).unwrap();
+    let response = common::app(state).oneshot(head).await.unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
+
+    let _ = std::fs::remove_dir_all(ws);
+}
+
+/// 单段 Range：206 + `Content-Range` + 只回请求的字节。
+#[tokio::test]
+async fn media_stream_honours_byte_range() {
+    let state = common::state("ws-media").await;
+    let ws = common::make_workspace("ws-media-src");
+    let bytes: Vec<u8> = (0..100u8).collect();
+    std::fs::write(ws.join("song.mp3"), &bytes).unwrap();
+
+    let uri = format!(
+        "/workspace/media?path=song.mp3&workspacePath={}",
+        encode_query_value(&ws.to_string_lossy())
+    );
+    let (status, headers, body) = send_raw_get(state.clone(), &uri, Some("bytes=10-19")).await;
+
+    assert_eq!(status, axum::http::StatusCode::PARTIAL_CONTENT);
+    assert_eq!(headers["content-range"], "bytes 10-19/100");
+    assert_eq!(headers["content-length"], "10");
+    assert_eq!(body, bytes[10..=19].to_vec());
+
+    // 后缀区间 bytes=-5 → 最后 5 字节。
+    let (status, headers, body) = send_raw_get(state.clone(), &uri, Some("bytes=-5")).await;
+    assert_eq!(status, axum::http::StatusCode::PARTIAL_CONTENT);
+    assert_eq!(headers["content-range"], "bytes 95-99/100");
+    assert_eq!(body, bytes[95..=99].to_vec());
+
+    // 与浏览器端一致：`+N` 前缀按 Rust u64 解析规则接受。
+    let (status, headers, body) = send_raw_get(state.clone(), &uri, Some("bytes=+2-5")).await;
+    assert_eq!(status, axum::http::StatusCode::PARTIAL_CONTENT);
+    assert_eq!(headers["content-range"], "bytes 2-5/100");
+    assert_eq!(body, bytes[2..=5].to_vec());
+
+    let _ = std::fs::remove_dir_all(ws);
+}
+
+/// 不可满足的 Range → 416（播放器据此重试或报错，而不是拿到半截数据）。
+#[tokio::test]
+async fn media_stream_rejects_unsatisfiable_range() {
+    let state = common::state("ws-media").await;
+    let ws = common::make_workspace("ws-media-src");
+    std::fs::write(ws.join("clip.webm"), [1u8, 2, 3, 4]).unwrap();
+
+    let uri = format!(
+        "/workspace/media?path=clip.webm&workspacePath={}",
+        encode_query_value(&ws.to_string_lossy())
+    );
+    let (status, headers, _) = send_raw_get(state.clone(), &uri, Some("bytes=99-120")).await;
+
+    assert_eq!(status, axum::http::StatusCode::RANGE_NOT_SATISFIABLE);
+    assert_eq!(headers["content-range"], "bytes */4");
+
+    let _ = std::fs::remove_dir_all(ws);
+}
+
+/// 越界路径（`..` 逃出工作区）必须被拒，不得读到工作区外文件。
+#[tokio::test]
+async fn media_stream_rejects_path_escape() {
+    let state = common::state("ws-media").await;
+    let ws = common::make_workspace("ws-media-src");
+    let outside = ws.parent().unwrap().join(format!("secret-{}.txt", uuid::Uuid::new_v4()));
+    std::fs::write(&outside, b"top secret").unwrap();
+
+    let uri = format!(
+        "/workspace/media?path=../{}&workspacePath={}",
+        outside.file_name().unwrap().to_string_lossy(),
+        encode_query_value(&ws.to_string_lossy())
+    );
+    let (status, _, body) = send_raw_get(state.clone(), &uri, None).await;
+
+    assert_ne!(status, axum::http::StatusCode::OK, "越界读取必须失败");
+    assert!(!body.windows(9).any(|window| window == b"top secret"));
+
+    let _ = std::fs::remove_dir_all(ws);
+    let _ = std::fs::remove_file(outside);
+}
+
+/// 0 字节文件即使带 Range 也是 200 空响应（浏览器端同构实现已对齐）。
+#[tokio::test]
+async fn media_stream_empty_file_with_range_is_200() {
+    let state = common::state("ws-media").await;
+    let ws = common::make_workspace("ws-media-src");
+    std::fs::write(ws.join("empty.mp4"), []).unwrap();
+
+    let uri = format!(
+        "/workspace/media?path=empty.mp4&workspacePath={}",
+        encode_query_value(&ws.to_string_lossy())
+    );
+    let (status, headers, body) = send_raw_get(state.clone(), &uri, Some("bytes=0-9")).await;
+
+    assert_eq!(status, axum::http::StatusCode::OK);
+    assert_eq!(headers["content-length"], "0");
+    assert!(body.is_empty());
+
+    let _ = std::fs::remove_dir_all(ws);
+}
+
+/// 目录目标：400（与浏览器端一致）。
+#[tokio::test]
+async fn media_stream_directory_is_400() {
+    let state = common::state("ws-media").await;
+    let ws = common::make_workspace("ws-media-src");
+    std::fs::create_dir_all(ws.join("folder")).unwrap();
+
+    let uri = format!(
+        "/workspace/media?path=folder&workspacePath={}",
+        encode_query_value(&ws.to_string_lossy())
+    );
+    let (status, _, _) = send_raw_get(state.clone(), &uri, None).await;
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST);
+
+    let _ = std::fs::remove_dir_all(ws);
+}
+
+/// 工作区内的**文件符号链接**指向界外：父目录还在工作区内，只有最终
+/// `canonicalize` 后的界内校验能拦住它。
+///
+/// Windows 无开发者模式/符号链接权限时创建会失败；此时跳过（本机开发者模式下实跑），
+/// 另有目录 junction 用例覆盖“父目录解析”路径。
+#[tokio::test]
+async fn media_stream_rejects_file_symlink_escape() {
+    let state = common::state("ws-media").await;
+    let ws = common::make_workspace("ws-media-src");
+    let outside = ws.parent().unwrap().join(format!("secret-file-{}.txt", uuid::Uuid::new_v4()));
+    std::fs::write(&outside, b"top secret").unwrap();
+    let link = ws.join("link.mp4");
+
+    #[cfg(windows)]
+    {
+        if std::os::windows::fs::symlink_file(&outside, &link).is_err() {
+            let _ = std::fs::remove_dir_all(ws);
+            let _ = std::fs::remove_file(outside);
+            return;
+        }
+    }
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&outside, &link).unwrap();
+
+    let uri = format!(
+        "/workspace/media?path=link.mp4&workspacePath={}",
+        encode_query_value(&ws.to_string_lossy())
+    );
+    let (status, _, body) = send_raw_get(state.clone(), &uri, None).await;
+
+    assert_eq!(status, axum::http::StatusCode::FORBIDDEN);
+    assert!(!body.windows(9).any(|window| window == b"top secret"));
+
+    let _ = std::fs::remove_dir_all(ws);
+    let _ = std::fs::remove_file(outside);
+}
+
+/// 工作区内的目录链接指向界外：父目录 canonical 校验必须拒绝。
+///
+/// Windows 优先 `symlink_dir`（需开发者模式），失败回退 `mklink /J`
+/// （普通用户可创建 junction），两者都不可用才跳过。
+#[tokio::test]
+async fn media_stream_rejects_directory_link_escape() {
+    let state = common::state("ws-media").await;
+    let ws = common::make_workspace("ws-media-src");
+    let outside_dir = ws.parent().unwrap().join(format!("secret-dir-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&outside_dir).unwrap();
+    std::fs::write(outside_dir.join("secret.txt"), b"top secret").unwrap();
+
+    #[cfg(windows)]
+    let relative = {
+        let link = ws.join("linkdir");
+        let linked = std::os::windows::fs::symlink_dir(&outside_dir, &link).is_ok()
+            || std::process::Command::new("cmd")
+                .args(["/C", "mklink", "/J"])
+                .arg(&link)
+                .arg(&outside_dir)
+                .status()
+                .map(|status| status.success())
+                .unwrap_or(false);
+        if !linked {
+            // 无符号链接权限且 junction 创建失败：显式跳过（无可用的链接机制）。
+            let _ = std::fs::remove_dir_all(ws);
+            let _ = std::fs::remove_dir_all(outside_dir);
+            return;
+        }
+        "linkdir/secret.txt"
+    };
+    #[cfg(unix)]
+    let relative = {
+        let link = ws.join("linkdir");
+        std::os::unix::fs::symlink(&outside_dir, &link).unwrap();
+        "linkdir/secret.txt"
+    };
+
+    let uri = format!(
+        "/workspace/media?path={}&workspacePath={}",
+        encode_query_value(relative),
+        encode_query_value(&ws.to_string_lossy())
+    );
+    let (status, _, body) = send_raw_get(state.clone(), &uri, None).await;
+
+    assert_eq!(status, axum::http::StatusCode::FORBIDDEN);
+    assert!(!body.windows(9).any(|window| window == b"top secret"));
+
+    let _ = std::fs::remove_dir_all(ws);
+    let _ = std::fs::remove_dir_all(outside_dir);
+}

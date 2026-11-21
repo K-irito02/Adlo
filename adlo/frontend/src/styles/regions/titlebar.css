@@ -203,6 +203,19 @@
   height: 22px;
 }
 
+/* 「添加工作区」加载态：圆圈用高亮蓝紫色（区别于常规次级文字色）。
+   作用域限定在标题栏动作组，避免影响其它 Spinner 调用处；
+   加载按钮虽为 disabled，但必须保持不透明——`.adl-icon-btn:disabled` 的 0.4 透明度
+   会把颜色压暗，用户实测「太暗淡」的根因即在此。 */
+.adl-titlebar__action-group .adl-spinner {
+  color: var(--accent-violet);
+}
+
+.adl-titlebar__action-group .adl-icon-btn.is-loading:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+
 .adl-window-btn {
   width: var(--adl-iconstrip-button-size, 30px);
   height: var(--titlebar-height);

@@ -284,7 +284,7 @@ export const settingsEn = {
   storageCategoryLogsDesc:
     "Terminal and debug log files used for troubleshooting. Dev builds write to the worktree's .adl-logs; release builds use this directory.",
   storageCategoryLogsRelated:
-    'Relates to debugging tools (log collector, copy debug logs) and the troubleshooting workflow.',
+    'Relates to debugging tools (log collector, console export API) and the troubleshooting workflow.',
   storageCategoryCredentialsFallbackDesc:
     'Credentials stored as encrypted files, used only when the OS credential manager is unavailable.',
   storageCategoryCredentialsFallbackRelated:

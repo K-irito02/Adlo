@@ -94,3 +94,68 @@ describe('useRightPanelViewProps badges（只统计右侧面板标签）', () =>
     expect(result.current.badges.terminal).toBe(1);
   });
 });
+
+function snapshot(staged: string[], unstaged: string[], untracked: string[] = []) {
+  return { isRepo: true, staged, unstaged, untracked, conflicts: [] };
+}
+
+function workspace(id: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id,
+    name: id,
+    path: `C:\\ws\\${id}`,
+    rootPath: `C:\\ws\\${id}`,
+    available: true,
+    ...overrides,
+  };
+}
+
+describe('useRightPanelViewProps badges.changes（与变更面板同源）', () => {
+  it('非当前工作区的变更也计入徽章（不再恒为 0）', () => {
+    useAppStore.setState({
+      recentWorkspaces: [workspace('ws-current'), workspace('ws-other')],
+      gitSnapshot: snapshot([], []),
+      gitSnapshots: { 'ws-other': snapshot(['b.ts'], ['c.ts']) },
+      appInfo: {
+        currentWorkspace: { id: 'ws-current', gitSnapshot: snapshot([], []) },
+      },
+    } as never);
+
+    const { result } = renderHook(() => useRightPanelViewProps());
+
+    expect(result.current.badges.changes).toBe(2);
+  });
+
+  it('多工作区变更按合集求和，隐藏的工作区不计入', () => {
+    useAppStore.setState({
+      recentWorkspaces: [
+        workspace('ws-a'),
+        workspace('ws-b'),
+        workspace('ws-hidden', { removedFromSidebar: true }),
+        workspace('ws-unavailable', { available: false }),
+      ],
+      gitSnapshots: {
+        'ws-a': snapshot(['a.ts'], []),
+        'ws-b': snapshot([], ['b.ts', 'c.ts']),
+        'ws-hidden': snapshot(['x.ts'], ['y.ts']),
+        'ws-unavailable': snapshot(['z.ts'], []),
+      },
+    } as never);
+
+    const { result } = renderHook(() => useRightPanelViewProps());
+
+    expect(result.current.badges.changes).toBe(3);
+  });
+
+  it('快照尚未到达时回退当前工作区单例', () => {
+    useAppStore.setState({
+      recentWorkspaces: [],
+      gitSnapshots: {},
+      gitSnapshot: snapshot(['a.ts'], ['b.ts']),
+    } as never);
+
+    const { result } = renderHook(() => useRightPanelViewProps());
+
+    expect(result.current.badges.changes).toBe(2);
+  });
+});

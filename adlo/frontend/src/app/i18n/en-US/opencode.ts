@@ -40,7 +40,9 @@ export const opencodeEn = {
   opencodePrereleaseHint:
     'Prereleases ship new features before they are final, but may contain undiscovered issues.\n· The dropdown and buttons work exactly like the stable channel; only the versions themselves may be unstable.',
   opencodeOfficialLinksLabel: 'Official release info',
-  opencodeOfficialLinksDesc: 'Full version list, publish dates and details live upstream:',
+  opencodeOfficialLinksDesc:
+    'Full version list, publish dates and details on the official channels:',
+  opencodeOfficialSite: 'Official site',
   opencodeNpmPage: 'npm package page',
   opencodeGithubReleases: 'GitHub Releases',
   opencodeSourceSummaryTitle: 'Current download source',

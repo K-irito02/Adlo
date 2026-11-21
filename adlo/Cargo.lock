@@ -346,7 +346,6 @@ dependencies = [
  "adl-kernel",
  "adl-outline",
  "adl-types",
- "base64 0.22.1",
  "notify",
  "rusqlite",
  "serde",

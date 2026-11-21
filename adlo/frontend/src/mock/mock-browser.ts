@@ -40,6 +40,8 @@ export const mockBrowser: BrowserBridge = {
   setAgentIntercept: (_origins: string[], _enabled: boolean) => Promise.resolve(),
   muteTab: (_tabId: string, _muted: boolean) => Promise.resolve(),
   onAudioStateChanged: (_listener: (payload: AudioStatePayload) => void) => () => {},
+  onMediaStateChanged: () => () => {},
+  mediaControlTab: () => Promise.resolve(),
   setBrowserColorScheme: (_resolvedTheme: 'light' | 'dark') => Promise.resolve(),
   setZoom: (_tabId: string, _zoomFactor: number) => Promise.resolve(),
   clearCookies: (_tabId: string) => Promise.resolve(),

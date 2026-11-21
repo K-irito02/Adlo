@@ -96,6 +96,10 @@ mod imp {
                             bridge_for_handler.emit_open_new_tab(&url);
                             return Ok(());
                         }
+                        if let Some(state) = super::browser_media_state_from_message(&json_str) {
+                            bridge_for_handler.emit_media_state(&tab_id_for_handler, &state);
+                            return Ok(());
+                        }
                         if meta.get("type").and_then(|t| t.as_str()) == Some("meta") {
                             let title = meta
                                 .get("title")
@@ -189,7 +193,6 @@ pub struct AgentLink {
     pub kind: String,
     pub url: String,
 }
-
 /// Whether a `kind:'file'` payload looks like a local file destination:
 /// a `file://` URL, a Windows drive path (`C:\` / `C:/`), a POSIX/root-absolute
 /// path (leading `/`, but not protocol-relative `//host`), or a UNC path (`\\`).
@@ -258,9 +261,43 @@ pub fn open_new_tab_url_from_message(json: &str) -> Option<String> {
     }
 }
 
+/// Pure parse of an `{type:'adl-media', ...}` postMessage payload emitted by
+/// `init_script.js` (事项 17 路线 A).
+///
+/// Only the `adl-media` type is accepted; every missing/ill-typed field is
+/// normalized (strings → `""`, numbers → `0.0`, `paused` → `true`) so a
+/// half-written payload can never flip the system card into a fake "playing"
+/// state. Negative/NaN positions are clamped to `0.0`.
+pub fn browser_media_state_from_message(
+    json: &str,
+) -> Option<crate::webview_handle::BrowserMediaState> {
+    let value: serde_json::Value = serde_json::from_str(json).ok()?;
+    if value.get("type").and_then(|t| t.as_str()) != Some("adl-media") {
+        return None;
+    }
+    let text = |key: &str| value.get(key).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+    let seconds = |key: &str| {
+        value
+            .get(key)
+            .and_then(|v| v.as_f64())
+            .filter(|v| v.is_finite())
+            .map(|v| v.max(0.0))
+            .unwrap_or(0.0)
+    };
+    Some(crate::webview_handle::BrowserMediaState {
+        title: text("title"),
+        paused: value.get("paused").and_then(|v| v.as_bool()).unwrap_or(true),
+        ended: value.get("ended").and_then(|v| v.as_bool()).unwrap_or(false),
+        position: seconds("position"),
+        duration: seconds("duration"),
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{agent_link_from_message, open_new_tab_url_from_message};
+    use super::{
+        agent_link_from_message, browser_media_state_from_message, open_new_tab_url_from_message,
+    };
 
     #[test]
     fn agent_link_parses_valid_payload() {
@@ -397,5 +434,38 @@ mod tests {
     fn open_new_tab_missing_url_returns_none() {
         let json = r#"{"type":"open-new-tab"}"#;
         assert_eq!(open_new_tab_url_from_message(json), None);
+    }
+
+    #[test]
+    fn media_state_parses_site_metadata_and_progress() {
+        let json = r#"{"type":"adl-media","title":"视频标题","paused":false,"ended":false,"position":42.5,"duration":300}"#;
+        let state = browser_media_state_from_message(json).unwrap();
+        assert_eq!(state.title, "视频标题");
+        assert!(!state.paused);
+        assert_eq!(state.position, 42.5);
+        assert_eq!(state.duration, 300.0);
+    }
+
+    #[test]
+    fn media_state_ignores_other_message_types() {
+        assert!(
+            browser_media_state_from_message(
+                r#"{"type":"meta","title":"t","url":"https://example.com"}"#
+            )
+            .is_none()
+        );
+        assert!(browser_media_state_from_message("not json").is_none());
+    }
+
+    #[test]
+    fn media_state_defaults_to_paused_and_clamps_bad_numbers() {
+        // 半成品载荷：缺 paused 时必须按「暂停」处理，绝不假装正在播放；
+        // 负数 / 非法进度归零，避免系统卡片出现负进度。
+        let state =
+            browser_media_state_from_message(r#"{"type":"adl-media","position":-3}"#).unwrap();
+        assert!(state.paused);
+        assert_eq!(state.position, 0.0);
+        assert_eq!(state.duration, 0.0);
+        assert_eq!(state.title, "");
     }
 }

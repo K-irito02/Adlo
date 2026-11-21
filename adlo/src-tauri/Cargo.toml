@@ -41,7 +41,28 @@ tauri-plugin-wdio-webdriver = { version = "1.5.1", optional = true }
 tauri-plugin-wdio = { version = "1.5.1", optional = true }
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.61", features = ["Win32_System_SystemInformation"] }
+windows = { version = "0.61", features = [
+  "Win32_System_SystemInformation",
+  # 事项 17：应用身份（AUMID）——进程身份 + 窗口身份 + 注册表 DisplayName/IconUri
+  "Win32_System_Registry",
+  # RegCreateKeyExW 的 SECURITY_ATTRIBUTES 参数来自 Win32::Security（隐式依赖，勿删）
+  "Win32_Security",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_PropertiesSystem",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant",
+  "Win32_Storage_EnhancedStorage",
+  # 诊断 example（src-tauri/examples/smtc-probe.rs）：读取系统媒体会话归属
+  "Media_Control",
+  # 诊断 example 枚举窗口（GetWindowText / EnumWindows）
+  "Win32_UI_WindowsAndMessaging",
+  # 事项 17 路线 A：宿主侧自建系统媒体会话（SMTC）
+  "Media",
+  "Win32_System_WinRT",
+  "Foundation",
+  "Foundation_Collections",
+] }
 
 [features]
 default = ["custom-protocol"]

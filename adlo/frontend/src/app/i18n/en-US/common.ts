@@ -131,10 +131,8 @@ export const commonEn = {
   centerTabOpenAllInCenter: 'Open all in middle area',
 
   jobCount: '{count} jobs',
-  debugCopyLogs: 'Copy Debug Logs',
-  debugCopied: 'Copied!',
-  debugCopyFailed: 'Copy Failed',
   appMenu: 'Application menu',
+  inlineLinkSeparator: ', ',
 
   options: 'Options',
   panelControls: 'Panel controls',

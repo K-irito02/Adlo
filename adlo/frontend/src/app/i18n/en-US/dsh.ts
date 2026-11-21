@@ -158,8 +158,8 @@ export const dshEn = {
   dshVersionBusyRetry: 'A version operation is in progress, please try again shortly',
   dshInstallFailed: 'Failed to install version',
   dshOfficialLinksLabel: 'Official release info',
-  dshOfficialLinksDesc:
-    'Full version history, publish dates and changelogs live on the official pages:',
+  dshOfficialLinksDesc: 'Full version list, publish dates and details on the official channels:',
+  dshOfficialSite: 'Official site',
   dshNpmPage: 'npm package page',
   dshGithubReleases: 'GitHub Releases',
 } as const;

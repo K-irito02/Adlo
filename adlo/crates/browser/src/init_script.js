@@ -999,6 +999,77 @@
     })();
     } catch (err) {}
 
+    // ---- SYSTEM MEDIA CARD (SMTC) STATE REPORTING ----
+    // Item 17 (route A): Adlo disables Chromium's MediaSessionService (its session
+    // is attributed to msedgewebview2.exe, so the Windows card always showed
+    // "unknown app"). The host now owns the SMTC session, so visible browser tabs
+    // must forward what the page itself knows: the site's own
+    // navigator.mediaSession.metadata plus the primary <video>/<audio> state.
+    // Only the "primary" element is reported: a playing one wins, otherwise the
+    // one with the largest currentTime (same rule as the Rust control script).
+    try {
+    (function() {
+        if (window.top !== window.self) return;
+        if (typeof chrome === 'undefined' || !chrome.webview || !chrome.webview.postMessage) return;
+        var REPORT_MIN_INTERVAL_MS = 900;
+        var lastReportAt = 0;
+
+        function pickMedia() {
+            var nodes = document.querySelectorAll('video,audio');
+            var best = null;
+            for (var i = 0; i < nodes.length; i++) {
+                var m = nodes[i];
+                if (!m.currentSrc && !m.src && !m.srcObject) continue;
+                if (!best) { best = m; continue; }
+                if (best.paused && !m.paused) { best = m; continue; }
+                if (best.paused === m.paused && m.currentTime > best.currentTime) best = m;
+            }
+            return best;
+        }
+
+        function readSiteMetadata() {
+            try {
+                var md = navigator.mediaSession && navigator.mediaSession.metadata;
+                if (!md) return null;
+                // 系统卡片只显示标题（副标题已按用户要求移除），这里只回传 title。
+                return { title: md.title || '' };
+            } catch (err) {
+                return null;
+            }
+        }
+
+        function report(force) {
+            var now = Date.now();
+            if (!force && now - lastReportAt < REPORT_MIN_INTERVAL_MS) return;
+            var media = pickMedia();
+            if (!media) return;
+            lastReportAt = now;
+            var md = readSiteMetadata();
+            var duration = media.duration;
+            chrome.webview.postMessage(JSON.stringify({
+                type: 'adl-media',
+                title: (md && md.title) || document.title || '',
+                paused: !!media.paused,
+                ended: !!media.ended,
+                position: isFinite(media.currentTime) ? media.currentTime : 0,
+                duration: isFinite(duration) && duration > 0 ? duration : 0
+            }));
+        }
+
+        // Media element events do not bubble, but a capturing listener on the
+        // document still sees them (play/pause/ended/seek arrive from the page).
+        function onEvent(force) { return function() { report(force); }; }
+        document.addEventListener('play', onEvent(true), true);
+        document.addEventListener('playing', onEvent(true), true);
+        document.addEventListener('pause', onEvent(true), true);
+        document.addEventListener('ended', onEvent(true), true);
+        document.addEventListener('seeked', onEvent(true), true);
+        document.addEventListener('loadedmetadata', onEvent(false), true);
+        document.addEventListener('durationchange', onEvent(false), true);
+        document.addEventListener('timeupdate', onEvent(false), true);
+    })();
+    } catch (err) {}
+
     // ---- C1: HISTORY URL NORMALIZATION ----
     // Pure helpers (extracted by frontend tests between __ADL_PURE markers).
     // Mirrors the frontend historyDedupKey rules: strip tracking params

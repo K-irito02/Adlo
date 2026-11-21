@@ -5,6 +5,7 @@ pub(crate) mod browser_webview_setup;
 pub mod divider_strip;
 pub mod download_commands;
 pub mod file_save;
+pub mod media_session;
 pub mod platform;
 pub mod port_scan;
 pub mod reserved;

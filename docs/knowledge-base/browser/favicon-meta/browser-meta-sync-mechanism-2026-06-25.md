@@ -249,7 +249,7 @@ https://www.bilibili.com/video/BV123/?t=10#t=5
 
 ### 查看方式
 
-1. 点击页面右上角"复制调试日志"按钮
+1. 在控制台执行 `window.__exportDebugLogs()`（界面已不提供「复制调试日志」按钮）
 2. 查看项目根目录的日志文件：
    - Tauri 模式：`debug-logs.txt`
    - 浏览器模式：`debug-logs-browser.txt`

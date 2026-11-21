@@ -9,7 +9,7 @@ Adlo项目目前处于**开发阶段**，安全措施以防御深度为目标。
 | IPC 安全 | 所有系统能力通过 Tauri Command 暴露，WebView 不能直接触达系统资源 |
 | Capability 权限 | Tauri capability 文件精确控制允许的命令和 API，禁止 `"all"` / `"**"` 通配 |
 | 凭据隔离 | API Key / Token 通过 `crates/credential/` 加密存储，不落普通配置或日志（详见[凭据管理](#凭据管理)） |
-| CSP 策略 | `tauri.conf.json` 显式声明 `app.security.csp`，`withGlobalTauri` 默认关闭 |
+| CSP 策略 | `tauri.conf.json` 显式声明 `app.security.csp`，`withGlobalTauri` 默认关闭；`dangerousDisableAssetCspModification: ["style-src"]` 保证运行时注入的 `<style>` 不被 nonce/hash 失效；`img-src` / `media-src` 必须包含 `blob:`（Office 内嵌媒体与 object URL 依赖它） |
 | SQL 注入防护 | 所有查询参数使用 `rusqlite` 命名/位置参数绑定，禁止字符串拼接 SQL |
 
 ## 报告漏洞

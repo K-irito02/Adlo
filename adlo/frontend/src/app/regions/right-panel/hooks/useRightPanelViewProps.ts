@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { DIFF_LAYOUT_STORAGE_KEY } from '@utils/constants';
 
-import { countGitChanges } from '../types';
+import { countVisibleChanges } from '../types';
 import { useAppStore } from '@stores/slicedStore';
 import { panelTabSelectors } from '@stores/selectors';
 
@@ -23,6 +23,9 @@ export function useRightPanelViewProps() {
   );
   const dirtyEditorPaths = useAppStore(useShallow((s) => s.dirtyEditorPaths));
   const gitSnapshot = useAppStore(useShallow((s) => s.gitSnapshot));
+  // 徽章与变更面板同源：可见工作区 × gitSnapshots（事项 10）。
+  const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
+  const gitSnapshots = useAppStore(useShallow((s) => s.gitSnapshots));
   const appInfoForBadges = useAppStore(useShallow((s) => s.appInfo));
 
   const [diffSideBySide, setDiffSideBySide] = useState(readDiffSideBySidePreference);
@@ -44,13 +47,19 @@ export function useRightPanelViewProps() {
   const badges = useMemo(
     () => ({
       files: dirtyEditorPaths.length,
-      changes: countGitChanges(gitSnapshot ?? appInfoForBadges?.currentWorkspace?.gitSnapshot),
+      changes: countVisibleChanges(
+        recentWorkspaces,
+        gitSnapshots,
+        gitSnapshot ?? appInfoForBadges?.currentWorkspace?.gitSnapshot,
+      ),
       browser: panelBrowserTabCount,
       terminal: panelTerminalTabCount,
       settings: 0,
     }),
     [
       dirtyEditorPaths.length,
+      recentWorkspaces,
+      gitSnapshots,
       gitSnapshot,
       appInfoForBadges?.currentWorkspace?.gitSnapshot,
       panelBrowserTabCount,

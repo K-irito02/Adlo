@@ -268,6 +268,16 @@ impl BrowserManager {
         })
     }
 
+    /// 事项 17 路线 A：把系统卡片上的播放/暂停/停止作用到标签页内的媒体元素。
+    ///
+    /// 身份与口径与注入脚本一致：挑「正在播放优先、其次进度最大」的首选
+    /// `<video>/<audio>`。`action` 由命令层校验为 `play|pause|stop`。
+    pub fn control_media(&self, tab_id: &str, action: &str) -> Result<(), AppError> {
+        let script = media_control_script(action);
+        tracing::info!(tab_id, action, "browser media control");
+        self.with_handle(tab_id, |handle| handle.eval_js(&script).map(|_| ()))
+    }
+
     pub fn set_color_scheme_for_all(&self, color_scheme: &str) -> Result<(), AppError> {
         // 存储侧归一化（关闭审查）：非法输入在此收敛为 dark，随后存储/下发的值恒为
         // "light"|"dark"，首帧背景与 Profile 不再分裂。
@@ -390,6 +400,45 @@ impl BrowserManager {
     }
 }
 
+/// 标签页媒体控制脚本模板（事项 17 路线 A）。
+///
+/// `action` 由命令层校验为 `play|pause|stop`，并以 JSON 字面量替换占位符（不做字符串
+/// 拼接注入）。挑选元素的规则必须与 `init_script.js` 的上报口径一致（正在播放优先、
+/// 其次进度最大），否则卡片按钮会作用到另一个媒体元素上。
+const MEDIA_CONTROL_TEMPLATE: &str = r#"(function() {
+    var action = __ADL_MEDIA_ACTION__;
+    var nodes = document.querySelectorAll('video,audio');
+    var target = null;
+    for (var i = 0; i < nodes.length; i++) {
+        var m = nodes[i];
+        if (!m.currentSrc && !m.src && !m.srcObject) continue;
+        if (!target) { target = m; continue; }
+        if (target.paused && !m.paused) { target = m; continue; }
+        if (target.paused === m.paused && m.currentTime > target.currentTime) target = m;
+    }
+    if (!target) return;
+    if (action === 'play') {
+        var played = target.play();
+        if (played && played.catch) played.catch(function() {});
+    } else if (action === 'pause') {
+        target.pause();
+    } else if (action === 'stop') {
+        target.pause();
+        try { target.currentTime = 0; } catch (err) {}
+    }
+})();"#;
+
+fn media_control_script(action: &str) -> String {
+    let literal = match action {
+        "play" => "\"play\"",
+        "pause" => "\"pause\"",
+        "stop" => "\"stop\"",
+        // 命令层已拒绝其它值；兜底停住而不是误播。
+        _ => "\"pause\"",
+    };
+    MEDIA_CONTROL_TEMPLATE.replace("__ADL_MEDIA_ACTION__", literal)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -400,6 +449,21 @@ mod tests {
     fn test_webview_label_format() {
         let label = webview_label("test-tab-123");
         assert_eq!(label, "adl-browser-view-test-tab-123");
+    }
+
+    #[test]
+    fn media_control_script_embeds_quoted_action() {
+        // 事项 17：动作以 JSON 字面量嵌入，只有命令层校验过的三个值；
+        // 未知值收敛到 pause（与「宁可停住也不要误播」的取向一致）。
+        for action in ["play", "pause", "stop"] {
+            let script = media_control_script(action);
+            assert!(script.contains(&format!("var action = \"{action}\";")));
+            assert!(script.contains("querySelectorAll('video,audio')"));
+            // 与 init_script.js 的上报口径一致：仅 srcObject（MediaStream）的元素也算主媒体，
+            // 否则卡片会显示 A、按钮却作用到 B（P4 R1 F1）。
+            assert!(script.contains("!m.srcObject"), "control script must accept srcObject");
+        }
+        assert!(media_control_script("rm -rf").contains("var action = \"pause\";"));
     }
 
     #[test]

@@ -3,7 +3,7 @@ import type { ChangesPanelProps } from '../types';
 import type { DiffEditorRef, EditorRef } from '@stores/types';
 
 import { detectEditorLanguage } from '@utils/workspacePaths';
-import { categorizeFile, isMediaFileCategory } from '../fileTypeRouter';
+import { categorizeFile, usesBinaryMediaChannel } from '../fileTypeRouter';
 import {
   classifyDiffTier,
   confirmHeavyPreview,
@@ -16,7 +16,7 @@ import { HeavyPreviewGate } from '../HeavyPreviewGate';
 import { formatBytes } from '@root/design-system/html';
 import { computePreviewDiffVisualRanges } from '@features/diff-viewer';
 import type { PreviewDiffCollapsedRange } from '@features/diff-viewer';
-import { LazyMarkdownPreviewWrapper, PreviewExternalActions } from '@features/preview';
+import { LazyMarkdownPreviewWrapper } from '@features/preview';
 import { resolvePreviewOwner } from '@features/preview/previewExternal';
 import { FilePreviewRenderers } from '../FilePreviewRenderers';
 import { openMarkdownFileLink, openUrlByMethod } from '@features/preview/openByMethod';
@@ -47,7 +47,6 @@ interface DiffEditorSectionProps extends Pick<
   | 'latestPatchApplication'
   | 'appInfo'
   | 'onDiffMount'
-  | 'onOpenFile'
   | 'onOpenChangePreview'
   | 'selectedChangePreviewPath'
   | 'selectedChangePreviewWorkspaceId'
@@ -71,7 +70,6 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   lineNumbersEnabled,
   wordWrapEnabled,
   onDiffMount,
-  onOpenFile,
   onOpenChangePreview,
   selectedChangePreviewPath,
   selectedChangePreviewWorkspaceId,
@@ -190,12 +188,12 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
 
   // 内容区无预览时直接留空（事项1）：不渲染"当前没有检测到文件变更"等空态文字。
   // 加载期给骨架反馈而非纯空白（事项4 感知优化）。
-  // 事项4：媒体/办公变更没有 changePreview（字节走 changePreviewMedia），
+  // 事项4：媒体/办公变更没有 changePreview（来源走 changePreviewMedia），
   // 只有文本变更才要求 changePreview 存在。
   const previewPath = changePreview?.path ?? selectedChangePreviewPath;
   const previewCategory = previewPath ? categorizeFile(previewPath) : undefined;
-  const isMediaPreview = previewCategory ? isMediaFileCategory(previewCategory) : false;
-  if (!changePreview && !isMediaPreview && previewCategory !== 'binary') {
+  const isMediaPreview = previewCategory ? usesBinaryMediaChannel(previewCategory) : false;
+  if (!changePreview && !isMediaPreview) {
     if (changePreviewLoading || changePreviewMediaLoading) {
       return <ChunkLoadingFallback />;
     }
@@ -270,10 +268,6 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
                 >
                   {t.fileOpenErrorRetry as string}
                 </button>
-                <PreviewExternalActions
-                  filePath={previewPath}
-                  workspaceId={selectedChangePreviewWorkspaceId}
-                />
               </div>
             </div>
           ) : (
@@ -288,56 +282,6 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
               theme={changePreviewTheme}
             />
           )}
-        </div>
-      </>
-    );
-  }
-
-  // 二进制/未知类型不做预览；其扩展名不在 WebView2 可渲染白名单内，故不提供
-  // 浏览器兜底入口（占位只保留「在文件中打开」）。
-  if (changePreviewCategory === 'binary' && previewPath) {
-    return (
-      <>
-        {validationBanner}
-        <div
-          ref={setPreviewShellRef}
-          className="adl-tool-editor adl-tool-editor--changes"
-          data-testid="changes-preview-shell"
-        >
-          <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
-            <div className="adl-unsupported-preview" role="status">
-              <svg
-                className="adl-unsupported-preview__icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-                <path d="M14 2v6h6" />
-                <path d="M9 15h6" />
-              </svg>
-              <span className="adl-unsupported-preview__text">
-                {t.changesPreviewBinary as string}
-              </span>
-              <span className="adl-unsupported-preview__hint" title={previewPath}>
-                {previewPath}
-              </span>
-              <button
-                type="button"
-                className="adl-unsupported-preview__action"
-                onClick={() => {
-                  onOpenFile(previewPath);
-                  // 切到文件面板（收尾 M6）：光打开 store 不切面板，用户视觉无变化即断头。
-                  useAppStore.getState().setActiveRightTool('files');
-                }}
-              >
-                {t.changesPreviewOpenInFiles as string}
-              </button>
-            </div>
-          </div>
         </div>
       </>
     );

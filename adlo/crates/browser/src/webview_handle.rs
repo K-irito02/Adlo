@@ -83,6 +83,33 @@ pub trait WebView2EventBridge: Send + Sync {
     /// Default no-op so implementers that never host visible agent tabs (e.g. the
     /// silent meta bridge) need not handle it.
     fn emit_agent_link(&self, _tab_id: &str, _kind: &str, _url: &str) {}
+    /// Emit a browser-tab media snapshot. Triggered by `init_script.js`
+    /// (postMessage `{type:'adl-media', ...}`) for the page's own
+    /// `navigator.mediaSession` metadata + primary `<video>/<audio>` state.
+    ///
+    /// 事项 17 路线 A：Adlo 关闭了 Chromium 的 `MediaSessionService`（其会话归属
+    /// `msedgewebview2.exe`，系统卡片恒显示「未知应用」），改由 Rust 侧 SMTC 承载。
+    /// 标签页要「两者兼得」就必须把站点媒体状态经这里送回宿主。
+    ///
+    /// Default no-op so the silent meta bridge ignores it.
+    fn emit_media_state(&self, _tab_id: &str, _state: &BrowserMediaState) {}
+}
+
+/// 浏览器标签页的媒体快照（事项 17 路线 A）。
+///
+/// 来源：`init_script.js` 的 `{type:'adl-media', ...}` postMessage。`title` 优先取站点
+/// 自己的 `navigator.mediaSession.metadata.title`（与 Edge 卡片同源），回退
+/// `document.title`；`paused/ended/position/duration` 取自页面里「正在播放优先、
+/// 其次进度最大」的那个 `<video>/<audio>`。系统卡片只显示标题，因此没有 artist/album。
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct BrowserMediaState {
+    pub title: String,
+    pub paused: bool,
+    pub ended: bool,
+    /// 秒。
+    pub position: f64,
+    /// 秒；未知为 0。
+    pub duration: f64,
 }
 
 /// Type alias for an optional shared event bridge reference.

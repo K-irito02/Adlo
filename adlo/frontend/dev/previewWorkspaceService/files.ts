@@ -7,7 +7,6 @@ import { captureGitSnapshot } from './git';
 
 export const DEFAULT_MAX_FILE_BYTES = 1024 * 1024;
 export const DEFAULT_MAX_TEXT_FILE_BYTES = 8 * 1024 * 1024;
-export const DEFAULT_MAX_MEDIA_BYTES = 50 * 1024 * 1024;
 
 /**
  * 携带 IPC 错误码的服务错误（收尾 F-05）：dev-server 顶层 catch 透传其 code，
@@ -219,35 +218,6 @@ export async function readFile(
   return {
     path: normalizePath(relativeTarget),
     content,
-    lastModifiedAt: stats.mtimeMs,
-  };
-}
-
-export async function readMediaFile(
-  rootPath: string,
-  relativeTarget: string,
-): Promise<import('../src/kernel/index').WorkspaceMediaDocument> {
-  const absolutePath = resolveWorkspacePath(rootPath, relativeTarget);
-  const stats = await fs.stat(absolutePath);
-  if (!stats.isFile()) {
-    throw new PreviewServiceError(`not a file: ${relativeTarget}`);
-  }
-  if (stats.size > DEFAULT_MAX_MEDIA_BYTES) {
-    throw new PreviewServiceError(
-      `file exceeds media read limit (${DEFAULT_MAX_MEDIA_BYTES} bytes): ${relativeTarget}`,
-    );
-  }
-  const bytes = await fs.readFile(absolutePath);
-  if (bytes.length > DEFAULT_MAX_MEDIA_BYTES) {
-    throw new PreviewServiceError(
-      `file exceeds media read limit (${DEFAULT_MAX_MEDIA_BYTES} bytes): ${relativeTarget}`,
-    );
-  }
-  return {
-    path: normalizePath(relativeTarget),
-    mime: guessMediaMime(relativeTarget),
-    base64: bytes.toString('base64'),
-    size: bytes.length,
     lastModifiedAt: stats.mtimeMs,
   };
 }

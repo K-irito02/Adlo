@@ -96,16 +96,18 @@ export interface WorkspaceFileDocument {
 }
 
 /**
- * 二进制/媒体文件文档（与 Rust `WorkspaceMediaDocument` 逐字段对齐，
- * `#[serde(rename_all = "camelCase")]`）。
- * 字节以 base64 承载，前端解码为 Blob 后经 object URL 交给原生标签/第三方预览库渲染。
+ * 媒体/办公文件的可寻址来源（事项 7 起取代 base64 文档）。
+ *
+ * `url` 指向工作区媒体流式端点（HTTP Range），`<img>/<audio>/<video>` 可直接作 `src`，
+ * Office/PDF 预览在前端 `fetch` 成 ArrayBuffer 再交给解析库。不再随 IPC 传整文件字节，
+ * 因此没有体积上限，也不会因 base64 膨胀把界面卡住。
  */
-export interface WorkspaceMediaDocument {
+export interface WorkspaceMediaSource {
   path: string;
   mime: string;
-  base64: string;
   size: number;
   lastModifiedAt: number;
+  url: string;
 }
 
 export type WorkspaceChangeKind = 'added' | 'modified' | 'deleted';

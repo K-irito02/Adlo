@@ -1185,6 +1185,22 @@ pub fn browser_mute_tab(
     Ok(ipc(state.browser_manager.mute_tab(&tab_id, muted)))
 }
 
+/// 事项 17 路线 A：系统媒体卡片的播放/暂停/停止 → 标签页内的媒体元素。
+///
+/// `action` 只接受 `play|pause|stop`（越界值在这里就拒绝，不下发到页面）；
+/// 元素挑选规则与 `init_script.js` 的上报口径一致。
+#[tauri::command]
+pub fn browser_media_control_tab(
+    state: State<'_, AppState>,
+    tab_id: String,
+    action: String,
+) -> Result<IpcResult<()>, CommandError> {
+    if !matches!(action.as_str(), "play" | "pause" | "stop") {
+        return Ok(ipc(Err(AppError::InvalidInput(format!("unsupported media action: {action}")))));
+    }
+    Ok(ipc(state.browser_manager.control_media(&tab_id, &action)))
+}
+
 #[tauri::command]
 pub fn browser_set_color_scheme(
     state: State<'_, AppState>,

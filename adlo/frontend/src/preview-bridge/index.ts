@@ -142,18 +142,19 @@ export async function setupPreviewBridge(): Promise<void> {
     setFilesChangedRoots: eventsBridge.setFilesChangedRoots,
   };
 
-  // `workspace.pickDirectory` (native folder dialog) and
-  // `workspace.revealInFileManager` (OS file-manager reveal) are system
-  // capabilities with NO ad-server HTTP route — the httpBridge implementations
-  // are `NOT_SUPPORTED` stubs (httpBridge.ts 279/297). The desktop merge keeps
-  // them on the Tauri invoke impl (tauri-bridge/index.ts); the browser merge
-  // keeps them on the real preview impls (`preview-workspace.ts` pickDirectory
-  // → `/workspace/pick-directory`, revealInFileManager → `/workspace/reveal`)
+  // `workspace.pickDirectory` (native folder dialog), `workspace.revealInFileManager`
+  // (OS file-manager reveal) and `workspace.openInDefaultApp` (OS default app) are
+  // system capabilities with NO ad-server HTTP route — the httpBridge implementations
+  // are `NOT_SUPPORTED` stubs. The desktop merge keeps them on the Tauri invoke impl
+  // (tauri-bridge/index.ts); the browser merge keeps them on the real preview impls
+  // (`preview-workspace.ts` pickDirectory → `/workspace/pick-directory`,
+  // revealInFileManager → `/workspace/reveal`, openInDefaultApp → `/system/open-file`)
   // while every other `workspace.*` RPC stays on httpBridge.
   const workspaceHttp: WorkspaceBridge = {
     ...http.workspace,
     pickDirectory: workspacePreview.pickDirectory,
     revealInFileManager: workspacePreview.revealInFileManager,
+    openInDefaultApp: workspacePreview.openInDefaultApp,
     onFileChanged: workspacePreview.onFileChanged,
   };
 
@@ -238,6 +239,8 @@ export async function setupPreviewBridge(): Promise<void> {
         audioMonitor.setMuted(tabId, muted);
         return Promise.resolve();
       },
+      onMediaStateChanged: () => () => {},
+      mediaControlTab: () => Promise.resolve(),
       onAudioStateChanged: (listener: (payload: AudioStatePayload) => void) =>
         audioMonitor.onStateChange(listener),
       setBrowserColorScheme: (_resolvedTheme: 'light' | 'dark') => Promise.resolve(),
@@ -310,6 +313,7 @@ export async function setupPreviewBridge(): Promise<void> {
     // preferHttpWhenReachable).
     reserved: mockDigitalLifeBridge.reserved,
     update: mockDigitalLifeBridge.update,
+    mediaSession: mockDigitalLifeBridge.mediaSession,
     subscribeModelStream: http.subscribeModelStream,
     subscribeRunActivity: http.subscribeRunActivity,
     subscribeTerminalStream: http.subscribeTerminalStream,

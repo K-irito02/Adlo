@@ -38,6 +38,7 @@ import { mockClipboard } from './mock/mock-clipboard';
 import { mockFileSave } from './mock/mock-file-save';
 import { mockSystemMonitor } from './mock/mock-system-monitor';
 import { createMockStorage } from './mock/mock-storage';
+import { mockMediaSession } from './mock/mock-media-session';
 import { createMockUpdateBridge } from './mock/mock-update';
 
 const MOCK_BRIDGE_STORAGE_KEY = 'adlo-mock-bridge-state';
@@ -138,6 +139,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   systemMonitor: mockSystemMonitor,
   storage: createMockStorage(),
   update: createMockUpdateBridge(),
+  mediaSession: mockMediaSession,
 };
 
 export function setupMockBridge(): void {
