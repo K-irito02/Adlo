@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PROTOTYPE — 右下角错误卡片排版方案</title>
+    <style>
+      /* PROTOTYPE — 一次性文件，不进入生产。目的：挑选错误卡片排版。 */
+      * { box-sizing: border-box; }
+      :root {
+        --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+        --font-serif: "Iowan Old Style", "Palatino Linotype", "Songti SC", Georgia, serif;
+        --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+        --radius-btn: 2px;
+        --radius-card: 12px;
+        --space-1: 4px;
+        --space-2: 8px;
+        --space-3: 12px;
+        --space-4: 16px;
+        --text-xs: 11px;
+        --text-sm: 12px;
+        --text-base: 13px;
+      }
+      html[data-theme="light"] {
+        --bg: #f2f0eb;
+        --surface: #fbfaf7;
+        --surface-2: #f6f4ef;
+        --text: #1f1e1b;
+        --text-secondary: #55524b;
+        --text-muted: #8a857b;
+        --border: #ddd8cf;
+        --border-strong: #c9c3b8;
+        --shadow: 0 12px 40px rgba(50, 45, 35, 0.14), 0 2px 8px rgba(50, 45, 35, 0.07);
+        --danger: #a33a2a;
+        --danger-soft: #f2e0dc;
+        --danger-text: #8a2f21;
+        --btn-bg: rgba(43, 43, 40, 0.08);
+        --btn-fg: #2b2b28;
+        --btn-border: rgba(43, 43, 40, 0.28);
+        --code-bg: #f3efe8;
+      }
+      html[data-theme="dark"] {
+        --bg: #171715;
+        --surface: #22221f;
+        --surface-2: #1c1c19;
+        --text: #ece9e2;
+        --text-secondary: #b8b2a6;
+        --text-muted: #857f74;
+        --border: #3a3934;
+        --border-strong: #4b4942;
+        --shadow: 0 16px 48px rgba(0, 0, 0, 0.52), 0 2px 10px rgba(0, 0, 0, 0.38);
+        --danger: #d9776a;
+        --danger-soft: rgba(217, 119, 106, 0.16);
+        --danger-text: #e79a8e;
+        --btn-bg: rgba(232, 227, 216, 0.12);
+        --btn-fg: #e8e3d8;
+        --btn-border: rgba(232, 227, 216, 0.38);
+        --code-bg: #1b1b18;
+      }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        font-family: var(--font-ui);
+        font-size: var(--text-base);
+        line-height: 1.5;
+        color: var(--text);
+        background: var(--bg);
+        padding: 26px 26px 110px;
+      }
+      h1, h2, p { margin: 0; }
+      .kicker {
+        display: inline-block;
+        font-size: 10px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 2px 8px;
+        margin-bottom: 10px;
+      }
+      .top { max-width: 1180px; margin: 0 auto 22px; }
+      .top h1 { font-size: 24px; letter-spacing: -0.01em; margin-bottom: 8px; }
+      .top p { color: var(--text-secondary); max-width: 760px; font-size: var(--text-sm); }
+      main { max-width: 1180px; margin: 0 auto; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 18px; }
+      .variant { display: flex; flex-direction: column; gap: 8px; }
+      .variant-label { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+      .variant-label strong { font-size: 12px; }
+      .variant-label span { font-size: 10px; color: var(--text-muted); }
+      .card-select {
+        display: block;
+        width: 100%;
+        border: 0;
+        background: none;
+        padding: 0;
+        text-align: left;
+        cursor: pointer;
+        color: inherit;
+        font: inherit;
+        border-radius: 14px;
+      }
+      .card-select.selected .card { outline: 2px solid var(--btn-fg); outline-offset: 2px; }
+      .card {
+        width: 100%;
+        background: var(--surface);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow);
+        padding: 14px;
+      }
+      .icon {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+        color: var(--danger);
+      }
+      .icon svg { display: block; width: 100%; height: 100%; }
+      .title { font-size: 13px; font-weight: 650; color: var(--text); }
+      .detail {
+        font-size: 11px;
+        line-height: 1.55;
+        color: var(--text-secondary);
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+      .meta { font-size: 10px; color: var(--text-muted); }
+      .close-btn, .icon-btn {
+        border: 0;
+        background: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 2px;
+        line-height: 0;
+        border-radius: 4px;
+      }
+      .close-btn:hover, .icon-btn:hover { color: var(--text); background: var(--surface-2); }
+      .action-btn {
+        border: 1px solid var(--btn-border);
+        background: var(--btn-bg);
+        color: var(--btn-fg);
+        border-radius: var(--radius-btn);
+        padding: 5px 10px;
+        font: inherit;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .text-link {
+        border: 0;
+        background: none;
+        color: var(--btn-fg);
+        font: inherit;
+        font-size: 11px;
+        font-weight: 650;
+        cursor: pointer;
+        padding: 0;
+      }
+      .text-link:hover { text-decoration: underline; }
+      .row { display: flex; align-items: center; gap: 8px; }
+      .spacer { flex: 1; }
+      .count-badge {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 1px 4px;
+      }
+
+      /* A — current: header + stacked detail + footer */
+      .a-head { display: flex; align-items: center; gap: 8px; }
+      .a-detail { margin-top: 8px; }
+      .a-footer { display: flex; justify-content: flex-end; margin-top: 12px; }
+
+      /* B — compact: actions in header */
+      .b-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+      .b-detail { margin-top: 7px; padding-left: 25px; }
+      .b-actions { display: inline-flex; align-items: center; gap: 4px; margin-left: 2px; }
+
+      /* C — accent bar */
+      .c-card { border-left: 3px solid var(--danger); padding-left: 12px; }
+      .c-head { display: flex; align-items: center; gap: 8px; }
+      .c-detail { margin-top: 8px; }
+      .c-footer { display: flex; justify-content: flex-end; margin-top: 12px; }
+
+      /* D — icon column */
+      .d-card { display: flex; gap: 11px; align-items: flex-start; }
+      .d-icon {
+        width: 28px; height: 28px; border-radius: 50%;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--danger-soft); flex-shrink: 0;
+      }
+      .d-icon .icon { width: 15px; height: 15px; }
+      .d-body { flex: 1; min-width: 0; }
+      .d-head { display: flex; align-items: center; gap: 8px; }
+      .d-detail { margin-top: 6px; }
+      .d-footer { display: flex; justify-content: flex-end; margin-top: 11px; }
+
+      /* E — action right */
+      .e-card { display: flex; gap: 12px; align-items: flex-start; }
+      .e-body { flex: 1; min-width: 0; }
+      .e-head { display: flex; align-items: center; gap: 8px; }
+      .e-detail { margin-top: 7px; }
+      .e-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+
+      /* F — editorial */
+      .f-card { padding: 15px; }
+      .f-label { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--danger-text); }
+      .f-title { font-family: var(--font-serif); font-size: 17px; letter-spacing: -0.01em; margin-top: 3px; }
+      .f-detail {
+        margin-top: 10px;
+        padding: 9px 10px;
+        background: var(--code-bg);
+        border-radius: 2px;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        line-height: 1.5;
+        color: var(--text-secondary);
+        overflow-wrap: anywhere;
+      }
+      .f-footer { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 12px; }
+      .f-footer .meta { margin-right: auto; }
+
+      /* Bottom bar */
+      .bottom-bar {
+        position: fixed; left: 16px; right: 16px; bottom: 14px; z-index: 30;
+        background: var(--surface); border: 1px solid var(--border-strong);
+        border-radius: 14px; box-shadow: var(--shadow);
+        padding: 12px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+      }
+      .group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+      .label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+      .chip {
+        border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary);
+        border-radius: 999px; padding: 4px 9px; font-size: 11px; cursor: pointer;
+      }
+      .chip.active { border-color: var(--btn-border); color: var(--btn-fg); background: var(--btn-bg); }
+      .mini-btn {
+        border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary);
+        border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer;
+      }
+      .mini-btn.primary { background: var(--btn-bg); border-color: var(--btn-border); color: var(--btn-fg); }
+      .summary { font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary); flex: 1 1 300px; min-width: 220px; }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <div class="kicker">PROTOTYPE · 一次性 · 不进入生产</div>
+      <h1>右下角错误卡片排版</h1>
+      <p>同一份内容（工作区推送失败）的 6 种排版。点卡片选中，底部复制选择发给助手。</p>
+    </header>
+
+    <main>
+      <div class="grid" id="grid"></div>
+    </main>
+
+    <div class="bottom-bar">
+      <div class="group">
+        <span class="label">主题</span>
+        <button class="chip" id="themeLight">亮</button>
+        <button class="chip" id="themeDark">暗</button>
+      </div>
+      <div class="summary" id="summary"></div>
+      <div class="group">
+        <button class="mini-btn primary" id="copyChoice">复制选择</button>
+      </div>
+    </div>
+
+    <script>
+      const CONTENT = {
+        title: '工作区错误',
+        detail:
+          "Workspace error: fatal: unable to access 'https://github.com/K-irito02/Git-Test-Repository.git/': schannel: failed to receive handshake, SSL/TLS connection failed",
+        count: '×2',
+        retry: '重试推送',
+      };
+
+      const ICON_ALERT = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.4" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.6v3.9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.3" r="0.8" fill="currentColor"/></svg>`;
+      const ICON_CLOSE = `<svg viewBox="0 0 12 12" width="12" height="12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
+      const ICON_COPY = `<svg viewBox="0 0 12 12" width="12" height="12" fill="none" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.1"/><path d="M8 4V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h1" stroke="currentColor" stroke-width="1.1"/></svg>`;
+      const ICON_CHEVRON = `<svg viewBox="0 0 12 12" width="12" height="12" fill="none" aria-hidden="true"><path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+      function closeBtn(label = '关闭') {
+        return `<button type="button" class="close-btn" aria-label="${label}">${ICON_CLOSE}</button>`;
+      }
+      function copyBtn() {
+        return `<button type="button" class="icon-btn" aria-label="复制详情">${ICON_COPY}</button>`;
+      }
+      function chevronBtn() {
+        return `<button type="button" class="icon-btn" aria-label="折叠详情">${ICON_CHEVRON}</button>`;
+      }
+
+      const LAYOUTS = [
+        {
+          id: 'current',
+          name: 'A · 当前布局',
+          note: '标题行 + 详情 + 底部右对齐操作',
+          html: () => `
+            <div class="card">
+              <div class="a-head">
+                <span class="icon">${ICON_ALERT}</span>
+                <span class="title">${CONTENT.title}</span>
+                <span class="spacer"></span>
+                ${chevronBtn()}${copyBtn()}${closeBtn()}
+              </div>
+              <div class="detail a-detail">${CONTENT.detail}</div>
+              <div class="a-footer"><button class="action-btn">${CONTENT.retry}</button></div>
+            </div>`,
+        },
+        {
+          id: 'compact',
+          name: 'B · 紧凑头部操作',
+          note: '操作收进标题行，去掉底部 footer',
+          html: () => `
+            <div class="card">
+              <div class="b-head">
+                <span class="icon">${ICON_ALERT}</span>
+                <span class="title">${CONTENT.title}</span>
+                <span class="count-badge">${CONTENT.count}</span>
+                <span class="spacer"></span>
+                <span class="b-actions">${copyBtn()}${closeBtn()}</span>
+                <button class="action-btn">${CONTENT.retry}</button>
+              </div>
+              <div class="detail b-detail">${CONTENT.detail}</div>
+            </div>`,
+        },
+        {
+          id: 'accent',
+          name: 'C · 左侧语义条',
+          note: '左侧 3px 危险色条 + 底部右对齐操作',
+          html: () => `
+            <div class="card c-card">
+              <div class="c-head">
+                <span class="icon">${ICON_ALERT}</span>
+                <span class="title">${CONTENT.title}</span>
+                <span class="spacer"></span>
+                ${chevronBtn()}${copyBtn()}${closeBtn()}
+              </div>
+              <div class="detail c-detail">${CONTENT.detail}</div>
+              <div class="c-footer"><button class="action-btn">${CONTENT.retry}</button></div>
+            </div>`,
+        },
+        {
+          id: 'icon-column',
+          name: 'D · 图标列',
+          note: '左侧圆形图标列，内容与操作在右列',
+          html: () => `
+            <div class="card d-card">
+              <span class="d-icon"><span class="icon">${ICON_ALERT}</span></span>
+              <div class="d-body">
+                <div class="d-head">
+                  <span class="title">${CONTENT.title}</span>
+                  <span class="count-badge">${CONTENT.count}</span>
+                  <span class="spacer"></span>
+                  ${chevronBtn()}${copyBtn()}${closeBtn()}
+                </div>
+                <div class="detail d-detail">${CONTENT.detail}</div>
+                <div class="d-footer"><button class="action-btn">${CONTENT.retry}</button></div>
+              </div>
+            </div>`,
+        },
+        {
+          id: 'action-right',
+          name: 'E · 右侧操作列',
+          note: '内容在左、重试按钮在右；适合短错误',
+          html: () => `
+            <div class="card e-card">
+              <div class="e-body">
+                <div class="e-head">
+                  <span class="icon">${ICON_ALERT}</span>
+                  <span class="title">${CONTENT.title}</span>
+                  <span class="count-badge">${CONTENT.count}</span>
+                </div>
+                <div class="detail e-detail">${CONTENT.detail}</div>
+              </div>
+              <div class="e-side">
+                ${closeBtn()}
+                <button class="action-btn">${CONTENT.retry}</button>
+              </div>
+            </div>`,
+        },
+        {
+          id: 'editorial',
+          name: 'F · 编辑部风格',
+          note: '衬线标题 + 等宽详情块 + 文字重试',
+          html: () => `
+            <div class="card f-card">
+              <div class="row">
+                <span class="f-label">WORKSPACE ERROR</span>
+                <span class="spacer"></span>
+                ${closeBtn()}
+              </div>
+              <div class="f-title">${CONTENT.title}</div>
+              <div class="f-detail">${CONTENT.detail}</div>
+              <div class="f-footer">
+                <span class="meta">${CONTENT.count} · 刚刚</span>
+                <button class="text-link">${CONTENT.retry}</button>
+              </div>
+            </div>`,
+        },
+      ];
+
+      const state = { theme: 'dark', selected: 'current' };
+      const root = document.documentElement;
+      const grid = document.getElementById('grid');
+      const summary = document.getElementById('summary');
+
+      function render() {
+        root.dataset.theme = state.theme;
+        document.getElementById('themeLight').classList.toggle('active', state.theme === 'light');
+        document.getElementById('themeDark').classList.toggle('active', state.theme === 'dark');
+        grid.innerHTML = LAYOUTS.map(
+          (layout) => `
+            <div class="variant">
+              <div class="variant-label"><strong>${layout.name}</strong><span>${layout.note}</span></div>
+              <div class="card-select${state.selected === layout.id ? ' selected' : ''}" data-id="${layout.id}" role="button" tabindex="0">
+                ${layout.html()}
+              </div>
+            </div>`,
+        ).join('');
+        grid.querySelectorAll('[data-id]').forEach((el) => {
+          const select = () => {
+            state.selected = el.dataset.id;
+            render();
+          };
+          el.addEventListener('click', select);
+          el.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              select();
+            }
+          });
+        });
+        const selected = LAYOUTS.find((l) => l.id === state.selected);
+        summary.textContent = `已选：${selected?.name ?? state.selected} · ${state.theme === 'light' ? '亮色' : '暗色'}`;
+        const url = new URL(location.href);
+        url.searchParams.set('layout', state.selected);
+        url.searchParams.set('theme', state.theme);
+        history.replaceState(null, '', url);
+      }
+
+      document.getElementById('themeLight').onclick = () => { state.theme = 'light'; render(); };
+      document.getElementById('themeDark').onclick = () => { state.theme = 'dark'; render(); };
+      document.getElementById('copyChoice').onclick = async () => {
+        const selected = LAYOUTS.find((l) => l.id === state.selected);
+        const text = JSON.stringify(
+          { layout: state.selected, label: selected?.name, note: selected?.note, theme: state.theme },
+          null,
+          2,
+        );
+        try {
+          await navigator.clipboard.writeText(text);
+          const btn = document.getElementById('copyChoice');
+          const old = btn.textContent;
+          btn.textContent = '已复制';
+          setTimeout(() => { btn.textContent = old; }, 1500);
+        } catch {
+          summary.textContent = text;
+        }
+      };
+
+      const params = new URLSearchParams(location.search);
+      if (params.get('theme') === 'light') state.theme = 'light';
+      if (params.get('layout') && LAYOUTS.some((l) => l.id === params.get('layout'))) {
+        state.selected = params.get('layout');
+      }
+      render();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-palette="graphite">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PROTOTYPE — 按钮填充色与语义规范</title>
+    <style>
+      /* ==========================================================================
+         PROTOTYPE — 一次性文件，不进入生产。
+         目的：挑选「按钮填充色 + 语义规范」，并预览工作区推送/拉取 spinner。
+         选择结果请点底部「复制选择」发给助手。
+         ========================================================================== */
+      * { box-sizing: border-box; }
+      :root {
+        --radius: 8px;
+        --btn-radius: 8px;
+        --radius-lg: 10px;
+        --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+        --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+        --space-1: 4px;
+        --space-2: 8px;
+        --space-3: 12px;
+        --space-4: 16px;
+        --space-5: 24px;
+        --text-xs: 11px;
+        --text-sm: 12px;
+        --text-base: 13px;
+        --text-lg: 16px;
+        --line: 1.55;
+      }
+      html[data-theme="light"] {
+        --bg: #f2f0eb;
+        --surface: #fbfaf7;
+        --surface-2: #f6f4ef;
+        --text: #1f1e1b;
+        --text-secondary: #55524b;
+        --text-muted: #8a857b;
+        --border: #ddd8cf;
+        --border-strong: #c9c3b8;
+        --shadow: 0 12px 40px rgba(50, 45, 35, 0.12), 0 2px 8px rgba(50, 45, 35, 0.06);
+        --overlay: rgba(30, 28, 24, 0.38);
+      }
+      html[data-theme="dark"] {
+        --bg: #171715;
+        --surface: #22221f;
+        --surface-2: #1c1c19;
+        --text: #ece9e2;
+        --text-secondary: #b8b2a6;
+        --text-muted: #857f74;
+        --border: #3a3934;
+        --border-strong: #4b4942;
+        --shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.35);
+        --overlay: rgba(0, 0, 0, 0.55);
+      }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        font-family: var(--font-ui);
+        font-size: var(--text-base);
+        line-height: var(--line);
+        color: var(--text);
+        background: var(--bg);
+        padding: 28px 28px 120px;
+      }
+      h1, h2, h3, p { margin: 0; }
+      .top { max-width: 1180px; margin: 0 auto 22px; }
+      .kicker {
+        display: inline-block;
+        font-size: var(--text-xs);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        padding: 2px 8px;
+        border-radius: 999px;
+        margin-bottom: 10px;
+      }
+      .top h1 { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 8px; }
+      .top p { color: var(--text-secondary); max-width: 780px; }
+      main { max-width: 1180px; margin: 0 auto; }
+      .section-title {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin: 26px 0 12px;
+      }
+      .section-title h2 { font-size: 16px; }
+      .section-title span { font-size: var(--text-xs); color: var(--text-muted); }
+      .grid { display: grid; gap: 14px; }
+      .grid--scenarios { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        padding: 18px;
+      }
+      .card h3 { font-size: 14px; margin-bottom: 4px; }
+      .card .hint { color: var(--text-muted); font-size: var(--text-xs); margin-bottom: 14px; }
+      .dialog-title { font-size: 16px; font-weight: 650; margin-bottom: 8px; }
+      .dialog-message { color: var(--text-secondary); font-size: var(--text-sm); margin-bottom: 16px; }
+      .dialog-input {
+        width: 100%;
+        min-height: 70px;
+        resize: vertical;
+        border: 1px solid var(--border);
+        background: var(--surface-2);
+        color: var(--text);
+        border-radius: var(--radius);
+        padding: 10px 12px;
+        font-family: var(--font-ui);
+        font-size: var(--text-sm);
+        margin-bottom: 10px;
+      }
+      .dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        border-top: 1px solid var(--border);
+        padding-top: 14px;
+        margin-top: 4px;
+      }
+      .dialog-footer .btn {
+        min-height: 28px;
+        padding-top: 6px;
+        padding-bottom: 6px;
+      }
+      .checkbox {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-secondary);
+        font-size: var(--text-sm);
+        margin-bottom: 14px;
+      }
+      .checkbox input { accent-color: var(--primary); }
+
+      /* ---------------- Buttons ---------------- */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 7px 12px;
+        border-radius: var(--btn-radius);
+        font-family: var(--font-ui);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        line-height: 1.2;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: background 120ms ease, border-color 120ms ease, color 120ms ease, filter 120ms ease;
+        white-space: nowrap;
+      }
+      .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .btn.solid { background: var(--sem-bg); color: var(--sem-fg); border-color: var(--sem-bg); }
+      .btn.solid:hover { filter: brightness(0.92); }
+      .btn.soft {
+        background: var(--sem-soft-bg);
+        color: var(--sem-soft-fg);
+        border-color: var(--sem-soft-border);
+      }
+      .btn.soft:hover { filter: brightness(0.96); }
+      .btn.selected { outline: 2px solid var(--sem-bg); outline-offset: 2px; }
+      .btn.is-busy { position: relative; }
+      .btn-label-shimmer {
+        display: inline-block;
+        background: linear-gradient(
+          90deg,
+          var(--text-muted) 0%,
+          var(--text-muted) 35%,
+          var(--text) 50%,
+          var(--text-muted) 65%,
+          var(--text-muted) 100%
+        );
+        background-size: 300% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        animation: adl-text-shimmer 2s ease-in-out infinite;
+      }
+      .adl-loading-row-text--shimmer {
+        background: linear-gradient(
+          90deg,
+          var(--text-muted) 0%,
+          var(--text-muted) 35%,
+          var(--text) 50%,
+          var(--text-muted) 65%,
+          var(--text-muted) 100%
+        );
+        background-size: 300% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        animation: adl-text-shimmer 2s ease-in-out infinite;
+        white-space: nowrap;
+      }
+      @keyframes adl-text-shimmer {
+        0% { background-position: 200% center; }
+        100% { background-position: -200% center; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .btn-label-shimmer,
+        .adl-loading-row-text--shimmer {
+          animation: none;
+          color: var(--text-muted);
+          background: none;
+          -webkit-background-clip: unset;
+          background-clip: unset;
+        }
+      }
+      .sem-primary { --sem-bg: var(--primary); --sem-fg: var(--primary-fg); --sem-soft-bg: var(--primary-soft-bg); --sem-soft-fg: var(--primary-soft-fg); --sem-soft-border: var(--primary-soft-border); }
+      .sem-danger { --sem-bg: var(--danger); --sem-fg: var(--danger-fg); --sem-soft-bg: var(--danger-soft-bg); --sem-soft-fg: var(--danger-soft-fg); --sem-soft-border: var(--danger-soft-border); }
+      .sem-warning { --sem-bg: var(--warning); --sem-fg: var(--warning-fg); --sem-soft-bg: var(--warning-soft-bg); --sem-soft-fg: var(--warning-soft-fg); --sem-soft-border: var(--warning-soft-border); }
+      .sem-success { --sem-bg: var(--success); --sem-fg: var(--success-fg); --sem-soft-bg: var(--success-soft-bg); --sem-soft-fg: var(--success-soft-fg); --sem-soft-border: var(--success-soft-border); }
+      .sem-neutral { --sem-bg: var(--neutral); --sem-fg: var(--neutral-fg); --sem-soft-bg: var(--neutral-soft-bg); --sem-soft-fg: var(--neutral-soft-fg); --sem-soft-border: var(--neutral-soft-border); }
+
+      /* ---------------- Palette grid ---------------- */
+      .semantic-card { display: flex; flex-direction: column; gap: 10px; }
+      .semantic-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+      .semantic-head strong { font-size: 13px; }
+      .semantic-head span { font-size: var(--text-xs); color: var(--text-muted); }
+      .semantic-desc { color: var(--text-secondary); font-size: var(--text-xs); min-height: 32px; }
+      .pick-row { display: flex; flex-wrap: wrap; gap: 8px; }
+      .contrast { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-left: 4px; }
+      .contrast.good { color: var(--success-soft-fg); }
+      .contrast.low { color: var(--danger-soft-fg); }
+
+      /* ---------------- Workspace spinner ---------------- */
+      .ws-card { display: flex; flex-direction: column; gap: 10px; }
+      .ws-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface-2);
+        min-width: 0;
+      }
+      .ws-name { font-weight: 600; font-size: var(--text-sm); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .ws-branch {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--text-secondary);
+        background: var(--bg-active);
+        border: 0;
+        border-radius: var(--btn-radius);
+        padding: 1px 6px;
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .ws-status { margin-left: auto; color: var(--text-secondary); font-size: var(--text-xs); white-space: nowrap; flex-shrink: 0; }
+      .ws-status.adl-loading-row-text--shimmer { color: transparent; }
+      .ws-count { color: var(--text-muted); font-size: var(--text-xs); font-weight: 600; flex-shrink: 0; }
+      .ws-header.is-busy .ws-count { display: none; }
+
+      /* ---------------- Global error card ---------------- */
+      .global-error {
+        position: fixed;
+        right: 20px;
+        bottom: 82px;
+        width: 360px;
+        background: var(--surface);
+        border: 1px solid var(--border-strong);
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        padding: 14px;
+        z-index: 20;
+        display: none;
+      }
+      .global-error.show { display: block; }
+      .ge-head { display: flex; align-items: center; gap: 8px; }
+      .ge-icon {
+        width: 18px; height: 18px; border-radius: 50%;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--danger-soft-bg); color: var(--danger-soft-fg);
+        font-weight: 800; font-size: 11px;
+      }
+      .ge-head strong { font-size: 13px; }
+      .ge-close { margin-left: auto; background: none; border: 0; color: var(--text-muted); cursor: pointer; font-size: 16px; }
+      .ge-detail {
+        margin: 8px 0 12px;
+        color: var(--text-secondary);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        white-space: pre-wrap;
+        max-height: 72px;
+        overflow: auto;
+      }
+      .ge-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+      /* ---------------- Bottom bar ---------------- */
+      .bottom-bar {
+        position: fixed;
+        left: 16px;
+        right: 16px;
+        bottom: 14px;
+        z-index: 30;
+        background: var(--surface);
+        border: 1px solid var(--border-strong);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        padding: 12px 14px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 16px;
+      }
+      .bottom-bar .group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+      .bottom-bar .label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+      .chip {
+        border: 1px solid var(--border);
+        background: var(--surface-2);
+        color: var(--text-secondary);
+        border-radius: 999px;
+        padding: 4px 9px;
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .chip.active { border-color: var(--primary); color: var(--primary); background: var(--primary-soft-bg); }
+      .mini-btn {
+        border: 1px solid var(--border);
+        background: var(--surface-2);
+        color: var(--text-secondary);
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .mini-btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); }
+      .summary {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--text-secondary);
+        flex: 1 1 360px;
+        min-width: 260px;
+      }
+      .state-box {
+        max-width: 1180px;
+        margin: 20px auto 0;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--text-secondary);
+        white-space: pre-wrap;
+        overflow: auto;
+      }
+      .note { color: var(--text-muted); font-size: var(--text-xs); margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <div class="kicker">PROTOTYPE · 一次性 · 不进入生产</div>
+      <h1>按钮填充色与语义规范</h1>
+      <p>
+        先选一套配色，再为每个语义挑「实心」或「柔和描边」。点底部「复制选择」把结果发给助手；
+        右下角全局错误卡片与工作区 spinner 也在本页预览。
+      </p>
+    </header>
+
+    <main>
+      <div class="section-title"><h2>真实对话框场景</h2><span>按钮会跟随你为每个语义选择的风格</span></div>
+      <div class="grid grid--scenarios">
+        <div class="card">
+          <h3>Commit 对话框</h3>
+          <div class="hint">普通主操作 · primary</div>
+          <div class="dialog-title">提交变更</div>
+          <input class="dialog-input" value="feat: 变更面板验收" readonly />
+          <label class="checkbox"><input type="checkbox" checked /> 暂存全部并提交</label>
+          <div class="dialog-footer">
+            <button class="btn soft sem-neutral" data-role="scenario-btn" data-sem="neutral">取消</button>
+            <button class="btn solid sem-primary" data-role="scenario-btn" data-sem="primary" id="commitDemo">提交</button>
+          </div>
+          <p class="note">点击「提交」查看按钮文字的扫光加载态（2 秒后恢复）。</p>
+        </div>
+
+        <div class="card">
+          <h3>普通确认</h3>
+          <div class="hint">主操作 · primary</div>
+          <div class="dialog-title">切换分支</div>
+          <p class="dialog-message">当前有未提交变更，切换后仍会保留在工作区。是否继续？</p>
+          <div class="dialog-footer">
+            <button class="btn soft sem-neutral" data-role="scenario-btn" data-sem="neutral">取消</button>
+            <button class="btn solid sem-primary" data-role="scenario-btn" data-sem="primary">继续</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>高危删除</h3>
+          <div class="hint">破坏性 · danger</div>
+          <div class="dialog-title">删除工作区</div>
+          <p class="dialog-message">将把该工作区从侧栏移出，并删除未提交的变更。此操作不可撤销。</p>
+          <div class="dialog-footer">
+            <button class="btn soft sem-neutral" data-role="scenario-btn" data-sem="neutral">取消</button>
+            <button class="btn solid sem-danger" data-role="scenario-btn" data-sem="danger">删除</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>警告确认</h3>
+          <div class="hint">需谨慎继续 · warning</div>
+          <div class="dialog-title">当前分支没有上游</div>
+          <p class="dialog-message">将推送到 origin/feature-no-upstream 并设置跟踪；远程会新增一个分支。</p>
+          <div class="dialog-footer">
+            <button class="btn soft sem-neutral" data-role="scenario-btn" data-sem="neutral">取消</button>
+            <button class="btn solid sem-warning" data-role="scenario-btn" data-sem="warning">推送并设置</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>成功 / 信息</h3>
+          <div class="hint">完成 · success</div>
+          <div class="dialog-title">推送成功</div>
+          <p class="dialog-message">已推送 2 个提交到 origin/main。</p>
+          <div class="dialog-footer">
+            <button class="btn solid sem-success" data-role="scenario-btn" data-sem="success">知道了</button>
+          </div>
+        </div>
+
+        <div class="card ws-card">
+          <h3>工作区推送 / 拉取 spinner</h3>
+          <div class="hint">进行中态 · 标题行 spinner + 状态文本</div>
+          <div class="ws-header is-busy">
+            <span class="ws-name">Git-Test-Repository</span>
+            <span class="ws-branch">main</span>
+            <span class="ws-status adl-loading-row-text--shimmer">推送中…</span>
+            <span class="ws-count">0</span>
+          </div>
+          <div class="ws-header is-busy">
+            <span class="ws-name">feature-no-upstream</span>
+            <span class="ws-branch">feature-no-upstream-2</span>
+            <span class="ws-status adl-loading-row-text--shimmer">拉取中…</span>
+            <span class="ws-count">0</span>
+          </div>
+          <div class="note">分支名改为实心标签（无边框）；状态文本用项目现有扫光动效，不再显示圆圈 spinner；进行中隐藏最右侧数量。</div>
+        </div>
+      </div>
+
+      <div class="section-title"><h2>语义色板</h2><span>每种语义各选一个：实心 / 柔和描边</span></div>
+      <div class="grid grid--scenarios" id="semanticGrid"></div>
+
+      <div class="section-title"><h2>按钮圆角</h2><span>只改按钮四角；对话框卡片与输入框保持不变</span></div>
+      <div class="grid grid--scenarios" id="radiusGrid"></div>
+    </main>
+
+    <aside class="global-error" id="globalError" role="alert">
+      <div class="ge-head">
+        <span class="ge-icon">!</span>
+        <strong>推送失败</strong>
+        <button class="ge-close" id="geClose" aria-label="关闭">×</button>
+      </div>
+      <p class="ge-detail">fatal: unable to access 'https://github.com/...': Failed to connect to github.com port 443</p>
+      <div class="ge-actions">
+        <button class="btn solid sem-primary" data-role="scenario-btn" data-sem="primary">重试推送</button>
+        <button class="btn soft sem-neutral" data-role="scenario-btn" data-sem="neutral">关闭</button>
+      </div>
+    </aside>
+
+    <div class="bottom-bar">
+      <div class="group">
+        <span class="label">配色</span>
+        <div id="paletteChips" class="group"></div>
+      </div>
+      <div class="group">
+        <span class="label">主题</span>
+        <button class="chip" id="themeLight">亮</button>
+        <button class="chip" id="themeDark">暗</button>
+      </div>
+      <div class="group">
+        <span class="label">全局报错卡</span>
+        <button class="mini-btn" id="toggleError">显示/隐藏</button>
+      </div>
+      <div class="group">
+        <span class="label">圆角</span>
+        <select class="mini-btn" id="radiusSelect"></select>
+      </div>
+      <div class="summary" id="summary"></div>
+      <div class="group">
+        <button class="mini-btn primary" id="copyChoice">复制选择</button>
+        <button class="mini-btn" id="resetChoice">重置</button>
+      </div>
+    </div>
+
+    <pre class="state-box" id="stateBox"></pre>
+
+    <script>
+      const SEMANTICS = [
+        { id: 'primary', label: '普通确认', hint: '提交 / 继续 / 主操作' },
+        { id: 'danger', label: '高危删除', hint: '删除 / 丢弃 / 不可撤销' },
+        { id: 'warning', label: '警告确认', hint: '需谨慎继续 / 副作用提醒' },
+        { id: 'success', label: '成功 / 信息', hint: '完成 / 知道了' },
+        { id: 'neutral', label: '中性 / 取消', hint: '取消 / 次要操作' },
+      ];
+
+      const THEMES = {
+        light: {
+          bg: '#f2f0eb', surface: '#fbfaf7', surface2: '#f6f4ef',
+          text: '#1f1e1b', textSecondary: '#55524b', textMuted: '#8a857b',
+          border: '#ddd8cf', borderStrong: '#c9c3b8', bgActive: 'rgba(34,34,34,.10)',
+        },
+        dark: {
+          bg: '#171715', surface: '#22221f', surface2: '#1c1c19',
+          text: '#ece9e2', textSecondary: '#b8b2a6', textMuted: '#857f74',
+          border: '#3a3934', borderStrong: '#4b4942', bgActive: 'rgba(255,255,255,.12)',
+        },
+      };
+
+      const PALETTES = {
+        baseline: {
+          label: '当前基线',
+          note: '蓝 + 鲑红，仅作对照；白字在鲑红上对比不足',
+          light: {
+            primary: { bg: '#2563eb', fg: '#ffffff', softBg: 'rgba(37,99,235,.10)', softFg: '#1d4ed8', softBorder: 'rgba(37,99,235,.35)' },
+            danger: { bg: '#e9967a', fg: '#ffffff', softBg: 'rgba(233,150,122,.14)', softFg: '#a8432f', softBorder: 'rgba(233,150,122,.45)' },
+            warning: { bg: '#b45309', fg: '#ffffff', softBg: 'rgba(180,83,9,.12)', softFg: '#8a3f07', softBorder: 'rgba(180,83,9,.40)' },
+            success: { bg: '#15803d', fg: '#ffffff', softBg: 'rgba(21,128,61,.12)', softFg: '#116a32', softBorder: 'rgba(21,128,61,.40)' },
+            neutral: { bg: '#e8e5df', fg: '#1f1e1b', softBg: 'transparent', softFg: '#55524b', softBorder: 'rgba(31,30,27,.18)' },
+          },
+          dark: {
+            primary: { bg: '#60a5fa', fg: '#141414', softBg: 'rgba(96,165,250,.16)', softFg: '#93bbfd', softBorder: 'rgba(96,165,250,.42)' },
+            danger: { bg: '#e9967a', fg: '#ffffff', softBg: 'rgba(233,150,122,.18)', softFg: '#f0b49c', softBorder: 'rgba(233,150,122,.45)' },
+            warning: { bg: '#fbbf24', fg: '#2a1c05', softBg: 'rgba(251,191,36,.16)', softFg: '#f6cd67', softBorder: 'rgba(251,191,36,.42)' },
+            success: { bg: '#4ade80', fg: '#10240f', softBg: 'rgba(74,222,128,.16)', softFg: '#8ee6ad', softBorder: 'rgba(74,222,128,.42)' },
+            neutral: { bg: '#3a3934', fg: '#ece9e2', softBg: 'transparent', softFg: '#b8b2a6', softBorder: 'rgba(236,233,226,.20)' },
+          },
+        },
+        graphite: {
+          label: '石墨墨水',
+          note: '近黑主按钮 + 砖红危险 + 琥珀警告；最克制，接近编辑部风格',
+          light: {
+            primary: { bg: '#2b2b28', fg: '#f7f5ef', softBg: 'rgba(43,43,40,.08)', softFg: '#2b2b28', softBorder: 'rgba(43,43,40,.28)' },
+            danger: { bg: '#a33a2a', fg: '#ffffff', softBg: 'rgba(163,58,42,.10)', softFg: '#8a2f21', softBorder: 'rgba(163,58,42,.35)' },
+            warning: { bg: '#9a5b00', fg: '#ffffff', softBg: 'rgba(154,91,0,.10)', softFg: '#7a4a00', softBorder: 'rgba(154,91,0,.35)' },
+            success: { bg: '#2f6b3a', fg: '#ffffff', softBg: 'rgba(47,107,58,.10)', softFg: '#24552d', softBorder: 'rgba(47,107,58,.35)' },
+            neutral: { bg: '#e8e5df', fg: '#1f1e1b', softBg: 'transparent', softFg: '#55524b', softBorder: 'rgba(31,30,27,.18)' },
+          },
+          dark: {
+            primary: { bg: '#e8e3d8', fg: '#1c1b18', softBg: 'rgba(232,227,216,.12)', softFg: '#e8e3d8', softBorder: 'rgba(232,227,216,.38)' },
+            danger: { bg: '#d9776a', fg: '#2a120e', softBg: 'rgba(217,119,106,.16)', softFg: '#e79a8e', softBorder: 'rgba(217,119,106,.42)' },
+            warning: { bg: '#e0a33a', fg: '#2a1c05', softBg: 'rgba(224,163,58,.16)', softFg: '#e3b45e', softBorder: 'rgba(224,163,58,.42)' },
+            success: { bg: '#7fb98a', fg: '#10240f', softBg: 'rgba(127,185,138,.16)', softFg: '#9ccaa6', softBorder: 'rgba(127,185,138,.42)' },
+            neutral: { bg: '#3a3934', fg: '#ece9e2', softBg: 'transparent', softFg: '#c2bcb0', softBorder: 'rgba(236,233,226,.20)' },
+          },
+        },
+        slate: {
+          label: '冷灰蓝',
+          note: '石板蓝主按钮 + 暗红危险 + 琥珀警告；理性、工程感',
+          light: {
+            primary: { bg: '#3f5568', fg: '#f7f9fa', softBg: 'rgba(63,85,104,.09)', softFg: '#334656', softBorder: 'rgba(63,85,104,.32)' },
+            danger: { bg: '#9b3b45', fg: '#ffffff', softBg: 'rgba(155,59,69,.10)', softFg: '#84313a', softBorder: 'rgba(155,59,69,.35)' },
+            warning: { bg: '#a66a12', fg: '#ffffff', softBg: 'rgba(166,106,18,.10)', softFg: '#85540d', softBorder: 'rgba(166,106,18,.35)' },
+            success: { bg: '#2f6f5e', fg: '#ffffff', softBg: 'rgba(47,111,94,.10)', softFg: '#25594b', softBorder: 'rgba(47,111,94,.35)' },
+            neutral: { bg: '#e8e5df', fg: '#1f1e1b', softBg: 'transparent', softFg: '#5b6570', softBorder: 'rgba(31,30,27,.18)' },
+          },
+          dark: {
+            primary: { bg: '#a7bccd', fg: '#16202a', softBg: 'rgba(167,188,205,.14)', softFg: '#a7bccd', softBorder: 'rgba(167,188,205,.40)' },
+            danger: { bg: '#d98a92', fg: '#2a0f13', softBg: 'rgba(217,138,146,.16)', softFg: '#e4a4ab', softBorder: 'rgba(217,138,146,.42)' },
+            warning: { bg: '#d9a44a', fg: '#2a1c05', softBg: 'rgba(217,164,74,.16)', softFg: '#e3b86b', softBorder: 'rgba(217,164,74,.42)' },
+            success: { bg: '#7fc3ad', fg: '#0d201a', softBg: 'rgba(127,195,173,.16)', softFg: '#9bd2c0', softBorder: 'rgba(127,195,173,.42)' },
+            neutral: { bg: '#3a3934', fg: '#ece9e2', softBg: 'transparent', softFg: '#b3bcc5', softBorder: 'rgba(236,233,226,.20)' },
+          },
+        },
+        terracotta: {
+          label: '陶土',
+          note: '赤陶主按钮 + 深锈危险 + 赭黄警告；温暖、手工感',
+          light: {
+            primary: { bg: '#a4553a', fg: '#fff7f2', softBg: 'rgba(164,85,58,.10)', softFg: '#8a4630', softBorder: 'rgba(164,85,58,.35)' },
+            danger: { bg: '#8f2f2a', fg: '#fff7f4', softBg: 'rgba(143,47,42,.10)', softFg: '#7a2824', softBorder: 'rgba(143,47,42,.35)' },
+            warning: { bg: '#8a6410', fg: '#fffaf0', softBg: 'rgba(138,100,16,.10)', softFg: '#70520c', softBorder: 'rgba(138,100,16,.35)' },
+            success: { bg: '#5f7040', fg: '#fafbf5', softBg: 'rgba(95,112,64,.10)', softFg: '#4c5a33', softBorder: 'rgba(95,112,64,.35)' },
+            neutral: { bg: '#e8e2d9', fg: '#1f1e1b', softBg: 'transparent', softFg: '#6b5f55', softBorder: 'rgba(31,30,27,.18)' },
+          },
+          dark: {
+            primary: { bg: '#d99a7f', fg: '#2a1810', softBg: 'rgba(217,154,127,.16)', softFg: '#e3b09a', softBorder: 'rgba(217,154,127,.42)' },
+            danger: { bg: '#d97a72', fg: '#2a0f0d', softBg: 'rgba(217,122,114,.16)', softFg: '#e59a93', softBorder: 'rgba(217,122,114,.42)' },
+            warning: { bg: '#d6ad5a', fg: '#2a1c05', softBg: 'rgba(214,173,90,.16)', softFg: '#e3c37a', softBorder: 'rgba(214,173,90,.42)' },
+            success: { bg: '#a8bf85', fg: '#16200f', softBg: 'rgba(168,191,133,.16)', softFg: '#bcd29d', softBorder: 'rgba(168,191,133,.42)' },
+            neutral: { bg: '#3a3934', fg: '#ece9e2', softBg: 'transparent', softFg: '#c2b3a5', softBorder: 'rgba(236,233,226,.20)' },
+          },
+        },
+        forest: {
+          label: '森林',
+          note: '深绿主按钮 + 陶红危险 + 金盏黄警告；自然、稳定',
+          light: {
+            primary: { bg: '#2f5d43', fg: '#f4faf5', softBg: 'rgba(47,93,67,.10)', softFg: '#274d37', softBorder: 'rgba(47,93,67,.35)' },
+            danger: { bg: '#9a4034', fg: '#fff8f5', softBg: 'rgba(154,64,52,.10)', softFg: '#83352c', softBorder: 'rgba(154,64,52,.35)' },
+            warning: { bg: '#9a6b1c', fg: '#fffaf0', softBg: 'rgba(154,107,28,.10)', softFg: '#7d5616', softBorder: 'rgba(154,107,28,.35)' },
+            success: { bg: '#3f7a4f', fg: '#f4fbf5', softBg: 'rgba(63,122,79,.10)', softFg: '#33643f', softBorder: 'rgba(63,122,79,.35)' },
+            neutral: { bg: '#e5e7e0', fg: '#1f1e1b', softBg: 'transparent', softFg: '#5c665c', softBorder: 'rgba(31,30,27,.18)' },
+          },
+          dark: {
+            primary: { bg: '#93c3a3', fg: '#122018', softBg: 'rgba(147,195,163,.16)', softFg: '#aad4b6', softBorder: 'rgba(147,195,163,.42)' },
+            danger: { bg: '#d98b7d', fg: '#2a120e', softBg: 'rgba(217,139,125,.16)', softFg: '#e5a89d', softBorder: 'rgba(217,139,125,.42)' },
+            warning: { bg: '#d6b05a', fg: '#2a1c05', softBg: 'rgba(214,176,90,.16)', softFg: '#e3c67a', softBorder: 'rgba(214,176,90,.42)' },
+            success: { bg: '#8fc79f', fg: '#10240f', softBg: 'rgba(143,199,159,.16)', softFg: '#aad6b7', softBorder: 'rgba(143,199,159,.42)' },
+            neutral: { bg: '#3a3934', fg: '#ece9e2', softBg: 'transparent', softFg: '#b8c2b7', softBorder: 'rgba(236,233,226,.20)' },
+          },
+        },
+        plum: {
+          label: '梅子',
+          note: '深梅紫主按钮 + 酒红危险 + 琥珀警告；克制但有辨识度',
+          light: {
+            primary: { bg: '#5b3a63', fg: '#fbf5fc', softBg: 'rgba(91,58,99,.10)', softFg: '#4d3154', softBorder: 'rgba(91,58,99,.35)' },
+            danger: { bg: '#8e3247', fg: '#fff7f9', softBg: 'rgba(142,50,71,.10)', softFg: '#782a3c', softBorder: 'rgba(142,50,71,.35)' },
+            warning: { bg: '#9a6b1c', fg: '#fffaf0', softBg: 'rgba(154,107,28,.10)', softFg: '#7d5616', softBorder: 'rgba(154,107,28,.35)' },
+            success: { bg: '#3f6f5a', fg: '#f4fbf7', softBg: 'rgba(63,111,90,.10)', softFg: '#335a49', softBorder: 'rgba(63,111,90,.35)' },
+            neutral: { bg: '#e6e2e6', fg: '#1f1e1b', softBg: 'transparent', softFg: '#635b66', softBorder: 'rgba(31,30,27,.18)' },
+          },
+          dark: {
+            primary: { bg: '#c3a3cc', fg: '#221426', softBg: 'rgba(195,163,204,.16)', softFg: '#d1b7d8', softBorder: 'rgba(195,163,204,.42)' },
+            danger: { bg: '#d98a9b', fg: '#2a0f15', softBg: 'rgba(217,138,155,.16)', softFg: '#e5a8b5', softBorder: 'rgba(217,138,155,.42)' },
+            warning: { bg: '#d6b05a', fg: '#2a1c05', softBg: 'rgba(214,176,90,.16)', softFg: '#e3c67a', softBorder: 'rgba(214,176,90,.42)' },
+            success: { bg: '#8fc3ae', fg: '#0d2019', softBg: 'rgba(143,195,174,.16)', softFg: '#aad6c4', softBorder: 'rgba(143,195,174,.42)' },
+            neutral: { bg: '#3a3934', fg: '#ece9e2', softBg: 'transparent', softFg: '#c0b6c6', softBorder: 'rgba(236,233,226,.20)' },
+          },
+        },
+      };
+
+      const RADIUS_OPTIONS = [
+        { id: '2', label: '直角 2px', value: '2px' },
+        { id: '4', label: '微圆 4px', value: '4px' },
+        { id: '6', label: '小圆 6px', value: '6px' },
+        { id: '8', label: '标准 8px', value: '8px' },
+        { id: '10', label: '大圆 10px', value: '10px' },
+        { id: '12', label: '很圆 12px', value: '12px' },
+        { id: 'pill', label: '胶囊', value: '999px' },
+        { id: 'diagonal', label: '对角 8/2', value: '8px 2px 8px 2px' },
+      ];
+
+      const state = {
+        palette: 'graphite',
+        theme: 'light',
+        radius: '2',
+        styles: { primary: 'soft', danger: 'soft', warning: 'soft', success: 'soft', neutral: 'soft' },
+      };
+
+      const root = document.documentElement;
+      const paletteChips = document.getElementById('paletteChips');
+      const semanticGrid = document.getElementById('semanticGrid');
+      const radiusGrid = document.getElementById('radiusGrid');
+      const radiusSelect = document.getElementById('radiusSelect');
+      const summary = document.getElementById('summary');
+      const stateBox = document.getElementById('stateBox');
+      const globalError = document.getElementById('globalError');
+
+      function hexToRgb(hex) {
+        const h = hex.replace('#', '');
+        const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+        return [parseInt(full.slice(0, 2), 16), parseInt(full.slice(2, 4), 16), parseInt(full.slice(4, 6), 16)];
+      }
+
+      function luminance(hex) {
+        const [r, g, b] = hexToRgb(hex).map((v) => {
+          const s = v / 255;
+          return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+        });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      }
+
+      function contrast(a, b) {
+        const la = luminance(a);
+        const lb = luminance(b);
+        const hi = Math.max(la, lb);
+        const lo = Math.min(la, lb);
+        return (hi + 0.05) / (lo + 0.05);
+      }
+
+      function contrastBadge(fg, bg) {
+        const ratio = contrast(fg, bg);
+        const grade = ratio >= 7 ? 'AAA' : ratio >= 4.5 ? 'AA' : ratio >= 3 ? 'AA-' : '低';
+        const cls = ratio >= 4.5 ? 'good' : ratio >= 3 ? '' : 'low';
+        return `<span class="contrast ${cls}">${ratio.toFixed(1)}:1 ${grade}</span>`;
+      }
+
+      function applyPalette() {
+        const theme = THEMES[state.theme];
+        const palette = PALETTES[state.palette][state.theme];
+        root.dataset.theme = state.theme;
+        root.dataset.palette = state.palette;
+        const map = {
+          primary: 'primary', danger: 'danger', warning: 'warning', success: 'success', neutral: 'neutral',
+        };
+        for (const [sem, key] of Object.entries(map)) {
+          const t = palette[key];
+          root.style.setProperty(`--${key}`, t.bg);
+          root.style.setProperty(`--${key}-fg`, t.fg);
+          root.style.setProperty(`--${key}-soft-bg`, t.softBg);
+          root.style.setProperty(`--${key}-soft-fg`, t.softFg);
+          root.style.setProperty(`--${key}-soft-border`, t.softBorder);
+        }
+        root.style.setProperty('--bg', theme.bg);
+        root.style.setProperty('--surface', theme.surface);
+        root.style.setProperty('--surface-2', theme.surface2);
+        root.style.setProperty('--text', theme.text);
+        root.style.setProperty('--text-secondary', theme.textSecondary);
+        root.style.setProperty('--text-muted', theme.textMuted);
+        root.style.setProperty('--border', theme.border);
+        root.style.setProperty('--border-strong', theme.borderStrong);
+        root.style.setProperty('--bg-active', theme.bgActive);
+        root.style.setProperty('--btn-radius', RADIUS_OPTIONS.find((r) => r.id === state.radius)?.value ?? '8px');
+      }
+
+      function renderPaletteChips() {
+        paletteChips.innerHTML = '';
+        for (const [id, palette] of Object.entries(PALETTES)) {
+          const btn = document.createElement('button');
+          btn.className = `chip${id === state.palette ? ' active' : ''}`;
+          btn.textContent = palette.label;
+          btn.title = palette.note;
+          btn.onclick = () => {
+            state.palette = id;
+            render();
+          };
+          paletteChips.appendChild(btn);
+        }
+      }
+
+      function renderSemanticGrid() {
+        const palette = PALETTES[state.palette][state.theme];
+        semanticGrid.innerHTML = '';
+        for (const sem of SEMANTICS) {
+          const t = palette[sem.id];
+          const card = document.createElement('div');
+          card.className = 'card semantic-card';
+          card.innerHTML = `
+            <div class="semantic-head"><strong>${sem.label}</strong><span>${sem.hint}</span></div>
+            <div class="semantic-desc">${sem.id}：主色 ${t.bg} / 文字 ${t.fg}</div>
+            <div class="pick-row">
+              <button class="btn solid sem-${sem.id}${state.styles[sem.id] === 'solid' ? ' selected' : ''}" data-pick="${sem.id}" data-pick-style="solid">
+                实心 ${sem.label}${contrastBadge(t.fg, t.bg)}
+              </button>
+              <button class="btn soft sem-${sem.id}${state.styles[sem.id] === 'soft' ? ' selected' : ''}" data-pick="${sem.id}" data-pick-style="soft">
+                柔和 ${sem.label}${contrastBadge(t.softFg, state.theme === 'light' ? THEMES.light.surface : THEMES.dark.surface)}
+              </button>
+            </div>
+          `;
+          semanticGrid.appendChild(card);
+        }
+        semanticGrid.querySelectorAll('[data-pick]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.styles[btn.dataset.pick] = btn.dataset.pickStyle;
+            render();
+          });
+        });
+      }
+
+      function renderRadiusGrid() {
+        radiusGrid.innerHTML = '';
+        for (const option of RADIUS_OPTIONS) {
+          const card = document.createElement('div');
+          card.className = 'card semantic-card';
+          card.innerHTML = `
+            <div class="semantic-head"><strong>${option.label}</strong><span>border-radius: ${option.value}</span></div>
+            <div class="pick-row">
+              <button class="btn soft sem-primary${state.radius === option.id ? ' selected' : ''}" data-radius="${option.id}" style="border-radius: ${option.value}">
+                确认
+              </button>
+              <button class="btn solid sem-danger${state.radius === option.id ? ' selected' : ''}" data-radius="${option.id}" style="border-radius: ${option.value}">
+                删除
+              </button>
+            </div>
+          `;
+          radiusGrid.appendChild(card);
+        }
+        radiusGrid.querySelectorAll('[data-radius]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.radius = btn.dataset.radius;
+            render();
+          });
+        });
+      }
+
+      function renderRadiusSelect() {
+        radiusSelect.innerHTML = RADIUS_OPTIONS.map(
+          (option) => `<option value="${option.id}"${option.id === state.radius ? ' selected' : ''}>${option.label}</option>`,
+        ).join('');
+        radiusSelect.onchange = () => {
+          state.radius = radiusSelect.value;
+          render();
+        };
+      }
+
+      function syncScenarioButtons() {
+        document.querySelectorAll('[data-role="scenario-btn"]').forEach((btn) => {
+          const sem = btn.dataset.sem;
+          const style = state.styles[sem] || 'soft';
+          btn.className = `btn ${style} sem-${sem}`;
+        });
+      }
+
+      function buildSummary() {
+        const palette = PALETTES[state.palette];
+        const tokens = {};
+        for (const theme of ['light', 'dark']) {
+          tokens[theme] = {};
+          for (const sem of SEMANTICS) {
+            tokens[theme][sem.id] = palette[theme][sem.id];
+          }
+        }
+        return {
+          palette: state.palette,
+          paletteLabel: palette.label,
+          theme: state.theme,
+          radius: state.radius,
+          radiusValue: RADIUS_OPTIONS.find((r) => r.id === state.radius)?.value ?? '8px',
+          styles: { ...state.styles },
+          tokens,
+        };
+      }
+
+      function render() {
+        applyPalette();
+        renderPaletteChips();
+        renderSemanticGrid();
+        renderRadiusGrid();
+        renderRadiusSelect();
+        syncScenarioButtons();
+        document.getElementById('themeLight').classList.toggle('active', state.theme === 'light');
+        document.getElementById('themeDark').classList.toggle('active', state.theme === 'dark');
+        const stylesText = SEMANTICS.map((s) => `${s.id}=${state.styles[s.id]}`).join(' · ');
+        const radiusLabel = RADIUS_OPTIONS.find((r) => r.id === state.radius)?.label ?? state.radius;
+        summary.textContent = `${PALETTES[state.palette].label} · ${state.theme === 'light' ? '亮色' : '暗色'} · 圆角=${radiusLabel} · ${stylesText}`;
+        stateBox.textContent = JSON.stringify(buildSummary(), null, 2);
+        const url = new URL(location.href);
+        url.searchParams.set('palette', state.palette);
+        url.searchParams.set('theme', state.theme);
+        url.searchParams.set('radius', state.radius);
+        history.replaceState(null, '', url);
+      }
+
+      document.getElementById('themeLight').onclick = () => { state.theme = 'light'; render(); };
+      document.getElementById('themeDark').onclick = () => { state.theme = 'dark'; render(); };
+      document.getElementById('toggleError').onclick = () => globalError.classList.toggle('show');
+      document.getElementById('geClose').onclick = () => globalError.classList.remove('show');
+      document.getElementById('resetChoice').onclick = () => {
+        state.styles = { primary: 'soft', danger: 'soft', warning: 'soft', success: 'soft', neutral: 'soft' };
+        render();
+      };
+      document.getElementById('copyChoice').onclick = async () => {
+        const text = JSON.stringify(buildSummary(), null, 2);
+        try {
+          await navigator.clipboard.writeText(text);
+          const btn = document.getElementById('copyChoice');
+          const old = btn.textContent;
+          btn.textContent = '已复制';
+          setTimeout(() => { btn.textContent = old; }, 1500);
+        } catch {
+          stateBox.textContent = text;
+          stateBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      };
+
+      const commitDemo = document.getElementById('commitDemo');
+      commitDemo?.addEventListener('click', () => {
+        if (commitDemo.dataset.busy === '1') return;
+        commitDemo.dataset.busy = '1';
+        commitDemo.disabled = true;
+        commitDemo.innerHTML = '<span class="btn-label-shimmer">提交中…</span>';
+        setTimeout(() => {
+          commitDemo.dataset.busy = '0';
+          commitDemo.disabled = false;
+          commitDemo.textContent = '提交';
+        }, 2000);
+      });
+
+      const params = new URLSearchParams(location.search);
+      if (params.get('palette') && PALETTES[params.get('palette')]) state.palette = params.get('palette');
+      if (params.get('theme') === 'dark') state.theme = 'dark';
+      if (params.get('radius') && RADIUS_OPTIONS.some((r) => r.id === params.get('radius'))) {
+        state.radius = params.get('radius');
+      }
+      render();
+    </script>
+  </body>
+</html>
