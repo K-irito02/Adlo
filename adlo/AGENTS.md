@@ -2,6 +2,8 @@
 
 本目录是 `Adlo` 的真实实现工作区，基于 **Rust + Tauri 2.x**。
 
+> 本文件中的 `pnpm` / `cargo` 命令默认在 `adlo/` 下执行；需要从仓库根执行时写明 `pnpm --dir adlo ...`。
+
 ## 技术栈
 
 | 层级      | 技术                                                                                                                                                                                                                             |
@@ -12,7 +14,6 @@
 | 打包      | `cargo tauri build`                                                                                                                                                                                                              |
 | 包管理    | pnpm（前端）/ Cargo（Rust）                                                                                                                                                                                                      |
 | 质量      | `cargo clippy` + `cargo fmt` + ESLint v9（flat）+ Prettier + TypeScript-ESLint + React Hooks plugin                                                                                                                              |
-| 桌面 E2E  | `@wdio/tauri-service`（embedded WebDriver，opt-in；`pnpm run e2e`，**不进** `check:all`，见技能 `desktop-e2e-wdio`）                                                                                                             |
 | 门禁      | 唯一真源：[`.agents/rules/quality-gates.md`](../.agents/rules/quality-gates.md)。日常 `pnpm --dir frontend run check:changed`；合并/发布前 `pnpm run check:all`（含仓库卫生 `check:repo` 与前端 `check:full`）。全量必须先获用户批准 |
 | 凭据存储  | `crates/credential/`（keyring + 加密文件降级）                                                                                                                                                                                   |
 
@@ -25,7 +26,7 @@
 - 能力清单与实现落点：[system-overview.md](../docs/architecture/core/system-overview.md#已实现能力清单详细)（AGENTS 不复制清单，只保留边界与约束）。
 - 终端子系统文件地图与 PTY 生命周期：[terminal.md](../docs/architecture/features/terminal.md)。
 - 应用更新子系统文件地图：[update.md](../docs/architecture/features/update.md)。
-- 架构概念与文件落点：[CONTEXT.md](../CONTEXT.md)；并行/运行/调试：技能 [parallel-branch-development](../.agents/skills/parallel-branch-development/SKILL.md)（唯一真源）。
+- 架构概念与文件落点：[CONTEXT.md](../CONTEXT.md)；并行 / 运行：技能 [parallel-branch-development](../.agents/skills/parallel-branch-development/SKILL.md)（唯一真源）；调试见 [调试工具](#调试工具) 与根 [root-cause-to-close](../.agents/skills/root-cause-to-close/SKILL.md)。
 - 测试计数不在此维护，运行 `pnpm run cargo:test` / `pnpm --dir frontend run test` 获取。
 
 ## 安全边界
@@ -50,7 +51,7 @@
 ### 桌面 E2E（按需）
 
 ```powershell
-pnpm run e2e:build   # 内置 stage:sidecar；debug + --features e2e，不要改用 release
+pnpm run e2e:build   # 内置 stage:sidecar；用 debug + --features e2e（不是 release）
 pnpm run e2e         # 必须经 e2e/run-e2e.mjs 包装器
 ```
 
@@ -62,7 +63,7 @@ pnpm run e2e         # 必须经 e2e/run-e2e.mjs 包装器
 | 约束    | 规则                                                                                            |
 | ------- | ----------------------------------------------------------------------------------------------- |
 | 颜色    | 必须使用 CSS 自定义属性 `var(--…)`                                                              |
-| 图标    | SVG 格式，继承 `currentColor`，禁止 emoji。动画反馈场景可例外使用 `lucide-animated`（MIT 许可） |
+| 图标    | SVG 格式，继承 `currentColor`（不用 emoji）；动画反馈可用 `lucide-animated`（MIT 许可） |
 | Tooltip | 自定义 Tooltip 组件与原生 `title` 均可使用，具体方案开发时由用户决策（见 [.agents/rules/design-system.md](../.agents/rules/design-system.md) 与 ui-patterns.md §9）                |
 | 窗口    | 最小宽度 640px                                                                                  |
 
@@ -75,27 +76,29 @@ CSS 选择器/层叠/布局/主题变更：按 [desktop-ui-verification.md](../.
 
 ## 调试工具
 
+> 以下命令在 `adlo/` 下执行。
+
 | 功能       | 说明                                                                                             |
 | ---------- | ------------------------------------------------------------------------------------------------ |
 | 日志收起器 | `frontend/src/app/utils/debugLogCollector.ts`，拦截所有 console 输出，自动收起存储               |
 | 导出 API   | 控制台 / Agent 读取 `window.__dlDebugLogs` / `window.__exportDebugLogs`（界面不提供复制按钮）    |
 | 自动写入   | `.adl-logs/`（debug 构建）；Tauri 桌面壳 `debug-logs*.txt`、浏览器模式 `debug-logs-browser*.txt` |
 | 后端命令   | `src-tauri/src/commands/app.rs` → `write_debug_logs_to_project`                                  |
-| 日志检索   | `pnpm --dir adlo run log:tail -- --file <path> --grep <regex> [--tail 80]`（UTF-8 安全，替代被禁的 `Select-String`） |
-| 网络预检   | `pnpm --dir adlo run probe:net`（长操作前确认 Gitee/GitHub 的 API 与 git 端点可达） |
+| 日志检索   | `pnpm run log:tail -- --file <path> --grep <regex> [--tail 80]`（UTF-8 安全，替代被禁的 `Select-String`） |
+| 网络预检   | `pnpm run probe:net`（长操作前确认 Gitee/GitHub 的 API 与 git 端点可达） |
 | 浏览器后端 | `frontend/dev/previewWorkspaceService/`（`logging.ts` → `writeDebugLogs`）                       |
 
 **优先级**：调试日志收起器是最高优先级的调试手段，遇到 UI/交互问题时优先使用。详见 [仓库根 AGENTS.md](../AGENTS.md#问题排查与调试)。
 
-日志 CLI 与三个进程的落点统一见 [docs/development/log-system-manual.md](../docs/development/log-system-manual.md)，本节不复述。
+日志 CLI 与三个进程落点的完整说明见 [docs/development/log-system-manual.md](../docs/development/log-system-manual.md)；本表只列入口。
 
 ## 问题排查规范
 
-先定位根因，禁止凭空猜测；调试手段与优先级见 [根目录 AGENTS.md](../AGENTS.md#问题排查与调试) 与 [dev-rules.md](../.agents/rules/dev-rules.md#问题排查规范)。
+先定位根因；用调试手段代替猜测。调试手段与优先级见 [根目录 AGENTS.md](../AGENTS.md#问题排查与调试) 与 [dev-rules.md](../.agents/rules/dev-rules.md#问题排查规范)。
 
-## 未发布阶段禁止兼容性代码
+## 未发布阶段约束
 
-见根目录 [禁止项](../AGENTS.md#禁止项)。
+未发布阶段不添加数据格式兼容 / 旧版本迁移代码或向后兼容重导出（发布后需先与用户确认）。完整约束见 [project-engineering-constraints.md](../docs/development/project-engineering-constraints.md)。
 
 ## 文档入口
 
