@@ -34,7 +34,7 @@ export function createWorkspaceLifecycleActions(
      * @see mock-bridge.ts → workspace.open
      * @see preview-bridge/index.ts → workspace.open
      */
-    openWorkspace: async (workspacePath: string) => {
+    openWorkspace: async (workspacePath: string, options?: { create?: boolean }) => {
       // 切工作区前落盘脏缓冲（自动保存语义），避免脏内容留在旧工作区。
       // P4 N5：落盘失败即中止（与分支切换同口径），草稿按键保留可重试。
       const flush = await get().saveDirtyEditors();
@@ -50,7 +50,7 @@ export function createWorkspaceLifecycleActions(
       getNextChangePreviewRequestSeq();
       getNextSessionRequestSeq();
       clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.open(workspacePath);
+      const result = await window.digitalLife.workspace.open(workspacePath, options);
       if (requestSeq !== workspaceRequestSeq) {
         return { ok: false, error: 'Request superseded' };
       }

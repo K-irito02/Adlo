@@ -62,6 +62,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
     setBrowserMenuOpen,
     handleToggleNavigateMode,
     toggleNavigator,
+    handleEngineSelected,
   } = useBrowserPanelActions();
 
   const searchEngines = useAppStore((s) => s.searchEngines);
@@ -253,6 +254,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
         open={searchEnginePopoverOpen}
         onClose={() => setSearchEnginePopoverOpen(false)}
         anchorRef={searchEngineBtnRef as React.RefObject<HTMLElement>}
+        onEngineSelected={handleEngineSelected}
       />
     </div>
   );

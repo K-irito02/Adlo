@@ -346,6 +346,7 @@ dependencies = [
  "adl-kernel",
  "adl-outline",
  "adl-types",
+ "dirs 5.0.1",
  "notify",
  "rusqlite",
  "serde",

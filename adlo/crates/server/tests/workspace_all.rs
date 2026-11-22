@@ -148,6 +148,28 @@ async fn open_workspace_nonexistent_returns_error() {
     assert!(body["error"]["code"].as_str().is_some(), "error code expected in body: {body}");
 }
 
+/// POST /workspace/open with `create: true` creates a missing absolute directory.
+#[tokio::test]
+async fn open_workspace_with_create_makes_the_directory() {
+    let state = common::state("ws-api").await;
+    let base = std::env::temp_dir().join(format!("adl-ws-create-{}", uuid::Uuid::new_v4()));
+    let target = base.join("nested").join("workspace");
+    let (status, body) = common::send_request(
+        state,
+        Method::POST,
+        "/workspace/open",
+        Some(serde_json::json!({
+            "workspacePath": target.to_string_lossy(),
+            "create": true
+        })),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
+    assert_eq!(body["ok"], true, "body: {body}");
+    assert!(target.is_dir(), "create=true must create the directory: {body}");
+    let _ = std::fs::remove_dir_all(base);
+}
+
 /// POST /workspace/clear-current clears the active workspace; a subsequent tree
 /// listing without an explicit workspacePath then fails with NOT_FOUND.
 #[tokio::test]

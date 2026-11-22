@@ -246,7 +246,8 @@ describe('every migrated browser key round-trips through the registry', () => {
   interface Case {
     key: string;
     field: string;
-    legacyKey: string;
+    /** 历史键；仅迁移过的条目有，未迁移的新键不填。 */
+    legacyKey?: string;
     act: (store: StoreState & Record<string, unknown>) => void;
   }
 
@@ -342,6 +343,14 @@ describe('every migrated browser key round-trips through the registry', () => {
       legacyKey: 'adl:browser:defaultSearchEngineId',
       act: (s) => s.initializeSearchEngines(),
     },
+    {
+      key: 'adl:browser.searchEngineAutoSelected',
+      field: 'searchEngineAutoSelected',
+      act: (s) => {
+        s.initializeSearchEngines();
+        s.setDefaultSearchEngine(s.getDefaultSearchEngine().id);
+      },
+    },
   ];
 
   it.each(cases)('$key persists and hydrates back to $field', ({ key, field, legacyKey, act }) => {
@@ -351,7 +360,9 @@ describe('every migrated browser key round-trips through the registry', () => {
 
     const written = localStorage.getItem(key);
     expect(written, `${key} must be written`).not.toBeNull();
-    expect(localStorage.getItem(legacyKey), `${legacyKey} must no longer be written`).toBeNull();
+    if (legacyKey) {
+      expect(localStorage.getItem(legacyKey), `${legacyKey} must no longer be written`).toBeNull();
+    }
 
     const patch = restart();
 

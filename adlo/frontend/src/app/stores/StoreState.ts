@@ -134,7 +134,10 @@ type AllSlices = [
 ];
 
 interface WorkspaceActions {
-  openWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
+  openWorkspace: (
+    workspacePath: string,
+    options?: { create?: boolean },
+  ) => Promise<{ ok: boolean; error?: string }>;
   clearWorkspaceContext: () => Promise<void>;
   pickWorkspaceDirectory: () => Promise<string | undefined>;
   removeWorkspaceFromSidebar: (workspaceId: WorkspaceID) => Promise<void>;

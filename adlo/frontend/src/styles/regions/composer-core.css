@@ -145,6 +145,23 @@
   gap: 8px;
 }
 
+/* 左侧灰字引导 + 右侧按钮：仅「创建新的工作区」这类需要提示主操作位置的对话框使用。 */
+.adl-prompt-modal__actions--split {
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.adl-prompt-modal__hint {
+  flex: 1;
+  min-width: 0;
+  padding-right: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.4;
+  text-align: left;
+}
+
 .adl-prompt-modal__actions--fill .adl-btn {
   width: 100%;
   text-align: center;

@@ -24,9 +24,11 @@ import { ToastRegion } from './components/ToastRegion';
 import { ConflictModal } from './components/ConflictModal';
 import { StartupOverlayWrapper } from './components/StartupOverlayWrapper';
 import { useBrowserAgentLinkSubscription } from './features/browser/useBrowserAgentLinkSubscription';
+import { useBrowserNewTabSubscription } from './features/browser/useBrowserNewTabSubscription';
 import { useGlobalBrowserMeta } from './features/browser/useGlobalBrowserMeta';
 import { useBrowserSystemMedia } from './features/browser/useBrowserSystemMedia';
 import { useAppUpdateWatcher } from './hooks/useAppUpdateWatcher';
+import type { BrowserNewTabRequest } from '@shared/ipc/browser';
 
 export function App() {
   const errorToasts = useAppStore((state) => state.errorToasts);
@@ -60,12 +62,29 @@ export function App() {
 
   useDragDropWorkspace(actions);
   useBrowserAgentLinkSubscription();
+
+  // 页面内新窗口请求（target=_blank / window.open）：由 store 按发起标签所在宿主
+  // 路由（中心 → 中心标签条，面板 → 面板）；全局只保留这一处订阅。
+  const handleBrowserNewTab = useCallback((request: BrowserNewTabRequest) => {
+    useAppStore.getState().browserOpenNewWindowTab(request);
+  }, []);
+  useBrowserNewTabSubscription(handleBrowserNewTab);
+
   useGlobalBrowserMeta();
   // 事项 17 路线 A：浏览器标签页的站点媒体 → 系统卡片（与本地预览同级、多源 3s 轮播）。
   useBrowserSystemMedia();
   useAppUpdateWatcher();
 
   const { locale, t } = useAppStartup(appInfo);
+
+  // 搜索引擎：应用启动即初始化内置目录；首次（从未选择过）后台探测一次可达引擎。
+  // 不阻塞启动、不弹窗；用户手动选择后 `searchEngineAutoSelected` 落盘，后续启动不再探测。
+  const initializeSearchEngines = useAppStore((s) => s.initializeSearchEngines);
+  const ensureSearchEngineAutoSelected = useAppStore((s) => s.ensureSearchEngineAutoSelected);
+  useEffect(() => {
+    initializeSearchEngines();
+    void ensureSearchEngineAutoSelected();
+  }, [initializeSearchEngines, ensureSearchEngineAutoSelected]);
 
   // All hooks MUST be called unconditionally (React Hooks Rule).
   const patchReview = usePatchReviewWithEditor();
@@ -112,9 +131,7 @@ export function App() {
   }, [navigateRightTool]);
 
   const handleOpenShortcutsSettings = useCallback(() => {
-    const state = useAppStore.getState();
-    state.navigateRightTool('settings');
-    state.setActiveSettingsGroup('shortcuts');
+    useAppStore.getState().openShortcutsSettings();
   }, []);
 
   const { zoomBy, resetZoom } = useAppZoom();

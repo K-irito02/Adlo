@@ -231,7 +231,7 @@ export async function setupPreviewBridge(): Promise<void> {
       onUrlChanged: (_listener: (tabId: string, url: string) => void) => () => {},
       onMetaChanged: (_listener: (tabId: string, meta: PageMeta) => void) => () => {},
       onPageReady: (_listener: (tabId: string) => void) => () => {},
-      onOpenNewTab: (_listener: (url: string) => void) => () => {},
+      onOpenNewTab: (_listener: (request: { tabId: string; url: string }) => void) => () => {},
       onAgentLink:
         (_listener: (payload: { kind: 'url' | 'file'; url: string }) => void) => () => {},
       setAgentIntercept: (_origins: string[], _enabled: boolean) => Promise.resolve(),

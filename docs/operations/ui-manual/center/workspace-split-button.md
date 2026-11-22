@@ -9,10 +9,10 @@
 | 模式 | 主按钮 | 说明 |
 |------|--------|------|
 | pick | 选择文件夹 | 直接打开原生目录选择器（`onPickWorkspaceDirectory`），选中后打开 |
-| open | 打开文件夹 | 显示路径输入框，回车/点主按钮按输入路径打开 |
-| create | 创建文件夹 | 显示名称/路径输入框 + ⋮ 设置按钮；纯名称且有默认创建目录时拼接到默认目录下 |
+| open | 打开文件夹 | 显示路径输入框（占位符「输入或粘贴文件夹路径」），回车/点主按钮按输入路径打开；路径不存在报错 |
+| create | 创建文件夹 | 显示名称/路径输入框（占位符「输入文件夹名称或完整路径」）+ ⋮ 设置按钮；纯名称有默认目录时拼接到默认目录，无默认目录时由后端解析到系统默认工作区根并递归创建（桌面 `<Documents>/Adlo Workspaces`，浏览器预览 `<home>/Documents/Adlo Workspaces`）；`.`/`..` 被拒绝 |
 
-失败时行内错误（`.adl-split-btn__error`，文案 `workspacePathNotFound` 或后端返回）；处理中主按钮禁用。
+失败时行内错误（`.adl-split-btn__error`，文案 `workspacePathNotFound`、`workspaceInvalidFolderName` 或后端返回）；处理中主按钮禁用。对话框底部左侧另有随模式变化的灰字提示（`.adl-prompt-modal__hint`）。
 
 ## 元素选择器
 
@@ -20,14 +20,14 @@
 |------|--------|------|
 | 根容器 | `.adl-split-btn` | 复合按钮 |
 | 主按钮 | `.adl-split-btn__main` | 执行当前模式操作 |
-| 下拉箭头 | `.adl-split-btn__drop`（`aria-haspopup="menu"`） | 悬停显示模式菜单（离开 300ms 后关闭） |
+| 下拉箭头 | `.adl-split-btn__drop`（`aria-haspopup="menu"`、`aria-label=workspaceSwitchActionMode`） | 悬停显示模式菜单（离开 300ms 后关闭） |
 | 模式菜单 | `.adl-split-btn__menu` | 三模式选项 |
 | 模式选项 | `.adl-split-btn__option`（`.is-active` 为当前） | 选择/打开/创建 |
 | 输入区 | `.adl-split-btn__input-area` / `__input-row` | open/create 模式输入行 |
 | 输入框 | `.adl-split-btn__input`（`.adl-split-btn__input--error` 为出错态） | 回车提交 |
-| 错误提示 | `.adl-split-btn__error` | 路径错误文字 |
+| 错误提示 | `.adl-split-btn__error` | 路径/名称错误文字 |
 | 设置按钮 | `.adl-split-btn__dots`（`title=workspaceCreateDefaultDirTooltip`） | 悬停显示默认目录设置面板 |
-| 设置面板 | `.adl-split-btn__settings`（标题 `__settings-title` + 说明 `__settings-desc`） | 默认创建目录输入（变更即写 `localStorage.adl_workspace_default_create_dir`）+ 目录选择器按钮 |
+| 设置面板 | `.adl-split-btn__settings`（标题 `__settings-title` + 空值提示 `__settings-empty` + 两列说明 `__settings-desc`） | 默认创建目录输入（变更即写 `localStorage.adl_workspace_default_create_dir`）+ 目录选择器按钮 |
 
 ## 操作
 
@@ -65,11 +65,14 @@ await page.waitForSelector('.adl-split-btn__error');
 ### 创建文件夹模式
 
 ```javascript
-// 输入名称（纯名称时拼接到默认创建目录）或完整路径
+// 输入名称（纯名称时拼接到默认目录/系统默认工作区根）或完整路径
 await page.fill('.adl-split-btn__input', 'my-project');
 
-// 点击主按钮创建并打开
+// 点击主按钮创建并打开（不存在时后端递归创建）
 await page.click('.adl-split-btn__main');
+
+// 名称是 "." / ".." 时行内报错，不发起请求
+await page.waitForSelector('.adl-split-btn__error');
 ```
 
 ### 设置默认创建目录（创建模式下）

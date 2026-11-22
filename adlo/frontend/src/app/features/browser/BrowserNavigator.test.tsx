@@ -103,6 +103,7 @@ function makeActions(overrides: Partial<BrowserPanelActions> = {}): BrowserPanel
     browserOpenTab: vi.fn(),
     handleToggleNavigateMode: vi.fn(),
     handleAlwaysNewTab: vi.fn(),
+    handleEngineSelected: vi.fn(),
     toggleNavigator: vi.fn(),
     ...overrides,
   };

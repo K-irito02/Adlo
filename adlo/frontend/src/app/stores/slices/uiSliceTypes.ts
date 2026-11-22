@@ -13,6 +13,9 @@ import type { SettingsGroupId } from '@adlo/kernel';
 import type { ChangeFileState } from '@regions/right-panel/changesTree';
 import type { FileChildOrder } from '@features/file-tree/childOrder';
 
+/** 「关于」组内的弹窗标识；当前外部入口只接 license（credits/notices 仍由关于页按钮打开）。 */
+export type AboutDialogRequest = 'license' | 'credits' | 'notices';
+
 // ════════════════════════════════════════════════════════
 // LocalStorage 键名常量
 //
@@ -157,6 +160,11 @@ export interface UISlice {
   hamburgerOpen: boolean;
   hoveredMenuCategory: 'file' | 'view' | 'help' | null;
   activeSettingsGroup: SettingsGroupId;
+  /**
+   * 「关于」组待打开的弹窗（transient，不持久化）：标题栏菜单 / 其它入口置位后，
+   * AboutSettings 挂载或刷新时消费并自动打开，消费即清空（一次性信号）。
+   */
+  aboutDialogRequest: AboutDialogRequest | null;
   settingsSearchQuery: string;
   /**
    * 设置面板「搜索设置」的历史记录（最近在前，上限 `SETTINGS_SEARCH_HISTORY_MAX`）。
@@ -299,6 +307,12 @@ export interface UISlice {
   setHoveredMenuCategory: (category: 'file' | 'view' | 'help' | null) => void;
   closeAllMenus: () => void;
   setActiveSettingsGroup: (group: SettingsGroupId) => void;
+  /** 消费「关于」弹窗信号（AboutSettings 打开后调用，避免重复弹）。 */
+  clearAboutDialogRequest: () => void;
+  /** 菜单入口：切到 设置→关于 并请求打开许可弹窗。 */
+  openAboutLicense: () => void;
+  /** 菜单/快捷键入口：切到 设置→键盘快捷键（同时清空设置搜索）。 */
+  openShortcutsSettings: () => void;
   setSettingsSearchQuery: (query: string) => void;
   /** 记入一次设置搜索历史（去重置顶 + 截断到上限；空白串与「已在首位」为无变化，不写盘）。 */
   recordSettingsSearch: (query: string) => void;

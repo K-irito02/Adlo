@@ -79,6 +79,7 @@ export const createUISlice = (
     hamburgerOpen: false,
     hoveredMenuCategory: null,
     activeSettingsGroup: 'general',
+    aboutDialogRequest: null,
     settingsSearchQuery: '',
     settingsSearchHistory: [],
     storageGroupResetPending: false,
@@ -185,6 +186,20 @@ export const createUISlice = (
         hoveredMenuCategory: null,
       }),
     setActiveSettingsGroup: (group) => set({ activeSettingsGroup: group }),
+    clearAboutDialogRequest: () => set({ aboutDialogRequest: null }),
+    openAboutLicense: () => {
+      get().navigateRightTool('settings');
+      set({
+        activeSettingsGroup: 'about',
+        aboutDialogRequest: 'license',
+        // 设置面板处于跨组搜索态时不会挂载 AboutSettings；清空查询让关于组立即渲染。
+        settingsSearchQuery: '',
+      });
+    },
+    openShortcutsSettings: () => {
+      get().navigateRightTool('settings');
+      set({ activeSettingsGroup: 'shortcuts', settingsSearchQuery: '' });
+    },
     setSettingsSearchQuery: (query) => set({ settingsSearchQuery: query }),
     recordSettingsSearch: (query) => {
       const trimmed = query.trim();

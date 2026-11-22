@@ -49,10 +49,14 @@ export function createPreviewWorkspaceBridge(
 
   const openWorkspaceFromPreviewApi = async (
     workspacePath: string,
+    options?: { create?: boolean },
   ): Promise<IpcResult<WorkspaceMeta>> => {
     const result = await requestPreviewApi<PreviewWorkspaceOpenPayload>('/workspace/open', {
       method: 'POST',
-      body: JSON.stringify({ workspacePath }),
+      body: JSON.stringify({
+        workspacePath,
+        ...(options?.create ? { create: true } : {}),
+      }),
     });
     if (result.ok) {
       applyOpenedWorkspace(result.data);
@@ -104,7 +108,8 @@ export function createPreviewWorkspaceBridge(
       ok: true as const,
       data: ctx.recentWorkspaces,
     }),
-    open: async (workspacePath: string) => openWorkspaceFromPreviewApi(workspacePath),
+    open: async (workspacePath: string, options?: { create?: boolean }) =>
+      openWorkspaceFromPreviewApi(workspacePath, options),
     addToSidebar: async (workspacePath: string) => {
       const result = await requestPreviewApi<RecentWorkspaceEntry>('/workspace/add', {
         method: 'POST',

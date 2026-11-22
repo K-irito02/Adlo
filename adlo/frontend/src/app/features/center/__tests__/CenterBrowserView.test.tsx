@@ -9,9 +9,16 @@ import type { CopyDict } from '@i18n/types';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { ShortcutSite } from '@stores/slices/browserLandingSlice';
 
+const embedState = vi.hoisted(() => ({
+  blocked: true,
+  /** `isEmbedBlocked` 的返回；undefined 表示强制走异步 checkEmbed。 */
+  cached: true as boolean | undefined,
+  deferred: null as Promise<boolean> | null,
+}));
+
 vi.mock('@features/browser/checkEmbed', () => ({
-  isEmbedBlocked: () => true,
-  checkEmbed: async () => true,
+  isEmbedBlocked: () => embedState.cached,
+  checkEmbed: async () => embedState.deferred ?? embedState.blocked,
 }));
 
 const t = {
@@ -68,6 +75,9 @@ function renderView(browserTabId: string) {
 }
 
 afterEach(() => {
+  embedState.blocked = true;
+  embedState.cached = true;
+  embedState.deferred = null;
   useAppStore.setState({
     browserTabs: [],
     browserTabsById: {},
@@ -164,6 +174,156 @@ describe('CenterBrowserView', () => {
       expect(useAppStore.getState().browserTabs).toHaveLength(1);
     });
     expect(useAppStore.getState().browserTabsById['b1'].url).toBe('https://new.example.com');
+  });
+
+  it('切换引擎只重搜中心当前标签，后台面板标签不动', async () => {
+    embedState.blocked = false;
+    embedState.cached = false;
+    useAppStore.getState().initializeSearchEngines();
+    useAppStore.getState().setDefaultSearchEngine('百度');
+    const query = '测试搜索';
+    const centerTab = makeTab('c1', `https://www.baidu.com/s?wd=${encodeURIComponent(query)}`);
+    const bgTab: BrowserTabState = {
+      ...makeTab('p1', 'https://www.sogou.com/web?query=%E5%90%8E%E5%8F%B0'),
+      location: undefined,
+    };
+    useAppStore.setState({
+      browserTabs: [centerTab, bgTab],
+      browserTabsById: { c1: centerTab, p1: bgTab },
+      browserActiveTabId: 'p1',
+      isTauri: false,
+    });
+    renderView('c1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search engine settings' }));
+    fireEvent.click(screen.getByText('Google'));
+
+    await waitFor(() => {
+      expect(useAppStore.getState().browserTabsById['c1'].url).toBe(
+        `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+      );
+    });
+    expect(useAppStore.getState().browserTabsById['p1'].url).toBe(bgTab.url);
+  });
+
+  it('非搜索页切换引擎不重载当前中心标签', async () => {
+    embedState.blocked = false;
+    embedState.cached = false;
+    useAppStore.getState().initializeSearchEngines();
+    useAppStore.getState().setDefaultSearchEngine('百度');
+    const tab = makeTab('c1', 'https://example.com/article');
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { c1: tab },
+      browserActiveTabId: 'c1',
+      isTauri: false,
+    });
+    renderView('c1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search engine settings' }));
+    fireEvent.click(screen.getByText('Google'));
+    await act(async () => {});
+
+    expect(useAppStore.getState().browserTabsById['c1'].url).toBe('https://example.com/article');
+  });
+
+  it('切换引擎被嵌入预检拒绝时仍更新标签并显示兜底', async () => {
+    embedState.blocked = true;
+    embedState.cached = true;
+    useAppStore.getState().initializeSearchEngines();
+    useAppStore.getState().setDefaultSearchEngine('百度');
+    const query = '拒绝测试';
+    const tab = makeTab('c1', `https://www.baidu.com/s?wd=${encodeURIComponent(query)}`);
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { c1: tab },
+      browserActiveTabId: 'c1',
+      isTauri: false,
+    });
+    renderView('c1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search engine settings' }));
+    fireEvent.click(screen.getByText('Google'));
+
+    await waitFor(() => {
+      expect(useAppStore.getState().browserTabsById['c1'].url).toBe(
+        `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+      );
+    });
+    expect(screen.getByRole('button', { name: 'Open externally' })).toBeTruthy();
+  });
+
+  it('does not apply a deferred engine switch after the center tab changed', async () => {
+    embedState.blocked = false;
+    embedState.cached = undefined;
+    let resolveCheck: (value: boolean) => void = () => {};
+    embedState.deferred = new Promise((resolve) => {
+      resolveCheck = resolve;
+    });
+    useAppStore.getState().initializeSearchEngines();
+    useAppStore.getState().setDefaultSearchEngine('百度');
+    const query = '竞态测试';
+    const baiduUrl = `https://www.baidu.com/s?wd=${encodeURIComponent(query)}`;
+    const first = makeTab('c1', baiduUrl);
+    const second = makeTab('c2', 'https://example.com/');
+    useAppStore.setState({
+      browserTabs: [first, second],
+      browserTabsById: { c1: first, c2: second },
+      browserActiveTabId: 'c1',
+      isTauri: false,
+    });
+    const view = renderView('c1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search engine settings' }));
+    fireEvent.click(screen.getByText('Google'));
+    view.rerender(
+      <TCopyProvider t={t} locale="zh-CN">
+        <CenterBrowserView browserTabId="c2" />
+      </TCopyProvider>,
+    );
+
+    await act(async () => {
+      resolveCheck(false);
+      await Promise.resolve();
+    });
+
+    expect(useAppStore.getState().browserTabsById['c1'].url).toBe(baiduUrl);
+  });
+
+  it('does not overwrite a newer same-tab navigation when the precheck resolves later', async () => {
+    embedState.blocked = false;
+    embedState.cached = undefined;
+    let resolveCheck: (value: boolean) => void = () => {};
+    embedState.deferred = new Promise((resolve) => {
+      resolveCheck = resolve;
+    });
+    useAppStore.getState().initializeSearchEngines();
+    useAppStore.getState().setDefaultSearchEngine('百度');
+    const tab = makeTab('c1', `https://www.baidu.com/s?wd=${encodeURIComponent('旧查询')}`);
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { c1: tab },
+      browserActiveTabId: 'c1',
+      isTauri: false,
+    });
+    renderView('c1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search engine settings' }));
+    fireEvent.click(screen.getByText('Google'));
+    act(() => {
+      useAppStore
+        .getState()
+        .browserUpdateTab('c1', { url: 'https://example.com/newer-navigation' });
+    });
+
+    await act(async () => {
+      resolveCheck(false);
+      await Promise.resolve();
+    });
+
+    expect(useAppStore.getState().browserTabsById['c1'].url).toBe(
+      'https://example.com/newer-navigation',
+    );
   });
 
   it('嵌入被拒时渲染外部打开兜底', () => {

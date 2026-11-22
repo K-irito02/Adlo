@@ -31,7 +31,7 @@ export function useFileMenuItems(
     },
     {
       id: 'open-folder',
-      label: t.menuOpenFolder,
+      label: t.menuAddWorkspace,
       shortcut: displayShortcut(keybinds, 'workspace.open'),
       action: onOpenFolder,
     },
@@ -112,6 +112,7 @@ export function useHelpMenuItems(
   t: CopyDict,
   keybinds: Keybinds,
   onOpenShortcuts: () => void,
+  onOpenLicense: () => void,
 ): MenuItem[] {
   return [
     {
@@ -120,6 +121,6 @@ export function useHelpMenuItems(
       shortcut: displayShortcut(keybinds, 'settings.shortcuts'),
       action: onOpenShortcuts,
     },
-    { id: 'license', label: t.menuLicense, action: () => {} },
+    { id: 'license', label: t.menuLicense, action: onOpenLicense },
   ];
 }

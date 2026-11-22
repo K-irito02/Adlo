@@ -210,6 +210,8 @@ export const browserEn = {
   browserSearchEngineSettings: 'Search Engine Settings',
   browserSearchEngineManage: 'Manage Custom Search Engines',
   browserSearchEngineBuiltIn: 'Switch Search Engine',
+  browserSearchEngineAutoSelect: 'Auto-select',
+  browserSearchEngineAutoSelecting: 'Checking…',
   browserSearchEngineCustom: 'Custom Engines',
   browserSearchEngineAdd: 'Add Search Engine',
   browserSearchEngineEdit: 'Edit',

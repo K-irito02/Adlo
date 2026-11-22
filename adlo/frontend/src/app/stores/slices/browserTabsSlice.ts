@@ -4,6 +4,8 @@ import { persist } from '../persisted/persist';
 import { applyTabPrune } from '../persisted/pruneWiring';
 import type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
 import { bookmarkUrlKey, isRealTitle } from '@utils/browserDisplayUtils';
+import type { BrowserNewTabRequest } from '@shared/ipc/browser';
+import { resolveNewWindowTabHost } from '@features/browser/newWindowTabRouting';
 
 // Re-export the tab state types from the shared leaf module so existing
 // consumers (e.g. tests, browserSlice, browserFoldersUtils) keep working
@@ -32,8 +34,19 @@ export interface BrowserTabsSlice {
   browserTabs: BrowserTabState[];
   browserTabsById: Record<string, BrowserTabState>;
   browserActiveTabId: string;
+  /** 本会话新建、尚未由 WebView 生命周期消费的标签（transient，不持久化）。 */
+  browserFreshTabIds: ReadonlySet<string>;
 
   browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) => void;
+  /**
+   * 页面内新窗口请求（`target="_blank"` / `window.open`）：按发起标签所在宿主
+   * 开新标签（中心 → 中心标签条，面板 → 面板），并登记 fresh 标记。
+   */
+  browserOpenNewWindowTab: (request: BrowserNewTabRequest) => void;
+  /** 登记一次性 fresh 标记，供 WebView 生命周期跳过重启下载抑制。 */
+  browserMarkTabFresh: (tabId: string) => void;
+  /** 读取并清除 fresh 标记；返回该标签是否为本会话新建。 */
+  browserConsumeTabFresh: (tabId: string) => boolean;
   browserSelectTab: (tabId: string) => void;
   browserCloseTab: (tabId: string) => void;
   browserUpdateTab: (tabId: string, patch: Partial<BrowserTabStateUpdate>) => void;
@@ -52,6 +65,7 @@ export const createBrowserTabsSlice = (
   browserTabs: [],
   browserTabsById: {},
   browserActiveTabId: '',
+  browserFreshTabIds: new Set<string>(),
 
   browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) => {
     // 注意：新建标签会同步把全局活动切到新标签（含中心语境调用者，如着陆页/入口页）。
@@ -133,6 +147,36 @@ export const createBrowserTabsSlice = (
   browserSelectTab: (tabId) => {
     persist('adl:browser.activeTabId', tabId);
     set({ browserActiveTabId: tabId });
+  },
+
+  browserOpenNewWindowTab: ({ tabId, url }) => {
+    if (!url) {
+      return;
+    }
+    const state = get();
+    const host = resolveNewWindowTabHost(tabId, state.browserTabsById, state.browserTabs);
+    // browserOpenTab 会同步把新标签设为全局活动并落盘；中心来源随后移入中心标签条，
+    // centerShowBrowserTab 会把面板活动 id 夹回面板标签。
+    state.browserOpenTab(url);
+    const newTabId = get().browserActiveTabId;
+    if (host === 'center') {
+      get().centerShowBrowserTab(newTabId);
+    }
+    get().browserMarkTabFresh(newTabId);
+  },
+
+  browserMarkTabFresh: (tabId) =>
+    set((state) => ({ browserFreshTabIds: new Set(state.browserFreshTabIds).add(tabId) })),
+
+  browserConsumeTabFresh: (tabId) => {
+    const fresh = get().browserFreshTabIds;
+    if (!fresh.has(tabId)) {
+      return false;
+    }
+    const next = new Set(fresh);
+    next.delete(tabId);
+    set({ browserFreshTabIds: next });
+    return true;
   },
 
   // 不变量（事项 6/M5）：`browserActiveTabId` 恒为面板活动标签 id（可空），永不指向

@@ -76,7 +76,10 @@ pub trait WebView2EventBridge: Send + Sync {
     /// Emit a request to open `url` in a new browser tab. Triggered by the
     /// injected `init_script.js` when the page targets `_blank` or calls
     /// `window.open` (postMessage `{type:'open-new-tab', url}`).
-    fn emit_open_new_tab(&self, url: &str);
+    ///
+    /// `tab_id` is the requesting tab: the frontend uses it to open the new tab
+    /// in the same host (center page → center tab, panel page → panel tab).
+    fn emit_open_new_tab(&self, tab_id: &str, url: &str);
     /// Emit an intercepted agent-site link click. Triggered by `init_script.js`
     /// only for whitelisted agent sites (postMessage `{type:'adl-agent-link', ...}`).
     ///

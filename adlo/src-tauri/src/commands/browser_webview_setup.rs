@@ -117,6 +117,7 @@ fn new_window_target(url: &url::Url) -> Option<String> {
 
 fn new_window_handler(
     app: &tauri::AppHandle,
+    tab_id: &str,
     url: &url::Url,
     _download_manager: &DownloadManager,
 ) -> tauri::webview::NewWindowResponse<tauri::Wry> {
@@ -129,8 +130,8 @@ fn new_window_handler(
     );
 
     // Download URLs: open a new tab (matching Chrome/Edge behavior), then
-    // delegate the actual download to on_download. The frontend will auto-close
-    // the new tab once DownloadStarting fires.
+    // delegate the actual download to on_download. The new tab hosts the WebView
+    // whose DownloadStarting event performs the download; it is not auto-closed.
     if is_download_url(url) {
         if let Some(target) = new_window_target(url) {
             tracing::info!(
@@ -138,8 +139,10 @@ fn new_window_handler(
                 target = %target,
                 "[ADL-DL] new_window_handler: download URL → opening new tab for download"
             );
-            let _ = app
-                .emit("digital-life://browser-open-new-tab", serde_json::json!({ "url": target }));
+            let _ = app.emit(
+                "digital-life://browser-open-new-tab",
+                serde_json::json!({ "tabId": tab_id, "url": target }),
+            );
         } else {
             tracing::info!(
                 url = %url,
@@ -151,8 +154,10 @@ fn new_window_handler(
 
     if let Some(target) = new_window_target(url) {
         tracing::info!(target, "new_window_handler: emitting browser-open-new-tab");
-        let _ =
-            app.emit("digital-life://browser-open-new-tab", serde_json::json!({ "url": target }));
+        let _ = app.emit(
+            "digital-life://browser-open-new-tab",
+            serde_json::json!({ "tabId": tab_id, "url": target }),
+        );
     } else {
         tracing::info!(url = %url, "[ADL-DL] new_window_handler: non-http(s) scheme, denying");
     }
@@ -286,8 +291,9 @@ pub(super) fn build_webview_builder(
         })
         .on_new_window({
             let dm_for_window = download_manager.clone();
+            let tab_id_for_window = tab_id.to_string();
             move |url, _window_features| {
-                new_window_handler(&app_handle, &url, &dm_for_window)
+                new_window_handler(&app_handle, &tab_id_for_window, &url, &dm_for_window)
             }
         })
         .on_download(move |_webview, event| {

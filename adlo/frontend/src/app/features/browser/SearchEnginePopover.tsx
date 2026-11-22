@@ -26,6 +26,11 @@ interface SearchEnginePopoverProps {
   open: boolean;
   onClose: () => void;
   anchorRef: React.RefObject<HTMLElement>;
+  /**
+   * 切换引擎后的宿主回调：由中心 / 右侧面板各自实现，只对其「当前可见标签」
+   * 做搜索结果页重载；后台标签与另一宿主不受影响。
+   */
+  onEngineSelected?: (engine: SearchEngine) => void;
 }
 
 interface FormData {
@@ -44,6 +49,7 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
   open,
   onClose,
   anchorRef,
+  onEngineSelected,
 }: SearchEnginePopoverProps) {
   const { t } = useTCopy();
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -60,7 +66,9 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
 
   const searchEngines = useAppStore((s) => s.searchEngines);
   const defaultSearchEngineId = useAppStore((s) => s.defaultSearchEngineId);
+  const searchEngineProbing = useAppStore((s) => s.searchEngineProbing);
   const setDefaultSearchEngine = useAppStore((s) => s.setDefaultSearchEngine);
+  const autoSelectSearchEngine = useAppStore((s) => s.autoSelectSearchEngine);
   const addCustomSearchEngine = useAppStore((s) => s.addCustomSearchEngine);
   const updateCustomSearchEngine = useAppStore((s) => s.updateCustomSearchEngine);
   const deleteCustomSearchEngine = useAppStore((s) => s.deleteCustomSearchEngine);
@@ -76,11 +84,19 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
 
   const handleSelect = useCallback(
     (id: string) => {
+      const engine = searchEngines.find((item) => item.id === id);
       setDefaultSearchEngine(id);
       onClose();
+      if (engine) {
+        onEngineSelected?.(engine);
+      }
     },
-    [setDefaultSearchEngine, onClose],
+    [searchEngines, setDefaultSearchEngine, onClose, onEngineSelected],
   );
+
+  const handleAutoSelect = useCallback(() => {
+    void autoSelectSearchEngine();
+  }, [autoSelectSearchEngine]);
 
   const handleOpenManage = useCallback(() => {
     resetForm();
@@ -406,7 +422,9 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
           builtInEngines={builtInEngines}
           customEngines={customEngines}
           defaultSearchEngineId={defaultSearchEngineId}
+          probing={searchEngineProbing}
           onSelect={handleSelect}
+          onAutoSelect={handleAutoSelect}
           onOpenManage={handleOpenManage}
           t={t}
         />
@@ -515,7 +533,9 @@ interface SearchEngineMainViewProps {
   builtInEngines: SearchEngine[];
   customEngines: SearchEngine[];
   defaultSearchEngineId: string;
+  probing: boolean;
   onSelect: (id: string) => void;
+  onAutoSelect: () => void;
   onOpenManage: () => void;
   t: Record<string, string>;
 }
@@ -524,7 +544,9 @@ function SearchEngineMainView({
   builtInEngines,
   customEngines,
   defaultSearchEngineId,
+  probing,
   onSelect,
+  onAutoSelect,
   onOpenManage,
   t,
 }: SearchEngineMainViewProps) {
@@ -577,6 +599,17 @@ function SearchEngineMainView({
         </div>
       )}
       <div className="adl-search-engine-popover__sep" />
+      <button
+        type="button"
+        className="adl-search-engine-popover__manage-btn"
+        onClick={onAutoSelect}
+        disabled={probing}
+      >
+        <IconRefreshCw size={14} decorative />
+        <span>
+          {probing ? t.browserSearchEngineAutoSelecting : t.browserSearchEngineAutoSelect}
+        </span>
+      </button>
       <button
         type="button"
         className="adl-search-engine-popover__manage-btn"

@@ -191,17 +191,32 @@
   padding-top: 8px;
   border-top: 1px solid var(--border);
   font-size: 11px;
-  line-height: 1.7;
+  line-height: 1.6;
   color: var(--text-secondary);
   text-align: left;
 }
 
-.adl-split-btn__settings-desc strong {
-  color: var(--text-primary);
-  display: block;
+/* 两列三行：左标签固定列宽、右说明可换行（替代旧版「标题段 + 平铺明细」）。 */
+.adl-split-btn__settings-desc p {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+
+.adl-split-btn__settings-desc p + p {
   margin-top: 4px;
 }
 
-.adl-split-btn__settings-desc strong:first-child {
-  margin-top: 0;
+.adl-split-btn__settings-desc strong {
+  color: var(--text-primary);
+  font-weight: var(--font-medium);
+}
+
+.adl-split-btn__settings-empty {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  text-align: left;
 }

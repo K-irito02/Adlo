@@ -4,6 +4,7 @@ import type {
   BrowserBridge,
   BrowserMediaCommand,
   BrowserMediaStatePayload,
+  BrowserNewTabRequest,
 } from '../shared/ipc/browser';
 import type { AgentSiteOverride, AgentSiteRule } from '../shared/ipc-types.generated';
 import { invokeIpc, subscribeChannel } from './tauri-shared';
@@ -131,12 +132,12 @@ export function createTauriBrowserBridge(): BrowserBridge {
         void Promise.resolve(ul?.()).catch(() => {});
       };
     },
-    onOpenNewTab: (listener: (url: string) => void) => {
+    onOpenNewTab: (listener: (request: BrowserNewTabRequest) => void) => {
       let active = true;
       let ul: UnlistenFn | undefined;
-      void listen<{ url: string }>('digital-life://browser-open-new-tab', (event) => {
+      void listen<BrowserNewTabRequest>('digital-life://browser-open-new-tab', (event) => {
         if (active) {
-          listener(event.payload.url);
+          listener(event.payload);
         }
       }).then((unlisten) => {
         if (active) {

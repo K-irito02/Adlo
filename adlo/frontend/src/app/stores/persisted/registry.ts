@@ -833,6 +833,14 @@ export const registry = {
     scope: 'global',
     read: readString,
   }),
+  // 是否已完成首次引擎选择（自动或手动）：true 后启动期不再探测，避免覆盖用户选择。
+  'adl:browser.searchEngineAutoSelected': defineEntry<boolean>({
+    key: 'adl:browser.searchEngineAutoSelected',
+    field: 'searchEngineAutoSelected',
+    fallback: false,
+    scope: 'global',
+    read: readFlag,
+  }),
   // ─────────────────────────────────────────────────────────────
   // 浏览器面板子状态补齐（Task 24）：导航子视图模式 + 导航检索范围（检索词
   // 本体是瞬态草稿，不登记，同 T22）+ 树选中项（"点击外部即清空"保留，

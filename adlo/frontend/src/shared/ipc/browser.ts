@@ -44,6 +44,13 @@ export interface BrowserMediaStatePayload {
   duration: number;
 }
 
+/** 页面内新窗口请求（`target="_blank"` / `window.open`）的发起标签与目标 URL。 */
+export interface BrowserNewTabRequest {
+  /** 发起请求的浏览器标签 id（前端据此决定开在中心还是右侧面板）。 */
+  tabId: string;
+  url: string;
+}
+
 /** 系统卡片按钮 → 标签页内媒体元素（仅桌面端）。 */
 export type BrowserMediaCommand = 'play' | 'pause' | 'stop';
 
@@ -141,7 +148,7 @@ export interface BrowserBridge {
    */
   mediaControlTab: (tabId: string, action: BrowserMediaCommand) => Promise<void>;
   /** Subscribe to new-window requests (`target="_blank"` / `window.open`); open a new tab. */
-  onOpenNewTab: (listener: (url: string) => void) => () => void;
+  onOpenNewTab: (listener: (request: BrowserNewTabRequest) => void) => () => void;
   /** 订阅被拦截的智能体站点链接点击（仅 Tauri；白名单站点）。 */
   onAgentLink: (listener: (payload: { kind: 'url' | 'file'; url: string }) => void) => () => void;
   /**

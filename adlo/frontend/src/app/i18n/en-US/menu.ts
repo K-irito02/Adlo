@@ -3,7 +3,7 @@ export const menuEn = {
   menuView: 'View',
   menuHelp: 'Help',
   menuNewWorkspace: 'New Workspace',
-  menuOpenFolder: 'Open Folder',
+  menuAddWorkspace: 'Add Workspace',
   menuNewTerminal: 'New Terminal',
   menuOpenFilePanel: 'Open File Panel',
   menuOpenChangesPanel: 'Open Changes Panel',
