@@ -43,6 +43,7 @@
 - [0030 无上游推送：后端保留自动建立上游，前端必须先预检且绝不自动提交](./0030-push-preflight-without-upstream.md) — 脏/无上游合并确认；提交成功续推；失败错误卡重试；忙碌互斥
 - [0031 页面内新窗口请求跟随发起标签的宿主落地](./0031-browser-new-window-follows-source-tab.md) — 事件带 `tabId`；中心来源开中心标签，面板来源开面板标签
 - [0032 搜索引擎首次启动静默自动选择，手动选择后不再覆盖](./0032-search-engine-auto-selection-on-first-run.md) — `no-cors` 探测；首启静默；手动后不覆盖
+- [0033 站点元数据改为按需补齐，显式刷新分两段抓取](./0033-on-demand-site-metadata-and-explicit-refresh.md) — 启动零预取；被动条目限速轻量读取；显式刷新先取图标再渲染取标题；静态标题不写回
 ## 品牌、工具链与 Git 可视化
 
 - [0013 品牌改名后保留 `adl` 工程前缀](./0013-retain-adl-prefix-after-rename.md)

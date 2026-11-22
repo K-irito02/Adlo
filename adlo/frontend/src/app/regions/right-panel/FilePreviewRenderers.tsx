@@ -111,7 +111,9 @@ function PreviewSurface({
  */
 
 type OfficeBytesState =
-  { status: 'loading' } | { status: 'ready'; data: ArrayBuffer } | { status: 'error' };
+  | { status: 'loading' }
+  | { status: 'ready'; data: ArrayBuffer }
+  | { status: 'error' };
 
 /**
  * 办公分支壳（事项 7）：字节在分支挂载后按需 `fetch` —— 即重型门确认之后，

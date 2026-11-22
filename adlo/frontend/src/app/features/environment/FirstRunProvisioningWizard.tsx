@@ -30,7 +30,13 @@ import './firstRunProvisioning.css';
 
 type ItemId = 'node' | 'git' | 'bash' | 'dsh' | 'opencode';
 type ItemStatus =
-  'pending' | 'detecting' | 'downloading' | 'installing' | 'retrying' | 'done' | 'error';
+  | 'pending'
+  | 'detecting'
+  | 'downloading'
+  | 'installing'
+  | 'retrying'
+  | 'done'
+  | 'error';
 
 interface ItemState {
   id: ItemId;

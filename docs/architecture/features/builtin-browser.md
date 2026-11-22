@@ -3,7 +3,7 @@
 > **体裁**：设计决策（架构与双模式契约）。实现快照（crate 细节）见 [analysis/adlo/features/builtin-browser.md](../../analysis/adlo/features/builtin-browser.md)。
 >
 > **网站图标模型**：共享站点元数据镜像是真源，导入书签的图标快照只播种不写持久层，被动列表用首字母占位——见 [ADR-0020](../../adr/0020-site-icon-mirror-and-bookmark-snapshot.md)。
-> 「有标题但没有图标」不再视为已结算：被动条目由 `BrowserFavicon` 走 HTTP-only 补齐（同域 5s 限速、每分钟预算、排队不丢行），标签页/快捷站点失败时可回退静默渲染；显式「刷新网站图标与标题」固定 HTTP-first 取图标 + 静默渲染取标题。启动不再批量预热隐藏 WebView——见 [ADR-0021](../../adr/0021-site-meta-failure-tombstone-and-alias-backfill.md#决策) 与 [KB](../knowledge-base/browser/favicon-meta/browser-favicon-title-only-selfheal-2026-11-19.md)。
+> 「有标题但没有图标」不再视为已结算：被动条目由 `BrowserFavicon` 走 HTTP-only 补齐（同域 5s 限速、每分钟预算、排队不丢行），标签页/快捷站点失败时可回退静默渲染；显式「刷新网站图标与标题」固定 HTTP-first 取图标 + 静默渲染取标题。启动不再批量预热隐藏 WebView——策略见 [ADR-0033](../../adr/0033-on-demand-site-metadata-and-explicit-refresh.md)，墓碑与别名回写见 [ADR-0021](../../adr/0021-site-meta-failure-tombstone-and-alias-backfill.md#决策) 与 [KB](../knowledge-base/browser/favicon-meta/browser-favicon-title-only-selfheal-2026-11-19.md)。
 
 ## 摘要
 为右侧面板浏览器工具实现了完整的双模式内置浏览器功能。Tauri 桌面模式使用原生 child WebView（multiwebview），浏览器预览模式使用 `<iframe>` 直连 + 外部浏览器降级按钮。
