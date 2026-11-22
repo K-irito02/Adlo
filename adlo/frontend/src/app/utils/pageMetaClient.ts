@@ -9,10 +9,15 @@ export interface PageMetaClient {
   peek(url: string): SiteMetaCacheEntry | undefined;
   get(url: string, opts?: { force?: boolean }): Promise<PageMeta | null>;
   getSilent(url: string): Promise<PageMeta | null>;
-  /** HTTP-only 抓取（不创建隐藏 WebView）；失败返回空 meta。 */
+  /** HTTP-only 抓取（不创建隐藏 WebView）；Tauri 失败返回空字段 PageMeta，Preview 失败返回 null。 */
   fetchHttp(url: string): Promise<PageMeta | null>;
   report(meta: PageMeta, source: MetaSource): Promise<void>;
-  refresh(url: string): Promise<PageMeta | null>;
+  /**
+   * 刷新页面元数据：先 HTTP 取图标，再按需静默 WebView 取渲染标题。
+   * `iconOnly` 为 true 时（自动补图标）HTTP 拿到 data-URI 即返回，不建隐藏 WebView。
+   */
+  refresh(url: string, opts?: { iconOnly?: boolean }): Promise<PageMeta | null>;
+  /** 显式维护面：批量补齐入口，当前无自动调用方（启动不再预热）。 */
   warmup(urls: string[]): Promise<void>;
   subscribeUpdated(listener: (p: PageMetaUpdatedPayload) => void): () => void;
 }
@@ -31,7 +36,7 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
       },
       getSilent: async (url) => {
         const http = await pageMetaClient.fetchHttp(url);
-        if (http && (http.faviconDataUri || http.title)) {
+        if (http && (http.faviconDataUri || http.favicon || http.title)) {
           return http;
         }
         return null;
@@ -48,13 +53,23 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
           source,
         });
       },
-      refresh: async (url) => {
+      refresh: async (url, opts) => {
         const http = await pageMetaClient.fetchHttp(url);
-        if (http?.faviconDataUri) {
+        if (opts?.iconOnly && http?.faviconDataUri) {
           return http;
         }
+        // 显式刷新（刷新图标与标题）：即使 HTTP 已带图标也再取一次渲染标题；
+        // 当前实现下，缺少这一步时「已有图标」的站点不会取 COM 标题。
         const r = await invokeIpc<PageMeta>('browser_page_meta_refresh', { url });
-        return r.ok && r.data ? r.data : null;
+        const rendered = r.ok && r.data ? r.data : null;
+        if (rendered && (rendered.title || rendered.favicon || rendered.faviconDataUri)) {
+          return {
+            ...rendered,
+            favicon: rendered.favicon || http?.favicon || '',
+            faviconDataUri: rendered.faviconDataUri || http?.faviconDataUri || '',
+          };
+        }
+        return http;
       },
       warmup: async (urls) => {
         await invokeIpc<void>('browser_page_meta_warmup', { urls });
@@ -92,7 +107,7 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
       },
       getSilent: async (url) => {
         const http = await pageMetaClient.fetchHttp(url);
-        if (http && (http.faviconDataUri || http.title)) {
+        if (http && (http.faviconDataUri || http.favicon || http.title)) {
           return http;
         }
         return null;
@@ -115,26 +130,34 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
           }),
         });
       },
-      refresh: async (url) => {
+      refresh: async (url, opts) => {
         const http = await pageMetaClient.fetchHttp(url);
-        if (http?.faviconDataUri) {
+        if (opts?.iconOnly && http?.faviconDataUri) {
           return http;
         }
         const r = await requestPreviewApi<PageMeta>('/browser/page-meta/refresh', {
           method: 'POST',
           body: JSON.stringify({ url }),
         });
-        const meta = r.ok && r.data ? r.data : null;
-        // 预览模式无事件（subscribeUpdated no-op），刷新结果直接落地镜像
-        if (meta) {
-          applyBroadcastUpdate({
-            url: meta.url,
-            title: meta.title,
-            faviconUrl: meta.favicon,
-            faviconDataUri: meta.faviconDataUri || '',
-            source: (meta.source as MetaSource | undefined) || 'http',
-          });
+        const rendered = r.ok && r.data ? r.data : null;
+        if (!rendered && !http) {
+          return null;
         }
+        const meta: PageMeta = rendered
+          ? {
+              ...rendered,
+              favicon: rendered.favicon || http?.favicon || '',
+              faviconDataUri: rendered.faviconDataUri || http?.faviconDataUri || '',
+            }
+          : http!;
+        // 预览模式无事件（subscribeUpdated no-op），刷新结果直接落地镜像
+        applyBroadcastUpdate({
+          url: meta.url,
+          title: meta.title,
+          faviconUrl: meta.favicon,
+          faviconDataUri: meta.faviconDataUri || '',
+          source: (meta.source as MetaSource | undefined) || 'http',
+        });
         return meta;
       },
       warmup: async (urls) => {

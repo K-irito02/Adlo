@@ -91,7 +91,7 @@ impl WorkspaceWatchers {
             tracing::warn!(
                 skipped = truncated,
                 limit = MAX_WATCHED_ROOTS,
-                "workspace watcher limit reached; extra workspaces fall back to focus refresh"
+                "workspace watcher limit reached; extra workspaces are not watched (manual refresh only)"
             );
         }
 
@@ -147,7 +147,8 @@ impl WorkspaceWatchers {
                         );
                     },
                     Err(err) => {
-                        // 降级：该工作区退回"靠焦点补刷"，不影响其它根。
+                        // 降级：该工作区的文件树/变更自动刷新降级为手动；git 元数据 watcher
+                        // 仍登记，`.git` 变动仍会触发快照刷新。不影响其它根。
                         tracing::warn!(error = %err, root = %root, "workspace watcher disabled");
                     },
                 }

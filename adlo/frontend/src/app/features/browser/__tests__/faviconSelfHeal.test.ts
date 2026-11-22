@@ -39,7 +39,7 @@ describe('ensureSiteFavicon', () => {
     ensureSiteFavicon('https://gitee.com/K_irito/Adlo');
     await flush();
     expect(refreshMock).toHaveBeenCalledTimes(1);
-    expect(refreshMock).toHaveBeenCalledWith('https://gitee.com/K_irito/Adlo');
+    expect(refreshMock).toHaveBeenCalledWith('https://gitee.com/K_irito/Adlo', { iconOnly: true });
   });
 
   it('skips pages that already have a displayable icon', () => {
@@ -53,7 +53,7 @@ describe('ensureSiteFavicon', () => {
     getFaviconUrlMock.mockReturnValue('https://cdn.example/broken.ico');
     ensureSiteFavicon('https://hotlink.example', { force: true });
     await flush();
-    expect(refreshMock).toHaveBeenCalledWith('https://hotlink.example');
+    expect(refreshMock).toHaveBeenCalledWith('https://hotlink.example', { iconOnly: true });
   });
 
   it('force refreshes even inside the regular throttle window, on a separate 60s cooldown', async () => {
@@ -86,6 +86,58 @@ describe('ensureSiteFavicon', () => {
     await flush();
     expect(fetchHttpMock).toHaveBeenCalledWith('https://bookmark.example');
     expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it('HTTP-only attempt does not starve the WebView upgrade path', async () => {
+    ensureSiteFaviconHttp('https://upgrade.example');
+    await flush();
+    expect(fetchHttpMock).toHaveBeenCalledTimes(1);
+    ensureSiteFavicon('https://upgrade.example');
+    await flush();
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('defers same-domain passive fetches instead of dropping them', async () => {
+    vi.useFakeTimers();
+    try {
+      ensureSiteFaviconHttp('https://same.example/a');
+      ensureSiteFaviconHttp('https://same.example/b');
+      expect(fetchHttpMock).toHaveBeenCalledTimes(1);
+      expect(fetchHttpMock.mock.calls[0]?.[0]).toBe('https://same.example/a');
+      // 第二个 URL 留在队列里，5s 后自动补发，而不是被静默丢弃。
+      await vi.advanceTimersByTimeAsync(5_100);
+      expect(fetchHttpMock).toHaveBeenCalledTimes(2);
+      expect(fetchHttpMock.mock.calls[1]?.[0]).toBe('https://same.example/b');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('force bypasses the existing-icon early return for hotlink data-URI backfill', async () => {
+    getFaviconUrlMock.mockReturnValue('https://hotlink.example/f.ico');
+    ensureSiteFaviconHttp('https://hotlink.example');
+    await flush();
+    expect(fetchHttpMock).not.toHaveBeenCalled();
+    ensureSiteFaviconHttp('https://hotlink.example', { force: true });
+    await flush();
+    expect(fetchHttpMock).toHaveBeenCalledWith('https://hotlink.example');
+  });
+
+  it('queues URLs past the per-minute budget and resumes in the next window', async () => {
+    vi.useFakeTimers();
+    try {
+      for (let i = 0; i < 41; i += 1) {
+        ensureSiteFaviconHttp(`https://budget-${i}.example/`);
+      }
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetchHttpMock).toHaveBeenCalledTimes(40);
+      // 预算耗尽：第 41 个留在队列，窗口滚动后补发（不丢弃）。
+      await vi.advanceTimersByTimeAsync(60_100);
+      expect(fetchHttpMock).toHaveBeenCalledTimes(41);
+      expect(fetchHttpMock.mock.calls[40]?.[0]).toBe('https://budget-40.example/');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('ignores non-http(s) URLs (file/about/new-tab page)', () => {

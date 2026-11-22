@@ -7,6 +7,7 @@ import { useBookmarkToFolderDialog } from '../useBookmarkToFolderDialog';
 // 收藏成功后 2s 的后台 favicon 抓取与断言无关，且会真的发请求 → 替换为 noop。
 vi.mock('../faviconSelfHeal', () => ({
   scheduleFaviconFetch: vi.fn(),
+  ensureSiteFaviconHttp: vi.fn(),
   shouldAttemptFaviconSelfHeal: () => false,
 }));
 

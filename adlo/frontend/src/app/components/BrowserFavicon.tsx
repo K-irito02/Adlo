@@ -423,10 +423,16 @@ export function BrowserFavicon({
       }
       return;
     }
-    if (exhaustedForUrl || (!preferredSrc && resolvedEmptyForUrl)) {
+    if (exhaustedForUrl) {
+      ensureSiteFaviconHttp(url, { force: true });
+      return;
+    }
+    // 被动列表：无条目 / 已结算无图标都允许一次 HTTP 尝试；cache 未就绪时
+    // 等待镜像 ready 后的重渲染，避免对空镜像误判「无条目」。
+    if (!preferredSrc && isSiteMetaCacheReady()) {
       ensureSiteFaviconHttp(url);
     }
-  }, [url, pending, preferredSrc, resolvedEmptyForUrl, exhaustedForUrl]);
+  }, [url, pending, preferredSrc, resolvedEmptyForUrl, exhaustedForUrl, ready]);
 
   // 命中浏览器缓存时 onLoad 可能在监听挂载前就已触发：挂载后补一次 complete 检查。
   useEffect(() => {

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { pageMetaClient } from '@utils/pageMetaClient';
-import { hostnameFromUrl, isPlaceholderTitle } from '@utils/browserDisplayUtils';
+import { isPlaceholderTitle } from '@utils/browserDisplayUtils';
 import { applyBroadcastTitle, titleSourceRef } from './useBrowserPageMeta';
 import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 import { useOpenInCenterAction } from './useOpenInCenterAction';
@@ -42,29 +42,41 @@ export function useBrowserTagActions(options?: {
       if (!url) {
         return;
       }
-      const meta = await pageMetaClient.refresh(url); // force=true
+      const meta = await pageMetaClient.refresh(url);
 
       const state = useAppStore.getState();
       const tab = tabId ? state.browserTabs.find((t) => t.id === tabId) : undefined;
 
-      const title = meta?.title || hostnameFromUrl(url);
+      // HTTP-first 命中 icon 时可能只带回静态 HTML 标题（SPA 详情页只有站点名），
+      // 它不是渲染标题：不得降级已有标题，也不得把 titleSource 锁成 http 挡住 COM 广播。
+      const staticTitleOnly = meta?.source === 'http';
+      const renderedTitle = staticTitleOnly ? '' : (meta?.title?.trim() ?? '');
+      const cached = pageMetaClient.peek(url);
+      const stableTitle =
+        (tab?.title && !isPlaceholderTitle(tab.title, url) ? tab.title : '') ||
+        (cached?.title && !isPlaceholderTitle(cached.title, url) ? cached.title : '');
+      const title = renderedTitle || stableTitle;
+
       if (tab) {
-        const shouldApply = applyBroadcastTitle(
-          tab,
-          url,
-          title,
-          'http',
-          titleSourceRef.get(tabId!),
-        );
-        // 刷新拿到真实标题并应用 → 标记已结算（M1-D）
-        browserUpdateTab(tabId!, {
-          title: shouldApply ? title : tab.title,
-          ...(shouldApply ? { titleResolved: true } : {}),
-        });
-        if (shouldApply) {
-          titleSourceRef.set(tabId!, 'http');
+        // 只有静默 WebView 的渲染标题才写标签；取不到就保持现状（不降级、不锁来源）。
+        if (renderedTitle) {
+          const source = meta?.source || 'http';
+          const shouldApply = applyBroadcastTitle(
+            tab,
+            url,
+            renderedTitle,
+            source,
+            titleSourceRef.get(tabId!),
+          );
+          browserUpdateTab(tabId!, {
+            title: shouldApply ? renderedTitle : tab.title,
+            ...(shouldApply ? { titleResolved: true } : {}),
+          });
+          if (shouldApply) {
+            titleSourceRef.set(tabId!, source);
+          }
         }
-      } else {
+      } else if (title) {
         const isHistoryEntry = state.browserHistory.some((h) => h.id === tabId);
         if (isHistoryEntry) {
           browserUpdateHistoryTitle(url, title);

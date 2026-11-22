@@ -31,7 +31,6 @@ interface UseStickyContextInput {
 function useStickyContext(input: UseStickyContextInput): StickyContextModel | null {
   const { t } = useTCopy();
   const [model, setModel] = useState<StickyContextModel | null>(null);
-  const contentKeyRef = useRef('');
   const editorRefCache = useRef<(() => EditorRef | null) | null>(null);
   const scrollSeqRef = useRef(0);
   const revealSeqRef = useRef(0);
@@ -60,7 +59,6 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
         revealSeqRef.current += 1;
       }
       if (!selectedFilePath) {
-        contentKeyRef.current = '';
         setModel(null);
         return;
       }
@@ -82,8 +80,6 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
       const contentKey = `${selectedFilePath}:${visibleStartLine}:${entries
         .map((e) => `${e.line}:${e.kind}:${e.tone}`)
         .join('|')}:${canScrollToTop}`;
-
-      contentKeyRef.current = contentKey;
 
       setModel(
         createStickyContextModel({

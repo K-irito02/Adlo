@@ -53,7 +53,8 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
       syncBookmarkIconSnapshots();
     });
     // 启动不再批量预热隐藏 WebView：书签/历史直接显示已持久化的标题/图标，
-    // 缺图标由 BrowserFavicon 在可见时经 HTTP-first 自愈（显式刷新才回退 silent WebView）。
+    // 缺图标由 BrowserFavicon 在可见时自愈——标签页可回退 silent WebView，
+    // 书签/历史只走 HTTP-only（不建隐藏 WebView）。
     return unsubReady;
   }, []);
 

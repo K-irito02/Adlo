@@ -3,7 +3,7 @@
 > **体裁**：设计决策（架构与双模式契约）。实现快照（crate 细节）见 [analysis/adlo/features/builtin-browser.md](../../analysis/adlo/features/builtin-browser.md)。
 >
 > **网站图标模型**：共享站点元数据镜像是真源，导入书签的图标快照只播种不写持久层，被动列表用首字母占位——见 [ADR-0020](../../adr/0020-site-icon-mirror-and-bookmark-snapshot.md)。
-> 「有标题但没有图标」不再视为已结算：启动预热与 `get` 会补抓（有冷却与预算），活跃宿主（标签页/快捷站点）另有组件级自愈，静默渲染拿不到图标时回退 `{origin}/favicon.ico`——见 [ADR-0021](../../adr/0021-site-meta-failure-tombstone-and-alias-backfill.md#决策) 与 [KB](../knowledge-base/browser/favicon-meta/browser-favicon-title-only-selfheal-2026-11-19.md)。
+> 「有标题但没有图标」不再视为已结算：被动条目由 `BrowserFavicon` 走 HTTP-only 补齐（同域 5s 限速、每分钟预算、排队不丢行），标签页/快捷站点失败时可回退静默渲染；显式「刷新网站图标与标题」固定 HTTP-first 取图标 + 静默渲染取标题。启动不再批量预热隐藏 WebView——见 [ADR-0021](../../adr/0021-site-meta-failure-tombstone-and-alias-backfill.md#决策) 与 [KB](../knowledge-base/browser/favicon-meta/browser-favicon-title-only-selfheal-2026-11-19.md)。
 
 ## 摘要
 为右侧面板浏览器工具实现了完整的双模式内置浏览器功能。Tauri 桌面模式使用原生 child WebView（multiwebview），浏览器预览模式使用 `<iframe>` 直连 + 外部浏览器降级按钮。
@@ -102,7 +102,7 @@
 - [browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md](../../knowledge-base/browser/bookmark/browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md) — 书签 (url, title) 元组语义 + 标题隔离
 - [browser-history-navigation-2026-08-14.md](../../knowledge-base/browser/history/browser-history-navigation-2026-08-14.md) — 历史导航归一化 + 智能回退 + 标题来源门控
 - [browser-site-meta-cache-2026-08-13.md](../../knowledge-base/browser/favicon-meta/browser-site-meta-cache-2026-08-13.md) — 网站元数据三层持久化缓存
-- [browser-silent-warmup-tombstone-2026-11-12.md](../../knowledge-base/browser/favicon-meta/browser-silent-warmup-tombstone-2026-11-12.md) — 启动预热重复静默抓取：失败零缓存 + 重定向键分叉
+- [browser-silent-warmup-tombstone-2026-11-12.md](../../knowledge-base/browser/favicon-meta/browser-silent-warmup-tombstone-2026-11-12.md) — 历史：启动批量预热重复静默抓取，失败零缓存 + 重定向键分叉
 - [browser-favicon-title-only-selfheal-2026-11-19.md](../../knowledge-base/browser/favicon-meta/browser-favicon-title-only-selfheal-2026-11-19.md) — 标题-only 条目永不补图标 + 组件级自愈 + 惯例兜底
 - [browser-bookmark-favicon-snapshot-2026-11-12.md](../../knowledge-base/browser/favicon-meta/browser-bookmark-favicon-snapshot-2026-11-12.md) — 书签网站图标重复转圈 + 导入图标快照播种（配 ADR-0020）
 - [browser-folder-delete-bookmark-cleanup-2026-06-30.md](../../knowledge-base/browser/bookmark/browser-folder-delete-bookmark-cleanup-2026-06-30.md) — 书签删除跨域污染修复

@@ -151,10 +151,6 @@ describe('sticky context panel wiring', () => {
     new URL('./hooks/useStickyContext.ts', import.meta.url),
     'utf8',
   );
-  const _changesPanelSource = readFileSync(
-    new URL('./panels/ChangesPanel.tsx', import.meta.url),
-    'utf8',
-  );
 
   it('renders sticky context above the files editor surface in both editor modes', () => {
     expect(editorSurfaceShellSource).toContain('StickyContext');
@@ -189,5 +185,15 @@ describe('sticky context panel wiring', () => {
     );
     expect(diffEditorSectionSource).toContain('changes-preview-sticky-context');
     expect(diffEditorSectionSource).toContain('usePreviewStickyContext');
+    // 面板接线：模型/回调 ref 必须真的传到预览面（删掉传参即红）。
+    expect(editorSurfaceShellSource).toContain('stickyContextModel={previewStickyModel}');
+    expect(editorSurfaceShellSource).toContain('editorSurfaceRef={setPreviewSurfaceRef}');
+    expect(diffEditorSectionSource).toContain('stickyContextModel={mediaStickyModel}');
+    expect(diffEditorSectionSource).toContain('editorSurfaceRef={setMediaSurfaceRef}');
+    // 媒体变更重置键必须含媒体路径，且媒体预览按路径重挂：退回旧 resetKey 即红。
+    expect(diffEditorSectionSource).toContain(
+      "changePreview?.path ?? selectedChangePreviewPath ?? ''",
+    );
+    expect(diffEditorSectionSource).toContain('key={previewPath}');
   });
 });

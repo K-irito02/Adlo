@@ -19,6 +19,7 @@ use adl_browser::{
 use adl_errors::AppError;
 use adl_types::{AgentSiteOverride, AgentSiteRule, IpcResult};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use futures::StreamExt;
 use tauri::{Manager, State};
 
 #[tauri::command]
@@ -162,8 +163,7 @@ fn attach_webview_child(
         })?;
 
     if is_silent {
-        // 启动预热会为最多 200 个书签/历史各建一个隐藏 WebView：逐条 INFO 会淹没
-        // 终端；静默建窗只在 DEBUG 记录，正常标签页仍保留 INFO。
+        // silent 建窗（可见标签/显式刷新触发）走 DEBUG；正常标签页保留 INFO。
         tracing::debug!(tab_id = &tab_id, "browser webview created for silent tab");
     } else {
         tracing::info!(tab_id = &tab_id, "browser webview created for tab");
@@ -271,7 +271,7 @@ pub fn create_silent_webview(
 /// 静默标签页抓取超时（毫秒），与前端 bookMarkMeta 体验对齐。
 pub const SILENT_FETCH_TIMEOUT_MS: u64 = 6000;
 
-/// 后台 favicon 字节下载并发上限：warmup 至多 200 路静默抓取各自触发一次下载，
+/// 后台 favicon 字节下载并发上限：批量补齐/多标签刷新可能各自触发一次下载，
 /// 无上限会对 CDN/远端打满连接（M2 移入后台任务后新引入的并发面）。
 static FAVICON_DOWNLOAD_SEM: std::sync::OnceLock<std::sync::Arc<tokio::sync::Semaphore>> =
     std::sync::OnceLock::new();
@@ -305,8 +305,8 @@ fn has_favicon(e: &SiteMetaCacheEntry) -> bool {
     !e.favicon_url.is_empty() || !e.favicon_data_uri.is_empty()
 }
 
-/// 无图标条目的补抓冷却（per cache key）：标题-only 条目在 `get` 缓存命中与启动
-/// `warmup` 时会各触发一次静默补抓；冷却避免同一会话对无图标站点反复创建 WebView。
+/// 无图标条目的补抓冷却（per cache key）：标题-only 条目在 `get` 缓存命中与显式
+/// 刷新时会各触发一次静默补抓；冷却避免同一会话对无图标站点反复创建 WebView。
 static FAVICON_LESS_REFETCH_COOLDOWN: std::sync::OnceLock<
     std::sync::Mutex<std::collections::HashMap<String, std::time::Instant>>,
 > = std::sync::OnceLock::new();
@@ -341,7 +341,7 @@ fn favicon_less_refetch_key(url: &str) -> String {
 /// warmup 目标判定（纯函数）：
 /// - 无条目 → 抓（首次预热）；
 /// - 退避期墓碑 → 跳过（失败退避与预览端同构）；
-/// - 标题不成立且 `favicon_url` 为空 → 抓（即便已有 data-URI 也会抓：warmup 顺带补标题）；
+/// - 标题不成立且 `favicon_url` 为空 → 抓（HTTP 只补图标、不写标题，即便已有 data-URI 也会抓）；
 /// - 有效缓存（`silent_cache_hit`）但没有任何图标 → 仍抓（标题-only 条目补 favicon）。
 ///   这与预览端不再把「有标题」当有效命中一致；但预览端另有 `META_TTL_MS` 到期重抓
 ///   （有图标也会重抓），桌面端本轮未引入 TTL 语义，此处只对齐「标题-only」这一条；
@@ -854,11 +854,238 @@ fn origin_favicon_url(page_url: &str) -> Option<String> {
     Some(format!("{}://{host}{port}/favicon.ico", parsed.scheme()))
 }
 
+fn is_private_http_host(host: &str) -> bool {
+    host.eq_ignore_ascii_case("localhost")
+        || host.parse::<std::net::IpAddr>().is_ok()
+        || (host.len() == 1 && host.as_bytes()[0].is_ascii_alphabetic())
+}
+
+/// 解析 robots.txt 分组（RFC 9309 子集，与预览端 `crawlerRobots.parseRobotsTxt` 同构）：
+/// 注释只剥到行尾、空行不结束分组；`User-agent` 在已有规则后开新组；无前缀的
+/// `Allow`/`Disallow` 归入 `*` 组。
+#[derive(Default)]
+struct RobotsGroup {
+    user_agents: Vec<String>,
+    allow: Vec<String>,
+    disallow: Vec<String>,
+}
+
+fn parse_robots_txt(raw: &str) -> Vec<RobotsGroup> {
+    let mut groups: Vec<RobotsGroup> = Vec::new();
+    let mut current: Option<RobotsGroup> = None;
+    for raw_line in raw.lines() {
+        let line = raw_line.split('#').next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Some((field, value)) = line.split_once(':') else { continue };
+        let field = field.trim().to_ascii_lowercase();
+        // 单条规则字符上限：防止超长 Disallow 让下面的 DP 分配膨胀。
+        let value: String = value.trim().chars().take(MAX_ROBOTS_RULE_CHARS).collect();
+        let value = value.as_str();
+        match field.as_str() {
+            "user-agent" => {
+                let has_rules =
+                    current.as_ref().is_some_and(|g| !g.allow.is_empty() || !g.disallow.is_empty());
+                if has_rules {
+                    if let Some(group) = current.take() {
+                        groups.push(group);
+                    }
+                }
+                current
+                    .get_or_insert_with(RobotsGroup::default)
+                    .user_agents
+                    .push(value.to_string());
+            },
+            "allow" if !value.is_empty() => current
+                .get_or_insert_with(|| RobotsGroup {
+                    user_agents: vec!["*".to_string()],
+                    ..RobotsGroup::default()
+                })
+                .allow
+                .push(value.to_string()),
+            "disallow" if !value.is_empty() => current
+                .get_or_insert_with(|| RobotsGroup {
+                    user_agents: vec!["*".to_string()],
+                    ..RobotsGroup::default()
+                })
+                .disallow
+                .push(value.to_string()),
+            _ => {},
+        }
+    }
+    if let Some(group) = current {
+        groups.push(group);
+    }
+    groups
+}
+
+/// robots.txt 解析上限：正文 64KB、单条规则 512 字符。恶意/损坏站点不能让
+/// 常驻桌面进程为 DP 匹配分配 GB 级内存。
+const MAX_ROBOTS_BODY: usize = 64 * 1024;
+const MAX_ROBOTS_RULE_CHARS: usize = 512;
+const MAX_ROBOTS_DP_CELLS: usize = 250_000;
+
+/// 通配符模式（`*` 任意串、尾部 `$` 锚定）的最长前缀匹配长度；不匹配返回 None。
+/// 与预览端 `longestMatch` 的 DP 语义一致。
+#[allow(clippy::needless_range_loop)] // DP 表按行列下标推进，迭代器形式反而难读。
+fn robots_longest_match(pattern: &str, path: &str) -> Option<usize> {
+    let anchored = pattern.ends_with('$');
+    let core = if anchored { &pattern[..pattern.len() - 1] } else { pattern };
+    let pat: Vec<char> = core.chars().collect();
+    let self_chars: Vec<char> = path.chars().collect();
+    // 乘积上限保护：正常规则（≤512 字符 + 短路径）远低于阈值。
+    if pat.len().saturating_mul(self_chars.len()) > MAX_ROBOTS_DP_CELLS {
+        return None;
+    }
+    let mut dp = vec![vec![false; self_chars.len() + 1]; pat.len() + 1];
+    dp[0][0] = true;
+    for i in 1..=pat.len() {
+        if pat[i - 1] == '*' {
+            for j in 0..=self_chars.len() {
+                if dp[i - 1][j] {
+                    dp[i][j] = true;
+                }
+            }
+            for j in 1..=self_chars.len() {
+                if dp[i][j - 1] {
+                    dp[i][j] = true;
+                }
+            }
+        } else {
+            for j in 1..=self_chars.len() {
+                if dp[i - 1][j - 1] && pat[i - 1] == self_chars[j - 1] {
+                    dp[i][j] = true;
+                }
+            }
+        }
+    }
+    if anchored {
+        return dp[pat.len()][self_chars.len()].then_some(self_chars.len());
+    }
+    (0..=self_chars.len()).rev().find(|&j| dp[pat.len()][j])
+}
+
+/// robots 判定（与预览端 `crawlerRobots.isAllowed` 同语义）：
+/// 精确 UA 分组优先、否则 `*`；`Allow`/`Disallow` 取最长匹配，等长时 Allow 胜。
+fn robots_allows(robots: &str, user_agent: &str, path: &str) -> bool {
+    let groups = parse_robots_txt(robots);
+    let token = user_agent.split('/').next().unwrap_or(user_agent).trim();
+    let group = groups
+        .iter()
+        .find(|g| g.user_agents.iter().any(|ua| ua.eq_ignore_ascii_case(token)))
+        .or_else(|| groups.iter().find(|g| g.user_agents.iter().any(|ua| ua == "*")));
+    let Some(group) = group else { return true };
+    let path = if path.is_empty() { "/" } else { path };
+    let allow_max =
+        group.allow.iter().filter_map(|pattern| robots_longest_match(pattern, path)).max();
+    let disallow_max =
+        group.disallow.iter().filter_map(|pattern| robots_longest_match(pattern, path)).max();
+    match (allow_max, disallow_max) {
+        (None, None) => true,
+        (None, Some(_)) => false,
+        (Some(_), None) => true,
+        (Some(allow), Some(disallow)) => allow >= disallow,
+    }
+}
+
+static ROBOTS_CACHE: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashMap<String, Vec<String>>>,
+> = std::sync::OnceLock::new();
+
+/// robots 正文封顶并按行切分（纯函数：便于用超长正文验证上限）。
+fn robots_lines_from_body(mut body: Vec<u8>) -> Vec<String> {
+    if body.len() > MAX_ROBOTS_BODY {
+        body.truncate(MAX_ROBOTS_BODY);
+    }
+    trim_incomplete_utf8_tail(&mut body);
+    String::from_utf8_lossy(&body).lines().take(500).map(str::to_string).collect()
+}
+
+async fn robots_allows_url(url: &str) -> bool {
+    let Ok(parsed) = url::Url::parse(url) else { return true };
+    let Some(host) = parsed.host_str() else { return true };
+    if is_private_http_host(host) {
+        return true;
+    }
+    let origin = format!(
+        "{}://{}{}",
+        parsed.scheme(),
+        host,
+        parsed.port().map(|port| format!(":{port}")).unwrap_or_default()
+    );
+    let cache =
+        ROBOTS_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    if let Some(lines) = cache.lock().unwrap_or_else(|e| e.into_inner()).get(&origin) {
+        return robots_allows(&lines.join("\n"), USER_AGENT, parsed.path());
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .user_agent(USER_AGENT)
+        .redirect(reqwest::redirect::Policy::limited(3))
+        .build();
+    let Ok(client) = client else { return true };
+    let robots_url = format!("{origin}/robots.txt");
+    let lines = match client.get(&robots_url).send().await {
+        Ok(response) if response.status().is_success() => {
+            let mut body = Vec::with_capacity(MAX_ROBOTS_BODY);
+            let mut stream = response.bytes_stream();
+            while let Some(chunk) = stream.next().await {
+                let Ok(chunk) = chunk else { break };
+                body.extend_from_slice(&chunk);
+                if body.len() >= MAX_ROBOTS_BODY {
+                    body.truncate(MAX_ROBOTS_BODY);
+                    trim_incomplete_utf8_tail(&mut body);
+                    break;
+                }
+            }
+            robots_lines_from_body(body)
+        },
+        _ => Vec::new(),
+    };
+    let allowed = robots_allows(&lines.join("\n"), USER_AGENT, parsed.path());
+    cache.lock().unwrap_or_else(|e| e.into_inner()).insert(origin, lines);
+    allowed
+}
+
+/// 截断点可能落在多字节字符中间：仅当尾部是「不完整字符」时回退到字符边界；
+/// 页面本身含非法字节（GBK 等）时保留原样，由解码步骤判定。
+fn trim_incomplete_utf8_tail(buffer: &mut Vec<u8>) {
+    if let Err(error) = std::str::from_utf8(buffer) {
+        if error.error_len().is_none() {
+            buffer.truncate(error.valid_up_to());
+        }
+    }
+}
+
+/// 从 HTML 字节解码标题：仅接受合法 UTF-8，并过滤占位/反爬标题。
+fn decode_html_title(bytes: &[u8], url: &str) -> Option<String> {
+    let html = std::str::from_utf8(bytes).ok()?;
+    let raw = extract_html_title(html);
+    silent_title_ok(&raw, url).then_some(raw)
+}
+
+/// 解析已截断的 HTML 字节（标题 + 图标）。内部再对齐一次 UTF-8 尾字节，
+/// 让截断/解码走同一条路径（`parse_html_meta_trims_half_char_and_rejects_gbk` 覆盖）。
+fn parse_html_meta(mut buffer: Vec<u8>, url: &str, final_url: &url::Url) -> (String, String) {
+    trim_incomplete_utf8_tail(&mut buffer);
+    let title = decode_html_title(&buffer, url).unwrap_or_default();
+    let html = String::from_utf8_lossy(&buffer);
+    // 相对图标按重定向后的最终 URL 解析（短链 / http→https / 目录跳转）。
+    let favicon = extract_icon_url(&html, final_url.as_str())
+        .or_else(|| origin_favicon_url(final_url.as_str()))
+        .unwrap_or_default();
+    (title, favicon)
+}
+
 /// HTTP 元数据抓取（不做 WebView）：HTML 前 64KB 解析 title / link icon，
 /// 图标 URL 缺失时回退 `{origin}/favicon.ico`。失败返回 None，由调用方落失败墓碑。
 async fn fetch_page_meta_http(url: &str) -> Option<PageMeta> {
     let parsed = url::Url::parse(url).ok()?;
     if parsed.scheme() != "http" && parsed.scheme() != "https" {
+        return None;
+    }
+    if !robots_allows_url(parsed.as_str()).await {
         return None;
     }
     let client = reqwest::Client::builder()
@@ -876,16 +1103,24 @@ async fn fetch_page_meta_http(url: &str) -> Option<PageMeta> {
     if !response.status().is_success() {
         return None;
     }
-    if response.content_length().is_some_and(|length| length > 512 * 1024) {
-        return None;
+    let final_url = response.url().clone();
+    // 响应不整包读入：只保留解析所需的 64KB（不依赖 Content-Length）。
+    let mut stream = response.bytes_stream();
+    let mut buffer = Vec::with_capacity(64 * 1024);
+    while let Some(chunk) = stream.next().await {
+        let Ok(chunk) = chunk else { break };
+        buffer.extend_from_slice(&chunk);
+        if buffer.len() >= 64 * 1024 {
+            buffer.truncate(64 * 1024);
+            // 截断点可能落在多字节字符中间：回退到最近字符边界，避免正常 UTF-8
+            // 页面因尾部半个字符被误判为「非 UTF-8」而丢标题。
+            trim_incomplete_utf8_tail(&mut buffer);
+            break;
+        }
     }
-    let bytes = response.bytes().await.ok()?;
-    let slice = &bytes[..bytes.len().min(64 * 1024)];
-    let html = String::from_utf8_lossy(slice);
-    let title = extract_html_title(&html);
-    let favicon = extract_icon_url(&html, parsed.as_str())
-        .or_else(|| origin_favicon_url(parsed.as_str()))
-        .unwrap_or_default();
+    // 只有真正的非法 UTF-8（GBK/Shift-JIS 等）才丢弃标题；截断已对齐字符边界。
+    // 反爬/验证码页与占位标题也不返回给调用方（新建书签、显式刷新都消费该返回值）。
+    let (title, favicon) = parse_html_meta(buffer, url, &final_url);
     if title.is_empty() && favicon.is_empty() {
         return None;
     }
@@ -911,7 +1146,8 @@ async fn fetch_silent_meta(
     url: &str,
 ) -> Result<PageMeta, AppError> {
     if !silent_fetch_url_allowed(url) {
-        tracing::warn!(%url, "fetch_silent_meta: invalid URL, skip silent webview");
+        // 静默抓取入口可能收到空白/非 http 页面/单标签内网主机：属正常跳过，不产生告警。
+        tracing::debug!(%url, "fetch_silent_meta: invalid URL, skip silent webview");
         return Ok(PageMeta { url: url.to_string(), ..PageMeta::default() });
     }
     let app_owned = app.clone();
@@ -1204,7 +1440,7 @@ pub async fn browser_page_meta_get(
 /// HTTP 抓取 + 缓存写入 + 图标 data-URI 补全 + 广播。供命令与显式 warmup 复用。
 async fn fetch_and_store_http_meta(
     app: &tauri::AppHandle,
-    svc: &PageMetaService,
+    svc: std::sync::Arc<PageMetaService>,
     url: &str,
 ) -> Option<PageMeta> {
     let Some(mut meta) = fetch_page_meta_http(url).await else {
@@ -1213,31 +1449,42 @@ async fn fetch_and_store_http_meta(
         }
         return None;
     };
-    if let Err(error) = svc.report(url, &meta.title, &meta.favicon, META_SOURCE_HTTP).await {
+    let incoming_favicon = meta.favicon.clone();
+    // 静态 HTTP 标题不得覆盖渲染期 COM 标题（SPA 静态 title 常是站点名）。
+    // 这里只上报图标；标题仅在返回值里供「新建书签」等显式入口使用，不落缓存。
+    if let Err(error) = svc.report(url, "", &meta.favicon, META_SOURCE_HTTP).await {
         tracing::debug!(url = %url, error = %error, "page_meta_fetch_http: report failed");
     }
-    if !meta.favicon.is_empty() {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(10))
-            .user_agent(USER_AGENT)
-            .redirect(reqwest::redirect::Policy::limited(5))
-            .build();
-        if let Ok(client) = client {
-            let data_uri = download_favicon_data_uri(&client, &meta.favicon, Some(url)).await;
-            if !data_uri.is_empty() {
-                meta.favicon_data_uri = data_uri.clone();
-                if let Err(error) = svc.update_favicon_data_uri(url, &data_uri) {
-                    tracing::debug!(url = %url, error = %error, "page_meta_fetch_http: persist icon failed");
-                }
-            }
-        }
+    let key = adl_browser::normalize_cache_key(url);
+    let Some(entry) = svc.peek(&key) else {
+        return Some(meta);
+    };
+    meta.favicon = entry.favicon_url.clone();
+    meta.favicon_data_uri = entry.favicon_data_uri.clone();
+    // 只有质量门控真正采纳了本次图标 URL 才下载，且下载放后台（旧路径的
+    // in-flight 去重/冷却/陈旧守卫都在 spawn_favicon_download 内）。
+    if !entry.favicon_url.is_empty()
+        && entry.favicon_url == incoming_favicon
+        && entry.favicon_data_uri.is_empty()
+    {
+        spawn_favicon_download(
+            app,
+            svc.clone(),
+            url.to_string(),
+            entry.favicon_url.clone(),
+            url.to_string(),
+        );
     }
-    emit_page_meta_updated(app, &meta, META_SOURCE_HTTP);
+    // 只广播图标：空标题让前端保留现有标题，避免 HTTP 静态标题覆盖渲染标题。
+    let mut broadcast_entry = entry.clone();
+    broadcast_entry.title.clear();
+    broadcast_entry.title_source.clear();
+    emit_page_meta_updated_raw(app, url, &broadcast_entry, META_SOURCE_HTTP);
     Some(meta)
 }
 
-/// HTTP-first 元数据抓取（无 WebView）：启动预热移除后，书签/标签的缺图标补齐
-/// 先走本条；HTTP 失败再由前端决定是否调用 `browser_page_meta_refresh` 走静默 WebView。
+/// HTTP-first 元数据抓取（无 WebView）：启动不再批量预热；书签/标签的缺图标补齐
+/// 先走本条。显式刷新/可见标签可再调用 `browser_page_meta_refresh` 回退静默 WebView。
 #[tauri::command]
 pub async fn browser_page_meta_fetch_http(
     app: tauri::AppHandle,
@@ -1245,7 +1492,7 @@ pub async fn browser_page_meta_fetch_http(
     url: String,
 ) -> Result<IpcResult<PageMeta>, CommandError> {
     let svc = state.browser_manager.page_meta_service();
-    let meta = fetch_and_store_http_meta(&app, svc.as_ref(), &url)
+    let meta = fetch_and_store_http_meta(&app, svc.clone(), &url)
         .await
         .unwrap_or_else(|| PageMeta { url: url.clone(), ..PageMeta::default() });
     Ok(ipc(Ok(meta)))
@@ -1296,7 +1543,7 @@ pub async fn browser_page_meta_warmup(
     }
     let svc = state.browser_manager.page_meta_service();
     // 显式批量补齐（不再由启动调用）：HTTP-first，绝不创建隐藏 WebView。
-    // 缺图标/标题的条目走 reqwest 抓 HTML + 图标；失败落失败墓碑，下一次按退避窗口跳过。
+    // 缺图标的条目走 reqwest 抓 HTML + 图标（不写标题）；失败落失败墓碑，下一次按退避窗口跳过。
     if let Err(e) = svc.preload().await {
         tracing::warn!(error = %e, "browser_page_meta_warmup: preload failed (继续，过滤可能偏保守)");
     }
@@ -1339,7 +1586,7 @@ pub async fn browser_page_meta_warmup(
             let _permit = permit.acquire_owned().await.ok()?;
             let g = app.state::<AppState>();
             let svc = g.browser_manager.page_meta_service();
-            fetch_and_store_http_meta(&app, svc.as_ref(), &url).await.map(|_| ())
+            fetch_and_store_http_meta(&app, svc.clone(), &url).await.map(|_| ())
         }));
     }
     for handle in handles {
@@ -1548,7 +1795,7 @@ async fn download_favicon_data_uri(
     );
     let Ok(resp) = req.send().await else {
         // favicon 是 best-effort：站点无图标 / 证书异常 / 超时都很常见，
-        // 预热时会成批出现；用 DEBUG 记录，避免把外部站点问题当应用告警。
+        // 被动补齐/批量刷新时会成批出现；用 DEBUG 记录，避免把外部站点问题当应用告警。
         tracing::debug!(
             favicon_url = %favicon_url,
             referer = ?referer,
@@ -1705,7 +1952,8 @@ fn spawn_meta_refetch(app: &tauri::AppHandle, url: String) {
                 );
             },
             Err(e) => {
-                tracing::warn!(url = %url, error = %e, "spawn_meta_refetch: silent refetch failed");
+                // 后台静默补抓失败很常见（站点拒绝/超时）；按 best-effort 降为 DEBUG。
+                tracing::debug!(url = %url, error = %e, "spawn_meta_refetch: silent refetch failed");
             },
         }
     });
@@ -1725,7 +1973,7 @@ fn spawn_convention_favicon(
         return;
     };
     let favicon_url = format!("{origin}/favicon.ico");
-    // 60s per-origin 冷却：避免同一站点被 warmup/get 反复探测惯例图标。
+    // 60s per-origin 冷却：避免同一站点被静默渲染/显式刷新反复探测惯例图标。
     if !favicon_download_cooldown_check(&format!("convention:{favicon_url}")) {
         return;
     }
@@ -1931,12 +2179,93 @@ mod html_meta_tests {
     }
 
     #[test]
+    fn extracts_icon_with_attribute_order_and_single_quotes() {
+        let html = r#"<LINK HREF='/favicon.ico' REL='icon'>"#;
+        assert_eq!(
+            extract_icon_url(html, "https://example.com/").as_deref(),
+            Some("https://example.com/favicon.ico")
+        );
+        let unquoted = r#"<link rel=icon href=/icon.png>"#;
+        assert_eq!(
+            extract_icon_url(unquoted, "https://example.com/").as_deref(),
+            Some("https://example.com/icon.png")
+        );
+    }
+
+    #[test]
     fn falls_back_to_origin_favicon() {
         assert_eq!(
             origin_favicon_url("https://example.com:8443/path?q=1").as_deref(),
             Some("https://example.com:8443/favicon.ico")
         );
         assert_eq!(origin_favicon_url("not-a-url"), None);
+    }
+
+    #[test]
+    fn parse_html_meta_trims_half_char_and_rejects_gbk() {
+        let final_url = url::Url::parse("https://example.com/").unwrap();
+        // 64KB 上限处正好切在「中」的中间：解析入口必须回退尾字节后仍取到标题。
+        let mut bytes = "<title>中文标题</title>".as_bytes().to_vec();
+        bytes.resize(64 * 1024 - 1, b'a');
+        bytes.extend_from_slice(&"中".as_bytes()[..1]);
+        let (title, _) = parse_html_meta(bytes, "https://example.com/", &final_url);
+        assert_eq!(title, "中文标题");
+
+        // 真实非法 UTF-8（GBK「中文」）不返回标题。
+        let (gbk_title, _) = parse_html_meta(
+            vec![b'<', b't', 0xD6, 0xD0, 0xCE, 0xC4, b'>'],
+            "https://example.com/",
+            &final_url,
+        );
+        assert_eq!(gbk_title, "");
+    }
+
+    #[test]
+    fn robots_body_cap_ignores_rules_beyond_limit() {
+        let mut body = vec![b'a'; MAX_ROBOTS_BODY];
+        body.extend_from_slice(b"\nUser-agent: *\nDisallow: /\n");
+        let lines = robots_lines_from_body(body);
+        // 超过 64KB 的尾部规则被截掉：没有生效的 Disallow。
+        assert!(robots_allows(&lines.join("\n"), USER_AGENT, "/x"));
+    }
+
+    #[test]
+    fn robots_ignores_oversized_rule_without_panic() {
+        // 超长 Disallow 被截到上限，DP 乘积守卫兜底；不应 panic/分配爆炸。
+        let long_rule = format!("User-agent: *\nDisallow: /{}\n", "a".repeat(2_000_000));
+        assert!(robots_allows(&long_rule, USER_AGENT, "/x"));
+        // 乘积守卫：能匹配但超过上限的规则按不匹配处理，避免 GB 级分配。
+        let long_path = "/".repeat(500);
+        assert_eq!(robots_longest_match(&"*".repeat(600), &long_path), None);
+        assert_eq!(robots_longest_match(&"*".repeat(10), &long_path), Some(500));
+    }
+
+    #[test]
+    fn robots_allow_overrides_disallow_by_longest_match() {
+        let robots = "User-agent: *\nDisallow: /private\nAllow: /private/public\n";
+        assert!(!robots_allows(robots, USER_AGENT, "/private/x"));
+        assert!(robots_allows(robots, USER_AGENT, "/private/public/page"));
+        assert!(robots_allows(robots, USER_AGENT, "/public"));
+        // Disallow: / + Allow: /$ → 首页允许、其余禁止。
+        let root = "User-agent: *\nDisallow: /\nAllow: /$\n";
+        assert!(robots_allows(root, USER_AGENT, "/"));
+        assert!(!robots_allows(root, USER_AGENT, "/docs"));
+    }
+
+    #[test]
+    fn robots_groups_comments_and_wildcards() {
+        // 注释不是分组边界：注释后的 Disallow 仍属于当前分组。
+        let commented = "User-agent: *\n# 注释\nDisallow: /private\n";
+        assert!(!robots_allows(commented, USER_AGENT, "/private/x"));
+        // 通配符与锚定。
+        let wildcard = "User-agent: *\nDisallow: /*?*\nDisallow: /*.pdf$\n";
+        assert!(!robots_allows(wildcard, USER_AGENT, "/page?q=1"));
+        assert!(!robots_allows(wildcard, USER_AGENT, "/a/b.pdf"));
+        assert!(robots_allows(wildcard, USER_AGENT, "/a/b.pdfx"));
+        // 精确 UA 分组优先于 `*`。
+        let other = "User-agent: Googlebot\nDisallow: /\n\nUser-agent: Adlo\nDisallow: /no-adl\n";
+        assert!(robots_allows(other, USER_AGENT, "/whatever"));
+        assert!(!robots_allows(other, USER_AGENT, "/no-adl/page"));
     }
 }
 
@@ -2077,8 +2406,6 @@ mod favicon_data_uri_tests {
 
 #[cfg(test)]
 mod page_meta_service_cmd_tests {
-    use super::*;
-
     #[test]
     fn report_merge_keeps_http_title_over_com() {
         // 命令层冒烟：browser_page_meta_report 走 PageMetaService::report 的
@@ -2090,49 +2417,6 @@ mod page_meta_service_cmd_tests {
             adl_browser::META_SOURCE_COM,
             Some(adl_browser::META_SOURCE_HTTP)
         ));
-    }
-
-    #[test]
-    fn warmup_url_list_exceeds_limit_returns_invalid_input() {
-        // browser_page_meta_warmup 的输入验证：URL 超 200 返回 InvalidInput 错误
-        let urls: Vec<String> = (0..201).map(|i| format!("https://warmup{i}.example/")).collect();
-        assert_eq!(urls.len(), 201);
-        let err = AppError::InvalidInput("URL list exceeds maximum length of 200".to_string());
-        match &err {
-            AppError::InvalidInput(msg) => {
-                assert!(msg.contains("200"));
-            },
-            _ => panic!("expected InvalidInput error"),
-        }
-    }
-
-    #[test]
-    fn warmup_url_list_within_limit_ok() {
-        // 验证 200 个 URL 在允许范围内
-        let urls: Vec<String> = (0..200).map(|i| format!("https://warmup{i}.example/")).collect();
-        assert_eq!(urls.len(), 200);
-        // 200 不触发 InvalidInput，正常通过验证
-        assert!(urls.len() <= 200);
-    }
-
-    #[test]
-    fn warmup_empty_url_list_ok() {
-        // 空 URL 列表应视为合法输入（warmup 直接返回空结果）
-        let urls: Vec<String> = vec![];
-        assert!(urls.len() <= 200);
-    }
-
-    #[test]
-    fn warmup_duplicate_urls_deduped() {
-        // 重复 URL 在 warmup 中应被去重（内部使用 HashSet 去重）
-        let urls: Vec<String> = vec![
-            "https://example.com/page".to_string(),
-            "https://example.com/page".to_string(),
-            "https://example.com/page#hash".to_string(),
-        ];
-        // 客户端层传 3 个（含重复），仍可接受
-        assert!(urls.len() <= 200);
-        // 去重逻辑在 browser_page_meta_warmup 命令内验证
     }
 }
 

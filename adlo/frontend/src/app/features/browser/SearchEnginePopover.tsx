@@ -268,7 +268,8 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
 
       void (async () => {
         try {
-          const meta = await pageMetaClient.getSilent(searchUrl);
+          // 显式「刷新图标」：HTTP-first，失败回退 silent WebView。
+          const meta = await pageMetaClient.refresh(searchUrl);
 
           // 竞态检测：如果已有更新的操作，放弃本次更新
           if (operationId !== fetchingOperationIdRef.current) {

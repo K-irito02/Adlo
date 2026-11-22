@@ -72,7 +72,7 @@ function drainEnsureQueue(): void {
     enqueued.delete(next);
     activeEnsures += 1;
     void pageMetaClient
-      .refresh(next)
+      .refresh(next, { iconOnly: true })
       .catch(() => {})
       .finally(() => {
         activeEnsures = Math.max(0, activeEnsures - 1);
@@ -83,14 +83,87 @@ function drainEnsureQueue(): void {
 
 /** 被动列表（书签/历史）的 HTTP-only 补齐并发上限：不创建隐藏 WebView。 */
 const MAX_CONCURRENT_HTTP = 4;
+/** 每分钟被动补齐预算：耗尽后条目留在队列等下一个窗口，而不是静默丢弃。 */
+const HTTP_BACKFILL_BUDGET = 40;
+const HTTP_BACKFILL_WINDOW_MS = 60_000;
+/** 同域最小间隔：与预览端 crawlerPolicy 的 5s 限速对齐。 */
+const HTTP_DOMAIN_INTERVAL_MS = 5_000;
 let activeHttp = 0;
+let httpBudgetUsed = 0;
+let httpBudgetWindowStart = Date.now();
 const httpQueue: string[] = [];
 const enqueuedHttp = new Set<string>();
+const httpSelfHealAttempts = new Map<string, number>();
+const httpDomainLastAt = new Map<string, number>();
+let httpDrainTimer: ReturnType<typeof setTimeout> | null = null;
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return '';
+  }
+}
+
+function refreshHttpBudget(now: number): void {
+  if (now - httpBudgetWindowStart >= HTTP_BACKFILL_WINDOW_MS) {
+    httpBudgetWindowStart = now;
+    httpBudgetUsed = 0;
+  }
+}
+
+function scheduleHttpDrain(delayMs: number): void {
+  if (httpDrainTimer !== null) {
+    return;
+  }
+  httpDrainTimer = setTimeout(
+    () => {
+      httpDrainTimer = null;
+      drainHttpQueue();
+    },
+    Math.max(0, delayMs),
+  );
+}
+
+function shouldAttemptHttpFaviconSelfHeal(url: string): boolean {
+  const now = Date.now();
+  const last = httpSelfHealAttempts.get(url) ?? 0;
+  if (now - last < FAVICON_SELF_HEAL_THROTTLE_MS) {
+    return false;
+  }
+  httpSelfHealAttempts.set(url, now);
+  return true;
+}
 
 function drainHttpQueue(): void {
   while (activeHttp < MAX_CONCURRENT_HTTP && httpQueue.length > 0) {
-    const next = httpQueue.shift()!;
+    const now = Date.now();
+    refreshHttpBudget(now);
+    if (httpBudgetUsed >= HTTP_BACKFILL_BUDGET) {
+      // 预算耗尽：等窗口滚动再继续，不丢队列里的行。
+      scheduleHttpDrain(httpBudgetWindowStart + HTTP_BACKFILL_WINDOW_MS - now + 10);
+      return;
+    }
+    // 同域限速在出队时判定：被限的 URL 留在队列里，到点自动补发。
+    let picked = -1;
+    let waitForDomain = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < httpQueue.length; i += 1) {
+      const wait =
+        HTTP_DOMAIN_INTERVAL_MS - (now - (httpDomainLastAt.get(hostOf(httpQueue[i]!)) ?? 0));
+      if (wait <= 0) {
+        picked = i;
+        break;
+      }
+      waitForDomain = Math.min(waitForDomain, wait);
+    }
+    if (picked === -1) {
+      scheduleHttpDrain(waitForDomain + 10);
+      return;
+    }
+    const next = httpQueue.splice(picked, 1)[0]!;
     enqueuedHttp.delete(next);
+    httpBudgetUsed += 1;
+    httpDomainLastAt.set(hostOf(next), now);
     activeHttp += 1;
     void pageMetaClient
       .fetchHttp(next)
@@ -104,19 +177,26 @@ function drainHttpQueue(): void {
 
 /**
  * 被动列表（书签树 / 历史）的懒补齐：只发 HTTP 请求，绝不创建隐藏 WebView。
- * 受与主动自愈相同的会话节流约束；返回 undefined 由调用方忽略。
+ * 独立节流（10 分钟/URL）+ 同域 5s 限速 + 每分钟 40 次预算；被限速/预算拦下的
+ * URL 留在队列中等待补发（同域内保序，跨域可能重排）。
+ *
+ * @param opts.force 已有外部图标但加载失败（防盗链/瞬态）时仍允许重试。
  */
-export function ensureSiteFaviconHttp(url: string): void {
+export function ensureSiteFaviconHttp(url: string, opts?: { force?: boolean }): void {
   if (!url || !/^https?:\/\//i.test(url)) {
     return;
   }
-  if (getFaviconUrl(url)) {
+  if (!opts?.force && getFaviconUrl(url)) {
     return;
+  }
+  if (opts?.force) {
+    // 强制重试绕过 10 分钟 URL 节流，但仍受同域 5s 与总预算约束。
+    httpSelfHealAttempts.delete(url);
   }
   if (enqueuedHttp.has(url)) {
     return;
   }
-  if (!shouldAttemptFaviconSelfHeal(url)) {
+  if (!shouldAttemptHttpFaviconSelfHeal(url)) {
     return;
   }
   enqueuedHttp.add(url);
@@ -161,5 +241,13 @@ export function resetFaviconSelfHealThrottleForTest(): void {
   activeEnsures = 0;
   httpQueue.length = 0;
   enqueuedHttp.clear();
+  httpSelfHealAttempts.clear();
+  httpDomainLastAt.clear();
+  httpBudgetUsed = 0;
+  httpBudgetWindowStart = Date.now();
+  if (httpDrainTimer !== null) {
+    clearTimeout(httpDrainTimer);
+    httpDrainTimer = null;
+  }
   activeHttp = 0;
 }

@@ -56,12 +56,11 @@ describe('Tauri CSP 与运行时样式注入', () => {
     expect(sources).not.toContain("'unsafe-eval'");
   });
 
-  it('worker-src 允许同源与 blob worker（PDF.js / 未来打包 worker）', () => {
+  it('worker-src 允许同源 worker（PDF.js 打包为同源模块）', () => {
     const csp = security?.csp ?? '';
     const workerSrc = /worker-src ([^;]+)/.exec(csp)?.[1] ?? '';
     const sources = workerSrc.split(/\s+/);
     expect(sources).toContain("'self'");
-    expect(sources).toContain('blob:');
   });
 
   it('connect-src 允许 ws/wss（adl-server 的 files-changed 与 PTY WebSocket）', () => {

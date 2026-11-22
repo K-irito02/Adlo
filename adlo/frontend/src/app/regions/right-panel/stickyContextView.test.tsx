@@ -110,6 +110,31 @@ describe('usePreviewStickyContext', () => {
     });
     expect(scroller.scrollTop).toBe(0);
   });
+
+  it('resetKey 变化时重新绑定晚挂载的 surface', () => {
+    const ref = { current: null as HTMLDivElement | null };
+    const view = renderHook(
+      ({ resetKey }: { resetKey: string }) => usePreviewStickyContext(ref, resetKey),
+      {
+        wrapper,
+        initialProps: { resetKey: 'before-mount' },
+      },
+    );
+    expect(view.result.current).toBeNull();
+
+    const container = document.createElement('div');
+    const scroller = document.createElement('div');
+    container.appendChild(scroller);
+    document.body.appendChild(container);
+    ref.current = container;
+
+    view.rerender({ resetKey: 'after-mount' });
+    act(() => {
+      scroller.scrollTop = 40;
+      scroller.dispatchEvent(new Event('scroll'));
+    });
+    expect(view.result.current?.showTopEntry).toBe(true);
+  });
 });
 
 describe('useStickyContext 编辑器挂载后重新订阅', () => {

@@ -53,6 +53,11 @@
 
 .adl-sticky-context.is-hidden {
   opacity: 0;
+}
+
+/* 父级 pointer-events:none 会被行内 auto 覆盖；隐藏态必须显式禁用行命中，
+   否则淡出后的按钮仍可点击/悬停。 */
+.adl-sticky-context.is-hidden .adl-sticky-context__row {
   pointer-events: none;
 }
 

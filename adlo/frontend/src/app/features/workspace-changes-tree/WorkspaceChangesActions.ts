@@ -292,7 +292,7 @@ export function useWorkspaceChangesActions({
    */
   const beginPush = useCallback(
     async function beginPush() {
-      // 先刷新目标工作区快照：预检的「未提交变更」判断不能依赖 15s 前的旧数据。
+      // 先刷新目标工作区快照：预检的「未提交变更」判断不能依赖旧快照。
       await useAppStore
         .getState()
         .refreshGitSnapshot(workspace.id, workspace.path, { silent: true });

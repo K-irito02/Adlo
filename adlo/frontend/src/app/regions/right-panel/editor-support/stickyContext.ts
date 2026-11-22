@@ -1,5 +1,5 @@
 import type { FileOutlineItem } from '@adlo/kernel';
-import type { EditorRef, Disposable } from '@stores/types';
+import type { EditorRef } from '@stores/types';
 import type { PreviewDiffVisualRange } from '@features/diff-viewer';
 
 const MAX_STICKY_CONTEXT_ROWS = 3;
@@ -22,7 +22,6 @@ export interface StickyContextEntry {
 export interface StickyContextModel {
   modelId: string;
   topEntry: StickyContextEntry;
-  canScrollToTop: boolean;
   showTopEntry: boolean;
   /**
    * 只由真实 scroll 递增的可见性信号。布局/Resize/内容更新不得改它，
@@ -30,10 +29,6 @@ export interface StickyContextModel {
    */
   revealSignal: number;
   scrollToTop: () => void;
-}
-
-export interface StickyContextProvider {
-  getModel: () => StickyContextModel | null;
 }
 
 interface BuildStickyContextEntriesInput {
@@ -195,7 +190,6 @@ export function createStickyContextModel(input: CreateStickyContextModelInput): 
   return {
     modelId: input.modelId ?? 'sticky-context',
     topEntry,
-    canScrollToTop: input.canScrollToTop,
     showTopEntry: input.canScrollToTop,
     revealSignal: input.revealSignal ?? 0,
     scrollToTop: input.scrollToTop ?? (() => input.onNavigateLine(1)),
@@ -232,11 +226,4 @@ export function navigateToLine(editor: EditorRef | null, line: number): void {
   editor.revealLineInCenter(line);
   editor.setPosition({ lineNumber: line, column: 1 });
   editor.focus();
-}
-
-export function subscribeToEditor(editor: EditorRef | null, callback: () => void): Disposable {
-  if (!editor) {
-    return { dispose() {} };
-  }
-  return editor.onDidScrollChange(callback);
 }

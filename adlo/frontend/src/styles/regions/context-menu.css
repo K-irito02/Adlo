@@ -272,28 +272,6 @@
   gap: var(--space-1);
 }
 
-/* 首启环境向导（Task 8）：复用 confirm 对话框 chrome，仅加宽容纳逐项卡片，
-   列表区限高滚动；色值一律设计 token，无硬编码。 */
-.adl-confirm-dialog.adl-env-wizard {
-  width: min(640px, calc(100vw - 32px));
-  max-width: min(640px, calc(100vw - 32px));
-}
-
-.adl-env-wizard__list {
-  max-height: min(50vh, 480px);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0 0 var(--space-4);
-}
-
-.adl-env-wizard__manual {
-  display: flex;
-  justify-content: flex-end;
-  margin: var(--space-1) 0 var(--space-2);
-}
-
 .adl-rename-input {
   width: 240px;
   padding: 4px 8px;

@@ -78,8 +78,23 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   const { t } = useTCopy();
   const localPreviewShellRef = useRef<HTMLDivElement | null>(null);
   const markdownSurfaceRef = useRef<HTMLDivElement | null>(null);
+  const mediaSurfaceRef = useRef<HTMLDivElement | null>(null);
   const localEditorRef = useRef<DiffEditorRef | EditorRef | null>(null);
   const [editorMountVersion, setEditorMountVersion] = useState(0);
+  const [markdownSurfaceVersion, setMarkdownSurfaceVersion] = useState(0);
+  const [mediaSurfaceVersion, setMediaSurfaceVersion] = useState(0);
+  const setMarkdownSurfaceRef = useCallback((element: HTMLDivElement | null) => {
+    markdownSurfaceRef.current = element;
+    if (element) {
+      setMarkdownSurfaceVersion((version) => version + 1);
+    }
+  }, []);
+  const setMediaSurfaceRef = useCallback((element: HTMLDivElement | null) => {
+    mediaSurfaceRef.current = element;
+    if (element) {
+      setMediaSurfaceVersion((version) => version + 1);
+    }
+  }, []);
   const setPreviewShellRef = useCallback(
     (el: HTMLDivElement | null) => {
       localPreviewShellRef.current = el;
@@ -180,7 +195,13 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
     markdownSurfaceRef,
     `${selectedChangePreviewWorkspaceId ?? ''}:${changePreview?.path ?? ''}:${
       previewEnabled ? 'preview' : 'edit'
-    }`,
+    }:${markdownSurfaceVersion}`,
+  );
+  const mediaStickyModel = usePreviewStickyContext(
+    mediaSurfaceRef,
+    `${selectedChangePreviewWorkspaceId ?? ''}:${
+      changePreview?.path ?? selectedChangePreviewPath ?? ''
+    }:media:${mediaSurfaceVersion}`,
   );
   const diffExtensions = useMemo(() => [], []);
 
@@ -283,7 +304,8 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
             </div>
           ) : (
             <FilePreviewRenderers
-              editorSurfaceRef={localPreviewShellRef}
+              key={previewPath}
+              editorSurfaceRef={setMediaSurfaceRef}
               fileCategory={changePreviewCategory}
               fileContent={null}
               fileMedia={changePreviewMedia ?? null}
@@ -291,6 +313,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
               filePath={previewPath}
               workspaceId={selectedChangePreviewWorkspaceId}
               theme={changePreviewTheme}
+              stickyContextModel={mediaStickyModel}
             />
           )}
         </div>
@@ -413,7 +436,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       >
         {changePreviewCategory === 'markdown' && previewEnabled ? (
           <div
-            ref={markdownSurfaceRef}
+            ref={setMarkdownSurfaceRef}
             className="adl-tool-editor__surface adl-tool-editor__surface--preview"
           >
             {markdownStickyModel ? (

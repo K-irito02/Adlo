@@ -25,7 +25,7 @@ export interface MarkdownPreviewProps {
 export interface FrontmatterEntry {
   key: string;
   values: string[];
-  /** 值为列表（块列表或行内 `[a, b]`）时为 true：渲染成 chip。 */
+  /** 值为列表（块列表或行内 `[a, b]`）时为 true：按普通文本渲染。 */
   list?: boolean;
 }
 
@@ -88,7 +88,7 @@ function splitListItems(inner: string): string[] {
     current += char;
   }
   items.push(current);
-  // 空项（`[]`、`[a,]`、`[a, , b]`）不渲染成空 chip。
+  // 空项（`[]`、`[a,]`、`[a, , b]`）不产生多余分隔符。
   return items.map((item) => unquote(item)).filter((item) => item !== '');
 }
 
@@ -228,7 +228,7 @@ export function parseFrontmatter(block: string): FrontmatterEntry[] | null {
     return null;
   }
   for (const entry of entries) {
-    // 空列表保持空数组（渲染成空单元格，不出空 chip），不要把列表补成空字符串。
+    // 空列表保持空数组（渲染成空单元格），不要把列表补成空字符串。
     if (!entry.list && entry.values.length === 0) {
       entry.values = [''];
     }
@@ -256,9 +256,9 @@ export function splitFrontmatter(content: string): SplitMarkdown {
 }
 
 /**
- * 属性表（通用键值，值全部转义；列表渲染为 chip）。
+ * 属性表（通用键值，值全部转义；列表项用两个空格连接为普通文本）。
  * `lineOffset` 是 frontmatter 占用的源行数：整块挂 `data-source-line-start/end`
- * 覆盖 1..lineOffset，检索跳转到 frontmatter 内任意行时仍能定位到卡片。
+ * 覆盖 1..lineOffset，检索跳转到 frontmatter 内任意行时仍能定位到属性表。
  */
 export function renderFrontmatterTable(entries: FrontmatterEntry[], lineOffset = 0): string {
   if (entries.length === 0) {
@@ -392,7 +392,7 @@ function createMdInstance(starryEnabled: boolean): MarkdownIt {
   return md;
 }
 
-/** frontmatter 卡片 + 正文渲染：两个入口共用，避免契约分叉。 */
+/** frontmatter 属性表 + 正文渲染：两个入口共用，避免契约分叉。 */
 function renderWithFrontmatter(md: MarkdownIt, content: string): string {
   const { entries, body, lineOffset } = splitFrontmatter(content);
   return `${renderFrontmatterTable(entries, lineOffset)}${md.render(body, { lineOffset })}`;

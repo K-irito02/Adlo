@@ -6,7 +6,7 @@ import type { CopyDict } from '@i18n/types';
 import { hostnameFromUrl, isPlaceholderTitle, isUnsafeTitle } from '@utils/browserDisplayUtils';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import type { ToastType } from '@components/Toast';
-import { scheduleFaviconFetch, shouldAttemptFaviconSelfHeal } from './faviconSelfHeal';
+import { ensureSiteFaviconHttp, scheduleFaviconFetch } from './faviconSelfHeal';
 import { useBookmarkToFolderDialog } from './useBookmarkToFolderDialog';
 
 interface UseBrowserDialogsDeps {
@@ -91,7 +91,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       let title = name.trim();
       if (!title) {
         // 无自定义标题：解析页面元数据用于收藏标题。为缓解"正在获取页面信息…"慢，
-        // 采用 cache-first + 静默渲染命令（超时由后端静默 tab 自兜底 ≤6s）。
+        // 采用 cache-first；未命中再走 HTTP-first 抓取（不创建隐藏 WebView）。
         setIsCreatingTab(true);
         const cached = pageMetaClient.peek(url);
         const cachedTitle = cached?.title?.trim() ?? '';
@@ -99,24 +99,20 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           // 命中缓存真实标题：直接使用，不发起网络请求。
           title = cachedTitle;
           // 自愈：缓存命中但缺 data-URI（历史条目只有裸 faviconURL，或防盗链站点如
-          // bilibili/runoob 需内嵌 base64 才能渲染）时，后台静默刷新一次缓存，使后续
-          // 渲染/重进对话框拿到真实 favicon。判断只看 data-URI 缺失（而非 faviconUrl 也
-          // 缺失）——否则 "有 URL 无 data-URI" 的防盗链站点永不触发补全、永远兜底图标。
-          // 即便 faviconUrl 为空也触发：静默重渲染可能发现此前抓取时尚未就绪的 favicon。
-          const favMissing = !cached?.faviconDataUri;
-          if (favMissing && shouldAttemptFaviconSelfHeal(url)) {
-            void pageMetaClient.getSilent(url).catch((err) =>
-              console.warn('[bookmark-new-meta] favicon self-heal failed', {
-                url,
-                err: String(err),
-              }),
-            );
+          // bilibili/runoob 需内嵌 base64 才能渲染）时，后台 HTTP-first 刷新一次缓存，
+          // 使后续渲染/重进对话框拿到真实 favicon。判断只看 data-URI 缺失（而非
+          // faviconUrl 也缺失）——否则 "有 URL 无 data-URI" 的防盗链站点永不触发补全。
+          // 即便 faviconUrl 为空也触发：HTTP-first 补齐会回填图标与 data-URI。
+          // 用 HTTP 独立节流，避免占掉标签页静默 WebView 升级的 10 分钟窗口。
+          if (!cached?.faviconDataUri) {
+            // force：对话框已按「缺 data-URI」判定过；这里必须绕过「已有 faviconUrl
+            // 即早退」的守卫，否则防盗链站点（有 URL 无 data-URI）永不补齐。
+            ensureSiteFaviconHttp(url, { force: true });
           }
         } else {
           try {
-            // 移除 META_FETCH_TIMEOUT_MS：命令先行返回（≤6s 抓取窗口，创建本身另有
-            // ≤6s 兜底），favicon 字节下载已在后端移入后台任务，data-URI 经
-            // page-meta-updated 广播自愈。
+            // HTTP-first：命令先行返回（≤5s HTML 抓取），favicon 字节下载已在后端
+            // 移入后台任务，data-URI 经 page-meta-updated 广播自愈。
             const meta = await pageMetaClient.getSilent(url);
             const metaTitle = meta?.title?.trim() ?? '';
             const titleOk =
@@ -158,7 +154,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
               pendingFaviconCleanupRef.current = null;
             }
           } catch (err) {
-            console.warn('[bookmark-new-meta] silent fetch failed', { url, err: String(err) });
+            console.debug('[bookmark-new-meta] page meta fetch failed', { url, err: String(err) });
           }
           if (!title) {
             // 抓取成功但元数据缺失/超时/失败 → 用宿主名占位先保存（后台请求继续刷新缓存）。

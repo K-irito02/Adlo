@@ -56,6 +56,12 @@
 | `browser_clear_cache` | `tab_id` | 清除缓存 |
 | `browser_clear_cookies` | `tab_id` | 清除 Cookie |
 | `browser_set_color_scheme` | `scheme` | 设置颜色方案 |
+| `browser_page_meta_get` | `url, force` | 读站点元数据（缓存优先；可触发静默抓取） |
+| `browser_page_meta_fetch_http` | `url` | HTTP-only 抓取（HTML 前 64KB；被动补齐/新建书签） |
+| `browser_page_meta_refresh` | `url` | 静默渲染刷新（显式刷新回退/标签页自愈） |
+| `browser_page_meta_report` | `url, title, favicon, source` | 写入元数据（来源门控 + 失败墓碑） |
+| `browser_page_meta_get_silent` | `url` | 静默抓取维护面（无自动调用方） |
+| `browser_page_meta_warmup` | `urls` | 显式批量补齐维护面（无自动调用方） |
 
 ## 前端 Store 切片（8 个）
 

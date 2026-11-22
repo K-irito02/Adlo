@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorkspaceMediaSource } from '@adlo/kernel';
 import { FilePreviewRenderers } from '../FilePreviewRenderers';
+import { createStickyContextModel } from '../editor-support/stickyContext';
 
 /**
  * 办公分支的签名/兜底回归（P4 R1 补测）：
@@ -28,7 +29,9 @@ vi.mock('@features/preview', () => ({
   LazyDocxPreviewWrapper: () => <div data-testid="docx-viewer" />,
   LazyXlsxPreviewWrapper: () => <div data-testid="xlsx-viewer" />,
   LazyPptxPreviewWrapper: () => <div data-testid="pptx-viewer" />,
-  LazyMarkdownPreviewWrapper: () => null,
+  LazyMarkdownPreviewWrapper: ({ content }: { content: string }) => (
+    <div data-testid="markdown-viewer">{content}</div>
+  ),
   LazyMediaPreviewWrapper: () => null,
   PreviewLoadingGate: () => <div data-testid="loading-gate" />,
   UnsupportedPreviewCard: ({ title }: { title: string }) => (
@@ -204,5 +207,30 @@ describe('FilePreviewRenderers 办公分支', () => {
     renderOffice('pdf', media('docs/missing.pdf'));
 
     expect((await screen.findByTestId('unsupported')).textContent).toContain('officeDecodeFailed');
+  });
+
+  it('markdown 预览渲染「文件顶部」模型（接线不是纯字符串断言）', () => {
+    const model = createStickyContextModel({
+      modelId: 'preview',
+      canScrollToTop: true,
+      onNavigateLine: () => undefined,
+      topLabel: '文件顶部',
+    });
+    render(
+      <FilePreviewRenderers
+        editorSurfaceRef={noopRef}
+        fileCategory="markdown"
+        fileContent={'---\nname: x\n---\n# T\n'}
+        fileMedia={null}
+        filePath="note.md"
+        workspaceId="ws"
+        fileMediaLoading={false}
+        theme="dark"
+        stickyContextModel={model}
+      />,
+    );
+
+    expect(screen.getByTestId('markdown-viewer')).toBeTruthy();
+    expect(screen.getByTestId('files-preview-sticky-context')).toBeTruthy();
   });
 });

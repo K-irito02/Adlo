@@ -46,6 +46,9 @@ a[aria-label="帮助"]
 [data-testid="changes-preview-shell"]
 [data-testid="patch-apply"]
 [data-testid="files-sticky-context"]
+[data-testid="files-preview-sticky-context"]
+[data-testid="changes-sticky-context"]
+[data-testid="changes-preview-sticky-context"]
 ```
 
 **当前已添加的 data-testid**：
@@ -53,7 +56,10 @@ a[aria-label="帮助"]
 - `editor-shell` - 文件编辑器外壳（`FilesPanel.tsx`）
 - `changes-preview-shell` - 变更预览外壳（`DiffEditorSection.tsx`）
 - `patch-apply` - 补丁应用（`PatchReviewSection.tsx`）
-- `files-sticky-context` - 文件吸顶上下文（`EditorSurfaceShell.tsx`）
+- `files-sticky-context` - 文件编辑器吸顶上下文（`EditorSurfaceShell.tsx`）
+- `files-preview-sticky-context` - 文件预览（Markdown/媒体/办公）吸顶上下文（`FilePreviewRenderers.tsx`）
+- `changes-sticky-context` - 变更编辑器吸顶上下文（`DiffEditorSection.tsx`）
+- `changes-preview-sticky-context` - 变更预览吸顶上下文（`DiffEditorSection.tsx`）
 
 ### 3. role + aria 组合
 

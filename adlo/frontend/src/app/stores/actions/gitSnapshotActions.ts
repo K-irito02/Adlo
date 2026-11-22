@@ -13,7 +13,7 @@ import { buildGitSnapshotSyncPatch } from '../gitSnapshotSync';
 
 /** 后台批量刷新的并发上限：避免多工作区同时拉起大量 git 子进程。 */
 const SNAPSHOT_REFRESH_CONCURRENCY = 3;
-/** 同一工作区快照的新鲜期：focus / 15s 轮询 / 启动补刷共用，避免重复 IO。 */
+/** refreshAllGitSnapshotsSilent 的 5s 新鲜期：启动/工作区集合变化时批量补刷，跳过刚取过的快照，避免与 bootstrap 重复 IO。 */
 const SNAPSHOT_FRESHNESS_MS = 5_000;
 
 function moveInSnapshot(
@@ -434,7 +434,9 @@ export function createGitSnapshotActions(
     /**
      * [refreshAllGitSnapshotsSilent - 静默刷新所有已添加可用工作区的 Git 快照]
      * 与展开状态解耦：折叠的工作区也要有计数/分支/ahead-behind，供工作区头与
-     * 工具徽章显示。启动、新增工作区、窗口聚焦、watcher 批次都走这里；
+     * 工具徽章显示。当前实现：启动就绪与工作区集合变化（新增/移除/可用性）
+     * 时走这里批量补刷；watcher 批次与手动刷新（单工作区/全部）走
+     * `refreshGitSnapshot`（溢出批次遍历全部已添加工作区）。
      * 跳过 `SNAPSHOT_FRESHNESS_MS` 内的快照；worker 数量取
      * `min(SNAPSHOT_REFRESH_CONCURRENCY, targets.length)`。
      * 不转刷新图标；单个失败只记 workspaceChangesTreeErrors（与 refreshGitSnapshot 同口径）。

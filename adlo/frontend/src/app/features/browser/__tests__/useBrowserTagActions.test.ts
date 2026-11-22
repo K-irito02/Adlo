@@ -8,7 +8,7 @@ import { useBrowserTagActions } from '../useBrowserTagActions';
 import { titleSourceRef, applyBroadcastTitle } from '../useBrowserPageMeta';
 
 vi.mock('@utils/pageMetaClient', () => ({
-  pageMetaClient: { refresh: vi.fn() },
+  pageMetaClient: { refresh: vi.fn(), peek: vi.fn(() => undefined) },
 }));
 
 function makeTab(id: string, url: string, title = 'Old'): BrowserTabState {
@@ -153,6 +153,52 @@ describe('useBrowserTagActions refresh no longer writes site-meta cache', () => 
     const entry = siteMetaCache.getCachedSiteMeta('https://refresh-datauri-only.example')!;
     expect(entry.faviconUrl).toBe('');
     expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
+  });
+
+  it('static HTTP title from refresh does not downgrade a rendered title or lock COM source', async () => {
+    titleSourceRef.delete('tab1');
+    useAppStore.setState({
+      browserTabs: [makeTab('tab1', 'https://spa.example/watch', '视频标题 - YouTube')],
+    });
+    vi.mocked(pageMetaClient.refresh).mockResolvedValue({
+      title: 'YouTube',
+      favicon: 'https://spa.example/favicon.ico',
+      faviconDataUri: '',
+      url: 'https://spa.example/watch',
+      source: 'http',
+    });
+    const { result } = renderHook(() => useBrowserTagActions());
+    await act(async () => {
+      await result.current.handleRefreshTab('tab1', 'https://spa.example/watch');
+    });
+    const tab = useAppStore.getState().browserTabs.find((t) => t.id === 'tab1')!;
+    expect(tab.title).toBe('视频标题 - YouTube');
+    expect(titleSourceRef.get('tab1')).toBeUndefined();
+    // COM 渲染标题仍可覆盖（未被 http 来源锁死）。
+    expect(
+      applyBroadcastTitle(tab, tab.url, '新的渲染标题', 'com', titleSourceRef.get('tab1')),
+    ).toBe(true);
+  });
+
+  it('static HTTP title does not rewrite a history entry title', async () => {
+    useAppStore.setState({
+      browserTabs: [],
+      browserHistory: [
+        { id: 'h1', title: '旧历史标题', url: 'https://hist.example/', visitedAt: 1 },
+      ],
+    });
+    vi.mocked(pageMetaClient.refresh).mockResolvedValue({
+      title: '站点名',
+      favicon: 'https://hist.example/f.ico',
+      faviconDataUri: '',
+      url: 'https://hist.example/',
+      source: 'http',
+    });
+    const { result } = renderHook(() => useBrowserTagActions());
+    await act(async () => {
+      await result.current.handleRefreshTab('h1', 'https://hist.example/');
+    });
+    expect(useAppStore.getState().browserHistory[0]?.title).toBe('旧历史标题');
   });
 
   it('refresh that applies a title records http source so a later com broadcast cannot overwrite it (⑥)', async () => {

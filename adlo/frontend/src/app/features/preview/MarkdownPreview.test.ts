@@ -56,7 +56,7 @@ describe('MarkdownPreview', () => {
     expect(html).toContain('<a href="http://example.com/a">');
   });
 
-  it('renders leading frontmatter as a generic property card', () => {
+  it('renders leading frontmatter as a generic property table', () => {
     const content = [
       '---',
       'name: demo-skill',
@@ -64,6 +64,7 @@ describe('MarkdownPreview', () => {
       'tags: [alpha, beta]',
       'globs:',
       '  - "**/*.ts"',
+      '  - "**/*.tsx"',
       'alwaysApply: true',
       '---',
       '',
@@ -79,7 +80,7 @@ describe('MarkdownPreview', () => {
     // 行内列表与块列表统一渲染为普通文本（两个空格分隔），不使用胶囊
     expect(html).not.toContain('adl-md-frontmatter__chip');
     expect(html).toContain('adl-md-frontmatter__value">alpha  beta<');
-    expect(html).toContain('adl-md-frontmatter__value">**/*.ts<');
+    expect(html).toContain('adl-md-frontmatter__value">**/*.ts  **/*.tsx<');
     // 正文照常渲染，且不再把 frontmatter 的 --- 当分隔线
     expect(html).toContain('<h1');
     expect(html).not.toContain('<hr');
@@ -138,6 +139,7 @@ describe('MarkdownPreview', () => {
   it('renders empty / partially empty lists without empty separators', () => {
     const html = renderMarkdownPreviewHtml('---\ntags: []\nglobs: [a,]\n---\n正文');
     expect(html).not.toContain('adl-md-frontmatter__chip');
+    expect(html).toContain('<dt>tags</dt><dd><span class="adl-md-frontmatter__value"></span></dd>');
     expect(html).toContain('adl-md-frontmatter__value">a<');
   });
 
@@ -146,7 +148,7 @@ describe('MarkdownPreview', () => {
     expect(entries[0]?.values).toEqual(['a', 'b, c']);
   });
 
-  it('anchors the card to the frontmatter line range (search jump)', () => {
+  it('anchors the property table to the frontmatter line range (search jump)', () => {
     const html = renderMarkdownPreviewHtml('---\na: b\nc: d\n---\n# T');
     expect(html).toContain('data-source-line-start="1" data-source-line-end="4"');
   });

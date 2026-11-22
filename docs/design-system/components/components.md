@@ -264,7 +264,7 @@ Source of truth:
 - `frontend/src/app/regions/right-panel/editor-support/stickyContextView.tsx`
 - `frontend/src/styles/regions/rightpanel/editor-surface.css`（`.adl-sticky-context`）
 
-This is the shared sticky navigation layer for the right-panel file viewer surfaces used by `文件` and `变更`.
+This is the shared sticky navigation layer for the right-panel file viewer surfaces used by `文件` and `变更`, including markdown / media previews in both panels.
 
 Design rules:
 
@@ -278,9 +278,12 @@ Design rules:
 
 Interaction rules:
 
-- Sticky navigation appears automatically when the active entry changes (e.g., during scrolling) and auto-hides after 1.8 seconds of inactivity.
+- Sticky navigation appears automatically when the active entry changes (e.g., during scrolling) and auto-hides after **2 seconds** without real scrolling. Layout/content/resize changes must not reset the timer.
+- **Re-show only on real scroll**: any new scroll signal reveals the row again; a model id change alone keeps it hidden.
 - **Hover behavior**: When the mouse hovers over the sticky area, the auto-hide timer is paused and will only resume when the mouse leaves.
 - Each row provides hover feedback with a subtle background highlight; no border or box-shadow effects.
+- **Hidden state is inert**: while faded out, the row must not receive pointer events or hover.
+- **Scroll-to-top distance**: ≤ 3 viewport heights uses smooth scrolling; longer distances jump instantly.
 - Empty files and outline-less files still render a stable sticky model; the UI may collapse to zero rows only when the top row is hidden and no context rows are available.
 - The sticky view must not own editor height. Any "fill the remaining surface" rule must explicitly exclude `.adl-sticky-context`.
 
@@ -290,6 +293,7 @@ Visual design:
 - Content is right-aligned with the "向上箭头" icon appearing inline before the "文件顶部" label.
 - Line numbers display as "行 xxx" (localized) instead of "Lxxx".
 - Hover states show only background color change without borders or shadows.
+- Hover background token `--sticky-context-hover-bg`: dark theme 8% white, light theme 6% black. The arrow inherits the row text color (`currentColor`) so it always matches the label.
 
 ## Stat tile
 

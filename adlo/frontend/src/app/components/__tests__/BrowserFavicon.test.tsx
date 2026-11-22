@@ -264,11 +264,19 @@ describe('pending placeholder policy', () => {
     expect(ensureSiteFavicon).toHaveBeenCalledTimes(1);
   });
 
-  it('passive (initial) mode never triggers per-row backfill (list storm guard)', () => {
-    // 历史/书签树可能渲染数百行：被动列表不得逐行发起后台抓取（靠启动 warmup 批量补齐）。
+  it('passive (initial) mode uses HTTP-only enrichment and never the WebView path', () => {
+    // 历史/书签树可能渲染数百行：被动列表只发 HTTP（预算/限速在 self-heal 内），
+    // 不得逐行走 ensureSiteFavicon（会创建隐藏 WebView）。
     mirrorFavicon('https://settled-empty-passive.example', '');
     render(<BrowserFavicon url="https://settled-empty-passive.example" pending="initial" />);
     expect(ensureSiteFavicon).not.toHaveBeenCalled();
+    expect(ensureSiteFaviconHttp).toHaveBeenCalledWith('https://settled-empty-passive.example');
+  });
+
+  it('passive mode also enriches a URL with no site-meta entry', () => {
+    render(<BrowserFavicon url="https://never-mirrored.example" pending="initial" />);
+    expect(ensureSiteFavicon).not.toHaveBeenCalled();
+    expect(ensureSiteFaviconHttp).toHaveBeenCalledWith('https://never-mirrored.example');
   });
 
   it('force-refreshes once the external icon exhausts its retries (spinner mode)', () => {

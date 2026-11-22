@@ -65,7 +65,7 @@ Optional desktop smoke: `pnpm run e2e:build` then `pnpm run e2e` (WDIO + embedde
 
 ## Security Baseline
 
-- explicit `app.security.csp` in `tauri.conf.json` (no empty CSP); packaged builds append nonce/hash to `style-src`, so `dangerousDisableAssetCspModification: ["style-src"]` is required for runtime `<style>` injection; `img-src` / `media-src` must include `blob:` (Office embedded media / object URLs)
+- explicit `app.security.csp` in `tauri.conf.json` (no empty CSP); packaged builds append nonce/hash to `style-src`, so `dangerousDisableAssetCspModification: ["style-src"]` is required for runtime `<style>` injection; `img-src` / `media-src` must include `blob:` (Office embedded media / object URLs); workspace WS and dev IPC need `connect-src` `ws:`/`wss:`; `script-src` includes `'wasm-unsafe-eval'` for starry-night WASM; `worker-src 'self'` (no blob workers)
 - capability-based command allowlist via `src-tauri/capabilities/*.json` (`default.json` + `browser-remote.json`, no `"all"` / `"**"`)
 - `withGlobalTauri` disabled
 - no raw filesystem, process, or SQL access from the WebView

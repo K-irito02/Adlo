@@ -314,7 +314,7 @@ describe('initGitRepo', () => {
   });
 });
 
-describe('refreshAllGitSnapshotsSilent 焦点回归补刷', () => {
+describe('refreshAllGitSnapshotsSilent 批量静默刷新', () => {
   // 类型化桥接替身（dev-rules 禁 any）：与本文件既有 `(window as any)` 写法不同，
   // 新增测试一律走 unknown 收窄。
   function gitStatusBridge() {

@@ -26,7 +26,7 @@ import { StickyContext } from './editor-support/stickyContextView';
 import type { StickyContextModel } from './editor-support/stickyContext';
 
 interface FilePreviewRenderersProps {
-  editorSurfaceRef: React.RefObject<HTMLDivElement | null>;
+  editorSurfaceRef: React.Ref<HTMLDivElement>;
   fileCategory: FileCategory;
   fileContent: string | null;
   /** 二进制媒体文档（图片/音视频/办公）：image/audio/video/docx/pdf/spreadsheet/presentation 分支使用 */
@@ -65,7 +65,7 @@ function UnsupportedPreview({
   text,
   hint,
 }: {
-  editorSurfaceRef: React.RefObject<HTMLDivElement | null>;
+  editorSurfaceRef: React.Ref<HTMLDivElement>;
   icon: React.ReactNode;
   text: string;
   hint: string;
@@ -89,7 +89,7 @@ function PreviewSurface({
   stickyContextModel,
   children,
 }: {
-  editorSurfaceRef: React.RefObject<HTMLDivElement | null>;
+  editorSurfaceRef: React.Ref<HTMLDivElement>;
   stickyContextModel?: StickyContextModel | null;
   children: React.ReactNode;
 }) {

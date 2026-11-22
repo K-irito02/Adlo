@@ -8,7 +8,13 @@ import { resetFaviconSelfHealThrottleForTest } from '../faviconSelfHeal';
 import { useBrowserDialogs } from '../useBrowserDialogs';
 
 vi.mock('@utils/pageMetaClient', () => ({
-  pageMetaClient: { peek: vi.fn(), get: vi.fn(), getSilent: vi.fn(), subscribeUpdated: vi.fn() },
+  pageMetaClient: {
+    peek: vi.fn(),
+    get: vi.fn(),
+    getSilent: vi.fn(),
+    fetchHttp: vi.fn(),
+    subscribeUpdated: vi.fn(),
+  },
 }));
 
 function makeMeta(partial: Partial<PageMeta>): PageMeta {
@@ -32,6 +38,8 @@ describe('useBrowserDialogs create-tab write gate', () => {
     vi.mocked(pageMetaClient.peek).mockReset();
     vi.mocked(pageMetaClient.get).mockReset();
     vi.mocked(pageMetaClient.getSilent).mockReset();
+    vi.mocked(pageMetaClient.fetchHttp).mockReset();
+    vi.mocked(pageMetaClient.fetchHttp).mockResolvedValue(null);
     vi.mocked(pageMetaClient.subscribeUpdated).mockReset();
     // 默认 noop 订阅：不断言广播的用例走 4s 超时分支（由下述 advance 推进落定）。
     vi.mocked(pageMetaClient.subscribeUpdated).mockReturnValue(() => {});
@@ -160,10 +168,20 @@ describe('useBrowserDialogs create-tab write gate', () => {
     expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
   });
 
-  it('no-title cache hit adopts cached title and only fire-and-forget getSilent for favicon self-heal', async () => {
+  it('no-title cache hit adopts cached title and only fire-and-forget HTTP backfill', async () => {
+    siteMetaCache.setCachedSiteMeta('https://dlg-cache-hit.example', {
+      title: 'Cached Real',
+      faviconUrl: 'https://dlg-cache-hit.example/f.ico',
+      faviconDataUri: '',
+      fetchedAt: 1,
+      titleSource: 'http',
+      lastOkAt: 1,
+      nextRetryAt: 0,
+      failCount: 0,
+    });
     vi.mocked(pageMetaClient.peek).mockReturnValue({
       title: 'Cached Real',
-      faviconUrl: '',
+      faviconUrl: 'https://dlg-cache-hit.example/f.ico',
       faviconDataUri: '',
       fetchedAt: 1,
       titleSource: 'http',
@@ -194,11 +212,12 @@ describe('useBrowserDialogs create-tab write gate', () => {
     expect(createBookmarkEntry).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'https://dlg-cache-hit.example', title: 'Cached Real' }),
     );
-    // 缓存命中但 favicon 缺失 → 后台静默自愈刷新一次 favicon（不影响标题）。
-    expect(pageMetaClient.getSilent).toHaveBeenCalledWith('https://dlg-cache-hit.example');
+    // 缓存命中但 favicon 缺失 → 后台 HTTP 自愈刷新一次（不创建隐藏 WebView）。
+    expect(pageMetaClient.fetchHttp).toHaveBeenCalledWith('https://dlg-cache-hit.example');
+    expect(pageMetaClient.getSilent).not.toHaveBeenCalled();
   });
 
-  it('cache hit WITH data-URI present does NOT fire getSilent self-heal', async () => {
+  it('cache hit WITH data-URI present does NOT fire HTTP backfill', async () => {
     vi.mocked(pageMetaClient.peek).mockReturnValue({
       title: 'Cached Data',
       faviconUrl: 'https://dlg-cache-data.example/f.ico',
@@ -230,6 +249,7 @@ describe('useBrowserDialogs create-tab write gate', () => {
         'save-only',
       );
     });
+    expect(pageMetaClient.fetchHttp).not.toHaveBeenCalled();
     expect(pageMetaClient.getSilent).not.toHaveBeenCalled();
     expect(createBookmarkEntry).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'https://dlg-cache-data.example', title: 'Cached Data' }),
@@ -380,6 +400,8 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     vi.mocked(pageMetaClient.peek).mockReset();
     vi.mocked(pageMetaClient.get).mockReset();
     vi.mocked(pageMetaClient.getSilent).mockReset();
+    vi.mocked(pageMetaClient.fetchHttp).mockReset();
+    vi.mocked(pageMetaClient.fetchHttp).mockResolvedValue(null);
     vi.mocked(pageMetaClient.subscribeUpdated).mockReset();
     siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
     await siteMetaCache.initSiteMetaCache();
@@ -662,6 +684,8 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
     vi.mocked(pageMetaClient.peek).mockReset();
     vi.mocked(pageMetaClient.get).mockReset();
     vi.mocked(pageMetaClient.getSilent).mockReset();
+    vi.mocked(pageMetaClient.fetchHttp).mockReset();
+    vi.mocked(pageMetaClient.fetchHttp).mockResolvedValue(null);
     vi.mocked(pageMetaClient.subscribeUpdated).mockReset();
     siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
     await siteMetaCache.initSiteMetaCache();

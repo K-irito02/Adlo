@@ -140,7 +140,20 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
   });
 
   const [editorMountVersion, setEditorMountVersion] = useState(0);
+  const [previewSurfaceVersion, setPreviewSurfaceVersion] = useState(0);
   const stickyContextModel = useStickyContext({ ...stickyContextInput, editorMountVersion });
+
+  // 预览面可能晚于本组件挂载（重型门确认 / 打开失败重试）。
+  // 用回调 ref 记录挂载版本，驱动 usePreviewStickyContext 重新绑定滚动容器。
+  const setPreviewSurfaceRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      editorSurfaceRef.current = element;
+      if (element) {
+        setPreviewSurfaceVersion((version) => version + 1);
+      }
+    },
+    [editorSurfaceRef],
+  );
 
   // 预览面（Markdown / PDF / Office / 媒体）没有 CodeMirror 实例：用 content area 的
   // 滚动事件驱动同一套「文件顶部」模型。必须在任何 early return 之前调用（hooks 顺序）。
@@ -148,7 +161,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     editorSurfaceRef,
     `${selectedFileWorkspaceId ?? ''}:${selectedFilePath ?? ''}:${
       previewEnabled ? 'preview' : 'edit'
-    }:${fileCategory}`,
+    }:${fileCategory}:${previewSurfaceVersion}`,
   );
 
   useWrapColumn({
@@ -406,7 +419,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
   ) {
     return (
       <FilePreviewRenderers
-        editorSurfaceRef={editorSurfaceRef}
+        editorSurfaceRef={setPreviewSurfaceRef}
         fileCategory={fileCategory}
         fileContent={fileContent ?? null}
         fileMedia={fileMedia ?? null}

@@ -39,7 +39,7 @@ describe('pageMetaClient (tauri adapter)', () => {
     } as never);
     expect(await pageMetaClient.get('https://a.com/')).toBeNull();
   });
-  it('refresh uses HTTP first and skips the silent WebView when an icon data URI arrives', async () => {
+  it('iconOnly refresh skips the silent WebView when an icon data URI arrives', async () => {
     const { invokeIpc } = await import('../../../tauri-bridge/tauri-shared');
     vi.mocked(invokeIpc).mockResolvedValue({
       ok: true,
@@ -51,10 +51,45 @@ describe('pageMetaClient (tauri adapter)', () => {
       },
     });
     const { pageMetaClient } = await import('../pageMetaClient');
-    const meta = await pageMetaClient.refresh('https://a.com/');
+    const meta = await pageMetaClient.refresh('https://a.com/', { iconOnly: true });
     expect(meta?.title).toBe('HTTP');
     expect(invokeIpc).toHaveBeenCalledTimes(1);
     expect(invokeIpc).toHaveBeenCalledWith('browser_page_meta_fetch_http', {
+      url: 'https://a.com/',
+    });
+  });
+
+  it('full refresh upgrades to the rendered title even when HTTP already has an icon', async () => {
+    const { invokeIpc } = await import('../../../tauri-bridge/tauri-shared');
+    vi.mocked(invokeIpc)
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          title: 'YouTube',
+          favicon: 'https://a.com/f.ico',
+          faviconDataUri: 'data:image/png;base64,HTTP',
+          url: 'https://a.com/',
+          source: 'http',
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          title: '视频标题 - YouTube',
+          favicon: '',
+          faviconDataUri: '',
+          url: 'https://a.com/',
+          source: 'com',
+        },
+      });
+    const { pageMetaClient } = await import('../pageMetaClient');
+    const meta = await pageMetaClient.refresh('https://a.com/');
+    expect(meta?.title).toBe('视频标题 - YouTube');
+    expect(meta?.source).toBe('com');
+    // WebView 没带图标时保留 HTTP 已抓到的 data-URI。
+    expect(meta?.faviconDataUri).toBe('data:image/png;base64,HTTP');
+    expect(invokeIpc).toHaveBeenCalledTimes(2);
+    expect(invokeIpc).toHaveBeenLastCalledWith('browser_page_meta_refresh', {
       url: 'https://a.com/',
     });
   });

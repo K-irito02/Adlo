@@ -167,7 +167,7 @@ function buildPdf() {
 // ---------- frontmatter 示例 ----------
 const frontmatter = `---
 name: preview-fixture
-description: 预览面夹具：验证属性表的通用键值渲染与列表 chip。
+description: 预览面夹具：验证属性表的通用键值渲染与列表文本。
 tags: [preview, fixture, markdown]
 globs:
   - "**/*.ts"
@@ -179,7 +179,7 @@ version: 1.0.0
 
 # 预览夹具
 
-用于人工/自动化验证 Markdown 预览的属性表、列表 chip、长值换行与检索跳转行号。
+用于人工/自动化验证 Markdown 预览的属性表、列表文本、长值换行与检索跳转行号。
 `;
 
 mkdirSync(outDir, { recursive: true });

@@ -6,7 +6,10 @@ import { __mirrorUpsertForTest, removeCachedSiteMeta } from '@utils/siteMetaCach
 import { __resetFaviconDisplayCacheForTest } from '@components/faviconDisplayCache';
 import { ensureSiteFavicon } from '../faviconSelfHeal';
 
-vi.mock('../faviconSelfHeal', () => ({ ensureSiteFavicon: vi.fn() }));
+vi.mock('../faviconSelfHeal', () => ({
+  ensureSiteFavicon: vi.fn(),
+  ensureSiteFaviconHttp: vi.fn(),
+}));
 
 const site: ShortcutSite = {
   id: 'shortcut-1',
