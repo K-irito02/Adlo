@@ -6,11 +6,14 @@
  * （2026-11-15 实测 4 次误派发）。本脚本从 `.review-diffs` 读取每个 R1 scope
  * 的**最新** rev 报告，要求全部明确写「需修复项：0」；任一缺失/非零即退出 1。
  *
- * 用法：`node adlo/scripts/check-review-gate.mjs --phase r1|r2|exit [--dir .review-diffs] [--progress <file>]`
+ * 用法：`node adlo/scripts/check-review-gate.mjs --phase r1|r2|exit|p6 [--dir .review-diffs] [--progress <file>]`
  * - `r1`：检查进度文件的 P3→P4 用户批准标记（防止未经用户验收就开审）。
  * - `r2`：检查每个 R1 scope 的最新报告是否「需修复项：0」。
  * - `exit`：P4 退出前检查——R1 与 R2 各自最新一轮都必须「需修复项：0」，
  *   且 R2 至少有一份报告（防止「R2 未派发」或「R2 有未闭合项」直接进 P5）。
+ * - `p6`：清理前检查——最新 R1/R2 报告必须已归档到
+ *   `docs/root-cause-to-close/<YYYY-MM>/reviews/<progress-stem>/`；
+ *   `.review-diffs` 仍在时还要求归档文件名与最新快照逐一同名。
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -155,6 +158,41 @@ export function evaluateExitGate(entries) {
   };
 }
 
+/**
+ * P6 归档门：最新 R1/R2 报告必须存在于 archive，且（快照仍在时）与快照中的
+ * 最新报告逐一同名。快照已删时退化为「archive 自身至少各有一份 R1/R2」。
+ *
+ * @param {{name: string, text: string}[]} snapshotEntries
+ * @param {{name: string, text: string}[]} archiveEntries
+ */
+export function evaluateArchiveGate(snapshotEntries, archiveEntries) {
+  const hasSnapshots = snapshotEntries.some(
+    (entry) => REPORT_RE.test(entry.name) || R2_REPORT_RE.test(entry.name),
+  );
+  const r1 = latestR1Reports(hasSnapshots ? snapshotEntries : archiveEntries);
+  const r2 = latestR2Reports(hasSnapshots ? snapshotEntries : archiveEntries);
+  const archiveNames = new Set(archiveEntries.map((entry) => entry.name));
+  const missing = [...r1, ...r2]
+    .map((report) => report.name)
+    .filter((name) => !archiveNames.has(name));
+  return {
+    ok: r1.length > 0 && r2.length > 0 && missing.length === 0,
+    r1: r1.map(({ scope, rev, name }) => ({ scope, rev, name })),
+    r2: r2.map(({ scope, rev, name }) => ({ scope, rev, name })),
+    missing,
+  };
+}
+
+/** 读取目录里的 R1/R2 报告；目录不存在时返回空数组（P6 快照已删是合法状态）。 */
+function readReportEntries(dir) {
+  if (!existsSync(dir)) {
+    return [];
+  }
+  return readdirSync(dir)
+    .filter((name) => REPORT_RE.test(name) || R2_REPORT_RE.test(name))
+    .map((name) => ({ name, text: readFileSync(path.join(dir, name), "utf8") }));
+}
+
 function main() {
   let options;
   try {
@@ -166,8 +204,15 @@ function main() {
     );
     process.exit(1);
   }
-  if (options.phase !== "r1" && options.phase !== "r2" && options.phase !== "exit") {
-    console.error(`[review-gate] unsupported phase: ${options.phase} (expected r1, r2 or exit)`);
+  if (
+    options.phase !== "r1" &&
+    options.phase !== "r2" &&
+    options.phase !== "exit" &&
+    options.phase !== "p6"
+  ) {
+    console.error(
+      `[review-gate] unsupported phase: ${options.phase} (expected r1, r2, exit or p6)`,
+    );
     process.exit(1);
   }
   if (options.phase === "r1") {
@@ -191,13 +236,45 @@ function main() {
     console.log(`[review-gate] OK (P3→P4 approved in ${path.relative(ROOT, progress)})`);
     return;
   }
+  if (options.phase === "p6") {
+    const progress = options.progress ?? findLatestProgressFile(ROOT);
+    if (!progress || !existsSync(progress)) {
+      console.error("[review-gate] progress file not found; pass --progress <file>.");
+      process.exit(1);
+    }
+    const archiveDir = path.join(path.dirname(progress), "reviews", path.basename(progress, ".md"));
+    const result = evaluateArchiveGate(
+      readReportEntries(options.dir),
+      readReportEntries(archiveDir),
+    );
+    if (!result.ok) {
+      console.error("[review-gate] P6 archive blocked: latest R1/R2 reports must be archived.");
+      console.error(`  progress: ${path.relative(ROOT, progress)}`);
+      console.error(`  archive:  ${path.relative(ROOT, archiveDir)}`);
+      if (result.r1.length === 0) {
+        console.error("  no R1 report found (snapshot or archive)");
+      }
+      if (result.r2.length === 0) {
+        console.error("  no R2 report found (snapshot or archive)");
+      }
+      for (const name of result.missing) {
+        console.error(`  missing from archive: ${name}`);
+      }
+      console.error(
+        "  hint: node adlo/scripts/archive-review-reports.mjs --progress <progress.md>",
+      );
+      process.exit(1);
+    }
+    console.log(
+      `[review-gate] OK (P6 archive: ${result.r1.length} R1 + ${result.r2.length} R2 reports in ${path.relative(ROOT, archiveDir)})`,
+    );
+    return;
+  }
   if (!existsSync(options.dir)) {
     console.error(`[review-gate] review dir not found: ${options.dir}`);
     process.exit(1);
   }
-  const entries = readdirSync(options.dir)
-    .filter((name) => REPORT_RE.test(name) || R2_REPORT_RE.test(name))
-    .map((name) => ({ name, text: readFileSync(path.join(options.dir, name), "utf8") }));
+  const entries = readReportEntries(options.dir);
   if (options.phase === "exit") {
     const result = evaluateExitGate(entries);
     if (!result.ok) {

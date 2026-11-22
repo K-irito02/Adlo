@@ -279,7 +279,7 @@ pnpm run check:rust:changed                             # 最终快照：Rust �
 
 **本轮零问题：** 最新一次子代理审查经 4d 逐项验证后无「需修复」残留（误报 / 有据保留已记理由，且下一轮复审无异议）。「需修复」的完整判定见 `references/review-brief.md` §6。**进度文件 / 设计文档的事实漂移属 P5，写入 P5 台账即视为关闭，不阻塞零问题；代码注释 / i18n 的 low 仍按需修复计。** low 可一次批量修完，只复审一次。
 
-- **R1 循环（正确性，不通过不进 R2）：** 按事项数派发（1–5 个事项逐项各派 1 个；>5 个时 diff <50 行的小事项可合并、大事项仍逐项），同一消息并行派发。**可写子代理只允许写指定报告文件，源码只读；只有只读代理时，要求它把完整报告放进返回消息、由主代理落盘。** 每个提示词只给：`references/review-brief.md` 路径 + 本轮 manifest + 文件范围 + 要验证的上轮项 + 报告路径；规约、气味基线、强制检查项、报告契约都在简报里，不逐条粘贴。覆盖：根因与正确性、设计质量、副作用与安全、预存问题、优化机会。修完 rev 递增后仍用 R1 范围复审；**同一轮次最多 3 次完整派发，第 4 次停止并升级给用户（附每轮未闭合项）；定向复核不计入上限**。
+- **R1 循环（正确性，不通过不进 R2）：** 按事项数派发（1–5 个事项逐项各派 1 个；>5 个时 diff <50 行的小事项可合并、大事项仍逐项），同一消息并行派发。**可写子代理只允许写指定报告文件，源码只读；只有只读代理时，要求它把完整报告放进返回消息、由主代理落盘。** 每个提示词只给：`references/review-brief.md` 路径 + 本轮 manifest + 文件范围 + 要验证的上轮项 + 报告路径；规约、气味基线、强制检查项、报告契约都在简报里，不逐条粘贴。覆盖：根因与正确性、设计质量、副作用与安全、预存问题、优化机会。修完 rev 递增后仍用 R1 范围复审。
 - **派发范围互斥：** 同一文件只归一个 scope；共享文件（`App.tsx`、`BrowserPanel.tsx`、`shared/ipc/` 等）由主代理指定归属，其他 scope 只读上下文、不产出 finding；合并时仍去重。
 - **R2 循环（清理，仅 R1 零问题后进入）：** 同样读 `references/review-brief.md`。即使 R1 已删日志 / 死代码，仍必须完整派发一次。覆盖：死代码、冗余守卫、根因修后多余的防御、应删 / 降级的诊断日志。不标：正当错误处理、系统边界验证、生产 warn / error 日志。修完 rev 递增后仍用 R2 范围复审，循环至零问题。
 - **合并：** 去重（同文件同行同类留最详者）→ severity 降序。
@@ -337,7 +337,7 @@ UI 引入可复用模式或修正规范时，提取标准并更新 `docs/design-
 - [ ] `debug-logs*.txt`、`debug-logs-browser*.txt`、`adl-server-logs*.txt` 运行残留。
 - [ ] 根 `test-artifacts/` 超 3 天临时文件。
 - [ ] `grep` 确认 `[DBG-` 诊断前缀清零；有残留先删。
-- [ ] 把最后一轮 `*-report.md` 归档到 `docs/root-cause-to-close/YYYY-MM/reviews/<progress-stem>/`（只归档报告，不归档 diff；同名覆盖，只留最终轮；进度文件「审查报告」路径同步改为归档路径）。
+- [ ] 运行 `node adlo/scripts/archive-review-reports.mjs --progress <progress.md>` 把最后一轮 `*-report.md` 归档到 `docs/root-cause-to-close/YYYY-MM/reviews/<progress-stem>/`（只归档报告，不归档 diff；同名覆盖，只留最终轮）；再跑 `node adlo/scripts/check-review-gate.mjs --phase p6 --progress <progress.md>` 校验归档完整（缺失即退出 1）。
 - [ ] 删除 `.review-diffs/` 全部快照。
 - [ ] 用过 `playwright-cli`：`close-all` 关闭残留会话，删除仓库内 `.playwright-cli/` 与测试截图；Temp 产物整批删除。
 

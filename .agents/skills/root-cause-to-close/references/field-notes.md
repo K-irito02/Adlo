@@ -19,6 +19,7 @@
 - 2026-11-17 一轮 89 条发现里约四成是进度 / spec / 注释措辞 → P4 范围收敛到代码与代码内注释。
 - R2 的注释 / 测试锁类 low 分散修，rev2→rev6 五个快照（2026-11-22）→ low 同轮批量修，只复审一次。
 - 把 R1 复核写成 r2 报告，门控继续读到 R1 非零，多花一轮三份确认（2026-11-22）→ 报告前缀跟阶段，不跟内容。
+- P6 先删 `.review-diffs` 后才发现没归档，报告永久丢失（2026-11-23）→ 先 `archive-review-reports.mjs`，再 `check-review-gate.mjs --phase p6`，通过后才删快照。
 - 假绿用例连续 3 轮都在 R1 才暴露（label 内 input 断言、属性输入 join 回填、regex 载荷同时满足 fileLike）→ 交付前做删除性推演。
 - 审查子代理按「零引用」删 Cargo feature 直接编译失败（2026-11-20，`RegCreateKeyExW` 的 `SECURITY_ATTRIBUTES` 来自 `Win32_Security`）→ 删 feature 前确认 API 参数 / 返回类型来源。
 

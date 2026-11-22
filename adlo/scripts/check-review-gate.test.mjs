@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  evaluateArchiveGate,
   evaluateExitGate,
   evaluateR2Gate,
   hasP3P4Approval,
@@ -101,6 +102,34 @@ describe("P4 exit gate", () => {
   it("ignores R1 report names when evaluating the R2 side", () => {
     const result = evaluateExitGate([report("favicon", 5, 0), r2report("cleanup", 1, 0)]);
     assert.deepEqual(result.r2.scopes, [{ scope: "cleanup", rev: 1 }]);
+  });
+});
+
+describe("P6 archive gate", () => {
+  it("passes when every latest R1/R2 report exists in the archive", () => {
+    const snapshots = [report("favicon", 5, 0), r2report("cleanup", 2, 0)];
+    const result = evaluateArchiveGate(snapshots, snapshots);
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.missing, []);
+  });
+
+  it("fails when the archive is missing the latest rev", () => {
+    const snapshots = [report("favicon", 6, 0), r2report("cleanup", 2, 0)];
+    const archive = [report("favicon", 5, 0), r2report("cleanup", 2, 0)];
+    const result = evaluateArchiveGate(snapshots, archive);
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.missing, ["favicon-r1-rev6-report.md"]);
+  });
+
+  it("falls back to the archive itself after .review-diffs is deleted", () => {
+    const archive = [report("favicon", 5, 0), r2report("cleanup", 2, 0)];
+    assert.equal(evaluateArchiveGate([], archive).ok, true);
+    assert.equal(evaluateArchiveGate([], []).ok, false);
+  });
+
+  it("requires both an R1 and an R2 report in the archive", () => {
+    const onlyR1 = [report("favicon", 5, 0)];
+    assert.equal(evaluateArchiveGate([], onlyR1).ok, false);
   });
 });
 

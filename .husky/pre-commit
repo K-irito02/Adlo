@@ -24,7 +24,7 @@ trap on_exit EXIT
 STEP="eslint"
 LINTABLE="$(echo "$STAGED" | grep -E '^adlo/frontend/.*\.(ts|tsx|js|jsx|mjs|cjs)$' || true)"
 if [ -n "$LINTABLE" ]; then
-  echo "$LINTABLE" | sed 's|^adlo/frontend/||' | ( cd "$ROOT/adlo/frontend" && xargs -d '\n' -n 40 npx eslint --no-warn-ignored )
+  echo "$LINTABLE" | sed 's|^adlo/frontend/||' | ( cd "$ROOT/adlo/frontend" && xargs -d '\n' -n 40 npx eslint --max-warnings 0 --no-warn-ignored )
 else
   echo "[pre-commit] eslint: no staged frontend sources, skipped"
 fi

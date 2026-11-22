@@ -12,6 +12,10 @@
  *   node scripts/ui-probe.mjs --url <url> --selector A --selector B --pseudo ::after
  *   node scripts/ui-probe.mjs --url <url> --selector .adl-terminal-region-actions \
  *     --props opacity --hover .adl-terminal-region-actions
+ *   # 需要注入 DOM / 读取应用挂载后的状态时：--eval 在导航前执行，改用 --eval-after-load。
+ *   # --eval-when 可选，先等该 selector 出现（例如 "#app > *"）再执行。
+ *   node scripts/ui-probe.mjs --url <url> --eval-when "#app > *" \
+ *     --eval-after-load "document.body.append(...)" --selector .probe --props color
  *   # 面板内 UI（设置 → 关于）：先点击进入目标面板，再取样式；`text=` 精确匹配可见文本
  *   node scripts/ui-probe.mjs --url <url> --click 'button[aria-label="设置"]' \
  *     --click 'text=关于' --selector '.adl-about__links' --props flex-direction,justify-content
@@ -35,6 +39,8 @@ export function parseArgs(argv) {
     hover: "",
     clicks: [],
     prelude: "",
+    afterLoad: "",
+    evalWhen: "",
     settle: 300,
     timeout: 60000,
     port: 9333,
@@ -72,6 +78,12 @@ export function parseArgs(argv) {
         break;
       case "--eval":
         options.prelude = next();
+        break;
+      case "--eval-after-load":
+        options.afterLoad = next();
+        break;
+      case "--eval-when":
+        options.evalWhen = next();
         break;
       case "--settle":
         options.settle = Number.parseInt(next(), 10);
@@ -311,8 +323,7 @@ async function main() {
     client = await connectCdp(page.webSocketDebuggerUrl);
     await client.send("Runtime.enable");
 
-    // 进入目标面板：先执行前置脚本，再依次点击；每一步都等目标元素出现，
-    // 最后等探测 selector 出现再读样式。
+    // 进入目标面板：先执行导航前前置脚本，再依次点击；每一步都等目标元素出现。
     if (options.prelude) {
       await evaluate(client, options.prelude);
     }
@@ -323,7 +334,21 @@ async function main() {
       await delay(options.settle);
     }
 
-    // 等应用启动（dev 模式首屏可能 30s+）；hover 目标也必须存在。
+    // 应用挂载后的注入：--eval-when 先等 DOM 就位，再等页面 complete 后执行。
+    if (options.evalWhen) {
+      await waitForSelector(client, options.evalWhen, options.timeout);
+    }
+    if (options.afterLoad) {
+      await waitForExpression(
+        client,
+        "document.readyState === 'complete'",
+        options.timeout,
+        "page load",
+      );
+      await evaluate(client, options.afterLoad);
+    }
+
+    // 最后等探测 selector 出现再读样式；hover 目标也必须存在。
     for (const selector of new Set([...options.selectors, options.hover].filter(Boolean))) {
       await waitForSelector(client, selector, options.timeout);
     }

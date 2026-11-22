@@ -58,6 +58,28 @@ test("parseArgs collects click steps and a prelude for panel-gated UI", () => {
   assert.equal(defaults.settle, 300);
 });
 
+test("parseArgs separates navigation-time and post-load evaluations", () => {
+  const options = parseArgs([
+    "--url",
+    "http://x",
+    "--selector",
+    ".probe",
+    "--eval",
+    "window.__early = 1",
+    "--eval-when",
+    "#app > *",
+    "--eval-after-load",
+    "document.body.append(document.createElement('div'))",
+  ]);
+  assert.equal(options.prelude, "window.__early = 1");
+  assert.equal(options.evalWhen, "#app > *");
+  assert.equal(options.afterLoad, "document.body.append(document.createElement('div'))");
+  // 默认不等待、不注入，保持原有 --eval 语义。
+  const defaults = parseArgs(["--url", "http://x", "--selector", ".a"]);
+  assert.equal(defaults.afterLoad, "");
+  assert.equal(defaults.evalWhen, "");
+});
+
 test("parseArgs rejects missing url / selectors / unknown flags", () => {
   assert.throws(() => parseArgs(["--selector", ".a"]), /--url is required/);
   assert.throws(() => parseArgs(["--url", "http://x"]), /at least one --selector/);
