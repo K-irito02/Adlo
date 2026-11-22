@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { fromAny, fromPartial } from '@total-typescript/shoehorn';
 import type { SseWireEvent } from '../../httpBridge';
 
 /**
@@ -18,7 +19,7 @@ class FakeEventSource {
   addEventListener(_: string, _fn: () => void) {}
   close() {}
   emit(data: string, recordId?: string) {
-    this.onmessage?.({ data, lastEventId: recordId } as unknown as MessageEvent);
+    this.onmessage?.(fromPartial<MessageEvent>({ data, lastEventId: recordId }));
   }
 }
 
@@ -55,7 +56,7 @@ class FakeWebSocket {
 
 function makeBridge(fake?: FakeEventSource) {
   const fakeES = fake ?? new FakeEventSource();
-  const esFactory = vi.fn(() => fakeES as unknown as EventSource);
+  const esFactory = vi.fn(() => fromAny<EventSource, FakeEventSource>(fakeES));
   return { fakeES, esFactory };
 }
 
@@ -66,7 +67,7 @@ function makeMintingFactory() {
   const esFactory = vi.fn(() => {
     const fake = new FakeEventSource();
     sources.push(fake);
-    return fake as unknown as EventSource;
+    return fromAny<EventSource, FakeEventSource>(fake);
   });
   return { sources, esFactory };
 }
@@ -137,7 +138,7 @@ describe('httpBridge SSE event bridge', () => {
     const { createHttpBridge } = await import('../../httpBridge');
     const bridge = createHttpBridge({
       baseUrl: 'http://127.0.0.1:9999',
-      eventSourceFactory: () => fakeES as unknown as EventSource,
+      eventSourceFactory: () => fromAny<EventSource, FakeEventSource>(fakeES),
     });
     const got: unknown[] = [];
     bridge.subscribeModelStream((e) => got.push(e));
@@ -158,7 +159,7 @@ describe('httpBridge SSE event bridge', () => {
     const { createHttpBridge } = await import('../../httpBridge');
     const bridge = createHttpBridge({
       baseUrl: 'http://127.0.0.1:9999',
-      eventSourceFactory: () => fakeES as unknown as EventSource,
+      eventSourceFactory: () => fromAny<EventSource, FakeEventSource>(fakeES),
     });
     const got: unknown[] = [];
     bridge.subscribeModelStream((e) => got.push(e));
@@ -223,7 +224,7 @@ describe('httpBridge SSE event bridge', () => {
     const { createHttpBridge } = await import('../../httpBridge');
     const bridge = createHttpBridge({
       baseUrl: 'http://127.0.0.1:9999',
-      eventSourceFactory: () => fakeES as unknown as EventSource,
+      eventSourceFactory: () => fromAny<EventSource, FakeEventSource>(fakeES),
     });
     const got: SseWireEvent[] = [];
     bridge.subscribeSessionPartEvents((e) => got.push(e));
@@ -324,8 +325,8 @@ describe('httpBridge SSE event bridge', () => {
     const { createHttpBridge } = await import('../../httpBridge');
     const bridge = createHttpBridge({
       baseUrl: 'http://127.0.0.1:9999',
-      eventSourceFactory: () => fakeES as unknown as EventSource,
-      ptyWsOptions: { wsFactory: () => fakeWs as unknown as WebSocket },
+      eventSourceFactory: () => fromAny<EventSource, FakeEventSource>(fakeES),
+      ptyWsOptions: { wsFactory: () => fromAny<WebSocket, FakeWebSocket>(fakeWs) },
     });
     const listener = vi.fn();
     const unsubscribe = bridge.subscribePtyOutput(listener);
@@ -489,7 +490,7 @@ describe('Task 8 fix wave — live-only subscribe / reasoning-aware mapping / ru
     const { createHttpBridge } = await import('../../httpBridge');
     const bridge = createHttpBridge({
       baseUrl: 'http://127.0.0.1:9999',
-      eventSourceFactory: () => fakeES as unknown as EventSource,
+      eventSourceFactory: () => fromAny<EventSource, FakeEventSource>(fakeES),
     });
     const got: unknown[] = [];
     bridge.subscribeRunActivity((e) => got.push(e));
@@ -521,7 +522,7 @@ describe('Task 8 fix wave — live-only subscribe / reasoning-aware mapping / ru
     const { createHttpBridge } = await import('../../httpBridge');
     const bridge = createHttpBridge({
       baseUrl: 'http://127.0.0.1:9999',
-      eventSourceFactory: () => fakeES as unknown as EventSource,
+      eventSourceFactory: () => fromAny<EventSource, FakeEventSource>(fakeES),
     });
     const got: unknown[] = [];
     bridge.subscribeRunActivity((e) => got.push(e));
@@ -543,7 +544,7 @@ describe('Task 8 fix wave — live-only subscribe / reasoning-aware mapping / ru
     const { createHttpBridge } = await import('../../httpBridge');
     const bridge = createHttpBridge({
       baseUrl: 'http://127.0.0.1:9999',
-      eventSourceFactory: () => fakeES as unknown as EventSource,
+      eventSourceFactory: () => fromAny<EventSource, FakeEventSource>(fakeES),
     });
     const got: unknown[] = [];
     bridge.subscribeRunActivity((e) => got.push(e));
@@ -577,7 +578,7 @@ describe('Task 8 fix wave — live-only subscribe / reasoning-aware mapping / ru
     const { createHttpBridge } = await import('../../httpBridge');
     const bridge = createHttpBridge({
       baseUrl: 'http://127.0.0.1:9999',
-      eventSourceFactory: () => fakeES as unknown as EventSource,
+      eventSourceFactory: () => fromAny<EventSource, FakeEventSource>(fakeES),
     });
     const got: unknown[] = [];
     bridge.subscribeRunActivity((e) => got.push(e));

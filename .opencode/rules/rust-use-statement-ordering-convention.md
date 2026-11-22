@@ -13,7 +13,7 @@ Rust 源文件中的 `use` 语句必须按三段式排序，每组之间用空�
 2. **外部 crate**：第三方依赖（tokio、serde、sha2 等）
 3. **内部 crate**：`adl_*` 前缀的项目内部 crate 与 `crate::` 本地模块引用
 
-> **工具行为说明（2026-09 实测）**：项目 `rustfmt.toml` 设 `reorder_imports = true`，`cargo fmt` 会在**组内**排序，并把 `crate::`/`self::`/`super::` 排在 `adl_*` 之前（对 `adl_errors` 前置的人工排序会打回）。因此第三组内实际顺序为 `crate::` 在前、`adl_*` 在后；手工调整需与 `cargo fmt --check` 保持一致，否则会被还原。
+> **工具行为说明**：项目 `rustfmt.toml` 设 `reorder_imports = true`，`cargo fmt` 会在**组内**排序，并把 `crate::`/`self::`/`super::` 排在 `adl_*` 之前（对 `adl_errors` 前置的人工排序会打回）。因此第三组内实际顺序为 `crate::` 在前、`adl_*` 在后；手工调整需与 `cargo fmt --check` 保持一致，否则会被还原。
 
 ### 正确示例
 

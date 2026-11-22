@@ -17,6 +17,7 @@ adlo/frontend/coverage
 adlo/frontend/src/shared/ipc-types.generated.ts
 adlo/frontend/src/shared/ipc/generated/
 adlo/frontend/src/vite-env.d.ts
+adlo/frontend/src/app/features/about/*.generated.ts
 
 # Test fixtures & mocks
 adlo/frontend/src/test-fixtures/

@@ -8,6 +8,7 @@ import {
   robotsAllowFetch,
 } from './crawlerPolicy';
 import { parseRobotsTxt } from './crawlerRobots';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { USER_AGENT } from '../src/shared/userAgent';
 
 describe('crawlerPolicy', () => {
@@ -59,12 +60,12 @@ describe('crawlerPolicy', () => {
   });
 
   it('robotsAllowFetch: fail-open on robots fetch failure', async () => {
-    const fetchImpl = vi.fn(async () => ({ ok: false, status: 500 }) as Response);
+    const fetchImpl = vi.fn(async () => fromPartial<Response>({ ok: false, status: 500 }));
     expect(await robotsAllowFetch('https://example.com/x', fetchImpl, 1000)).toBe(true);
   });
 
   it('robots fetch sends canonical USER_AGENT header (mirror invariant)', async () => {
-    const fetchImpl = vi.fn(async () => ({ ok: false, status: 500 }) as Response);
+    const fetchImpl = vi.fn(async () => fromPartial<Response>({ ok: false, status: 500 }));
     await robotsAllowFetch('https://example.com/x', fetchImpl, 1000);
     expect(fetchImpl).toHaveBeenCalledWith(
       'https://example.com/robots.txt',
@@ -74,8 +75,8 @@ describe('crawlerPolicy', () => {
 
   it('robotsAllowFetch: disallow hard blocks public url', async () => {
     const body = 'User-agent: Adlo\nDisallow: /private\n';
-    const fetchImpl = vi.fn(
-      async () => ({ ok: true, status: 200, text: async () => body }) as unknown as Response,
+    const fetchImpl = vi.fn(async () =>
+      fromPartial<Response>({ ok: true, status: 200, text: async () => body }),
     );
     expect(await robotsAllowFetch('https://example.com/private/a', fetchImpl, 1000)).toBe(false);
     expect(await robotsAllowFetch('https://example.com/public', fetchImpl, 2000)).toBe(true);

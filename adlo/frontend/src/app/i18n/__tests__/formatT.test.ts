@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { CopyDict } from '../types';
+import { fromAny } from '@total-typescript/shoehorn';
 import { formatT } from '../formatT';
 
-const t = {
+const t = fromAny<CopyDict, Record<string, string>>({
   plain: 'no vars',
   greet: 'Hello {name}',
   two: '{a} and {b}',
   nested: '{scope}（{options}）',
   numeric: '{n} min ago',
   missing: 'value {unknown}',
-} as unknown as CopyDict;
+});
 
 describe('formatT', () => {
   it('returns the raw template when no vars are passed', () => {

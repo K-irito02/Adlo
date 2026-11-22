@@ -48,11 +48,13 @@ pnpm run dev:both
 
 ### 提交前门禁（本地执行）
 
-本项目**不使用远程 CI**：lint / 类型检查 / 格式 / i18n / 术语表 / 生成物一致性 / 测试全部在本地完成。装一次 pre-push 钩子即可获得推送前拦截：
+本项目**不使用远程 CI**：lint / 类型检查 / 格式 / i18n / 术语表 / 生成物一致性 / 测试全部在本地完成。在仓库根装一次 Husky 钩子即可获得提交前快检与推送前拦截：
 
 ```powershell
-git config core.hooksPath .githooks
+pnpm install          # 根目录；prepare 会安装 Husky 并启用 .husky 钩子
 ```
+
+`.husky/pre-commit` 跑 staged ESLint、lint-staged + Prettier 与仓库不变量；`.husky/pre-push` 跑慢门禁。
 
 默认只跑**受影响范围**（`check:changed`）：变更文件 lint/format + 类型与契约不变量 + `vitest related` 受影响用例；没有 `src/` 变更时不跑测试。
 

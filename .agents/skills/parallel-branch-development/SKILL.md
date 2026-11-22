@@ -62,7 +62,7 @@ Get-ChildItem "$WT_ROOT/.sessions" -ErrorAction SilentlyContinue  # 4 谁占着�
 git status --porcelain                             # 5 是否干净
 git log --oneline -1                               # 6 我在哪个提交
 git rev-list --left-right --count main...HEAD      # 7 相对本地 main 的落后/领先
-git config --get core.hooksPath                    # 8 本地门禁是否启用（期望 .githooks）
+git config --get core.hooksPath                    # 8 本地门禁是否启用（期望 .husky）
 Test-Path -LiteralPath "adlo/.codegraph"  # 9 CodeGraph 索引是否就绪（每工作树一份）
 ```
 
@@ -76,7 +76,7 @@ Test-Path -LiteralPath "adlo/.codegraph"  # 9 CodeGraph 索引是否就绪（每
 | 4   | 当前目录无他人 `status: active` | 有 → 换工作树或等待                                               |
 | 5   | 空，或改动全部属于本会话        | 来源不明的改动 → 停，禁止清理                                     |
 | 6/7 | 清楚自己的基线落后多少          | 落后较多 → 先 `merge --ff-only main`                              |
-| 8   | 输出 `.githooks`                | 未启用 → `pnpm --dir adlo run setup:worktree`（仓库级，一处即可） |
+| 8   | 输出 `.husky`                   | 未启用 → `pnpm --dir adlo run setup:worktree`（仓库级，一处即可） |
 | 9   | 目录存在                        | 缺失 → 同上（`codegraph init`，索引不入库）                       |
 
 输出环境快照块（**没有快照视为未开工**）。固定 10 行：一项一行，键用英文冒号对齐（键宽 8、前后各一空格），未知值写 `—`，禁止把多项挤进一行。首行 `[ENV]` 独占一行，保留可 grep 标记：
@@ -145,7 +145,7 @@ git -C "$WT_ROOT/<branch>" status --porcelain                        # 必须为
 cd "$WT_ROOT/<branch>/adlo" && pnpm install && pnpm run setup:worktree && pnpm run cargo:check
 ```
 
-- `setup:worktree`：启用仓库级 git hooks（`core.hooksPath=.githooks`）并为**当前工作树**建 CodeGraph 索引（`adlo/.codegraph/`，已 gitignore，各工作树独立、不跟随分支切换自动更新；重建直接删目录后重跑）。
+- `setup:worktree`：启用仓库级 git hooks（`core.hooksPath=.husky`）并为**当前工作树**建 CodeGraph 索引（`adlo/.codegraph/`，已 gitignore，各工作树独立、不跟随分支切换自动更新；重建直接删目录后重跑）。
 
 - **基线默认用本地 `main`，不要用 `origin/main`**：本仓约定永不自动 push，远端可能落后于本地 `main`，从 `origin/main` 起分支会丢掉本地提交。用户指定了其他对齐分支及提交节点时，以用户指定为准。
 - 目录只放 sibling 目录；根 `.gitignore` 里的 `.worktrees/` 是历史遗留，不使用。

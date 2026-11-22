@@ -52,7 +52,7 @@ const others = active.map(
 const locked = findLockedDevExecutables(repoRoot);
 const instance = locked.length > 0 ? locked.join(", ") : "none";
 const hooks = git(["config", "--get", "core.hooksPath"]);
-const hooksState = hooks === ".githooks" ? "ok" : "missing";
+const hooksState = hooks === ".husky" ? "ok" : "missing";
 const graph = fs.existsSync(path.join(repoRoot, ".codegraph")) ? "ok" : "missing";
 
 const lines = [

@@ -36,7 +36,7 @@ alwaysApply: false
 - 锁只钉声明字符串，真实级联仍按上一节的 `getComputedStyle` 取证；两层各管一半。
 - 交付前做删除性推演：删掉该声明，锁必须变红。`check:changed` 只改 CSS 时会跑 `src/styles` 下的样式锁，因此这是日常门禁能覆盖到的退化路径。
 
-## 验证手段排障（2026-11-13）
+## 验证手段排障
 
 - **内置 browser 工具**：`screenshot` 要求桌面窗口可见；报 `needs visible tab` 时改用
   `getComputedStyle` 断言，不要反复重试。标签 ID 会过期，操作前用 `tabs.list` 重取；
@@ -53,8 +53,7 @@ alwaysApply: false
 - **「定格了一帧」≠「动画在走」**：定格钩子只把时间轴钉到某个毫秒，不能证明动画真在推进。要证明活性
   用采样：临时在组件里打 `[DBG-<name>]`，读 `getAnimations({ subtree: true })` 的 `playState` 与
   `currentTime`（0/400/1600/2800ms 各一次），经调试日志落到 `.adl-logs/debug-logs.txt`；判据是
-  `playState === 'running'` 且 `currentTime` 递增。2026-11-14 开屏事故正是靠这条定位到「钩子把动画
-  pause 在首帧」，只靠肉眼/截图无法区分「没播」与「播了但内容透明」。
+  `playState === 'running'` 且 `currentTime` 递增；只靠肉眼/截图无法区分「没播」与「播了但内容透明」。
 
 ### 真实 WebView2 的 CDP 验证（不改源码）
 

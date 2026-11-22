@@ -2,7 +2,7 @@
 description:
   UI pattern quick reference — dialog, menu, hover, click, color, hint card, button, file tree,
   tooltip, toast, input, card, badge, nav, loading, empty, motion, layout, responsive, accessibility
-# 944 行速查表，按需查阅即可；常驻注入会把每次会话的上下文压满（retro 2026-10-31）。
+# 944 行速查表，按需查阅即可；常驻注入会把每次会话的上下文压满。
 # 入口：docs/design-system/README.md → Pattern quick reference。
 alwaysApply: false
 ---

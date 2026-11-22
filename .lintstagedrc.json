@@ -1,0 +1,7 @@
+{
+  "adlo/frontend/**/*.{ts,tsx,js,jsx,mjs,cjs,css,json,md}": "prettier --write",
+  "adlo/scripts/**/*.mjs": "prettier --write",
+  "adlo/frontend/dev/**/*.mjs": "prettier --write",
+  "adlo/frontend/vite.config.ts": "prettier --write",
+  "adlo/frontend/scripts/check-vite-config.mjs": "prettier --write"
+}

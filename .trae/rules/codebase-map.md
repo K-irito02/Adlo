@@ -33,7 +33,7 @@ adlo/
 
 ## 桌面壳（src-tauri）要点
 
-- **取主窗口做系统集成**（媒体卡片 / 焦点 / DWM / 原生句柄）用 `app.get_window("main")`；`get_webview_window("main")` 在本仓存在浏览器标签子 WebView 时返回 `None`（2026-11-20 实测一次「恢复的标签页没有媒体卡片」往返）。SMTC 实现在 `src-tauri/src/commands/media_session.rs`，诊断入口 `cargo run -p adlo --example smtc-probe`。
+- **取主窗口做系统集成**（媒体卡片 / 焦点 / DWM / 原生句柄）用 `app.get_window("main")`；`get_webview_window("main")` 在本仓存在浏览器标签子 WebView 时返回 `None`。SMTC 实现在 `src-tauri/src/commands/media_session.rs`，诊断入口 `cargo run -p adlo --example smtc-probe`。
 - 系统媒体卡片的运行时约束（关闭 Chromium `MediaSessionService`、浏览器标签镜像进宿主 SMTC）见 [知识库记录](../../docs/knowledge-base/code-quality/frontend-render-pitfalls-2026-10-18.md)。
 
 ## Crates 层
@@ -223,8 +223,6 @@ features/browser/
 ├── * (useBrowser*.ts)        # 15 个浏览器 Hook（按功能域拆分）
 └── browserPanelHelpers.ts    # 工具函数（重命名/删除/目录树构建）
 ```
-
-> 2026-07-10 重构：BrowserPanel 650→458 行，提取 4 个 Hook（menuItems/addressSubmit/effects/closeHandlers）。桥接层拆分：tauri-bridge.ts 689→1 行（9 个子文件），mock-bridge.ts 759→144 行（新增 9 个 mock 子文件）。
 
 ## 索引
 

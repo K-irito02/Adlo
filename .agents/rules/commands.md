@@ -31,7 +31,7 @@ alwaysApply: false
 
 > `cargo check/build/clippy` 报 `PermissionDenied` 时，先 `pnpm run dev:stop`：桌面实例会锁住 `target/debug/adlo.exe` 与 `adl-server.exe`。
 
-> **文件枚举与输出**：列文件用 `glob` / `git ls-files`；不要在仓库根做无界 `Get-ChildItem -Recurse`（本会话实测 120s 超时），必须递归时加 `-Depth` 或限定目录。受跟踪文本用 `read`，不要用 `Get-Content`（GBK 控制台会把 UTF-8 中文打乱）；长命令输出按上方「长门禁」落盘后读 tail。
+> **文件枚举与输出**：列文件用 `glob` / `git ls-files`；不要在仓库根做无界 `Get-ChildItem -Recurse`，必须递归时加 `-Depth` 或限定目录。受跟踪文本用 `read`，不要用 `Get-Content`（GBK 控制台会把 UTF-8 中文打乱）；长命令输出按上方「长门禁」落盘后读 tail。
 
 ## 双端验证命令
 
@@ -110,7 +110,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 |------|------|
 | `cargo run -p adlo --example smtc-probe` | 打印当前 Windows 媒体会话的 AUMID/标题与顶层窗口 AUMID（系统媒体卡片排查：会话是否存在、窗口身份是否写入）；需先起桌面实例并有媒体播放/暂停 |
 
-> **长门禁的输出**：`check:changed` / `check:repo` 是分阶段打印的，但**管道 `| Select-Object -Last N` 会缓冲到进程退出**，看起来像挂起（2026-11-19 实测：1 分钟输出文件仍为 0 字节，误判后杀掉了一次健康运行）。改为 `... > $env:TEMP\<name>.log 2>&1`（或后台运行）后读 tail；需要实时观察时不要接管道。
+> **长门禁的输出**：`check:changed` / `check:repo` 是分阶段打印的，但**管道 `| Select-Object -Last N` 会缓冲到进程退出**，看起来像挂起。改为 `... > $env:TEMP\<name>.log 2>&1`（或后台运行）后读 tail；需要实时观察时不要接管道。
 
 ### 受影响测试优先执行
 

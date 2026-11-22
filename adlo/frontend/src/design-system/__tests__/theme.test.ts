@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { ThemeController } from '../theme';
 
 describe('ThemeController color-scheme', () => {
@@ -9,11 +10,11 @@ describe('ThemeController color-scheme', () => {
     localStorage.removeItem('adl-theme-mode');
     localStorage.removeItem('adl-resolved-theme');
     root = document.createElement('html');
-    const mq = {
+    const mq = fromPartial<MediaQueryList>({
       matches: false,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
-    } as unknown as MediaQueryList;
+    });
     controller = new ThemeController({ root, systemDarkQuery: mq });
   });
 

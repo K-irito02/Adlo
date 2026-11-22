@@ -256,13 +256,11 @@ ESLint/Clippy 的 `--fix` 自动修复和任何人工修复必须遵守以下约
 2. 验证真实浏览器行为时：注入**完整** `styles/index.css`（缺少某个 region 文件会因 `z-index`/定位缺失产生误报）、用 esbuild/vite 打包真实组件而非重写简化版
 3. 结论必须附实测输出（`activeElement` 等计算值），不得仅凭 jsdom 通过即宣称"无障碍正确"
 
-> 反面案例（2026-09-17 剪贴板历史收尾）：清空进行中把对话框按钮全部 `disabled`，jsdom 断言"焦点仍在 dialog 内"通过，真实 Chromium 实测焦点已逃到 `<body>` —— 修正为 `aria-disabled` + `pointer-events:none` 后实测 63/63 断言通过。
+> 不要只凭 jsdom 断言：禁用且已聚焦的元素在真实 Chromium / WebView2 会把焦点交给 `<body>`；需要不可重复点击时用 `aria-disabled` + `pointer-events:none`。
 
 ### 异步渲染断言（等内容，不等容器）
 
 `render` 返回后容器即存在，但数据（快照/轮询/测量）尚未落定：以容器存在（`querySelector` 非空、`toBeTruthy`）作为 `waitFor` 同步点是竞态——单文件跑必过，并发跑偶发红。同步点必须落在**可见内容**上（`findByText` / `findByRole` / 业务文案 `getByText`）。
-
-> 反面案例（2026-10-29 版本卡片）：7 处 `await waitFor(() => expect(channelRow('stable')).toBeTruthy())` 在多文件并发时 1 条偶发失败；同步点改为各自依赖内容（版本按钮/卸载按钮/空态或未知文案）后连跑两次全绿。
 
 ### 设置卡片行律收边锁
 

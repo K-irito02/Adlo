@@ -95,17 +95,6 @@ pub async fn workspace_list_tree(
 | 仅内存读写（Mutex/RwLock、Atomic 操作） | 可选 |
 | Emit 事件 | 可选 |
 
-### 已修复命令（2026-07-14）
-
-| 命令 | 文件 | 修复前 |
-|------|------|--------|
-| `workspace_list_tree` | `commands/workspace.rs` | `pub fn` |
-| `workspace_list_git_branches` | `commands/workspace_git.rs` | `pub fn` |
-| `command_list_recent` | `commands/command.rs` | `pub fn` |
-| `task_list_audit_entries` | `commands/task.rs` | `pub fn` |
-
-参考：[tauri-sync-command-blocking-2026-07-14.md](../../docs/knowledge-base/tauri-backend/tauri-sync-command-blocking-2026-07-14.md)
-
 ## 双端一致性
 
 所有功能必须在 Tauri 桌面应用和浏览器模式下共同可用。

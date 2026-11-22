@@ -28,7 +28,7 @@
 
 ## 工具选择（Agent）
 
-- **检索用 `grep` 工具、读文本用 `read` 工具**：`Select-String` 已被 shell 权限拦截；`Get-Content`/`cat` 会在 GBK 控制台把 UTF-8 中文打成乱码（2026-11-12 实测）。文件名检索用 `glob` / `git ls-files`，禁用 `git grep`。压缩**短**命令输出用工具自带参数（如 `--reporter=dot`）或 `Select-Object -Last`；**长门禁 / 开发服务器先落盘再读 tail**（管道会缓冲到进程退出，看似挂起，2026-11-19 实测）。站点元数据排查用 `dump-site-meta`（`cargo run -p adl-browser --example dump-site-meta -- <数据根> [url] [--missing-favicon]`），免装 sqlite3 CLI。
+- **检索用 `grep` 工具、读文本用 `read` 工具**：`Select-String` 已被 shell 权限拦截；`Get-Content`/`cat` 会在 GBK 控制台把 UTF-8 中文打成乱码。文件名检索用 `glob` / `git ls-files`，禁用 `git grep`。压缩**短**命令输出用工具自带参数（如 `--reporter=dot`）或 `Select-Object -Last`；**长门禁 / 开发服务器先落盘再读 tail**（管道会缓冲到进程退出，看似挂起）。站点元数据排查用 `dump-site-meta`（`cargo run -p adl-browser --example dump-site-meta -- <数据根> [url] [--missing-favicon]`），免装 sqlite3 CLI。
 - **外部产品对标 / 长文档调研**：优先用 `research` 技能派子代理；主上下文只收摘要、来源链接与适配结论。
 - **批量修改源码/文档一律用 `edit`/`write`**；禁 shell 内联 `-replace`/`Add-Content`/here-string/`sed`/`node -e` 等（破坏 CJK，见 [shell-encoding.md](.agents/rules/shell-encoding.md)，已由 `.opencode/opencode.json` 权限拒绝）。提交信息/参数含这些字样时用 `git commit -F <文件>`。
 

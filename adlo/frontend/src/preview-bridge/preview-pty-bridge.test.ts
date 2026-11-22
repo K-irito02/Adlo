@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { fromAny, fromPartial } from '@total-typescript/shoehorn';
 import { createPtyBridge } from './preview-pty-bridge';
 
 class FakeWebSocket {
@@ -44,7 +45,8 @@ class FakeWebSocket {
 }
 
 function makeBridge() {
-  const wsFactory = () => new FakeWebSocket('ws://127.0.0.1/pty') as unknown as WebSocket;
+  const wsFactory = () =>
+    fromAny<WebSocket, FakeWebSocket>(new FakeWebSocket('ws://127.0.0.1/pty'));
   const bridge = createPtyBridge({ wsFactory });
   const getSocket = (): FakeWebSocket => {
     const socket = FakeWebSocket.instances[0];
@@ -169,7 +171,7 @@ describe('createPtyBridge', () => {
   it('uses the ad-server /pty endpoint when the ad-server is reachable (Finding 4)', async () => {
     vi.resetModules();
     vi.stubEnv('VITE_ADL_SERVER_URL', 'http://127.0.0.1:9999');
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true } as unknown as Response));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(fromPartial<Response>({ ok: true })));
     const { createPtyBridge } = await import('./preview-pty-bridge');
 
     // Resolve the reachability probe deterministically before creating the

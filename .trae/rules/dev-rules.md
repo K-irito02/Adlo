@@ -136,7 +136,7 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 - Scope 选项：`core` / `frontend` / `rust` / `stores` / `browser` / `terminal` / `ipc` / `docs` / `deps`
 - **含特殊字符的提交信息**：用 `write` 工具把消息写到临时文件（UTF-8 无 BOM），再 `git commit -F <文件>`；shell 内联写文件（`Set-Content` / `WriteAllText` / here-string）会被权限拒绝。
 - **多行或含中文标点的提交信息也走 `-F`**：这类 `git commit -m` 偶发被 shell 扫描器以
-  `invalid-structure` 拒绝（2026-11-14 实测，同一条消息换 `-F` 立即通过）。被拒后不要反复重试同一条
+  `invalid-structure` 拒绝。被拒后不要反复重试同一条
   `-m`，直接改临时文件提交。
 
 ### 并行工作树约束

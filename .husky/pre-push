@@ -1,0 +1,44 @@
+#!/bin/sh
+# Install once per clone: pnpm install (root prepare sets core.hooksPath=.husky)
+# Default: affected-scope gate only (changed-file lint/format + invariants + affected tests).
+# Full gate (whole suite) needs explicit human approval: set ADL_PREPUSH_FULL=1 only after approval.
+set -e
+ROOT="$(git rev-parse --show-toplevel)"
+
+# 链接工作树里 git 会给 hook 注入 GIT_DIR（指向 .git/worktrees/<name>）；子进程会继承它，
+# 于是测试里的临时仓库 git 命令实际操作真实仓库。门禁子进程一律剥离。 # claim-allow: GIT_DIR 注入说明
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+
+# 失败步骤名：`set -e` 只给退出码，排障时必须能看出停在哪一步。
+STEP="init"
+on_exit() {
+  code=$?
+  if [ "$code" -ne 0 ]; then
+    echo "[pre-push] FAILED at step: $STEP (exit $code)" >&2
+  fi
+}
+trap on_exit EXIT
+
+# Dev tooling syntax (scripts sit outside eslint/tsc scope).
+STEP="dev tooling syntax"
+( cd "$ROOT/adlo" && for f in scripts/*.mjs; do node --check "$f"; done )
+# Repo-level hygiene: dev-tooling unit tests + scripts formatting + desktop E2E types.
+# 与 `check:all` 共用同一聚合脚本（check:repo），避免合并门禁与推送门禁各写一套后漂移。
+STEP="check:repo"
+( cd "$ROOT/adlo" && pnpm run check:repo )
+# Rust affected scope: fmt always; clippy + affected-crate unit tests when Rust files changed. # claim-allow: describes the gate's fixed behavior
+STEP="rust affected scope"
+( cd "$ROOT/adlo" && node ./scripts/check-rust-changed.mjs )
+# PATH injection regression: real adl-server process + temp data dir (never mutates the test env). # claim-allow: describes the test's isolation
+STEP="env_path_cli"
+( cd "$ROOT/adlo" && cargo test -p adl-server --test env_path_cli )
+cd "$ROOT/adlo/frontend"
+if [ "$ADL_PREPUSH_FULL" = "1" ]; then
+  echo "[pre-push] FULL gate (user-approved): check:full"
+  STEP="check:full"
+  pnpm check:full
+else
+  # Rust leg already ran above; avoid running it twice.
+  STEP="check:changed"
+  ADL_SKIP_RUST=1 pnpm check:changed
+fi

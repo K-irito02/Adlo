@@ -83,6 +83,6 @@ test("check:all and pre-push share the repo-level gate (check:repo)", () => {
   }
   assert.match(pkg.scripts["check:all"], /check:repo/);
 
-  const hook = readFileSync(new URL("../../.githooks/pre-push", import.meta.url), "utf8");
+  const hook = readFileSync(new URL("../../.husky/pre-push", import.meta.url), "utf8");
   assert.match(hook, /pnpm run check:repo/);
 });
