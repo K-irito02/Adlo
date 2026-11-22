@@ -16,6 +16,7 @@ vi.mock('../../../shared/ipc/preview-api', () => ({
 describe('pageMetaClient (tauri adapter)', () => {
   beforeEach(() => {
     vi.resetModules();
+    vi.clearAllMocks();
   });
   it('get maps invokeIpc result to PageMeta and null on failure', async () => {
     const { invokeIpc } = await import('../../../tauri-bridge/tauri-shared');
@@ -38,6 +39,26 @@ describe('pageMetaClient (tauri adapter)', () => {
     } as never);
     expect(await pageMetaClient.get('https://a.com/')).toBeNull();
   });
+  it('refresh uses HTTP first and skips the silent WebView when an icon data URI arrives', async () => {
+    const { invokeIpc } = await import('../../../tauri-bridge/tauri-shared');
+    vi.mocked(invokeIpc).mockResolvedValue({
+      ok: true,
+      data: {
+        title: 'HTTP',
+        favicon: 'https://a.com/f.ico',
+        faviconDataUri: 'data:image/png;base64,AA',
+        url: 'https://a.com/',
+      },
+    });
+    const { pageMetaClient } = await import('../pageMetaClient');
+    const meta = await pageMetaClient.refresh('https://a.com/');
+    expect(meta?.title).toBe('HTTP');
+    expect(invokeIpc).toHaveBeenCalledTimes(1);
+    expect(invokeIpc).toHaveBeenCalledWith('browser_page_meta_fetch_http', {
+      url: 'https://a.com/',
+    });
+  });
+
   it('report invokes browser_page_meta_report with source', async () => {
     const { invokeIpc } = await import('../../../tauri-bridge/tauri-shared');
     vi.mocked(invokeIpc).mockResolvedValue({ ok: true, data: true });

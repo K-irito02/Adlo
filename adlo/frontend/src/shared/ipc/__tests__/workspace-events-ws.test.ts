@@ -9,12 +9,16 @@ class FakeSocket {
   onerror: ((e: unknown) => void) | null = null;
   readyState = 0;
   closeCalled = false;
+  sent: string[] = [];
   constructor(public url: string) {
     FakeSocket.instances.push(this);
   }
   close() {
     this.closeCalled = true;
     this.readyState = 3;
+  }
+  send(data: string) {
+    this.sent.push(data);
   }
   serverOpen() {
     this.readyState = 1;
@@ -162,6 +166,33 @@ describe('createWorkspaceEventsClient', () => {
     socket.serverSend(JSON.stringify({ kind: 'clipboard-changed' }));
     expect(onClip).toHaveBeenCalledTimes(1);
     expect(onFiles).not.toHaveBeenCalled();
+    client.dispose();
+  });
+
+  it('sends app-level ping and closes half-open sockets after timeout', () => {
+    const client = createWorkspaceEventsClient('http://h', {
+      wsFactory,
+      reconnectDelayMs: 10,
+      heartbeatIntervalMs: 1_000,
+      heartbeatTimeoutMs: 2_500,
+    });
+    const unsubscribe = client.onFilesChanged(() => {});
+    const socket = FakeSocket.instances[0];
+    socket.serverOpen();
+
+    vi.advanceTimersByTime(1_000);
+    expect(socket.sent).toContain(JSON.stringify({ kind: 'ping' }));
+
+    // 收到 pong（任意入站帧）即续命；两个心跳周期内不得关闭。
+    socket.serverSend(JSON.stringify({ kind: 'pong' }));
+    vi.advanceTimersByTime(2_000);
+    expect(socket.closeCalled).toBe(false);
+
+    // 之后没有任何入站帧：超过 timeout 的下一拍主动 close。
+    vi.advanceTimersByTime(1_100);
+    expect(socket.closeCalled).toBe(true);
+
+    unsubscribe();
     client.dispose();
   });
 });

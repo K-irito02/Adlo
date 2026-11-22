@@ -22,6 +22,8 @@ import {
 } from './heavyPreviewLimits';
 import type { WorkspaceMediaSource } from '@adlo/kernel';
 import { useTCopy } from '@i18n/useTCopy';
+import { StickyContext } from './editor-support/stickyContextView';
+import type { StickyContextModel } from './editor-support/stickyContext';
 
 interface FilePreviewRenderersProps {
   editorSurfaceRef: React.RefObject<HTMLDivElement | null>;
@@ -36,6 +38,8 @@ interface FilePreviewRenderersProps {
   /** 媒体读取中：fileMedia 为空时区分加载骨架与真空（见 editorSlice.fileMediaLoading） */
   fileMediaLoading?: boolean;
   theme: 'dark' | 'light';
+  /** 预览面「文件顶部」模型（滚动容器由 hook 在 surface 上捕获） */
+  stickyContextModel?: StickyContextModel | null;
 }
 
 const svgBinary = (
@@ -82,9 +86,11 @@ function UnsupportedPreview({
 
 function PreviewSurface({
   editorSurfaceRef,
+  stickyContextModel,
   children,
 }: {
   editorSurfaceRef: React.RefObject<HTMLDivElement | null>;
+  stickyContextModel?: StickyContextModel | null;
   children: React.ReactNode;
 }) {
   return (
@@ -92,6 +98,9 @@ function PreviewSurface({
       ref={editorSurfaceRef}
       className="adl-tool-editor__surface adl-tool-editor__surface--preview"
     >
+      {stickyContextModel ? (
+        <StickyContext data-testid="files-preview-sticky-context" model={stickyContextModel} />
+      ) : null}
       {children}
     </div>
   );
@@ -102,9 +111,7 @@ function PreviewSurface({
  */
 
 type OfficeBytesState =
-  | { status: 'loading' }
-  | { status: 'ready'; data: ArrayBuffer }
-  | { status: 'error' };
+  { status: 'loading' } | { status: 'ready'; data: ArrayBuffer } | { status: 'error' };
 
 /**
  * 办公分支壳（事项 7）：字节在分支挂载后按需 `fetch` —— 即重型门确认之后，
@@ -320,6 +327,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
   filePath,
   workspaceId,
   theme,
+  stickyContextModel,
 }: FilePreviewRenderersProps) {
   const { t } = useTCopy();
 
@@ -365,7 +373,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
     !isHeavyPreviewConfirmed(workspaceId, fileMedia.path)
   ) {
     return (
-      <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
+      <PreviewSurface editorSurfaceRef={editorSurfaceRef} stickyContextModel={stickyContextModel}>
         <HeavyPreviewGate
           name={fileMedia.path}
           sizeText={formatBytes(fileMedia.size)}
@@ -400,7 +408,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
   // 前者给扫光占位（不再显示“加载中…”文字），后者（失败/未发起）保持 null 由错误视图接管。
   if (!fileMedia && fileMediaLoading && usesBinaryMediaChannel(fileCategory)) {
     return (
-      <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
+      <PreviewSurface editorSurfaceRef={editorSurfaceRef} stickyContextModel={stickyContextModel}>
         {/* 读取阶段的分支会随 fileMedia 到达被整体替换，组件内的最短展示时长无法兑现；
             这里只做 150ms 延迟（秒开不闪），最短时长由常驻的 office 预览占位负责。 */}
         <PreviewLoadingGate active variant="plain" minVisibleMs={0} />
@@ -412,10 +420,10 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
     return (
       // key 挂外层滚动容器（收尾 M4）：切换文件重置滚动与高亮，避免复用残留；
       // '__none__' 避免无路径态空串碰撞。
-      <div
+      <PreviewSurface
         key={filePath ?? '__none__'}
-        ref={editorSurfaceRef}
-        className="adl-tool-editor__surface adl-tool-editor__surface--preview"
+        editorSurfaceRef={editorSurfaceRef}
+        stickyContextModel={stickyContextModel}
       >
         <LazyMarkdownPreviewWrapper
           content={fileContent ?? ''}
@@ -423,7 +431,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
         />
         {/* 检索跳转落点高亮：视口夹层裁剪溢出，高亮条铺满预览面并与左右边缘贴合 */}
         <RevealHighlightLayers />
-      </div>
+      </PreviewSurface>
     );
   }
 
@@ -432,7 +440,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
       return null;
     }
     return (
-      <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
+      <PreviewSurface editorSurfaceRef={editorSurfaceRef} stickyContextModel={stickyContextModel}>
         {/* key 绑定路径：切换文件即全新挂载，杜绝错误态/旧容器残留串扰 */}
         <LazyMediaPreviewWrapper
           key={fileMedia.path}
@@ -454,7 +462,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
       return null;
     }
     return (
-      <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
+      <PreviewSurface editorSurfaceRef={editorSurfaceRef} stickyContextModel={stickyContextModel}>
         <OfficeBranch
           key={fileMedia.url}
           fileMedia={fileMedia}

@@ -131,7 +131,12 @@ mod imp {
             entry.push(HandlerBox(Box::new(audio_handler)));
             entry.push(HandlerBox(Box::new(mute_handler)));
 
-            tracing::info!(tab_id = %tid, "audio handlers registered (ICoreWebView2_17 + _18)");
+            if tid.starts_with("silent_") {
+                // 预热会批量创建隐藏 WebView；逐条 INFO 会淹没终端。
+                tracing::debug!(tab_id = %tid, "audio handlers registered for silent tab");
+            } else {
+                tracing::info!(tab_id = %tid, "audio handlers registered (ICoreWebView2_17 + _18)");
+            }
         }
 
         Ok(())

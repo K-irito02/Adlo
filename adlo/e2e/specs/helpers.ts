@@ -17,6 +17,23 @@ export async function dismissSetupWizards(): Promise<void> {
     });
   }
 
+  // The first-run provisioning wizard is a full-screen dialog. E2E builds set
+  // VITE_ADL_SKIP_FIRST_RUN=1 so it should not appear; if it does (older build or
+  // explicit resume), wait for its finished-state close action before continuing.
+  const firstRunWizard = await $('[data-testid="first-run-wizard"]');
+  if (await firstRunWizard.isExisting()) {
+    const close = await firstRunWizard.$('[data-testid="first-run-wizard-close"]');
+    await close.waitForExist({
+      timeout: 120_000,
+      timeoutMsg: 'first-run wizard never offered a close action',
+    });
+    await close.click();
+    await browser.waitUntil(async () => !(await firstRunWizard.isExisting()), {
+      timeout: 10_000,
+      timeoutMsg: 'first-run wizard stayed open after clicking close',
+    });
+  }
+
   // 环境向导之后还会串行出现 harness 向导；它的全屏 overlay 会盖住标题栏，
   // 原生点击用例必须先把它关掉（否则 waitForTitlebarClickable 等不到）。
   const harnessDone = await browser.execute(() =>

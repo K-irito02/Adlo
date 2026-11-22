@@ -10,6 +10,7 @@ export { useSearchPanel } from './useSearchPanel';
 export type { UseSearchPanelInput, UseSearchPanelResult, SearchHit } from './useSearchPanel';
 export { useStickyContext } from './useStickyContext';
 export type { UseStickyContextInput } from './useStickyContext';
+export { usePreviewStickyContext } from './usePreviewStickyContext';
 export { useWrapColumn } from './useWrapColumn';
 export type { UseWrapColumnInput } from './useWrapColumn';
 export { useRightPanelLayout } from './useRightPanelLayout';

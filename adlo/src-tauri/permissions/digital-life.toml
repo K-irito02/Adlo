@@ -40,6 +40,7 @@ commands.allow = [
   "browser_site_meta_remove",
   "browser_page_meta_get",
   "browser_page_meta_get_silent",
+  "browser_page_meta_fetch_http",
   "browser_page_meta_report",
   "browser_page_meta_refresh",
   "browser_page_meta_warmup",

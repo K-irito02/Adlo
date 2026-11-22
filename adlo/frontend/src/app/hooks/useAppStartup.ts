@@ -11,8 +11,6 @@ import { isTauriShell } from '../../tauri-bridge';
 import { onAdServerReachabilityChange } from '../../preview-bridge/preview-reachability';
 import { sameWorkspacePath } from '../../shared/workspacePathMatch';
 import { initSiteMetaCache, subscribeSiteMetaReady } from '@utils/siteMetaCache';
-import { pageMetaClient } from '@utils/pageMetaClient';
-import { collectWarmupUrls } from '@utils/warmupUrls';
 import { syncBookmarkIconSnapshots } from '@features/bookmarks/bookmarkIconSnapshots';
 
 export function useAppStartup(appInfo: AppInfo | undefined) {
@@ -54,12 +52,8 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
     const unsubReady = subscribeSiteMetaReady(() => {
       syncBookmarkIconSnapshots();
     });
-    // 单次收集：store 构造期已同步水合（hydrateAll），首次收集即见全量持久化数据，
-    // 无需等待延迟水合（requestIdleCallback/setTimeout 机制已由 T7/T9 删除）。
-    const urls = collectWarmupUrls();
-    if (urls.length > 0) {
-      void pageMetaClient.warmup(urls);
-    }
+    // 启动不再批量预热隐藏 WebView：书签/历史直接显示已持久化的标题/图标，
+    // 缺图标由 BrowserFavicon 在可见时经 HTTP-first 自愈（显式刷新才回退 silent WebView）。
     return unsubReady;
   }, []);
 
@@ -105,43 +99,6 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
     }
     window.digitalLife.workspace.setFilesChangedRoots(roots);
   }, [recentWorkspaces, currentWorkspacePath]);
-
-  useEffect(() => {
-    // 焦点回归补刷（VSCode 对齐 `refresh on window focus`）：
-    // 兜底 watcher 漏事件 / 断线 / 浏览器轮询间隙（后端已按侧栏全部工作区监听）。
-    // 文件树按"已展开"范围补刷；Git 快照按"全部已添加且可用"的工作区补刷
-    // （与手动「刷新全部」同范围，仅额外跳过 5s 新鲜期）。无图标闪烁、无写循环。
-    // 去抖 1s：切窗口抖动与 HMR 重挂载不连刷。
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const refreshOnFocus = () => {
-      if (timer !== undefined) {
-        return;
-      }
-      timer = setTimeout(() => {
-        timer = undefined;
-        if (document.visibilityState !== 'visible') {
-          return;
-        }
-        void actions.refreshAllWorkspaceTrees();
-        void actions.refreshAllGitSnapshotsSilent();
-        void actions.reconcileSelectedFile();
-      }, 1000);
-    };
-    window.addEventListener('focus', refreshOnFocus);
-    document.addEventListener('visibilitychange', refreshOnFocus);
-    return () => {
-      window.removeEventListener('focus', refreshOnFocus);
-      document.removeEventListener('visibilitychange', refreshOnFocus);
-      if (timer !== undefined) {
-        clearTimeout(timer);
-      }
-    };
-  }, [
-    actions,
-    actions.refreshAllWorkspaceTrees,
-    actions.refreshAllGitSnapshotsSilent,
-    actions.reconcileSelectedFile,
-  ]);
 
   useEffect(() => {
     // ad-server 可达性 → store（Phase 4 R2）：Tauri 壳恒连通；浏览器预览订阅

@@ -70,6 +70,19 @@ pub struct UpdateCheck {
 #[tauri::command]
 pub async fn app_update_check(app: AppHandle) -> IpcResult<UpdateCheck> {
     let current_version = app.package_info().version.to_string();
+    // 未发布阶段的开发构建没有可用的 `latest.json`：插件会对两个源各打一条 ERROR，
+    // 把普通 dev 启动日志染红。开发构建直接返回「无更新」，发布构建保持真实检查。
+    if cfg!(debug_assertions) {
+        return ipc(Ok(UpdateCheck {
+            current_version,
+            available: false,
+            version: None,
+            notes: None,
+            published_at: None,
+            source: None,
+            error: None,
+        }));
+    }
     let outcome = resolve_update(&app).await;
     let check = match outcome {
         Ok(ResolveOutcome::Found(found)) => UpdateCheck {

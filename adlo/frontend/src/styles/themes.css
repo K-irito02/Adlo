@@ -63,6 +63,8 @@ html:not(.no-transition) [data-theme] {
   --surface-hover: rgba(34, 34, 34, 0.06);
   --surface-active: rgba(34, 34, 34, 0.08);
   --surface-raised: #ffffff;
+  /* 文件顶部按钮悬停底色：与主题相反的中性半透明（亮色=淡黑 / 暗色=淡白）。 */
+  --sticky-context-hover-bg: rgba(0, 0, 0, 0.06);
   /* 透明图片的棋盘格底纹（亮色）：中性灰块，避免与白底混淆。 */
   --checker-tile: rgba(34, 34, 34, 0.07);
   /* 编辑态底色（可编辑区域：剪贴板正文编辑器、缩放百分比输入框）。
@@ -389,6 +391,8 @@ html:not(.no-transition) [data-theme] {
   --surface-hover: rgba(255, 255, 255, 0.08);
   --surface-active: rgba(255, 255, 255, 0.12);
   --surface-raised: #1c1c1c;
+  /* 文件顶部按钮悬停底色：暗色下为淡白。 */
+  --sticky-context-hover-bg: rgba(255, 255, 255, 0.08);
   /* 透明图片的棋盘格底纹（暗色）：浅色块，暗底上可辨。 */
   --checker-tile: rgba(255, 255, 255, 0.08);
   /* 编辑态底色（可编辑区域：剪贴板正文编辑器、缩放百分比输入框）。

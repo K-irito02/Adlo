@@ -81,6 +81,49 @@ function drainEnsureQueue(): void {
   }
 }
 
+/** 被动列表（书签/历史）的 HTTP-only 补齐并发上限：不创建隐藏 WebView。 */
+const MAX_CONCURRENT_HTTP = 4;
+let activeHttp = 0;
+const httpQueue: string[] = [];
+const enqueuedHttp = new Set<string>();
+
+function drainHttpQueue(): void {
+  while (activeHttp < MAX_CONCURRENT_HTTP && httpQueue.length > 0) {
+    const next = httpQueue.shift()!;
+    enqueuedHttp.delete(next);
+    activeHttp += 1;
+    void pageMetaClient
+      .fetchHttp(next)
+      .catch(() => {})
+      .finally(() => {
+        activeHttp = Math.max(0, activeHttp - 1);
+        drainHttpQueue();
+      });
+  }
+}
+
+/**
+ * 被动列表（书签树 / 历史）的懒补齐：只发 HTTP 请求，绝不创建隐藏 WebView。
+ * 受与主动自愈相同的会话节流约束；返回 undefined 由调用方忽略。
+ */
+export function ensureSiteFaviconHttp(url: string): void {
+  if (!url || !/^https?:\/\//i.test(url)) {
+    return;
+  }
+  if (getFaviconUrl(url)) {
+    return;
+  }
+  if (enqueuedHttp.has(url)) {
+    return;
+  }
+  if (!shouldAttemptFaviconSelfHeal(url)) {
+    return;
+  }
+  enqueuedHttp.add(url);
+  httpQueue.push(url);
+  drainHttpQueue();
+}
+
 /**
  * 确保该页面能拿到网站图标：已有可显示图标（data-URI / 外部 URL / 重定向目标）时
  * 直接跳过；否则按会话节流排队执行一次强制刷新（`pageMetaClient.refresh`，即
@@ -116,4 +159,7 @@ export function resetFaviconSelfHealThrottleForTest(): void {
   ensureQueue.length = 0;
   enqueued.clear();
   activeEnsures = 0;
+  httpQueue.length = 0;
+  enqueuedHttp.clear();
+  activeHttp = 0;
 }

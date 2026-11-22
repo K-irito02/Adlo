@@ -1,17 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   ensureSiteFavicon,
+  ensureSiteFaviconHttp,
   resetFaviconSelfHealThrottleForTest,
   shouldAttemptFaviconSelfHeal,
 } from '../faviconSelfHeal';
 
-const { refreshMock, getFaviconUrlMock } = vi.hoisted(() => ({
+const { refreshMock, getFaviconUrlMock, fetchHttpMock } = vi.hoisted(() => ({
   refreshMock: vi.fn(),
   getFaviconUrlMock: vi.fn(),
+  fetchHttpMock: vi.fn(),
 }));
 
 vi.mock('@utils/pageMetaClient', () => ({
-  pageMetaClient: { refresh: refreshMock, getSilent: vi.fn() },
+  pageMetaClient: { refresh: refreshMock, getSilent: vi.fn(), fetchHttp: fetchHttpMock },
 }));
 
 vi.mock('@utils/favicon', () => ({ getFaviconUrl: getFaviconUrlMock }));
@@ -26,6 +28,8 @@ beforeEach(() => {
   resetFaviconSelfHealThrottleForTest();
   refreshMock.mockReset();
   refreshMock.mockResolvedValue(null);
+  fetchHttpMock.mockReset();
+  fetchHttpMock.mockResolvedValue(null);
   getFaviconUrlMock.mockReset();
   getFaviconUrlMock.mockReturnValue('');
 });
@@ -77,10 +81,19 @@ describe('ensureSiteFavicon', () => {
     expect(shouldAttemptFaviconSelfHeal('https://once.example')).toBe(false);
   });
 
+  it('passive-list path uses HTTP-only and never refresh (no hidden WebView)', async () => {
+    ensureSiteFaviconHttp('https://bookmark.example');
+    await flush();
+    expect(fetchHttpMock).toHaveBeenCalledWith('https://bookmark.example');
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
   it('ignores non-http(s) URLs (file/about/new-tab page)', () => {
     ensureSiteFavicon('about:blank');
     ensureSiteFavicon('file:///C:/a.html');
+    ensureSiteFaviconHttp('about:blank');
     expect(refreshMock).not.toHaveBeenCalled();
+    expect(fetchHttpMock).not.toHaveBeenCalled();
   });
 
   it('caps concurrent backfills at 2 and drains the queue in order', async () => {

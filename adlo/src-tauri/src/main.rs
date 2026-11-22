@@ -188,6 +188,7 @@ fn main() {
             commands::browser::browser_page_meta_report,
             commands::browser::browser_page_meta_refresh,
             commands::browser::browser_page_meta_warmup,
+            commands::browser::browser_page_meta_fetch_http,
             commands::browser::browser_page_meta_get_silent,
             commands::browser::browser_memory_pressure,
             commands::divider_strip::divider_strip_show,

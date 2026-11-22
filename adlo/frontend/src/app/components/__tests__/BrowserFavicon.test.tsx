@@ -9,14 +9,18 @@ import {
   rememberPageFavicon,
 } from '../faviconDisplayCache';
 import * as cache from '../../utils/siteMetaCache';
-import { ensureSiteFavicon } from '../../features/browser/faviconSelfHeal';
+import { ensureSiteFavicon, ensureSiteFaviconHttp } from '../../features/browser/faviconSelfHeal';
 
-// 缺图标自愈会走网络（refresh）：组件测试只断言"是否请求补抓"，不真发请求。
-vi.mock('../../features/browser/faviconSelfHeal', () => ({ ensureSiteFavicon: vi.fn() }));
+// 缺图标自愈会走网络（refresh/HTTP）：组件测试只断言"是否请求补抓"，不真发请求。
+vi.mock('../../features/browser/faviconSelfHeal', () => ({
+  ensureSiteFavicon: vi.fn(),
+  ensureSiteFaviconHttp: vi.fn(),
+}));
 
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.mocked(ensureSiteFavicon).mockClear();
+  vi.mocked(ensureSiteFaviconHttp).mockClear();
   __resetFaviconDisplayCacheForTest();
 });
 

@@ -267,12 +267,9 @@ export function renderFrontmatterTable(entries: FrontmatterEntry[], lineOffset =
   const rows = entries
     .map(({ key, values, list }) => {
       const items = list ? values.filter((value) => value !== '') : values;
-      const body = list
-        ? items
-            .map((value) => `<span class="adl-md-frontmatter__chip">${escapeHtml(value)}</span>`)
-            .join('')
-        : `<span class="adl-md-frontmatter__value">${escapeHtml(values[0] ?? '')}</span>`;
-      return `<div class="adl-md-frontmatter__row"><dt>${escapeHtml(key)}</dt><dd>${body}</dd></div>`;
+      // 列表值与标量值同一套普通文本样式：两个空格连接，不做胶囊/边框。
+      const text = list ? items.join('  ') : (values[0] ?? '');
+      return `<div class="adl-md-frontmatter__row"><dt>${escapeHtml(key)}</dt><dd><span class="adl-md-frontmatter__value">${escapeHtml(text)}</span></dd></div>`;
     })
     .join('');
   const lineAttrs =

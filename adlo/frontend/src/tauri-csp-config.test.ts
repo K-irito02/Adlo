@@ -47,4 +47,31 @@ describe('Tauri CSP 与运行时样式注入', () => {
     expect(imgSrc.split(/\s+/)).toContain('blob:');
     expect(mediaSrc.split(/\s+/)).toContain('blob:');
   });
+
+  it('script-src 允许 WebAssembly 编译（starry-night onig.wasm），不放宽 JS eval', () => {
+    const csp = security?.csp ?? '';
+    const scriptSrc = /script-src ([^;]+)/.exec(csp)?.[1] ?? '';
+    const sources = scriptSrc.split(/\s+/);
+    expect(sources).toContain("'wasm-unsafe-eval'");
+    expect(sources).not.toContain("'unsafe-eval'");
+  });
+
+  it('worker-src 允许同源与 blob worker（PDF.js / 未来打包 worker）', () => {
+    const csp = security?.csp ?? '';
+    const workerSrc = /worker-src ([^;]+)/.exec(csp)?.[1] ?? '';
+    const sources = workerSrc.split(/\s+/);
+    expect(sources).toContain("'self'");
+    expect(sources).toContain('blob:');
+  });
+
+  it('connect-src 允许 ws/wss（adl-server 的 files-changed 与 PTY WebSocket）', () => {
+    // 打包态 WebView 的 Origin 是 `http://tauri.localhost`，adl-server 在
+    // `ws://127.0.0.1:<port>`；CSP 的 `http:` 源表达式不匹配 `ws:`，缺省时
+    // `/ws/workspace` 与 `/pty` 全部被拦，变更/文件树/终端实时推送静默失效。
+    const csp = security?.csp ?? '';
+    const connectSrc = /connect-src ([^;]+)/.exec(csp)?.[1] ?? '';
+    const sources = connectSrc.split(/\s+/);
+    expect(sources).toContain('ws:');
+    expect(sources).toContain('wss:');
+  });
 });

@@ -15,7 +15,12 @@ import { useShallow } from 'zustand/react/shallow';
 import { StickyContext } from './editor-support/stickyContextView';
 import { DiffToolbar } from './DiffToolbar';
 import type { PatchHunkSummary } from '@features/patch-review';
-import { useStickyContext, useWrapColumn, useEditorStateCache } from './hooks';
+import {
+  useStickyContext,
+  usePreviewStickyContext,
+  useWrapColumn,
+  useEditorStateCache,
+} from './hooks';
 import type { UseEditorOptionsResult } from './hooks';
 import { IconChevronDown, IconChevronRight } from '@icons';
 import { ChunkLoadingFallback } from '@components/LazyComponents';
@@ -134,7 +139,17 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     diffSideBySide,
   });
 
-  const stickyContextModel = useStickyContext(stickyContextInput);
+  const [editorMountVersion, setEditorMountVersion] = useState(0);
+  const stickyContextModel = useStickyContext({ ...stickyContextInput, editorMountVersion });
+
+  // 预览面（Markdown / PDF / Office / 媒体）没有 CodeMirror 实例：用 content area 的
+  // 滚动事件驱动同一套「文件顶部」模型。必须在任何 early return 之前调用（hooks 顺序）。
+  const previewStickyModel = usePreviewStickyContext(
+    editorSurfaceRef,
+    `${selectedFileWorkspaceId ?? ''}:${selectedFilePath ?? ''}:${
+      previewEnabled ? 'preview' : 'edit'
+    }:${fileCategory}`,
+  );
 
   useWrapColumn({
     getStickySourceEditor,
@@ -158,6 +173,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
       cmViewRef.current = domNode ? (EditorView.findFromDOM(domNode) ?? null) : null;
       standardEditorRef.current = editor;
       onEditorMount(editor);
+      setEditorMountVersion((version) => version + 1);
     },
     [onEditorMount, cmViewRef, standardEditorRef],
   );
@@ -173,6 +189,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
         editorRef = editor as unknown as EditorRef;
       }
       onDiffMount(editorRef);
+      setEditorMountVersion((version) => version + 1);
     },
     [onDiffMount, localDiffEditorRef],
   );
@@ -397,6 +414,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
         filePath={selectedFilePath}
         workspaceId={selectedFileWorkspaceId}
         theme={resolvedTheme}
+        stickyContextModel={previewStickyModel}
       />
     );
   }

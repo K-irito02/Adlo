@@ -434,7 +434,7 @@ export function createGitSnapshotActions(
     /**
      * [refreshAllGitSnapshotsSilent - 静默刷新所有已添加可用工作区的 Git 快照]
      * 与展开状态解耦：折叠的工作区也要有计数/分支/ahead-behind，供工作区头与
-     * 工具徽章显示。启动、新增工作区、窗口聚焦、变更面板 15s 轮询都走这里；
+     * 工具徽章显示。启动、新增工作区、窗口聚焦、watcher 批次都走这里；
      * 跳过 `SNAPSHOT_FRESHNESS_MS` 内的快照；worker 数量取
      * `min(SNAPSHOT_REFRESH_CONCURRENCY, targets.length)`。
      * 不转刷新图标；单个失败只记 workspaceChangesTreeErrors（与 refreshGitSnapshot 同口径）。

@@ -616,7 +616,7 @@
 /* ---------------- Markdown frontmatter 属性表 ---------------- */
 /* 用户裁定（原型 A + 约束）：每个键值对独占一行，键列共享宽度，所有值在第二列
    垂直左对齐；窄面板下值只在自身列内换行，不跳到键下方。无卡片底色/边框，
-   与正文之间不用分隔线、只留间距。列表值转 chip，全程中性色。 */
+   与正文之间不用分隔线、只留间距。列表值以两个空格连接为普通文本，不做胶囊。 */
 .adl-markdown-preview .adl-md-frontmatter {
   display: grid;
   /* 键列取所有键的最大内容宽（等宽对齐）；两侧都允许收缩（minmax 0），
@@ -663,18 +663,6 @@
 /* 多行标量（`|` / `>` / 续行）保留换行，不塌成一行 */
 .adl-markdown-preview .adl-md-frontmatter__value {
   white-space: pre-wrap;
-}
-
-.adl-markdown-preview .adl-md-frontmatter__chip {
-  display: inline-block;
-  margin: 0 var(--space-1) var(--space-0-5) 0;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full, 999px);
-  background: var(--bg-elevated, transparent);
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  line-height: 1.6;
 }
 
 /* Markdown 正文排版完全由 github-markdown-css 官方主题拥有

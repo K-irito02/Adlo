@@ -216,4 +216,68 @@ describe('Adlo desktop shell', () => {
     }
     expect(result.width).toBe(4);
   });
+
+  it('allows WebAssembly compilation in the packaged CSP (starry-night onig.wasm)', async () => {
+    // `script-src 'self'` 默认不允许 WebAssembly 编译；缺 `'wasm-unsafe-eval'` 时
+    // Markdown 代码高亮会静默退化为纯文本。最小合法 wasm 模块：\0asm + version 1。
+    await browser.execute(() => {
+      (window as unknown as { __adlWasmProbe?: string | null }).__adlWasmProbe = null;
+      WebAssembly.instantiate(Uint8Array.from([0, 97, 115, 109, 1, 0, 0, 0])).then(
+        () => {
+          (window as unknown as { __adlWasmProbe?: string | null }).__adlWasmProbe = 'ok';
+        },
+        (error) => {
+          (window as unknown as { __adlWasmProbe?: string | null }).__adlWasmProbe =
+            `error:${String(error)}`;
+        },
+      );
+    });
+
+    await browser.waitUntil(
+      async () =>
+        (await browser.execute(
+          () => (window as unknown as { __adlWasmProbe?: string | null }).__adlWasmProbe,
+        )) !== null,
+      { timeout: 5_000, interval: 100, timeoutMsg: 'WebAssembly probe never settled' },
+    );
+    const wasmResult = await browser.execute(
+      () => (window as unknown as { __adlWasmProbe?: string | null }).__adlWasmProbe,
+    );
+    expect(wasmResult).toBe('ok');
+  });
+
+  it('keeps srcdoc iframes usable in the packaged CSP (clipboard HTML preview)', async () => {
+    await browser.execute(() => {
+      const w = window as unknown as { __adlSrcdocProbe?: string | null };
+      w.__adlSrcdocProbe = 'pending';
+      const iframe = document.createElement('iframe');
+      iframe.id = '__adl_srcdoc_probe';
+      iframe.sandbox = '';
+      iframe.srcdoc = '<p id="probe">ok</p>';
+      iframe.onload = () => {
+        // sandbox="" 是 opaque origin，父页面不能读 contentDocument；
+        // 能触发 load 即说明 CSP 没有拦截 srcdoc 文档。
+        w.__adlSrcdocProbe = 'ok';
+      };
+      iframe.onerror = () => {
+        w.__adlSrcdocProbe = 'error';
+      };
+      document.body.appendChild(iframe);
+    });
+
+    await browser.waitUntil(
+      async () =>
+        (await browser.execute(
+          () => (window as unknown as { __adlSrcdocProbe?: string | null }).__adlSrcdocProbe,
+        )) !== 'pending',
+      { timeout: 5_000, interval: 100, timeoutMsg: 'srcdoc iframe never loaded' },
+    );
+    const srcdocResult = await browser.execute(
+      () => (window as unknown as { __adlSrcdocProbe?: string | null }).__adlSrcdocProbe,
+    );
+    await browser.execute(() => {
+      document.getElementById('__adl_srcdoc_probe')?.remove();
+    });
+    expect(srcdocResult).toBe('ok');
+  });
 });

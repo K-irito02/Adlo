@@ -547,6 +547,27 @@ describe('editor autosave race regressions', () => {
     expect(showToast).not.toHaveBeenCalled();
   });
 
+  it('外部变更重载后重建文档大纲（文件面板预览/编辑共用）', async () => {
+    const { store } = makeStore({ selectedFilePath: 'note.md' });
+    bridge().readFile.mockResolvedValue({
+      ok: true,
+      data: {
+        path: 'note.md',
+        content: '# 新标题\n\n## 新小节\n\n正文\n',
+        lastModifiedAt: 3,
+      },
+    });
+
+    handleExternalBatch(() => store.getState() as never, {
+      changed: ['note.md'],
+      removed: [],
+    });
+    await vi.advanceTimersByTimeAsync(500);
+
+    const outline = (store.getState() as { outline: { label: string }[] }).outline;
+    expect(outline.map((item) => item.label)).toEqual(['新标题', '新小节']);
+  });
+
   it('overflow 批次也要为选中文件调度读盘分类', async () => {
     const { store, showToast } = makeStore();
     bridge().readFile.mockResolvedValue({

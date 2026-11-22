@@ -4,7 +4,21 @@ import { describe, expect, it } from 'vitest';
 import {
   buildStickyContextEntries,
   createStickyContextModel,
+  scrollEditorToTop,
+  SMOOTH_SCROLL_MAX_VIEWPORTS,
 } from './editor-support/stickyContext';
+import type { EditorRef } from '@stores/types';
+
+function makeEditor(scrollTop: number, viewportHeight: number) {
+  const calls: ({ smooth?: boolean } | { scrollTop: number })[] = [];
+  const editor = {
+    getScrollTop: () => scrollTop,
+    getLayoutInfo: () => ({ height: viewportHeight }),
+    scrollToTop: (options?: { smooth?: boolean }) => calls.push(options ?? {}),
+    setScrollPosition: (position: { scrollTop: number }) => calls.push(position),
+  } as unknown as EditorRef;
+  return { editor, calls };
+}
 
 describe('stickyContext helpers', () => {
   it('always exposes a file-top entry and falls back to line text when no outline exists', () => {
@@ -86,6 +100,46 @@ describe('stickyContext helpers', () => {
 
     expect(model.showTopEntry).toBe(false);
   });
+
+  it('prefers an explicit scrollToTop callback over line navigation', () => {
+    const visited: number[] = [];
+    let topCalls = 0;
+    const model = createStickyContextModel({
+      canScrollToTop: true,
+      onNavigateLine: (line) => visited.push(line),
+      scrollToTop: () => {
+        topCalls += 1;
+      },
+    });
+
+    model.scrollToTop();
+
+    expect(topCalls).toBe(1);
+    expect(visited).toEqual([]);
+  });
+
+  it('smooth-scrolls short distances and jumps instantly beyond three viewports', () => {
+    const smooth = makeEditor(200, 100);
+    scrollEditorToTop(smooth.editor);
+    expect(smooth.calls).toEqual([{ smooth: true }]);
+
+    const instant = makeEditor(100 * SMOOTH_SCROLL_MAX_VIEWPORTS + 1, 100);
+    scrollEditorToTop(instant.editor);
+    expect(instant.calls).toEqual([{ smooth: false }]);
+  });
+
+  it('falls back to setScrollPosition when the adapter has no scrollToTop', () => {
+    const positions: { scrollTop: number }[] = [];
+    const editor = {
+      getScrollTop: () => 500,
+      getLayoutInfo: () => ({ height: 100 }),
+      setScrollPosition: (position: { scrollTop: number }) => positions.push(position),
+    } as unknown as EditorRef;
+
+    scrollEditorToTop(editor);
+
+    expect(positions).toEqual([{ scrollTop: 0 }]);
+  });
 });
 
 describe('sticky context panel wiring', () => {
@@ -105,8 +159,10 @@ describe('sticky context panel wiring', () => {
   it('renders sticky context above the files editor surface in both editor modes', () => {
     expect(editorSurfaceShellSource).toContain('StickyContext');
     expect(editorSurfaceShellSource).toContain('data-testid="files-sticky-context"');
+    expect(editorSurfaceShellSource).toContain('setEditorMountVersion');
     expect(useStickyContextSource).toContain('buildStickyContextEntries');
     expect(useStickyContextSource).toContain('createStickyContextModel');
+    expect(useStickyContextSource).toContain('editorMountVersion');
   });
 
   it('renders sticky context above the changes preview surface', () => {
@@ -118,5 +174,20 @@ describe('sticky context panel wiring', () => {
     expect(diffEditorSectionSource).toContain('data-testid="changes-sticky-context"');
     expect(useStickyContextSource).toContain('buildStickyContextEntries');
     expect(useStickyContextSource).toContain('createStickyContextModel');
+  });
+
+  it('renders sticky context on preview surfaces (markdown / media / office)', () => {
+    const previewRenderersSource = readFileSync(
+      new URL('./FilePreviewRenderers.tsx', import.meta.url),
+      'utf8',
+    );
+    expect(previewRenderersSource).toContain('files-preview-sticky-context');
+    expect(editorSurfaceShellSource).toContain('usePreviewStickyContext');
+    const diffEditorSectionSource = readFileSync(
+      new URL('./panels/DiffEditorSection.tsx', import.meta.url),
+      'utf8',
+    );
+    expect(diffEditorSectionSource).toContain('changes-preview-sticky-context');
+    expect(diffEditorSectionSource).toContain('usePreviewStickyContext');
   });
 });

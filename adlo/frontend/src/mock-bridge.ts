@@ -247,6 +247,18 @@ export function createMockPageMetaClient(): PageMetaClient {
         url,
       };
     },
+    fetchHttp: async (url) => {
+      const entry = memory.get(normalizeCacheKey(url));
+      if (!entry) {
+        return null;
+      }
+      return {
+        title: entry.title,
+        favicon: entry.faviconUrl,
+        faviconDataUri: entry.faviconDataUri,
+        url,
+      };
+    },
     report: async (meta, source) => {
       const key = normalizeCacheKey(meta.url);
       const existing = memory.get(key);

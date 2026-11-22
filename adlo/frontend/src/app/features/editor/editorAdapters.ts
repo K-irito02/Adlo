@@ -128,6 +128,14 @@ export class CodeMirrorEditorRef implements EditorRef {
     this.view.scrollDOM.scrollTop = position.scrollTop;
   }
 
+  scrollToTop(options?: { smooth?: boolean }): void {
+    if (options?.smooth) {
+      this.view.scrollDOM.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    this.view.scrollDOM.scrollTop = 0;
+  }
+
   onDidScrollChange(listener: () => void): Disposable {
     const target = this.view.scrollDOM;
     target.addEventListener('scroll', listener);

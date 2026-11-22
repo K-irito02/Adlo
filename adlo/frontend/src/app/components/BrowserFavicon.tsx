@@ -19,7 +19,7 @@ import {
   markFaviconSourceLoaded,
   rememberPageFavicon,
 } from './faviconDisplayCache';
-import { ensureSiteFavicon } from '@features/browser/faviconSelfHeal';
+import { ensureSiteFavicon, ensureSiteFaviconHttp } from '@features/browser/faviconSelfHeal';
 
 /**
  * 取站点首字母作为终级兜底：解析 host 首字符，字母转大写；
@@ -400,30 +400,31 @@ export function BrowserFavicon({
     }
   }, [displaySrc, preferredSrc, url]);
 
-  // 缺图标自愈（仅标签页这类 `pending='spinner'` 宿主）：
-  // 1. 元数据已结算但一个图标都没有 → 触发一次补抓（受会话节流约束，等价手动
-  //    「刷新网站图标与标题」）；
-  // 2. 外部图标存在但重试耗尽（防盗链/瞬态） → 带 force 重抓（独立 60s 冷却，
-  //    不受常规 10 分钟节流影响），取回 data-URI。
-  //
-  // 被动列表（`initial`）刻意不挂这条路径：历史/书签树可能渲染数百行，逐行后台抓取
-  // 会建出大量 WebView2；它们靠启动 `warmup` 批量补齐（标题-only 条目已在后端修正为
-  // 可重抓）。
+  // 缺图标自愈：
+  // - 标签页（`pending='spinner'`）走 `ensureSiteFavicon`：HTTP-first，失败才回退 silent WebView；
+  // - 被动列表（`initial`，书签树/历史）只走 HTTP（`ensureSiteFaviconHttp`），
+  //   绝不因滚动/挂载批量创建隐藏 WebView。
   //
   // 两个失败事实都带所属 URL：换页的同一提交里旧页的「空图标 / 重试耗尽」不会被当作
   // 新页的事实（否则会给新页提前建一次隐藏 WebView）。
   const resolvedEmptyForUrl = resolvedFaviconEmpty && resolvedEmptyUrl === url;
   const exhaustedForUrl = Boolean(exhaustedSrc) && exhaustedUrl === url;
   useEffect(() => {
-    if (!url || pending !== 'spinner') {
+    if (!url) {
       return;
     }
-    if (exhaustedForUrl) {
-      ensureSiteFavicon(url, { force: true });
+    if (pending === 'spinner') {
+      if (exhaustedForUrl) {
+        ensureSiteFavicon(url, { force: true });
+        return;
+      }
+      if (!preferredSrc && resolvedEmptyForUrl) {
+        ensureSiteFavicon(url);
+      }
       return;
     }
-    if (!preferredSrc && resolvedEmptyForUrl) {
-      ensureSiteFavicon(url);
+    if (exhaustedForUrl || (!preferredSrc && resolvedEmptyForUrl)) {
+      ensureSiteFaviconHttp(url);
     }
   }, [url, pending, preferredSrc, resolvedEmptyForUrl, exhaustedForUrl]);
 

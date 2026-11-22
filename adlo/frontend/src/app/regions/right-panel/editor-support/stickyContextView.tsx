@@ -39,7 +39,7 @@ export function StickyContext(props: StickyContextProps) {
     setIsVisible(true);
     startHideTimer();
     return clearHideTimer;
-  }, [props.model.showTopEntry, props.model.modelId, startHideTimer, clearHideTimer]);
+  }, [props.model.showTopEntry, props.model.revealSignal, startHideTimer, clearHideTimer]);
 
   const handleMouseEnter = useCallback(() => {
     isHoveringRef.current = true;

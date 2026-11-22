@@ -200,9 +200,12 @@ export function App() {
   const [envWizardResolved, setEnvWizardResolved] = useState(false);
   const [showEnvWizard, setShowEnvWizard] = useState(false);
   // Dev-only: let visual-verification sessions skip the automatic provisioning
-  // wizard (set VITE_ADL_SKIP_FIRST_RUN=1). Explicit "continue wizard" still works.
+  // wizard (set VITE_ADL_SKIP_FIRST_RUN=1). E2E builds use the same switch so
+  // shell smoke tests are not blocked by a first-run overlay. Explicit "continue
+  // wizard" still works.
   const skipAutomaticFirstRun =
-    import.meta.env.DEV && import.meta.env.VITE_ADL_SKIP_FIRST_RUN === '1';
+    (import.meta.env.DEV || import.meta.env.VITE_ADL_E2E === '1') &&
+    import.meta.env.VITE_ADL_SKIP_FIRST_RUN === '1';
   useEffect(() => {
     void (async () => {
       await applyPendingVersionSource();

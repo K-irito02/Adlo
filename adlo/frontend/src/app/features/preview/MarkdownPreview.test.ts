@@ -76,9 +76,10 @@ describe('MarkdownPreview', () => {
     expect(html).toContain('demo-skill');
     expect(html).toContain('<dt>description</dt>');
     expect(html).toContain('通用描述');
-    // 行内列表与块列表统一渲染为 chip
-    expect(html).toContain('adl-md-frontmatter__chip">alpha<');
-    expect(html).toContain('adl-md-frontmatter__chip">**/*.ts<');
+    // 行内列表与块列表统一渲染为普通文本（两个空格分隔），不使用胶囊
+    expect(html).not.toContain('adl-md-frontmatter__chip');
+    expect(html).toContain('adl-md-frontmatter__value">alpha  beta<');
+    expect(html).toContain('adl-md-frontmatter__value">**/*.ts<');
     // 正文照常渲染，且不再把 frontmatter 的 --- 当分隔线
     expect(html).toContain('<h1');
     expect(html).not.toContain('<hr');
@@ -134,10 +135,10 @@ describe('MarkdownPreview', () => {
     expect(html).toContain('<dt>a</dt>');
   });
 
-  it('renders empty / partially empty lists without empty chips', () => {
+  it('renders empty / partially empty lists without empty separators', () => {
     const html = renderMarkdownPreviewHtml('---\ntags: []\nglobs: [a,]\n---\n正文');
-    expect(html).not.toContain('adl-md-frontmatter__chip"></span>');
-    expect(html).toContain('adl-md-frontmatter__chip">a<');
+    expect(html).not.toContain('adl-md-frontmatter__chip');
+    expect(html).toContain('adl-md-frontmatter__value">a<');
   });
 
   it('splits quoted commas in inline lists', () => {

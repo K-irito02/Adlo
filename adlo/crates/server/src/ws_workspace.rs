@@ -32,6 +32,20 @@ fn overflow_frame() -> Message {
     Message::Text(files_changed_frame("", &[], &[], true).to_string())
 }
 
+/// 应用层心跳请求：浏览器 WebSocket API 不暴露协议级 Ping，前端每 20s 发
+/// `{"kind":"ping"}`，服务端回 `{"kind":"pong"}`；客户端超过一个窗口收不到 pong
+/// 就主动关闭并走重连 overflow，避免系统休眠/断网后的半开连接长期不刷新。
+pub(crate) fn is_ping_frame(text: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .and_then(|value| value.get("kind").and_then(|kind| kind.as_str()).map(|k| k == "ping"))
+        .unwrap_or(false)
+}
+
+fn pong_frame() -> Message {
+    Message::Text("{\"kind\":\"pong\"}".to_string())
+}
+
 /// overflow 帧的批次归属：
 /// - `coalesced=true`（队列满丢过帧，被丢批次可能来自任意根）→ 空串（前端按全部工作区补刷）；
 /// - 否则（watcher 自身单批超限）→ 保留该批次的根，前端只补刷该工作区。
@@ -153,6 +167,9 @@ async fn handle_socket(state: ServerState, socket: WebSocket) {
             Message::Ping(payload) => {
                 let _ = pong_tx.try_send(Message::Pong(payload));
             },
+            Message::Text(text) if is_ping_frame(&text) => {
+                let _ = pong_tx.try_send(pong_frame());
+            },
             _ => {},
         }
     }
@@ -195,5 +212,13 @@ mod tests {
     fn clipboard_changed_frame_shape_is_locked() {
         let frame = clipboard_changed_frame();
         assert_eq!(frame["kind"], "clipboard-changed");
+    }
+
+    #[test]
+    fn ping_frame_is_recognized_with_whitespace_and_unknown_kinds_ignored() {
+        assert!(is_ping_frame(r#"{"kind":"ping"}"#));
+        assert!(is_ping_frame(r#"{ "kind" : "ping" }"#));
+        assert!(!is_ping_frame(r#"{"kind":"pong"}"#));
+        assert!(!is_ping_frame("not-json"));
     }
 }

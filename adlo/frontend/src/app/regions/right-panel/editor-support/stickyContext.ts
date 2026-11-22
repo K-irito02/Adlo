@@ -24,6 +24,11 @@ export interface StickyContextModel {
   topEntry: StickyContextEntry;
   canScrollToTop: boolean;
   showTopEntry: boolean;
+  /**
+   * 只由真实 scroll 递增的可见性信号。布局/Resize/内容更新不得改它，
+   * 否则自动隐藏计时会被持续重置（按钮常驻）。
+   */
+  revealSignal: number;
   scrollToTop: () => void;
 }
 
@@ -42,9 +47,16 @@ interface BuildStickyContextEntriesInput {
 interface CreateStickyContextModelInput {
   canScrollToTop: boolean;
   onNavigateLine: (line: number) => void;
+  /** 回到顶部：缺省回退 `onNavigateLine(1)`。 */
+  scrollToTop?: () => void;
+  /** 真实滚动序号（见 StickyContextModel.revealSignal）。 */
+  revealSignal?: number;
   topLabel?: string;
   modelId?: string;
 }
+
+/** 短距离平滑滚动的上限（视口高度的倍数）；超过则瞬时回顶。 */
+export const SMOOTH_SCROLL_MAX_VIEWPORTS = 3;
 
 function clampContextRows(value: number | undefined): number {
   const normalized = Number.isFinite(value)
@@ -185,8 +197,27 @@ export function createStickyContextModel(input: CreateStickyContextModelInput): 
     topEntry,
     canScrollToTop: input.canScrollToTop,
     showTopEntry: input.canScrollToTop,
-    scrollToTop: () => input.onNavigateLine(1),
+    revealSignal: input.revealSignal ?? 0,
+    scrollToTop: input.scrollToTop ?? (() => input.onNavigateLine(1)),
   };
+}
+
+/**
+ * 编辑器回顶：短距离（≤ 3 个视口高）平滑，长距离瞬时。
+ * 变更面板折叠无变更区域后，`scrollTop = 0` 落在当前可见内容的顶部，不会展开折叠区。
+ */
+export function scrollEditorToTop(editor: EditorRef | null): void {
+  if (!editor) {
+    return;
+  }
+  const scrollTop = editor.getScrollTop();
+  const viewportHeight = editor.getLayoutInfo().height || 0;
+  const smooth = scrollTop <= viewportHeight * SMOOTH_SCROLL_MAX_VIEWPORTS;
+  if (editor.scrollToTop) {
+    editor.scrollToTop({ smooth });
+    return;
+  }
+  editor.setScrollPosition({ scrollTop: 0 });
 }
 
 export function getVisibleStartLine(editor: EditorRef | null): number {

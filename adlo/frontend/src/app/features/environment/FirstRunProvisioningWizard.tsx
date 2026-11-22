@@ -30,13 +30,7 @@ import './firstRunProvisioning.css';
 
 type ItemId = 'node' | 'git' | 'bash' | 'dsh' | 'opencode';
 type ItemStatus =
-  | 'pending'
-  | 'detecting'
-  | 'downloading'
-  | 'installing'
-  | 'retrying'
-  | 'done'
-  | 'error';
+  'pending' | 'detecting' | 'downloading' | 'installing' | 'retrying' | 'done' | 'error';
 
 interface ItemState {
   id: ItemId;
@@ -820,7 +814,12 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
         <div className="adl-fr-foot">
           {copyPreviewActions}
           <div className="adl-fr-foot__right">
-            <button type="button" className="adl-fr-btn adl-fr-btn--secondary" onClick={close}>
+            <button
+              type="button"
+              className="adl-fr-btn adl-fr-btn--secondary"
+              onClick={close}
+              data-testid="first-run-wizard-close"
+            >
               {t.environmentWizardEnter}
             </button>
             <button
@@ -838,7 +837,12 @@ export function FirstRunProvisioningWizard({ onClose }: FirstRunProvisioningWiza
             <span className="adl-fr-foot__note">{t.firstRunFooterNote}</span>
           </div>
           <div className="adl-fr-foot__right">
-            <button type="button" className="adl-fr-btn adl-fr-btn--primary" onClick={close}>
+            <button
+              type="button"
+              className="adl-fr-btn adl-fr-btn--primary"
+              onClick={close}
+              data-testid="first-run-wizard-close"
+            >
               {t.firstRunStart}
             </button>
           </div>

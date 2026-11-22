@@ -9,6 +9,8 @@ export interface PageMetaClient {
   peek(url: string): SiteMetaCacheEntry | undefined;
   get(url: string, opts?: { force?: boolean }): Promise<PageMeta | null>;
   getSilent(url: string): Promise<PageMeta | null>;
+  /** HTTP-only 抓取（不创建隐藏 WebView）；失败返回空 meta。 */
+  fetchHttp(url: string): Promise<PageMeta | null>;
   report(meta: PageMeta, source: MetaSource): Promise<void>;
   refresh(url: string): Promise<PageMeta | null>;
   warmup(urls: string[]): Promise<void>;
@@ -16,17 +18,6 @@ export interface PageMetaClient {
 }
 
 const EVENT = 'digital-life://page-meta-updated';
-
-/** 调试日志里的 URL 剥离一次性认证参数（R1-Medium：`getSilent` 日志进收起器落盘）。 */
-function redactUrlForLog(url: string): string {
-  const idx = url.indexOf('?');
-  if (idx < 0) {
-    return url;
-  }
-  const [base, query] = [url.slice(0, idx), url.slice(idx + 1)];
-  const kept = query.split('&').filter((p) => p.split('=')[0] !== 'token');
-  return kept.length > 0 ? `${base}?${kept.join('&')}` : base;
-}
 
 export const pageMetaClient: PageMetaClient = isTauriShell()
   ? {
@@ -39,31 +30,14 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
         return r.ok && r.data ? r.data : null;
       },
       getSilent: async (url) => {
-        const r = await invokeIpc<PageMeta>('browser_page_meta_get_silent', { url });
-        let logEntry: Record<string, unknown>;
-        if (r.ok) {
-          logEntry = {
-            ok: true,
-            code: null,
-            errMsg: null,
-            hasData: true,
-            metaTitle: r.data.title,
-            faviconLen: r.data.favicon?.length ?? null,
-          };
-        } else {
-          logEntry = {
-            ok: false,
-            code: r.error.code,
-            errMsg: r.error.message,
-            hasData: false,
-            metaTitle: null,
-            faviconLen: null,
-          };
+        const http = await pageMetaClient.fetchHttp(url);
+        if (http && (http.faviconDataUri || http.title)) {
+          return http;
         }
-        console.info('[page-meta] getSilent(TAURI-branch)', {
-          url: redactUrlForLog(url),
-          ...logEntry,
-        });
+        return null;
+      },
+      fetchHttp: async (url) => {
+        const r = await invokeIpc<PageMeta>('browser_page_meta_fetch_http', { url });
         return r.ok && r.data ? r.data : null;
       },
       report: async (meta, source) => {
@@ -75,6 +49,10 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
         });
       },
       refresh: async (url) => {
+        const http = await pageMetaClient.fetchHttp(url);
+        if (http?.faviconDataUri) {
+          return http;
+        }
         const r = await invokeIpc<PageMeta>('browser_page_meta_refresh', { url });
         return r.ok && r.data ? r.data : null;
       },
@@ -113,33 +91,16 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
         return r.ok && r.data ? r.data : null;
       },
       getSilent: async (url) => {
+        const http = await pageMetaClient.fetchHttp(url);
+        if (http && (http.faviconDataUri || http.title)) {
+          return http;
+        }
+        return null;
+      },
+      fetchHttp: async (url) => {
         const r = await requestPreviewApi<PageMeta>('/browser/page-meta/get', {
           method: 'POST',
           body: JSON.stringify({ url, force: false }),
-        });
-        let logEntry: Record<string, unknown>;
-        if (r.ok) {
-          logEntry = {
-            ok: true,
-            code: null,
-            errMsg: null,
-            hasData: true,
-            metaTitle: r.data.title,
-            faviconLen: r.data.favicon?.length ?? null,
-          };
-        } else {
-          logEntry = {
-            ok: false,
-            code: r.error.code,
-            errMsg: r.error.message,
-            hasData: false,
-            metaTitle: null,
-            faviconLen: null,
-          };
-        }
-        console.info('[page-meta] getSilent(PREVIEW-branch/http-crawler)', {
-          url: redactUrlForLog(url),
-          ...logEntry,
         });
         return r.ok && r.data ? r.data : null;
       },
@@ -155,6 +116,10 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
         });
       },
       refresh: async (url) => {
+        const http = await pageMetaClient.fetchHttp(url);
+        if (http?.faviconDataUri) {
+          return http;
+        }
         const r = await requestPreviewApi<PageMeta>('/browser/page-meta/refresh', {
           method: 'POST',
           body: JSON.stringify({ url }),

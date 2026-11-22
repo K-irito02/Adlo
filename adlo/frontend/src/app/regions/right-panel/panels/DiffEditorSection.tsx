@@ -21,7 +21,7 @@ import { resolvePreviewOwner } from '@features/preview/previewExternal';
 import { FilePreviewRenderers } from '../FilePreviewRenderers';
 import { openMarkdownFileLink, openUrlByMethod } from '@features/preview/openByMethod';
 import { StickyContext } from '../editor-support/stickyContextView';
-import { useStickyContext } from '../hooks';
+import { usePreviewStickyContext, useStickyContext } from '../hooks';
 import { outlineForChangePreview } from '@features/outline';
 import { ChunkLoadingFallback } from '@components/LazyComponents';
 import { useAppStore } from '@stores/slicedStore';
@@ -77,7 +77,9 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
 }: DiffEditorSectionProps) {
   const { t } = useTCopy();
   const localPreviewShellRef = useRef<HTMLDivElement | null>(null);
+  const markdownSurfaceRef = useRef<HTMLDivElement | null>(null);
   const localEditorRef = useRef<DiffEditorRef | EditorRef | null>(null);
+  const [editorMountVersion, setEditorMountVersion] = useState(0);
   const setPreviewShellRef = useCallback(
     (el: HTMLDivElement | null) => {
       localPreviewShellRef.current = el;
@@ -143,6 +145,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
     (editor: DiffEditorRef | EditorRef) => {
       localEditorRef.current = editor;
       onDiffMount(editor);
+      setEditorMountVersion((version) => version + 1);
     },
     [onDiffMount],
   );
@@ -157,6 +160,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       editorSurfaceRef: localPreviewShellRef,
       stickyDiffRanges: changePreviewDiffRanges,
       getStickySourceEditor,
+      editorMountVersion,
     }),
     [
       changePreview?.path,
@@ -167,10 +171,17 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       localPreviewShellRef,
       changePreviewDiffRanges,
       getStickySourceEditor,
+      editorMountVersion,
     ],
   );
 
   const stickyContextModel = useStickyContext(stickyContextInput);
+  const markdownStickyModel = usePreviewStickyContext(
+    markdownSurfaceRef,
+    `${selectedChangePreviewWorkspaceId ?? ''}:${changePreview?.path ?? ''}:${
+      previewEnabled ? 'preview' : 'edit'
+    }`,
+  );
   const diffExtensions = useMemo(() => [], []);
 
   // 变更面板 markdown 预览的链接点击：与文件面板同源（changePreview.path 为其
@@ -401,7 +412,16 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
         data-testid="changes-preview-shell"
       >
         {changePreviewCategory === 'markdown' && previewEnabled ? (
-          <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
+          <div
+            ref={markdownSurfaceRef}
+            className="adl-tool-editor__surface adl-tool-editor__surface--preview"
+          >
+            {markdownStickyModel ? (
+              <StickyContext
+                data-testid="changes-preview-sticky-context"
+                model={markdownStickyModel}
+              />
+            ) : null}
             <LazyMarkdownPreviewWrapper
               content={changePreview.currentContent}
               linkHandlers={markdownLinkHandlers}
@@ -410,6 +430,12 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
           </div>
         ) : previewEnabled ? (
           <div className="adl-tool-editor__surface">
+            {stickyContextModel ? (
+              <StickyContext
+                data-testid="changes-preview-sticky-context"
+                model={stickyContextModel}
+              />
+            ) : null}
             <Suspense fallback={<ChunkLoadingFallback />}>
               <CodeEditor
                 value={changePreview.currentContent}

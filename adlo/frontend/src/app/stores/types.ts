@@ -79,6 +79,11 @@ export interface EditorRef {
   getScrollHeight(): number;
   getLayoutInfo(): { height: number; width?: number; contentWidth?: number };
   setScrollPosition(position: { scrollTop: number }): void;
+  /**
+   * 回到滚动容器顶部；`smooth` 为 true 时用浏览器平滑滚动。
+   * 可选：未实现时调用方回退 `setScrollPosition({ scrollTop: 0 })`（瞬时）。
+   */
+  scrollToTop?(options?: { smooth?: boolean }): void;
   onDidScrollChange(listener: () => void): Disposable;
   onDidChangeHiddenAreas?(listener: () => void): Disposable;
   onDidLayoutChange?(listener: () => void): Disposable;

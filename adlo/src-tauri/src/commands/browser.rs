@@ -12,8 +12,9 @@ use crate::state::AppState;
 use crate::webview_event_bridge::TauriWebView2EventBridge;
 use adl_browser::webview_handle::{Bounds, EventBridgeRef};
 use adl_browser::{
-    CachedMetaBridge, META_SOURCE_COM, PageMeta, PageMetaService, SiteMetaCacheEntry,
-    is_placeholder_title, is_unsafe_title, normalize_color_scheme, webview_label,
+    CachedMetaBridge, META_SOURCE_COM, META_SOURCE_HTTP, PageMeta, PageMetaService,
+    SiteMetaCacheEntry, is_placeholder_title, is_unsafe_title, normalize_color_scheme,
+    webview_label,
 };
 use adl_errors::AppError;
 use adl_types::{AgentSiteOverride, AgentSiteRule, IpcResult};
@@ -160,7 +161,13 @@ fn attach_webview_child(
             AppError::Internal(format!("failed to create webview for tab {tab_id}: {e}"))
         })?;
 
-    tracing::info!(tab_id = &tab_id, "browser webview created for tab");
+    if is_silent {
+        // 启动预热会为最多 200 个书签/历史各建一个隐藏 WebView：逐条 INFO 会淹没
+        // 终端；静默建窗只在 DEBUG 记录，正常标签页仍保留 INFO。
+        tracing::debug!(tab_id = &tab_id, "browser webview created for silent tab");
+    } else {
+        tracing::info!(tab_id = &tab_id, "browser webview created for tab");
+    }
 
     if let Some(webview) = window.get_webview(label) {
         let bridge = make_bridge();
@@ -245,7 +252,7 @@ pub fn create_silent_webview(
         .blocking_recv()
         .map_err(|e| AppError::Internal(format!("creation channel: {e}")))?;
     match &created {
-        Ok(()) => tracing::info!(
+        Ok(()) => tracing::debug!(
             url = %url,
             tab_id = %silent_tab_id,
             "[ADL-META] create_silent_webview: created OK"
@@ -734,7 +741,163 @@ fn silent_fetch_url_allowed(value: &str) -> bool {
     host.contains('.')
 }
 
-/// 静默 WebView 渲染抓取核心流程（spawn_blocking 创建 → 轮询 → 主线程销毁），
+/// 解析 HTML 属性值（大小写不敏感；允许 `attr = "value"` 的空格）。
+fn extract_html_attr(tag: &str, attr: &str) -> Option<String> {
+    let lower = tag.to_ascii_lowercase();
+    let needle = attr.to_ascii_lowercase();
+    let bytes = lower.as_bytes();
+    let mut search_from = 0usize;
+    while let Some(pos) = lower[search_from..].find(&needle) {
+        let name_pos = search_from + pos;
+        let before = lower[..name_pos].chars().next_back();
+        if !matches!(before, None | Some(' ' | '\t' | '\n' | '\r' | '<')) {
+            search_from = name_pos + needle.len();
+            continue;
+        }
+        let mut i = name_pos + needle.len();
+        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i >= bytes.len() || bytes[i] != b'=' {
+            search_from = i;
+            continue;
+        }
+        i += 1;
+        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i >= bytes.len() {
+            return None;
+        }
+        let quote = bytes[i];
+        if quote != b'"' && quote != b'\'' {
+            let start = i;
+            while i < bytes.len() && !bytes[i].is_ascii_whitespace() && bytes[i] != b'>' {
+                i += 1;
+            }
+            return Some(tag[start..i].to_string());
+        }
+        let start = i + 1;
+        let end = tag[start..].find(quote as char)? + start;
+        return Some(tag[start..end].to_string());
+    }
+    None
+}
+
+fn decode_html_entities(input: &str) -> String {
+    input
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&#x27;", "'")
+        .replace("&nbsp;", " ")
+}
+
+fn extract_html_title(html: &str) -> String {
+    let lower = html.to_ascii_lowercase();
+    if let Some(start) = lower.find("<title") {
+        if let Some(gt) = lower[start..].find('>') {
+            let content_start = start + gt + 1;
+            if let Some(end) = lower[content_start..].find("</title>") {
+                let title = html[content_start..content_start + end].trim();
+                return decode_html_entities(title).chars().take(200).collect();
+            }
+        }
+    }
+    // og:title 兜底
+    let mut offset = 0usize;
+    while let Some(pos) = lower[offset..].find("<meta") {
+        let tag_start = offset + pos;
+        let Some(tag_end) = lower[tag_start..].find('>') else { break };
+        let tag = &html[tag_start..tag_start + tag_end];
+        let property = extract_html_attr(tag, "property").unwrap_or_default();
+        if property.eq_ignore_ascii_case("og:title") {
+            if let Some(content) = extract_html_attr(tag, "content") {
+                return decode_html_entities(content.trim()).chars().take(200).collect();
+            }
+        }
+        offset = tag_start + tag_end + 1;
+    }
+    String::new()
+}
+
+fn extract_icon_url(html: &str, page_url: &str) -> Option<String> {
+    let lower = html.to_ascii_lowercase();
+    let base = url::Url::parse(page_url).ok()?;
+    let mut offset = 0usize;
+    while let Some(pos) = lower[offset..].find("<link") {
+        let tag_start = offset + pos;
+        let tag_end = lower[tag_start..].find('>')? + tag_start;
+        let tag = &html[tag_start..tag_end];
+        let rel = extract_html_attr(tag, "rel").unwrap_or_default();
+        if rel.to_ascii_lowercase().contains("icon") {
+            if let Some(href) = extract_html_attr(tag, "href") {
+                let href = href.trim();
+                if !href.is_empty() {
+                    if let Ok(resolved) = base.join(href) {
+                        return Some(resolved.to_string());
+                    }
+                }
+            }
+        }
+        offset = tag_end + 1;
+    }
+    None
+}
+
+fn origin_favicon_url(page_url: &str) -> Option<String> {
+    let parsed = url::Url::parse(page_url).ok()?;
+    let host = parsed.host_str()?;
+    let port = parsed.port().map(|value| format!(":{value}")).unwrap_or_default();
+    Some(format!("{}://{host}{port}/favicon.ico", parsed.scheme()))
+}
+
+/// HTTP 元数据抓取（不做 WebView）：HTML 前 64KB 解析 title / link icon，
+/// 图标 URL 缺失时回退 `{origin}/favicon.ico`。失败返回 None，由调用方落失败墓碑。
+async fn fetch_page_meta_http(url: &str) -> Option<PageMeta> {
+    let parsed = url::Url::parse(url).ok()?;
+    if parsed.scheme() != "http" && parsed.scheme() != "https" {
+        return None;
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .user_agent(USER_AGENT)
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .build()
+        .ok()?;
+    let response = client
+        .get(parsed.clone())
+        .header(reqwest::header::ACCEPT, "text/html,application/xhtml+xml")
+        .send()
+        .await
+        .ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    if response.content_length().is_some_and(|length| length > 512 * 1024) {
+        return None;
+    }
+    let bytes = response.bytes().await.ok()?;
+    let slice = &bytes[..bytes.len().min(64 * 1024)];
+    let html = String::from_utf8_lossy(slice);
+    let title = extract_html_title(&html);
+    let favicon = extract_icon_url(&html, parsed.as_str())
+        .or_else(|| origin_favicon_url(parsed.as_str()))
+        .unwrap_or_default();
+    if title.is_empty() && favicon.is_empty() {
+        return None;
+    }
+    Some(PageMeta {
+        title,
+        favicon,
+        url: url.to_string(),
+        favicon_data_uri: String::new(),
+        source: META_SOURCE_HTTP.to_string(),
+    })
+}
+
 /// 返回已写缓存的结果 `PageMeta`，不广播。（DRY：`browser_page_meta_get_silent` /
 /// `browser_page_meta_get` / `browser_page_meta_refresh` 三个命令共用。）
 ///
@@ -820,7 +983,7 @@ async fn fetch_silent_meta(
         spawn_convention_favicon(app.clone(), svc, url.to_string(), page_meta.title.clone());
     }
 
-    tracing::info!(
+    tracing::debug!(
         req_url = %url,
         favicon_len = page_meta.favicon.len(),
         favicon_full = %page_meta.favicon,
@@ -839,7 +1002,7 @@ pub async fn browser_page_meta_get_silent(
     state: State<'_, AppState>,
     url: String,
 ) -> Result<IpcResult<PageMeta>, CommandError> {
-    tracing::info!(url = %url, "[ADL-META] browser_page_meta_get_silent: ENTER (tauri IPC hit)");
+    tracing::debug!(url = %url, "[ADL-META] browser_page_meta_get_silent: ENTER (tauri IPC hit)");
     match fetch_silent_meta(app.clone(), &state, &url).await {
         Ok(page_meta) => {
             let src = if page_meta.source.is_empty() {
@@ -848,7 +1011,7 @@ pub async fn browser_page_meta_get_silent(
                 page_meta.source.as_str()
             };
             emit_page_meta_updated(&app, &page_meta, src);
-            tracing::info!(
+            tracing::debug!(
                 url = %url,
                 title_len = page_meta.title.len(),
                 title = %page_meta.title,
@@ -1038,6 +1201,56 @@ pub async fn browser_page_meta_get(
     Ok(ipc(Ok(meta)))
 }
 
+/// HTTP 抓取 + 缓存写入 + 图标 data-URI 补全 + 广播。供命令与显式 warmup 复用。
+async fn fetch_and_store_http_meta(
+    app: &tauri::AppHandle,
+    svc: &PageMetaService,
+    url: &str,
+) -> Option<PageMeta> {
+    let Some(mut meta) = fetch_page_meta_http(url).await else {
+        if let Err(error) = svc.note_failure(url) {
+            tracing::debug!(url = %url, error = %error, "page_meta_fetch_http: note_failure failed");
+        }
+        return None;
+    };
+    if let Err(error) = svc.report(url, &meta.title, &meta.favicon, META_SOURCE_HTTP).await {
+        tracing::debug!(url = %url, error = %error, "page_meta_fetch_http: report failed");
+    }
+    if !meta.favicon.is_empty() {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .user_agent(USER_AGENT)
+            .redirect(reqwest::redirect::Policy::limited(5))
+            .build();
+        if let Ok(client) = client {
+            let data_uri = download_favicon_data_uri(&client, &meta.favicon, Some(url)).await;
+            if !data_uri.is_empty() {
+                meta.favicon_data_uri = data_uri.clone();
+                if let Err(error) = svc.update_favicon_data_uri(url, &data_uri) {
+                    tracing::debug!(url = %url, error = %error, "page_meta_fetch_http: persist icon failed");
+                }
+            }
+        }
+    }
+    emit_page_meta_updated(app, &meta, META_SOURCE_HTTP);
+    Some(meta)
+}
+
+/// HTTP-first 元数据抓取（无 WebView）：启动预热移除后，书签/标签的缺图标补齐
+/// 先走本条；HTTP 失败再由前端决定是否调用 `browser_page_meta_refresh` 走静默 WebView。
+#[tauri::command]
+pub async fn browser_page_meta_fetch_http(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    url: String,
+) -> Result<IpcResult<PageMeta>, CommandError> {
+    let svc = state.browser_manager.page_meta_service();
+    let meta = fetch_and_store_http_meta(&app, svc.as_ref(), &url)
+        .await
+        .unwrap_or_else(|| PageMeta { url: url.clone(), ..PageMeta::default() });
+    Ok(ipc(Ok(meta)))
+}
+
 #[tauri::command]
 pub async fn browser_page_meta_report(
     app: tauri::AppHandle,
@@ -1075,24 +1288,19 @@ pub async fn browser_page_meta_warmup(
     state: State<'_, AppState>,
     urls: Vec<String>,
 ) -> Result<IpcResult<()>, CommandError> {
-    // 输入验证：限制 URL 数量防止拒绝服务（与前端 warmupUrls.ts 上限 200 一致）
+    // 输入验证：URL 数量超过下方代码中的上限时返回 InvalidInput。
     if urls.len() > 200 {
         return Ok(ipc(Err(AppError::InvalidInput(
             "URL list exceeds maximum length of 200".to_string(),
         ))));
     }
     let svc = state.browser_manager.page_meta_service();
-    // 静默预热：去重后按 `warmup_target_allowed` 选取目标——无条目 / 无有效缓存直接抓，
-    // 「标题-only」条目也纳入补抓（补 favicon；预览端同样不把它当有效命中），仅有图标的
-    // 有效缓存与退避期失败墓碑跳过（预览端另有 TTL 到期重抓，桌面端本轮未引入）。
-    // 每个目标各创建一个隐藏 WebView2，故用信号量限制并发；无图标补抓另设单次启动预算，
-    // 避免长期积累的条目集中建窗。
-    // 消除 preload 竞态：入口显式等待一次（幂等——get_all + or_insert），
-    // 保证下方 peek 过滤读到磁盘全量条目，而不是只有空内存镜像。
+    // 显式批量补齐（不再由启动调用）：HTTP-first，绝不创建隐藏 WebView。
+    // 缺图标/标题的条目走 reqwest 抓 HTML + 图标；失败落失败墓碑，下一次按退避窗口跳过。
     if let Err(e) = svc.preload().await {
         tracing::warn!(error = %e, "browser_page_meta_warmup: preload failed (继续，过滤可能偏保守)");
     }
-    // 单次启动最多补抓多少个「标题-only」条目（正常首抓不设上限）。
+    // 单次批量最多补抓多少个「标题-only」条目。
     const WARMUP_FAVICON_BACKFILL_MAX: usize = 40;
     let mut seen = std::collections::HashSet::new();
     let mut favicon_backfills = 0usize;
@@ -1108,7 +1316,7 @@ pub async fn browser_page_meta_warmup(
             if !warmup_target_allowed(entry.as_ref(), u, now) {
                 return false;
             }
-            // 仅「已有有效缓存但缺图标」的补抓消耗预算与冷却；首次预热不设限。
+            // 仅「已有有效缓存但缺图标」的补抓消耗预算与冷却；首次补齐不设限。
             let is_favicon_backfill =
                 entry.as_ref().is_some_and(|e| silent_cache_hit(e, u) && !has_favicon(e));
             if is_favicon_backfill {
@@ -1122,7 +1330,7 @@ pub async fn browser_page_meta_warmup(
             true
         })
         .collect();
-    let sem = std::sync::Arc::new(tokio::sync::Semaphore::new(3));
+    let sem = std::sync::Arc::new(tokio::sync::Semaphore::new(6));
     let mut handles = Vec::with_capacity(targets.len());
     for url in targets {
         let permit = sem.clone();
@@ -1130,14 +1338,12 @@ pub async fn browser_page_meta_warmup(
         handles.push(tokio::spawn(async move {
             let _permit = permit.acquire_owned().await.ok()?;
             let g = app.state::<AppState>();
-            fetch_silent_meta(app.clone(), &g, &url).await.ok()
+            let svc = g.browser_manager.page_meta_service();
+            fetch_and_store_http_meta(&app, svc.as_ref(), &url).await.map(|_| ())
         }));
     }
-    // 镜像传播：预热完成后逐个广播，前端 siteMetaCache 镜像与标签标题实时落地
-    for h in handles {
-        if let Ok(Some(meta)) = h.await {
-            emit_page_meta_updated(&app, &meta, META_SOURCE_COM);
-        }
+    for handle in handles {
+        let _ = handle.await;
     }
     Ok(ipc(Ok(())))
 }
@@ -1341,7 +1547,9 @@ async fn download_favicon_data_uri(
         "download_favicon_data_uri: attempt (resolving via backend client)"
     );
     let Ok(resp) = req.send().await else {
-        tracing::warn!(
+        // favicon 是 best-effort：站点无图标 / 证书异常 / 超时都很常见，
+        // 预热时会成批出现；用 DEBUG 记录，避免把外部站点问题当应用告警。
+        tracing::debug!(
             favicon_url = %favicon_url,
             referer = ?referer,
             "download_favicon_data_uri: request send failed (network/timeout/TLS)"
@@ -1349,7 +1557,7 @@ async fn download_favicon_data_uri(
         return String::new();
     };
     if !resp.status().is_success() {
-        tracing::warn!(
+        tracing::debug!(
             favicon_url = %favicon_url,
             status = resp.status().as_u16(),
             "download_favicon_data_uri: non-success status"
@@ -1489,7 +1697,7 @@ fn spawn_meta_refetch(app: &tauri::AppHandle, url: String) {
                 let src =
                     if meta.source.is_empty() { META_SOURCE_COM } else { meta.source.as_str() };
                 emit_page_meta_updated(&app, &meta, src);
-                tracing::info!(
+                tracing::debug!(
                     url = %url,
                     favicon_len = meta.favicon.len(),
                     data_uri_len = meta.favicon_data_uri.len(),
@@ -1563,7 +1771,7 @@ fn spawn_convention_favicon(
                 if let Some(e) = svc.peek(&req_url) {
                     emit_page_meta_updated_raw(&app, &req_url, &e, META_SOURCE_COM);
                 }
-                tracing::info!(
+                tracing::debug!(
                     req_url = %req_url,
                     favicon_url = %favicon_url,
                     data_uri_len = data_uri.len(),
@@ -1659,7 +1867,7 @@ fn spawn_favicon_download(
         }
         match svc.update_favicon_data_uri(&cache_key, &data_uri) {
             Ok(true) => {
-                tracing::info!(
+                tracing::debug!(
                     req_url = %req_url,
                     cache_key = %cache_key,
                     favicon_len = favicon_url.len(),
@@ -1689,6 +1897,47 @@ fn spawn_favicon_download(
         }
         favicon_downloading().lock().unwrap_or_else(|e| e.into_inner()).remove(&favicon_url);
     });
+}
+
+#[cfg(test)]
+mod html_meta_tests {
+    use super::*;
+
+    #[test]
+    fn extracts_title_entities_and_og_fallback() {
+        assert_eq!(
+            extract_html_title("<html><head><title>A &amp; B</title></head></html>"),
+            "A & B"
+        );
+        assert_eq!(
+            extract_html_title(r#"<meta property="og:title" content="OG &quot;T&quot;">"#),
+            "OG \"T\""
+        );
+        assert_eq!(extract_html_title("<html><body>no title</body></html>"), "");
+    }
+
+    #[test]
+    fn extracts_relative_and_absolute_icon_links() {
+        let html = r#"<link rel="shortcut icon" href="/static/favicon.png">"#;
+        assert_eq!(
+            extract_icon_url(html, "https://example.com/a/b").as_deref(),
+            Some("https://example.com/static/favicon.png")
+        );
+        let svg = r#"<link rel="icon" type="image/svg+xml" href="//cdn.example.com/i.svg">"#;
+        assert_eq!(
+            extract_icon_url(svg, "https://example.com/").as_deref(),
+            Some("https://cdn.example.com/i.svg")
+        );
+    }
+
+    #[test]
+    fn falls_back_to_origin_favicon() {
+        assert_eq!(
+            origin_favicon_url("https://example.com:8443/path?q=1").as_deref(),
+            Some("https://example.com:8443/favicon.ico")
+        );
+        assert_eq!(origin_favicon_url("not-a-url"), None);
+    }
 }
 
 #[cfg(test)]

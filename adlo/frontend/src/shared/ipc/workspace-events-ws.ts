@@ -14,6 +14,10 @@ export interface WorkspaceEventsClientOptions {
   wsFactory?: (url: string) => WebSocket;
   reconnectDelayMs?: number;
   maxReconnectDelayMs?: number;
+  /** 应用层心跳间隔：浏览器 WebSocket 不暴露协议 Ping，改用 JSON ping/pong。 */
+  heartbeatIntervalMs?: number;
+  /** 超过该时长没有任何入站帧则判定半开连接，主动关闭并重连。 */
+  heartbeatTimeoutMs?: number;
 }
 
 export interface WorkspaceEventsClient {
@@ -28,11 +32,19 @@ export function createWorkspaceEventsClient(
   baseUrl = '',
   options: WorkspaceEventsClientOptions = {},
 ): WorkspaceEventsClient {
-  const { wsFactory, reconnectDelayMs = 1000, maxReconnectDelayMs = 30_000 } = options;
+  const {
+    wsFactory,
+    reconnectDelayMs = 1000,
+    maxReconnectDelayMs = 30_000,
+    heartbeatIntervalMs = 20_000,
+    heartbeatTimeoutMs = 30_000,
+  } = options;
   const filesListeners = new Set<(batch: WorkspaceFilesChangedBatch) => void>();
   const clipboardListeners = new Set<() => void>();
   let socket: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  let lastInboundAt = 0;
   let reconnectDelay = reconnectDelayMs;
   let disposed = false;
   // 首连成功后即有过连接：之后每次 onopen 都是"重连"，断线窗口的变更已丢失，
@@ -80,6 +92,37 @@ export function createWorkspaceEventsClient(
     filesListeners.forEach((fn) => fn(batch));
   };
 
+  const stopHeartbeat = () => {
+    if (heartbeatTimer !== null) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+  };
+
+  const startHeartbeat = (ws: WebSocket) => {
+    stopHeartbeat();
+    lastInboundAt = Date.now();
+    heartbeatTimer = setInterval(() => {
+      if (socket !== ws) {
+        return;
+      }
+      if (Date.now() - lastInboundAt > heartbeatTimeoutMs) {
+        // 半开连接：主动 close，走统一 onclose 重连；重连 onopen 会补发 overflow。
+        try {
+          ws.close();
+        } catch {
+          // close 幂等；失败同样由 onclose 接管。
+        }
+        return;
+      }
+      try {
+        ws.send(JSON.stringify({ kind: 'ping' }));
+      } catch {
+        // send 失败说明连接已坏，交由 onclose 重连。
+      }
+    }, heartbeatIntervalMs);
+  };
+
   const connect = () => {
     if (disposed || socket !== null || !hasListeners()) {
       return;
@@ -88,6 +131,7 @@ export function createWorkspaceEventsClient(
     socket = ws;
     ws.onopen = () => {
       reconnectDelay = reconnectDelayMs;
+      startHeartbeat(ws);
       if (hasConnected) {
         const batch: WorkspaceFilesChangedBatch = { changed: [], removed: [], overflow: true };
         filesListeners.forEach((fn) => fn(batch));
@@ -96,11 +140,13 @@ export function createWorkspaceEventsClient(
       hasConnected = true;
     };
     ws.onmessage = (event) => {
+      lastInboundAt = Date.now();
       if (typeof event.data === 'string') {
         handleFrame(event.data);
       }
     };
     ws.onclose = () => {
+      stopHeartbeat();
       if (socket !== ws) {
         return;
       }
@@ -126,6 +172,7 @@ export function createWorkspaceEventsClient(
 
   /** 无条件释放 socket（CLOSING/CLOSED  equally）：close 幂等，不留"永不重连"状态。 */
   const releaseSocket = () => {
+    stopHeartbeat();
     if (socket === null) {
       return;
     }

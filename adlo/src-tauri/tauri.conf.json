@@ -31,7 +31,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http:; img-src 'self' data: blob: https: http:; media-src 'self' data: blob: https: http:; frame-src 'self' https: http:",
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http: ws: wss:; worker-src 'self' blob:; img-src 'self' data: blob: https: http:; media-src 'self' data: blob: https: http:; frame-src 'self' https: http:",
       "dangerousDisableAssetCspModification": ["style-src"]
     },
     "withGlobalTauri": false
