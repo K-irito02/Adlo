@@ -42,6 +42,9 @@ function git(args, cwd) {
     cwd,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
+    // 大合并（origin/main 落后数十提交）的 diff 可远超默认 1MB；不设上限会让
+    // check:comment-claims 在 pre-push 以 ENOBUFS 假失败（2026-11-22 实测）。
+    maxBuffer: 64 * 1024 * 1024,
     env: gitEnv(),
   });
 }
