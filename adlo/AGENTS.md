@@ -98,7 +98,7 @@ CSS 选择器/层叠/布局/主题变更：按 [desktop-ui-verification.md](../.
 
 ## 未发布阶段约束
 
-未发布阶段不添加数据格式兼容 / 旧版本迁移代码或向后兼容重导出（发布后需先与用户确认）。完整约束见 [project-engineering-constraints.md](../docs/development/project-engineering-constraints.md)。
+未发布阶段只保留当前数据格式；不保留旧版解析 / 版本迁移层或向后兼容重导出（发布后需先与用户确认）。完整约束见 [project-engineering-constraints.md](../docs/development/project-engineering-constraints.md)。
 
 ## 文档入口
 
