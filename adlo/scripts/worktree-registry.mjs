@@ -11,6 +11,31 @@ import { spawnSync } from "node:child_process";
 
 const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * 依赖是否落后于锁文件：pnpm 在 `node_modules/.pnpm/lock.yaml` 留一份安装时的
+ * 锁快照，与仓库根 `pnpm-lock.yaml` 逐字节比较。返回 `ok|stale|missing`。
+ */
+export function depsState(worktreePath) {
+  const targets = [worktreePath, path.join(worktreePath, "adlo")];
+  let missing = false;
+  let stale = false;
+  for (const dir of targets) {
+    const lock = path.join(dir, "pnpm-lock.yaml");
+    if (!fs.existsSync(lock)) {
+      continue;
+    }
+    const installed = path.join(dir, "node_modules", ".pnpm", "lock.yaml");
+    if (!fs.existsSync(installed)) {
+      missing = true;
+      continue;
+    }
+    if (!fs.readFileSync(lock).equals(fs.readFileSync(installed))) {
+      stale = true;
+    }
+  }
+  return missing ? "missing" : stale ? "stale" : "ok";
+}
+
 /** Run `git worktree list --porcelain` and return parsed entries. */
 export function listWorktrees(cwd) {
   const result = spawnSync("git", ["-C", cwd, "worktree", "list", "--porcelain"], {

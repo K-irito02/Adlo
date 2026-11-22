@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  depsState,
   formatAge,
   parseWorktreePorcelain,
   readActiveSessions,
@@ -95,5 +96,26 @@ test("readActiveSessions only returns active entries claiming this worktree", ()
     assert.equal(active[0].stale, true);
   } finally {
     fs.rmSync(pool, { recursive: true, force: true });
+  }
+});
+
+test("depsState distinguishes ok / stale / missing lock snapshots", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "adl-deps-"));
+  try {
+    fs.writeFileSync(path.join(root, "pnpm-lock.yaml"), "a");
+    assert.equal(depsState(root), "missing");
+
+    fs.mkdirSync(path.join(root, "node_modules", ".pnpm"), { recursive: true });
+    fs.writeFileSync(path.join(root, "node_modules", ".pnpm", "lock.yaml"), "a");
+    assert.equal(depsState(root), "ok");
+
+    fs.writeFileSync(path.join(root, "pnpm-lock.yaml"), "b");
+    assert.equal(depsState(root), "stale");
+
+    fs.mkdirSync(path.join(root, "adlo"), { recursive: true });
+    fs.writeFileSync(path.join(root, "adlo", "pnpm-lock.yaml"), "c");
+    assert.equal(depsState(root), "missing");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });

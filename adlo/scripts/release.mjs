@@ -3,7 +3,7 @@
  * 本地发布流水线（CI 稳定前的唯一入口）。
  *
  *   node scripts/release.mjs bump 0.1.1
- *   node scripts/release.mjs build
+ *   node scripts/release.mjs build [--local]
  *   node scripts/release.mjs publish --tag v0.1.1 [--notes-file path] [--prerelease]
  *   node scripts/release.mjs verify  --tag v0.1.1
  *
@@ -15,8 +15,8 @@
  */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -37,6 +37,7 @@ const REPO_ROOT = resolve(ADLO_ROOT, "..");
 const TAURI_CONF = join(ADLO_ROOT, "src-tauri", "tauri.conf.json");
 const BUNDLE_DIR = join(ADLO_ROOT, "target", "release", "bundle", "nsis");
 const STAGING_ROOT = join(REPO_ROOT, ".release");
+const LOCAL_ROOT = join(STAGING_ROOT, "local");
 
 const GITEE_API = "https://gitee.com/api/v5";
 
@@ -152,6 +153,12 @@ function resolveSigningPassword() {
 }
 
 function build() {
+  const version = readVersion();
+  const local = flag("--local");
+  const dirty = spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" }).stdout.trim();
+  if (dirty) {
+    log("warning: working tree is dirty; this package does not match a commit");
+  }
   // 发布包必须带与锁文件一致的全量第三方声明；离线校验提交的生成物，
   // 依赖升级后忘了重新生成会在这里失败，而不是等用户打开关于页才发现。
   run("node", ["scripts/generate-third-party-notices.mjs", "--check", "--offline"]);
@@ -180,6 +187,35 @@ function build() {
   log("building NSIS bundle with updater signature…");
   run("cargo", ["tauri", "build", "--bundles", "nsis"]);
   assertInstallerHooks();
+
+  const setupPath = join(BUNDLE_DIR, setupFileName(version));
+  const sigPath = `${setupPath}.sig`;
+  if (!existsSync(setupPath) || !existsSync(sigPath)) {
+    fail(`build finished but installer/signature is missing: ${setupPath}`);
+  }
+  if (local) {
+    stageLocal(version, setupPath, sigPath);
+    return;
+  }
+  log(`artifact: ${relative(REPO_ROOT, setupPath)}`);
+  log(`sha256: ${sha256File(setupPath)}`);
+  log(
+    "hint: `pnpm run release:build -- --local` copies exe/sig + SHA256 to .release/local/v<ver>/",
+  );
+}
+
+/** 本地试用包落到不会被 cargo clean 清掉的固定目录，并打印安装/更新预期。 */
+function stageLocal(version, setupPath, sigPath) {
+  const dir = join(LOCAL_ROOT, `v${version}`);
+  mkdirSync(dir, { recursive: true });
+  const fileName = basename(setupPath);
+  copyFileSync(setupPath, join(dir, fileName));
+  copyFileSync(sigPath, join(dir, `${fileName}.sig`));
+  writeFileSync(join(dir, "SHA256SUMS.txt"), `${sha256Line(fileName, sha256File(setupPath))}\n`);
+  log(`local package: ${relative(REPO_ROOT, dir)}`);
+  log(`sha256: ${sha256File(setupPath)}`);
+  log("install note: data root is %APPDATA%\\com.adlo.app, separate from dev .adl-instance");
+  log("update note: nothing is published; in-app update check has no source by design");
 }
 
 /**

@@ -79,9 +79,16 @@ description: 发布 Adlo 桌面应用的新版本——三处版本号同步、G
 
 ## 只构建不发布（本地签名包）
 
-`release:bump` → `release:build`，不要 `publish`。构建前移走同版本旧产物；确认 `.exe`/`.sig` 时间戳与
-`trusted comment` 里的 `file:`/`timestamp`；**不要跑 `release:verify`**（它读线上清单，未发布必失败且不验签）。
-密码学验签见 [references/local-signature-verification.md](./references/local-signature-verification.md)。
+- 首次本地试用包可以保持当前版本（不 bump）；需要覆盖已安装版本或验证旧→新升级链路时，先 `release:bump X.Y.Z`。
+- 构建：
+  ```powershell
+  pnpm --dir adlo run release:build -- --local
+  ```
+  `--local` 在构建后把 exe / sig / SHA256SUMS.txt 复制到 `.release/local/v<ver>/`（gitignored，不受 `cargo clean` 影响），并打印版本、SHA-256 与安装提示。
+- 构建前移走同版本旧产物；确认 `.exe`/`.sig` 时间戳与 `trusted comment` 里的 `file:`/`timestamp`；**不要跑 `release:verify`**（它读线上清单，未发布必失败且不验签）。
+- 本地验签：`node adlo/scripts/verify-local-signature.mjs <ver>`，期望 `SIGNATURE_OK= true`。
+- 安装冒烟：运行 setup → 关于页版本正确 → 启动应用。未发布时应用内「检查更新」没有线上源，属预期。
+- 数据根：安装版用 `%APPDATA%\com.adlo.app`，与 dev 工作树的 `.adl-instance` 隔离；长期试用前重新添加工作区/书签，或先迁移数据根。
 
 ## 必须守住的约束
 

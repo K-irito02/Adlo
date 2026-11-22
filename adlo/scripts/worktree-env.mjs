@@ -3,11 +3,12 @@
  *
  * Usage: `pnpm run worktree:env` (from `adlo/` or via `pnpm --dir adlo`).
  * `--all` also prints the `[WORKTREES]` table (path / branch / base / dirty /
- * session occupancy) that §3.0 asks for, so agents stop re-deriving it with
- * hand-written `git rev-list` loops.
+ * deps / session occupancy) that §3.0 asks for, so agents stop re-deriving it
+ * with hand-written `git rev-list` loops.
  *
  * Exit code 2 when another active session claims this worktree. The snapshot
- * still prints, so the agent can show the user why it stopped. Pass
+ * still prints, so the agent can show the user why it stopped. The current
+ * session's own registry entry is excluded from that check. Pass
  * `--allow-shared` only after explicit user approval.
  */
 import fs from "node:fs";
@@ -17,6 +18,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { findLockedDevExecutables } from "./dev-instance.mjs";
 import {
+  depsState,
   formatAge,
   listWorktrees,
   readActiveSessions,
@@ -48,11 +50,14 @@ const mode = isPoolWorktree ? "existing-worktree" : "main-worktree";
 
 const active = readActiveSessions(toplevel);
 const allowShared = process.argv.includes("--allow-shared");
+const selfSession = process.env.OPENCODE_SESSION_ID ?? "";
+const foreign = active.filter(({ record }) => !selfSession || record.owner !== selfSession);
 const registry = active[0]?.name ?? "missing";
-const others = active.map(
+const others = foreign.map(
   ({ record, name, ageMs, stale }) =>
     `${record.session ?? name} (active${stale ? `, ${formatAge(ageMs)} stale` : ""})`,
 );
+const deps = depsState(toplevel);
 
 const locked = findLockedDevExecutables(repoRoot);
 const instance = locked.length > 0 ? locked.join(", ") : "none";
@@ -69,15 +74,16 @@ const lines = [
   `  slot     : ${slot} / mode : ${mode}`,
   `  others   : ${others.length > 0 ? others.join(", ") : "无"}`,
   `  instance : ${instance}`,
+  `  deps     : ${deps}`,
   `  hooks    : ${hooksState} / graph : ${graph}`,
   `  registry : ${registry}`,
 ];
 
 console.log(lines.join("\n"));
 
-if (active.length > 0 && !allowShared) {
+if (foreign.length > 0 && !allowShared) {
   console.error(
-    "[worktree:env] active session claims this worktree; stop or pass --allow-shared after user approval.",
+    "[worktree:env] another active session claims this worktree; stop or pass --allow-shared after user approval.",
   );
   process.exitCode = 2;
 }
@@ -110,6 +116,7 @@ function buildWorktreeTable(currentToplevel) {
       branch: worktree.branch ?? (worktree.detached ? "(detached)" : "—"),
       base: behindAhead.length === 2 ? `${behindAhead[0]}/${behindAhead[1]}` : "—",
       dirty: String(dirtyCount),
+      deps: depsState(worktree.path),
       sessions: summarizeSessions(readActiveSessions(worktree.path)),
       path: worktree.path,
     };
@@ -129,6 +136,10 @@ function buildWorktreeTable(currentToplevel) {
     "dirty",
     rows.map((row) => row.dirty),
   );
+  const depsWidth = width(
+    "deps",
+    rows.map((row) => row.deps),
+  );
   const sessionsWidth = width(
     "sessions",
     rows.map((row) => row.sessions),
@@ -138,12 +149,12 @@ function buildWorktreeTable(currentToplevel) {
     "[WORKTREES]",
     `  ${"branch".padEnd(branchWidth)}  ${"base".padEnd(baseWidth)}  ${"dirty".padEnd(
       dirtyWidth,
-    )}  ${"sessions".padEnd(sessionsWidth)}  path`,
+    )}  ${"deps".padEnd(depsWidth)}  ${"sessions".padEnd(sessionsWidth)}  path`,
     ...rows.map(
       (row) =>
         `  ${row.branch.padEnd(branchWidth)}  ${row.base.padEnd(baseWidth)}  ${row.dirty.padEnd(
           dirtyWidth,
-        )}  ${row.sessions.padEnd(sessionsWidth)}  ${row.path}`,
+        )}  ${row.deps.padEnd(depsWidth)}  ${row.sessions.padEnd(sessionsWidth)}  ${row.path}`,
     ),
   ].join("\n");
 }

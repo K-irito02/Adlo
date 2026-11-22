@@ -64,6 +64,7 @@ git log --oneline -1                               # 6 我在哪个提交
 git rev-list --left-right --count main...HEAD      # 7 相对本地 main 的落后/领先
 git config --get core.hooksPath                    # 8 本地门禁是否启用（期望 .husky）
 Test-Path -LiteralPath "adlo/.codegraph"  # 9 CodeGraph 索引是否就绪（每工作树一份）
+pnpm --dir adlo run worktree:env        # 10 依赖是否落后（deps: ok|stale|missing）
 ```
 
 > 本仓在 Windows + PowerShell 7 下执行，命令块均为 PowerShell 语法（`$` 变量、`Test-Path`、`Get-ChildItem`）；不要转写成 bash。
@@ -78,10 +79,11 @@ Test-Path -LiteralPath "adlo/.codegraph"  # 9 CodeGraph 索引是否就绪（每
 | 6/7 | 清楚自己的基线落后多少          | 落后较多 → 先 `merge --ff-only main`                              |
 | 8   | 输出 `.husky`                   | 未启用 → `pnpm --dir adlo run setup:worktree`（仓库级，一处即可） |
 | 9   | 目录存在                        | 缺失 → 同上（`codegraph init`，索引不入库）                       |
+| 10  | `deps` 为 `ok`                  | `stale`/`missing` → 在对应树跑 `pnpm install`（根与 `adlo/` 各一次） |
 
 > `worktree:env` 在他人 `active` 会话占用时退出码 2；确需共享须用户批准后加 `--allow-shared`。
 
-输出环境快照块（**没有快照视为未开工**）。固定 10 行：一项一行，键用英文冒号对齐（键宽 8、前后各一空格），未知值写 `—`，禁止把多项挤进一行。首行 `[ENV]` 独占一行，保留可 grep 标记：
+输出环境快照块（**没有快照视为未开工**）。固定 11 行：一项一行，键用英文冒号对齐（键宽 8、前后各一空格），未知值写 `—`，禁止把多项挤进一行。首行 `[ENV]` 独占一行，保留可 grep 标记：
 
 ```text
 [ENV]
@@ -92,6 +94,7 @@ Test-Path -LiteralPath "adlo/.codegraph"  # 9 CodeGraph 索引是否就绪（每
   slot     : <目录名|—> / mode : <new-worktree|existing-worktree|main-worktree>
   others   : <无|占用当前目录的 active 会话>        # #3 分支占用 / #4 会话占用
   instance : <none|运行中的 exe 路径（注明归属工作树）>
+  deps     : <ok|stale|missing>                    # 锁文件 vs 已安装依赖
   hooks    : <ok|missing> / graph : <ok|missing>   # #8 本地门禁 / #9 索引是否就绪
   registry : <session>.json|missing                # 本会话注册表是否已写入 .sessions/
 ```
@@ -107,6 +110,7 @@ Test-Path -LiteralPath "adlo/.codegraph"  # 9 CodeGraph 索引是否就绪（每
   slot     : slot-1 / mode : existing-worktree
   others   : 无
   instance : E:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/target/debug/adlo.exe（归属主工作树，slot-1 无实例）
+  deps     : ok
   hooks    : ok / graph : ok
   registry : settings-version-cleanup.json
 ```
@@ -272,6 +276,10 @@ pnpm run check:all        # 提交前与合并后都跑（含前端 check:full�
 
 ```powershell
 git -C "$ROOT" merge --ff-only --quiet <branch>
+pnpm --dir "$ROOT/adlo" run worktree:env -- --all   # deps 必须 ok；stale 先 pnpm install
+# 快进到已在分支工作树跑过完整门禁的同一提交：主工作树跑 check:repo 即可
+pnpm --dir "$ROOT/adlo" run check:repo
+# 非快进，或无法证明该提交已门禁：完整跑
 pnpm --dir "$ROOT/adlo" run check:all
 ```
 
@@ -279,7 +287,7 @@ pnpm --dir "$ROOT/adlo" run check:all
 - 永不自动 push（推送由用户执行或明确批准）。
 - 合并前主工作树需干净（未提交改动会让 ff 合并被拒）。
 - `--ff-only` 失败 = 已分叉 → 交回主工作树裁决，禁止在分支上 `merge main` 后继续开发。
-- 合并后必须跑 `check:all`：这是唯一能发现**语义冲突**的环节。
+- `--ff-only` 到已在分支工作树通过完整门禁的同一提交，不产生语义冲突：主工作树跑 `check:repo` + `worktree:env` 即可。非快进或没有门禁证据时，`check:all` 仍是唯一能发现语义冲突的环节，必须跑。
 
 ### 5.3 保留与清理
 
