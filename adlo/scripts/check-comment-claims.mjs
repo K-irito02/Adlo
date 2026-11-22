@@ -22,17 +22,14 @@ import {
   scanFileClaims,
   splitDiffByFile,
 } from "./comment-claims.mjs";
+import { isThirdPartySkillPath } from "./third-party-skills.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const implRoot = path.resolve(scriptDir, "..");
 
-// 技能目录是第三方 / 治理内容，不是产品代码；其一致性由 check-agent-dirs 与
+// 第三方技能是上游治理内容，不是产品代码；其一致性由 check-agent-dirs 与
 // check-context-budget 治理。注释断言门禁只覆盖产品代码，避免上游技能的英文
 // 说明性注释会显著增加日常门禁噪声。
-const SKILL_DIR_PREFIXES = [".agents/skills/", ".opencode/skills/", ".trae/skills/"];
-function isSkillFile(file) {
-  return SKILL_DIR_PREFIXES.some((prefix) => file.startsWith(prefix));
-}
 
 // `core.quotepath=false`：diff/ls-files 输出原始 UTF-8 路径，便于按仓库相对路径读未跟踪文件。
 // 剥离 hook 注入的仓库环境变量，避免子进程按另一套仓库布局解析路径。
@@ -117,13 +114,13 @@ function main() {
 
   const hits = [];
   for (const chunk of splitDiffByFile(git(["diff", "-U0", "--diff-filter=ACMR", base], repoRoot))) {
-    if (chunk.file.endsWith(".md") || isSkillFile(chunk.file)) {
+    if (chunk.file.endsWith(".md") || isThirdPartySkillPath(chunk.file)) {
       continue;
     }
     hits.push(...parseDiffClaims(chunk.text, chunk.file));
   }
   for (const file of untracked) {
-    if (file.endsWith(".md") || isSkillFile(file)) {
+    if (file.endsWith(".md") || isThirdPartySkillPath(file)) {
       continue;
     }
     try {

@@ -25,6 +25,14 @@ function readGeneratedNotices() {
   return JSON.parse(line.slice(line.indexOf("= ") + 2).replace(/;\s*$/, ""));
 }
 
+it("keeps generated notices out of repo-root Prettier", () => {
+  // lint-staged runs Prettier from the repo root; the frontend-local ignore
+  // file does not apply there. Reformatting the generated declaration breaks
+  // the single-line JSON contract above.
+  const ignore = readFileSync(join(HERE, "..", "..", ".prettierignore"), "utf8");
+  assert.match(ignore, /^adlo\/frontend\/src\/app\/features\/about\/\*\.generated\.ts$/m);
+});
+
 import {
   buildNoticeOutput,
   coversLicenseText,

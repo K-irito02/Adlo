@@ -149,7 +149,7 @@
 //              (narrower: a second block, over 220 characters or five lines); placeholder FAILs a printed example.com
 //              address and a phone number of zeros, one repeated digit, 555-01xx or 1234567; caption FAILs a line that
 //              says where a picture comes from ("not ours", "a similar bar", "stock photo", "for illustration")
-//   shaders    shader-lint reads shaders written as arrays of short strings joined with '\n', flags attribute and varying  (hygiene-allow: upstream comment)
+//   shaders    shader-lint reads shaders written as arrays of short strings joined with '\n', flags attribute and varying
 //              under #version 300 es, the webgl_ and _webgl_ prefixes, gl_ names that are no built-in, and any name with __
 //   added in v5 (the house rules and the judges' faults; blocks of their own, --no-<id> skips one)
 //   kind       the page's kind from --type, else the page's own marks (<html data-type>, <meta name="page-type">, <meta
@@ -9697,7 +9697,7 @@ function glslIn(js) {
   const out = [];
   for (const m of js.matchAll(/`((?:\\[\s\S]|\$\{(?:[^{}]|\{[^{}]*\})*\}|[^`\\])*)`/g)) { const s = m[1].replace(/\$\{(?:[^{}]|\{[^{}]*\})*\}/g, (x) => ' '.repeat(x.length)); if (s.length > 40 && isGLSL(s)) out.push(s); }
   for (const m of js.matchAll(/(["'])((?:\\.|(?!\1)[^\\\n])*)\1/g)) { if (m[2].length < 60) continue; const s = m[2].replace(/\\n/g, '\n'); if (isGLSL(s)) out.push(s); }
-  // a shader written as short lines in an array joined with '\n', or strings added with +: the run of literals is read  (hygiene-allow: upstream comment)
+  // a shader written as short lines in an array joined with '\n', or strings added with +: the run of literals is read
   // as one source (a shader compiled only on a click is never seen by the runtime lint)
   for (const m of js.matchAll(/(?:(["'])(?:\\.|(?!\1)[^\\\n])*\1\s*[,+]\s*){2,}(["'])(?:\\.|(?!\2)[^\\\n])*\2/g)) {
     const parts = [...m[0].matchAll(/(["'])((?:\\.|(?!\1)[^\\\n])*)\1/g)].map((x) => x[2].replace(/\\n/g, '\n'));

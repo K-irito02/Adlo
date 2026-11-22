@@ -1,0 +1,12 @@
+target: SKILL.md
+note: OpenCode harness 映射
+---FIND---
+- Muse: `references/muse-tools.md`
+
+## User Instructions
+---REPLACE---
+- Muse: `references/muse-tools.md`
+- OpenCode: `references/opencode-tools.md`
+
+## User Instructions
+---END---

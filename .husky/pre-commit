@@ -43,7 +43,11 @@ else
   echo "[pre-commit] node --check: no staged .mjs files, skipped"
 fi
 
-# 4) 仓库不变量（秒级）：i18n 对等、术语表、死代码、vite 配置冒烟、dev tooling 单测、删除 crate 术语
+# 4) 会话注册表：活动会话必须与当前分支一致（分支漂移会误导后续会话）
+STEP="worktree session"
+( cd "$ROOT" && node adlo/scripts/worktree-session.mjs check )
+
+# 5) 仓库不变量（秒级）：i18n 对等、术语表、死代码、vite 配置冒烟、dev tooling 单测、删除 crate 术语
 STEP="check:i18n"
 ( cd "$ROOT/adlo/frontend" && pnpm run check:i18n )
 STEP="check:i18n:orphans"

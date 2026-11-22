@@ -25,8 +25,9 @@
 |------|------|
 | 入口技能 | `using-superpowers` — 对话开始时建立技能使用规范，要求任何回复（含澄清提问）之前先判断并调用相关技能 |
 | 调用方式 | `Skill` 工具，按技能的 `name` 字段调用（部分目录名与 `name` 不同，见 §4 摘要表的「调用名」列） |
-| 安装记录 | `.agents/.skill-lock.json` 记录部分技能的 GitHub 来源、安装路径与目录哈希（未登记者为手工引入或项目自建） |
-| 创建 / 修改技能 | 遵循 `writing-skills`（技能编写与部署前验证规范）或 `skill-creator`（从零创建、改进与评测）；完成后必须同步三目录并更新本文件 §4 摘要 |
+| 安装记录 | `.agents/.skill-lock.json` 是第三方技能的 manifest：GitHub 来源、安装路径与上游 tree hash；项目自建技能是目录中不在 lock 里的那些 |
+| 更新工具 | `pnpm --dir adlo run skills:<audit\|apply\|mirror\|lock\|docs\|verify>`；完整流程与 overlay 格式见 [docs/development/skill-updates.md](./docs/development/skill-updates.md) |
+| 创建 / 修改技能 | 遵循 `writing-skills`（技能编写与部署前验证规范）或 `skill-creator`（从零创建、改进与评测）；完成后用 `skills:docs` / `skills:verify` 同步三目录与 §4 摘要 |
 | 审计 | 技能目录一致性由 `governance-audit` 技能纳入治理审计范围 |
 
 ---

@@ -112,6 +112,8 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 
 > **长门禁的输出**：`check:changed` / `check:repo` 是分阶段打印的，但**管道 `| Select-Object -Last N` 会缓冲到进程退出**，看起来像挂起。改为 `... > $env:TEMP\<name>.log 2>&1`（或后台运行）后读 tail；需要实时观察时不要接管道。
 
+> **大提交 / 大合并**：文件数很多时加 `--quiet`（如 `git commit --quiet`、`git merge --ff-only --quiet`）；摘要用 `git show --shortstat --oneline -1`，避免数千行 `create mode` 淹没工具回显。
+
 ### 受影响测试优先执行
 
 日常开发中无需执行全量测试，优先运行受影响的测试：

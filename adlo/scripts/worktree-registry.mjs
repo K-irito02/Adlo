@@ -61,7 +61,19 @@ export function parseWorktreePorcelain(text) {
 }
 
 export function sessionsDirFor(worktreePath) {
-  return path.join(path.dirname(worktreePath), ".sessions");
+  const resolved = path.resolve(worktreePath);
+  const parent = path.dirname(resolved);
+  // Slot worktrees live under `<root>-worktrees/<name>`; the main worktree
+  // shares the same registry at `<root>-worktrees/.sessions`.
+  if (/-worktrees$/i.test(path.basename(parent))) {
+    return path.join(parent, ".sessions");
+  }
+  const siblingPool = `${resolved}-worktrees`;
+  if (fs.existsSync(siblingPool)) {
+    return path.join(siblingPool, ".sessions");
+  }
+  // Arbitrary/test worktrees keep the historical parent `.sessions` layout.
+  return path.join(parent, ".sessions");
 }
 
 /**

@@ -5,6 +5,10 @@
  * `--all` also prints the `[WORKTREES]` table (path / branch / base / dirty /
  * session occupancy) that §3.0 asks for, so agents stop re-deriving it with
  * hand-written `git rev-list` loops.
+ *
+ * Exit code 2 when another active session claims this worktree. The snapshot
+ * still prints, so the agent can show the user why it stopped. Pass
+ * `--allow-shared` only after explicit user approval.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -43,6 +47,7 @@ const isPoolWorktree = /-worktrees$/i.test(path.basename(path.dirname(toplevel))
 const mode = isPoolWorktree ? "existing-worktree" : "main-worktree";
 
 const active = readActiveSessions(toplevel);
+const allowShared = process.argv.includes("--allow-shared");
 const registry = active[0]?.name ?? "missing";
 const others = active.map(
   ({ record, name, ageMs, stale }) =>
@@ -69,6 +74,13 @@ const lines = [
 ];
 
 console.log(lines.join("\n"));
+
+if (active.length > 0 && !allowShared) {
+  console.error(
+    "[worktree:env] active session claims this worktree; stop or pass --allow-shared after user approval.",
+  );
+  process.exitCode = 2;
+}
 
 if (process.argv.includes("--all")) {
   console.log("");

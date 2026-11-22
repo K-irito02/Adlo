@@ -11,6 +11,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { isThirdPartySkillPath } from "./third-party-skills.mjs";
 
 const SOURCE_EXTENSIONS = new Set([".rs", ".ts", ".tsx", ".mjs", ".css"]);
 const CHECK_EXTENSIONS = new Set([...SOURCE_EXTENSIONS, ".json", ".md"]);
@@ -251,6 +252,9 @@ function main() {
       continue;
     }
     const extension = path.extname(relative);
+    // 第三方技能正文是上游内容；只保留编码类检查，产品代码的静默编辑
+    // 与兼容措辞门禁不适用于它们（边界见 third-party-skills.mjs）。
+    const thirdPartySkill = isThirdPartySkillPath(relative);
 
     // 新增行（新文件行号）按需计算：`legacy-compat` / `temp-dir` 只针对本次改动，
     // 避免「碰一下老文件」就被历史遗留措辞连坐（本仓实测：改 pending 逻辑时被
@@ -271,7 +275,7 @@ function main() {
       return addedMemo;
     };
 
-    if (SOURCE_EXTENSIONS.has(extension)) {
+    if (!thirdPartySkill && SOURCE_EXTENSIONS.has(extension)) {
       // 字面量 `\n` 与诊断日志是「零基线」不变量：整文件仍全查（历史残留也应修）。
       for (const hit of findLiteralEscapedNewlines(text)) {
         offenders.push(`[literal \\n] ${relative}:${hit.line}  ${hit.text.slice(0, 160)}`);
@@ -292,7 +296,7 @@ function main() {
     for (const hit of findDebugPortLeaks(relative, text)) {
       offenders.push(`[debug-port] ${relative}:${hit.line}  ${hit.text.slice(0, 160)}`);
     }
-    if (isCompatibilityScope(relative)) {
+    if (!thirdPartySkill && isCompatibilityScope(relative)) {
       const hits = findLegacyCompatibility(
         addedLines()
           .map((line) => line.text)

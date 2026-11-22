@@ -12,6 +12,7 @@
 | [log-system-manual.md](./log-system-manual.md) | 日志系统操作手册（CLI 命令、级别/模式语义、文件落点、面向用户与 agent 的核实配方） |
 | [adding-an-ipc-domain.md](./adding-an-ipc-domain.md) | 新增 IPC 域端到端清单（Rust handler/路由 → 四端桥接 → store → UI → i18n → 契约测试） |
 | [context-budget.md](./context-budget.md) | agent 启动上下文构成 / 实测体积 / 预算门禁（`check:context-budget`） |
+| [skill-updates.md](./skill-updates.md) | 技能上游审计、刷新、三目录同步、lock/docs 生成与本地 overlay（`skills-sync`） |
 
 ## 相关文档
 

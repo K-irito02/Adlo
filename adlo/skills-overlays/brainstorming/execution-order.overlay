@@ -1,0 +1,13 @@
+target: SKILL.md
+note: 提问卡片正文可见的执行顺序
+---FIND---
+4. Invoke the superpowers:writing-plans skill.
+
+If nothing is open when you write your first message and there's one
+---REPLACE---
+4. Invoke the superpowers:writing-plans skill.
+
+**执行顺序铁律（防正文不可见）：** 上述第 1 步“Lay out the approaches”必须先单独发送一条完整的正文消息（方案内容全部在正文区可见），确认正文已发出后，再在第 3 步请求批准（询问卡片/提问工具只放一句问题 + 2–4 个短选项）。禁止纯工具轮次（无正文、只发提问工具调用）：这种轮次在用户界面只渲染卡片、正文区无任何输出，用户即等同于没看到方案，视为跳过批准门控的违规。方案内容也不得只写进问题选项里。
+
+If nothing is open when you write your first message and there's one
+---END---

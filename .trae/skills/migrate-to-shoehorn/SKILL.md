@@ -116,3 +116,5 @@ getUser(fromAny({ body: { id: 123 } }));
    - [ ] Replace `as unknown as Type` with `fromAny()`
    - [ ] Add imports from `@total-typescript/shoehorn`
    - [ ] Run type check to verify
+
+> **本仓库注记**：`fromAny<T, U>(mock)` 需要两个泛型参数（目标类型 + mock 类型）；`fromPartial<T>(mock)` 只需一个。显式标注时用 `fromAny<EventSource, FakeEventSource>(fake)`。

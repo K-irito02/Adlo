@@ -79,6 +79,8 @@ Test-Path -LiteralPath "adlo/.codegraph"  # 9 CodeGraph 索引是否就绪（每
 | 8   | 输出 `.husky`                   | 未启用 → `pnpm --dir adlo run setup:worktree`（仓库级，一处即可） |
 | 9   | 目录存在                        | 缺失 → 同上（`codegraph init`，索引不入库）                       |
 
+> `worktree:env` 在他人 `active` 会话占用时退出码 2；确需共享须用户批准后加 `--allow-shared`。
+
 输出环境快照块（**没有快照视为未开工**）。固定 10 行：一项一行，键用英文冒号对齐（键宽 8、前后各一空格），未知值写 `—`，禁止把多项挤进一行。首行 `[ENV]` 独占一行，保留可 grep 标记：
 
 ```text
@@ -269,10 +271,11 @@ pnpm run check:all        # 提交前与合并后都跑（含前端 check:full�
 ### 5.2 合并（主工作树执行，一次一个分支）
 
 ```powershell
-git -C "$ROOT" merge --ff-only <branch>
+git -C "$ROOT" merge --ff-only --quiet <branch>
 pnpm --dir "$ROOT/adlo" run check:all
 ```
 
+- 大仓合并加 `--quiet`；摘要用 `git show --shortstat --oneline -1`。
 - 永不自动 push（推送由用户执行或明确批准）。
 - 合并前主工作树需干净（未提交改动会让 ff 合并被拒）。
 - `--ff-only` 失败 = 已分叉 → 交回主工作树裁决，禁止在分支上 `merge main` 后继续开发。
@@ -311,6 +314,8 @@ Remove-Item -LiteralPath "\\?\$WT_ROOT\<name>" -Recurse -Force # 整删后重跑
 ## 6. 会话注册表
 
 位置 `$WT_ROOT/.sessions/<session>.json`（目录不存在先 `New-Item -ItemType Directory -Force`）；**只写自己的文件，永不改别人的**。工作树占用以“存在 `status: active` 且目录相同”为判据。
+
+登记/收口：`pnpm --dir adlo run worktree:session -- claim <name>` / `close <name> --status merged|done`；提交前 `check` 会拒绝分支不一致的活动会话。
 
 ```json
 {

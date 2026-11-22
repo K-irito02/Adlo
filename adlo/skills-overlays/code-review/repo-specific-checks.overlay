@@ -1,0 +1,19 @@
+target: SKILL.md
+note: 本仓库专属审查检查
+---FIND---
+- **Refused Bequest**: a subclass or implementer that ignores or overrides most of what it inherits. → drop the inheritance, use composition.
+
+### 4. Spawn both sub-agents in parallel
+---REPLACE---
+- **Refused Bequest**: a subclass or implementer that ignores or overrides most of what it inherits. → drop the inheritance, use composition.
+
+### 3b. Repo-specific checks (this repository)
+
+Add these to the Standards briefing; they are judgement calls the general baseline cannot see:
+
+- **Unreleased compatibility**: the repo bans data-format compatibility / old-version migration before release. Flag any new `legacy` branch, compatibility comment, or dual-format parser. External formats (OS `NO_PROXY`, npm's comma list) must be named as external contracts, not product legacy.
+- **Nullable config fields**: for `Option<T>` / `T | null` settings, verify `None`, empty value, and a real value are distinguished in code and tests (for example, an absent bypass list versus an explicitly cleared one).
+- **Docs drift**: when a component or behaviour changes, grep `docs/design-system/`, `docs/architecture/`, and `GLOSSARY.md` for the old term or claim (for example `RevealScrollbar`); stale prose is a Standards finding.
+
+### 4. Spawn both sub-agents in parallel
+---END---

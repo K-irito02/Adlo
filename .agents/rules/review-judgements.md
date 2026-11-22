@@ -29,6 +29,7 @@ alwaysApply: false
 16. **并行污染**：两个会话共用同一工作树目录、共享 `CARGO_TARGET_DIR`、或在分支工作树写 `.workbuddy/memory`（见 `parallel-branch-development` 技能）。
 17. **面板作用域计数绕过归属谓词**：面板列表 / 计数 / 徽章必须经 `isPanelTab` 或 `panelTabSelectors` 派生；对全量 `browserTabs` / `terminalTabs` 直接取 `.length` 视为可疑（ESLint 已拦裸 `browserTabs.length` / `terminalTabs.length`，例外必须在 stores 层或豁免文件里说明理由）。
 18. **视图/模式命名与术语漂移**：新增或修改的视图、导航模式、枚举值必须与 `GLOSSARY.md` 的视图术语一致；同一类型名不得承载两套值集。典型反例：内部 `'tabs'` 表示「书签目录」、`useBrowserMenus.ts` 与 `useBrowserTabs.ts` 各有一个同名 `BrowserNavigatorMode`。发现即要求重命名或拆分类型，并在必要处补 ADR。
+19. **当前文档的历史叙述**：当前规则 / 架构 / 开发文档只描述当前行为；日期化事故、重构过程、旧做法应放入 `docs/knowledge-base/` 或 `docs/root-cause-to-close/`，不要留在常驻文档里。
 
 ## 检查清单
 
@@ -37,4 +38,5 @@ alwaysApply: false
 - [ ] 新增展示文本全部走 i18n；错误提示按活跃状态条件渲染。
 - [ ] 功能变更附带红绿测试，且删掉修复后测试会变红。
 - [ ] 视图/模式枚举与 `GLOSSARY.md` 一致，没有同名类型承载不同值集。
+- [ ] 当前文档只描述当前行为；日期化事故/重构/旧做法已归档到 `docs/`。
 - [ ] 未执行未经批准的全量门禁或打包命令。
