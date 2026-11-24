@@ -16,6 +16,8 @@ const CHANGE_THROTTLE_MS = 100;
 const CLIPBOARD_SCROLL_TOP_KEY = 'adl:ui.clipboardScrollTop';
 const INITIAL_VISIBLE_ROWS = 30;
 const LOAD_MORE_STEP = 30;
+/** 距底部多少像素内即自动再取一页（滚轮/拖动滚动条到底后无需再点按钮）。 */
+const AUTO_LOAD_MORE_THRESHOLD_PX = 48;
 
 /**
  * 剪贴板历史主列表容器。
@@ -240,6 +242,17 @@ export function ClipboardHistoryList() {
           scrollClassName="adl-clipboard__scroll"
           scrollbarClassName="adl-clipboard__scrollbar"
           thumbClassName="adl-clipboard__scrollbar-thumb"
+          onScroll={(event) => {
+            // 触底自动追加一页：点击「加载更多」仍保留为键盘/无滚动场景的显式入口。
+            const el = event.currentTarget;
+            if (visibleItems.length >= filtered.length) {
+              return;
+            }
+            const remaining = el.scrollHeight - el.scrollTop - el.clientHeight;
+            if (remaining <= AUTO_LOAD_MORE_THRESHOLD_PX) {
+              setVisibleCount((count) => Math.min(count + LOAD_MORE_STEP, filtered.length));
+            }
+          }}
         >
           <ul className="adl-clipboard__list" role="list">
             {visibleItems.map((item) => (

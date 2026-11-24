@@ -5,5 +5,5 @@ pub mod store;
 pub mod write;
 
 pub use monitor::ClipboardMonitor;
-pub use store::ClipboardStore;
+pub use store::{ClipboardStore, MAX_HISTORY_ITEMS};
 pub use write::write_item_to_clipboard;

@@ -186,6 +186,17 @@ export const IconClipboardList = make(
   </>,
 );
 
+export const IconClipboardClock = make(
+  <>
+    <rect x="7" y="4" width="10" height="4" rx="1" />
+    <path d="M17 6h2a1 1 0 0 1 1 1v3" />
+    <path d="M5 7a1 1 0 0 1 1-1h1" />
+    <path d="M3 11v8a2 2 0 0 0 2 2h7" />
+    <circle cx="16.5" cy="16.5" r="4.5" />
+    <path d="M16.5 14.5v2.2l1.6 1" />
+  </>,
+);
+
 export const IconMap = make(
   <>
     <path d="m3 7 6-3 6 3 6-3v13l-6 3-6-3-6 3V7z" />

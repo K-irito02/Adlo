@@ -4,6 +4,10 @@ use adl_errors::AppError;
 use adl_storage::{Database, EntityTable};
 use adl_types::types::clipboard::ClipboardItem;
 
+/// 剪贴板历史保留上限：超过后按最旧优先删除（连同图片 / 富文本 sidecar 文件），
+/// 防止历史无限增长占用磁盘。与 `GET /clipboard/list` 的 500 条读取上限保持一致。
+pub const MAX_HISTORY_ITEMS: usize = 500;
+
 pub struct ClipboardStore {
     db: Database,
     images_dir: PathBuf,
@@ -23,7 +27,28 @@ impl ClipboardStore {
         std::fs::create_dir_all(&thumbs_dir).ok();
         std::fs::create_dir_all(&html_dir).ok();
         std::fs::create_dir_all(&rtf_dir).ok();
-        Self { db, images_dir, thumbs_dir, html_dir, rtf_dir }
+        let store = Self { db, images_dir, thumbs_dir, html_dir, rtf_dir };
+        // 旧库可能已远超上限（本次改动前无裁剪）：启动时先收口一次。
+        if let Err(error) = store.prune_to(MAX_HISTORY_ITEMS) {
+            tracing::warn!(error = %error, "clipboard: history cap prune failed on startup");
+        }
+        store
+    }
+
+    /// 仅保留最新 `max` 条历史，删除其余条目及其落盘文件（图片 / 富文本 sidecar）。
+    fn prune_to(&self, max: usize) -> Result<usize, AppError> {
+        let mut items: Vec<ClipboardItem> = self.db.list_entities(EntityTable::ClipboardItems)?;
+        if items.len() <= max {
+            return Ok(0);
+        }
+        items.sort_by_key(|item| std::cmp::Reverse(item.created_at));
+        let mut removed = 0;
+        for item in items.into_iter().skip(max) {
+            if self.remove(&item.id)? {
+                removed += 1;
+            }
+        }
+        Ok(removed)
     }
 
     pub fn list(&self, limit: usize) -> Result<Vec<ClipboardItem>, AppError> {
@@ -54,6 +79,11 @@ impl ClipboardStore {
     }
 
     pub fn insert_or_bump(&self, item: &ClipboardItem) -> Result<bool, AppError> {
+        self.insert_or_bump_with_cap(item, MAX_HISTORY_ITEMS)
+    }
+
+    /// 入库并执行上限裁剪；`cap` 仅测试用（便于用小样本验证裁剪行为）。
+    fn insert_or_bump_with_cap(&self, item: &ClipboardItem, cap: usize) -> Result<bool, AppError> {
         if let Some(prev) = self.latest()? {
             // 去重：同 kind 且内容/指纹相同 + 时间窗内即判定重复。
             // 文本比较 content；图片每次复制文件名不同（image_path 恒变），
@@ -73,6 +103,10 @@ impl ClipboardStore {
             }
         }
         self.save(item)?;
+        // 裁剪失败不回滚新条目：历史已写入，最多是本次未收口，下次插入/启动会再试。
+        if let Err(error) = self.prune_to(cap) {
+            tracing::warn!(error = %error, cap, "clipboard: history cap prune failed after insert");
+        }
         Ok(true)
     }
 
@@ -332,5 +366,46 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(temp_dir().join("clip-data-richtext"));
         let _ = std::fs::remove_file(temp_dir().join("clip-richtext.db"));
+    }
+
+    #[test]
+    fn prune_to_keeps_newest_and_deletes_old_item_files() {
+        let tag = format!("prune-{}", std::process::id());
+        let store = temp_store(&tag);
+        let base = now_ms();
+        for i in 0..5 {
+            let mut it = item(&format!("{i}"), ClipboardKind::Text, base + i);
+            if i == 0 {
+                // 最旧条目挂一个落盘文件，验证裁剪时一并删除（避免孤儿文件）。
+                let path = store.images_dir().join("prune-old.png");
+                std::fs::write(&path, b"x").unwrap();
+                it.image_path = Some(path.to_string_lossy().into_owned());
+            }
+            // 直接 save 绕开去重：本用例只验证裁剪顺序。
+            store.save(&it).unwrap();
+        }
+
+        assert_eq!(store.prune_to(3).unwrap(), 2);
+        let rows = store.list(10).unwrap();
+        assert_eq!(rows.iter().map(|row| row.id.as_str()).collect::<Vec<_>>(), vec!["4", "3", "2"]);
+        assert!(!store.images_dir().join("prune-old.png").exists());
+        let _ = std::fs::remove_dir_all(temp_dir().join(format!("clip-data-{tag}")));
+        let _ = std::fs::remove_file(temp_dir().join(format!("clip-{tag}.db")));
+    }
+
+    #[test]
+    fn insert_enforces_history_cap() {
+        let tag = format!("cap-{}", std::process::id());
+        let store = temp_store(&tag);
+        let base = now_ms();
+        for i in 0..5 {
+            let it = item(&format!("{i}"), ClipboardKind::Text, base + i);
+            assert!(store.insert_or_bump_with_cap(&it, 3).unwrap());
+        }
+        let rows = store.list(10).unwrap();
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows.iter().map(|row| row.id.as_str()).collect::<Vec<_>>(), vec!["4", "3", "2"]);
+        let _ = std::fs::remove_dir_all(temp_dir().join(format!("clip-data-{tag}")));
+        let _ = std::fs::remove_file(temp_dir().join(format!("clip-{tag}.db")));
     }
 }

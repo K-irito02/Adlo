@@ -41,23 +41,43 @@ impl ClipboardMonitor {
         let (stop_tx, stop_rx) = mpsc::channel::<Shutdown>();
 
         let handle = thread::spawn(move || {
-            // Monitor 必须在创建它的线程中消费；无法创建则静默退出（剪贴板监听不可用）。
+            tracing::info!("clipboard monitor: listener thread started");
+            // Monitor 必须在创建它的线程中消费；无法创建则记录后退出（剪贴板监听不可用）。
             let mut monitor = match Monitor::new() {
-                Ok(m) => m,
-                Err(_) => return,
+                Ok(m) => {
+                    tracing::info!("clipboard monitor: format listener created");
+                    m
+                },
+                Err(error) => {
+                    tracing::error!(
+                        error = %error,
+                        "clipboard monitor: failed to create format listener"
+                    );
+                    return;
+                },
             };
             // 把 Shutdown 句柄交给外部，便于外部 drop 触发优雅停止。
             if stop_tx.send(monitor.shutdown_channel()).is_err() {
+                tracing::warn!("clipboard monitor: shutdown channel dropped before start");
                 return;
             }
             loop {
                 match monitor.recv() {
                     // Ok(true)：收到新的剪贴板变化事件 → 读取入库并广播。
-                    Ok(true) => handle_change(&tx, &store),
+                    Ok(true) => {
+                        tracing::debug!("clipboard monitor: change received");
+                        handle_change(&tx, &store);
+                    },
                     // Ok(false)：Shutdown 已触发，退出循环。
-                    Ok(false) => break,
+                    Ok(false) => {
+                        tracing::debug!("clipboard monitor: shutdown received");
+                        break;
+                    },
                     // 监听错误：记录后退出，避免空转。
-                    Err(_) => break,
+                    Err(error) => {
+                        tracing::error!(error = %error, "clipboard monitor: recv failed");
+                        break;
+                    },
                 }
             }
         });
@@ -83,9 +103,9 @@ fn handle_change(tx: &broadcast::Sender<Option<String>>, store: &ClipboardStore)
         },
         // Ok(None)：剪贴板无内容，忽略。
         Ok(None) => {},
-        Err(_e) => {
-            // 读取/入库失败不中断监听。
-            let _ = _e;
+        Err(error) => {
+            // 读取/入库失败不中断监听，但必须留下可诊断的痕迹（此前静默吞掉）。
+            tracing::warn!(error = %error, "clipboard monitor: read/store failed");
         },
     }
 }

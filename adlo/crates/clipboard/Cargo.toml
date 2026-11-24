@@ -11,6 +11,7 @@ adl-errors = { path = "../errors" }
 adl-storage = { path = "../storage" }
 adl-types = { path = "../types" }
 serde.workspace = true
+tracing.workspace = true
 image = { version = "0.25", default-features = false, features = ["png", "bmp"] }
 tokio.workspace = true
 uuid.workspace = true

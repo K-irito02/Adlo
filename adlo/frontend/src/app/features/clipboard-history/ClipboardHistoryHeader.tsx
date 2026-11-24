@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from '@stores/slicedStore';
-import { IconChevronDown, IconClipboardList, IconReturn, IconSearch, IconTrash } from '@icons';
+import { IconChevronDown, IconClipboardClock, IconReturn, IconSearch, IconTrash } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { useTCopy } from '@i18n/useTCopy';
 import type { ClipboardItem } from '@shared/ipc/clipboard';
@@ -86,6 +86,8 @@ export function ClipboardHistoryHeader({ visibleItems }: ClipboardHistoryHeaderP
   );
 
   const clearLabel = clearScope ? t.clipboardClearFiltered : t.clipboardClearAll;
+  const clearTooltip =
+    clearScope === null ? t.clipboardClearAllTooltip : t.clipboardClearFilteredTooltip;
   const clearConfirmMessage = clearScope
     ? formatT(t, 'clipboardClearConfirmScoped', { scope: clearScope })
     : t.clipboardClearConfirmAll;
@@ -232,13 +234,13 @@ export function ClipboardHistoryHeader({ visibleItems }: ClipboardHistoryHeaderP
     <div className="adl-clipboard__header">
       <div className="adl-workspace-toolbar adl-clipboard__toolbar">
         <div className="adl-section-toolbar__title">
-          <IconClipboardList size={14} decorative />
-          <span className="adl-section-toolbar__label">{t.clipboardHistory}</span>
+          <IconClipboardClock size={14} decorative />
+          <span className="adl-section-toolbar__label">{t.clipboardTitle}</span>
         </div>
         <span className="adl-clipboard__count" role="status" aria-live="polite">
           {visibleItems.length}
         </span>
-        <TooltipSimple content={clearLabel} placement="right">
+        <TooltipSimple content={clearTooltip} placement="right">
           <button
             ref={clearBtnRef}
             type="button"
@@ -254,7 +256,7 @@ export function ClipboardHistoryHeader({ visibleItems }: ClipboardHistoryHeaderP
 
       <div className="adl-clipboard__actions">
         <TooltipSimple
-          content={clipboardSearchOpen ? t.browserBack : t.clipboardSearchPlaceholder}
+          content={clipboardSearchOpen ? t.browserBack : t.clipboardSearchTooltip}
           placement="top"
         >
           <button

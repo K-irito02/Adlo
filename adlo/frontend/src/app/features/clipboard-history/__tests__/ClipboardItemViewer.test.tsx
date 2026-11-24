@@ -5,6 +5,13 @@ import { TCopyProvider } from '@i18n/TCopyContext';
 import type { ClipboardItem } from '@shared/ipc/clipboard';
 import { useAppStore } from '@stores/slicedStore';
 import { ClipboardItemViewer } from '../ClipboardItemViewer';
+import {
+  applyClipboardViewerPreview,
+  applyClipboardViewerWrap,
+  readClipboardViewerPreview,
+  readClipboardViewerWrap,
+  resetClipboardViewerPrefsForTest,
+} from '../clipboardViewerPrefs';
 
 vi.mock('@stores/slicedStore', () => ({
   useAppStore: vi.fn(),
@@ -15,6 +22,7 @@ const mockT = {
   clipboardImage: '图片',
   clipboardZoomView: '放大查看',
   clipboardExport: '保存为文件',
+  clipboardExportTooltip: '保存',
   clipboardExportFailed: '读取剪贴板条目内容失败，未保存',
   clipboardSaveAsFileFailed: '保存为文件失败',
   clipboardWrapOn: '自动换行',
@@ -25,6 +33,7 @@ const mockT = {
   clipboardImageZoomReset: '重置图片缩放',
   clipboardPreviewRich: '预览富文本',
   clipboardPreviewMarkdown: '预览文本',
+  clipboardPreviewTooltip: '预览',
   clipboardEdit: '编辑',
   clipboardSave: '保存更改',
   clipboardDiscardEdits: '丢弃更改',
@@ -94,7 +103,10 @@ function renderViewer(item: ClipboardItem) {
   return onClose;
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetClipboardViewerPrefsForTest();
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -255,12 +267,29 @@ describe('ClipboardItemViewer', () => {
 
   it('keeps the close button in the trailing grid cell instead of centering it', () => {
     renderViewer(makeItem());
-    // TooltipSimple 会多包一层 .tooltip-trigger —— **那层**才是 header 的 grid 子项，
-    // 靠右对齐必须落在显式的 __close-cell 包裹上（写在 button 上对 grid 无效）。
+    // 关闭按钮只挂在 __close-cell 容器里；靠右对齐由该容器承担。
     const cell = document.querySelector('.adl-clipboard-viewer__close-cell') as HTMLElement;
     expect(cell).not.toBeNull();
     const header = document.querySelector('.adl-clipboard-viewer__header') as HTMLElement;
     expect(header.lastElementChild).toBe(cell);
+  });
+
+  it('uses native title tooltips instead of the custom tooltip for icon buttons', () => {
+    renderViewer(makeItem());
+    const dialog = screen.getByRole('dialog');
+    const titleOf = (name: string) => screen.getByRole('button', { name }).getAttribute('title');
+
+    expect(titleOf('复制')).toBe('复制');
+    expect(titleOf('自动换行')).toBe('自动换行');
+    expect(titleOf('编辑')).toBe('编辑');
+    // 预览/保存的 title 用短文案，aria-label 保留更具体的描述（供读屏）。
+    expect(titleOf('预览文本')).toBe('预览');
+    expect(titleOf('保存为文件')).toBe('保存');
+    expect(titleOf('关闭')).toBe('关闭');
+    expect(titleOf('缩小字号')).toBe('缩小字号');
+    expect(titleOf('放大字号')).toBe('放大字号');
+    // 项目自定义 tooltip 不再包裹弹窗内按钮。
+    expect(dialog.querySelector('.tooltip-trigger')).toBeNull();
   });
 
   it('swaps the wrap icon per state and drops word-break when wrap is off', async () => {
@@ -467,19 +496,19 @@ describe('ClipboardItemViewer', () => {
     renderViewer(makeItem());
     const editButton = screen.getByRole('button', { name: '编辑' });
     expect(editButton.className).not.toContain('is-toggled');
-    expect(document.querySelector('.adl-clipboard-viewer__scroll-shell--active')).toBeNull();
+    expect(document.querySelector('.adl-clipboard-viewer__body--active')).toBeNull();
 
     await userEvent.click(editButton);
 
     expect(screen.getByRole('button', { name: '编辑' }).className).toContain('is-toggled');
-    expect(document.querySelector('.adl-clipboard-viewer__scroll-shell--active')).not.toBeNull();
+    expect(document.querySelector('.adl-clipboard-viewer__body--active')).not.toBeNull();
 
     // Esc 退出编辑 → 两处常驻提示同时消失
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() =>
       expect(screen.getByRole('button', { name: '编辑' }).className).not.toContain('is-toggled'),
     );
-    expect(document.querySelector('.adl-clipboard-viewer__scroll-shell--active')).toBeNull();
+    expect(document.querySelector('.adl-clipboard-viewer__body--active')).toBeNull();
   });
 
   it('exits edit mode when the edit button is pressed again, persisting the change', async () => {
@@ -529,7 +558,7 @@ describe('ClipboardItemViewer', () => {
     renderViewer(makeItem({ content: '# heading' }));
     const previewButton = screen.getByRole('button', { name: '预览文本' });
     expect(previewButton.getAttribute('aria-pressed')).toBe('false');
-    expect(document.querySelector('.adl-clipboard-viewer__scroll-shell--active')).toBeNull();
+    expect(document.querySelector('.adl-clipboard-viewer__body--active')).toBeNull();
 
     await userEvent.click(previewButton);
 
@@ -538,7 +567,7 @@ describe('ClipboardItemViewer', () => {
     );
     expect(screen.getByRole('button', { name: '预览文本' }).className).toContain('is-toggled');
     // 预览与编辑共用同一底色 class
-    expect(document.querySelector('.adl-clipboard-viewer__scroll-shell--active')).not.toBeNull();
+    expect(document.querySelector('.adl-clipboard-viewer__body--active')).not.toBeNull();
     // 纯文本预览走 Markdown 渲染器：<pre> 隐藏而非卸载，Markdown 面显现
     const pre = document.querySelector('.adl-clipboard-viewer__text') as HTMLElement;
     expect(pre).not.toBeNull();
@@ -551,7 +580,25 @@ describe('ClipboardItemViewer', () => {
     expect(screen.getByRole('button', { name: '预览文本' }).getAttribute('aria-pressed')).toBe(
       'false',
     );
-    expect(document.querySelector('.adl-clipboard-viewer__scroll-shell--active')).toBeNull();
+    expect(document.querySelector('.adl-clipboard-viewer__body--active')).toBeNull();
+  });
+
+  it('hydrates persisted wrap/preview preferences and writes them back on toggle', async () => {
+    applyClipboardViewerWrap(false);
+    applyClipboardViewerPreview(true);
+    renderViewer(makeItem({ content: '# heading' }));
+
+    // 启动即按持久化偏好呈现：不换行 + 直接预览态。
+    expect(screen.getByRole('button', { name: '不自动换行' })).toBeTruthy();
+    expect(document.querySelector('.adl-clipboard-viewer__body--active')).not.toBeNull();
+    const markdown = document.querySelector('.adl-clipboard-viewer__markdown') as HTMLElement;
+    expect(markdown.hidden).toBe(false);
+
+    await userEvent.click(screen.getByRole('button', { name: '不自动换行' }));
+    expect(readClipboardViewerWrap()).toBe(true);
+
+    await userEvent.click(screen.getByRole('button', { name: '预览文本' }));
+    expect(readClipboardViewerPreview()).toBe(false);
   });
 
   it('keeps preview faces mounted across toggles so switching never rebuilds them', async () => {
@@ -1030,8 +1077,9 @@ describe('ClipboardItemViewer', () => {
     expect(previewBox().style.whiteSpace).toBe('');
 
     await userEvent.click(screen.getByRole('button', { name: '自动换行' }));
-    // 关闭换行：预览容器同样不折行，溢出由外层滚动条承载
-    expect(previewBox().style.whiteSpace).toBe('pre');
+    // 关闭换行：预览容器不折行，但不能用 `pre`（会保留块间源码换行、放大行距）；
+    // 溢出统一交给外层滚动条承载。
+    expect(previewBox().style.whiteSpace).toBe('nowrap');
     expect(previewBox().style.wordBreak).toBe('normal');
     expect(previewBox().style.overflowWrap).toBe('normal');
   });

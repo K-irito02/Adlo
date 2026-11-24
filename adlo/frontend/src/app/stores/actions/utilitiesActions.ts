@@ -21,7 +21,9 @@ export function createUtilitiesActions(
         set({ clipboardHistoryLoading: true });
       }
       try {
-        const result = await window.digitalLife.clipboard.list(200);
+        // 500 与后端 `adl_clipboard::MAX_HISTORY_ITEMS` 及 `GET /clipboard/list` 的上限对齐：
+        // 存储层超出即按最旧优先裁剪，读取窗口覆盖全部保留条目。
+        const result = await window.digitalLife.clipboard.list(500);
         if (result.ok) {
           get().setClipboardHistory(result.data);
         } else {

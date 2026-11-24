@@ -41,6 +41,7 @@ const dict: Record<string, string> = {
   clipboardFilterAll: '全部',
   clipboardSearchPlaceholder: '搜索剪贴板',
   clipboardClearAll: '清空全部剪贴板历史',
+  searchLoadMore: '加载更多',
   browserBack: '后退',
   close: '关闭',
   cancel: '取消',
@@ -166,6 +167,24 @@ describe('ClipboardHistoryList', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('auto-loads the next page when the list scrolls near the bottom', () => {
+    const items = Array.from({ length: 40 }, (_, i) => makeItem(String(i), `item-${i}`));
+    renderList({ clipboardHistory: items });
+    expect(screen.getAllByRole('listitem')).toHaveLength(31); // 30 行 + 加载更多
+    expect(screen.getByRole('button', { name: '加载更多' })).toBeTruthy();
+
+    const scroll = document.querySelector('.adl-clipboard__scroll') as HTMLElement;
+    Object.defineProperty(scroll, 'scrollHeight', { value: 1000, configurable: true });
+    Object.defineProperty(scroll, 'clientHeight', { value: 400, configurable: true });
+    scroll.scrollTop = 580; // 剩余 20px，进入触底阈值
+
+    fireEvent.scroll(scroll);
+
+    // 无需点击按钮：滚动到底即追加下一页，加载完 40 条后按钮消失。
+    expect(screen.getAllByRole('listitem')).toHaveLength(40);
+    expect(screen.queryByRole('button', { name: '加载更多' })).toBeNull();
   });
 
   it('feeds store updates into the open viewer instead of a stale open-time snapshot', async () => {

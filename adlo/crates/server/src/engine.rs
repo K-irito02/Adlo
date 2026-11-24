@@ -335,6 +335,7 @@ fn sync_workspace_watchers_blocking(state: &ServerState) {
 /// "clipboard changed" frame (previously the broadcast had no subscriber and
 /// the event was never emitted — the UI fell back to a 10 s poll).
 pub fn start_background_services(state: &ServerState) {
+    tracing::info!("clipboard: background listener starting");
     // 启动剪贴板监听。句柄必须存续至进程生命周期，否则 Drop 会触发监听线程立即退出；
     // 放入独立 thread，持句柄阻塞保活（与其它后台服务的保活线程同思路）。
     //
@@ -366,7 +367,11 @@ pub fn start_background_services(state: &ServerState) {
 
     std::thread::spawn(move || {
         let _handle = monitor_handle; // 保持监听线程存活
-        std::thread::park();
+        // park() 允许虚假唤醒；单次 park 返回会让句柄提前 Drop，监听线程随之静默退出
+        // （表现为“复制后历史不再增长”）。循环 park，只有进程退出才结束。
+        loop {
+            std::thread::park();
+        }
     });
 }
 

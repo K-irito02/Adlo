@@ -119,6 +119,10 @@ import type { SearchFlags } from '../slices/searchSlice';
 import type { FileTreeClickedNode, SessionLastFile } from '../slices/editorSlice';
 import { applyPersistedScrollTop, MAX_SCROLL_TOP } from '../../hooks/usePersistedScrollTop';
 import {
+  applyClipboardViewerPreview,
+  applyClipboardViewerWrap,
+} from '../../features/clipboard-history/clipboardViewerPrefs';
+import {
   applyRightPanelMode,
   applyRightPanelLastRestorableWidth,
   RIGHT_PANEL_MODES,
@@ -1120,6 +1124,22 @@ export const registry = {
     fallback: 0,
     scope: 'global',
     read: readNumberInRange(0, MAX_SCROLL_TOP),
+  }),
+  'adl:ui.clipboardViewerWrap': defineEntry<boolean>({
+    key: 'adl:ui.clipboardViewerWrap',
+    apply: (value) => applyClipboardViewerWrap(value),
+    // 默认换行：与弹窗此前写死的初始值一致。
+    fallback: true,
+    scope: 'global',
+    read: readFlag,
+  }),
+  'adl:ui.clipboardViewerPreview': defineEntry<boolean>({
+    key: 'adl:ui.clipboardViewerPreview',
+    apply: (value) => applyClipboardViewerPreview(value),
+    // 默认浏览态：与弹窗此前写死的初始值一致。
+    fallback: false,
+    scope: 'global',
+    read: readFlag,
   }),
   'adl:ui.rightPanelMode': defineEntry<RightPanelMode>({
     key: 'adl:ui.rightPanelMode',

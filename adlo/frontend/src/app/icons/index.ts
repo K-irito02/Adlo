@@ -139,6 +139,7 @@ export {
   IconMessageQuestion,
   IconBug,
   IconClipboardList,
+  IconClipboardClock,
   IconMap,
   IconKey,
   IconToggleLeft,

@@ -12,7 +12,6 @@ import {
 } from '@icons';
 import { CopyButton } from '@components/CopyButton';
 import { ConfirmDialog } from '@components/ConfirmDialog';
-import { TooltipSimple } from '@components/Tooltip';
 import { HScrollbar } from '@components/HScrollbar';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import { LazyMarkdownPreviewWrapper } from '@features/preview';
@@ -25,6 +24,12 @@ import { formatClipboardBytes } from './clipboardBytes';
 import { getClipboardKindLabel } from './clipboardKind';
 import { createUndoStack } from './clipboardUndoStack';
 import { injectPreviewStyles, previewDocumentCss } from './previewDocument';
+import {
+  readClipboardViewerPreview,
+  readClipboardViewerWrap,
+  setClipboardViewerPreview,
+  setClipboardViewerWrap,
+} from './clipboardViewerPrefs';
 import { ZoomReadout } from './ZoomReadout';
 
 interface ClipboardItemViewerProps {
@@ -104,7 +109,7 @@ function readPreviewSurfaceColor(): string {
  * 剪贴板条目放大查看覆盖层（createPortal + 遮罩 + 卡片）。
  * - 头部：标题靠左，**居中**按钮组（复制 / 换行 / 编辑 / 预览 / 保存为文件）；
  *   关闭**靠右**，编辑态时关闭左侧出现“保存更改 / 丢弃更改”文字按钮（大间距分区）。
- *   图标按钮 Tooltip 统一出现在按钮**下方**（底部工具行的 A-/A+ 仍用上方）
+ *   图标按钮的提示统一用系统原生 `title`（不再挂项目自定义 tooltip）
  * - 底部工具行：统计读数（靠左）+ 字号（文本）或缩放（图片）控件（靠右）
  * - 文本与富文本条目：编辑 = 纯文本（`content`，与普通文本无异，不碰 HTML 源码）；
  *   文本预览 = Markdown 渲染，富文本预览 = sidecar 沙箱 iframe（文本编辑不反映到预览）
@@ -139,8 +144,9 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
   );
   const [fontScale, setFontScale] = useState(1);
   const [imageScale, setImageScale] = useState(1);
-  const [wrap, setWrap] = useState(true);
-  const [previewing, setPreviewing] = useState(false);
+  // 自动换行 / 预览是持久化偏好（registry 的 clipboardViewer* 键），首帧读水合缓存。
+  const [wrap, setWrap] = useState(readClipboardViewerWrap);
+  const [previewing, setPreviewing] = useState(readClipboardViewerPreview);
   const [htmlText, setHtmlText] = useState('');
   const [editing, setEditing] = useState(false);
   // `editing` 的 render 期镜像（effects 读取用，见条目变化 effect 注释）。
@@ -234,7 +240,6 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     const initial = item.content ?? '';
     updateDraft(initial);
     setEditing(false);
-    setPreviewing(false);
     baselineRef.current = initial;
     stackRef.current = createUndoStack(initial);
     // 图片 fallback 档位同步重置：上一条目失败到 thumb/none 后切条目，不沿用旧档位。
@@ -475,7 +480,9 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
    */
   const enterPreview = () => {
     if (!editing) {
-      setPreviewing((v) => !v);
+      const next = !previewing;
+      setPreviewing(next);
+      setClipboardViewerPreview(next);
       return;
     }
     // 编辑态恒有 previewing === false（startEditing 内置），无需再判。
@@ -490,6 +497,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
       }
       // commit 成功路径已 setEditing(false)，此处只开预览（重复设值无害但无意义）。
       setPreviewing(true);
+      setClipboardViewerPreview(true);
     })();
   };
 
@@ -608,8 +616,9 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     wordBreak: wrap ? ('break-word' as const) : ('normal' as const),
     overflowWrap: wrap ? ('anywhere' as const) : ('normal' as const),
   };
-  // 预览与编辑共用同一底色 class（用户要求两者视觉一致）。
-  const contentSurfaceActive = editing || previewing;
+  // 预览与编辑共用同一底色 class（用户要求两者视觉一致）；图片 / RTF 无预览面，
+  // 持久化的 previewing 不应给它们铺底色。
+  const contentSurfaceActive = editing || (canPreview && previewing);
   const previewLabel = isHtml ? t.clipboardPreviewRich : t.clipboardPreviewMarkdown;
 
   return createPortal(
@@ -639,73 +648,68 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
               size={12}
               className="adl-clipboard-viewer__copy"
               tooltip={t.clipboardCopy}
-              tooltipPlacement="bottom"
+              nativeTooltip
             />
             {!isImage && (
-              <TooltipSimple
-                content={wrap ? t.clipboardWrapOn : t.clipboardWrapOff}
-                placement="bottom"
-              >
-                <button
-                  type="button"
-                  className="adl-icon-btn adl-icon-btn--xs"
-                  aria-pressed={wrap ? 'true' : 'false'}
-                  onClick={() => setWrap((w) => !w)}
-                  // 标签描述**当前状态**（与 aria-pressed 配对），不是"点击会发生什么"：
-                  // 图标本身已是 ON/OFF 两态，标签再反过来会与图标互相矛盾。
-                  aria-label={wrap ? t.clipboardWrapOn : t.clipboardWrapOff}
-                >
-                  {wrap ? <IconWrap size={14} decorative /> : <IconWrapOff size={14} decorative />}
-                </button>
-              </TooltipSimple>
-            )}
-            {!isImage && item.kind !== 'rtf' && (
-              <TooltipSimple content={t.clipboardEdit} placement="bottom">
-                <button
-                  type="button"
-                  // is-toggled = 悬停同款灰底（--bg-hover）：编辑态常驻，离开编辑态即消失。
-                  className={`adl-icon-btn adl-icon-btn--xs${editing ? ' is-toggled' : ''}`}
-                  aria-pressed={editing ? 'true' : 'false'}
-                  onClick={toggleEditing}
-                  aria-label={t.clipboardEdit}
-                >
-                  <IconEdit size={12} decorative />
-                </button>
-              </TooltipSimple>
-            )}
-            {canPreview && (
-              <TooltipSimple content={previewLabel} placement="bottom">
-                <button
-                  type="button"
-                  className={`adl-icon-btn adl-icon-btn--xs${previewing ? ' is-toggled' : ''}`}
-                  aria-pressed={previewing ? 'true' : 'false'}
-                  onClick={enterPreview}
-                  // 空白编辑态禁用：空白不可保存，点预览只会静默无反应，禁用比静默诚实。
-                  disabled={editing && !editText.trim()}
-                  aria-label={previewLabel}
-                >
-                  <IconEye size={12} decorative />
-                </button>
-              </TooltipSimple>
-            )}
-            <TooltipSimple content={t.clipboardExport} placement="bottom">
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
-                onClick={() => void handleSaveToFile()}
-                disabled={savingToFile}
-                aria-label={t.clipboardExport}
+                aria-pressed={wrap ? 'true' : 'false'}
+                onClick={() => {
+                  const next = !wrap;
+                  setWrap(next);
+                  setClipboardViewerWrap(next);
+                }}
+                // 标签描述**当前状态**（与 aria-pressed 配对），不是"点击会发生什么"：
+                // 图标本身已是 ON/OFF 两态，标签再反过来会与图标互相矛盾。
+                aria-label={wrap ? t.clipboardWrapOn : t.clipboardWrapOff}
+                title={wrap ? t.clipboardWrapOn : t.clipboardWrapOff}
               >
-                {/* 填充图标（换行 / 保存）比同尺寸的描边图标视觉更重，
-                    统一用 14px 与 12px 描边图标配平，避免软盘内窗在 12px 下糊成一团。 */}
-                <IconSaveAsFile size={14} decorative />
+                {wrap ? <IconWrap size={14} decorative /> : <IconWrapOff size={14} decorative />}
               </button>
-            </TooltipSimple>
+            )}
+            {!isImage && item.kind !== 'rtf' && (
+              <button
+                type="button"
+                // is-toggled = 悬停同款灰底（--bg-hover）：编辑态常驻，离开编辑态即消失。
+                className={`adl-icon-btn adl-icon-btn--xs${editing ? ' is-toggled' : ''}`}
+                aria-pressed={editing ? 'true' : 'false'}
+                onClick={toggleEditing}
+                aria-label={t.clipboardEdit}
+                title={t.clipboardEdit}
+              >
+                <IconEdit size={12} decorative />
+              </button>
+            )}
+            {canPreview && (
+              <button
+                type="button"
+                className={`adl-icon-btn adl-icon-btn--xs${previewing ? ' is-toggled' : ''}`}
+                aria-pressed={previewing ? 'true' : 'false'}
+                onClick={enterPreview}
+                // 空白编辑态禁用：空白不可保存，点预览只会静默无反应，禁用比静默诚实。
+                disabled={editing && !editText.trim()}
+                aria-label={previewLabel}
+                title={t.clipboardPreviewTooltip}
+              >
+                <IconEye size={12} decorative />
+              </button>
+            )}
+            <button
+              type="button"
+              className="adl-icon-btn adl-icon-btn--xs"
+              onClick={() => void handleSaveToFile()}
+              disabled={savingToFile}
+              aria-label={t.clipboardExport}
+              title={t.clipboardExportTooltip}
+            >
+              {/* 填充图标（换行 / 保存）比同尺寸的描边图标视觉更重，
+                  统一用 14px 与 12px 描边图标配平，避免软盘内窗在 12px 下糊成一团。 */}
+              <IconSaveAsFile size={14} decorative />
+            </button>
           </div>
-          {/* TooltipSimple 会多包一层 .tooltip-trigger —— **它**才是 grid 子项，
-              故靠右对齐必须落在这层包裹上（写在 button 上对 grid 无效）。
-              编辑态时关闭左侧出现文字按钮组（保存 / 放弃本次编辑），与关闭保持
-              区域型大间距；文字自解释，不再挂 title。 */}
+          {/* 关闭按钮所在的右列容器：编辑态时左侧出现文字按钮组（保存 / 放弃本次编辑），
+              与关闭保持区域型大间距；文字自解释，不再挂 title。 */}
           <div className="adl-clipboard-viewer__close-cell">
             {editing && (
               <div className="adl-clipboard-viewer__edit-text-actions">
@@ -727,25 +731,26 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
                 </button>
               </div>
             )}
-            <TooltipSimple content={t.close} placement="bottom">
-              <button
-                ref={closeRef}
-                type="button"
-                className="adl-icon-btn adl-icon-btn--xs"
-                onClick={() => void closeAndMaybeSave()}
-                aria-label={t.close}
-              >
-                <IconClose size={14} decorative />
-              </button>
-            </TooltipSimple>
+            <button
+              ref={closeRef}
+              type="button"
+              className="adl-icon-btn adl-icon-btn--xs"
+              onClick={() => void closeAndMaybeSave()}
+              aria-label={t.close}
+              title={t.close}
+            >
+              <IconClose size={14} decorative />
+            </button>
           </div>
         </div>
 
-        <div className="adl-clipboard-viewer__body">
+        <div
+          className={`adl-clipboard-viewer__body${
+            contentSurfaceActive ? ' adl-clipboard-viewer__body--active' : ''
+          }`}
+        >
           <CustomScrollArea
-            shellClassName={`adl-clipboard-viewer__scroll-shell${
-              contentSurfaceActive ? ' adl-clipboard-viewer__scroll-shell--active' : ''
-            }`}
+            shellClassName="adl-clipboard-viewer__scroll-shell"
             scrollClassName="adl-clipboard-viewer__scroll"
             scrollbarClassName="adl-clipboard-viewer__scrollbar"
             thumbClassName="adl-clipboard-viewer__scrollbar-thumb"
@@ -794,8 +799,9 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
                 ) : (
                   // 纯文本按 Markdown 渲染：复用右侧面板同一渲染器（DOMPurify +
                   // markdown-it html:false），顺带让本分支也走外层自绘滚动条。
-                  // 关闭自动换行时继承 `white-space: pre`（段落不再折行），溢出由外层
-                  // 自绘滚动条 + 横向点态条承载；换行态保持原生渲染，不注入。
+                  // 关闭自动换行时用 `nowrap`（不能用 `pre`）：`pre` 会保留 markdown
+                  // 输出里块与块之间的源码换行，在预览面制造额外行距（表现为段落间隔很大）；
+                  // `nowrap` 只禁止折行，溢出的横向滚动交给外层。换行态保持原生渲染，不注入。
                   // 字号缩放经 `--text-base` 变量跟随：`.adl-markdown-preview.markdown-body`
                   // 自设 `font-size: var(--text-base, 16px)`（见 markdown-preview.css 缩放钩子），
                   // 包层改 `font-size` 会被该声明覆盖而无效；改变量则容器与 em 子级整体等比缩放。
@@ -808,7 +814,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
                         ...(wrap
                           ? {}
                           : {
-                              whiteSpace: 'pre' as const,
+                              whiteSpace: 'nowrap' as const,
                               wordBreak: 'normal' as const,
                               overflowWrap: 'normal' as const,
                             }),
@@ -895,18 +901,17 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
                   lines: String(stats.lines),
                 })}
               </span>
-              <TooltipSimple content={t.clipboardZoomOut} placement="top">
-                <button
-                  type="button"
-                  className="adl-icon-btn adl-icon-btn--xs adl-clipboard-viewer__zoom-step"
-                  onClick={() =>
-                    setFontScale((s) => Math.max(FONT_ZOOM_MIN, +(s - ZOOM_STEP).toFixed(2)))
-                  }
-                  aria-label={t.clipboardZoomOut}
-                >
-                  A-
-                </button>
-              </TooltipSimple>
+              <button
+                type="button"
+                className="adl-icon-btn adl-icon-btn--xs adl-clipboard-viewer__zoom-step"
+                onClick={() =>
+                  setFontScale((s) => Math.max(FONT_ZOOM_MIN, +(s - ZOOM_STEP).toFixed(2)))
+                }
+                aria-label={t.clipboardZoomOut}
+                title={t.clipboardZoomOut}
+              >
+                A-
+              </button>
               <ZoomReadout
                 className="adl-icon-btn adl-icon-btn--xs adl-clipboard-viewer__zoom"
                 value={fontScale}
@@ -921,18 +926,17 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
                   max: String(Math.round(FONT_ZOOM_MAX * 100)),
                 })}
               />
-              <TooltipSimple content={t.clipboardZoomIn} placement="top">
-                <button
-                  type="button"
-                  className="adl-icon-btn adl-icon-btn--xs adl-clipboard-viewer__zoom-step"
-                  onClick={() =>
-                    setFontScale((s) => Math.min(FONT_ZOOM_MAX, +(s + ZOOM_STEP).toFixed(2)))
-                  }
-                  aria-label={t.clipboardZoomIn}
-                >
-                  A+
-                </button>
-              </TooltipSimple>
+              <button
+                type="button"
+                className="adl-icon-btn adl-icon-btn--xs adl-clipboard-viewer__zoom-step"
+                onClick={() =>
+                  setFontScale((s) => Math.min(FONT_ZOOM_MAX, +(s + ZOOM_STEP).toFixed(2)))
+                }
+                aria-label={t.clipboardZoomIn}
+                title={t.clipboardZoomIn}
+              >
+                A+
+              </button>
             </>
           )}
         </div>

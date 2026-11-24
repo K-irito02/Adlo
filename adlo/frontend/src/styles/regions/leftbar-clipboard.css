@@ -38,10 +38,18 @@
 }
 
 /* 复用 .adl-icon-btn（28px 图标按钮）的尺寸/配色/hover，仅改圆角与标签布局。
-   本文件先于 regions/titlebar.css 加载，故提权到 (0,2,0)，不依赖加载顺序。 */
+   本文件先于 regions/titlebar.css 加载，故提权到 (0,2,0)，不依赖加载顺序。
+   顶部三按钮（清空 / 搜索 / 筛选）统一 2px 偏直角，hover/focus 灰底同圆角。 */
+.adl-icon-btn.adl-clipboard__clear,
 .adl-icon-btn.adl-clipboard__searchbtn,
 .adl-icon-btn.adl-clipboard__filterbtn {
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
+}
+
+.adl-icon-btn.adl-clipboard__clear:focus-visible,
+.adl-icon-btn.adl-clipboard__searchbtn:focus-visible,
+.adl-icon-btn.adl-clipboard__filterbtn:focus-visible {
+  background: var(--bg-hover);
 }
 
 .adl-clipboard__filter {
@@ -95,11 +103,7 @@
   padding: var(--space-1);
 }
 
-.adl-clipboard__toolbar .adl-clipboard__clear {
-  border-radius: var(--radius-md);
-}
-
-/* 剪贴板清空确认框在清空进行中把按钮标记为 aria-disabled（而非 disabled）：
+/* 清空确认框在清空进行中把按钮标记为 aria-disabled（而非 disabled）：
    保留可聚焦性，避免 Chromium/WebView2 把焦点从 aria-modal 内移到 <body>。
    指针事件被禁用，视觉与 disabled 一致。 */
 .adl-prompt-modal [aria-disabled='true'] {
@@ -223,7 +227,7 @@
   min-width: 0;
   /* 固定行高：避免文本长度 / 图片尺寸变化引发布局抖动（放大查看另开层）。 */
   height: var(--adl-clipboard-row-height);
-  /* 200 条历史 + 长文本时跳过视口外行的布局/绘制，避免 WebView2 主线程被长列表拖死。 */
+  /* 500 条历史 + 长文本时跳过视口外行的布局/绘制，避免 WebView2 主线程被长列表拖死。 */
   content-visibility: auto;
   contain-intrinsic-size: auto var(--adl-clipboard-row-height);
   /* 右内边距移交给 __body（悬停时其 padding-right 换成按钮列宽以截断内容） */
@@ -424,8 +428,7 @@
   justify-self: center;
 }
 
-/* 关闭按钮所在格：TooltipSimple 会多包一层 .tooltip-trigger，而**那层**才是
-   header 的 grid 子项 —— 靠右对齐必须落在这里，写在 button 上对 grid 无效。
+/* 关闭按钮所在格：靠右对齐由本容器承担（原生 title 不再额外包一层触发元素）。
    编辑态时关闭左侧出现文字按钮组（保存 / 放弃本次编辑）：组内常规间距，
    组与关闭之间用区域型大间距（--space-3）分区。 */
 .adl-clipboard-viewer__close-cell {
@@ -469,18 +472,16 @@
   flex-direction: column;
   /* .adl-hscroll 是绝对定位的底部横向条，需以本容器为定位上下文。 */
   position: relative;
-}
-
-/* 编辑态 / 预览态内容区底色（配合 .adl-clipboard-viewer__scroll-shell--active）：
-   二者共用同一中性灰 token（用户要求两者视觉一致），不使用 accent 系；
-   编辑器与预览面本身保持透明，底色由本层铺满整个内容区。
-   150ms 过渡：底色切换不再与内容显隐同帧硬切，减弱"闪一下"的体感。 */
-.adl-clipboard-viewer__scroll-shell--active {
-  background: var(--surface-editing);
-}
-
-.adl-clipboard-viewer__scroll-shell {
+  /* 编辑/预览底色铺满整个内容区（含内容不足一屏时的空白），切换时 150ms 过渡。 */
   transition: background-color var(--duration-150) var(--ease-default);
+}
+
+/* 编辑态 / 预览态内容区底色：挂在整高内容容器上，而不是滚动壳/内容自身——
+   否则底色只随内容高度出现（内容短时下方留白不变色）。
+   二者共用同一中性灰 token（用户要求两者视觉一致），不使用 accent 系；
+   编辑器与预览面本身保持透明，底色由本层铺满整个内容区。 */
+.adl-clipboard-viewer__body--active {
+  background: var(--surface-editing);
 }
 
 /* 浏览/预览面常驻挂载、只翻 `hidden`：`__text/__rich` 自带 `display:block`，
@@ -489,14 +490,21 @@
   display: none;
 }
 
-/* Markdown 预览在弹窗内的适配：右侧面板那份自带 `overflow-y:auto; height:100%`
-   与 20vh 底部留白，直接复用会与外层 CustomScrollArea 打架（出现双层滚动）。
+/* Markdown 预览在弹窗内的适配：右侧面板那份自带 `overflow-y:auto` 与 `height:100%`
+   及 20vh 底部留白，直接复用会与外层 CustomScrollArea 打架（出现双层滚动）。
    改为让内容自然撑高、由外层自绘滚动条接管 —— 顺带让纯文本预览也用上项目的
-   竖向/横向自定义滚动条。 */
+   竖向/横向自定义滚动条。
+   `padding` 与右侧文件/变更面板的 `.adl-markdown-preview` 保持一致（由样式测试
+   守护，避免两边排版漂移）。
+   `background-color` 必须清掉：github-markdown-css 的 `.markdown-body` 铺了
+   `--md-canvas-default`（暗色 dimmed 为 #212830），弹窗内高度随内容、宽度不含
+   横向溢出内容，会露出一块与内容区不连续的底色；底色统一交给
+   `.adl-clipboard-viewer__body--active`。 */
 .adl-clipboard-viewer__scroll .adl-markdown-preview {
   height: auto;
   overflow: visible;
-  padding: var(--space-3);
+  padding: var(--space-8) var(--space-10) 20vh;
+  background-color: transparent;
 }
 
 /* 横向点态条让出右侧竖向滑块的宽度（两者在右下角会重叠）。 */

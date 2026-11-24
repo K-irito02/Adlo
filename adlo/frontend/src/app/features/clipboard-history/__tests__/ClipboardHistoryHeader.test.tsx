@@ -12,15 +12,19 @@ vi.mock('@stores/slicedStore', () => ({
 
 const dict: Record<string, string> = {
   clipboardHistory: '剪贴板历史',
+  clipboardTitle: '剪贴板',
   clipboardText: '文本',
   clipboardImage: '图片',
   clipboardFilter: '筛选类型',
   clipboardFilterWithValue: '筛选类型：{value}',
   clipboardFilterAll: '全部',
   clipboardSearchPlaceholder: '搜索剪贴板',
+  clipboardSearchTooltip: '搜索',
   browserBack: '后退',
   clipboardClearAll: '清空全部剪贴板历史',
+  clipboardClearAllTooltip: '清空全部',
   clipboardClearFiltered: '清空当前搜索和筛选后的剪贴板历史',
+  clipboardClearFilteredTooltip: '清空筛选结果',
   clipboardClearConfirmAll: '确定清空全部剪贴板历史？此操作不可恢复',
   clipboardClearConfirmScoped: '确定清空{scope}的剪贴板历史？此操作不可恢复',
   clipboardClearScopeSearch: '搜索"{query}"',
@@ -112,6 +116,12 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('ClipboardHistoryHeader', () => {
+  it('shows the short panel title', () => {
+    renderHeader();
+    expect(screen.getByText('剪贴板')).toBeTruthy();
+    expect(screen.queryByText('剪贴板历史')).toBeNull();
+  });
+
   it('shows the visible count and clears everything when nothing narrows the list', async () => {
     renderHeader();
     expect(screen.getByRole('status').textContent).toBe('3');
