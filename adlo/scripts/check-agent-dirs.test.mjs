@@ -35,15 +35,22 @@ function listFiles(root) {
   return files.sort();
 }
 
+function fileDigest(fullPath) {
+  const buffer = readFileSync(fullPath);
+  // Windows worktrees may check text out as CRLF while the canonical blob is LF.
+  // Treat NUL-containing files as binary and hash raw bytes; normalize line
+  // endings for text so the mirror guard does not fail on checkout style.
+  if (!buffer.includes(0)) {
+    const text = buffer.toString("utf8");
+    if (!text.includes("\uFFFD")) {
+      return createHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex");
+    }
+  }
+  return createHash("sha256").update(buffer).digest("hex");
+}
+
 function snapshot(root) {
-  return new Map(
-    listFiles(root).map((file) => [
-      file,
-      createHash("sha256")
-        .update(readFileSync(join(root, file)))
-        .digest("hex"),
-    ]),
-  );
+  return new Map(listFiles(root).map((file) => [file, fileDigest(join(root, file))]));
 }
 
 function assertMirror(sourceDir, mirrorRoot) {

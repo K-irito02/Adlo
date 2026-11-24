@@ -4,9 +4,11 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  buildScopeOwnership,
   collectClaimHints,
   findSuspiciousUntracked,
   isGeneratedArtifact,
+  matchesScopePattern,
   parseArgs,
   safeSnapshotName,
   validateClaimAck,
@@ -226,6 +228,32 @@ test("ack template appends newly collected claims without losing checked ones", 
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("parses --scopes", () => {
+  const options = parseArgs(["--rev", "4", "--scopes", "scopes.json"]);
+  assert.equal(options.scopes, "scopes.json");
+});
+
+test("scope patterns match exact, directory, and glob paths", () => {
+  assert.equal(matchesScopePattern("a/b.ts", "a/b.ts"), true);
+  assert.equal(matchesScopePattern("a/b.ts", "a/**"), true);
+  assert.equal(matchesScopePattern("a/b.ts", "a/*.ts"), true);
+  assert.equal(matchesScopePattern("a/b/c.ts", "a/*.ts"), false);
+  assert.equal(matchesScopePattern("a/b.ts", "b.ts"), false);
+});
+
+test("scope ownership reports duplicates and unowned files", () => {
+  const result = buildScopeOwnership(["a/one.ts", "a/two.ts", "b/three.ts", "c/four.ts"], {
+    first: ["a/**"],
+    second: ["a/two.ts", "b/*.ts"],
+  });
+  assert.deepEqual(result.duplicates, [{ file: "a/two.ts", scopes: ["first", "second"] }]);
+  assert.deepEqual(result.unowned, ["c/four.ts"]);
+  assert.deepEqual(
+    result.entries.map(({ scope }) => scope),
+    ["first", "second"],
+  );
 });
 
 test("ack template keeps the human-written evidence on an already-checked claim", () => {

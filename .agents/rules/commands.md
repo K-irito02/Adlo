@@ -33,6 +33,8 @@ alwaysApply: false
 
 > **文件枚举与输出**：列文件用 `glob` / `git ls-files`；不要在仓库根做无界 `Get-ChildItem -Recurse`，必须递归时加 `-Depth` 或限定目录。受跟踪文本用 `read`，不要用 `Get-Content`（GBK 控制台会把 UTF-8 中文打乱）；长命令输出按上方「长门禁」落盘后读 tail。
 
+> **临时服务 / 测试夹具**：用 `Start-Process -PassThru` 记录 PID，结束显式 `Stop-Process -Id <pid>`；不要用没有停止路径的长 background 等待超时。端口固定、数据目录用临时目录，结束前确认端口已释放。
+
 ## 双端验证命令
 
 | 命令 | 用途 |
@@ -89,6 +91,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `pnpm --dir frontend run format:check` | 前端格式检查（修复用 `format`） |
 | `pnpm --dir frontend run check:i18n` | 前端 i18n 覆盖检查（CI 门禁） |
 | `pnpm --dir frontend run check:changed` | 受影响范围门禁（前端 + 自动带 Rust 受影响 crate 的 fmt/clippy/test） |
+| `pnpm --dir frontend run check:review` | 审查修复轮：静态项 + Rust fmt/clippy（不跑 vitest / cargo test），`--base HEAD` |
 | `pnpm --dir frontend run check:changed -- --base HEAD` | 修复循环只查本轮改动；最终提交前去掉 `--base` |
 | `pnpm run check:comment-claims` | 新增代码注释里的绝对/计数断言（`唯一`/`总是`/`覆盖 N 个用例`…）；行尾 `claim-allow: <证据>` 放行，`check:changed` 自动执行 |
 | `pnpm run cargo:test` | Rust 全量测试（内部先 `stage:sidecar`；裸 `cargo test --workspace` 需先 staging） |

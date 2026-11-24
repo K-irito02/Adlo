@@ -243,7 +243,7 @@ P3 自动化通过后必须停下，按 §2.2 用 grilling 轮次报告验证结
 **用 merge-base，不用 `origin/HEAD`**：分支落后时后者会把别人已合入 main 的改动算进本次审查。两类都无变更 → 跳过 4c–4e（进度文件记理由），只保留分级测试。
 
 1. `.review-diffs/` 已在 `.gitignore`，P6 删除。**先完成 4c 门禁再生成快照**（格式 / 类型失败发生在快照后会整轮返工）。
-2. **一键快照：** `node adlo/scripts/review-snapshot.mjs --rev <N>`。脚本：解析 base（`merge-base(origin/HEAD, HEAD)`，无远端回退 `HEAD`）→ `git add -N` 未跟踪文件 → 每文件写 `<safe>-rev<N>.diff` → 写 `changed-files-rev<N>.txt` / `commits-rev<N>.txt` / `manifest-rev<N>.md`；空 diff 直接失败。文件数明显多于预期时先核对 base 是否等于本分支分叉点。
+2. **一键快照：** `node adlo/scripts/review-snapshot.mjs --rev <N> [--scopes <json>]`。脚本：解析 base（`merge-base(origin/HEAD, HEAD)`，无远端回退 `HEAD`）→ `git add -N` 未跟踪文件 → 每文件写 `<safe>-rev<N>.diff` → 写 `changed-files-rev<N>.txt` / `commits-rev<N>.txt` / `manifest-rev<N>.md`；空 diff 直接失败。文件数明显多于预期时先核对 base 是否等于本分支分叉点。`--scopes` 生成 `## Scope ownership`，同一文件归入多个 scope 时直接失败。
    - 手工等价物：`git diff --output=<safe>-rev<N>.diff HEAD -- <file>`——**`--output` 必须在 `--` 之前**（否则被当成 pathspec）。
    - **编码安全：** 落盘 diff 用脚本的 `--output` 或 `edit/write`；PowerShell 管道 / `Out-File` 会把 UTF-8 中文转成 GBK 乱码。
    - **未跟踪文件：** 脚本已 `git add -N`；手工执行必须先做，否则快照漏审。
@@ -260,7 +260,7 @@ P3 自动化通过后必须停下，按 §2.2 用 grilling 轮次报告验证结
 
 ### 4c. 两轮循环审查（顺序门控，两轮都不可跳过）
 
-**生成快照前门禁：** 中间修复轮跑 `check:changed -- --skip-tests`（lint / format / typecheck）；**最终快照**跑完整 `check:changed`（含受影响测试）与 `check:rust:changed`。门禁失败先修，再生成快照，不把门禁可发现的问题交给审查子代理。
+**生成快照前门禁：** 每个修复轮跑 `pnpm --dir frontend run check:review`（静态 + Rust fmt/clippy，无 vitest / cargo test）；**仅当本轮所有 scope 零问题、准备进 R2 / 退出 P4 时**跑完整 `check:changed`（含受影响测试）。门禁失败先修，再生成快照，不把门禁可发现的问题交给审查子代理。
 
 ```powershell
 # 在 adlo/ 下执行

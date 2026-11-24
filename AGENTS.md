@@ -18,6 +18,7 @@
 ## 代码知识图谱
 
 - **符号 / 调用链 / 影响面**：用 `codegraph_explore` 一次拿源码与调用路径（如「星标 → store → 树节点」）；技能 `codegraph-knowledge-graph`，符号查询 `maxFiles: 3`。
+- **触发条件**：一次改动要跨 ≥3 个调用点、或跨 Rust / TS 边界找调用链时，先用 `codegraph_explore` 拿到全部调用点与源码，再逐文件读；不要先 grep 再逐个 read。
 - **字面量检索**（i18n 文案、CSS 类名 / 选择器、菜单 / 命令键值、配置键）：用 `grep`；图谱按词法召回，字面量查询会带出无关源码。
 - **单文件细节**：用 `read`。
 - **外部参考代码直接复用**须标注 MIT 来源；渐进式源码索引见 [docs/analysis/adlo/](./docs/analysis/adlo/)。

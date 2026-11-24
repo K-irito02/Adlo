@@ -24,6 +24,20 @@ alwaysApply: false
 3. 验证视觉效果与交互功能
 4. **双端验证**：在 Tauri 桌面和浏览器模式下分别确认功能一致
 
+### 状态类样式探针（无真实数据时）
+
+挂起/禁用/拖拽等状态类可能在没有真实数据时看不到。用 `--eval-after-load` 注入一对有/无状态类的节点，再读计算样式；主题无关的 `opacity`/`filter` 一次即可，主题相关属性按亮暗两套各跑一次：
+
+```powershell
+node adlo/scripts/ui-probe.mjs --url http://127.0.0.1:5174 --eval-when "#app > *" `
+  --eval-after-load 'document.body.insertAdjacentHTML("beforeend","<div class=\"adl-center-tab\"><span class=\"adl-center-tab__icon\"></span><span class=\"adl-center-tab__label\"></span></div><div class=\"adl-center-tab is-suspended\"><span class=\"adl-center-tab__icon\"></span><span class=\"adl-center-tab__label\"></span></div>")' `
+  --selector ".adl-center-tab .adl-center-tab__icon" `
+  --selector ".adl-center-tab.is-suspended .adl-center-tab__icon" `
+  --props opacity,filter
+```
+
+把 `is-suspended` 换成目标状态类即可；报告里记录端口与命令，结束后终止预览服务。
+
 ### 可选自动化冒烟
 
 桌面-only 交互（标题栏/面板开合、窗口几何、真实 IPC）可先跑 `pnpm run e2e`（命令与前置见 [commands.md](commands.md#测试命令)，流程见技能 `desktop-e2e-wdio`）。**自动化通过 ≠ 视觉验收通过**：仍须按上方清单在真实窗口内人工确认。

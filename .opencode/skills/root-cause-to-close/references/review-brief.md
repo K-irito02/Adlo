@@ -10,13 +10,22 @@
 
 ```powershell
 # 在 <worktree>/adlo 下执行
-# 修复轮：只跑静态项（lint/format/typecheck/注释断言/术语/链接），预计 <1 分钟
-pnpm --dir frontend run check:changed -- --base HEAD --skip-tests
-# 最终快照：完整门禁（含 vitest），预计 4–5 分钟；后台运行并设 ≥600s 超时
+# 每个 rev（修复轮）：check:review = 静态项 + Rust fmt/clippy（无 vitest / cargo test）
+pnpm --dir frontend run check:review
+# 仅当本轮所有 scope 零问题（P4 收尾候选）：完整门禁（含 vitest）
 pnpm --dir frontend run check:changed
 ```
 
-中间轮不要跑完整门禁。2026-11-22 实测：完整门禁单次 230–237s，4 次完整运行 + 1 次 300s 默认超时被截断，约 20 分钟耗在重复测试上；实际失败项都是秒级静态检查。
+**完整门禁只跑一次**：只有“本轮所有 scope 都零问题、准备进 R2 / 退出 P4”的那个 rev 才跑 `check:changed`；其余 rev 一律 `check:review`。2026-11-22 实测：完整门禁单次 230–237s；2026-11-24 的 13 个 rev 中在多数 rev 重复跑完整门禁，白耗约 30–40 分钟。
+
+- **范围归属**：派发前写一份 `--scopes <json>`（形状见下），快照会生成 `## Scope ownership` 并拒绝同一文件归入多个 scope。每个文件只有一个 owner；其他 scope 只读上下文、不产出 finding。
+  ```json
+  {
+    "browser-injection": ["adlo/crates/browser/src/init_script.js", "adlo/crates/browser/src/webview2_*.rs"],
+    "downloads-lifecycle": ["adlo/src-tauri/src/commands/download_commands.rs"]
+  }
+  ```
+  未列入 scopes 的文件由主代理自行归属，不进任何 scope 主表。
 
 - 仓库根：以主代理在提示词里给出的工作树为准。
 - 快照目录：`.review-diffs/`；本轮清单：`manifest-rev<N>.md`（由 `review-snapshot.mjs` 生成）。
@@ -122,6 +131,7 @@ pnpm --dir frontend run check:changed
 
 - 主表只列「需修复」项；可选/风格/记录不修项统一放在「记录不修」一节，一行一条，不进入主表。
 - 每个 scope 的 low 最多 3 条；超过时合并为一条概括，细节放报告末尾，避免淹没高价值发现。
+- **复审收敛（rev≥2）**：主表只收「上一轮主表 finding 未关闭」与「本次修复引入的回归 / 契约错误」；更早的 pre-existing low 放「记录不修」（除非会改变行为或事实）。目标是把零问题收敛到修复质量，而不是无限挖历史旁支。
 - **同一 rev 批量修低危项**：R1/R2 的多条 low 在同一轮一次修完，下一轮只对已修项做定向复核；禁止一项一个 rev（2026-11-22 实测：R2 的注释/测试锁类 low 分散修导致 rev2→rev6 五个快照）。
 
 返回消息只给：报告路径 + ≤5 行摘要 + 「需修复项：N」。

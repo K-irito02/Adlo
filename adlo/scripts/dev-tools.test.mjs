@@ -33,6 +33,7 @@ test("review-snapshot parses base/out/rev and rejects invalid rev", () => {
     excludeGenerated: false,
     includeDocs: false,
     progress: null,
+    scopes: null,
   });
   assert.deepEqual(parseReviewArgs(["--base", "origin/main", "--out", ".diffs", "--rev", "3"]), {
     base: "origin/main",
@@ -44,6 +45,7 @@ test("review-snapshot parses base/out/rev and rejects invalid rev", () => {
     excludeGenerated: false,
     includeDocs: false,
     progress: null,
+    scopes: null,
   });
   assert.deepEqual(parseReviewArgs(["--rev", "2", "--progress", "docs/p.md"]), {
     base: null,
@@ -55,6 +57,7 @@ test("review-snapshot parses base/out/rev and rejects invalid rev", () => {
     excludeGenerated: false,
     includeDocs: false,
     progress: "docs/p.md",
+    scopes: null,
   });
   assert.equal(parseReviewArgs(["--include-docs"]).includeDocs, true);
   assert.throws(() => parseReviewArgs(["--rev", "0"]), /positive integer/);

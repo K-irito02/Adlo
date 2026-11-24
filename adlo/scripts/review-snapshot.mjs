@@ -59,6 +59,60 @@ export function isGeneratedArtifact(file) {
   );
 }
 
+/**
+ * 单文件归属匹配：精确路径、`dir/**` 前缀、或含 `*` 的简单 glob。
+ * 用途见 `--scopes`：每个文件只应属于一个审查 scope。
+ */
+export function matchesScopePattern(file, pattern) {
+  const f = file.replace(/\\/g, "/");
+  const p = pattern.replace(/\\/g, "/");
+  if (p.endsWith("/**")) {
+    const prefix = p.slice(0, -2);
+    return f === prefix.slice(0, -1) || f.startsWith(prefix);
+  }
+  if (p.includes("*")) {
+    const escaped = p
+      .split("**")
+      .map((segment) =>
+        segment
+          .split("*")
+          .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
+          .join("[^/]*"),
+      )
+      .join(".*");
+    return new RegExp(`^${escaped}$`).test(f);
+  }
+  return f === p;
+}
+
+/**
+ * 从 `--scopes <json>` 构建归属表。JSON 形状：
+ *   { "<scope>": ["path/exact.ts", "path/dir/**", "path/*.rs"], ... }
+ * 返回每个 scope 命中的文件、重复归属（同一文件命中多个 scope）与未归属文件。
+ * 重复归属必须阻断：两个子代理会重复审同一行并互相触发复审。
+ */
+export function buildScopeOwnership(files, scopeMap) {
+  const entries = [];
+  const owners = new Map();
+  for (const [scope, patterns] of Object.entries(scopeMap)) {
+    if (!Array.isArray(patterns) || patterns.some((pattern) => typeof pattern !== "string")) {
+      throw new Error(`scope "${scope}" must be an array of path strings`);
+    }
+    const matched = files.filter((file) =>
+      patterns.some((pattern) => matchesScopePattern(file, pattern)),
+    );
+    entries.push({ scope, files: matched });
+    for (const file of matched) {
+      owners.set(file, [...(owners.get(file) ?? []), scope]);
+    }
+  }
+  const duplicates = [...owners.entries()]
+    .filter(([, scopes]) => scopes.length > 1)
+    .map(([file, scopes]) => ({ file, scopes }));
+  const unowned = files.filter((file) => !owners.has(file));
+  return { entries, duplicates, unowned };
+}
+
 /** 文档/治理文件：P4 不审（P5 统一同步），避免文档措辞把审查轮次拖长。 */
 const ROOT_DOC_FILES = new Set([
   "AGENTS.md",
@@ -98,6 +152,7 @@ export function parseArgs(argv) {
     excludeGenerated: false,
     includeDocs: false,
     progress: null,
+    scopes: null,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -141,6 +196,8 @@ export function parseArgs(argv) {
       options.rev = rev;
     } else if (arg === "--progress") {
       options.progress = next();
+    } else if (arg === "--scopes") {
+      options.scopes = next();
     } else {
       throw new Error(`unknown argument: ${arg}`);
     }
@@ -443,7 +500,7 @@ function main() {
   }
   if (options.help) {
     console.log(
-      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--progress <file>] [--allow-untracked] [--allow-claims] [--exclude-generated] [--include-docs]",
+      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--progress <file>] [--scopes <json>] [--allow-untracked] [--allow-claims] [--exclude-generated] [--include-docs]",
     );
     return;
   }
@@ -492,6 +549,36 @@ function main() {
   const reviewFiles = files
     .filter((file) => options.includeDocs || !isDocsArtifact(file))
     .filter((file) => !options.excludeGenerated || !isGeneratedArtifact(file));
+
+  let ownership = null;
+  if (options.scopes) {
+    const scopesPath = path.resolve(repoRoot, options.scopes);
+    let scopeMap;
+    try {
+      scopeMap = JSON.parse(fs.readFileSync(scopesPath, "utf8"));
+    } catch (error) {
+      console.error(`[review-snapshot] failed to read --scopes ${scopesPath}: ${error.message}`);
+      process.exit(1);
+    }
+    if (!scopeMap || typeof scopeMap !== "object" || Array.isArray(scopeMap)) {
+      console.error("[review-snapshot] --scopes must be a JSON object mapping scope → paths");
+      process.exit(1);
+    }
+    try {
+      ownership = buildScopeOwnership(files, scopeMap);
+    } catch (error) {
+      console.error(`[review-snapshot] invalid --scopes map: ${error.message}`);
+      process.exit(1);
+    }
+    if (ownership.duplicates.length > 0) {
+      console.error("[review-snapshot] files assigned to multiple review scopes:");
+      for (const { file, scopes } of ownership.duplicates) {
+        console.error(`  - ${file}: ${scopes.join(", ")}`);
+      }
+      console.error("[review-snapshot] assign each file to exactly one scope and retry.");
+      process.exit(1);
+    }
+  }
 
   for (const file of reviewFiles) {
     const diffPath = path.join(outDir, `${safeSnapshotName(file)}-rev${options.rev}.diff`);
@@ -545,6 +632,30 @@ function main() {
     "",
     groupLines,
     "",
+    ...(ownership
+      ? [
+          "## Scope ownership",
+          "",
+          "以下归属来自 `--scopes`：每个文件只有一个 owner。子代理只在 owner scope 产出 finding；其他 scope 可只读上下文，避免重复审同一行。",
+          ...ownership.entries.map(({ scope, files: scopedFiles }) =>
+            [
+              "",
+              `### ${scope} (${scopedFiles.length})`,
+              ...scopedFiles.map((file) => `- ${file}`),
+            ].join("\n"),
+          ),
+          ...(ownership.unowned.length > 0
+            ? [
+                "",
+                `### 未归属 (${ownership.unowned.length})`,
+                "",
+                "主代理自行归属；未归属文件不进任何 scope 的报告主表。",
+                ...ownership.unowned.map((file) => `- ${file}`),
+              ]
+            : []),
+          "",
+        ]
+      : []),
     ...(generatedFiles.length > 0
       ? [
           "## 生成物（未写 diff）",

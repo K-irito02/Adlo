@@ -276,7 +276,8 @@ if (process.env.ADL_SKIP_RUST === '1') {
   console.log('[check:changed] rust skipped (ADL_SKIP_RUST=1)');
 } else if (rustChanged) {
   const baseArg = options.base ? ` --base ${quote(options.base)}` : '';
-  run('rust (affected crates)', `node ../scripts/check-rust-changed.mjs${baseArg}`);
+  const skipTestArg = options.skipTests ? ' --skip-test' : '';
+  run('rust (affected crates)', `node ../scripts/check-rust-changed.mjs${baseArg}${skipTestArg}`);
 } else {
   console.log('[check:changed] rust skipped (no Rust changes)');
 }
