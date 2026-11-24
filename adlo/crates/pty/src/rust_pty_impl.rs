@@ -211,6 +211,7 @@ impl PtySession for RustPtySessionImpl {
 mod tests {
     use super::terminal_env;
     use std::ffi::OsString;
+    use std::path::PathBuf;
 
     #[test]
     fn terminal_env_injects_registered_managed_env() {
@@ -222,5 +223,24 @@ mod tests {
         assert_eq!(env.get(&key), Some(&value));
         crate::managed_bins::set_managed_state(Vec::new(), Vec::new());
         assert!(!terminal_env("pwsh").contains_key(&key));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn terminal_env_path_stays_resolvable_for_cmd() {
+        // 回归：托管目录注入后，PATH 不能被整体加引号（否则 cmd / Node 找不到命令）。
+        let _guard = crate::managed_bins::test_guard();
+        crate::managed_bins::set_managed_state(vec![PathBuf::from(r"C:\managed\shim")], Vec::new());
+        let env = terminal_env("pwsh");
+        crate::managed_bins::set_managed_state(Vec::new(), Vec::new());
+        assert!(
+            std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).count() > 1,
+            "test host PATH needs several entries to be meaningful"
+        );
+        let (_, path) =
+            env.iter().find(|(key, _)| key.eq_ignore_ascii_case("PATH")).expect("PATH injected");
+        let text = path.to_string_lossy();
+        assert!(!text.contains('"'), "PATH must stay quoteless: {text}");
+        assert!(text.contains(r"C:\managed\shim"), "managed dir must lead PATH: {text}");
     }
 }

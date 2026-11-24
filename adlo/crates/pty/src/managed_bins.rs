@@ -43,17 +43,38 @@ pub fn managed_bin_dirs() -> Vec<PathBuf> {
 }
 
 /// 在继承的 PATH 前面拼上托管目录；无登记时返回 `None`（不改环境）。
+///
+/// 继承值必须先用 [`std::env::split_paths`] 拆成条目再交给
+/// [`std::env::join_paths`]：Windows 上 `join_paths` 会给「元素内含 `;`」的条目
+/// 整体加引号，把整条 PATH 当成单个元素拼进去会让结果变成
+/// `shim;bin;"C:\a;C:\b;..."`，cmd.exe / Node 随后解析不到任何命令。
+///
+/// 空条目按 Windows PATH 语义相当于当前工作目录，本实现与
+/// `crates/server/src/env_path.rs` 一致地丢弃；空目录同样无意义，一并丢弃。
+/// 拼装失败时保留继承值、放弃本次托管注入并记警告：空 PATH 会让终端连系统命令
+/// 都找不到，比缺少托管目录严重得多。
 pub fn terminal_path_from(dirs: &[PathBuf], inherited: Option<&OsString>) -> Option<OsString> {
     if dirs.is_empty() {
         return None;
     }
-    let mut parts: Vec<OsString> = dirs.iter().map(|d| d.as_os_str().to_os_string()).collect();
+    let mut parts: Vec<PathBuf> =
+        dirs.iter().filter(|dir| !dir.as_os_str().is_empty()).cloned().collect();
     if let Some(base) = inherited {
-        if !base.is_empty() {
-            parts.push(base.clone());
-        }
+        parts.extend(std::env::split_paths(base).filter(|part| !part.as_os_str().is_empty()));
     }
-    Some(std::env::join_paths(parts).unwrap_or_else(|_| OsString::new()))
+    if parts.is_empty() {
+        return None;
+    }
+    match std::env::join_paths(&parts) {
+        Ok(path) => Some(path),
+        Err(error) => {
+            tracing::warn!(
+                error = %error,
+                "pty: cannot merge managed dirs into PATH; keeping inherited PATH"
+            );
+            inherited.cloned().filter(|value| !value.is_empty())
+        },
+    }
 }
 
 /// 用户已显式设置的变量是否应阻止托管注入。
@@ -111,6 +132,83 @@ mod tests {
         assert!(text.contains("/usr/bin"));
         set_managed_state(Vec::new(), Vec::new());
         assert!(terminal_path_from(&managed_bin_dirs(), Some(&inherited)).is_none());
+    }
+
+    #[test]
+    fn inherited_entries_are_split_instead_of_collapsed_into_one() {
+        let inherited = std::env::join_paths([
+            PathBuf::from("sys/a"),
+            PathBuf::from("sys/b"),
+            PathBuf::from("sys/c"),
+        ])
+        .expect("join inherited");
+        let dirs = vec![PathBuf::from("managed/a")];
+        let path = terminal_path_from(&dirs, Some(&inherited)).expect("path");
+        let parts: Vec<PathBuf> = std::env::split_paths(&path).collect();
+        assert_eq!(parts.len(), 4, "managed + three inherited entries: {parts:?}");
+        assert_eq!(parts[0], PathBuf::from("managed/a"));
+        assert_eq!(parts[3], PathBuf::from("sys/c"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_inherited_path_is_joined_without_quotes() {
+        // 回归：整条 PATH 作为单个元素交给 join_paths 会被整体加引号，
+        // 于是 cmd.exe / Node 解析不到任何命令（codegraph MCP 启动失败即此症状）。
+        let dirs = vec![PathBuf::from(r"C:\managed\shim")];
+        let inherited = OsString::from(
+            r"E:\Program Files\PowerShell\7;C:\Windows\System32;D:\Tools\ripgrep\bin",
+        );
+        let path = terminal_path_from(&dirs, Some(&inherited)).expect("path");
+        let text = path.to_string_lossy();
+        assert!(!text.contains('"'), "joined PATH must not quote entries: {text}");
+        let parts: Vec<PathBuf> = std::env::split_paths(&path).collect();
+        assert_eq!(parts.len(), 4, "managed + three inherited entries: {parts:?}");
+        assert_eq!(parts[1], PathBuf::from(r"E:\Program Files\PowerShell\7"));
+    }
+
+    #[test]
+    fn drops_empty_inherited_entries() {
+        // 空条目在 Windows 上等于当前工作目录；不得因合并重新引入。
+        let separator = if cfg!(windows) { ';' } else { ':' };
+        let inherited = OsString::from(format!("sys/a{separator}"));
+        let dirs = vec![PathBuf::from("managed/a")];
+        let path = terminal_path_from(&dirs, Some(&inherited)).expect("path");
+        let parts: Vec<PathBuf> = std::env::split_paths(&path).collect();
+        assert_eq!(parts, vec![PathBuf::from("managed/a"), PathBuf::from("sys/a")]);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn unjoinable_managed_dir_keeps_inherited_path_instead_of_emptying() {
+        // join_paths 拒绝含引号的条目；此时必须保留继承值，而不是返回空 PATH。
+        let dirs = vec![PathBuf::from("C:\\bad\"dir")];
+        let inherited = OsString::from(r"C:\Windows\System32");
+        let path = terminal_path_from(&dirs, Some(&inherited)).expect("inherited kept");
+        assert_eq!(path, inherited);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn unjoinable_managed_dir_without_inherited_returns_none() {
+        let dirs = vec![PathBuf::from("C:\\bad\"dir")];
+        assert!(terminal_path_from(&dirs, None).is_none());
+    }
+
+    #[test]
+    fn no_inherited_path_keeps_only_managed_dirs() {
+        let dirs = vec![PathBuf::from("managed/a"), PathBuf::from("managed/b")];
+        let path = terminal_path_from(&dirs, Some(&OsString::new())).expect("path");
+        let parts: Vec<PathBuf> = std::env::split_paths(&path).collect();
+        assert_eq!(parts, dirs);
+    }
+
+    #[test]
+    fn empty_inputs_do_not_produce_an_empty_path() {
+        // 空 PATH 会让终端连系统命令都找不到；无有效条目时应当不注入。
+        let empty_dirs = vec![PathBuf::new()];
+        assert!(terminal_path_from(&empty_dirs, None).is_none());
+        assert!(terminal_path_from(&empty_dirs, Some(&OsString::new())).is_none());
     }
 
     #[test]
