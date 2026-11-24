@@ -94,14 +94,23 @@ function listFiles(root, base = "") {
   return out.sort();
 }
 
+function fileDigest(fullPath) {
+  const buffer = fs.readFileSync(fullPath);
+  // Windows worktrees may check text out as CRLF while the canonical blob is LF.
+  // Normalize line endings for text so mirror checks do not report false drift.
+  if (!buffer.includes(0)) {
+    const text = buffer.toString("utf8");
+    if (!text.includes("\uFFFD")) {
+      return crypto.createHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex");
+    }
+  }
+  return crypto.createHash("sha256").update(buffer).digest("hex");
+}
+
 function snapshot(root) {
   const map = new Map();
   for (const rel of listFiles(root)) {
-    const hash = crypto
-      .createHash("sha256")
-      .update(fs.readFileSync(path.join(root, rel)))
-      .digest("hex");
-    map.set(rel, hash);
+    map.set(rel, fileDigest(path.join(root, rel)));
   }
   return map;
 }
