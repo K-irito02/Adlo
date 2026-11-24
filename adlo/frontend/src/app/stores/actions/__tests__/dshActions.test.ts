@@ -15,6 +15,16 @@ interface DshTestStore {
   bumpSiblingWebviewNonce: () => void;
   fetchDshVersionStatus: () => Promise<boolean>;
   openDsh: (options?: { centerTabId?: string }) => Promise<DshOpenResult | null>;
+  ensureDshUrl: (t?: {
+    dshRecovering?: string;
+    dshStarting?: string;
+  }) => Promise<DshOpenResult | null>;
+  resolveDshPortConflict: (accept: boolean) => void;
+  dismissDshRecoveryToast: () => void;
+  dshPortConflict: unknown;
+  setDshPortConflict: (info: unknown) => void;
+  dshRecoveryToastId: string | null;
+  setDshRecoveryToastId: (id: string | null) => void;
   restartDsh: () => Promise<{ restarted: boolean; url: string | null; failed: boolean }>;
   updateDsh: () => Promise<boolean>;
   versionTaskCancelRequested: boolean;
@@ -38,7 +48,7 @@ interface DshTestStore {
   centerUpdateTab: (centerTabId: string, patch: { kind?: string; refId?: string | null }) => void;
   browserSetLocation: (tabId: string, location: 'panel' | 'center') => void;
   clampPanelActiveTab: () => void;
-  sourceStatus: { config: { version_source: string } } | null;
+  sourceStatus: { config: { version_source: string }; running?: unknown } | null;
   setDshSourceStatus: (status: unknown) => void;
   dshLastUrl: string | null;
   setDshLastUrl: (url: string | null) => void;
@@ -51,13 +61,20 @@ interface DshTestStore {
   fetchSourceStatus: (silent?: boolean, force?: boolean) => Promise<boolean>;
   applyPendingVersionSource: () => Promise<boolean>;
   showToast: (message: string, type?: string) => string;
+  showLoadingToast: (message: string, type?: string) => string;
+  removeToast: (id: string) => void;
 }
+
+const shownToasts: string[] = [];
 
 function makeStore() {
   const store = createStore<DshTestStore>((set, get) => {
     const dshActions = createDshActions(set as never, () => get() as never) as unknown as Pick<
       DshTestStore,
       | 'openDsh'
+      | 'ensureDshUrl'
+      | 'resolveDshPortConflict'
+      | 'dismissDshRecoveryToast'
       | 'restartDsh'
       | 'fetchDshVersionStatus'
       | 'updateDsh'
@@ -129,6 +146,10 @@ function makeStore() {
       setVersionTaskCancelRequested: (requested) => set({ versionTaskCancelRequested: requested }),
       sourceStatus: null,
       setDshSourceStatus: (status) => set({ sourceStatus: status as never }),
+      dshPortConflict: null,
+      setDshPortConflict: (info) => set({ dshPortConflict: info }),
+      dshRecoveryToastId: null,
+      setDshRecoveryToastId: (id) => set({ dshRecoveryToastId: id }),
       dshLastUrl: null,
       setDshLastUrl: (url) => set({ dshLastUrl: url }),
       dshRestarting: false,
@@ -138,12 +159,79 @@ function makeStore() {
       setDshVersionSourceDeferred: () => {},
       saveSourceConfig: async () => true,
       fetchSourceStatus: async () => true,
-      showToast: () => 'toast',
+      showToast: (message) => {
+        shownToasts.push(message);
+        return 'toast';
+      },
+      showLoadingToast: (message) => {
+        shownToasts.push(message);
+        return 'toast';
+      },
+      removeToast: () => {},
       ...dshActions,
     } as DshTestStore;
   });
   return store;
 }
+
+describe('dshActions.ensureDshUrl recovery toast', () => {
+  let openMock: ReturnType<typeof vi.fn>;
+  beforeEach(() => {
+    shownToasts.length = 0;
+    openMock = vi.fn();
+    vi.stubGlobal('digitalLife', { dsh: { open: openMock } });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('首次启动超过 1.2s 时显示「正在启动」加载 toast', async () => {
+    vi.useFakeTimers();
+    let resolveOpen: (value: unknown) => void = () => {};
+    openMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveOpen = resolve;
+        }),
+    );
+    const store = makeStore();
+    const promise = store.getState().ensureDshUrl({
+      dshStarting: 'STARTING',
+      dshRecovering: 'RECOVERING',
+    });
+    await vi.advanceTimersByTimeAsync(1400);
+    expect(shownToasts).toEqual(['STARTING']);
+    resolveOpen({ ok: true, data: { url: 'http://127.0.0.1:3080' } });
+    await promise;
+  });
+
+  it('已有运行实例时显示「正在自动恢复」加载 toast', async () => {
+    vi.useFakeTimers();
+    let resolveOpen: (value: unknown) => void = () => {};
+    openMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveOpen = resolve;
+        }),
+    );
+    const store = makeStore();
+    store.setState({
+      sourceStatus: {
+        config: { version_source: 'auto' },
+        running: { url: 'http://127.0.0.1:3080/' },
+      },
+    });
+    const promise = store.getState().ensureDshUrl({
+      dshStarting: 'STARTING',
+      dshRecovering: 'RECOVERING',
+    });
+    await vi.advanceTimersByTimeAsync(1400);
+    expect(shownToasts).toEqual(['RECOVERING']);
+    resolveOpen({ ok: true, data: { url: 'http://127.0.0.1:3080' } });
+    await promise;
+  });
+});
 
 describe('dshActions.openDsh', () => {
   beforeEach(() => {

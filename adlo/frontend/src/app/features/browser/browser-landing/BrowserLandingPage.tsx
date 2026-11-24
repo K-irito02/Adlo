@@ -14,7 +14,7 @@ import { PortConfigDialog } from './PortConfigDialog';
 import type { ShortcutSite, LocalPort } from '@stores/slices/browserSlice';
 import { ContextMenu } from '@components/ContextMenu';
 import { routeLocalUrl } from './localAuthPorts';
-import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
+import { resolveDshAuthUrl } from '@features/dsh/dshAuthUrl';
 import { isDshBusySnap, isDshConfirmedUnusable } from '@features/dsh/dshOpenGuard';
 import './BrowserLandingPage.css';
 
@@ -123,15 +123,16 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
           useAppStore.getState().showToast(t.dshOpenNoVersion, 'warning');
           return;
         }
-        const authed = await resolveDshAuthUrl(url);
+        const authed = await resolveDshAuthUrl(url, t);
+        if (authed && 'canceled' in authed) {
+          return;
+        }
         if (!authed) {
           openFallback(url);
           return;
         }
-        if (authed.freedPort) {
-          notifyDshFreedPort(t);
-        }
         openFallback(authed.url);
+        useAppStore.getState().dismissDshRecoveryToast();
       })();
     },
     [openFallback, t],

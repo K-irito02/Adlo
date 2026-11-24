@@ -72,6 +72,33 @@
   white-space: nowrap;
 }
 
+/* 加载型 toast：复用项目统一的文字扫光（loading-row/按钮忙碌态同一套 keyframes）。 */
+.adl-toast__message--shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--text-muted) 0%,
+    var(--text-muted) 35%,
+    var(--text-primary) 50%,
+    var(--text-muted) 65%,
+    var(--text-muted) 100%
+  );
+  background-size: 300% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: adl-text-shimmer 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adl-toast__message--shimmer {
+    animation: none;
+    color: var(--text-secondary);
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+  }
+}
+
 /* ==========================================================================
    Toast Region
    --------------------------------------------------------------------------

@@ -27,6 +27,7 @@ import { useBrowserAgentLinkSubscription } from './features/browser/useBrowserAg
 import { useBrowserNewTabSubscription } from './features/browser/useBrowserNewTabSubscription';
 import { useGlobalBrowserMeta } from './features/browser/useGlobalBrowserMeta';
 import { useBrowserSystemMedia } from './features/browser/useBrowserSystemMedia';
+import { DshPortConflictDialog } from './features/dsh/DshPortConflictDialog';
 import { useAppUpdateWatcher } from './hooks/useAppUpdateWatcher';
 import type { BrowserNewTabRequest } from '@shared/ipc/browser';
 
@@ -341,6 +342,7 @@ export function App() {
           />
         </main>
         <BookmarkTransferDialogs />
+        <DshPortConflictDialog />
         <ToastContainer toasts={toasts} onRemove={removeToast} />
         <ToastRegion
           errorToasts={errorToasts}

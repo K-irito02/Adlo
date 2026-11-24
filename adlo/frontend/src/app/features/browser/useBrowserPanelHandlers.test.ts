@@ -104,7 +104,7 @@ describe('useBrowserPanelHandlers.handleOpenTabFromTree (regression)', () => {
           setBrowserNavigateInPlace: vi.fn(),
           getActiveTabId: () => 'tab-active',
           expectedNavigationUrlRef,
-          t: { dshPortFreed: 'FREED' },
+          t: { dshRecovering: 'RECOVERING', dshStarting: 'STARTING' },
         }),
       );
 

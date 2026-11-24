@@ -174,12 +174,12 @@ export interface DshBridge {
   /**
    * 拉起 dsh 进程并返回就绪信息。
    *
-   * 已运行时复用其 URL；若复用到的外部实例没有启动 token（裸 URL 必 401），
-   * 会重启一次以捕获认证入口（失败回退原始 URL，`restartedForAuth` 标记尝试过）。
-   * @returns 就绪 URL + 是否释放过被残留 dsh 占用的默认端口，如 http://127.0.0.1:<port>
+   * 默认不杀任何进程：3080 被占用时返回 `status='port_occupied'` + 占用者信息，
+   * 由前端确认。`force=true` 表示用户已确认「结束占用进程并重启项目内 DSH」。
+   * @returns 就绪 URL，或端口占用负载
    * @see httpBridge.ts → dsh.open (/dsh/open)
    */
-  open: () => Promise<IpcResult<DshOpenResult>>;
+  open: (force?: boolean) => Promise<IpcResult<DshOpenResult>>;
   /**
    * 重启正在运行的 dsh（宿主托管或经验证的外部进程），返回新地址
    */
@@ -258,21 +258,39 @@ export interface DshBridge {
 }
 
 /**
- * `/dsh/open` 结果：就绪 URL + 是否因端口被残留 dsh 占用而自动释放过进程。
+ * `/dsh/open` 结果：就绪 URL，或默认端口占用时交回前端确认的占用者信息。
  */
 export interface DshOpenResult {
+  /** `opened`（缺省按 opened 兼容旧后端）/ `port_occupied`。 */
+  status?: 'opened' | 'port_occupied';
   url: string | null;
-  freedPort: boolean;
+  /** 兼容旧字段：新后端不再静默释放端口，当前为 false。 */
+  freedPort?: boolean;
   /**
-   * URL 是否携带 dsh 启动 token（`?token=`）。复用一个外部启动、未由宿主捕获
-   * stdout 的实例时会得到裸 URL（false → 页面 401）。用户动作 `/dsh/open`
-   * 会尝试重启一次以换取认证入口；重启失败时保留原始 URL。
+   * URL 是否携带 dsh 启动 token（`?token=`）。端口占用不再自动重启，
+   * 该字段只在已托管实例上为 true。
    */
   authenticated?: boolean;
-  /** 是否复用了外部 dsh 进程（非本宿主本次会话拉起）。 */
+  /** 兼容旧字段：外部实例复用已取消，当前为 false。 */
   external?: boolean;
-  /** 本次打开是否为了取得认证入口而尝试过重启 dsh（不保证成功）。 */
-  restartedForAuth?: boolean;
+  /** 端口占用确认框被用户取消（调用方应保持当前页面，不做裸 URL 回退）。 */
+  canceled?: boolean;
+  /** `status='port_occupied'` 时返回：占用 3080 的进程列表。 */
+  occupant?: DshPortOccupiedInfo;
+}
+
+/** 占用 dsh 默认端口的进程摘要（确认框展示用）。 */
+export interface DshPortOccupantProcess {
+  pid: number;
+  name: string;
+  cmdline: string;
+  /** 命令行是否识别为 dsh（决定确认框文案的轻重）。 */
+  isDsh: boolean;
+}
+
+export interface DshPortOccupiedInfo {
+  port: number;
+  processes: DshPortOccupantProcess[];
 }
 
 /**

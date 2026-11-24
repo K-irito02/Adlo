@@ -172,7 +172,8 @@ describe('useBrowserPanelAddressSubmit', () => {
           submitVersionRef: { current: 0 },
           validatedUrlsRef: { current: new Set<string>() },
           t: {
-            dshPortFreed: 'FREED',
+            dshRecovering: 'RECOVERING',
+            dshStarting: 'STARTING',
             browserLocalFileDesktopOnly: 'LOCAL_DESKTOP_ONLY',
             browserLocalFileUnsupported: 'LOCAL_UNSUPPORTED',
           },
@@ -262,7 +263,8 @@ describe('useBrowserPanelAddressSubmit', () => {
           submitVersionRef,
           validatedUrlsRef: { current: new Set<string>() },
           t: {
-            dshPortFreed: 'FREED',
+            dshRecovering: 'RECOVERING',
+            dshStarting: 'STARTING',
             browserLocalFileDesktopOnly: 'LOCAL_DESKTOP_ONLY',
             browserLocalFileUnsupported: 'LOCAL_UNSUPPORTED',
           },

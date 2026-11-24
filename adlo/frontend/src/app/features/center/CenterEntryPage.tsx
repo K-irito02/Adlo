@@ -27,7 +27,6 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
   const browserSetLocation = useAppStore((s) => s.browserSetLocation);
   const centerUpdateTab = useAppStore((s) => s.centerUpdateTab);
   const centerRemoveTab = useAppStore((s) => s.centerRemoveTab);
-  const reportError = useAppStore((s) => s.reportError);
   const showToast = useAppStore((s) => s.showToast);
   // openDsh 在途标志：拉起进程可能耗时数秒；入口按钮保持可用，
   // 重复点击走 in-flight 复用＋busy 提示。dsh 迟到完成时仅当本标签仍为
@@ -56,14 +55,10 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
         showToast(t.dshOpenNoVersion, 'warning');
         return;
       }
-      const result = await openDsh({ centerTabId });
+      const result = await openDsh({ centerTabId, t });
       if (!result) {
-        // openDsh 失败时已由 action 记录全局错误卡片，此处不重复提示。
+        // openDsh 失败时已由 action 记录全局错误卡片；用户取消端口确认不算失败。
         return;
-      }
-      // 固定 3080 端口被残留 dsh 占用时后端自动释放并重启 → 右下角 info 卡片告知。
-      if (result.freedPort) {
-        reportError('DSH_FREED_PORT', t.dshPortFreed, 'dsh');
       }
       // 新建 dsh 标签时 openDsh 已把本入口页标签**就地**转为 browser（kind 不再是
       // launcher）；复用面板中的 dsh 标签时也会就地转换入口页；只有复用已在中心的
@@ -80,7 +75,7 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
     } finally {
       setOpeningDsh(false);
     }
-  }, [openDsh, openingDsh, reportError, showToast, centerRemoveTab, centerTabId, t]);
+  }, [openDsh, openingDsh, showToast, centerRemoveTab, centerTabId, t]);
 
   const handleOpenBrowser = useCallback(() => {
     browserOpenTab();

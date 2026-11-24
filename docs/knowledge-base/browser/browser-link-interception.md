@@ -166,3 +166,12 @@ while (target) {
 - **信任模型**：白名单判定只在页面 JS 侧执行，Rust 侧仅做形状 backstop（kind/scheme）；与既有 `open-new-tab` 通道同模型，`postMessage` origin 校验已明确延期。
 - **落点统一**：拦截后走「打开方式」设置（`openUrlByMethod`/`openFileByMethod`），与 Markdown 预览正文链接同链路；白名单偏好为结构化 `{alias?, origin}[]`（Rust `AgentSiteAllowEntry` ↔ TS 同步，禁止兼容旧 `string[]`，见事项 7：陈旧本地 `config.json` 会导致 adl-server 启动期 `load_from` 整体失败并回退 system-only）。
 - **教训**：偏好数据形状升级时，旧形状本地配置是第一启动失败源；未发布阶段虽禁兼容代码，但错误信息必须点名期望形状（`load_from` 已追加 `agent_site_whitelist must be [{origin, alias?}]` 上下文），否则只能靠终端 dying words 定位。
+- **2026-11-25 修订**：`click` 分支只作用于站点正文，站点自身 chrome（dialog/alertdialog/menu/navigation、`aria-modal`、`data-menu-popup`、nav/header/footer/aside）不再拦截；`window.open` 的 URL 拦截已移除（无 DOM 上下文，登录/反馈等站点入口保持原生）。细则见 [browser-subwebview-link-hijack-2026-11-25.md](./browser-subwebview-link-hijack-2026-11-25.md)。
+
+## 附：子 WebView 链接被 Tauri shell 插件劫持（2026-11-25）
+
+- 症状：所有浏览器子 WebView 的 `target="_blank"` 链接点击无反应（DSH 设置弹窗的账号/用量/充值最典型）。
+- 根因：`tauri-plugin-shell` 在每个 WebView 注入 body 点击处理器，对 `_blank` 链接调用 `plugin:shell|open` 并 `preventDefault()`；子 WebView 没有 shell capability / 可用 `__TAURI_INTERNALS__`，invoke 被拒但默认行为已被取消。
+- 修复：`init_script.js` 在 `EventTarget.prototype.addEventListener` 层跳过携带 `plugin:shell|open` 的 click/auxclick 监听器，`target=_blank` 继续走应用内 `open-new-tab` 通道。
+- 取证：CDP `DOMDebugger.getEventListeners(document.body)` 定位注入脚本；`Event.preventDefault` 调用栈指向 `HTMLBodyElement`；对照 Chromium 无该脚本时路由正常。
+

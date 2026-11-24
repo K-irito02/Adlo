@@ -199,7 +199,7 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
     setIframeLoadError,
     setIframeBlockedDetected,
     validatedUrlsRef,
-    // 事项 2：残留端口释放告知用（dshPortFreed 全量 copy 必存在）。
+    // 事项 2：dsh 断连恢复提示（t.dshRecovering）。
     t,
   });
 

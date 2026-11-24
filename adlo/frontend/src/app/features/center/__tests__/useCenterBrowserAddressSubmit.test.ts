@@ -61,7 +61,8 @@ describe('useCenterBrowserAddressSubmit 需认证本地端口分流（事项 2�
         setIframeBlockedDetected: vi.fn(),
         validatedUrlsRef: { current: new Set<string>() },
         t: {
-          dshPortFreed: 'FREED',
+          dshRecovering: 'RECOVERING',
+          dshStarting: 'STARTING',
           browserLocalFileDesktopOnly: 'LOCAL_DESKTOP_ONLY',
           browserLocalFileUnsupported: 'LOCAL_UNSUPPORTED',
         },
@@ -138,7 +139,8 @@ describe('useCenterBrowserAddressSubmit 需认证本地端口分流（事项 2�
           setIframeBlockedDetected: vi.fn(),
           validatedUrlsRef: { current: new Set<string>() },
           t: {
-            dshPortFreed: 'FREED',
+            dshRecovering: 'RECOVERING',
+            dshStarting: 'STARTING',
             browserLocalFileDesktopOnly: 'LOCAL_DESKTOP_ONLY',
             browserLocalFileUnsupported: 'LOCAL_UNSUPPORTED',
           },

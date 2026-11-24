@@ -13,6 +13,7 @@
 | [browser-directory-menu-optimization-2026-06-23.md](./browser-directory-menu-optimization-2026-06-23.md) | 浏览器目录菜单优化 |
 | [browser-search-engine-popover-tooltip-ref-subpixel-2026-08-23.md](./browser-search-engine-popover-tooltip-ref-subpixel-2026-08-23.md) | 搜索引擎弹窗 Tooltip ref 覆盖→亚像素模糊 + 右边缘裁剪根因与修复 |
 | [browser-embedding-hardening-2026-11-24.md](./browser-embedding-hardening-2026-11-24.md) | 内置浏览器加固：DSH 认证入口、adl-server 孤儿、file:// 崩溃、blob 下载失败可见性、共享 profile 快照、referrer/地址栏 |
+| [browser-subwebview-link-hijack-2026-11-25.md](./browser-subwebview-link-hijack-2026-11-25.md) | 子 WebView `_blank` 链接无反应：Tauri shell 插件劫持 + 智能体全站拦截；shell 监听器跳过 + 站点 chrome 豁免（ADR 0034） |
 
 ## 子主题
 

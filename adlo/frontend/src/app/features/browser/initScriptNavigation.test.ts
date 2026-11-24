@@ -180,6 +180,15 @@ describe('init_script.js new-tab interception markers', () => {
     expect(initScript).toContain('chrome.webview.postMessage');
   });
 
+  it('routes the shell plugin open command to the in-app new-tab channel', () => {
+    // Tauri shell 插件的 body 点击处理器把 target=_blank 交给 plugin:shell|open，
+    // 浏览器子 WebView 没有该 capability，invoke 被拒且 preventDefault 已生效，
+    // 原生新窗口路由无法执行（2026-11-25 DSH 设置弹窗链接无反应）。
+    expect(initScript).toContain("cmd === 'plugin:shell|open'");
+    expect(initScript).toContain('__adlShellOpenPatched');
+    expect(initScript).toContain('__adlPatchShellOpen');
+  });
+
   it('routes target=_blank and modified clicks to the new-tab helper', () => {
     expect(initScript).toContain('__adlTryOpenNewTab(href, __adlReferrerForLink(target, href))');
     // target="_blank" links and modified clicks (ctrl/meta/shift/middle) use the
@@ -193,9 +202,15 @@ describe('init_script.js new-tab interception markers', () => {
     expect(helperBlock).toContain('ctrlKey');
     // 中键由 auxclick 投递，不能依赖 click 的 event.button。
     expect(helperBlock).toContain("event.type === 'auxclick' && event.button === 1");
-    // 安装期 gate 的 window.open 包装仍按运行期开关复判（关闭方向即时生效）。
-    expect(initScript).toContain(
+    // 安装期 gate 的 window.open 包装不再吞掉 agent 站点的 URL（无 DOM 上下文，
+    // 站点自身的登录/反馈/充值必须走原生新窗口路径）。
+    expect(initScript).not.toContain(
       "if (__adlIsAgentHost() && __adlSendAgentLink('url', resolvedUrl))",
+    );
+    // 站点 chrome（设置弹窗/菜单/导航）不被 agent 拦截，交回全站新窗口路由。
+    expect(initScript).toContain('function __adlIsSiteChrome(el)');
+    expect(initScript).toContain(
+      'if (__adlIsAgentHost() && !__adlIsSiteChrome(event.target)) return;',
     );
     expect(initScript).toContain(
       "window.addEventListener('auxclick', __adlRouteNewWindowEvent, false);",
@@ -365,6 +380,9 @@ describe('init_script.js agent-link interception', () => {
         },
       },
     };
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {
+      invoke: async () => undefined,
+    };
     try {
       // Execute the injected script once into the jsdom document. The click
       // delegation listener is registered before any WebView2-only API is
@@ -429,6 +447,65 @@ describe('init_script.js agent-link interception', () => {
     expect(agentLinks()).toEqual([
       { type: 'adl-agent-link', kind: 'url', url: 'https://example.com/x' },
     ]);
+  });
+
+  it('leaves site chrome links to the native new-tab route', () => {
+    setAgent([window.location.origin], true);
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    const href = 'https://platform.deepseek.com/';
+    const a = document.createElement('a');
+    a.href = href;
+    a.target = '_blank';
+    dialog.appendChild(a);
+    document.body.appendChild(dialog);
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+    a.dispatchEvent(event);
+    dialog.remove();
+    // 站点自身设置弹窗里的链接绝不是 agent 内容：不得走 adl-agent-link。
+    expect(agentLinks()).toHaveLength(0);
+    expect(posted.some((message) => message.type === 'open-new-tab' && message.url === href)).toBe(
+      true,
+    );
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('ignores the Tauri shell plugin auto-open link listener', () => {
+    (window as unknown as Record<string, unknown>).__shellCalls = [];
+    const shellLike = new Function(
+      'event',
+      'window.__shellCalls.push(1); void "plugin:shell|open";',
+    );
+    document.body.addEventListener('click', shellLike as EventListener);
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect((window as unknown as { __shellCalls: number[] }).__shellCalls).toHaveLength(0);
+  });
+
+  it('keeps ordinary body click listeners working', () => {
+    const calls: number[] = [];
+    const normal = () => {
+      calls.push(1);
+    };
+    document.body.addEventListener('click', normal);
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    document.body.removeEventListener('click', normal);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('routes plugin:shell|open to open-new-tab (browser sub-webview capability denial)', async () => {
+    const internals = (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ as {
+      invoke: (cmd: string, args: Record<string, unknown>) => Promise<unknown>;
+    };
+    await internals.invoke('plugin:shell|open', {
+      path: 'https://platform.deepseek.com/',
+    });
+    expect(
+      posted.some(
+        (message) =>
+          message.type === 'open-new-tab' && message.url === 'https://platform.deepseek.com/',
+      ),
+    ).toBe(true);
   });
 
   it('stops page click handlers after agent-link interception (no duplicate window.open)', () => {

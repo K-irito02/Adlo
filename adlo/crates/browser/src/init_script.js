@@ -50,6 +50,36 @@
     function __adlSendAgentLink(kind, url) {
         return __adlPostToHost({ type: 'adl-agent-link', kind: kind, url: url });
     }
+    // Site chrome vs. agent content: the interception exists for links the agent
+    // prints in the conversation body. A whitelisted site's own navigation and
+    // dialogs (settings, account, menus, headers, sidebars) must keep native
+    // browser behavior — otherwise, e.g., DSH's account/usage/top-up links are
+    // swallowed into the agent-link channel and do not open a tab (real user
+    // report 2026-11-25). Detect the common chrome containers by role/semantics.
+    function __adlIsSiteChrome(el) {
+        try {
+            var node = el;
+            while (node && node !== document.body && node.nodeType === 1) {
+                var role = (node.getAttribute && node.getAttribute('role')) || '';
+                if (role === 'dialog' || role === 'alertdialog' || role === 'menu' ||
+                    role === 'navigation' || role === 'menubar') {
+                    return true;
+                }
+                if (node.hasAttribute && (node.hasAttribute('aria-modal') ||
+                    node.hasAttribute('data-menu-popup'))) {
+                    return true;
+                }
+                var tag = node.tagName;
+                if (tag === 'NAV' || tag === 'HEADER' || tag === 'FOOTER' || tag === 'ASIDE') {
+                    return true;
+                }
+                node = node.parentElement;
+            }
+            return false;
+        } catch (e) {
+            return false;
+        }
+    }
 
     // 检查是否是有效的网页 URL
     function isValidWebUrl(href) {
@@ -409,6 +439,108 @@
         }
         return __adlPostToHost(payload);
     }
+
+    // Tauri's shell plugin injects a document.body click handler that sends every
+    // `<a target="_blank" href="http(s)://…">` to `plugin:shell|open` and calls
+    // preventDefault(). Browser webviews are not covered by the app capability
+    // (only `main` is) and do not receive functional `__TAURI_INTERNALS__`, so
+    // that click is swallowed before the window new-tab route can run (real user
+    // report 2026-11-25: DSH settings' account/usage/top-up links did nothing).
+    // Skip that one auto-open listener at registration time; Adlo's own route
+    // owns target=_blank links inside its browser webviews. The shell plugin's
+    // open command (used by the app's openExternal) is unaffected.
+    (function __adlBlockShellLinkHandler() {
+        try {
+            var proto = window.EventTarget && window.EventTarget.prototype;
+            if (!proto || proto.addEventListener.__adlShellLinkGuard) return;
+            var originalAdd = proto.addEventListener;
+            var guardedAdd = function(type, listener, options) {
+                try {
+                    if ((type === 'click' || type === 'auxclick') && listener &&
+                        typeof listener === 'function' &&
+                        String(listener).indexOf('plugin:shell|open') !== -1) {
+                        return;
+                    }
+                } catch (e) {}
+                return originalAdd.call(this, type, listener, options);
+            };
+            guardedAdd.__adlShellLinkGuard = true;
+            proto.addEventListener = guardedAdd;
+        } catch (e) {}
+    })();
+
+    // Tauri's shell plugin injects a document.body click handler that sends every
+    // `<a target="_blank" href="http(s)://…">` to `plugin:shell|open` and calls
+    // preventDefault(). Browser webviews are not covered by the app capability
+    // (only `main` is) and do not even receive `__TAURI_INTERNALS__`, so the
+    // invoke rejects — and the click dies before the window new-tab route can
+    // run (real user report 2026-11-25: DSH settings' account/usage/top-up links
+    // did nothing). Provide/patch `invoke` so those requests go to our in-app
+    // new-tab channel; the plugin's preventDefault is then harmless.
+    (function __adlPatchShellOpen() {
+        function makeInvoke(original) {
+            var wrapped = function(cmd, args, options) {
+                try {
+                    if (cmd === 'plugin:shell|open' && args &&
+                        typeof args.path === 'string' && isValidWebUrl(args.path)) {
+                        if (__adlTryOpenNewTab(args.path, '')) {
+                            return Promise.resolve();
+                        }
+                    }
+                } catch (e) {}
+                if (original) {
+                    return original.call(window.__TAURI_INTERNALS__, cmd, args, options);
+                }
+                return Promise.reject(new Error('__adl: no Tauri IPC in this webview'));
+            };
+            wrapped.__adlShellOpenPatched = true;
+            return wrapped;
+        }
+        function patch() {
+            try {
+                var internals = window.__TAURI_INTERNALS__;
+                if (!internals || typeof internals.invoke !== 'function') {
+                    var stub = { invoke: makeInvoke(null) };
+                    try {
+                        Object.defineProperty(window, '__TAURI_INTERNALS__', {
+                            value: stub,
+                            writable: true,
+                            configurable: true,
+                        });
+                    } catch (e) {
+                        window.__TAURI_INTERNALS__ = stub;
+                    }
+                    return !!window.__TAURI_INTERNALS__ &&
+                        !!window.__TAURI_INTERNALS__.invoke.__adlShellOpenPatched;
+                }
+                if (internals.invoke.__adlShellOpenPatched) return true;
+                var wrapped = makeInvoke(internals.invoke);
+                try {
+                    internals.invoke = wrapped;
+                } catch (e) {}
+                if (!internals.invoke.__adlShellOpenPatched) {
+                    try {
+                        Object.defineProperty(internals, 'invoke', {
+                            value: wrapped,
+                            writable: true,
+                            configurable: true,
+                        });
+                    } catch (e) {}
+                }
+                return !!internals.invoke.__adlShellOpenPatched;
+            } catch (e) {
+                return false;
+            }
+        }
+        if (patch()) return;
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', patch, true);
+        }
+        var tries = 0;
+        var timer = setInterval(function() {
+            if (patch() || ++tries >= 20) clearInterval(timer);
+        }, 250);
+    })();
     
     // Compare only origin+pathname (ignore query params & hash) to detect SPA pushState
     function isSamePage(url1, url2) {
@@ -469,7 +601,11 @@
         if (event.defaultPrevented) return;
         // auxclick fires for every non-primary button; only middle opens a tab.
         if (event.type === 'auxclick' && event.button !== 1) return;
-        if (__adlIsAgentHost()) return;
+        // Agent content links are consumed by `__adlAgentClickHandler` (capture).
+        // Site chrome is the exception: those clicks are deliberately left for
+        // this all-sites new-window route so the site's own dialogs/menus behave
+        // like a normal browser.
+        if (__adlIsAgentHost() && !__adlIsSiteChrome(event.target)) return;
         var target = event.target;
         while (target) {
             if ((target.tagName === 'A' || target.tagName === 'AREA') && target.href) {
@@ -523,6 +659,10 @@
             }
             return;
         }
+        // The site's own chrome (settings dialog, account menu, sidebar/header)
+        // is not agent output. Leave it untouched so the all-sites new-window
+        // route can open target="_blank" links normally.
+        if (__adlIsSiteChrome(event.target)) return;
         var target = event.target;
 
         while (target) {
@@ -682,9 +822,12 @@
                 window.location.assign(resolvedUrl);
                 return null;
             }
-            if (__adlIsAgentHost() && __adlSendAgentLink('url', resolvedUrl)) {
-                return null;
-            }
+            // Programmatic opens have no DOM context, so they cannot be
+            // classified as agent content vs. site chrome. Site chrome uses
+            // window.open for login/feedback/payment flows; swallowing those
+            // broke real sites (2026-11-25). Delegate to the native new-window
+            // path; anchor clicks in agent content still go through the
+            // rule-based interception above.
             console.log('[ADL-DL-JS] window.open: non-download URL, delegating to origOpen:', resolvedUrl);
             __adlSendLog('info', 'window.open: non-download URL delegated to origOpen', { url: resolvedUrl });
             return origOpen.call(window, resolvedUrl, name, features);

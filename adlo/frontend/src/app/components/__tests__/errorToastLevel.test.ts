@@ -42,10 +42,6 @@ describe('resolveErrorToastLevel', () => {
     ).toBe<ErrorToastLevel>('info');
   });
 
-  it('maps the dsh freed-port notice to info', () => {
-    expect(resolveErrorToastLevel('DSH_FREED_PORT', '')).toBe<ErrorToastLevel>('info');
-  });
-
   it('defaults unknown codes to error', () => {
     expect(resolveErrorToastLevel('UNKNOWN_CODE', 'x')).toBe<ErrorToastLevel>('error');
     expect(resolveErrorToastLevel('', '')).toBe<ErrorToastLevel>('error');

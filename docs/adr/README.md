@@ -44,6 +44,8 @@
 - [0031 页面内新窗口请求跟随发起标签的宿主落地](./0031-browser-new-window-follows-source-tab.md) — 事件带 `tabId`；中心来源开中心标签，面板来源开面板标签
 - [0032 搜索引擎首次启动静默自动选择，手动选择后不再覆盖](./0032-search-engine-auto-selection-on-first-run.md) — `no-cors` 探测；首启静默；手动后不覆盖
 - [0033 站点元数据改为按需补齐，显式刷新分两段抓取](./0033-on-demand-site-metadata-and-explicit-refresh.md) — 启动零预取；被动条目限速轻量读取；显式刷新先取图标再渲染取标题；静态标题不写回
+- [0034 浏览器子 WebView 的 `target=_blank` 由应用内新标签接管](./0034-browser-subwebview-blank-links-own-the-tab.md) — 跳过 shell 插件的自动外开处理器；智能体拦截只作用于站点正文
+- [0035 DSH 端口占用先确认，断连自动恢复并提示](./0035-dsh-port-conflict-confirm-and-recovery-toast.md) — 不静默杀进程；force 接手；扫光加载 toast 常驻到标签打开；入口共用解析器
 ## 品牌、工具链与 Git 可视化
 
 - [0013 品牌改名后保留 `adl` 工程前缀](./0013-retain-adl-prefix-after-rename.md)

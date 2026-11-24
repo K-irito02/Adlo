@@ -119,6 +119,7 @@ export const mockDsh: DshBridge = {
   open: async () => ({
     ok: true,
     data: {
+      status: "opened",
       url: "http://127.0.0.1:61234/?token=mock",
       freedPort: false,
       authenticated: true,

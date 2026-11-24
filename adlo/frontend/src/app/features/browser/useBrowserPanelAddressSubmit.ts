@@ -8,7 +8,7 @@ import type { ExpectedNavigationRef } from './browserUrlUtils';
 import type { MetaSource, PageMeta } from '@shared/ipc/browser';
 import type { CopyDict } from '@i18n';
 import { pageMetaClient } from '@utils/pageMetaClient';
-import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
+import { resolveDshAuthUrl, type DshAuthResolution } from '@features/dsh/dshAuthUrl';
 import { isLocalFileInput, buildLocalFileUrl, isLocalViewableFileUrl } from './localFileInput';
 
 interface UseBrowserPanelAddressSubmitParams {
@@ -30,7 +30,7 @@ interface UseBrowserPanelAddressSubmitParams {
   /** 提示文案（本地文件桌面端限制 + 残留端口释放告知）；缺省时不提示。 */
   t?: Pick<
     CopyDict,
-    'dshPortFreed' | 'browserLocalFileDesktopOnly' | 'browserLocalFileUnsupported'
+    'dshRecovering' | 'dshStarting' | 'browserLocalFileDesktopOnly' | 'browserLocalFileUnsupported'
   >;
 }
 
@@ -134,16 +134,19 @@ export function useBrowserPanelAddressSubmit({
     // 地址（面板归属，不劫持到中心），并跳过 checkEmbed 预检——HEAD 不带
     // cookie 会 401 误判为“被拦截”。未命中保持原同步行为。
     let targetUrl = finalUrl;
-    let authed: { url: string; freedPort: boolean } | null = null;
+    let authed: DshAuthResolution = null;
     if (routeLocalUrl(finalUrl)?.opener === 'dsh') {
-      authed = await resolveDshAuthUrl(finalUrl);
+      authed = await resolveDshAuthUrl(finalUrl, t);
       if (submitVersionRef.current !== version) {
         return;
       }
-      if (authed?.freedPort && t) {
-        notifyDshFreedPort(t);
+      if (authed && 'canceled' in authed) {
+        return;
       }
       targetUrl = authed?.url ?? finalUrl;
+      if (authed) {
+        useAppStore.getState().dismissDshRecoveryToast();
+      }
     }
 
     if (!useAppStore.getState().isTauri) {

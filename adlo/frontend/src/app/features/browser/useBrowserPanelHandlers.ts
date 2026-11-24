@@ -1,8 +1,9 @@
 import { useCallback, useRef } from 'react';
 import type { CopyDict } from '@i18n';
+import { useAppStore } from '@stores/slicedStore';
 import type { ExpectedNavigationRef } from './browserUrlUtils';
 import { routeLocalUrl } from './browser-landing/localAuthPorts';
-import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
+import { resolveDshAuthUrl } from '@features/dsh/dshAuthUrl';
 
 export interface UseBrowserPanelHandlersParams {
   browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) => void;
@@ -14,7 +15,7 @@ export interface UseBrowserPanelHandlersParams {
   getActiveTabId: () => string;
   expectedNavigationUrlRef: ExpectedNavigationRef;
   /** 全量文案（调用点传入面板 `t`）：仅用于残留端口释放告知，缺省不提示。 */
-  t?: Pick<CopyDict, 'dshPortFreed'>;
+  t?: Pick<CopyDict, 'dshRecovering' | 'dshStarting'>;
 }
 
 export interface UseBrowserPanelHandlersResult {
@@ -99,11 +100,12 @@ export function useBrowserPanelHandlers(
         return;
       }
       void (async () => {
-        const authed = await resolveDshAuthUrl(url);
-        if (authed?.freedPort && t) {
-          notifyDshFreedPort(t);
+        const authed = await resolveDshAuthUrl(url, t);
+        if (authed && 'canceled' in authed) {
+          return;
         }
         openResolvedTabFromTree(authed?.url ?? url);
+        useAppStore.getState().dismissDshRecoveryToast();
       })();
     },
     [browserSelectTab, openResolvedTabFromTree, t],
