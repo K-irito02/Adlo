@@ -11,6 +11,8 @@
 ```powershell
 # 在 <worktree>/adlo 下执行
 # 每个 rev（修复轮）：check:review = 静态项 + Rust fmt/clippy（无 vitest / cargo test）
+# 脚本默认 `--base merge-base`；若手工跑 check:changed 且改动已提交，也必须用 `--base merge-base`，
+# 否则 base=HEAD 且工作区无改动时门禁会直接失败（防止假绿）。
 pnpm --dir frontend run check:review
 # 仅当本轮所有 scope 零问题（P4 收尾候选）：完整门禁（含 vitest）
 pnpm --dir frontend run check:changed
@@ -18,17 +20,16 @@ pnpm --dir frontend run check:changed
 
 **完整门禁只跑一次**：只有“本轮所有 scope 都零问题、准备进 R2 / 退出 P4”的那个 rev 才跑 `check:changed`；其余 rev 一律 `check:review`。2026-11-22 实测：完整门禁单次 230–237s；2026-11-24 的 13 个 rev 中在多数 rev 重复跑完整门禁，白耗约 30–40 分钟。
 
-- **范围归属**：派发前写一份 `--scopes <json>`（形状见下），快照会生成 `## Scope ownership` 并拒绝同一文件归入多个 scope。每个文件只有一个 owner；其他 scope 只读上下文、不产出 finding。
+- **范围归属**：派发前写一份 `--scopes <json>`（形状见下），快照会生成 `## Scope ownership` 并拒绝同一文件归入多个 scope。启用 `--scopes` 时，**每个 review 文件都必须有 owner**；存在未归属文件时快照直接失败，确有人工例外才用 `--allow-unowned`。每个文件只有一个 owner；其他 scope 只读上下文、不产出 finding。
   ```json
   {
     "browser-injection": ["adlo/crates/browser/src/init_script.js", "adlo/crates/browser/src/webview2_*.rs"],
     "downloads-lifecycle": ["adlo/src-tauri/src/commands/download_commands.rs"]
   }
   ```
-  未列入 scopes 的文件由主代理自行归属，不进任何 scope 主表。
 
 - 仓库根：以主代理在提示词里给出的工作树为准。
-- 快照目录：`.review-diffs/`；本轮清单：`manifest-rev<N>.md`（由 `review-snapshot.mjs` 生成）。
+- 快照目录：`.review-diffs/`；本轮清单：`manifest-rev<N>.md`（由 `review-snapshot.mjs` 生成）。快照会临时 `git add -N` 未跟踪文件，并在退出时恢复索引；若手工生成快照，提交前自行 `git reset -- <untracked>`，否则 `lint-staged` 会拒绝 intent-to-add。
 - 快照文件命名：仓库相对路径中的 `/` 和 `.` 换成 `_`，后缀 `-rev<N>.diff`。
 - **只看本轮 rev**，不要复用旧快照、不要看增量 diff。
 - 子代理禁止运行 `git diff/log/show`，禁止修改源码/配置；只允许写自己的报告文件。

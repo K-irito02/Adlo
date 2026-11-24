@@ -148,6 +148,7 @@ export function parseArgs(argv) {
     rev: 1,
     help: false,
     allowUntracked: false,
+    allowUnowned: false,
     allowClaims: false,
     excludeGenerated: false,
     includeDocs: false,
@@ -162,6 +163,10 @@ export function parseArgs(argv) {
     }
     if (arg === "--allow-untracked") {
       options.allowUntracked = true;
+      continue;
+    }
+    if (arg === "--allow-unowned") {
+      options.allowUnowned = true;
       continue;
     }
     if (arg === "--allow-claims") {
@@ -239,7 +244,7 @@ export function findSuspiciousUntracked(files) {
 function stageIntentToAdd(allowUntracked) {
   const untracked = splitLines(git(["ls-files", "--others", "--exclude-standard"]));
   if (untracked.length === 0) {
-    return 0;
+    return [];
   }
   const suspicious = findSuspiciousUntracked(untracked);
   if (suspicious.length > 0 && !allowUntracked) {
@@ -255,7 +260,7 @@ function stageIntentToAdd(allowUntracked) {
   for (let i = 0; i < untracked.length; i += 50) {
     git(["add", "-N", "--", ...untracked.slice(i, i + 50)]);
   }
-  return untracked.length;
+  return untracked;
 }
 
 /**
@@ -500,7 +505,7 @@ function main() {
   }
   if (options.help) {
     console.log(
-      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--progress <file>] [--scopes <json>] [--allow-untracked] [--allow-claims] [--exclude-generated] [--include-docs]",
+      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--progress <file>] [--scopes <json>] [--allow-untracked] [--allow-unowned] [--allow-claims] [--exclude-generated] [--include-docs]",
     );
     return;
   }
@@ -539,6 +544,13 @@ function main() {
     console.error(`[review-snapshot] ${error.message}`);
     process.exit(1);
   }
+  // `git add -N` 的目的是让未跟踪文件进入 diff；快照写完后恢复索引，
+  // 否则下一次 `git commit` 会被 lint-staged 以 intent-to-add 拒绝。
+  if (intended.length > 0) {
+    process.once("exit", () => {
+      git(["reset", "-q", "--", ...intended]);
+    });
+  }
   const files = splitLines(git(["diff", "--name-only", base]));
   if (files.length === 0) {
     console.error(`[review-snapshot] no changes against base ${base}; nothing to snapshot`);
@@ -565,7 +577,7 @@ function main() {
       process.exit(1);
     }
     try {
-      ownership = buildScopeOwnership(files, scopeMap);
+      ownership = buildScopeOwnership(reviewFiles, scopeMap);
     } catch (error) {
       console.error(`[review-snapshot] invalid --scopes map: ${error.message}`);
       process.exit(1);
@@ -577,6 +589,25 @@ function main() {
       }
       console.error("[review-snapshot] assign each file to exactly one scope and retry.");
       process.exit(1);
+    }
+    if (ownership.unowned.length > 0) {
+      if (options.allowUnowned) {
+        console.warn(
+          `[review-snapshot] WARNING: ${ownership.unowned.length} review files have no scope owner (--allow-unowned):`,
+        );
+        for (const file of ownership.unowned) {
+          console.warn(`  - ${file}`);
+        }
+      } else {
+        console.error("[review-snapshot] review files must each belong to one scope:");
+        for (const file of ownership.unowned) {
+          console.error(`  - ${file}`);
+        }
+        console.error(
+          "[review-snapshot] add them to --scopes (or pass --allow-unowned for a deliberate exception).",
+        );
+        process.exit(1);
+      }
     }
   }
 
@@ -679,7 +710,7 @@ function main() {
   fs.writeFileSync(manifestPath, manifest, "utf8");
 
   console.log(
-    `[review-snapshot] base=${base} rev=${rev} files=${files.length} review=${reviewFiles.length} generated-excluded=${generatedFiles.length} docs-excluded=${docsFiles.length} intent-to-add=${intended}`,
+    `[review-snapshot] base=${base} rev=${rev} files=${files.length} review=${reviewFiles.length} generated-excluded=${generatedFiles.length} docs-excluded=${docsFiles.length} intent-to-add=${intended.length}`,
   );
   console.log(`[review-snapshot] out=${path.relative(repoRoot, outDir) || "."}`);
   console.log(`[review-snapshot] manifest=${path.relative(repoRoot, manifestPath)}`);

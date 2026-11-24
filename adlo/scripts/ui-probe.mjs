@@ -45,6 +45,9 @@ export function parseArgs(argv) {
     timeout: 60000,
     port: 9333,
     headless: true,
+    theme: "",
+    focus: "",
+    viewport: "",
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -97,12 +100,27 @@ export function parseArgs(argv) {
       case "--headed":
         options.headless = false;
         break;
+      case "--theme":
+        options.theme = next();
+        break;
+      case "--focus":
+        options.focus = next();
+        break;
+      case "--viewport":
+        options.viewport = next();
+        break;
       default:
         throw new Error(`unknown argument: ${arg}`);
     }
   }
   if (!options.url) throw new Error("--url is required");
   if (options.selectors.length === 0) throw new Error("at least one --selector is required");
+  if (options.theme && !["light", "dark"].includes(options.theme)) {
+    throw new Error("--theme must be light or dark");
+  }
+  if (options.viewport && !/^\d+x\d+$/.test(options.viewport)) {
+    throw new Error("--viewport must be WIDTHxHEIGHT, e.g. 720x900");
+  }
   return options;
 }
 
@@ -274,6 +292,11 @@ async function waitForSelector(client, selector, timeout) {
 /** 把真实指针移到目标元素中心，使 `:hover` / `:focus-within` 等状态生效后再读计算样式。 */
 async function hoverElement(client, selector) {
   await client.send("DOM.enable");
+  await evaluate(
+    client,
+    `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return false; el.scrollIntoView({ block: "center", inline: "center" }); return true; })()`,
+  );
+  await delay(100);
   const { root } = await client.send("DOM.getDocument", { depth: 1 });
   const { nodeId } = await client.send("DOM.querySelector", { nodeId: root.nodeId, selector });
   if (!nodeId) throw new Error(`hover selector not found: ${selector}`);
@@ -323,6 +346,24 @@ async function main() {
     client = await connectCdp(page.webSocketDebuggerUrl);
     await client.send("Runtime.enable");
 
+    if (options.viewport) {
+      const [width, height] = options.viewport.split("x").map(Number);
+      await client.send("Emulation.setDeviceMetricsOverride", {
+        width,
+        height,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      await delay(200);
+    }
+    if (options.theme) {
+      await evaluate(
+        client,
+        `document.documentElement.dataset.theme = ${JSON.stringify(options.theme)}`,
+      );
+      await delay(300);
+    }
+
     // 进入目标面板：先执行导航前前置脚本，再依次点击；每一步都等目标元素出现。
     if (options.prelude) {
       await evaluate(client, options.prelude);
@@ -354,6 +395,14 @@ async function main() {
     }
     if (options.hover) {
       await hoverElement(client, options.hover);
+    }
+    if (options.focus) {
+      await waitForSelector(client, options.focus, options.timeout);
+      await evaluate(
+        client,
+        `(() => { const el = document.querySelector(${JSON.stringify(options.focus)}); if (!el) return false; el.focus(); return true; })()`,
+      );
+      await delay(150);
     }
 
     const result = await evaluate(

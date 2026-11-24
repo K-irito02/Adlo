@@ -36,6 +36,8 @@ node adlo/scripts/ui-probe.mjs --url http://127.0.0.1:5174 --eval-when "#app > *
   --props opacity,filter
 ```
 
+亮暗两套用 `--theme light|dark`，窄视口用 `--viewport 720x900`；`--focus <选择器>` 可验证 `:focus-visible` 背景。
+
 把 `is-suspended` 换成目标状态类即可；报告里记录端口与命令，结束后终止预览服务。
 
 ### 可选自动化冒烟

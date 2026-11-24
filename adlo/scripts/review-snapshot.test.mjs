@@ -230,9 +230,11 @@ test("ack template appends newly collected claims without losing checked ones", 
   }
 });
 
-test("parses --scopes", () => {
-  const options = parseArgs(["--rev", "4", "--scopes", "scopes.json"]);
+test("parses --scopes and --allow-unowned", () => {
+  const options = parseArgs(["--rev", "4", "--scopes", "scopes.json", "--allow-unowned"]);
   assert.equal(options.scopes, "scopes.json");
+  assert.equal(options.allowUnowned, true);
+  assert.equal(parseArgs(["--rev", "4"]).allowUnowned, false);
 });
 
 test("scope patterns match exact, directory, and glob paths", () => {

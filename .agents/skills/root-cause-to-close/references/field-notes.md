@@ -27,7 +27,7 @@
 
 - 完整门禁单次 230–237s；4 次完整运行 + 1 次 300s 默认超时被截断，约 20 分钟耗在重复测试（2026-11-22）→ 中间轮只跑 `--skip-tests`，最终快照才跑完整门禁。
 - 单次全量约 2 分钟（2026-10-27）→ 先单后全。
-- 只改 `GLOSSARY.md` 也重跑 200 例 × 35s（2026-11-14）→ 已提交后只改文档用 `--base HEAD`（可加 `--skip-tests`）。
+- 只改 `GLOSSARY.md` 也重跑 200 例 × 35s（2026-11-14）→ 已提交后只改文档用 `--base merge-base`（可加 `--skip-tests`）。
 - `git diff` 经 PowerShell 管道 / `Out-File` 转存会把 UTF-8 中文注释写成 GBK 乱码 → 用脚本的 `--output` 或 `edit/write`。
 - `--output` 放在 `--` 之后会被 git 当 pathspec，整段 diff 进 stdout（实测约 100KB）→ `--output` 必须在 `--` 前。
 - 2026-10-25 有 3 处注释被脚本批量替换写成字面量 `\n` → `hygiene-allow` 标记；诊断日志也走同一机制。

@@ -45,12 +45,13 @@ alwaysApply: false
 | 场景 | 命令 | 说明 |
 |------|------|------|
 | 日常改动 / 提交前 | `pnpm --dir frontend run check:changed` | 变更文件 lint/format + 类型/契约不变量 + `vitest related` 受影响用例；检测到 Rust 变更时自动追加受影响 crate 的 fmt/clippy/单测（普通 crate `--lib`，bin-only 外壳 `adlo` 跑 `--bins`）；无 `src/` 变更则跳过前端测试 |
-| 修复循环（只查本轮） | `pnpm --dir frontend run check:changed -- --base HEAD` | 只检查本轮改动；最终提交前省略 `--base`，按 upstream 全量受影响范围跑一次 |
+| 修复循环（未提交） | `pnpm --dir frontend run check:changed -- --base HEAD` | 只检查工作区本轮改动；工作区干净且 base=HEAD 时直接失败（防止提交后假绿） |
+| 修复循环（已提交 / checkpoint） | `pnpm --dir frontend run check:changed -- --base merge-base` | 覆盖「分支分叉点..工作区」；`check:review` 默认即此口径 |
 | Rust 单 crate | `cargo test -p <crate>` | 手动补跑集成测试或特定过滤用例（`cargo test -p <crate> --tests`） |
 | 桌面-only 交互改动（可选） | `pnpm run e2e:build` → `pnpm run e2e` | opt-in 桌面冒烟（真实窗口/IPC）；**不属于** `check:all`，规则见技能 `desktop-e2e-wdio` |
 | 发布打包 Tauri 前 | `pnpm run check:all` + 双端验证 | **必须先通知用户并获批准**，不得自行执行 |
 
-> `check:changed` 检测到 Rust 变更时会调用 `scripts/check-rust-changed.mjs`：`cargo fmt --all -- --check` 总是执行，clippy 与受影响 crate 的单测仅在 Rust 变更时执行（普通 crate 跑 `--lib`；bin-only 的 `src-tauri`/`adlo` 跑 `--bins`，否则 `-p adlo --lib` 会以「no library targets」失败）；`--skip-test` 只用于排查脚本本身。`--base HEAD` 的参数由前端脚本透传，最终提交前必须去掉以恢复 upstream 口径。
+> `check:changed` 检测到 Rust 变更时会调用 `scripts/check-rust-changed.mjs`：`cargo fmt --all -- --check` 总是执行，clippy 与受影响 crate 的单测仅在 Rust 变更时执行（普通 crate 跑 `--lib`；bin-only 的 `src-tauri`/`adlo` 跑 `--bins`，否则 `-p adlo --lib` 会以「no library targets」失败）；`--skip-test` 只用于排查脚本本身。前端解析后的 base 会透传给 Rust 检查；已提交的检查用 `--base merge-base`。
 
 > `check:changed` 先跑秒级检查（`check:comment-claims` 注释断言 / i18n / 术语表 / 文档链接），失败即停；Rust 与 vitest 放在最后，避免一处措辞错误让整条门禁重跑。新增代码注释里的绝对/计数断言应改写为可验证表述，或在行尾加 `claim-allow: <证据>`。该检查只覆盖产品代码；`.agents/skills/`、`.opencode/skills/`、`.trae/skills/` 的第三方/治理内容由 `check-agent-dirs` 与 `check-context-budget` 治理，不参与注释断言门禁。
 

@@ -11,10 +11,10 @@
     "typecheck": "tsc --noEmit",
     "check:vite-config": "node scripts/check-vite-config.mjs",
     "typecheck:dev": "tsc --noEmit -p dev/tsconfig.json",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:changed": "vitest run --changed",
-    "test:one": "vitest run --reporter=dot --silent=passed-only",
+    "test": "node scripts/run-vitest.mjs run",
+    "test:watch": "node scripts/run-vitest.mjs",
+    "test:changed": "node scripts/run-vitest.mjs run --changed",
+    "test:one": "node scripts/run-vitest.mjs run --reporter=dot --silent=passed-only",
     "test:flaky": "node scripts/run-flaky-tests.mjs",
     "coverage": "vitest run --coverage",
     "build:analyze": "BUILD_ANALYZE=true vite build",
@@ -33,7 +33,7 @@
     "gen:check": "node scripts/generate-md-theme-vars.mjs && git diff --exit-code -- src/styles/vendor",
     "check:static": "pnpm lint && pnpm typecheck && pnpm typecheck:dev && pnpm check:vite-config && pnpm format:check && pnpm check:i18n && pnpm check:glossary && pnpm check:dead-code && pnpm gen:check",
     "check:changed": "node scripts/check-changed.mjs",
-    "check:review": "node scripts/check-changed.mjs --base HEAD --skip-tests",
+    "check:review": "node scripts/check-changed.mjs --base merge-base --skip-tests",
     "check:full": "pnpm check:static && pnpm test"
   },
   "dependencies": {

@@ -54,7 +54,7 @@ Agent 在触发验收时，先评估变更范围，确定测试层级：
 凡修改 CSS 选择器、层叠关系、主题 token 或布局：
 
 1. 启动 `pnpm run dev:preview`（或使用环境内置 browser 工具）。
-2. 用 `node adlo/scripts/ui-probe.mjs --url <预览地址> --selector <css> --props border-radius,background-color,color,font-size` 读取计算值；亮暗两套都读。
+2. 用 `node adlo/scripts/ui-probe.mjs --url <预览地址> --selector <css> --props border-radius,background-color,color,font-size` 读取计算值；亮暗两套用 `--theme light` / `--theme dark`，聚焦态用 `--focus <选择器>`，窄视口用 `--viewport 720x900`。
 3. 把选择器、属性、两套值写入进度文件；计算值与预期不符先修 CSS，不要只靠截图/肉眼。
 4. 若环境提供内置 browser 工具，优先用 `evaluate` 读 `getComputedStyle`；否则用 `ui-probe` / `playwright-cli`。
 

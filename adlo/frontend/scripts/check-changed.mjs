@@ -8,7 +8,8 @@
  * 全量门禁（check:full / cargo test --workspace / 发布打包）必须先获得用户批准。
  *
  * 用法：node scripts/check-changed.mjs [--base <ref>] [--skip-tests]
- * 修复循环可传 `--base HEAD` 只查本轮改动；中间轮次可加 `--skip-tests`
+ * 修复循环可传 `--base HEAD` 只查本轮改动；已提交的审查用 `--base merge-base`
+ * （脚本会在 base=HEAD 且工作区无改动时直接失败，避免门禁假绿）。
  * 只跑 lint/format/typecheck，落盘前再跑一次不带该参数的全量受影响范围。
  */
 import { spawnSync } from 'node:child_process';
@@ -102,7 +103,16 @@ function runTests(label, command) {
     encoding: 'utf8',
     shell: true,
     maxBuffer: 64 * 1024 * 1024,
-    env: cleanGitEnv,
+    env: {
+      ...cleanGitEnv,
+      ...(process.allowedNodeEnvironmentFlags.has('--no-experimental-webstorage')
+        ? {
+            NODE_OPTIONS: [cleanGitEnv.NODE_OPTIONS, '--no-experimental-webstorage']
+              .filter(Boolean)
+              .join(' '),
+          }
+        : {}),
+    },
   });
   const stripAnsi = (text) => text.replace(/\x1b\[[0-9;]*m/g, '');
   const output = stripAnsi(`${result.stdout ?? ''}\n${result.stderr ?? ''}`);
@@ -144,6 +154,17 @@ const repoRoot = capture('git', ['rev-parse', '--show-toplevel'], { env: cleanGi
 const git = (args) => capture('git', ['-C', repoRoot, ...args], { env: cleanGitEnv });
 
 function resolveBase(explicit) {
+  if (explicit === 'merge-base' || explicit === 'auto') {
+    try {
+      return { base: git(['merge-base', 'origin/HEAD', 'HEAD']).trim(), fallback: null };
+    } catch {
+      try {
+        return { base: git(['merge-base', 'origin/main', 'HEAD']).trim(), fallback: null };
+      } catch {
+        return { base: 'HEAD', fallback: 'HEAD' };
+      }
+    }
+  }
   if (explicit) {
     git(['rev-parse', '--verify', explicit]);
     return { base: explicit, fallback: null };
@@ -179,6 +200,19 @@ const changed = repoChanged
   .filter((file) => file.startsWith(prefix))
   .map((file) => file.slice(prefix.length));
 const rustChanged = repoChanged.some((file) => isRustPath(file));
+
+// 提交后默认 base 仍是 HEAD：工作区干净时 changed=0，门禁会静默空转（P4 假绿）。
+// 明确失败并给出可执行的修正命令；`--base merge-base` 是提交后审查的推荐入口。
+if (base === 'HEAD' && repoChanged.length === 0) {
+  console.error(
+    [
+      '[check:changed] ERROR: base resolves to HEAD and the working tree has no changes — nothing was checked.',
+      'Committed work is not covered by --base HEAD. Re-run with:',
+      '  --base merge-base   (or an explicit branch point)',
+    ].join('\n'),
+  );
+  process.exit(1);
+}
 
 const lintable = changed.filter((f) => /\.(ts|tsx|js|jsx)$/.test(f));
 const prettierable = changed.filter((f) => /\.(ts|tsx|js|jsx|mjs|css|json|md)$/.test(f));
@@ -275,7 +309,7 @@ if (docsChanged.length > 0) {
 if (process.env.ADL_SKIP_RUST === '1') {
   console.log('[check:changed] rust skipped (ADL_SKIP_RUST=1)');
 } else if (rustChanged) {
-  const baseArg = options.base ? ` --base ${quote(options.base)}` : '';
+  const baseArg = ` --base ${quote(base)}`;
   const skipTestArg = options.skipTests ? ' --skip-test' : '';
   run('rust (affected crates)', `node ../scripts/check-rust-changed.mjs${baseArg}${skipTestArg}`);
 } else {

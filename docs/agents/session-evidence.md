@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | 进度文件 | `docs/root-cause-to-close/YYYY-MM/progress-*.md` | 决策、根因、命令与验证计数、P5/P6 结论 | 永久（入库） |
 | 审查报告 | `docs/root-cause-to-close/YYYY-MM/reviews/<progress-stem>/` | R1/R2 最终轮结论与「需修复项」 | 永久（入库） |
-| Shell 工具输出 | `~/.local/share/opencode/shell/<project-hash>/*.out` | 每次命令的原样输出（门禁计数、失败堆栈、探针 JSON） | 本机；被杀掉/中止的命令可能不落盘 |
+| Shell 工具输出 | `<OpenCode 数据根>/shell/<project-hash>/*.out` | 每次命令的原样输出（门禁计数、失败堆栈、探针 JSON）。Adlo 托管 CLI 下形如 `<Adlo 数据根>\harnesses\opencode\managed\<大版本>\data\opencode\shell\...` | 本机；被杀掉/中止的命令可能不落盘 |
 | 门禁日志 | `$env:TEMP\adl-*.log`（本仓约定） | 长门禁的完整输出（`> log 2>&1` 后读 tail） | 临时 |
 | 应用日志 | `<repo>/.adl-logs/`、`adlo/.adl-logs/`、`adlo/.run-logs/` | 运行时 ERROR / WARN（见日志协议） | 7 天内 |
 | 审查快照 | `.review-diffs/` | 当轮 diff / manifest / claims | P6 删除（报告已归档） |

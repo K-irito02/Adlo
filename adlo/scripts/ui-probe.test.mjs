@@ -80,6 +80,39 @@ test("parseArgs separates navigation-time and post-load evaluations", () => {
   assert.equal(defaults.evalWhen, "");
 });
 
+test("parseArgs accepts theme, focus, and viewport overrides", () => {
+  const options = parseArgs([
+    "--url",
+    "http://x",
+    "--selector",
+    ".a",
+    "--theme",
+    "light",
+    "--focus",
+    ".adl-clipboard__clear",
+    "--viewport",
+    "720x900",
+  ]);
+  assert.equal(options.theme, "light");
+  assert.equal(options.focus, ".adl-clipboard__clear");
+  assert.equal(options.viewport, "720x900");
+  const defaults = parseArgs(["--url", "http://x", "--selector", ".a"]);
+  assert.equal(defaults.theme, "");
+  assert.equal(defaults.focus, "");
+  assert.equal(defaults.viewport, "");
+});
+
+test("parseArgs validates theme and viewport values", () => {
+  assert.throws(
+    () => parseArgs(["--url", "http://x", "--selector", ".a", "--theme", "auto"]),
+    /--theme/,
+  );
+  assert.throws(
+    () => parseArgs(["--url", "http://x", "--selector", ".a", "--viewport", "720"]),
+    /--viewport/,
+  );
+});
+
 test("parseArgs rejects missing url / selectors / unknown flags", () => {
   assert.throws(() => parseArgs(["--selector", ".a"]), /--url is required/);
   assert.throws(() => parseArgs(["--url", "http://x"]), /at least one --selector/);
