@@ -13,7 +13,7 @@
 │  [10]    │         [15] Center Tab Host                  │ (files/changes/   │
 │  Left    │         (CenterEntryPage: dsh / 浏览器 / 终端)  │  browser/terminal/ │
 │  Sidebar │                                               │  settings)         │
-│ (剪切看板 │                                               │                    │
+│ (剪贴板   │                                               │                    │
 │ +系统监控)│                                               │                    │
 │          │                                               │   [17] Tool Panel  │
 │          │                                               │       Content      │
@@ -25,7 +25,7 @@
   区域   文档路径   说明  
  ------ ---------- ------ 
   标题栏   [titlebar/](./titlebar/README.md)   汉堡菜单、操作按钮、中心标签条、窗口控制  
-  左侧边栏   [leftbar/](./leftbar/README.md)   剪切看板、系统监控  
+  左侧边栏   [leftbar/](./leftbar/README.md)   剪贴板、系统监控  
   中心   [center/](./center/README.md)   中心多标签宿主（dsh/浏览器/终端）  
   右侧面板   [rightpanel/](./rightpanel/README.md)   工具切换（5 工具）、工具面板、浏览器  
 

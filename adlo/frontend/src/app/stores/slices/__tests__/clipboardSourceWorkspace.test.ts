@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { useAppStore } from '../../slicedStore';
 
-describe('剪贴板记录来源工作区', () => {
+describe('剪贴板来源工作区', () => {
   afterEach(() => {
     useAppStore.getState().clearClipboard();
   });

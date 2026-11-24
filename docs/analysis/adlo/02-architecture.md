@@ -65,7 +65,7 @@ App.tsx (根组件，TCopyProvider 注入)
 ├── Regions (布局)
 │   ├── TitleBar            # 标题栏（含汉堡菜单/中心标签条/窗口控制）
 │   ├── CenterPane          # 中央多标签宿主（CenterEntryPage：dsh/浏览器/终端）
-│   ├── LeftSidebar         # 左侧边栏（剪切看板 + 系统监控）
+│   ├── LeftSidebar         # 左侧边栏（剪贴板 + 系统监控）
   │   └── RightPanel          # 右侧面板（5 工具切换：files/changes/browser/terminal/settings）
 │
 ├── [Features] (25 功能域)  # 按功能域组织的面板，详见 00-quick-reference.md

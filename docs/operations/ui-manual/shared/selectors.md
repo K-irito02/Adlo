@@ -109,7 +109,7 @@ a[aria-label="帮助"]
 /* 标题栏内的按钮 */
 .adl-titlebar button[aria-label="设置"]
 
-/* 左侧边栏内的剪切看板 */
+/* 左侧边栏内的剪贴板 */
 .adl-leftbar .adl-clipboard
 
 /* 中心宿主内的入口页 */
@@ -157,7 +157,7 @@ a[aria-label="帮助"]
 | 元素         | 选择器                              |
 | ------------ | ----------------------------------- |
 | 左侧边栏容器 | `.adl-leftbar`                      |
-| 剪切看板     | `.adl-clipboard`（`__list` 列表） |
+| 剪贴板     | `.adl-clipboard`（`__list` 列表） |
 | 系统资源查看 | `.adl-sysmon` |
 | 调整手柄     | `.adl-leftbar__resize-handle`       |
 

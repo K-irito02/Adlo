@@ -79,7 +79,7 @@ await page.waitForResponse(response =>
 
 | 操作 | 等待条件 | 超时建议 |
 |------|----------|----------|
-| 剪切看板加载 | `.adl-clipboard__list` 内容出现 | 1000ms |
+| 剪贴板加载 | `.adl-clipboard__list` 内容出现 | 1000ms |
 | 系统监控加载 | `.adl-sysmon` 内容出现 | 1000ms |
 | 拖拽排序 | `.is-dragging` 类出现/消失 | 500ms |
 

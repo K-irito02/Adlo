@@ -1,12 +1,12 @@
 # 左侧边栏区域
 
-> 左侧边栏当前包含剪切看板和系统资源查看两个模块。
+> 左侧边栏当前包含剪贴板和系统资源查看两个模块。
 
 ## 布局结构
 
 ```
 ┌──────────────┐
-│ 剪切看板      │
+│ 剪贴板        │
 │ Clipboard    │
 │ HistoryList  │
 ├──────────────┤
@@ -23,7 +23,7 @@
 
 | 模块 | 文档 | 说明 |
 | ---- | ---- | ---- |
-| 剪切看板 | [clipboard-history.md](./clipboard-history.md) | `ClipboardHistoryList`（`.adl-clipboard`，搜索/筛选/放大查看） |
+| 剪贴板 | [clipboard-history.md](./clipboard-history.md) | `ClipboardHistoryList`（`.adl-clipboard`，搜索/筛选/放大查看） |
 | 系统资源查看 | （专文待补） | `SystemMonitorPanel`（`.adl-sysmon`），系统资源监控 |
 | Resize Handle | - | 宽度调整手柄（180–260px 钳制，见 `uiSliceTypes.ts`） |
 

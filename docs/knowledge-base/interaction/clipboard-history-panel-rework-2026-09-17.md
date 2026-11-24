@@ -1,6 +1,6 @@
 # 剪贴板历史面板重构与收尾教训（2026-09-17）
 
-> 来源：左侧边栏「剪切看板」22 项调整 + root-cause-resolution Phase 4 六轮审查 + closing-workflow 四轮审查。相关实现：`frontend/src/app/features/clipboard-history/`、`crates/server/src/handlers/clipboard.rs`。
+> 来源：左侧边栏「剪贴板」22 项调整 + root-cause-resolution Phase 4 六轮审查 + closing-workflow 四轮审查。相关实现：`frontend/src/app/features/clipboard-history/`、`crates/server/src/handlers/clipboard.rs`。
 
 ## 1. 破坏性操作的"范围权威"必须单点化
 

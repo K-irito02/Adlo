@@ -115,7 +115,7 @@ frontend/src/app/components/ErrorBoundary.tsx # 错误边界
 frontend/src/app/regions/TitleBar.tsx        # 标题栏
 frontend/src/app/regions/CenterPane.tsx       # 中心（adl-center--tab-host 多标签宿主）
 frontend/src/app/regions/CenterTabStrip.tsx   # 中心标签条
-frontend/src/app/regions/LeftSidebar.tsx      # 左侧边栏（剪切看板 + 系统监控）
+frontend/src/app/regions/LeftSidebar.tsx      # 左侧边栏（剪贴板 + 系统监控）
 frontend/src/app/regions/RightPanel.tsx       # 右侧面板（6 工具切换）
 frontend/src/app/regions/HamburgerMenu.tsx    # 汉堡菜单（adl-hamburger__*）
 frontend/src/app/regions/WindowControls.tsx   # 窗口控制（仅 Tauri）
