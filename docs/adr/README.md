@@ -28,6 +28,10 @@
 
 - [0009 设置刷新按行/块限定作用域，环境按依赖重检](./0009-settings-refresh-scope-and-recheck.md)
 
+## 剪贴板与保留策略
+
+- [0034 剪贴板历史保留 500 条，启动与入库时淘汰最旧条目](./0034-clipboard-history-retention-cap.md) — 上限与读取窗口同源；文件随条目删除；裁剪失败不回滚新条目
+
 ## 浏览器与预览
 
 - [0001 浏览器 WebView 的 UDF 拓扑（默认共享，可回退隔离）](./0001-browser-udf-isolation.md)

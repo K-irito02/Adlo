@@ -5,6 +5,7 @@ Adlo 项目各具体功能的架构设计文档。
 ## Files
 
 - [builtin-browser.md](./builtin-browser.md) — 内置浏览器实现总结（WebView2、书签、历史记录、导航）
+- [clipboard-history.md](./clipboard-history.md) — 剪贴板历史（捕获、500 条保留上限、面板与放大查看弹窗、预览排版）
 - [terminal.md](./terminal.md) — 终端子系统文件地图、PTY 生命周期、布局持久化与调试入口
 - [run-activity-and-run-summary.md](./run-activity-and-run-summary.md) — Run Activity & Run Summary（运行透明度表面）
 - [workspace-and-retrieval.md](./workspace-and-retrieval.md) — 工作区与检索（workspace 状态与检索能力）
