@@ -29,10 +29,51 @@ function paddingOf(body: string | null): string | undefined {
     .trim();
 }
 
+/** 取 at-rule 内某条规则的规则体（`exactRuleBody` 不进入 @media）。 */
+function ruleBodyInMedia(css: string, media: string, selector: string): string | undefined {
+  const mediaStart = css.indexOf(media);
+  if (mediaStart < 0) {
+    return undefined;
+  }
+  const open = css.indexOf('{', mediaStart);
+  if (open < 0) {
+    return undefined;
+  }
+  let depth = 0;
+  let end = -1;
+  for (let i = open; i < css.length; i += 1) {
+    if (css[i] === '{') {
+      depth += 1;
+    } else if (css[i] === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  if (end < 0) {
+    return undefined;
+  }
+  const block = css.slice(open + 1, end);
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(block)?.[1];
+}
+
 describe('clipboard viewer markdown layout', () => {
   it('keeps the same padding as the right-side markdown preview', () => {
     const viewerPadding = paddingOf(exactRuleBody(viewerCss, VIEWER_MARKDOWN));
     const rightPanelPadding = paddingOf(exactRuleBody(rightPanelCss, RIGHT_PANEL_MARKDOWN));
+    expect(rightPanelPadding).toBeTruthy();
+    expect(viewerPadding).toBe(rightPanelPadding);
+  });
+
+  it('keeps the same narrow-viewport padding as the right-side markdown preview', () => {
+    const media = '@media (max-width: 760px)';
+    const viewerPadding = paddingOf(ruleBodyInMedia(viewerCss, media, VIEWER_MARKDOWN) ?? null);
+    const rightPanelPadding = paddingOf(
+      ruleBodyInMedia(rightPanelCss, media, RIGHT_PANEL_MARKDOWN) ?? null,
+    );
     expect(rightPanelPadding).toBeTruthy();
     expect(viewerPadding).toBe(rightPanelPadding);
   });

@@ -365,14 +365,20 @@ pub fn start_background_services(state: &ServerState) {
         }
     });
 
+    let _keepalive = spawn_keepalive(monitor_handle);
+}
+
+/// 剪贴板监听保活：持有监听句柄直到进程退出。
+///
+/// `thread::park()` 允许虚假唤醒；单次 park 返回会让句柄提前 Drop，监听线程随之静默退出
+/// （表现为“复制后历史不再增长”）。循环 park，只有进程退出才结束。
+fn spawn_keepalive<T: Send + 'static>(handle: T) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
-        let _handle = monitor_handle; // 保持监听线程存活
-        // park() 允许虚假唤醒；单次 park 返回会让句柄提前 Drop，监听线程随之静默退出
-        // （表现为“复制后历史不再增长”）。循环 park，只有进程退出才结束。
+        let _handle = handle;
         loop {
             std::thread::park();
         }
-    });
+    })
 }
 
 pub async fn serve(state: ServerState, port: u16) -> u16 {
@@ -574,5 +580,34 @@ mod watcher_sync_tests {
 
         state.workspace_watchers.lock().unwrap().stop_all();
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod keepalive_tests {
+    use super::spawn_keepalive;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::Duration;
+
+    #[test]
+    fn keepalive_survives_spurious_unparks() {
+        struct DropFlag(Arc<AtomicBool>);
+        impl Drop for DropFlag {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::SeqCst);
+            }
+        }
+
+        let dropped = Arc::new(AtomicBool::new(false));
+        let thread = spawn_keepalive(DropFlag(dropped.clone()));
+        // 模拟虚假唤醒：单次 park 版本会在第一次返回后 Drop 句柄。
+        thread.thread().unpark();
+        thread.thread().unpark();
+        std::thread::sleep(Duration::from_millis(50));
+        assert!(
+            !dropped.load(Ordering::SeqCst),
+            "keepalive dropped its handle on spurious park wakeup"
+        );
     }
 }

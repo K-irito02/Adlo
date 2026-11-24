@@ -31,6 +31,7 @@ export const utilitiesZh = {
   clipboardZoomOut: '缩小字号',
   clipboardZoomReset: '重置字号',
   clipboardWrapOn: '自动换行',
+  clipboardWrap: '自动换行',
   clipboardWrapOff: '不自动换行',
   clipboardPreviewRich: '预览富文本',
   clipboardPreviewMarkdown: '预览文本',

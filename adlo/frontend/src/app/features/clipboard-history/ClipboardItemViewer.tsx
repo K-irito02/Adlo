@@ -109,7 +109,8 @@ function readPreviewSurfaceColor(): string {
  * 剪贴板条目放大查看覆盖层（createPortal + 遮罩 + 卡片）。
  * - 头部：标题靠左，**居中**按钮组（复制 / 换行 / 编辑 / 预览 / 保存为文件）；
  *   关闭**靠右**，编辑态时关闭左侧出现“保存更改 / 丢弃更改”文字按钮（大间距分区）。
- *   图标按钮的提示统一用系统原生 `title`（不再挂项目自定义 tooltip）
+ *   头部与底部文本工具行的图标按钮提示用系统原生 `title`；图片工具栏的
+ *   步进/适应窗口按钮只设 `aria-label`（缩放读数由 `ZoomReadout` 自带 `title`）。
  * - 底部工具行：统计读数（靠左）+ 字号（文本）或缩放（图片）控件（靠右）
  * - 文本与富文本条目：编辑 = 纯文本（`content`，与普通文本无异，不碰 HTML 源码）；
  *   文本预览 = Markdown 渲染，富文本预览 = sidecar 沙箱 iframe（文本编辑不反映到预览）
@@ -617,8 +618,9 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     overflowWrap: wrap ? ('anywhere' as const) : ('normal' as const),
   };
   // 预览与编辑共用同一底色 class（用户要求两者视觉一致）；图片 / RTF 无预览面，
-  // 持久化的 previewing 不应给它们铺底色。
-  const contentSurfaceActive = editing || (canPreview && previewing);
+  // 持久化的 previewing 不应给它们铺底色，也不应切换内容面。
+  const previewActive = canPreview && previewing;
+  const contentSurfaceActive = editing || previewActive;
   const previewLabel = isHtml ? t.clipboardPreviewRich : t.clipboardPreviewMarkdown;
 
   return createPortal(
@@ -660,9 +662,8 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
                   setWrap(next);
                   setClipboardViewerWrap(next);
                 }}
-                // 标签描述**当前状态**（与 aria-pressed 配对），不是"点击会发生什么"：
-                // 图标本身已是 ON/OFF 两态，标签再反过来会与图标互相矛盾。
-                aria-label={wrap ? t.clipboardWrapOn : t.clipboardWrapOff}
+                // aria-label 恒定（状态由 aria-pressed 表达），状态文案放 title。
+                aria-label={t.clipboardWrap}
                 title={wrap ? t.clipboardWrapOn : t.clipboardWrapOff}
               >
                 {wrap ? <IconWrap size={14} decorative /> : <IconWrapOff size={14} decorative />}
@@ -784,7 +785,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
                 <pre
                   className="adl-clipboard-viewer__text"
                   style={textTypography}
-                  hidden={editing || previewing}
+                  hidden={editing || previewActive}
                 >
                   {draft}
                 </pre>
@@ -794,7 +795,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
                     sandbox=""
                     srcDoc={previewSrcDoc}
                     title={t.clipboardHtml}
-                    hidden={editing || !previewing}
+                    hidden={editing || !previewActive}
                   />
                 ) : (
                   // 纯文本按 Markdown 渲染：复用右侧面板同一渲染器（DOMPurify +
@@ -807,7 +808,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
                   // 包层改 `font-size` 会被该声明覆盖而无效；改变量则容器与 em 子级整体等比缩放。
                   <div
                     className="adl-clipboard-viewer__markdown"
-                    hidden={editing || !previewing}
+                    hidden={editing || !previewActive}
                     style={
                       {
                         '--text-base': `${(16 * Math.round(fontScale * 100)) / 100}px`,

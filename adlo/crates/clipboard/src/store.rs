@@ -79,11 +79,6 @@ impl ClipboardStore {
     }
 
     pub fn insert_or_bump(&self, item: &ClipboardItem) -> Result<bool, AppError> {
-        self.insert_or_bump_with_cap(item, MAX_HISTORY_ITEMS)
-    }
-
-    /// 入库并执行上限裁剪；`cap` 仅测试用（便于用小样本验证裁剪行为）。
-    fn insert_or_bump_with_cap(&self, item: &ClipboardItem, cap: usize) -> Result<bool, AppError> {
         if let Some(prev) = self.latest()? {
             // 去重：同 kind 且内容/指纹相同 + 时间窗内即判定重复。
             // 文本比较 content；图片每次复制文件名不同（image_path 恒变），
@@ -104,8 +99,11 @@ impl ClipboardStore {
         }
         self.save(item)?;
         // 裁剪失败不回滚新条目：历史已写入，最多是本次未收口，下次插入/启动会再试。
-        if let Err(error) = self.prune_to(cap) {
-            tracing::warn!(error = %error, cap, "clipboard: history cap prune failed after insert");
+        if let Err(error) = self.prune_to(MAX_HISTORY_ITEMS) {
+            tracing::warn!(
+                error = %error,
+                "clipboard: history cap prune failed after insert"
+            );
         }
         Ok(true)
     }
@@ -394,17 +392,51 @@ mod tests {
     }
 
     #[test]
-    fn insert_enforces_history_cap() {
-        let tag = format!("cap-{}", std::process::id());
+    fn startup_prune_uses_default_cap() {
+        let tag = format!("startup-{}", std::process::id());
+        let db_path = temp_dir().join(format!("clip-{tag}.db"));
+        let _ = std::fs::remove_file(&db_path);
+        let db = Database::open(&db_path).unwrap();
+        db.init_schema().unwrap();
+        let base = now_ms();
+        for i in 0..MAX_HISTORY_ITEMS + 10 {
+            let it = item(&format!("{i}"), ClipboardKind::Text, base + i as i64);
+            db.save_entity(
+                adl_storage::EntityTable::ClipboardItems,
+                &it.id,
+                None,
+                None,
+                Some(it.kind.as_str()),
+                &it,
+            )
+            .unwrap();
+        }
+
+        let dir = temp_dir().join(format!("clip-data-{tag}"));
+        let store = ClipboardStore::new(db, &dir);
+        let rows = store.list(1000).unwrap();
+        assert_eq!(rows.len(), MAX_HISTORY_ITEMS);
+        assert_eq!(rows.first().map(|row| row.id.as_str()), Some("509"));
+        assert_eq!(rows.last().map(|row| row.id.as_str()), Some("10"));
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn insert_enforces_default_history_cap() {
+        let tag = format!("cap-default-{}", std::process::id());
         let store = temp_store(&tag);
         let base = now_ms();
-        for i in 0..5 {
-            let it = item(&format!("{i}"), ClipboardKind::Text, base + i);
-            assert!(store.insert_or_bump_with_cap(&it, 3).unwrap());
+        for i in 0..=MAX_HISTORY_ITEMS {
+            let it = item(&format!("{i}"), ClipboardKind::Text, base + i as i64);
+            assert!(store.insert_or_bump(&it).unwrap());
         }
-        let rows = store.list(10).unwrap();
-        assert_eq!(rows.len(), 3);
-        assert_eq!(rows.iter().map(|row| row.id.as_str()).collect::<Vec<_>>(), vec!["4", "3", "2"]);
+        let rows = store.list(MAX_HISTORY_ITEMS + 1).unwrap();
+        assert_eq!(rows.len(), MAX_HISTORY_ITEMS);
+        assert_eq!(rows.first().map(|row| row.id.as_str()), Some("500"));
+        assert_eq!(rows.last().map(|row| row.id.as_str()), Some("1"));
+        assert!(store.get("0").unwrap().is_none(), "oldest row must be pruned");
+        assert!(store.get("1").unwrap().is_some(), "newest MAX_HISTORY_ITEMS rows survive");
         let _ = std::fs::remove_dir_all(temp_dir().join(format!("clip-data-{tag}")));
         let _ = std::fs::remove_file(temp_dir().join(format!("clip-{tag}.db")));
     }

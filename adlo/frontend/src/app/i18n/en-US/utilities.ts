@@ -32,6 +32,7 @@ export const utilitiesEn = {
   clipboardZoomOut: 'Decrease font size',
   clipboardZoomReset: 'Reset font size',
   clipboardWrapOn: 'Word wrap on',
+  clipboardWrap: 'Word wrap',
   clipboardWrapOff: 'Word wrap off',
   clipboardPreviewRich: 'Preview rich text',
   clipboardPreviewMarkdown: 'Preview as markdown',

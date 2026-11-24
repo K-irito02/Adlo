@@ -17,6 +17,7 @@
 
 use crate::ServerState;
 use crate::ipc;
+use adl_clipboard::MAX_HISTORY_ITEMS;
 use adl_errors::AppError;
 use adl_types::types::clipboard::ClipboardKind;
 use axum::extract::{Query, State};
@@ -37,14 +38,15 @@ where
         .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
 }
 
-/// GET `/clipboard/list?limit=N` — clipboard history newest-first, capped at 500.
+/// GET `/clipboard/list?limit=N` — clipboard history newest-first, capped at
+/// `adl_clipboard::MAX_HISTORY_ITEMS` (the store's retention cap).
 pub async fn list(
     State(state): State<ServerState>,
     Query(q): Query<ListQuery>,
 ) -> impl IntoResponse {
     let store = state.clipboard_store.clone();
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        let items = store.list(q.limit.unwrap_or(100).min(500))?;
+        let items = store.list(q.limit.unwrap_or(100).min(MAX_HISTORY_ITEMS))?;
         Ok(serde_json::to_value(&items)?)
     })
     .await;

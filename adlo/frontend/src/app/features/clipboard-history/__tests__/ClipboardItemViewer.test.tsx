@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import type { ClipboardItem } from '@shared/ipc/clipboard';
 import { useAppStore } from '@stores/slicedStore';
+import { persist } from '@stores/persisted/persist';
 import { ClipboardItemViewer } from '../ClipboardItemViewer';
 import {
   applyClipboardViewerPreview,
@@ -17,6 +18,10 @@ vi.mock('@stores/slicedStore', () => ({
   useAppStore: vi.fn(),
 }));
 
+vi.mock('@stores/persisted/persist', () => ({
+  persist: vi.fn(),
+}));
+
 const mockT = {
   clipboardText: '文本',
   clipboardImage: '图片',
@@ -26,6 +31,7 @@ const mockT = {
   clipboardExportFailed: '读取剪贴板条目内容失败，未保存',
   clipboardSaveAsFileFailed: '保存为文件失败',
   clipboardWrapOn: '自动换行',
+  clipboardWrap: '自动换行',
   clipboardWrapOff: '不自动换行',
   clipboardZoomInput: '缩放百分比，直接输入数值',
   clipboardZoomRange: '可用范围 {min}%–{max}%',
@@ -274,7 +280,7 @@ describe('ClipboardItemViewer', () => {
     expect(header.lastElementChild).toBe(cell);
   });
 
-  it('uses native title tooltips instead of the custom tooltip for icon buttons', () => {
+  it('uses native title tooltips instead of the custom tooltip for header/text-toolbar icon buttons', () => {
     renderViewer(makeItem());
     const dialog = screen.getByRole('dialog');
     const titleOf = (name: string) => screen.getByRole('button', { name }).getAttribute('title');
@@ -304,7 +310,7 @@ describe('ClipboardItemViewer', () => {
 
     await userEvent.click(onButton);
 
-    const offButton = screen.getByRole('button', { name: '不自动换行' });
+    const offButton = screen.getByRole('button', { name: '自动换行' });
     expect(offButton.getAttribute('aria-pressed')).toBe('false');
     // 关闭后换为划除态图标
     expect(offButton.querySelector('svg path')?.getAttribute('d')).not.toBe(onPath);
@@ -589,16 +595,30 @@ describe('ClipboardItemViewer', () => {
     renderViewer(makeItem({ content: '# heading' }));
 
     // 启动即按持久化偏好呈现：不换行 + 直接预览态。
-    expect(screen.getByRole('button', { name: '不自动换行' })).toBeTruthy();
+    const wrapButton = screen.getByRole('button', { name: '自动换行' });
+    expect(wrapButton.getAttribute('aria-pressed')).toBe('false');
     expect(document.querySelector('.adl-clipboard-viewer__body--active')).not.toBeNull();
     const markdown = document.querySelector('.adl-clipboard-viewer__markdown') as HTMLElement;
     expect(markdown.hidden).toBe(false);
 
-    await userEvent.click(screen.getByRole('button', { name: '不自动换行' }));
+    await userEvent.click(wrapButton);
     expect(readClipboardViewerWrap()).toBe(true);
+    expect(vi.mocked(persist)).toHaveBeenCalledWith('adl:ui.clipboardViewerWrap', true);
 
     await userEvent.click(screen.getByRole('button', { name: '预览文本' }));
     expect(readClipboardViewerPreview()).toBe(false);
+    expect(vi.mocked(persist)).toHaveBeenCalledWith('adl:ui.clipboardViewerPreview', false);
+  });
+
+  it('keeps rtf items on the plain-text face even when preview preference is on', () => {
+    applyClipboardViewerPreview(true);
+    renderViewer(makeItem({ kind: 'rtf', content: 'rtf text', rtfPath: 'a.rtf' }));
+    const pre = document.querySelector('.adl-clipboard-viewer__text') as HTMLElement;
+    expect(pre.hidden).toBe(false);
+    const markdown = document.querySelector('.adl-clipboard-viewer__markdown') as HTMLElement;
+    expect(markdown.hidden).toBe(true);
+    expect(screen.queryByRole('button', { name: '预览文本' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '预览富文本' })).toBeNull();
   });
 
   it('keeps preview faces mounted across toggles so switching never rebuilds them', async () => {

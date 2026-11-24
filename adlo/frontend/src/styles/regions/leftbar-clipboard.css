@@ -507,6 +507,14 @@
   background-color: transparent;
 }
 
+/* 右侧面板在窄视口会收窄 Markdown padding；弹窗跟随同一条断点，避免 640–760px
+   窗口下两边排版分叉。 */
+@media (max-width: 760px) {
+  .adl-clipboard-viewer__scroll .adl-markdown-preview {
+    padding: var(--space-6) var(--space-5) 18vh;
+  }
+}
+
 /* 横向点态条让出右侧竖向滑块的宽度（两者在右下角会重叠）。 */
 .adl-clipboard-viewer__body .adl-hscroll {
   right: var(--adl-clipboard-scrollbar-width);
