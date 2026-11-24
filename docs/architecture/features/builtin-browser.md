@@ -129,3 +129,10 @@
 | file:// 崩溃防线 | 浏览器/静默 WebView 不注册 wry IPC handler；注入脚本只在 http(s) 文档发宿主消息；标题回填同样加协议守卫。重新 vendor 由 `src-tauri` 源码断言兜底。 |
 
 > 详细根因与失败迭代见 [browser-embedding-hardening-2026-11-24.md](../../knowledge-base/browser/browser-embedding-hardening-2026-11-24.md)。
+
+## 2026-11-25 增量（落地页复制与标签悬停操作）
+
+| 能力 | 契约 |
+|------|------|
+| 落地页右键复制 | 快捷站点右键菜单「复制链接」复制保存的 URL；端口右键菜单「复制链接」复制 `http://{host}:{port}`，「复制PID」按端口实时调用 `browser_get_port_details` 取占用进程 pid（多个以换行分隔），无进程时 toast「未找到占用该端口的进程」。 |
+| 已打开标签页悬停操作 | 右侧面板「已打开标签页」行悬停/聚焦（`:focus-within`）显示「在中心显示」+「关闭」两个图标按钮；前者复用 `IconArrowUpLeft`（与右键菜单同图标）并调用 `centerShowBrowserTab`（移动，不新建）。 |

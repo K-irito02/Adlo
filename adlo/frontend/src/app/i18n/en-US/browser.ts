@@ -140,6 +140,8 @@ export const browserEn = {
   browserContextEdit: 'Edit',
   browserContextCut: 'Cut',
   browserContextCopyLink: 'Copy link',
+  browserContextCopyPid: 'Copy PID',
+  browserCopyPidNotFound: 'No process found for this port',
   browserContextDelete: 'Delete',
   browserContextMore: 'More actions',
   browserContextCreateBookmark: 'New bookmark',

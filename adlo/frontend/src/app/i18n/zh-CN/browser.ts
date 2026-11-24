@@ -133,6 +133,8 @@ export const browserZh = {
   browserContextEdit: '编辑',
   browserContextCut: '剪切',
   browserContextCopyLink: '复制链接',
+  browserContextCopyPid: '复制PID',
+  browserCopyPidNotFound: '未找到占用该端口的进程',
   browserContextDelete: '删除',
   browserContextMore: '更多操作',
   browserContextCreateBookmark: '新建书签',

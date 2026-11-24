@@ -74,6 +74,19 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
         </button>
         <span className="adl-filetree__meta adl-tree-node__meta--inline">
           <span className="adl-browser-node__actions">
+            <TooltipSimple content={t.centerTabShowInCenter} placement="top">
+              <button
+                type="button"
+                className="adl-icon-btn adl-icon-btn--xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  moveTabToCenter(tab.id);
+                }}
+                aria-label={t.centerTabShowInCenter}
+              >
+                <IconArrowUpLeft size={12} decorative />
+              </button>
+            </TooltipSimple>
             <TooltipSimple content={t.browserClose} placement="top">
               <button
                 type="button"

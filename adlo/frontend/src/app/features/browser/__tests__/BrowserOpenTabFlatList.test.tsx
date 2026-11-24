@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { CopyDict } from '@i18n/types';
 import { TCopyProvider } from '@i18n/TCopyContext';
+import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { BrowserOpenTabFlatList } from '../BrowserOpenTabFlatList';
 
@@ -251,6 +252,42 @@ describe('BrowserOpenTabFlatList reorder', () => {
       expect(onSelectTab).not.toHaveBeenCalled();
     } finally {
       doc.elementFromPoint = originalElementFromPoint;
+    }
+  });
+
+  it('hover actions include "Show in center" to the left of Close', () => {
+    const original = useAppStore.getState().centerShowBrowserTab;
+    const moveToCenter = vi.fn();
+    useAppStore.setState({ centerShowBrowserTab: moveToCenter as never });
+    const onSelectTab = vi.fn();
+    try {
+      render(
+        <TCopyProvider t={t} locale="en-US">
+          <BrowserOpenTabFlatList
+            browserTabs={[tab('normal-a', false)]}
+            activeTabId="normal-a"
+            onSelectTab={onSelectTab}
+            onCloseTab={vi.fn()}
+          />
+        </TCopyProvider>,
+      );
+
+      const showInCenter = screen.getByRole('button', { name: 'Show in center' });
+      const close = screen.getByRole('button', { name: 'Close' });
+      const actions = showInCenter.closest('.adl-browser-node__actions');
+      expect(actions).not.toBeNull();
+      expect(actions?.contains(close)).toBe(true);
+      // DOM 顺序：在中心显示 → 关闭
+      expect(
+        showInCenter.compareDocumentPosition(close) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+
+      fireEvent.click(showInCenter);
+      expect(moveToCenter).toHaveBeenCalledWith('normal-a');
+      // 点击动作按钮不应顺带选中标签。
+      expect(onSelectTab).not.toHaveBeenCalled();
+    } finally {
+      useAppStore.setState({ centerShowBrowserTab: original });
     }
   });
 });

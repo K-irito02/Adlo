@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import type { CopyDict } from '@i18n';
+import { copyToClipboard, type CopyDict } from '@i18n';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { invokeIpc } from '../../../../tauri-bridge/tauri-shared';
@@ -196,6 +196,50 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
     handleContextMenuClose();
   }, [portMenu.port, openUrlInCenter, handleContextMenuClose]);
 
+  /** 右键「复制链接」：快捷站点复制保存的 URL。 */
+  const handleCopyShortcutLink = useCallback(() => {
+    if (shortcutMenu.site) {
+      void copyToClipboard(shortcutMenu.site.url);
+    }
+    handleContextMenuClose();
+  }, [shortcutMenu.site, handleContextMenuClose]);
+
+  /** 右键「复制链接」：端口复制可访问的完整地址。 */
+  const handleCopyPortLink = useCallback(() => {
+    if (portMenu.port) {
+      void copyToClipboard(`http://${portMenu.port.host}:${portMenu.port.port}`);
+    }
+    handleContextMenuClose();
+  }, [portMenu.port, handleContextMenuClose]);
+
+  /**
+   * 右键「复制PID」：LocalPort 不持久化 pid，按端口实时查询占用进程。
+   * 无进程（未监听/查询失败）时提示，不把空串写进剪贴板。
+   */
+  const handleCopyPortPid = useCallback(() => {
+    const port = portMenu.port;
+    handleContextMenuClose();
+    if (!port) {
+      return;
+    }
+    void (async () => {
+      try {
+        const result = await invokeIpc<{ processes: { pid: number }[] }>(
+          'browser_get_port_details',
+          { port: port.port },
+        );
+        const pids = result.ok ? result.data.processes.map((process) => process.pid) : [];
+        if (pids.length === 0) {
+          useAppStore.getState().showToast(t.browserCopyPidNotFound, 'warning');
+          return;
+        }
+        await copyToClipboard(pids.join('\n'));
+      } catch {
+        useAppStore.getState().showToast(t.browserCopyPidNotFound, 'warning');
+      }
+    })();
+  }, [portMenu.port, handleContextMenuClose, t]);
+
   const handleRenameShortcutFromMenu = useCallback(() => {
     if (shortcutMenu.site) {
       setRenameSite(shortcutMenu.site);
@@ -296,6 +340,11 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
       action: handleShowShortcutInCenter,
     },
     {
+      id: 'copy-link',
+      label: t.browserContextCopyLink,
+      action: handleCopyShortcutLink,
+    },
+    {
       id: 'rename',
       label: t.browserRename,
       action: handleRenameShortcutFromMenu,
@@ -313,6 +362,16 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
       id: 'show-in-center',
       label: t.centerTabShowInCenter,
       action: handleShowPortInCenter,
+    },
+    {
+      id: 'copy-link',
+      label: t.browserContextCopyLink,
+      action: handleCopyPortLink,
+    },
+    {
+      id: 'copy-pid',
+      label: t.browserContextCopyPid,
+      action: handleCopyPortPid,
     },
     {
       id: 'rename',
