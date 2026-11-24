@@ -172,7 +172,10 @@ export interface DshTestResult {
  */
 export interface DshBridge {
   /**
-   * 拉起 dsh 进程并返回就绪信息（已运行时返回已有 URL）
+   * 拉起 dsh 进程并返回就绪信息。
+   *
+   * 已运行时复用其 URL；若复用到的外部实例没有启动 token（裸 URL 必 401），
+   * 会重启一次以捕获认证入口（失败回退原始 URL，`restartedForAuth` 标记尝试过）。
    * @returns 就绪 URL + 是否释放过被残留 dsh 占用的默认端口，如 http://127.0.0.1:<port>
    * @see httpBridge.ts → dsh.open (/dsh/open)
    */
@@ -260,6 +263,16 @@ export interface DshBridge {
 export interface DshOpenResult {
   url: string | null;
   freedPort: boolean;
+  /**
+   * URL 是否携带 dsh 启动 token（`?token=`）。复用一个外部启动、未由宿主捕获
+   * stdout 的实例时会得到裸 URL（false → 页面 401）。用户动作 `/dsh/open`
+   * 会尝试重启一次以换取认证入口；重启失败时保留原始 URL。
+   */
+  authenticated?: boolean;
+  /** 是否复用了外部 dsh 进程（非本宿主本次会话拉起）。 */
+  external?: boolean;
+  /** 本次打开是否为了取得认证入口而尝试过重启 dsh（不保证成功）。 */
+  restartedForAuth?: boolean;
 }
 
 /**

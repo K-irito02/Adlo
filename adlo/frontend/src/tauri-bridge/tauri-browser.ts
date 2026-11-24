@@ -20,6 +20,9 @@ export function createTauriBrowserBridge(): BrowserBridge {
       agentInterceptEnabled?: boolean,
       agentSiteRules?: AgentSiteRule[],
       agentSiteOverrides?: AgentSiteOverride[],
+      shareProfile?: boolean,
+      referrer?: string | null,
+      initialSize?: { width: number; height: number },
     ) =>
       invokeIpc<string | null>('browser_create_for_tab', {
         tabId,
@@ -30,6 +33,9 @@ export function createTauriBrowserBridge(): BrowserBridge {
         agentInterceptEnabled,
         agentSiteRules,
         agentSiteOverrides,
+        shareProfile,
+        referrer,
+        initialSize,
       }).then((r) => (r.ok ? r.data : null)),
     activateTab: (tabId: string) =>
       invokeIpc<void>('browser_activate_tab', { tabId }).then(() => undefined),

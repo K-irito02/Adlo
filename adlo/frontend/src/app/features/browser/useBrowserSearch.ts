@@ -17,10 +17,18 @@ export function findInBrowserLookupIndex(
     /^localhost(:\d+)?$/i.test(input) || // localhost（$ 锚定，避免 localhostxyz 误判）
     /\.[a-z]{2,}(:\d+)?(\/\S*)?$/i.test(input) || // 点号 + TLD（含 host:port 如 foo.com:8080）
     /\/$/.test(input); // 以 / 结尾的路径
+  // 带 scheme 的输入是用户明确要导航的完整 URL：只允许精确匹配（忽略末尾 /），
+  // 不再做“历史 URL 包含输入”的前缀匹配。否则输入站点根
+  // `http://127.0.0.1:5199/` 会被历史里的 `.../file.txt` 劫持（用户实测）。
+  const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(input);
+  const withoutTrailingSlash = (value: string) => value.toLowerCase().replace(/\/+$/, '');
+  const inputKey = withoutTrailingSlash(normalizedInput);
 
   // URL 精确匹配在任何输入上执行（Chrome/Edge omnibox：输入即完整 URL 时优先命中）
   const exactUrlMatch = browserLookupIndex.find(
-    (item) => item.url.toLowerCase() === normalizedInput,
+    (item) =>
+      item.url.toLowerCase() === normalizedInput ||
+      (hasScheme && withoutTrailingSlash(item.url) === inputKey),
   );
   if (exactUrlMatch) {
     return exactUrlMatch;
@@ -37,6 +45,9 @@ export function findInBrowserLookupIndex(
   );
   if (exactTitleMatch) {
     return exactTitleMatch;
+  }
+  if (hasScheme) {
+    return undefined;
   }
   return browserLookupIndex.find(
     (item) =>

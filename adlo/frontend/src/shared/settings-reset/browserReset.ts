@@ -12,15 +12,19 @@ export interface BrowserResetDeps {
     autoMigrate?: boolean,
   ) => Promise<IpcResult<void>>;
   downloadPath: DownloadPathResetDeps;
+  /** 浏览器组还包含 localStorage 侧的共享 profile 开关；同步复位，无失败路径。 */
+  resetShareProfile: () => void;
   /** 编排器无对话框快照，程序化流程取执行时实时的下载迁移开关。 */
   migrateAtOpen: boolean;
 }
 
 /**
- * 浏览器组恢复默认：挂起时长 + 挂起白名单（开关关 + 清空）→ 下载模式 → 下载路径（含迁移开关复位）。
- * 任一步失败即返回 `failedStep` 并短路后续步；路径步的 `failedStep` 由其自身透传。
+ * 浏览器组恢复默认：共享 profile（复位开）→ 挂起时长 + 挂起白名单（开关关 + 清空）
+ * → 下载模式 → 下载路径（含迁移开关复位）。任一步失败即返回 `failedStep` 并短路
+ * 后续步；路径步的 `failedStep` 由其自身透传。
  */
 export async function executeBrowserResetPlan(deps: BrowserResetDeps): Promise<GroupResetResult> {
+  deps.resetShareProfile();
   const suspendOk = await deps.updatePreferences({
     browserInactiveTabSuspendMs: DEFAULT_BROWSER_SUSPEND_MS,
     browserSuspendWhitelistEnabled: false,

@@ -12,8 +12,9 @@ interface CenterEntryPageProps {
  * 中心统一入口页（三入口）。
  *
  * 中心不再专属 dsh，而是统一入口，可打开三种内容之一：
- * - 打开 deepseek harness：`openDsh()` 拉起进程并创建承载它的普通浏览器中心标签，
- *   成功后移除当前入口页标签，让新建的 dsh 浏览器标签（已设为活动）显示出来。
+ * - 打开 deepseek harness：新建承载标签时把当前入口页**就地**转为普通浏览器标签
+ *   （不新增中心标签，避免打开瞬间重排闪烁）；复用已在中心的 dsh 标签时只聚焦它，
+ *   入口页保持 launcher 并在打开后移除。
  * - 打开浏览器：新建空 URL 浏览器标签 → 移到中心 → 就地转为 browser。
  * - 打开终端：就地转为 `kind='terminal', refId=null`（渲染终端选择器）。
  *
@@ -55,7 +56,7 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
         showToast(t.dshOpenNoVersion, 'warning');
         return;
       }
-      const result = await openDsh();
+      const result = await openDsh({ centerTabId });
       if (!result) {
         // openDsh 失败时已由 action 记录全局错误卡片，此处不重复提示。
         return;
@@ -64,8 +65,9 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
       if (result.freedPort) {
         reportError('DSH_FREED_PORT', t.dshPortFreed, 'dsh');
       }
-      // openDsh 已创建并激活 dsh 浏览器中心标签；移除入口页标签以免其抢占视图。
-      // 仅当仍为本入口页标签时移除（防御性：并发/异常下标签可能已被就地转换）。
+      // 新建 dsh 标签时 openDsh 已把本入口页标签**就地**转为 browser（kind 不再是
+      // launcher）；复用面板中的 dsh 标签时也会就地转换入口页；只有复用已在中心的
+      // dsh 标签时入口页保持 launcher，需要在这里移除。
       const stillLauncher =
         useAppStore.getState().centerTabs.find((tab) => tab.id === centerTabId)?.kind ===
         'launcher';
@@ -80,9 +82,6 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
     }
   }, [openDsh, openingDsh, reportError, showToast, centerRemoveTab, centerTabId, t]);
 
-  // 入口按钮永不灰化禁用（用户明确要求）：在途重复点击给 busy 提示；
-  // dsh 迟到完成时仅当本标签仍为 launcher 才移除（见下 stillLauncher 守卫），
-  // 不会误删用户已就地转换出的浏览器/终端标签。
   const handleOpenBrowser = useCallback(() => {
     browserOpenTab();
     const newId = useAppStore.getState().browserActiveTabId;

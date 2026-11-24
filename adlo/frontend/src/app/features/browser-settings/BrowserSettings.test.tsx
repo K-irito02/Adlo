@@ -27,6 +27,8 @@ const confirmT = new Proxy({} as Record<string, string>, {
         return 'Suspend delay';
       case 'browserDownloadSettingsTitle':
         return 'Download Settings';
+      case 'browserShareProfileTitle':
+        return 'Browsing profile';
       default:
         return typeof key === 'string' ? key : '';
     }
@@ -113,6 +115,7 @@ describe('Browser settings group blocks', () => {
     useAppStore.setState({
       appInfo: undefined,
       isLoadingSettings: false,
+      browserShareProfile: true,
       updatePreferences: updatePreferences as never,
       updateDownloadSettings: updateDownloadSettings as never,
     });
@@ -129,6 +132,8 @@ describe('Browser settings group blocks', () => {
       isLoadingSettings: false,
       browserGroupResetPending: false,
       browserBlocksAtDefault: null,
+      browserShareProfile: true,
+      isTauri: false,
     });
   });
 
@@ -137,16 +142,66 @@ describe('Browser settings group blocks', () => {
     const wrapper = document.querySelector('.adl-settings-section.adl-settings-browser');
     expect(wrapper).not.toBeNull();
     const headers = wrapper!.querySelectorAll('.adl-settings-browser__header');
-    expect(headers).toHaveLength(2);
+    expect(headers).toHaveLength(3);
     for (const header of headers) {
       // 块头在卡片之外（标题移到块上方左侧）。
       expect(header.closest('.adl-settings-card')).toBeNull();
       expect(header.querySelector('.adl-settings-header')).not.toBeNull();
     }
-    expect(headers[0].querySelector('[data-testid="suspend-reset"]')).not.toBeNull();
-    expect(headers[1].querySelector('[data-testid="download-mode-reset"]')).not.toBeNull();
-    // 挂起 / 下载模式 / 下载路径三张卡片与块头同级。
-    expect(wrapper!.querySelectorAll(':scope > .adl-settings-card')).toHaveLength(3);
+    expect(headers[0].querySelector('[data-testid="share-profile-reset"]')).not.toBeNull();
+    expect(headers[1].querySelector('[data-testid="suspend-reset"]')).not.toBeNull();
+    expect(headers[2].querySelector('[data-testid="download-mode-reset"]')).not.toBeNull();
+    // 浏览配置文件 / 挂起 / 下载模式 / 下载路径四张卡片与块头同级。
+    expect(wrapper!.querySelectorAll(':scope > .adl-settings-card')).toHaveLength(4);
+  });
+
+  it('share profile reset is disabled at the shared default and writes true after switching off', () => {
+    const setShareProfile = vi.fn();
+    useAppStore.setState({
+      isTauri: true,
+      browserShareProfile: true,
+      setBrowserShareProfile: setShareProfile as never,
+    });
+    renderBrowser(confirmT);
+    expect(resetButton('share-profile-reset').disabled).toBe(true);
+
+    act(() => {
+      useAppStore.setState({ browserShareProfile: false });
+    });
+    expect(resetButton('share-profile-reset').disabled).toBe(false);
+    fireEvent.click(resetButton('share-profile-reset'));
+    expect(screen.getByText('Reset Browsing profile?')).toBeTruthy();
+    fireEvent.click(screen.getByText('confirm-btn'));
+    expect(setShareProfile).toHaveBeenCalledWith(true);
+  });
+
+  it('disables the shared-profile toggle and reset in browser mode with a desktop-only hint', () => {
+    useAppStore.setState({ isTauri: false, browserShareProfile: false });
+    renderBrowser();
+    expect(screen.getByText('browserShareProfileDesktopOnly')).toBeTruthy();
+    expect(
+      (screen.getByRole('switch', { name: 'browserShareProfile' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(resetButton('share-profile-reset').disabled).toBe(true);
+  });
+
+  it('drops the pending signal while the profile confirm is open (entry guard)', () => {
+    useAppStore.setState({ isTauri: true, browserShareProfile: false });
+    renderBrowser();
+    fireEvent.click(resetButton('share-profile-reset'));
+    act(() => {
+      useAppStore.setState({ browserGroupResetPending: true });
+    });
+    expect(useAppStore.getState().browserGroupResetPending).toBe(false);
+    expect(screen.queryByText('browserGroupResetTitle')).toBeNull();
+  });
+
+  it('aggregate reports non-default when sharing the browsing profile is off', () => {
+    setConfig(900_000);
+    setDownload('auto', true);
+    useAppStore.setState({ browserShareProfile: false });
+    renderBrowser();
+    expect(useAppStore.getState().browserBlocksAtDefault).toBe(false);
   });
 
   it('keeps subtitle and description inside each card', () => {
@@ -358,6 +413,8 @@ describe('Browser settings group reset (own confirm dialog)', () => {
       updateDownloadSettings: updateDownloadSettings as never,
       browserGroupResetPending: false,
       browserBlocksAtDefault: null,
+      browserShareProfile: true,
+      isTauri: false,
     });
     setDownload('ask', true);
   });
@@ -372,6 +429,8 @@ describe('Browser settings group reset (own confirm dialog)', () => {
       isLoadingSettings: false,
       browserGroupResetPending: false,
       browserBlocksAtDefault: null,
+      browserShareProfile: true,
+      isTauri: false,
     });
   });
 
@@ -413,10 +472,13 @@ describe('Browser settings group reset (own confirm dialog)', () => {
     expect(msg?.textContent).not.toContain('browserGroupResetMigrateOnNote');
   });
 
-  it('confirm executes suspend → mode → path in order and closes on success', async () => {
+  it('confirm executes profile → suspend → mode → path in order and closes on success', async () => {
     const changeDownloadPath = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    const setBrowserShareProfile = vi.fn();
     useAppStore.setState({
       changeDownloadPath: changeDownloadPath as never,
+      browserShareProfile: false,
+      setBrowserShareProfile: setBrowserShareProfile as never,
       downloadSettings: {
         mode: 'ask',
         default_path: 'C:/dl',
@@ -428,6 +490,7 @@ describe('Browser settings group reset (own confirm dialog)', () => {
     renderBrowser(confirmT);
     fireEvent.click(screen.getByRole('button', { name: 'confirm-btn' }));
     await waitFor(() => {
+      expect(setBrowserShareProfile).toHaveBeenCalledWith(true);
       expect(updatePreferences).toHaveBeenCalledWith({
         browserInactiveTabSuspendMs: 900_000,
         browserSuspendWhitelistEnabled: false,
@@ -437,6 +500,10 @@ describe('Browser settings group reset (own confirm dialog)', () => {
       expect(changeDownloadPath).toHaveBeenCalledWith('', false);
     });
     await waitFor(() => expect(screen.queryByText('browserGroupResetTitle')).toBeNull());
+    // 共享 profile 同步先落地，后续步失败不回滚。
+    expect(setBrowserShareProfile.mock.invocationCallOrder[0]).toBeLessThan(
+      updatePreferences.mock.invocationCallOrder[0],
+    );
     expect(updatePreferences.mock.invocationCallOrder[0]).toBeLessThan(
       updateDownloadSettings.mock.invocationCallOrder[0],
     );

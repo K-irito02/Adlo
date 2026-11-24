@@ -22,6 +22,7 @@ pub fn setup_webview2_handlers(
     core: &webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2,
     tab_id: &str,
     label: &str,
+    host: &str,
     bridge: &Arc<dyn WebView2EventBridge>,
     download_manager: &DownloadManager,
     is_silent: bool,
@@ -39,6 +40,13 @@ pub fn setup_webview2_handlers(
         crate::webview2_message::setup_history_changed_handler(core, tab_id, label, bridge)
     {
         tracing::warn!(tab_id = tab_id, error = %e, "history changed handler setup failed");
+    }
+    // Diagnostic-only challenge probe (debug builds / ADL_CHALLENGE_PROBE).
+    // Read-only; no persistent injection; no UI.
+    if let Err(e) =
+        crate::webview2_challenge::setup_challenge_probe_handler(core, tab_id, host, label)
+    {
+        tracing::warn!(tab_id = tab_id, error = %e, "challenge probe handler setup failed");
     }
     if let Err(e) = crate::webview2_audio::setup_audio_changed_handler(core, tab_id, bridge) {
         tracing::warn!(tab_id = tab_id, error = %e, "audio handler setup failed");
@@ -58,6 +66,7 @@ pub fn setup_webview2_handlers(
 pub fn setup_webview2_handlers(
     _tab_id: &str,
     _label: &str,
+    _host: &str,
     _download_manager: &DownloadManager,
     _is_silent: bool,
 ) {
@@ -311,8 +320,10 @@ impl BrowserManager {
     }
 
     /// Refresh the agent-site link-interception parameters on every registered
-    /// tab's WebView. Existing (already-loaded) pages read the values
-    /// dynamically, so re-assigning the globals takes effect immediately.
+    /// tab's WebView. Click interception reads the globals dynamically, so
+    /// re-assigning them takes effect on already-loaded pages. Two paths are
+    /// installed when the document loads: enabling them requires a reload,
+    /// while disabling takes effect immediately through their runtime checks.
     pub fn set_agent_intercept_for_all(
         &self,
         origins: &[String],

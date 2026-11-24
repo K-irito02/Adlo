@@ -36,6 +36,12 @@ export interface BrowserTabsSlice {
   browserActiveTabId: string;
   /** 本会话新建、尚未由 WebView 生命周期消费的标签（transient，不持久化）。 */
   browserFreshTabIds: ReadonlySet<string>;
+  /**
+   * 本会话新标签待使用的 referrer 值（tab id → referrer：默认策略下同源为去
+   * fragment 的完整 URL、跨源为 origin；transient，不持久化）。由页面内新窗口
+   * 请求登记，WebView 创建时一次性消费，用于首次导航的 Referer 头。
+   */
+  browserTabReferrers: Readonly<Record<string, string>>;
 
   browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) => void;
   /**
@@ -43,6 +49,10 @@ export interface BrowserTabsSlice {
    * 开新标签（中心 → 中心标签条，面板 → 面板），并登记 fresh 标记。
    */
   browserOpenNewWindowTab: (request: BrowserNewTabRequest) => void;
+  /** 登记一次性 referrer（默认策略下同源完整 URL / 跨源 origin，由页面新窗口请求计算）。 */
+  browserSetTabReferrer: (tabId: string, referrer: string) => void;
+  /** 读取并清除一次性 referrer；无登记返回 undefined。 */
+  browserConsumeTabReferrer: (tabId: string) => string | undefined;
   /** 登记一次性 fresh 标记，供 WebView 生命周期跳过重启下载抑制。 */
   browserMarkTabFresh: (tabId: string) => void;
   /** 读取并清除 fresh 标记；返回该标签是否为本会话新建。 */
@@ -66,6 +76,7 @@ export const createBrowserTabsSlice = (
   browserTabsById: {},
   browserActiveTabId: '',
   browserFreshTabIds: new Set<string>(),
+  browserTabReferrers: {},
 
   browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) => {
     // 注意：新建标签会同步把全局活动切到新标签（含中心语境调用者，如着陆页/入口页）。
@@ -88,6 +99,8 @@ export const createBrowserTabsSlice = (
         isPlayingAudio: false,
         isAudioMuted: false,
         isDownloading: false,
+        // 快照该标签创建时的共享 profile 选择；设置切换只影响此后新建的标签。
+        shareProfile: state.browserShareProfile,
       };
       const nextTabs = sortTabs([...state.browserTabs, tab]);
       let nextFolders = state.browserBookmarkFolders ?? [];
@@ -149,7 +162,7 @@ export const createBrowserTabsSlice = (
     set({ browserActiveTabId: tabId });
   },
 
-  browserOpenNewWindowTab: ({ tabId, url }) => {
+  browserOpenNewWindowTab: ({ tabId, url, referrer }) => {
     if (!url) {
       return;
     }
@@ -162,7 +175,27 @@ export const createBrowserTabsSlice = (
     if (host === 'center') {
       get().centerShowBrowserTab(newTabId);
     }
+    if (newTabId && referrer) {
+      get().browserSetTabReferrer(newTabId, referrer);
+    }
     get().browserMarkTabFresh(newTabId);
+  },
+
+  browserSetTabReferrer: (tabId, referrer) =>
+    set((state) => ({
+      browserTabReferrers: { ...state.browserTabReferrers, [tabId]: referrer },
+    })),
+
+  browserConsumeTabReferrer: (tabId) => {
+    const referrer = get().browserTabReferrers[tabId];
+    if (referrer === undefined) {
+      return undefined;
+    }
+    set((state) => {
+      const { [tabId]: _removed, ...rest } = state.browserTabReferrers;
+      return { browserTabReferrers: rest };
+    });
+    return referrer;
   },
 
   browserMarkTabFresh: (tabId) =>
@@ -198,10 +231,12 @@ export const createBrowserTabsSlice = (
 
       persist('adl:browser.tabs', nextTabs);
       persist('adl:browser.activeTabId', nextActive);
+      const { [tabId]: _closedReferrer, ...remainingReferrers } = state.browserTabReferrers;
       return {
         browserTabs: nextTabs,
         browserTabsById: buildTabsById(nextTabs),
         browserActiveTabId: nextActive,
+        browserTabReferrers: remainingReferrers,
       };
     });
     // 标签集合变化：剪掉已不存在标签的孤儿条目（规格 §3.5.1）。
@@ -315,10 +350,15 @@ export const createBrowserTabsSlice = (
         : (panelKept[panelKept.length - 1]?.id ?? '');
       persist('adl:browser.tabs', kept);
       persist('adl:browser.activeTabId', nextActive);
+      const keptIds = new Set(kept.map((tab) => tab.id));
+      const nextReferrers = Object.fromEntries(
+        Object.entries(state.browserTabReferrers).filter(([tabId]) => keptIds.has(tabId)),
+      );
       return {
         browserTabs: kept,
         browserTabsById: buildTabsById(kept),
         browserActiveTabId: nextActive,
+        browserTabReferrers: nextReferrers,
       };
     });
     // 同 browserCloseTab：批量关闭同样产生孤儿标签条目。

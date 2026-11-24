@@ -217,7 +217,6 @@ fn main() {
             commands::download_commands::download_pause,
             commands::download_commands::download_resume,
             commands::download_commands::download_cancel,
-            commands::download_commands::download_save_blob,
             commands::platform::workspace_open_in_file_manager,
             commands::platform::platform_open_path,
             commands::port_scan::browser_scan_ports,
@@ -232,12 +231,57 @@ fn main() {
             commands::storage::storage_tree_cache_clear,
             commands::storage::app_restart,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            // Explicit graceful cleanup: Job object handles hard kills; this
+            // covers normal window close paths that may not drop managed state
+            // before the process exits (users reported sidecar residue).
+            if matches!(event, tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }) {
+                if let Some(state) = app_handle.try_state::<state::AppState>() {
+                    tracing::info!("[adl-shell] app exit; terminating adl-server");
+                    state.ad_server.terminate();
+                }
+            }
+        });
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn browser_title_eval_skips_non_http_documents() {
+        // wry's IPC handler parses the message source URL; file:// paths with
+        // non-ASCII characters abort the app. The title backfill script must not
+        // post from those documents.
+        assert!(super::BROWSER_TITLE_SCRIPT.contains("location.protocol !== 'http:'"));
+        assert!(super::BROWSER_TITLE_SCRIPT.contains("location.protocol !== 'https:'"));
+        assert!(super::BROWSER_TITLE_SCRIPT.contains("{ return; }"));
+    }
+
+    /// 崩溃修复的实际落点是 vendored wry 运行时：浏览器/静默 WebView 不注册
+    /// wry IPC handler（`file://` 中文路径的 source URI 会让 wry IPC 解析 panic，
+    /// 拖垮整个应用）。fork 内没有测试、重新 vendor 也可能丢掉补丁，所以在非
+    /// vendored crate 里对源码文件做断言，让门禁先变红。
+    #[test]
+    fn vendored_wry_runtime_skips_ipc_for_untrusted_browser_webviews() {
+        let runtime = include_str!("../../crates/tauri-runtime-wry-patched/src/lib.rs");
+        assert!(
+            runtime.contains("if !is_untrusted_browser_webview(&label)"),
+            "vendored wry runtime lost the IPC skip call site"
+        );
+        assert!(runtime.contains("\"adl-browser-view-\""));
+        assert!(runtime.contains("\"adl-silent-view-\""));
+        // The source assertion is only meaningful while the patch route still
+        // points at this directory: removing [patch.crates-io] would silently
+        // switch back to the upstream crate while leaving the directory behind.
+        let workspace_manifest = include_str!("../../Cargo.toml");
+        assert!(
+            workspace_manifest
+                .contains("tauri-runtime-wry = { path = \"crates/tauri-runtime-wry-patched\" }"),
+            "workspace no longer patches tauri-runtime-wry to the vendored fork"
+        );
+    }
+
     /// `generate_handler!` 里注册的每条命令都必须在
     /// `permissions/digital-life.toml` 的 `commands.allow` 白名单中登记。
     ///

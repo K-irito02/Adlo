@@ -221,7 +221,7 @@ export const settingsEn = {
     'Not enough disk space at the target location (need ~{need}, {free} free). Free up space and try again.',
   browserGroupResetTitle: 'Reset all Browser defaults?',
   browserGroupResetMessage:
-    'Suspend duration (back to 15 minutes), download mode (back to auto-save), and the default download folder (back to the system default with auto-migration turned off) will all be reset to their defaults.',
+    'Suspend duration (back to 15 minutes), the suspend whitelist (turned off and cleared), shared browsing profile (back on), download mode (back to auto-save), and the default download folder (back to the system default with auto-migration turned off) will all be reset to their defaults.',
   browserGroupResetMigrateOnNote:
     '"Migrate files when path changes" is currently on: when the folder is reset, files under the old path are moved to the system default folder first, and the old folder is removed only after everything succeeds (exception: system-owned folders — e.g. the system drive\'s Downloads/Documents/Desktop, Windows, Program Files — only have files moved out; the folder itself is never deleted); if it fails midway: files already moved stay in the new path, the rest remain in the old path, the setting is not switched, and you can retry.',
   storageDownloadMigrateFailed: 'Failed to migrate files: {error}',

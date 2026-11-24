@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
@@ -70,6 +77,24 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
       terminalUpdateTab: state.terminalUpdateTab,
     })),
   );
+
+  // 挂起态（与面板 evicted 同义）：中心标签条按池成员实时更新。
+  // WebView 被挂起调度器移出池后 isTabInPool=false（evicted），面板据此变暗；
+  // 中心此前没有消费该状态，导致被挂起的中心标签没有视觉提示。活动标签在渲染
+  // 时按 isActive 排除（与面板在集合中剔除活动标签的效果一致），避免新建/激活
+  // 瞬间误暗。
+  const poolVersion = useSyncExternalStore(browserPool.subscribe, browserPool.getVersion);
+  const suspendedBrowserTabIds = useMemo(() => {
+    // poolVersion 是池成员变化的信号：body 不直接读它，但必须作为依赖触发重算。
+    void poolVersion;
+    const result = new Set<string>();
+    for (const tab of centerTabs) {
+      if (tab.kind === 'browser' && tab.refId && !browserPool.isTabInPool(tab.refId)) {
+        result.add(tab.refId);
+      }
+    }
+    return result;
+  }, [centerTabs, poolVersion]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<TabDragState | null>(null);
@@ -572,6 +597,11 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
             const isEditing =
               tab.kind === 'terminal' && tab.refId !== null && rename.editingTabId === tab.refId;
             const actionCount = showReturn ? 2 : 1;
+            const isSuspended =
+              !isActive &&
+              tab.kind === 'browser' &&
+              tab.refId !== null &&
+              suspendedBrowserTabIds.has(tab.refId);
 
             return (
               <div
@@ -581,7 +611,7 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
                 tabIndex={0}
                 data-actions={actionCount}
                 data-tab-id={tab.id}
-                className={`adl-center-tab adl-clip-tab${isActive ? ' is-active' : ''}${draggingId === tab.id ? ' is-dragging' : ''}`}
+                className={`adl-center-tab adl-clip-tab${isActive ? ' is-active' : ''}${isSuspended ? ' is-suspended' : ''}${draggingId === tab.id ? ' is-dragging' : ''}`}
                 onClick={() => handleTabClick(tab)}
                 onPointerDown={(event) => handleTabPointerDown(tab, event)}
                 onPointerMove={(event) => handleTabPointerMove(tab, event)}

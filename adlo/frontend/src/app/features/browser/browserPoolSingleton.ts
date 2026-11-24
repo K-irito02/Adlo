@@ -75,6 +75,7 @@ async function createForTab(
   url: string,
   colorScheme?: 'light' | 'dark',
   location?: 'panel' | 'center',
+  initialSize?: { width: number; height: number },
 ): Promise<string | null> {
   if (creatingSet.has(tabId)) {
     return null;
@@ -92,6 +93,10 @@ async function createForTab(
         // creation time; pass the current settings so a freshly created tab
         // intercepts from its first navigation.
         const config = useAppStore.getState().appInfo?.config;
+        const referrer = useAppStore.getState().browserConsumeTabReferrer(tabId);
+        // 建标签入口均写入创建时的 profile 快照；缺省仅防御（产品默认共享）。
+        const tabShareProfile = useAppStore.getState().browserTabsById[tabId]?.shareProfile;
+        const shareProfile = tabShareProfile ?? true;
         rustEvicted = await bridge.createForTab(
           tabId,
           url,
@@ -101,6 +106,9 @@ async function createForTab(
           config?.agentLinkIntercept ?? false,
           config?.agentSiteRules,
           config?.agentSiteOverrides,
+          shareProfile,
+          referrer,
+          initialSize,
         );
         // 新建原生子窗口盖在最上层，通知透明桥接条重建回到最上层。
         useAppStore.getState().bumpSiblingWebviewNonce();

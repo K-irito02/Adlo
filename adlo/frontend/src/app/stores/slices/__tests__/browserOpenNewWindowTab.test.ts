@@ -8,6 +8,8 @@ const reset = () =>
     browserTabsById: {},
     browserActiveTabId: '',
     browserFreshTabIds: new Set<string>(),
+    browserTabReferrers: {},
+    browserShareProfile: true,
     browserBookmarkFolders: [],
     centerTabs: [],
     centerActiveTabId: '',
@@ -94,5 +96,69 @@ describe('browserOpenNewWindowTab', () => {
     useAppStore.getState().browserMarkTabFresh('tab-1');
     expect(useAppStore.getState().browserConsumeTabFresh('tab-1')).toBe(true);
     expect(useAppStore.getState().browserConsumeTabFresh('tab-1')).toBe(false);
+  });
+
+  it('browserOpenTab snapshots the shared-profile setting at creation time', () => {
+    useAppStore.setState({ browserShareProfile: false });
+    useAppStore.getState().browserOpenTab('https://example.com');
+    expect(useAppStore.getState().browserTabs[0].shareProfile).toBe(false);
+  });
+
+  it('stores the referrer once for the new tab and consumes it on WebView creation', () => {
+    const sourceId = openSourceTab('https://source.example/list', 'panel');
+
+    useAppStore.getState().browserOpenNewWindowTab({
+      tabId: sourceId,
+      url: 'https://target.example/page',
+      referrer: 'https://source.example/list',
+    });
+
+    const target = useAppStore
+      .getState()
+      .browserTabs.find((tab) => tab.url === 'https://target.example/page');
+    expect(target).toBeTruthy();
+    expect(useAppStore.getState().browserTabReferrers[target!.id]).toBe(
+      'https://source.example/list',
+    );
+    expect(useAppStore.getState().browserConsumeTabReferrer(target!.id)).toBe(
+      'https://source.example/list',
+    );
+    expect(useAppStore.getState().browserConsumeTabReferrer(target!.id)).toBeUndefined();
+  });
+
+  it('drops the pending referrer when the new tab is closed', () => {
+    const sourceId = openSourceTab('https://source.example/list', 'panel');
+    useAppStore.getState().browserOpenNewWindowTab({
+      tabId: sourceId,
+      url: 'https://target.example/page',
+      referrer: 'https://source.example/list',
+    });
+    const target = useAppStore
+      .getState()
+      .browserTabs.find((tab) => tab.url === 'https://target.example/page');
+    expect(useAppStore.getState().browserTabReferrers[target!.id]).toBe(
+      'https://source.example/list',
+    );
+
+    useAppStore.getState().browserCloseTab(target!.id);
+
+    expect(useAppStore.getState().browserTabReferrers[target!.id]).toBeUndefined();
+  });
+
+  it('drops panel referrers when all panel tabs are closed', () => {
+    const sourceId = openSourceTab('https://source.example/list', 'panel');
+    useAppStore.getState().browserOpenNewWindowTab({
+      tabId: sourceId,
+      url: 'https://target.example/page',
+      referrer: 'https://source.example/list',
+    });
+    const target = useAppStore
+      .getState()
+      .browserTabs.find((tab) => tab.url === 'https://target.example/page');
+    expect(useAppStore.getState().browserTabReferrers[target!.id]).toBeTruthy();
+
+    useAppStore.getState().browserCloseAllTabs();
+
+    expect(useAppStore.getState().browserTabReferrers[target!.id]).toBeUndefined();
   });
 });

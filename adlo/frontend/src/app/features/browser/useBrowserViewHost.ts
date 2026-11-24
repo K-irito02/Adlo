@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { useBrowserPool } from './useBrowserPool';
 import { useWebViewBounds } from './useWebViewBounds';
 import { useWebViewLifecycle } from './useWebViewLifecycle';
@@ -63,12 +63,28 @@ export function useBrowserViewHost(options: UseBrowserViewHostOptions) {
     contentSelector: hostId === 'panel' ? PANEL_CONTENT_SELECTOR : undefined,
   });
 
+  // 创建前读取当前容器尺寸：WebView 在屏外先按这个尺寸加载，避免页面按默认
+  // 800×600 布局、揭示后再 resize 造成的重排/闪烁（尤其重前端 SPA）。容器未
+  // 挂载或尺寸为 0（折叠/展开动画中）时返回 undefined，由后端回落 800×600。
+  const getInitialViewportSize = useCallback(() => {
+    const el = primaryRef.current;
+    if (!el) {
+      return undefined;
+    }
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      return undefined;
+    }
+    return { width: Math.round(rect.width), height: Math.round(rect.height) };
+  }, [primaryRef]);
+
   const { loadingTabId } = useWebViewLifecycle({
     hostId,
     activeTab,
     webViewDisabled,
     isTabInPool,
     createWebViewForTab,
+    getInitialViewportSize,
     activateTabInPool,
     webViewActiveRef,
     overlayActiveRef,

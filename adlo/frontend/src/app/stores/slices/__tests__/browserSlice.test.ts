@@ -36,6 +36,44 @@ describe('browserSlice', () => {
     expect((get() as unknown as BrowserSlice).browserNavigateInPlace).toBe(false);
   });
 
+  it('initializes with browserShareProfile true', () => {
+    const { get } = createMockStore();
+    expect(get().browserShareProfile).toBe(true);
+  });
+
+  it('setBrowserShareProfile sets the flag', () => {
+    const { get } = createMockStore();
+    const setShareProfile = get().setBrowserShareProfile as (value: boolean) => void;
+    setShareProfile(false);
+    expect(get().browserShareProfile).toBe(false);
+  });
+
+  it('new tabs snapshot the shared-profile setting at creation time', () => {
+    const { get } = createMockStore();
+    const s = get() as Record<string, unknown>;
+    s.browserTabs = [];
+    s.browserActiveTabId = '';
+    const setShare = s.setBrowserShareProfile as (value: boolean) => void;
+    const navigate = s.browserNavigateActiveTab as (url: string, title?: string) => void;
+    setShare(false);
+    navigate('https://example.com', 'Example');
+    const tabs = () => get().browserTabs as { shareProfile?: boolean }[];
+    expect(tabs()[0].shareProfile).toBe(false);
+    // 后续切换设置不影响已建标签的快照（挂起重建/重启沿用）。
+    setShare(true);
+    expect(tabs()[0].shareProfile).toBe(false);
+  });
+
+  it('panel-created tabs snapshot the shared-profile setting too', () => {
+    const { get } = createMockStore();
+    const s = get() as Record<string, unknown>;
+    s.browserTabs = [];
+    s.browserActiveTabId = '';
+    (s.setBrowserShareProfile as (value: boolean) => void)(false);
+    (s.browserNavigatePanelTab as (url: string) => void)('https://example.com');
+    expect((get().browserTabs as { shareProfile?: boolean }[])[0].shareProfile).toBe(false);
+  });
+
   it('browserNavigateActiveTab creates a new tab when none exist', () => {
     const { get } = createMockStore();
     const s = get() as Record<string, unknown>;

@@ -382,7 +382,7 @@ interface UtilitiesActions {
 }
 
 interface DshActions {
-  openDsh: () => Promise<DshOpenResult | null>;
+  openDsh: (options?: { centerTabId?: string }) => Promise<DshOpenResult | null>;
   restartDsh: () => Promise<DshRestartResult & { failed: boolean }>;
   fetchVersionTask: () => Promise<void>;
   cancelVersionTask: () => Promise<boolean>;

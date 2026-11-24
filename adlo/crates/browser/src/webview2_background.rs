@@ -24,15 +24,21 @@ mod imp {
         unsafe { controller2.SetDefaultBackgroundColor(color) }
     }
 
-    /// Map a color scheme name to RGB values matching the app's CSS variables.
+    /// Map a color scheme name to the browser-canvas neutral color.
     ///
-    /// - `"dark"`  → `#141414` (`var(--bg)` in dark theme)
-    /// - `"light"` → `#f8f8f8` (`var(--bg)` in light theme)
+    /// This is the WebView2 default background (behind pages that do not set
+    /// their own background). It is intentionally **not** the app theme color:
+    /// pages without a background must remain readable (dark text), and the
+    /// canvas should look neutral in both themes. Dark mode is a slightly
+    /// deeper neutral than light mode.
+    ///
+    /// - `"dark"`  → `#e0e0e0`
+    /// - `"light"` → `#f2f2f2`
     /// - Unknown values default to dark.
     pub fn theme_to_rgb(color_scheme: &str) -> (u8, u8, u8) {
         match color_scheme {
-            "light" => (0xF8, 0xF8, 0xF8),
-            _ => (0x14, 0x14, 0x14),
+            "light" => (0xF2, 0xF2, 0xF2),
+            _ => (0xE0, 0xE0, 0xE0),
         }
     }
 
@@ -48,15 +54,21 @@ mod imp {
 
 #[cfg(not(windows))]
 mod imp {
-    /// Map a color scheme name to RGB values matching the app's CSS variables.
+    /// Map a color scheme name to the browser-canvas neutral color.
     ///
-    /// - `"dark"`  → `#141414` (`var(--bg)` in dark theme)
-    /// - `"light"` → `#f8f8f8` (`var(--bg)` in light theme)
+    /// This is the WebView2 default background (behind pages that do not set
+    /// their own background). It is intentionally **not** the app theme color:
+    /// pages without a background must remain readable (dark text), and the
+    /// canvas should look neutral in both themes. Dark mode is a slightly
+    /// deeper neutral than light mode.
+    ///
+    /// - `"dark"`  → `#e0e0e0`
+    /// - `"light"` → `#f2f2f2`
     /// - Unknown values default to dark.
     pub fn theme_to_rgb(color_scheme: &str) -> (u8, u8, u8) {
         match color_scheme {
-            "light" => (0xF8, 0xF8, 0xF8),
-            _ => (0x14, 0x14, 0x14),
+            "light" => (0xF2, 0xF2, 0xF2),
+            _ => (0xE0, 0xE0, 0xE0),
         }
     }
 }
@@ -73,5 +85,19 @@ pub fn normalize_color_scheme(scheme: &str) -> String {
     match scheme {
         "light" => "light".to_string(),
         _ => "dark".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::theme_to_rgb;
+
+    #[test]
+    fn browser_canvas_is_neutral_in_both_themes() {
+        // Not the app theme background: pages without their own background must
+        // stay readable with dark text, in both themes.
+        assert_eq!(theme_to_rgb("light"), (0xF2, 0xF2, 0xF2));
+        assert_eq!(theme_to_rgb("dark"), (0xE0, 0xE0, 0xE0));
+        assert_eq!(theme_to_rgb("unknown"), (0xE0, 0xE0, 0xE0));
     }
 }

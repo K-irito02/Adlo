@@ -65,7 +65,6 @@ commands.allow = [
   "download_pause",
   "download_resume",
   "download_cancel",
-  "download_save_blob",
   "acp_get_status",
   "acp_get_config",
   "http_api_get_status",

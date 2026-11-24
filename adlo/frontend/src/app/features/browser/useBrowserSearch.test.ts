@@ -51,8 +51,22 @@ describe('findInBrowserLookupIndex', () => {
     expect(r?.url).toBe('http://foo.com:8080/');
   });
 
-  it('matches URL protocol prefix', () => {
-    const r = findInBrowserLookupIndex(INDEX, 'https://www.bing.com');
-    expect(r?.url).toBe('https://www.bing.com/search?q=%E7%99%BE%E5%BA%A6');
+  it('does not prefix-match a longer history URL when a full URL is typed', () => {
+    // 用户输入站点根 `http://127.0.0.1:5199/` 时，历史里的 `.../file.txt`
+    // 不得劫持导航（用户实测：地址栏自动变成 /file.txt）。
+    const index = [{ title: 'download', url: 'http://127.0.0.1:5199/file.txt' }];
+    expect(findInBrowserLookupIndex(index, 'http://127.0.0.1:5199/')).toBeUndefined();
+  });
+
+  it('still exact-matches a full URL ignoring a trailing slash', () => {
+    const index = [{ title: 'root', url: 'http://127.0.0.1:5199/' }];
+    expect(findInBrowserLookupIndex(index, 'http://127.0.0.1:5199')?.url).toBe(
+      'http://127.0.0.1:5199/',
+    );
+  });
+
+  it('does not treat a full protocol URL as a history prefix', () => {
+    // 显式输入 scheme 的完整 URL 直接导航，不命中更长的历史搜索 URL。
+    expect(findInBrowserLookupIndex(INDEX, 'https://www.bing.com')).toBeUndefined();
   });
 });

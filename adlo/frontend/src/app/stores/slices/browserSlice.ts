@@ -46,6 +46,8 @@ function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState>
 
 export interface BrowserSlice {
   browserNavigateInPlace: boolean;
+  /** 面板与中心是否共用一个浏览配置文件（默认开；仅桌面模式生效）。 */
+  browserShareProfile: boolean;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   /**
    * 面板归属导航（事项 6）：只认 `location !== 'center'` 的面板标签；无面板标签
@@ -53,6 +55,7 @@ export interface BrowserSlice {
    */
   browserNavigatePanelTab: (url: string, title?: string) => void;
   setBrowserNavigateInPlace: (value: boolean) => void;
+  setBrowserShareProfile: (value: boolean) => void;
   /** 导航子视图模式（`adl:browser.navigatorMode`，Task 24） */
   browserNavigatorMode: BrowserNavigatorMode;
   setBrowserNavigatorMode: (mode: BrowserNavigatorMode) => void;
@@ -76,6 +79,7 @@ export const createBrowserSlice = (
 ): BrowserSlice => {
   return {
     browserNavigateInPlace: false,
+    browserShareProfile: true,
     browserNavigatorMode: 'tree',
     browserSearchScope: 'all',
     browserSelectedTreePath: null,
@@ -104,6 +108,8 @@ export const createBrowserSlice = (
             isAudioMuted: false,
             sortOrder: maxSortOrder + 1,
             isDownloading: false,
+            // 快照创建时的共享 profile 选择；设置切换只影响此后新建的标签。
+            shareProfile: state.browserShareProfile,
           };
           nextTabs = [...nextTabs, newTab];
           nextActiveTabId = newTab.id;
@@ -162,6 +168,8 @@ export const createBrowserSlice = (
             isAudioMuted: false,
             sortOrder: maxSortOrder + 1,
             isDownloading: false,
+            // 快照创建时的共享 profile 选择；设置切换只影响此后新建的标签。
+            shareProfile: state.browserShareProfile,
           };
           nextTabs = [...nextTabs, newTab];
           nextActiveTabId = newTab.id;
@@ -198,6 +206,9 @@ export const createBrowserSlice = (
 
     setBrowserNavigateInPlace: (value: boolean) => {
       set(persistField('adl:browser.navigateInPlace', value));
+    },
+    setBrowserShareProfile: (value: boolean) => {
+      set(persistField('adl:browser.shareProfile', value));
     },
     setBrowserNavigatorMode: (mode) => {
       set(persistField('adl:browser.navigatorMode', mode));

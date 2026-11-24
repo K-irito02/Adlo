@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import React from 'react';
+import { renderHook, render, act } from '@testing-library/react';
 import { browserPool } from './browserPoolSingleton';
 import { resetRevealGateForTest } from './browserRevealGate';
 import { HIDDEN_WEBVIEW_OFFSCREEN_COORD } from './useWebViewVisibility';
 import { useBrowserViewHost } from './useBrowserViewHost';
+import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 const envState = vi.hoisted(() => ({ tauri: false }));
@@ -66,6 +68,11 @@ describe('useBrowserViewHost', () => {
     envState.tauri = false;
     pageReadyListener = null;
     delete (window as unknown as Record<string, unknown>).digitalLife;
+    useAppStore.setState({
+      browserTabsById: {},
+      browserTabReferrers: {},
+      browserShareProfile: true,
+    });
   });
 
   it('非 Tauri 下返回稳定 containerRef', async () => {
@@ -79,6 +86,113 @@ describe('useBrowserViewHost', () => {
       }),
     );
     expect(result.current.containerRef).toBeDefined();
+  });
+
+  it('passes the current container size to createForTab', async () => {
+    envState.tauri = true;
+    const browser = setMockBrowser();
+    const tab = makeTab('tab-size', 'https://example.com');
+    const container = makeContainer(0, 0, 640, 480);
+    function Host() {
+      const host = useBrowserViewHost({
+        hostId: 'panel',
+        activeTab: tab,
+        isVisible: true,
+        overlayActive: false,
+      });
+      // 在 effect 前填充容器几何（真实挂载时由 ref 回调完成）。
+      (host.containerRef as { current: HTMLDivElement | null }).current = container;
+      return null;
+    }
+
+    render(React.createElement(Host));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(browser.createForTab).toHaveBeenCalledWith(
+      'tab-size',
+      'https://example.com',
+      expect.any(String),
+      'panel',
+      [],
+      false,
+      undefined,
+      undefined,
+      true,
+      undefined,
+      { width: 640, height: 480 },
+    );
+  });
+
+  it('forwards a registered one-shot referrer to createForTab and clears it', async () => {
+    envState.tauri = true;
+    const browser = setMockBrowser();
+    const tab = makeTab('tab-ref', 'https://target.example/page');
+    useAppStore.getState().browserSetTabReferrer('tab-ref', 'https://source.example/list');
+
+    renderHook(() =>
+      useBrowserViewHost({
+        hostId: 'panel',
+        activeTab: tab,
+        isVisible: true,
+        overlayActive: false,
+      }),
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(browser.createForTab).toHaveBeenCalledWith(
+      'tab-ref',
+      'https://target.example/page',
+      expect.any(String),
+      'panel',
+      [],
+      false,
+      undefined,
+      undefined,
+      true,
+      'https://source.example/list',
+      undefined,
+    );
+    expect(useAppStore.getState().browserTabReferrers['tab-ref']).toBeUndefined();
+  });
+
+  it('uses the tab shareProfile snapshot over the current setting', async () => {
+    envState.tauri = true;
+    const browser = setMockBrowser();
+    const tab = makeTab('tab-off', 'https://example.com');
+    useAppStore.setState({
+      browserShareProfile: true,
+      browserTabsById: { 'tab-off': { ...tab, shareProfile: false } as never },
+    });
+
+    renderHook(() =>
+      useBrowserViewHost({
+        hostId: 'panel',
+        activeTab: tab,
+        isVisible: true,
+        overlayActive: false,
+      }),
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(browser.createForTab).toHaveBeenCalledWith(
+      'tab-off',
+      'https://example.com',
+      expect.any(String),
+      'panel',
+      [],
+      false,
+      undefined,
+      undefined,
+      false,
+      undefined,
+      undefined,
+    );
   });
 
   it('Tauri 下创建共享池成员、驱动 setTabBounds，卸载时隐藏', async () => {
@@ -111,6 +225,9 @@ describe('useBrowserViewHost', () => {
       'panel',
       [],
       false,
+      undefined,
+      undefined,
+      true,
       undefined,
       undefined,
     );

@@ -94,6 +94,7 @@ interface StoreSnapshot {
   updateDownloadSettings: unknown;
   changeDownloadPath: unknown;
   saveSourceConfig: unknown;
+  setBrowserShareProfile: unknown;
 }
 
 /** 以成功桩替换偏好/浏览器/DSH 的 store action（编排器经 store 实时取用）。 */
@@ -103,12 +104,14 @@ function installStoreActions(updatePreferences?: unknown): StoreSnapshot {
     updateDownloadSettings: useAppStore.getState().updateDownloadSettings,
     changeDownloadPath: useAppStore.getState().changeDownloadPath,
     saveSourceConfig: useAppStore.getState().saveSourceConfig,
+    setBrowserShareProfile: useAppStore.getState().setBrowserShareProfile,
   };
   useAppStore.setState({
     updatePreferences: (updatePreferences ?? vi.fn(async () => true)) as never,
     updateDownloadSettings: vi.fn(async () => ({ ok: true, data: undefined })) as never,
     changeDownloadPath: vi.fn(async () => ({ ok: true, data: undefined })) as never,
     saveSourceConfig: vi.fn(async () => true) as never,
+    setBrowserShareProfile: vi.fn() as never,
   });
   installedSnapshot = snapshot;
   return snapshot;
@@ -248,6 +251,7 @@ describe('ResetAllDialog', () => {
 
   it('存储不可用：无分组行，单确认键仍执行其余四组', async () => {
     installStoreActions();
+    useAppStore.setState({ browserShareProfile: false });
     const onCommitted = vi.fn();
     const { onClose } = renderDialog({
       planResult: UNAVAILABLE_PLAN,
@@ -264,6 +268,7 @@ describe('ResetAllDialog', () => {
     expect(outcome.failedAt).toBeUndefined();
     expect(outcome.skipped).toEqual(['storage']);
     expect(onClose).toHaveBeenCalledTimes(1);
+    expect(useAppStore.getState().setBrowserShareProfile).toHaveBeenCalledWith(true);
   });
 
   it('四块全默认：无分组行，单确认键仍执行其余四组', async () => {

@@ -4,9 +4,13 @@
 //! allowing JavaScript to send meta events instantly via
 //! `chrome.webview.postMessage(JSON.stringify({type:'meta', ...}))`.
 //!
-//! Also handles `{type:'open-new-tab', url}` messages sent by the injected
-//! `init_script.js` when the page requests a new tab (target="_blank" links
-//! and `window.open`), routing them to the platform event bridge.
+//! Also handles `{type:'open-new-tab', url, referrer}` messages sent by the
+//! injected `init_script.js` for target="_blank"/`<area>` links and modified
+//! clicks, routing them to the platform event bridge. `window.open` on normal
+//! sites goes through the native NewWindowRequested path instead.
+//!
+//! And `{type:'save-blob', fileName, dataBase64}` messages: the browser tab has
+//! no Tauri IPC, so blob payloads are persisted by the host.
 
 #[cfg(windows)]
 mod imp {
@@ -83,6 +87,21 @@ mod imp {
                             return Ok(());
                         }
 
+                        if let Some(failed) = super::save_blob_failure_from_message(&json_str) {
+                            bridge_for_handler
+                                .save_blob_failed(&tab_id_for_handler, &failed.file_name);
+                            return Ok(());
+                        }
+
+                        if let Some(blob) = super::save_blob_from_message(&json_str) {
+                            bridge_for_handler.save_blob(
+                                &tab_id_for_handler,
+                                &blob.file_name,
+                                &blob.data_base64,
+                            );
+                            return Ok(());
+                        }
+
                         if let Some(link) = super::agent_link_from_message(&json_str) {
                             bridge_for_handler.emit_agent_link(
                                 &tab_id_for_handler,
@@ -92,8 +111,12 @@ mod imp {
                             return Ok(());
                         }
 
-                        if let Some(url) = super::open_new_tab_url_from_message(&json_str) {
-                            bridge_for_handler.emit_open_new_tab(&tab_id_for_handler, &url);
+                        if let Some(request) = super::open_new_tab_request_from_message(&json_str) {
+                            bridge_for_handler.emit_open_new_tab(
+                                &tab_id_for_handler,
+                                &request.url,
+                                request.referrer.as_deref(),
+                            );
                             return Ok(());
                         }
                         if let Some(state) = super::browser_media_state_from_message(&json_str) {
@@ -213,7 +236,7 @@ fn is_file_like_path(url: &str) -> bool {
 /// Pure parse of an `{type:'adl-agent-link', kind:'url'|'file', url}` postMessage.
 ///
 /// `kind` only accepts `url`/`file`; `url` must be non-empty **and** pass a
-/// scheme backstop mirroring `open_new_tab_url_from_message`: `url` requires an
+/// scheme backstop mirroring `open_new_tab_request_from_message`: `url` requires an
 /// http/https scheme, `file` requires a `file://` prefix or an absolute local
 /// path form. The origin whitelist is trusted from the injection side (the
 /// injected branch only runs on whitelisted sites), so this is a shape backstop.
@@ -243,22 +266,126 @@ pub fn agent_link_from_message(json: &str) -> Option<AgentLink> {
     Some(AgentLink { kind: kind.to_string(), url: url.to_string() })
 }
 
-/// Pure parse of an `{type:'open-new-tab', url}` postMessage payload.
+/// Pure parse of an `{type:'open-new-tab', url, referrer?}` postMessage payload.
+pub struct OpenNewTabRequest {
+    pub url: String,
+    /// Requesting document URL for the `Referer` header; empty/absent when the
+    /// link opted out with `rel="noreferrer"` or the payload is malformed.
+    pub referrer: Option<String>,
+}
+
+/// Parse `{type:'open-new-tab', url, referrer?}`.
 ///
-/// Returns the URL only when the message type matches and the URL uses an
-/// http/https scheme. Anything else returns `None` so the message is ignored.
-pub fn open_new_tab_url_from_message(json: &str) -> Option<String> {
+/// `url` must be http(s) (same backstop as before). `referrer` is optional and
+/// only accepted when it is an http(s) URL; other values are dropped before the
+/// host builds the `Referer` header.
+pub fn open_new_tab_request_from_message(json: &str) -> Option<OpenNewTabRequest> {
     let value: serde_json::Value = serde_json::from_str(json).ok()?;
     if value.get("type").and_then(|t| t.as_str()) != Some("open-new-tab") {
         return None;
     }
     let url = value.get("url").and_then(|v| v.as_str())?;
     let lower = url.to_ascii_lowercase();
-    if lower.starts_with("http://") || lower.starts_with("https://") {
-        Some(url.to_string())
-    } else {
-        None
+    if !(lower.starts_with("http://") || lower.starts_with("https://")) {
+        return None;
     }
+    let referrer = value
+        .get("referrer")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|r| {
+            let lower = r.to_ascii_lowercase();
+            lower.starts_with("http://") || lower.starts_with("https://")
+        })
+        .map(str::to_string);
+    Some(OpenNewTabRequest { url: url.to_string(), referrer })
+}
+
+/// Parsed `{type:'save-blob', fileName, dataBase64}` postMessage.
+pub struct SaveBlobRequest {
+    pub file_name: String,
+    pub data_base64: String,
+}
+
+/// Base64 payload ceiling for the postMessage hop: 96 MiB bounds the base64
+/// string length (≈72 MiB decoded) before base64 decoding allocates. The 64 MiB
+/// raw-byte limit is enforced again on the decoded bytes in `save_blob_download`
+/// (the single sink fed by the postMessage bridge).
+const SAVE_BLOB_MAX_BASE64_LEN: usize = 96 * 1024 * 1024;
+const SAVE_BLOB_MAX_FILE_NAME_LEN: usize = 255;
+
+/// Parsed `{type:'save-blob-failed', fileName}` postMessage (page-side failure:
+/// oversize blob or fetch error). No payload is transferred; the host only
+/// surfaces the failure with the same `fileName` contract as a save reject.
+pub struct SaveBlobFailure {
+    pub file_name: String,
+}
+
+/// Parse `{type:'save-blob-failed', fileName}` with the same name bound as a
+/// real save request.
+pub fn save_blob_failure_from_message(json: &str) -> Option<SaveBlobFailure> {
+    let value: serde_json::Value = serde_json::from_str(json).ok()?;
+    if value.get("type").and_then(|t| t.as_str()) != Some("save-blob-failed") {
+        return None;
+    }
+    let file_name = value.get("fileName").and_then(|v| v.as_str())?.trim();
+    if file_name.is_empty() || file_name.chars().count() > SAVE_BLOB_MAX_FILE_NAME_LEN {
+        return None;
+    }
+    Some(SaveBlobFailure { file_name: file_name.to_string() })
+}
+
+/// Parse `{type:'save-blob', fileName, dataBase64}`.
+///
+/// Any site may post this message; the host only accepts a bounded payload and
+/// a non-empty name. `save_blob_download` performs filename sanitization and
+/// writes into the configured download directory.
+pub fn save_blob_from_message(json: &str) -> Option<SaveBlobRequest> {
+    parse_save_blob(json, SAVE_BLOB_MAX_BASE64_LEN)
+}
+
+fn parse_save_blob(json: &str, max_base64_len: usize) -> Option<SaveBlobRequest> {
+    let value: serde_json::Value = match serde_json::from_str(json) {
+        Ok(value) => value,
+        Err(e) => {
+            tracing::debug!("[ADL-DL] save-blob ignored: invalid JSON: {e}");
+            return None;
+        },
+    };
+    if value.get("type").and_then(|t| t.as_str()) != Some("save-blob") {
+        return None;
+    }
+    let file_name = match value.get("fileName").and_then(|v| v.as_str()) {
+        Some(name) => name.trim(),
+        None => {
+            tracing::debug!("[ADL-DL] save-blob ignored: missing fileName");
+            return None;
+        },
+    };
+    if file_name.is_empty() || file_name.chars().count() > SAVE_BLOB_MAX_FILE_NAME_LEN {
+        tracing::debug!(
+            chars = file_name.chars().count(),
+            max = SAVE_BLOB_MAX_FILE_NAME_LEN,
+            "[ADL-DL] save-blob ignored: invalid fileName length"
+        );
+        return None;
+    }
+    let data_base64 = match value.get("dataBase64").and_then(|v| v.as_str()) {
+        Some(data) => data,
+        None => {
+            tracing::debug!("[ADL-DL] save-blob ignored: missing dataBase64");
+            return None;
+        },
+    };
+    if data_base64.len() > max_base64_len {
+        tracing::debug!(
+            len = data_base64.len(),
+            max = max_base64_len,
+            "[ADL-DL] save-blob ignored: invalid data length"
+        );
+        return None;
+    }
+    Some(SaveBlobRequest { file_name: file_name.to_string(), data_base64: data_base64.to_string() })
 }
 
 /// Pure parse of an `{type:'adl-media', ...}` postMessage payload emitted by
@@ -296,8 +423,41 @@ pub fn browser_media_state_from_message(
 #[cfg(test)]
 mod tests {
     use super::{
-        agent_link_from_message, browser_media_state_from_message, open_new_tab_url_from_message,
+        agent_link_from_message, browser_media_state_from_message,
+        open_new_tab_request_from_message, save_blob_failure_from_message, save_blob_from_message,
     };
+
+    /// URL-only view of the request parser used by the legacy tests below.
+    fn open_new_tab_url_from_message(json: &str) -> Option<String> {
+        open_new_tab_request_from_message(json).map(|request| request.url)
+    }
+
+    #[test]
+    fn blob_bridge_passes_requesting_tab_id_through() {
+        // The bridge/spawn path needs WebView2 COM objects, so lock the wiring at
+        // source level with whitespace-insensitive call shapes: deleting or
+        // reordering the tab id argument (or dropping Some(tab_id) downstream)
+        // must fail the gate. Strip the test module first: the needle below also
+        // appears in this assertion's own literal.
+        let src = include_str!("webview2_postmessage.rs");
+        let prod = src.split("#[cfg(test)]").next().unwrap_or(src);
+        let compact: String = prod.chars().filter(|c| !c.is_whitespace()).collect();
+        assert!(compact.contains(
+            "bridge_for_handler.save_blob(&tab_id_for_handler,&blob.file_name,&blob.data_base64"
+        ));
+        let bridge = include_str!("../../../src-tauri/src/webview_event_bridge.rs");
+        let bridge_compact: String = bridge.chars().filter(|c| !c.is_whitespace()).collect();
+        assert!(
+            bridge_compact
+                .contains("save_blob_download(&app,&state,file_name,data_base64,Some(tab_id)")
+        );
+        // Page-side failure path: dispatch + emit keys are locked too.
+        assert!(compact.contains(
+            "bridge_for_handler.save_blob_failed(&tab_id_for_handler,&failed.file_name)"
+        ));
+        assert!(bridge_compact.contains("fnsave_blob_failed(&self,tab_id:&str,file_name:&str){"));
+        assert!(bridge_compact.contains("\"fileName\":file_name"));
+    }
 
     #[test]
     fn agent_link_parses_valid_payload() {
@@ -434,6 +594,95 @@ mod tests {
     fn open_new_tab_missing_url_returns_none() {
         let json = r#"{"type":"open-new-tab"}"#;
         assert_eq!(open_new_tab_url_from_message(json), None);
+    }
+
+    #[test]
+    fn open_new_tab_parses_http_referrer() {
+        let json = r#"{"type":"open-new-tab","url":"https://a.com/new","referrer":"https://a.com/list?page=2#x"}"#;
+        let request = open_new_tab_request_from_message(json).unwrap();
+        assert_eq!(request.url, "https://a.com/new");
+        assert_eq!(request.referrer.as_deref(), Some("https://a.com/list?page=2#x"));
+    }
+
+    #[test]
+    fn open_new_tab_drops_non_http_referrer() {
+        let json =
+            r#"{"type":"open-new-tab","url":"https://a.com/new","referrer":"javascript:alert(1)"}"#;
+        assert_eq!(open_new_tab_request_from_message(json).unwrap().referrer, None);
+        let empty = r#"{"type":"open-new-tab","url":"https://a.com/new","referrer":""}"#;
+        assert_eq!(open_new_tab_request_from_message(empty).unwrap().referrer, None);
+    }
+
+    #[test]
+    fn save_blob_parses_bounded_payload() {
+        let json = r#"{"type":"save-blob","fileName":"report.csv","dataBase64":"YSxi"}"#;
+        let blob = save_blob_from_message(json).unwrap();
+        assert_eq!(blob.file_name, "report.csv");
+        assert_eq!(blob.data_base64, "YSxi");
+    }
+
+    #[test]
+    fn save_blob_rejects_wrong_type_and_missing_fields() {
+        assert!(
+            save_blob_from_message(r#"{"type":"meta","fileName":"a","dataBase64":"YQ=="}"#)
+                .is_none()
+        );
+        assert!(
+            save_blob_from_message(r#"{"type":"save-blob","fileName":"","dataBase64":"YQ=="}"#)
+                .is_none()
+        );
+        // Empty data is a legitimate zero-byte blob, not a malformed message.
+        assert!(
+            save_blob_from_message(r#"{"type":"save-blob","fileName":"a.txt","dataBase64":""}"#)
+                .is_some()
+        );
+        assert!(save_blob_from_message(r#"{"type":"save-blob","fileName":"a.txt"}"#).is_none());
+        assert!(save_blob_from_message("not json").is_none());
+    }
+
+    #[test]
+    fn save_blob_name_limit_counts_characters_not_bytes() {
+        let ok = "文".repeat(255);
+        let json = format!(r#"{{"type":"save-blob","fileName":"{ok}","dataBase64":"YQ=="}}"#);
+        assert!(save_blob_from_message(&json).is_some());
+
+        let too_long = "文".repeat(256);
+        let json = format!(r#"{{"type":"save-blob","fileName":"{too_long}","dataBase64":"YQ=="}}"#);
+        assert!(save_blob_from_message(&json).is_none());
+    }
+
+    #[test]
+    fn save_blob_failure_parses_name_and_rejects_bad_payloads() {
+        let json = r#"{"type":"save-blob-failed","fileName":"x.bin"}"#;
+        assert_eq!(save_blob_failure_from_message(json).unwrap().file_name, "x.bin");
+        assert!(
+            save_blob_failure_from_message(r#"{"type":"save-blob","fileName":"x.bin"}"#).is_none()
+        );
+        assert!(save_blob_failure_from_message(r#"{"type":"save-blob-failed"}"#).is_none());
+        assert!(save_blob_failure_from_message("not json").is_none());
+    }
+
+    #[test]
+    fn save_blob_rejects_oversized_name_and_payload() {
+        let long_name = "a".repeat(256);
+        let json =
+            format!(r#"{{"type":"save-blob","fileName":"{long_name}","dataBase64":"YQ=="}}"#);
+        assert!(save_blob_from_message(&json).is_none());
+
+        assert!(
+            super::parse_save_blob(
+                r#"{"type":"save-blob","fileName":"a.txt","dataBase64":"YQ=="}"#,
+                3
+            )
+            .is_none()
+        );
+        assert!(
+            super::parse_save_blob(
+                r#"{"type":"save-blob","fileName":"a.txt","dataBase64":"YQ=="}"#,
+                4
+            )
+            .is_some()
+        );
     }
 
     #[test]

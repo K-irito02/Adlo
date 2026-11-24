@@ -332,6 +332,11 @@ describe('every migrated browser key round-trips through the registry', () => {
       act: (s) => s.setBrowserNavigateInPlace(true),
     },
     {
+      key: 'adl:browser.shareProfile',
+      field: 'browserShareProfile',
+      act: (s) => s.setBrowserShareProfile(false),
+    },
+    {
       key: 'adl:browser.searchEngines',
       field: 'searchEngines',
       legacyKey: 'adl:browser:searchEngines',

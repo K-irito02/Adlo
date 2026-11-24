@@ -58,17 +58,24 @@ static DOWNLOAD_EXTENSIONS: &[&str] = &[
 /// Guards against finalizing while the engine is still flushing the tail bytes.
 const FULL_SIZE_STABLE_POLLS: u32 = 2;
 
-fn is_download_url(url: &url::Url) -> bool {
+/// Whether the URL path ends with a known download extension (no query/path
+/// heuristics). Shared by the download handler and the silent metadata fetch
+/// deny-list, where broad `/download/` path matching would skip real pages.
+pub(super) fn has_download_extension(url: &url::Url) -> bool {
     let path = url.path().to_lowercase();
-    for ext in DOWNLOAD_EXTENSIONS {
+    DOWNLOAD_EXTENSIONS.iter().any(|ext| {
         // Allocation-free `.ext` suffix check: the byte before the extension must be `.`.
-        if path.len() > ext.len() + 1
+        path.len() > ext.len() + 1
             && path.as_bytes()[path.len() - ext.len() - 1] == b'.'
             && path.ends_with(ext)
-        {
-            tracing::trace!(url = %url, ext = ext, "[ADL-DL] is_download_url: matched extension");
-            return true;
-        }
+    })
+}
+
+pub(super) fn is_download_url(url: &url::Url) -> bool {
+    let path = url.path().to_lowercase();
+    if has_download_extension(url) {
+        tracing::trace!(url = %url, "[ADL-DL] is_download_url: matched extension");
+        return true;
     }
     let query = url.query().unwrap_or("").to_lowercase();
     // Aligned with JS/TS (init_script.js & downloadUrl.ts): `download` must be a
@@ -191,12 +198,26 @@ pub(super) fn resolve_window_and_url(
 /// 登录态与默认 UDF 不共享）。升级后中心标签需重新登录一次；磁盘常驻多份 WebView2
 /// 用户数据（默认 + center + silent）。主界面 WebView 留在默认 UDF（与面板同组），
 /// 不新增第 4 个环境。
-pub(super) fn data_subdir_for_location(location: Option<&str>) -> Option<&'static str> {
+pub(super) fn data_subdir_for_location(
+    location: Option<&str>,
+    share_profile: bool,
+) -> Option<&'static str> {
     match location {
+        // 共享浏览配置文件（设置默认开）：共享时中心使用默认 UDF，即与面板同一
+        // 浏览会话；关闭后中心回到独立 UDF（ADR 0001 修订版）。
+        Some("center") if share_profile => None,
         Some("center") => Some("center"),
         Some("silent") => Some("silent"),
         _ => None,
     }
+}
+
+/// 调用方未传 `share_profile` 时的缺省值（产品默认共享）。
+///
+/// 持久化设置是设置真源；只有未传字段的调用方走这里。诊断用途可用
+/// `ADL_BROWSER_SHARE_PROFILE=0|false` 临时关闭共享。
+fn share_profile_default() -> bool {
+    !matches!(std::env::var("ADL_BROWSER_SHARE_PROFILE").as_deref(), Ok("0") | Ok("false"))
 }
 
 /// 由分组名解析出完整的 `data_directory`（`None` = 沿用 Tauri 默认 UDF）。
@@ -204,20 +225,34 @@ pub(super) fn data_subdir_for_location(location: Option<&str>) -> Option<&'stati
 pub(super) fn webview_data_directory(
     app: &tauri::AppHandle,
     location: Option<&str>,
+    share_profile: Option<bool>,
 ) -> Option<std::path::PathBuf> {
-    let sub = match data_subdir_for_location(location) {
+    let share_profile = share_profile.unwrap_or_else(share_profile_default);
+    let sub = match data_subdir_for_location(location, share_profile) {
         Some(sub) => sub,
         None => {
-            // 未知 location 与面板显式缺省都会落到这里；未知值打 warn，
-            // 面板（None/"panel"）静默——沿用默认 UDF 是其既定语义。
-            if !matches!(location, None | Some("panel")) {
+            // 当前实现下，未知 location、面板显式缺省、共享模式下的 center 走这一分支。
+            if matches!(location, Some("center")) && share_profile {
+                tracing::debug!(
+                    location = ?location,
+                    "browser profile sharing enabled; center uses default UDF (shares panel session)"
+                );
+            } else if !matches!(location, None | Some("panel")) {
                 tracing::warn!(location = ?location, "unknown browser location; using default UDF (shares panel session)");
             }
             return None;
         },
     };
     match app.path().app_data_dir() {
-        Ok(base) => Some(base.join("webview").join(sub)),
+        Ok(base) => {
+            tracing::debug!(
+                location = ?location,
+                share_profile,
+                sub,
+                "browser UDF selected"
+            );
+            Some(base.join("webview").join(sub))
+        },
         Err(e) => {
             // 失败即 fail-open 回默认 UDF（与面板同会话，跨宿主闪主题可能复发），
             // 必须留痕，否则静默复发无从排查。
@@ -907,6 +942,16 @@ fn fetch_content_length(client: &reqwest::blocking::Client, url: &url::Url) -> O
     None
 }
 ///
+/// 校验页面新窗口请求带来的 `Referer` 来源：只接受无控制字符的 http(s) URL。
+/// postMessage 解析已做同一 backstop；这里再守一次命令边界，避免头部注入。
+pub(super) fn sanitize_referrer(referrer: Option<String>) -> Option<String> {
+    referrer.map(|value| value.trim().to_string()).filter(|value| {
+        let lower = value.to_ascii_lowercase();
+        (lower.starts_with("http://") || lower.starts_with("https://"))
+            && !value.chars().any(char::is_control)
+    })
+}
+
 /// Unlike `build_webview_builder`, this intentionally omits the `on_navigation`
 /// (→ `digital-life://browser-url-changed`) and `on_new_window`
 /// (→ `digital-life://browser-open-new-tab`) handlers. A silent tab only renders
@@ -933,9 +978,12 @@ pub(super) fn build_silent_webview_builder(
         // Silent webviews: cancel ALL downloads unconditionally.
         // This is the ONLY download interception point for silent webviews —
         // build_silent_webview_builder does not go through setup_download_handler.
+        // Cancellation is expected background behavior (pages may auto-trigger
+        // installers/downloads), so this stays at debug level: it is not an error
+        // and must not surface as a WARN in normal logs (事项 9).
         builder.on_download(|_webview, event| {
             if let tauri::webview::DownloadEvent::Requested { url, .. } = event {
-                tracing::warn!(
+                tracing::debug!(
                     url = %url,
                     "[ADL-DL] download_requested: CANCELLED (silent webview)"
                 );
@@ -951,6 +999,7 @@ pub(super) fn setup_webview2_handlers_for_platform(
     webview: &tauri::Webview<tauri::Wry>,
     tab_id: &str,
     label: &str,
+    host: &str,
     bridge: EventBridgeRef,
     is_silent: bool,
 ) {
@@ -959,13 +1008,14 @@ pub(super) fn setup_webview2_handlers_for_platform(
         let bridge = bridge.clone();
         let tab_id = tab_id.to_string();
         let label = label.to_string();
+        let host = host.to_string();
         let app_handle = webview.app_handle().clone();
         let _ = webview.with_webview(move |platform_wv| unsafe {
             let controller = platform_wv.controller();
             if let Ok(core) = controller.CoreWebView2() {
                 let manager = app_handle.state::<AppState>().download_manager.clone();
                 adl_browser::setup_webview2_handlers(
-                    &core, &tab_id, &label, &bridge, &manager, is_silent,
+                    &core, &tab_id, &label, &host, &bridge, &manager, is_silent,
                 );
             }
         });
@@ -974,7 +1024,7 @@ pub(super) fn setup_webview2_handlers_for_platform(
     {
         let app_handle = webview.app_handle().clone();
         let manager = app_handle.state::<crate::state::AppState>().download_manager.clone();
-        adl_browser::setup_webview2_handlers(tab_id, label, &manager, is_silent);
+        adl_browser::setup_webview2_handlers(tab_id, label, host, &manager, is_silent);
     }
 }
 
@@ -1007,12 +1057,14 @@ pub(super) fn apply_theme_and_navigate_for_platform(
     app_handle: tauri::AppHandle,
     real_url: &str,
     fallback_color_scheme: &str,
+    referrer: Option<&str>,
 ) {
     #[cfg(windows)]
     {
         let url_owned = real_url.to_string();
         let app_for_closure = app_handle.clone();
         let fallback_owned = fallback_color_scheme.to_string();
+        let referrer_owned = referrer.map(str::to_string);
         tracing::debug!(url = &url_owned, "apply_theme_and_navigate_for_platform: ENTER (windows)");
         let _ = webview.with_webview(move |platform_wv| unsafe {
             let controller = platform_wv.controller();
@@ -1055,9 +1107,32 @@ pub(super) fn apply_theme_and_navigate_for_platform(
                 adl_browser::webview2_set_profile_color_scheme(&core, &cs);
 
                 // 3. Navigate immediately — no need to wait for any callback
-                tracing::debug!(url = &url_owned, "apply_theme: navigate_core");
-                if let Err(e) = adl_browser::navigate_core(&core, &url_owned) {
-                    tracing::warn!(error = %e, url = %url_owned, "failed to navigate WebView2 to real URL");
+                tracing::debug!(url = &url_owned, referrer = ?referrer_owned, "apply_theme: navigate_core");
+                let mut navigated = false;
+                if let Some(ref referrer) = referrer_owned {
+                    let environment = platform_wv.environment();
+                    match adl_browser::navigate_core_with_referrer(
+                        &environment,
+                        &core,
+                        &url_owned,
+                        referrer,
+                    ) {
+                        Ok(()) => navigated = true,
+                        Err(e) => {
+                            // Do not drop the tab on a header-path failure: fall
+                            // back to a plain navigation (referrer lost, page works).
+                            tracing::warn!(
+                                error = %e,
+                                url = %url_owned,
+                                "failed to navigate with Referer header; falling back to plain navigate"
+                            );
+                        },
+                    }
+                }
+                if !navigated {
+                    if let Err(e) = adl_browser::navigate_core(&core, &url_owned) {
+                        tracing::warn!(error = %e, url = %url_owned, "failed to navigate WebView2 to real URL");
+                    }
                 }
             } else {
                 tracing::warn!("apply_theme: failed to get CoreWebView2");
@@ -1068,12 +1143,15 @@ pub(super) fn apply_theme_and_navigate_for_platform(
     {
         // On non-Windows, navigate to the real URL via Tauri's cross-platform API.
         // No WebView2 background color / Profile color scheme flash issue exists
-        // on these platforms.
+        // on these platforms. Tauri exposes no per-navigation headers here, so
+        // the referrer is dropped (platform difference, documented in the
+        // progress/knowledge base).
         if let Ok(parsed) = url::Url::parse(real_url) {
             let _ = webview.navigate(parsed);
         }
         let _ = app_handle;
         let _ = fallback_color_scheme;
+        let _ = referrer;
     }
 }
 
@@ -1095,13 +1173,30 @@ mod tests {
     use super::*;
 
     #[test]
+    fn sanitize_referrer_accepts_http_urls_and_rejects_injection() {
+        assert_eq!(
+            sanitize_referrer(Some(" https://a.test/list?q=1 ".to_string())),
+            Some("https://a.test/list?q=1".to_string())
+        );
+        assert_eq!(
+            sanitize_referrer(Some("http://a.test/".to_string())),
+            Some("http://a.test/".to_string())
+        );
+        assert_eq!(sanitize_referrer(Some("javascript:alert(1)".to_string())), None);
+        assert_eq!(sanitize_referrer(Some("https://a.test/\r\nX-Evil: 1".to_string())), None);
+        assert_eq!(sanitize_referrer(None), None);
+    }
+
+    #[test]
     fn data_subdir_groups_center_and_silent_apart_from_panel() {
-        assert_eq!(data_subdir_for_location(Some("center")), Some("center"));
-        assert_eq!(data_subdir_for_location(Some("silent")), Some("silent"));
+        assert_eq!(data_subdir_for_location(Some("center"), false), Some("center"));
+        assert_eq!(data_subdir_for_location(Some("center"), true), None);
+        assert_eq!(data_subdir_for_location(Some("silent"), true), Some("silent"));
+        assert_eq!(data_subdir_for_location(Some("silent"), false), Some("silent"));
         // 面板/默认/未知一律沿用默认 UDF（None），保留现有浏览会话。
-        assert_eq!(data_subdir_for_location(Some("panel")), None);
-        assert_eq!(data_subdir_for_location(None), None);
-        assert_eq!(data_subdir_for_location(Some("unknown")), None);
+        assert_eq!(data_subdir_for_location(Some("panel"), false), None);
+        assert_eq!(data_subdir_for_location(None, false), None);
+        assert_eq!(data_subdir_for_location(Some("unknown"), false), None);
     }
 
     #[test]

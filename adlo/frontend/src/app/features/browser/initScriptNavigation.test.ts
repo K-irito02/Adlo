@@ -33,19 +33,44 @@ interface ResolveResult {
 function loadPure(): {
   normalize: (rawUrl: string, baseHref: string) => string | null;
   resolve: (rawUrl: string, baseHref: string) => ResolveResult;
+  truncate: (name: string) => string;
 } {
   const block = extractPureBlock();
   const factory = new Function(
-    `${block}\nreturn { normalize: __adlNormalizeHistoryUrl, resolve: __adlResolveHistoryNavigation };`,
+    `${block}\nreturn { normalize: __adlNormalizeHistoryUrl, resolve: __adlResolveHistoryNavigation, truncate: __adlTruncateName };`,
   );
   return factory() as {
     normalize: (rawUrl: string, baseHref: string) => string | null;
     resolve: (rawUrl: string, baseHref: string) => ResolveResult;
+    truncate: (name: string) => string;
   };
 }
 
 const BILI_BASE = 'https://www.bilibili.com/video/BV1eSGP6BEfn';
 const YT_BASE = 'https://www.youtube.com/watch?v=AAA';
+
+describe('init_script.js blob name truncation', () => {
+  const { truncate } = loadPure();
+
+  it('caps at 255 code units, keeps the extension and avoids lone surrogates', () => {
+    expect(truncate('a'.repeat(300))).toHaveLength(255);
+
+    const long = 'x'.repeat(300) + '.pdf';
+    const out = truncate(long);
+    expect(out.length).toBeLessThanOrEqual(255);
+    expect(out.endsWith('.pdf')).toBe(true);
+
+    const cut = truncate('😀'.repeat(200));
+    expect(cut.length).toBeLessThanOrEqual(255);
+    expect(/[\uD800-\uDBFF]$/.test(cut)).toBe(false);
+  });
+
+  it('keeps only the basename for directory-like download names', () => {
+    expect(truncate('dir/name.ext')).toBe('name.ext');
+    expect(truncate('C:\\dir\\name.ext')).toBe('name.ext');
+    expect(truncate('/')).toBe('download');
+  });
+});
 
 describe('init_script.js C1 URL normalization', () => {
   const { normalize } = loadPure();
@@ -155,31 +180,101 @@ describe('init_script.js new-tab interception markers', () => {
     expect(initScript).toContain('chrome.webview.postMessage');
   });
 
-  it('uses the helper ONLY for modified clicks (explicit new-tab intent)', () => {
-    expect(initScript).toContain('__adlTryOpenNewTab(href)');
-    // __adlTryOpenNewTab is only called for modified clicks (ctrl/meta/shift/middle),
-    // NOT for target="_blank" download links (which use origOpen instead).
-    // The download handler uses linkTarget === '_blank' but routes via origOpen, not the helper.
-    const helperUsage = initScript.indexOf('__adlTryOpenNewTab(href))');
-    const helperBlock = initScript.slice(helperUsage - 200, helperUsage);
-    expect(helperBlock).not.toContain("linkTarget === '_blank'");
+  it('routes target=_blank and modified clicks to the new-tab helper', () => {
+    expect(initScript).toContain('__adlTryOpenNewTab(href, __adlReferrerForLink(target, href))');
+    // target="_blank" links and modified clicks (ctrl/meta/shift/middle) use the
+    // postMessage new-tab channel; ordinary same-tab clicks stay native.
+    const helperUsage = initScript.indexOf(
+      '__adlTryOpenNewTab(href, __adlReferrerForLink(target, href)))',
+    );
+    const helperBlock = initScript.slice(helperUsage - 900, helperUsage + 80);
+    expect(helperBlock).toContain("linkTarget === '_blank'");
+    expect(helperBlock).toContain('modifiedClick');
     expect(helperBlock).toContain('ctrlKey');
+    // 中键由 auxclick 投递，不能依赖 click 的 event.button。
+    expect(helperBlock).toContain("event.type === 'auxclick' && event.button === 1");
+    // 安装期 gate 的 window.open 包装仍按运行期开关复判（关闭方向即时生效）。
+    expect(initScript).toContain(
+      "if (__adlIsAgentHost() && __adlSendAgentLink('url', resolvedUrl))",
+    );
+    expect(initScript).toContain(
+      "window.addEventListener('auxclick', __adlRouteNewWindowEvent, false);",
+    );
+    // bubble 阶段 + 先判 defaultPrevented：页面自身的取消/接管优先。
+    expect(initScript).toContain(
+      "window.addEventListener('click', __adlRouteNewWindowEvent, false);",
+    );
+    expect(initScript).toContain('if (event.defaultPrevented) return;');
   });
 
-  it('routes plain in-page clicks (incl. target=_blank) to the SPA nav-guard', () => {
-    // 定位 __startNavGuard(href) 调用处（非定义处），断言其前置 preventDefault，
-    // 且从最近的 preventDefault 到该调用之间不含新标签通道（__adlTryOpenNewTab）。
-    // 注：从最后一个 preventDefault 起切块，避免回溯过远误伤更早的强制新标签分支。
-    const guardCall = initScript.indexOf('window.__startNavGuard(href)');
-    expect(guardCall).toBeGreaterThan(-1);
-    const pdBefore = initScript.lastIndexOf('event.preventDefault()', guardCall);
-    const block = initScript.slice(pdBefore, guardCall + 30);
-    expect(block).toContain('event.preventDefault()');
-    expect(block).not.toContain('__adlTryOpenNewTab');
+  it('forwards the originating URL as referrer and honors rel=noreferrer', () => {
+    expect(initScript).toContain('payload.referrer = referrer');
+    expect(initScript).toContain("rel.indexOf('noreferrer')");
+    expect(initScript).toContain('location.href.split');
+    // 默认 strict-origin-when-cross-origin：同源全 URL、跨源仅 origin、HTTPS→HTTP 不发；
+    // 并尊重链接 referrerpolicy 与文档级 meta referrer 的 opt-out。
+    expect(initScript).toContain('var crossOrigin = target.origin !== location.origin;');
+    expect(initScript).toContain("location.protocol === 'https:'");
+    expect(initScript).toContain("target.protocol === 'http:'");
+    expect(initScript).toContain('link.referrerPolicy');
+    expect(initScript).toContain('meta[name="referrer"]');
+  });
+
+  it('only posts host messages from http(s) documents', () => {
+    // wry parses the WebView message source URL; file:// documents with
+    // non-ASCII paths can make that parse fail and abort the app. Adlo only
+    // sends host messages from real web documents.
+    expect(initScript).toContain('function __adlCanPostToHost()');
+    expect(initScript).toContain("location.protocol !== 'http:'");
+    expect(initScript).toContain("location.protocol !== 'https:'");
+    expect(initScript).toContain('function __adlPostToHost(');
+    expect(initScript).not.toContain('chrome.webview.postMessage(JSON.stringify');
+  });
+
+  it('routes blob: links to the host save channel on every site', () => {
+    // Blob downloads have no native WebView2 path; the handler runs outside the
+    // agent-only branch and the host channel is postMessage (not __TAURI__).
+    expect(initScript).toContain("type: 'save-blob'");
+    expect(initScript).toContain('__adlDownloadBlob(blobHref, blobName)');
+    const blobHandler = initScript.slice(
+      initScript.indexOf('// Blob downloads:'),
+      initScript.indexOf('// New-window links:'),
+    );
+    expect(blobHandler).toContain('isBlobUrl(target.href)');
+    expect(blobHandler).toContain('stopImmediatePropagation');
+    // 普通站点仅在显式 download 链接时接管；agent 站点保留全量 blob 链接保存。
+    expect(blobHandler).toContain("target.hasAttribute('download')");
+    // 页面侧失败（超限/抓取失败）也回传宿主，让用户看到同一条失败提示。
+    expect(initScript).toContain("type: 'save-blob-failed'");
+    expect(initScript).toContain('__adlNotifyBlobFailed(filename');
+    // 长导出名先截断（不切断代理对），避免宿主解析层静默丢弃。
+    expect(initScript).toContain('function __adlTruncateName(name)');
+    expect(initScript).toContain('filename = __adlTruncateName(filename);');
+    const blobSection = initScript.slice(
+      initScript.indexOf('function __adlDownloadBlob'),
+      initScript.indexOf('// 处理导航'),
+    );
+    expect(blobSection).toContain('__adlSaveBlobDownload(filename, b64);');
+    expect(blobSection).toContain("__adlNotifyBlobFailed(filename, 'too large')");
+    expect(blobSection).toContain("__adlNotifyBlobFailed(filename, 'fetch failed: ' + String(e))");
+  });
+
+  it('leaves plain same-tab clicks to native navigation (no nav-guard interception)', () => {
+    // The agent-only nav-guard remains for agent sites, but ordinary sites use
+    // native navigation; the new-window handler only prevents default for
+    // target=_blank/forced clicks.
+    const handlerStart = initScript.indexOf('// New-window links:');
+    const handlerEnd = initScript.indexOf('// Click interception:', handlerStart);
+    const block = initScript.slice(handlerStart, handlerEnd);
+    expect(block).toContain("linkTarget === '_blank'");
+    expect(block).toContain('modifiedClick');
+    expect(block).not.toContain('__startNavGuard');
   });
 
   it('does not start the SPA nav-guard in the new-tab path', () => {
-    const usage = initScript.indexOf('__adlTryOpenNewTab(href))');
+    const usage = initScript.indexOf(
+      '__adlTryOpenNewTab(href, __adlReferrerForLink(target, href)))',
+    );
     const tail = initScript.slice(usage, usage + 120);
     expect(tail).not.toContain('__startNavGuard');
   });
@@ -765,5 +860,85 @@ describe('init_script.js agent-link interception', () => {
     expect(initScript).toContain('__adlIsAgentHost');
     expect(initScript).toContain('__adlSendAgentLink');
     expect(initScript).toContain("type: 'adl-agent-link'");
+  });
+
+  it('routes a normal-site target=_blank click from the window bubble phase', () => {
+    setAgent([], false);
+    const a = document.createElement('a');
+    a.href = 'https://target.example/page';
+    a.target = '_blank';
+    document.body.appendChild(a);
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    a.dispatchEvent(event);
+    a.remove();
+    const msg = posted.find((p) => p.type === 'open-new-tab');
+    expect(msg).toMatchObject({ url: 'https://target.example/page' });
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('does not open a new tab when the page already cancelled the click', () => {
+    setAgent([], false);
+    const a = document.createElement('a');
+    a.href = 'https://target.example/page';
+    a.target = '_blank';
+    document.body.appendChild(a);
+    const cancel = (e: Event) => e.preventDefault();
+    document.addEventListener('click', cancel);
+    try {
+      a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    } finally {
+      document.removeEventListener('click', cancel);
+      a.remove();
+    }
+    expect(posted.filter((p) => p.type === 'open-new-tab')).toHaveLength(0);
+  });
+
+  it('leaves a plain same-tab click to native navigation', () => {
+    setAgent([], false);
+    const a = document.createElement('a');
+    a.href = 'https://target.example/page';
+    document.body.appendChild(a);
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    a.dispatchEvent(event);
+    a.remove();
+    expect(posted.filter((p) => p.type === 'open-new-tab')).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('falls back to direct navigation when the nav-guard is not installed', () => {
+    // Enabling the agent switch after load leaves window.__startNavGuard absent;
+    // both the <a> and <area> branches must navigate instead of swallowing.
+    const noComments = initScript.replace(/\/\/[^\n]*/g, '');
+    const compact = noComments.replace(/\s+/g, '');
+    const hits = compact.split('}else{navigateToUrl(href);}').length - 1;
+    expect(hits).toBe(2);
+  });
+
+  it('ignores right-click (non-middle auxclick) on target=_blank links', () => {
+    setAgent([], false);
+    const a = document.createElement('a');
+    a.href = 'https://target.example/page';
+    a.target = '_blank';
+    document.body.appendChild(a);
+    const event = new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 2 });
+    a.dispatchEvent(event);
+    a.remove();
+    expect(posted.filter((p) => p.type === 'open-new-tab')).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('routes an agent-site middle-click as a new tab before agent-link', () => {
+    setAgent([window.location.origin], true);
+    const a = document.createElement('a');
+    a.href = 'https://target.example/page';
+    document.body.appendChild(a);
+    const event = new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 });
+    a.dispatchEvent(event);
+    a.remove();
+    expect(posted.find((p) => p.type === 'open-new-tab')).toMatchObject({
+      url: 'https://target.example/page',
+    });
+    expect(posted.filter((p) => p.type === 'adl-agent-link')).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(true);
   });
 });

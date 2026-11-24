@@ -154,6 +154,9 @@ export const isBrowserTab = (item: Record<string, unknown>): boolean => {
   if (item.location !== undefined && item.location !== 'panel' && item.location !== 'center') {
     return false;
   }
+  if (item.shareProfile !== undefined && typeof item.shareProfile !== 'boolean') {
+    return false;
+  }
   return true;
 };
 
@@ -816,6 +819,13 @@ export const registry = {
     key: 'adl:browser.navigateInPlace',
     field: 'browserNavigateInPlace',
     fallback: false,
+    scope: 'global',
+    read: readFlag,
+  }),
+  'adl:browser.shareProfile': defineEntry<boolean>({
+    key: 'adl:browser.shareProfile',
+    field: 'browserShareProfile',
+    fallback: true,
     scope: 'global',
     read: readFlag,
   }),

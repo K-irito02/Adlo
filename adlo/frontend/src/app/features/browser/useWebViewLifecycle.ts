@@ -23,7 +23,10 @@ interface UseWebViewLifecycleOptions {
     url: string,
     colorScheme?: 'light' | 'dark',
     location?: 'panel' | 'center',
+    initialSize?: { width: number; height: number },
   ) => Promise<string | null>;
+  /** 创建当刻的容器视口尺寸（CSS px）；用于让页面在屏外按该尺寸加载。读不到时缺省，后端回落 800×600。 */
+  getInitialViewportSize?: () => { width: number; height: number } | undefined;
   activateTabInPool: (tabId: string) => Promise<void>;
   webViewActiveRef: React.RefObject<boolean>;
   overlayActiveRef: React.RefObject<boolean>;
@@ -51,6 +54,7 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     webViewDisabled,
     isTabInPool,
     createWebViewForTab,
+    getInitialViewportSize,
     activateTabInPool,
     webViewActiveRef,
     overlayActiveRef,
@@ -246,9 +250,15 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
           markRevealPending(currentTabId, REVEAL_FALLBACK_MS);
           clearRevealTimer(currentTabId);
 
-          // UDF 隔离后不再需要创建期隐藏另一宿主：中心与面板处于不同 WebView2 会话，
-          // 新建控制器不会触碰另一宿主的 PreferredColorScheme。
-          await createWebViewForTab(currentTabId, tab.url, getResolvedTheme(), hostId);
+          // 默认共享 profile 时中心与面板同一 WebView2 会话；关闭开关后中心走独立
+          // UDF。共享模式下不再需要创建期隐藏另一宿主，但主题联动风险由用户选择承担。
+          await createWebViewForTab(
+            currentTabId,
+            tab.url,
+            getResolvedTheme(),
+            hostId,
+            getInitialViewportSize?.(),
+          );
 
           webViewActiveRef.current = true;
           tabUrlMapRef.current.set(currentTabId, tab.url);
@@ -327,6 +337,7 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     webViewDisabled,
     isTabInPool,
     createWebViewForTab,
+    getInitialViewportSize,
     activateTabInPool,
     updateWebViewBounds,
     overlayActiveRef,

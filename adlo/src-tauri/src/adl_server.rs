@@ -21,6 +21,61 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
+/// Windows job object holding the sidecar with `KILL_ON_JOB_CLOSE`.
+///
+/// `Drop` kills the child on a graceful exit; this job is the safety net for a
+/// hard-killed shell (`taskkill /F`, crash, debugger stop): Windows closes the
+/// job handle when the parent process dies and terminates every process in it.
+#[cfg(windows)]
+struct KillOnCloseJob(windows::Win32::Foundation::HANDLE);
+
+#[cfg(windows)]
+unsafe impl Send for KillOnCloseJob {}
+#[cfg(windows)]
+unsafe impl Sync for KillOnCloseJob {}
+
+#[cfg(windows)]
+impl Drop for KillOnCloseJob {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = windows::Win32::Foundation::CloseHandle(self.0);
+        }
+    }
+}
+
+#[cfg(windows)]
+fn create_kill_on_close_job() -> Result<KillOnCloseJob, String> {
+    use windows::Win32::System::JobObjects::{
+        CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JobObjectExtendedLimitInformation, SetInformationJobObject,
+    };
+
+    unsafe {
+        let job = CreateJobObjectW(None, None).map_err(|e| e.to_string())?;
+        let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
+        info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        SetInformationJobObject(
+            job,
+            JobObjectExtendedLimitInformation,
+            &info as *const _ as *const core::ffi::c_void,
+            std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(KillOnCloseJob(job))
+    }
+}
+
+#[cfg(windows)]
+fn assign_to_kill_on_close_job(job: &KillOnCloseJob, child: &Child) -> Result<(), String> {
+    use std::os::windows::io::AsRawHandle;
+    use windows::Win32::System::JobObjects::AssignProcessToJobObject;
+
+    unsafe {
+        AssignProcessToJobObject(job.0, windows::Win32::Foundation::HANDLE(child.as_raw_handle()))
+            .map_err(|e| e.to_string())
+    }
+}
+
 /// Time to wait for the child's `AD_SERVER_PORT=` stdout line before giving up.
 const PORT_LINE_TIMEOUT: Duration = Duration::from_secs(60);
 /// Machine-parseable prefix the adl-server prints after binding (see
@@ -120,6 +175,10 @@ fn kill_child_tree(child: &mut Child) {
 pub struct AdServerHandle {
     child: RwLock<Option<Child>>,
     base_url: RwLock<Option<String>>,
+    /// Windows kill-on-close job for the sidecar (hard-kill safety net).
+    #[cfg(windows)]
+    #[allow(dead_code)] // held only for its Drop (closing the job kills the child)
+    job: Option<KillOnCloseJob>,
 }
 
 impl AdServerHandle {
@@ -141,6 +200,15 @@ impl AdServerHandle {
         }
     }
 
+    fn system_only() -> Self {
+        Self {
+            child: RwLock::new(None),
+            base_url: RwLock::new(None),
+            #[cfg(windows)]
+            job: None,
+        }
+    }
+
     /// Spawn `adl-server` for `data_dir`, wait for its ephemeral port, and store
     /// the base URL. Returns a handle with `base_url: None` (system-only) on any
     /// failure — never panics, never blocks setup beyond [`PORT_LINE_TIMEOUT`].
@@ -150,7 +218,21 @@ impl AdServerHandle {
                 "[adl-shell] adl-server binary not found; desktop runs system-only (business over HTTP unavailable). \
                  Build it with `cargo build -p adl-server`."
             );
-            return Arc::new(Self { child: RwLock::new(None), base_url: RwLock::new(None) });
+            return Arc::new(Self::system_only());
+        };
+
+        // The job must exist before assignment so the handle is ready right after
+        // spawn. Note this does NOT cover the spawn→assign window: a child that is
+        // not yet a job member survives a force-kill of the shell in that
+        // millisecond-scale gap. Closing the job handle on normal exit kills every
+        // member, and `RunEvent::Exit` calls `terminate()` for the normal path.
+        #[cfg(windows)]
+        let mut job = match create_kill_on_close_job() {
+            Ok(job) => Some(job),
+            Err(e) => {
+                tracing::warn!("[adl-shell] failed to create kill-on-close job: {e}");
+                None
+            },
         };
 
         let mut cmd = Command::new(&binary);
@@ -174,16 +256,33 @@ impl AdServerHandle {
             Ok(c) => c,
             Err(e) => {
                 tracing::error!("[adl-shell] failed to spawn adl-server: {e}");
-                return Arc::new(Self { child: RwLock::new(None), base_url: RwLock::new(None) });
+                return Arc::new(Self::system_only());
             },
         };
+
+        #[cfg(windows)]
+        {
+            let assigned = match job.as_ref() {
+                Some(job) => assign_to_kill_on_close_job(job, &child),
+                None => Ok(()),
+            };
+            match assigned {
+                Ok(()) => tracing::debug!("[adl-shell] adl-server assigned to kill-on-close job"),
+                Err(e) => {
+                    tracing::warn!(
+                        "[adl-shell] failed to assign adl-server to kill-on-close job: {e}"
+                    );
+                    job = None;
+                },
+            }
+        }
 
         let rx = match child.stdout.take() {
             Some(stdout) => read_bound_port(stdout),
             None => {
                 tracing::error!("[adl-shell] adl-server stdout not piped; killing child");
                 kill_child_tree(&mut child);
-                return Arc::new(Self { child: RwLock::new(None), base_url: RwLock::new(None) });
+                return Arc::new(Self::system_only());
             },
         };
 
@@ -195,6 +294,8 @@ impl AdServerHandle {
                 Arc::new(Self {
                     child: RwLock::new(Some(child)),
                     base_url: RwLock::new(Some(base_url)),
+                    #[cfg(windows)]
+                    job,
                 })
             },
             None => {
@@ -203,7 +304,7 @@ impl AdServerHandle {
                      killing child and running system-only"
                 );
                 kill_child_tree(&mut child);
-                Arc::new(Self { child: RwLock::new(None), base_url: RwLock::new(None) })
+                Arc::new(Self::system_only())
             },
         }
     }
@@ -274,7 +375,7 @@ mod tests {
 
     #[test]
     fn handle_without_child_reports_not_running() {
-        let handle = AdServerHandle { child: RwLock::new(None), base_url: RwLock::new(None) };
+        let handle = AdServerHandle::system_only();
         assert_eq!(handle.base_url(), None);
         assert!(!handle.is_running());
     }
@@ -282,10 +383,8 @@ mod tests {
     #[test]
     fn handle_with_base_url_reports_running_only_with_live_child() {
         // base_url set but no child → not running (spawned, then child exited).
-        let handle = AdServerHandle {
-            child: RwLock::new(None),
-            base_url: RwLock::new(Some("http://127.0.0.1:54321".into())),
-        };
+        let handle = AdServerHandle::system_only();
+        *handle.base_url.write().expect("base_url") = Some("http://127.0.0.1:54321".into());
         assert_eq!(handle.base_url(), Some("http://127.0.0.1:54321".into()));
         assert!(!handle.is_running());
     }

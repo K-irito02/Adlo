@@ -74,12 +74,31 @@ pub trait WebView2EventBridge: Send + Sync {
     fn emit_audio_changed(&self, tab_id: &str, is_playing: bool, is_muted: bool);
     fn spawn_spa_fallback(&self, label: &str, url: &str);
     /// Emit a request to open `url` in a new browser tab. Triggered by the
-    /// injected `init_script.js` when the page targets `_blank` or calls
-    /// `window.open` (postMessage `{type:'open-new-tab', url}`).
+    /// injected `init_script.js` for target="_blank"/`<area>` links and modified
+    /// (ctrl/meta/shift/middle) clicks (postMessage `{type:'open-new-tab', url,
+    /// referrer?}`). Normal-site `window.open` uses the native
+    /// NewWindowRequested path and does not come through here.
     ///
     /// `tab_id` is the requesting tab: the frontend uses it to open the new tab
     /// in the same host (center page → center tab, panel page → panel tab).
-    fn emit_open_new_tab(&self, tab_id: &str, url: &str);
+    /// `referrer` is the requesting page's referrer (same-origin: full URL,
+    /// cross-origin: origin only under the default policy; absent when the link
+    /// opted out with `rel="noreferrer"`/`referrerpolicy=no-referrer`, or on an
+    /// HTTPS→HTTP downgrade); the new tab's first navigation sets it as the
+    /// `Referer` header.
+    fn emit_open_new_tab(&self, tab_id: &str, url: &str, referrer: Option<&str>);
+    /// Emit an intercepted blob download. Triggered by `init_script.js` on every
+    /// site (postMessage `{type:'save-blob', fileName, dataBase64}`): a browser
+    /// tab has no Tauri IPC access, so the host persists the payload.
+    ///
+    /// `tab_id` is the requesting tab, so the download record carries
+    /// `source_tab_id` like native downloads (keeps the tab protected from the
+    /// suspend scheduler while downloading). Default no-op so the silent meta
+    /// bridge ignores it.
+    fn save_blob(&self, _tab_id: &str, _file_name: &str, _data_base64: &str) {}
+    /// Emit a page-side blob download failure (oversize/fetch error, no payload).
+    /// Default no-op so the silent meta bridge ignores it.
+    fn save_blob_failed(&self, _tab_id: &str, _file_name: &str) {}
     /// Emit an intercepted agent-site link click. Triggered by `init_script.js`
     /// only for whitelisted agent sites (postMessage `{type:'adl-agent-link', ...}`).
     ///

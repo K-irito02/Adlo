@@ -23,6 +23,38 @@ export function sameServiceOrigin(a: string, b: string): boolean {
 }
 
 /**
+ * Whether an already-open dsh tab should be navigated to a fresh entry URL.
+ *
+ * Only the entry page (origin root) is refreshed, and only when a token is
+ * available and differs from what the tab already has (bare root or stale
+ * token). SPA subpaths such as `/chat/123` are preserved: clicking the entry
+ * button should focus the running session, not reset its route. The refresh
+ * exists solely to replace an old unauthenticated root (401) with the captured
+ * token URL.
+ */
+export function shouldRefreshDshTab(existingUrl: string, entryUrl: string): boolean {
+  try {
+    const existing = new URL(existingUrl);
+    const entry = new URL(entryUrl);
+    if (existing.origin !== entry.origin) {
+      return false;
+    }
+    const entryToken = entry.searchParams.get('token');
+    if (!entryToken) {
+      return false;
+    }
+    const isEntryPath = existing.pathname === '/' || existing.pathname === '';
+    if (!isEntryPath) {
+      return false;
+    }
+    const existingToken = existing.searchParams.get('token');
+    return !existingToken || existingToken !== entryToken;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * openDsh 进行中标志（模块级）：快速双击/并发调用时复用同一 promise，
  * 避免重复拉起 dsh 进程与创建多个承载标签。
  */
@@ -83,13 +115,19 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
      * 「打开 deepseek harness」等价于自动快捷跳转：确保进程就绪后，按 URL 复用已有
      * 标签（聚焦到中心），否则新建一个**普通**浏览器标签并移到中心。该标签不带任何
      * dsh 专属标记 —— 跨重启持久化、关闭不联动停进程、可被正常挂起。
+     *
+     * `options.centerTabId`：入口页所在中心标签。新建 dsh 标签时优先把它**就地**
+     * 从 launcher 转为 browser（与「打开浏览器」入口同路径），避免先多出一个中心
+     * 标签、再删除入口页造成的标签条重排/内容尺寸跳变（用户实测的打开瞬间闪烁）。
+     * 复用已有 dsh 标签时：标签不在中心且入口页仍是 launcher 也同样就地转换；
+     * 标签已在中心则只聚焦它，入口页保持 launcher，由调用方在打开后移除。
      * @returns 成功返回 `{url, freedPort}`；失败返回 `null` 并已记录全局错误卡片
      * @reads browserSlice.browserTabs, browserSlice.browserActiveTabId, centerTabs
      * @writes browserSlice.browserTabs/browserActiveTabId, centerTabs
      * @see httpBridge.ts → dsh.open (/dsh/open)
      * @see mock-bridge.ts → mockDsh.open
      */
-    openDsh: async (): Promise<DshOpenResult | null> => {
+    openDsh: async (options?: { centerTabId?: string }): Promise<DshOpenResult | null> => {
       // 并发重入（快速双击）：复用进行中的调用，避免拉起两个进程/创建两个标签。
       if (openDshInFlight) {
         return openDshInFlight;
@@ -104,17 +142,48 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         }
         const data: DshOpenResult = result.data ?? { url: null, freedPort: false };
         const url = data.url?.trim() ?? '';
+
+        // 把浏览器标签就地绑定到入口页标签（launcher → browser）：不新增中心标签，
+        // 保持标签条数量与活动标签不变，WebView 只按最终布局挂载一次。
+        const bindToEntryTab = (tabId: string): boolean => {
+          const targetId = options?.centerTabId;
+          if (!targetId) {
+            return false;
+          }
+          const target = get().centerTabs.find((tab) => tab.id === targetId);
+          if (!target || target.kind !== 'launcher') {
+            return false;
+          }
+          get().browserSetLocation(tabId, 'center');
+          get().centerUpdateTab(targetId, { kind: 'browser', refId: tabId });
+          get().centerSelectTab(targetId);
+          get().clampPanelActiveTab();
+          return true;
+        };
+
         if (url) {
           // 记录最近入口（卸载到空后按 origin 同源关残留标签用；token 入口只记到 query 之前）。
           get().setDshLastUrl(url.split('?')[0]);
           const existing = get().browserTabs.find((tab) => sameServiceOrigin(tab.url, url));
           if (existing) {
+            // 同一 origin 但入口 URL 可能变化（重启/重新捕获 token）：只刷新停在
+            // 入口根路径的旧标签（裸根或旧 token），避免把用户在 dsh 内的 SPA 子路径
+            // 拽回入口 URL（事项 7 的刷新只服务于根路径 401）。
+            if (shouldRefreshDshTab(existing.url, url)) {
+              get().browserUpdateTab(existing.id, { url });
+              const bridge = window.digitalLife?.browser;
+              if (bridge?.navigateTab) {
+                void bridge.navigateTab(existing.id, url).catch((e) => {
+                  console.warn('[dsh] navigate existing tab to refreshed URL failed:', e);
+                });
+              }
+            }
             const centerTab = get().centerTabs.find(
               (tab) => tab.kind === 'browser' && tab.refId === existing.id,
             );
             if (centerTab) {
               get().centerSelectTab(centerTab.id);
-            } else {
+            } else if (!bindToEntryTab(existing.id)) {
               get().centerShowBrowserTab(existing.id);
             }
             return data;
@@ -122,7 +191,7 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         }
         get().browserOpenTab(url);
         const tabId = get().browserActiveTabId;
-        if (tabId) {
+        if (tabId && !bindToEntryTab(tabId)) {
           get().centerShowBrowserTab(tabId);
         }
         return data;

@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::commands::browser_memory::system_memory_pressured;
 use crate::commands::browser_webview_setup::{
     apply_theme_and_navigate_for_platform, build_silent_webview_builder, build_webview_builder,
-    register_webview_with_manager, resolve_window_and_url, setup_webview2_handlers_for_platform,
-    webview_data_directory,
+    has_download_extension, register_webview_with_manager, resolve_window_and_url,
+    sanitize_referrer, setup_webview2_handlers_for_platform, webview_data_directory,
 };
 use crate::commands::ipc;
 use crate::error::CommandError;
@@ -22,6 +22,13 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use futures::StreamExt;
 use tauri::{Manager, State};
 
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InitialSize {
+    pub width: f64,
+    pub height: f64,
+}
+
 #[tauri::command]
 #[allow(clippy::too_many_arguments)] // IPC boundary mirrors the frontend create call fields.
 pub async fn browser_create_for_tab(
@@ -30,11 +37,15 @@ pub async fn browser_create_for_tab(
     url: String,
     color_scheme: Option<String>,
     location: Option<String>,
+    share_profile: Option<bool>,
     agent_origins: Vec<String>,
     agent_intercept_enabled: bool,
     agent_site_rules: Option<Vec<AgentSiteRule>>,
     agent_site_overrides: Option<Vec<AgentSiteOverride>>,
+    referrer: Option<String>,
+    initial_size: Option<InitialSize>,
 ) -> Result<IpcResult<Option<String>>, CommandError> {
+    let referrer = sanitize_referrer(referrer);
     let (tx, rx) = tokio::sync::oneshot::channel();
     let app_inner = app.clone();
 
@@ -47,11 +58,10 @@ pub async fn browser_create_for_tab(
             let (window, _target) = resolve_window_and_url(&app_inner, &url)?;
 
             // Resolve the color scheme early — it's needed for the init script
-            // (hardcoded background color in INIT_SCRIPT). The init script uses
-            // this value to set document.documentElement.style.backgroundColor
-            // before page CSS loads. apply_theme_and_navigate_for_platform will
-            // re-read the latest color scheme at closure execution time, so this
-            // value only affects the INIT_SCRIPT background color.
+            // (themed background for the initial about:blank document only).
+            // apply_theme_and_navigate_for_platform will re-read the latest color
+            // scheme at closure execution time, so this value only affects the
+            // INIT_SCRIPT background.
             let cs = match color_scheme {
                 Some(cs) => normalize_color_scheme(&cs),
                 None => {
@@ -71,9 +81,9 @@ pub async fn browser_create_for_tab(
             // setup in apply_theme_and_navigate_for_platform.
             let blank_url = url::Url::parse("about:blank")
                 .map_err(|e| AppError::Internal(format!("failed to parse about:blank: {e}")))?;
-            // UDF 隔离：中心宿主走独立用户数据目录，与面板/默认会话隔离，
-            // 新建控制器不再触碰另一宿主的 PreferredColorScheme。
-            let data_directory = webview_data_directory(&app_inner, location.as_deref());
+            // 默认共享 WebView2 用户数据目录（中心与面板同一会话）；关闭「共享浏览
+            // 配置文件」后中心走独立 UDF（ADR 0001 修订版）。
+            let data_directory = webview_data_directory(&app_inner, location.as_deref(), share_profile);
             let builder = build_webview_builder(
                 &label,
                 &tab_id,
@@ -93,9 +103,17 @@ pub async fn browser_create_for_tab(
 
             // Off-screen child attachment + WebView2 handler setup — shared with
             // the silent-tab path so both paths keep identical creation semantics.
-            attach_webview_child(&window, &label, &tab_id, webview_builder, || {
-                Arc::new(TauriWebView2EventBridge::new(app_inner.clone()))
-            }, false)?;
+            let host = location.as_deref().unwrap_or("panel");
+            attach_webview_child(
+                &window,
+                &label,
+                &tab_id,
+                host,
+                webview_builder,
+                || Arc::new(TauriWebView2EventBridge::new(app_inner.clone())),
+                false,
+                initial_size,
+            )?;
 
             // Register the webview with BrowserManager BEFORE calling
             // apply_theme_and_navigate_for_platform. This ensures the webview is
@@ -115,6 +133,7 @@ pub async fn browser_create_for_tab(
                             app_inner.clone(),
                             &url,
                             &cs,
+                            referrer.as_deref(),
                         );
                     }
                     Ok(result)
@@ -144,19 +163,30 @@ pub async fn browser_create_for_tab(
 /// webview invisible to the user; navigation onto a real page happens later via
 /// `apply_theme_and_navigate_for_platform` (registered visible tabs) or the
 /// silent path described in `create_silent_webview`.
+fn initial_webview_size(initial_size: Option<InitialSize>) -> (f64, f64) {
+    let width = initial_size.map(|s| s.width).unwrap_or(800.0).clamp(1.0, 10_000.0);
+    let height = initial_size.map(|s| s.height).unwrap_or(600.0).clamp(1.0, 10_000.0);
+    (width, height)
+}
+
 fn attach_webview_child(
     window: &tauri::Window<tauri::Wry>,
     label: &str,
     tab_id: &str,
+    host: &str,
     webview_builder: tauri::webview::WebviewBuilder<tauri::Wry>,
     make_bridge: impl FnOnce() -> EventBridgeRef,
     is_silent: bool,
+    initial_size: Option<InitialSize>,
 ) -> Result<(), AppError> {
+    // 屏外创建，但尽量按最终容器尺寸初始化：页面在揭示前就以正确宽度/高度完成
+    // 首屏布局，揭示时只移动位置，避免按默认 800×600 渲染后二次 resize 的重排。
+    let (width, height) = initial_webview_size(initial_size);
     window
         .add_child(
             webview_builder,
             tauri::LogicalPosition::new(-10000.0, -10000.0),
-            tauri::LogicalSize::new(800.0, 600.0),
+            tauri::LogicalSize::new(width, height),
         )
         .map_err(|e| {
             AppError::Internal(format!("failed to create webview for tab {tab_id}: {e}"))
@@ -171,7 +201,7 @@ fn attach_webview_child(
 
     if let Some(webview) = window.get_webview(label) {
         let bridge = make_bridge();
-        setup_webview2_handlers_for_platform(&webview, tab_id, label, bridge, is_silent);
+        setup_webview2_handlers_for_platform(&webview, tab_id, label, host, bridge, is_silent);
     }
     Ok(())
 }
@@ -224,7 +254,7 @@ pub fn create_silent_webview(
             // 静默 WebView 走独立 UDF：后台创建同样会重置同会话 profile 主题，
             // 隔离后不会闪到面板/中心任一可见组。
             let silent_builder = build_silent_webview_builder(&label, blank_url, &cs, true);
-            let webview_builder = match webview_data_directory(&app_inner, Some("silent")) {
+            let webview_builder = match webview_data_directory(&app_inner, Some("silent"), None) {
                 Some(dir) => silent_builder.data_directory(dir),
                 None => silent_builder,
             };
@@ -232,12 +262,20 @@ pub fn create_silent_webview(
                 &window,
                 &label,
                 &tab_id_inner,
+                "silent",
                 webview_builder,
                 move || Arc::new(CachedMetaBridge::new(Some(tx))),
                 true,
+                None,
             )?;
             if let Some(webview) = window.get_webview(&label) {
-                apply_theme_and_navigate_for_platform(&webview, app_inner.clone(), &url_owned, &cs);
+                apply_theme_and_navigate_for_platform(
+                    &webview,
+                    app_inner.clone(),
+                    &url_owned,
+                    &cs,
+                    None,
+                );
             }
             Ok(())
         })();
@@ -713,6 +751,45 @@ fn destroy_silent_webview(app: &tauri::AppHandle, tab_id: &str) {
     }
 }
 
+/// Search-result, human-verification, and consent pages are not metadata
+/// targets. Fetching them with the crawler UA adds a programmatic request to
+/// the exact page the user is opening (the visible tab already reports its own
+/// title/favicon). This deny-list is independent of robots.txt reachability.
+fn is_search_or_challenge_url(parsed: &url::Url) -> bool {
+    let host = parsed.host_str().unwrap_or("").to_ascii_lowercase();
+    let path = parsed.path().to_ascii_lowercase();
+
+    let google = matches!(host.as_str(), "google.com" | "www.google.com");
+    if google && (path.starts_with("/search") || path.starts_with("/sorry")) {
+        return true;
+    }
+    let bing = matches!(host.as_str(), "bing.com" | "www.bing.com" | "cn.bing.com");
+    if bing && path.starts_with("/search") {
+        return true;
+    }
+    let baidu = matches!(host.as_str(), "baidu.com" | "www.baidu.com");
+    if baidu && path.starts_with("/s") {
+        return true;
+    }
+    let sogou = matches!(host.as_str(), "sogou.com" | "www.sogou.com");
+    if sogou && path.starts_with("/web") {
+        return true;
+    }
+    let so = matches!(host.as_str(), "so.com" | "www.so.com");
+    if so && path.starts_with("/s") {
+        return true;
+    }
+    let ddg = matches!(host.as_str(), "duckduckgo.com" | "www.duckduckgo.com");
+    if ddg
+        && parsed.query().is_some_and(|query| {
+            query.split('&').any(|part| part.starts_with("q=") || part.starts_with("query="))
+        })
+    {
+        return true;
+    }
+    false
+}
+
 /// 静默抓取只接受公网 http(s)：盘符伪主机（历史坏数据 `https://c/Users/...`）会让
 /// WebView2 在主线程创建/导航时卡死（实测 AppHang），必须在建 WebView 前拦截。
 /// 判定口径（与前端 `sanitizeRestoredBrowserUrl` 同源）：
@@ -725,6 +802,15 @@ fn silent_fetch_url_allowed(value: &str) -> bool {
         return false;
     };
     if parsed.scheme() != "http" && parsed.scheme() != "https" {
+        return false;
+    }
+    if is_search_or_challenge_url(&parsed) {
+        return false;
+    }
+    // 下载目标本身没有可抓取的页面元数据；后台静默抓取这类 URL 只会让页面
+    // 自动触发的安装包/压缩包请求被取消（既有 WARN 噪声，事项 9）。
+    // 只按扩展名判断：`/download/`、`/get/` 等路径可能是正常页面，不做宽匹配。
+    if has_download_extension(&parsed) {
         return false;
     }
     let Some(host) = parsed.host_str() else {
@@ -1083,6 +1169,13 @@ fn parse_html_meta(mut buffer: Vec<u8>, url: &str, final_url: &url::Url) -> (Str
 async fn fetch_page_meta_http(url: &str) -> Option<PageMeta> {
     let parsed = url::Url::parse(url).ok()?;
     if parsed.scheme() != "http" && parsed.scheme() != "https" {
+        return None;
+    }
+    if is_search_or_challenge_url(&parsed) {
+        return None;
+    }
+    // 安装包/压缩包等下载目标没有可解析的页面元数据；GET 安装包只会消耗带宽。
+    if has_download_extension(&parsed) {
         return None;
     }
     if !robots_allows_url(parsed.as_str()).await {
@@ -2270,6 +2363,28 @@ mod html_meta_tests {
 }
 
 #[cfg(test)]
+mod initial_size_tests {
+    use super::*;
+
+    #[test]
+    fn initial_webview_size_defaults_and_clamps() {
+        assert_eq!(initial_webview_size(None), (800.0, 600.0));
+        assert_eq!(
+            initial_webview_size(Some(InitialSize { width: 1024.0, height: 768.0 })),
+            (1024.0, 768.0)
+        );
+        assert_eq!(
+            initial_webview_size(Some(InitialSize { width: 0.0, height: -5.0 })),
+            (1.0, 1.0)
+        );
+        assert_eq!(
+            initial_webview_size(Some(InitialSize { width: 50_000.0, height: 50_000.0 })),
+            (10_000.0, 10_000.0)
+        );
+    }
+}
+
+#[cfg(test)]
 mod silent_url_tests {
     use super::*;
 
@@ -2290,6 +2405,30 @@ mod silent_url_tests {
         assert!(silent_fetch_url_allowed("http://127.0.0.1:3080/"));
         assert!(silent_fetch_url_allowed("http://localhost:5173/"));
         assert!(silent_fetch_url_allowed("http://[::1]:3080/"));
+    }
+
+    #[test]
+    fn rejects_search_and_challenge_pages() {
+        assert!(!silent_fetch_url_allowed("https://www.google.com/search?q=secret"));
+        assert!(!silent_fetch_url_allowed("https://www.google.com/sorry/index"));
+        assert!(!silent_fetch_url_allowed("https://www.bing.com/search?q=secret"));
+        assert!(!silent_fetch_url_allowed("https://cn.bing.com/search?q=secret"));
+        assert!(!silent_fetch_url_allowed("https://duckduckgo.com/?q=secret"));
+        assert!(!silent_fetch_url_allowed("https://www.baidu.com/s?wd=secret"));
+        assert!(silent_fetch_url_allowed("https://www.google.com/about"));
+    }
+
+    #[test]
+    fn rejects_download_targets() {
+        // 安装包/压缩包等下载目标不是元数据页面，静默抓取会触发取消下载（事项 9）。
+        assert!(!silent_fetch_url_allowed(
+            "https://autopatchcn.bhsr.com/client/4.5.0/launcher/StarRail_setup_1.18.0.380.exe"
+        ));
+        assert!(!silent_fetch_url_allowed("https://example.com/archive.zip"));
+        // 仅扩展名命中；`/download/` 等路径可能是正常页面，不跳过（避免元数据缺失）。
+        assert!(silent_fetch_url_allowed("https://example.com/download/firefox"));
+        // 正常页面不受影响。
+        assert!(silent_fetch_url_allowed("https://example.com/article"));
     }
 }
 

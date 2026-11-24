@@ -37,7 +37,7 @@ impl WebView2EventBridge for CachedMetaBridge {
     }
     fn emit_url_changed(&self, _tab_id: &str, _url: &str) {}
     fn emit_audio_changed(&self, _tab_id: &str, _is_playing: bool, _is_muted: bool) {}
-    fn emit_open_new_tab(&self, _tab_id: &str, _url: &str) {}
+    fn emit_open_new_tab(&self, _tab_id: &str, _url: &str, _referrer: Option<&str>) {}
     fn spawn_spa_fallback(&self, _label: &str, _url: &str) {}
 }
 

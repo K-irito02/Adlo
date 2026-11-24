@@ -1,7 +1,21 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { markResolvedTitles } from '../composite';
+import { isBrowserTab } from '../registry';
 import { useAppStore } from '@stores/slicedStore';
 import { hydrateAll, resetHydrationForTest } from '../hydrate';
+
+describe('isBrowserTab shareProfile guard', () => {
+  const base = { id: 'b', title: 't', url: 'https://example.com' };
+  it('accepts a boolean snapshot', () => {
+    expect(isBrowserTab({ ...base, shareProfile: false })).toBe(true);
+    expect(isBrowserTab({ ...base, shareProfile: true })).toBe(true);
+    expect(isBrowserTab(base)).toBe(true);
+  });
+
+  it('rejects a non-boolean snapshot', () => {
+    expect(isBrowserTab({ ...base, shareProfile: 'false' })).toBe(false);
+  });
+});
 
 describe('markResolvedTitles', () => {
   it('marks tabs with a real title as resolved', () => {
@@ -46,6 +60,20 @@ describe('composite hydration is defensive', () => {
     }).not.toThrow();
 
     expect(patch.browserTabs).toEqual([]);
+  });
+
+  it('keeps the tab shareProfile snapshot across a persistence round-trip', () => {
+    localStorage.setItem(
+      'adl:browser.tabs',
+      JSON.stringify([
+        { id: 'tab-snap', title: 'Snap', url: 'https://snap.test', shareProfile: false },
+      ]),
+    );
+
+    const patch = hydrateAll().patch as Partial<Record<string, unknown>>;
+    const tabs = patch.browserTabs as { id: string; shareProfile?: boolean }[];
+
+    expect(tabs.find((tab) => tab.id === 'tab-snap')?.shareProfile).toBe(false);
   });
 
   it('rejects an array holding a malformed item instead of writing it back into the store', () => {

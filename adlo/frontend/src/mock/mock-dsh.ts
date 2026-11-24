@@ -116,10 +116,18 @@ function cloneCatalog(): DshVersionCatalog {
 }
 
 export const mockDsh: DshBridge = {
-  open: async () => ({ ok: true, data: { url: "http://127.0.0.1:61234", freedPort: false } }),
+  open: async () => ({
+    ok: true,
+    data: {
+      url: "http://127.0.0.1:61234/?token=mock",
+      freedPort: false,
+      authenticated: true,
+      external: false,
+    },
+  }),
   restart: async () => ({
     ok: true,
-    data: { restarted: true, url: "http://127.0.0.1:61234" },
+    data: { restarted: true, url: "http://127.0.0.1:61234/?token=mock" },
   }),
   getVersionTask: async () => ({ ok: true, data: { task: null } }),
   cancelVersionTask: async () => ({ ok: true, data: true }),

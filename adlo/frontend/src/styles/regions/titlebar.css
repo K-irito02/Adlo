@@ -557,6 +557,19 @@
   color: var(--text-primary);
 }
 
+/* 被挂起的中心浏览器标签：与右侧面板 evicted 标签同义（图标 0.35 + 去饱和，
+   标题 0.45），让用户一眼看出该标签的 WebView 已被挂起、需要重新激活才恢复。 */
+.adl-center-tab.is-suspended .adl-center-tab__icon {
+  opacity: 0.35;
+  filter: grayscale(0.5);
+  transition: opacity 0.15s ease-in-out;
+}
+
+.adl-center-tab.is-suspended .adl-center-tab__label {
+  opacity: 0.45;
+  transition: opacity 0.15s ease-in-out;
+}
+
 /* 两个相邻且都未选中的标签之间：中段式细微分割线，用于区分没有底色的标签边界。
    与选中标签相邻、以及首/末标签外侧都不出现。
    `+` 相邻兄弟选择器使分割线随选中态转移与未来拖拽排序自动更新。 */

@@ -30,7 +30,7 @@
 
 ## 浏览器与预览
 
-- [0001 浏览器 WebView 按宿主分三个 UDF 隔离](./0001-browser-udf-isolation.md)
+- [0001 浏览器 WebView 的 UDF 拓扑（默认共享，可回退隔离）](./0001-browser-udf-isolation.md)
 - [0002 文件预览用无文字扫光占位并按文件身份缓存](./0002-preview-loading-and-cache.md)
 - [0017 书签为独立实体，导入导出保留来源标签弱引用](./0017-bookmark-transfer-and-identity.md) — 书签条目与活标签页解耦
 - [0020 网站图标以共享镜像为真源，书签图标快照只播种不落持久层](./0020-site-icon-mirror-and-bookmark-snapshot.md) — 快照不写持久层，真实图标可覆盖；被动行首字母占位

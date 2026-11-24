@@ -12,6 +12,11 @@ export interface BrowserTabState {
   isPlayingAudio: boolean;
   isAudioMuted: boolean;
   isDownloading: boolean;
+  /**
+   * 该标签创建时的「共享浏览配置文件」选择（快照）。建标签入口在创建时写入；
+   * 设置切换只影响此后新建的标签，挂起重建/恢复标签沿用此值。
+   */
+  shareProfile?: boolean;
   /** 所属宿主；缺省（undefined）等同 'panel'。中心标签为 'center'。 */
   location?: TabLocation;
 }

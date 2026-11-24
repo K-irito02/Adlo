@@ -155,6 +155,7 @@ export function ResetAllDialog({
             changeDownloadPath: store.changeDownloadPath,
             updateDownloadSettings: store.updateDownloadSettings,
           },
+          resetShareProfile: () => store.setBrowserShareProfile(true),
           migrateAtOpen: liveMigrateAtOpen,
         },
         dsh: { saveSourceConfig: (config) => store.saveSourceConfig(config) },

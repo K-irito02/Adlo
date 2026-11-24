@@ -169,6 +169,17 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
   },
   {
     group: 'browser',
+    anchorId: 'profile',
+    labelKey: 'browserShareProfileTitle',
+    rows: [
+      {
+        labelKey: 'browserShareProfile',
+        hintKeys: ['browserShareProfileDesc'],
+      },
+    ],
+  },
+  {
+    group: 'browser',
     anchorId: 'performance',
     labelKey: 'browserSettingsSuspendTitle',
     rows: [

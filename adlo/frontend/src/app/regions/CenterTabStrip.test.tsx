@@ -33,7 +33,8 @@ function renderStrip() {
 }
 
 describe('CenterTabStrip', () => {
-  beforeEach(() =>
+  beforeEach(() => {
+    browserPool.reset();
     useAppStore.setState({
       centerTabs: [],
       centerActiveTabId: '',
@@ -41,8 +42,8 @@ describe('CenterTabStrip', () => {
       browserTabsById: {},
       terminalTabs: [],
       terminalTabsById: {},
-    }),
-  );
+    });
+  });
 
   it('渲染标签并支持切换', () => {
     const a = useAppStore.getState().centerAddTab('launcher', null);
@@ -60,6 +61,28 @@ describe('CenterTabStrip', () => {
     const tabs = useAppStore.getState().centerTabs;
     expect(tabs).toHaveLength(1);
     expect(tabs[0].kind).toBe('launcher');
+  });
+
+  it('把未在池中的非活动浏览器中心标签标记为 is-suspended', async () => {
+    useAppStore.getState().browserOpenTab('https://a.test');
+    const firstId = useAppStore.getState().browserActiveTabId;
+    useAppStore.getState().centerShowBrowserTab(firstId);
+    useAppStore.getState().browserOpenTab('https://b.test');
+    const secondId = useAppStore.getState().browserActiveTabId;
+    useAppStore.getState().centerShowBrowserTab(secondId);
+
+    renderStrip();
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(2);
+    // 活动标签恒受挂起保护；非活动且不在池中 → 变暗标记。
+    expect(tabs[0].className).toContain('is-suspended');
+    expect(tabs[1].className).not.toContain('is-suspended');
+
+    // 池成员创建（池订阅实时刷新）：非活动标签退出挂起态，无需重挂载。
+    await act(async () => {
+      await browserPool.createForTab(firstId, 'https://a.test');
+    });
+    expect(screen.getAllByRole('tab')[0].className).not.toContain('is-suspended');
   });
 
   it('「+」位于滚动区内且排在标签之后', () => {

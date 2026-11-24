@@ -554,11 +554,13 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   ]);
 
   // 浏览器组聚合初始化/校正（事项 12c）：浏览器组未激活（BrowserSettings 未挂载）时，
-  // 据 store（挂起时长 + 下载模式/路径，共享 helper 同 BrowserSettings 口径）重算
-  // 侧边栏禁用聚合 —— 覆盖「卸载后保留最后已知值」与其它组改动影响浏览器默认性的
-  // 场景（如存储组恢复下载路径）。激活期间由 BrowserSettings 实时维护，此处跳过，
-  // 防双写者漂移；信息不足返回 null 不写（保持未知/最后已知值）。
+  // 据 store（挂起时长 + 白名单 + 共享 profile + 下载模式/路径，共享 helper 同
+  // BrowserSettings 口径）重算侧边栏禁用聚合 —— 覆盖「卸载后保留最后已知值」与
+  // 其它组改动影响浏览器默认性的场景（如存储组恢复下载路径）。激活期间由
+  // BrowserSettings 实时维护，此处跳过，防双写者漂移；信息不足返回 null 不写
+  // （保持未知/最后已知值）。
   const setBrowserBlocksAtDefault = useAppStore((s) => s.setBrowserBlocksAtDefault);
+  const shareProfile = useAppStore((s) => s.browserShareProfile);
   useEffect(() => {
     if (activeGroup === 'browser') {
       return;
@@ -567,13 +569,21 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       config?.browserInactiveTabSuspendMs,
       config?.browserSuspendWhitelistEnabled,
       config?.browserSuspendWhitelist,
+      shareProfile,
       downloadSettings,
       downloadSettingsLoaded,
     );
     if (value !== null && value !== useAppStore.getState().browserBlocksAtDefault) {
       setBrowserBlocksAtDefault(value);
     }
-  }, [activeGroup, config, downloadSettings, downloadSettingsLoaded, setBrowserBlocksAtDefault]);
+  }, [
+    activeGroup,
+    config,
+    shareProfile,
+    downloadSettings,
+    downloadSettingsLoaded,
+    setBrowserBlocksAtDefault,
+  ]);
 
   // DSH 组聚合初始化/校正（事项 12d）：DSH 组未激活（DshSettings 未挂载）时，据 store
   // sourceStatus（已持久化 config.version_source）重算；sourceStatus 未知
@@ -1047,9 +1057,10 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         return;
       }
       if (group === 'browser') {
-        // 浏览器组同为自有流程（挂起偏好 + 下载模式 + 下载路径三步跨桥）：
-        // 先关通用确认框，再切组 + 置 pending 信号，由 BrowserSettings 弹出自有
-        // 确认对话框并按挂起 → 模式 → 路径顺序执行。
+        // 浏览器组同为自有流程（共享 profile 同步写 + 挂起/白名单 + 下载模式 +
+        // 下载路径，跨桥 4 次）：先关通用确认框，再切组 + 置 pending 信号，由
+        // BrowserSettings 弹出自有确认对话框并按共享 profile → 挂起 → 模式 →
+        // 路径顺序执行。
         setConfirmResetOpen(false);
         setPendingResetGroup(null);
         setActiveGroup('browser');

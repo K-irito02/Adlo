@@ -5179,13 +5179,20 @@ You may have it installed on another user account, but it is not available for t
     }
   }
 
-  webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
-    window_id.clone(),
-    id,
-    context.clone(),
-    label.clone(),
-    ipc_handler,
-  ));
+  // Browser tabs and silent metadata webviews render untrusted external pages.
+  // They intentionally have no Tauri IPC access. Skipping wry's IPC handler also
+  // avoids a wry panic when a page message carries a source URL that is not a
+  // valid `http::Uri` (e.g. a `file://` document with a non-ASCII path), which
+  // otherwise aborts the whole app in `wry::webview2::ipc::handle`.
+  if !is_untrusted_browser_webview(&label) {
+    webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
+      window_id.clone(),
+      id,
+      context.clone(),
+      label.clone(),
+      ipc_handler,
+    ));
+  }
 
   for script in webview_attributes.initialization_scripts {
     webview_builder = webview_builder
@@ -5397,6 +5404,12 @@ You may have it installed on another user account, but it is not available for t
     },
     bounds: Arc::new(Mutex::new(webview_bounds)),
   })
+}
+
+/// Whether the webview renders an untrusted external page and must not expose
+/// Tauri IPC. Labels are created by the app (`webview_label` / silent label).
+fn is_untrusted_browser_webview(label: &str) -> bool {
+  label.starts_with("adl-browser-view-") || label.starts_with("adl-silent-view-")
 }
 
 /// Create a wry ipc handler from a tauri ipc handler.

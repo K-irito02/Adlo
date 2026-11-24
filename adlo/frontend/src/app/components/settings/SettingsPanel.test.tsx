@@ -747,6 +747,34 @@ describe('SettingsPanel group reset', () => {
     }
   });
 
+  it('reports non-default when the shared profile is off while the browser group is inactive', () => {
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().browserBlocksAtDefault;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevDownloadLoaded = useAppStore.getState().downloadSettingsLoaded;
+    const prevShareProfile = useAppStore.getState().browserShareProfile;
+    setNavConfig();
+    useAppStore.setState({
+      downloadSettings: { mode: 'auto', default_path: '', auto_migrate_on_path_change: false },
+      downloadSettingsLoaded: true,
+      browserShareProfile: false,
+      browserBlocksAtDefault: true,
+    });
+    try {
+      renderPanel();
+      expect(useAppStore.getState().browserBlocksAtDefault).toBe(false);
+    } finally {
+      useAppStore.setState({
+        browserBlocksAtDefault: prevAggregate,
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevDownloadLoaded,
+        browserShareProfile: prevShareProfile,
+      });
+    }
+  });
+
   it('keeps the browser aggregate untouched when the store cannot determine it', () => {
     // 下载设置未回读 → 未知（null）不写，保留最后已知值（事项 12c）。
     setupStore();

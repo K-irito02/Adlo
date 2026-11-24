@@ -1,24 +1,46 @@
 (function() {
+    // Host messages (chrome.webview.postMessage) are only meaningful for real
+    // web documents. Some embedders parse the message source URL; a file://
+    // document with non-ASCII path (e.g. a desktop HTML export) can make that
+    // parser fail. http(s) pages keep full reporting; file/about documents
+    // still get native title/URL/favicon events from WebView2.
+    function __adlCanPostToHost() {
+        try {
+            if (location.protocol !== 'http:' && location.protocol !== 'https:') return false;
+            return typeof chrome !== 'undefined' && !!chrome.webview && !!chrome.webview.postMessage;
+        } catch (e) {
+            return false;
+        }
+    }
+    function __adlPostToHost(payload) {
+        if (!__adlCanPostToHost()) return false;
+        try {
+            chrome.webview.postMessage(typeof payload === 'string' ? payload : JSON.stringify(payload));
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
     // ---- JS-TO-RUST LOGGING via chrome.webview.postMessage ----
     function __adlSendLog(level, msg, data) {
-        try {
-            if (typeof chrome !== 'undefined' && chrome.webview && chrome.webview.postMessage) {
-                chrome.webview.postMessage(JSON.stringify({
-                    type: 'dl-log',
-                    level: level,
-                    msg: msg,
-                    data: data || null
-                }));
-            }
-        } catch(e) {}
+        __adlPostToHost({
+            type: 'dl-log',
+            level: level,
+            msg: msg,
+            data: data || null
+        });
     }
 
     // ---- AGENT-SITE LINK INTERCEPTION (Tauri/WebView2 only) ----
     // Whitelisted agent sites route their links through the app's open-method
     // settings instead of navigating the WebView. Origins + enabled flag are
     // baked into the injected prefix (`window.__adlAgentOrigins` /
-    // `window.__adlAgentInterceptEnabled`) and read dynamically so runtime
-    // updates via `browser_set_agent_intercept` take effect on loaded pages.
+    // `window.__adlAgentInterceptEnabled`) and read dynamically so click
+    // interception picks up `browser_set_agent_intercept` on loaded pages.
+    // The `window.open` rewrite and SPA nav-guard are install-time gates:
+    // enabling them needs a reload, while disabling takes effect immediately
+    // through their runtime checks.
     function __adlIsAgentHost() {
         try {
             var origins = window.__adlAgentOrigins || [];
@@ -26,13 +48,7 @@
         } catch (e) { return false; }
     }
     function __adlSendAgentLink(kind, url) {
-        try {
-            if (window.chrome && chrome.webview && chrome.webview.postMessage) {
-                chrome.webview.postMessage(JSON.stringify({ type: 'adl-agent-link', kind: kind, url: url }));
-                return true;
-            }
-        } catch (e) {}
-        return false;
+        return __adlPostToHost({ type: 'adl-agent-link', kind: kind, url: url });
     }
 
     // 检查是否是有效的网页 URL
@@ -245,15 +261,6 @@
     }
 
     // ---- DOWNLOAD INTERCEPTION HELPERS ----
-    function getFilenameFromUrl(url) {
-        try {
-            var u = new URL(url, location.href);
-            var seg = u.pathname.split('/').pop();
-            if (seg) return decodeURIComponent(seg);
-        } catch(e) {}
-        return 'download';
-    }
-
     function __adlArrayBufferToBase64(buffer) {
         var bytes = new Uint8Array(buffer);
         var binary = '';
@@ -267,58 +274,72 @@
 
     function __adlSaveBlobDownload(filename, base64Data) {
         try {
-            console.log('[ADL-DL-JS] __adlSaveBlobDownload called:', filename);
-            __adlSendLog('info', '__adlSaveBlobDownload called', { filename: filename });
-            if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
-                console.log('[ADL-DL-JS] IPC available, invoking download_save_blob');
-                __adlSendLog('info', 'IPC available, invoking download_save_blob', { filename: filename });
-                window.__TAURI__.core.invoke('download_save_blob', {
+            // WebView2 host channel: the browser/silent webviews have no wry
+            // IPC handler (withGlobalTauri is off and the patched runtime skips
+            // their labels), so `__TAURI__` is undefined. The blob payload goes
+            // to Rust through the postMessage channel (事项 10).
+            if (__adlCanPostToHost()) {
+                var posted = __adlPostToHost({
+                    type: 'save-blob',
                     fileName: filename,
                     dataBase64: base64Data,
-                }).then(function() {
-                    console.log('[ADL-DL-JS] download_save_blob succeeded:', filename);
-                }).catch(function(e) {
-                    console.error('[ADL-DL-JS] download_save_blob failed:', e);
                 });
-                return true;
+                __adlSendLog(posted ? 'debug' : 'warn', posted
+                    ? 'save-blob posted to host'
+                    : 'save-blob postMessage failed', { filename: filename });
+                return posted;
             }
         } catch(e) {}
         return false;
     }
 
-    // Central download handler: fetch URL content and save via Tauri IPC
-    window.__adlDownloadUrl = function(url, filename) {
-        var fn = filename || getFilenameFromUrl(url);
-        console.log('[ADL-DL-JS] __adlDownloadUrl called:', { url: url, filename: fn });
-        __adlSendLog('info', '__adlDownloadUrl called', { url: url, filename: fn });
+    // Blob download ceiling (raw bytes, before base64). Blob URLs are generated
+    // in-page exports; buffering huge payloads through postMessage would stall
+    // the tab. Typical exports are far below this bound.
+    var __ADL_BLOB_MAX_BYTES = 64 * 1024 * 1024;
+
+    // Notify the host that an in-page blob download failed (no payload to save),
+    // so the user gets the same visible failure as a host-side reject.
+    function __adlNotifyBlobFailed(filename, reason) {
+        __adlSendLog('warn', 'blob download failed', { filename: filename, reason: reason });
+        __adlPostToHost({
+            type: 'save-blob-failed',
+            fileName: __adlTruncateName(filename),
+        });
+    }
+
+    // Fetch a blob URL in-page and hand it to the host. Returns false when the
+    // host has no save channel (caller then leaves native behavior untouched).
+    function __adlDownloadBlob(url, filename) {
+        if (!isBlobUrl(url)) {
+            return false;
+        }
+        if (!__adlCanPostToHost()) {
+            return false;
+        }
+        // The host rejects names >255 chars; truncate here so an exported long
+        // name still reaches the save path instead of being silently dropped.
+        filename = __adlTruncateName(filename);
         try {
-            fetch(url, { credentials: 'include' }).then(function(r) {
-                console.log('[ADL-DL-JS] __adlDownloadUrl fetch response:', { url: url, status: r.status, type: r.type });
-                __adlSendLog('info', '__adlDownloadUrl fetch response', { url: url, status: r.status, type: r.type });
+            fetch(url).then(function(r) {
                 return r.arrayBuffer();
             }).then(function(buf) {
-                console.log('[ADL-DL-JS] __adlDownloadUrl bytes received:', buf.byteLength);
-                __adlSendLog('info', '__adlDownloadUrl bytes received', { url: url, bytes: buf.byteLength });
-                var b64 = __adlArrayBufferToBase64(buf);
-                __adlSaveBlobDownload(fn, b64);
-                if (isBlobUrl(url)) {
-                    try { URL.revokeObjectURL(url); } catch(e) {}
+                if (buf.byteLength > __ADL_BLOB_MAX_BYTES) {
+                    __adlNotifyBlobFailed(filename, 'too large');
+                    return;
                 }
+                var b64 = __adlArrayBufferToBase64(buf);
+                __adlSaveBlobDownload(filename, b64);
+                try { URL.revokeObjectURL(url); } catch(e) {}
             }).catch(function(e) {
-                console.error('[ADL-DL-JS] __adlDownloadUrl fetch failed:', { url: url, error: e });
+                console.error('[ADL-DL-JS] blob fetch failed:', { url: url, error: e });
+                __adlNotifyBlobFailed(filename, 'fetch failed: ' + String(e));
             });
+            return true;
         } catch(e) {
-            console.error('[ADL-DL-JS] __adlDownloadUrl error:', { url: url, error: e });
+            return false;
         }
-    };
-
-    // ---- FETCH OVERRIDE (REMOVED) ----
-    // The previous fetch override cloned XHR responses with a Content-Disposition
-    // header and base64-saved them via download_save_blob. That buffered entire
-    // files in memory, showed no progress, and silently failed on large files
-    // (Chrome/Edge do NOT auto-download XHR attachment responses — the data
-    // belongs to the page). All http(s) downloads now flow through WebView2's
-    // native DownloadStarting pipeline instead.
+    }
 
     // 处理导航（确保在当前窗口中打开）
     function navigateToUrl(href) {
@@ -329,19 +350,64 @@
         }
     }
 
+    // Referrer for a routed new tab. Mirrors the default
+    // `strict-origin-when-cross-origin` policy (fragment stripped): full URL
+    // same-origin, origin only cross-origin, nothing on HTTPS→HTTP. Also honors
+    // explicit opt-outs: `rel="noreferrer"`, the link's `referrerpolicy`, and a
+    // document `<meta name="referrer">` policy.
+    function __adlReferrerForLink(link, targetHref) {
+        try {
+            var rel = (link && (link.rel || link.getAttribute('rel')) || '').toLowerCase();
+            if (rel.indexOf('noreferrer') !== -1) {
+                return '';
+            }
+            var target = new URL(targetHref, location.href);
+            if (location.protocol === 'https:' && target.protocol === 'http:') {
+                return '';
+            }
+            var policy = '';
+            try { policy = (link && link.referrerPolicy || '').toLowerCase(); } catch (e) {}
+            if (!policy) {
+                try {
+                    var meta = document.querySelector('meta[name="referrer"]');
+                    if (meta) {
+                        policy = (meta.getAttribute('content') || '').toLowerCase().trim();
+                    }
+                } catch (e) {}
+            }
+            if (policy === 'no-referrer') {
+                return '';
+            }
+            var crossOrigin = target.origin !== location.origin;
+            if (policy === 'same-origin' && crossOrigin) {
+                return '';
+            }
+            if (policy === 'unsafe-url' || policy === 'no-referrer-when-downgrade') {
+                return location.href.split('#')[0];
+            }
+            if (crossOrigin || policy === 'origin' || policy === 'strict-origin') {
+                return location.origin + '/';
+            }
+            return location.href.split('#')[0];
+        } catch (e) {
+            return '';
+        }
+    }
+
     // Route a new-tab request (target="_blank"/"_new" or modified click) through
     // the WebView2 postMessage channel so Rust can emit the open-new-tab event.
     // Returns true when the message was sent; false in non-WebView2 environments
     // (caller then leaves the native default action untouched so the
     // NewWindowRequested handler can fire instead).
-    function __adlTryOpenNewTab(href) {
-        try {
-            if (typeof chrome !== 'undefined' && chrome.webview && chrome.webview.postMessage) {
-                chrome.webview.postMessage(JSON.stringify({ type: 'open-new-tab', url: href }));
-                return true;
-            }
-        } catch (e) {}
-        return false;
+    // `referrer` is forwarded so the host can set the Referer header on the new
+    // tab's first navigation (the native new-window path is denied by the host,
+    // so the referrer is otherwise lost).
+    function __adlTryOpenNewTab(href, referrer) {
+        var payload = { type: 'open-new-tab', url: href };
+        if (typeof referrer === 'string' && referrer) {
+            payload.referrer = referrer;
+        }
+        return __adlPostToHost(payload);
     }
     
     // Compare only origin+pathname (ignore query params & hash) to detect SPA pushState
@@ -355,42 +421,117 @@
         }
     }
     
+    // Blob downloads: WebView2's native download pipeline cannot persist
+    // blob: URLs, and this browser tab has no Tauri IPC access. On every site,
+    // intercept `<a href="blob:...">` (normal sites: only explicit download
+    // links; agent sites keep all blob links) and let the host save the payload
+    // through postMessage (事项 10). HTTP(S) downloads keep the native path.
+    document.addEventListener('click', function(event) {
+        var target = event.target;
+        while (target) {
+            if (target.tagName === 'A' && target.href && isBlobUrl(target.href)) {
+                // Normal sites: only explicit download links take over; a plain
+                // blob link keeps native navigation (viewable blobs still open).
+                // Agent sites keep the historical "all blob links save" behavior.
+                if (!target.hasAttribute('download') && !__adlIsAgentHost()) {
+                    target = target.parentElement;
+                    continue;
+                }
+                var blobHref = target.href;
+                var blobName = target.getAttribute('download') || '';
+                if (!blobName) {
+                    try {
+                        var blobSeg = new URL(blobHref).pathname.split('/').pop();
+                        if (blobSeg) blobName = decodeURIComponent(blobSeg);
+                    } catch (e) {}
+                }
+                if (!blobName) blobName = 'download';
+                if (__adlDownloadBlob(blobHref, blobName)) {
+                    __adlSendLog('debug', 'blob download routed to host', { filename: blobName });
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    return;
+                }
+            }
+            target = target.parentElement;
+        }
+    }, true);
+
+    // New-window links: WebView2 child webviews may not deliver
+    // NewWindowRequested for target="_blank" links, so route only those through
+    // the existing postMessage channel (the same path used for modified clicks).
+    // Runs in the bubble phase on window so the page's own click handlers
+    // (inline onclick / delegated document handlers) get the first chance to
+    // cancel or replace the navigation; `defaultPrevented` is checked first.
+    // Middle-click arrives as `auxclick` (non-primary buttons are delivered
+    // there, not as `click`).
+    function __adlRouteNewWindowEvent(event) {
+        if (event.defaultPrevented) return;
+        // auxclick fires for every non-primary button; only middle opens a tab.
+        if (event.type === 'auxclick' && event.button !== 1) return;
+        if (__adlIsAgentHost()) return;
+        var target = event.target;
+        while (target) {
+            if ((target.tagName === 'A' || target.tagName === 'AREA') && target.href) {
+                var href = target.href;
+                if (isValidWebUrl(href)) {
+                    var linkTarget = (target.target || target.getAttribute('target') || '').toLowerCase();
+                    var modifiedClick = event.ctrlKey || event.metaKey || event.shiftKey;
+                    var middleClick = event.type === 'auxclick' && event.button === 1;
+                    if (linkTarget === '_blank' || modifiedClick || middleClick) {
+                        if (__adlTryOpenNewTab(href, __adlReferrerForLink(target, href))) {
+                            __adlSendLog('debug', 'new-window link routed', { href: href });
+                            event.preventDefault();
+                            return;
+                        }
+                    }
+                }
+            }
+            target = target.parentElement;
+        }
+    }
+    window.addEventListener('click', __adlRouteNewWindowEvent, false);
+    window.addEventListener('auxclick', __adlRouteNewWindowEvent, false);
+
     // Click interception: intercept download links, route SPA navigation through
     // nav-guard, and leave non-SPA links alone.
-    document.addEventListener('click', function(event) {
+    function __adlAgentClickHandler(event) {
+        // Normal sites keep native link semantics. Agent-site link interception
+        // is the only reason to intercept clicks here; the all-sites handler
+        // above routes target="_blank"/modified clicks to new tabs, and
+        // DownloadStarting handles downloads natively.
+        if (!__adlIsAgentHost()) return;
+        // Middle-click arrives as `auxclick`; right-click must fall through.
+        if (event.type === 'auxclick' && event.button !== 1) return;
+        // Middle-click on a link opens a new tab, same as the all-sites handler.
+        // Handled before the agent-link branch below, which would otherwise
+        // consume it as an ordinary agent-site open.
+        if (event.type === 'auxclick') {
+            var middleTarget = event.target;
+            while (middleTarget) {
+                if ((middleTarget.tagName === 'A' || middleTarget.tagName === 'AREA') &&
+                    middleTarget.href && isValidWebUrl(middleTarget.href)) {
+                    if (__adlTryOpenNewTab(
+                        middleTarget.href,
+                        __adlReferrerForLink(middleTarget, middleTarget.href)
+                    )) {
+                        event.preventDefault();
+                    }
+                    return;
+                }
+                middleTarget = middleTarget.parentElement;
+            }
+            return;
+        }
         var target = event.target;
 
         while (target) {
             if (target.tagName === 'A' && target.href) {
                 var href = target.href;
 
-                // Only intercept blob URLs via JS fetch+IPC (WebView2 can't handle blob: URLs natively).
-                if (isBlobUrl(href)) {
-                    var logData = {
-                        href: href,
-                        isBlob: true,
-                        hasDownload: target.hasAttribute('download'),
-                        isDownloadExt: isDownloadUrl(href),
-                        tagName: target.tagName
-                    };
-                    console.log('[ADL-DL-JS] click intercepted: blob download detected', logData);
-                    __adlSendLog('info', 'click intercepted: blob download detected', logData);
-                    var fn = target.getAttribute('download') || '';
-                    if (!fn) {
-                        try {
-                            var seg = new URL(href).pathname.split('/').pop();
-                            if (seg) fn = decodeURIComponent(seg);
-                        } catch(e) {
-                            // Non-parseable blob URL — keep empty name, falls back to 'download'.
-                            console.log('[ADL-DL-JS] blob URL parse failed, fallback name:', href, e);
-                        }
-                    }
-                    if (!fn) fn = 'download';
-                    event.preventDefault();
-                    console.log('[ADL-DL-JS] calling __adlDownloadUrl:', href, fn);
-                    window.__adlDownloadUrl(href, fn);
-                    return;
-                }
+                // Blob URLs are handled by the all-sites handler above (host
+                // postMessage save); this agent-only handler covers local file
+                // links and http(s) download links.
 
                 // For <a download> / download-ext http(s) links: align with Chrome/Edge.
                 // WebView2 may not fire NewWindowRequested for <a target="_blank"> clicks
@@ -428,16 +569,16 @@
                     }
                 }
 
-                if (isValidWebUrl(href) && __adlIsAgentHost() && __adlSendAgentLink('url', href)) {
+                if (isValidWebUrl(href) && __adlSendAgentLink('url', href)) {
                     event.preventDefault();
                     event.stopImmediatePropagation();
                     return;
                 }
 
                 if (isValidWebUrl(href)) {
-                    var forcedNewTab = event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
+                    var forcedNewTab = event.ctrlKey || event.metaKey || event.shiftKey;
                     if (forcedNewTab) {
-                        if (__adlTryOpenNewTab(href)) {
+                        if (__adlTryOpenNewTab(href, __adlReferrerForLink(target, href))) {
                             event.preventDefault();
                         }
                         return;
@@ -445,9 +586,14 @@
                     event.preventDefault();
                     if (window.__startNavGuard) {
                         window.__startNavGuard(href);
+                    } else {
+                        // Nav-guard is install-time gated: if the agent switch was
+                        // enabled after load, fall back to a direct navigation
+                        // instead of swallowing the click.
+                        navigateToUrl(href);
                     }
                     return;
-                } else if (__adlIsAgentHost() && isFileLikeHref(href) && __adlSendAgentLink('file', href)) {
+                } else if (isFileLikeHref(href) && __adlSendAgentLink('file', href)) {
                     event.preventDefault();
                     event.stopImmediatePropagation();
                     return;
@@ -463,9 +609,9 @@
             if (target.tagName === 'AREA' && target.href) {
                 var href = target.href;
                 if (isValidWebUrl(href)) {
-                    var areaForcedNewTab = event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
+                    var areaForcedNewTab = event.ctrlKey || event.metaKey || event.shiftKey;
                     if (areaForcedNewTab) {
-                        if (__adlTryOpenNewTab(href)) {
+                        if (__adlTryOpenNewTab(href, __adlReferrerForLink(target, href))) {
                             event.preventDefault();
                         }
                         return;
@@ -473,6 +619,8 @@
                     event.preventDefault();
                     if (window.__startNavGuard) {
                         window.__startNavGuard(href);
+                    } else {
+                        navigateToUrl(href);
                     }
                     return;
                 }
@@ -487,14 +635,14 @@
 
             target = target.parentElement;
         }
-    }, true);
+    }
+    document.addEventListener('click', __adlAgentClickHandler, true);
+    document.addEventListener('auxclick', __adlAgentClickHandler, true);
     
-    // 1. 重写 window.open：统一走原生管线。
-    //    http/https 下载 URL 不再走 JS 拦截（__adlDownloadUrl fetch+base64 IPC），
-    //    直接 fallthrough 到原生 origOpen → 触发 NewWindowRequested，由 WebView2
-    //    原生 DownloadStarting 接管（含实时进度、默认保存路径、下载记录）。
-    //    对齐 Chrome/Edge 方案。
+    // 1. 重写 window.open：仅 agent 站点需要接管链接打开方式；普通站点保留原生。
+    // 安装期判断：开关变更后需重载页面才会安装/移除该重写（点击拦截本身是动态的）。
     var origOpen = window.open;
+    if (__adlIsAgentHost()) {
     window.open = function(url, name, features) {
         var rawUrl = url;
         // Resolve relative / protocol-relative URLs against the current document,
@@ -545,56 +693,17 @@
         __adlSendLog('info', 'window.open: invalid URL, returning null', { url: rawUrl, resolvedUrl: resolvedUrl });
         return null;
     };
+    }
     
-    // 2. 重写 location.assign 和 location.replace：统一走原生管线。
-    //    http/https 下载 URL 不再走 JS 拦截，直接调原生导航 →
-    //    WebView2 原生 DownloadStarting 接管（含实时进度、默认保存路径、下载记录）。
-    //    Note: window.location.href assignments by page JS are NOT intercepted here;
-    //    they trigger the native navigation_handler which catches all navigations
-    const originalAssign = Location.prototype.assign;
-    const originalReplace = Location.prototype.replace;
-
-    Location.prototype.assign = function(url) {
-        console.log('[ADL-DL-JS] location.assign called:', url);
-        __adlSendLog('info', 'location.assign called', { url: url });
-        if (url && isValidWebUrl(url)) {
-            if (isDownloadUrl(url)) {
-                // 统一走原生管线：仅记录，不拦截，交由 WebView2 原生 DownloadStarting 接管
-                console.log('[ADL-DL-JS] location.assign: download URL -> native DownloadStarting (no JS interception):', url);
-                __adlSendLog('info', 'location.assign: download URL delegated to native DownloadStarting', { url: url });
-            }
-            originalAssign.call(this, url);
-            return;
-        }
-        return originalAssign.apply(this, arguments);
-    };
-
-    Location.prototype.replace = function(url) {
-        console.log('[ADL-DL-JS] location.replace called:', url);
-        __adlSendLog('info', 'location.replace called', { url: url });
-        if (url && isValidWebUrl(url)) {
-            if (isDownloadUrl(url)) {
-                // 统一走原生管线：仅记录，不拦截，交由 WebView2 原生 DownloadStarting 接管
-                console.log('[ADL-DL-JS] location.replace: download URL -> native DownloadStarting (no JS interception):', url);
-                __adlSendLog('info', 'location.replace: download URL delegated to native DownloadStarting', { url: url });
-            }
-            originalReplace.call(this, url);
-            return;
-        }
-        return originalReplace.apply(this, arguments);
-    };
-
-    // 3. 拦截 window.location.href 赋值（通过 Object.defineProperty）
-    //    注意：直接修改 location.href 无法通过 setter 拦截，但可以拦截通过 Object.defineProperty 定义的 setter
-    //    实际上，window.location.href 赋值会触发 navigation，由 WebView2 的 navigation_handler 处理
-    //    如果下载 URL 通过 location.href 导航，WebView2 应该会触发 DownloadStarting
-    //    但如果不触发，说明下载机制不同
-
-    // 4. 监听表单提交：统一走原生管线。
-    //    http/https 下载 URL 的表单提交不再走 JS 拦截（__adlDownloadUrl fetch+base64 IPC），
-    //    交原生表单提交 → WebView2 原生 DownloadStarting 接管（含实时进度、默认保存路径、下载记录）。
-    //    仅记录日志，不 preventDefault，不触发 JS 下载。对齐 Chrome/Edge 方案。
+    // 2. 监听表单提交：统一走原生管线。
+    //    http/https 下载 URL 的表单提交不再走 JS 拦截（历史上曾用已删除的
+    //    `__adlDownloadUrl` fetch+base64 通道），交原生表单提交 → WebView2 原生
+    //    DownloadStarting 接管（含实时进度、默认保存路径、下载记录）。
+    //    agent 站点仅把下载表单的 target 归一为 `_self`，不 preventDefault。
     document.addEventListener('submit', function(event) {
+        // Normal sites keep native form submission. Only agent sites need the
+        // download-form target normalization below.
+        if (!__adlIsAgentHost()) return;
         var form = event.target;
         var formInfo = {
             action: form.action,
@@ -639,6 +748,12 @@
     // prevent the C1 history wrapper (installed after) from being applied.
     try {
     (function() {
+        // Only agent sites use the click nav guard; normal sites get no
+        // `window.__startNavGuard` (their pushState is still wrapped by the
+        // meta-reporting and C1 URL-normalization wrappers installed later in
+        // this script). Installation is gated on the flag, so enabling it later
+        // needs a page reload.
+        if (!__adlIsAgentHost()) return;
         var NAV_GUARD_TIMEOUT_MS = 200;
         var guardHref = null;
         var guardTimer = null;
@@ -708,7 +823,7 @@
         var isReporting = false;
         var hasTitle = false;
         var hasFavicon = false;
-        var hasPostMessage = !!(typeof chrome !== 'undefined' && chrome.webview);
+        var hasPostMessage = __adlCanPostToHost();
         var postMessageWorks = hasPostMessage;
         var navPollTimer = null;
         var navPollCount = 0;
@@ -787,12 +902,10 @@
         function sendViaPostMessage(t, f, u) {
             if (!hasPostMessage) return false;
             try {
-                chrome.webview.postMessage(JSON.stringify({
-                    type: 'meta',
-                    title: t,
-                    favicon: f,
-                    url: u
-                }));
+                if (!__adlPostToHost({ type: 'meta', title: t, favicon: f, url: u })) {
+                    postMessageWorks = false;
+                    return false;
+                }
                 postMessageWorks = true;
                 return true;
             } catch(e) {
@@ -921,29 +1034,8 @@
         }
         observeTitle(document.querySelector('title'));
 
-        var origTitleDesc = Object.getOwnPropertyDescriptor(Document.prototype, 'title') ||
-                            Object.getOwnPropertyDescriptor(HTMLDocument.prototype, 'title');
-        if (origTitleDesc && origTitleDesc.configurable) {
-            var titleEl2 = document.querySelector('title');
-            Object.defineProperty(document, 'title', {
-                get: function() {
-                    return titleEl2 ? titleEl2.textContent : '';
-                },
-                set: function(v) {
-                    if (titleEl2) {
-                        titleEl2.textContent = v;
-                    } else {
-                        var t = document.createElement('title');
-                        t.textContent = v;
-                        document.head.appendChild(t);
-                        titleEl2 = t;
-                        observeTitle(t);
-                    }
-                    setTimeout(function() { reportMeta('title-setter'); }, 0);
-                },
-                configurable: true
-            });
-        }
+        // document.title is left native. Native DocumentTitleChanged plus the
+        // <title> MutationObserver above cover title reporting for SPA updates.
 
         function observeFaviconLink(linkEl) {
             try {
@@ -1010,7 +1102,7 @@
     try {
     (function() {
         if (window.top !== window.self) return;
-        if (typeof chrome === 'undefined' || !chrome.webview || !chrome.webview.postMessage) return;
+        if (!__adlCanPostToHost()) return;
         var REPORT_MIN_INTERVAL_MS = 900;
         var lastReportAt = 0;
 
@@ -1046,14 +1138,14 @@
             lastReportAt = now;
             var md = readSiteMetadata();
             var duration = media.duration;
-            chrome.webview.postMessage(JSON.stringify({
+            __adlPostToHost({
                 type: 'adl-media',
                 title: (md && md.title) || document.title || '',
                 paused: !!media.paused,
                 ended: !!media.ended,
                 position: isFinite(media.currentTime) ? media.currentTime : 0,
                 duration: isFinite(duration) && duration > 0 ? duration : 0
-            }));
+            });
         }
 
         // Media element events do not bubble, but a capturing listener on the
@@ -1155,6 +1247,32 @@
             return { action: 'replace', url: normalized };
         }
         return { action: 'push', url: normalized };
+    }
+
+    // Host-side limit is 255 chars; keep the extension and avoid splitting a
+    // surrogate pair (a lone surrogate makes the JSON escape invalid for Rust).
+    function __adlTruncateName(name) {
+        var s = String(name || 'download');
+        // Keep only the basename: path separators are rejected by the host.
+        s = s.replace(/\\/g, '/');
+        var slash = s.lastIndexOf('/');
+        if (slash >= 0) {
+            s = s.slice(slash + 1);
+        }
+        if (!s) {
+            s = 'download';
+        }
+        if (s.length <= 255) {
+            return s;
+        }
+        var dot = s.lastIndexOf('.');
+        var ext = dot > 0 && s.length - dot <= 20 ? s.slice(dot) : '';
+        var keep = 255 - ext.length;
+        var cut = s.slice(0, keep);
+        if (/[\uD800-\uDBFF]$/.test(cut)) {
+            cut = cut.slice(0, -1);
+        }
+        return cut + ext;
     }
     // __ADL_PURE_END__
 

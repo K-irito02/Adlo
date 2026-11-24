@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { listen } from '@tauri-apps/api/event';
 import {
   tabStillDownloading,
   updateTabsForDownloadState,
@@ -39,6 +40,105 @@ function tab(id: string, isDownloading: boolean): BrowserTabState {
     isDownloading,
   } as BrowserTabState;
 }
+
+describe('browserDownloadsSlice — blob failure toast', () => {
+  it('uses the resolved system language and shows the English toast', async () => {
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-US');
+    const showToast = vi.fn();
+    let state = {} as never;
+    const set = (partial: unknown) => {
+      const next =
+        typeof partial === 'function'
+          ? (partial as (s: never) => Record<string, unknown>)(state)
+          : (partial as Record<string, unknown>);
+      state = { ...(state as Record<string, unknown>), ...next } as never;
+    };
+    const get = () => state;
+    const slice = createBrowserDownloadsSlice(set as never, get as never);
+    state = {
+      ...slice,
+      isTauri: true,
+      showToast,
+      appInfo: { config: { language: 'system' } },
+      downloads: [],
+      activeDownloads: {},
+      browserTabs: [],
+      browserTabsById: {},
+    } as never;
+
+    const handlers: ((event: { payload: Record<string, unknown> }) => void)[] = [];
+    vi.mocked(listen).mockImplementation(((
+      name: string,
+      cb: (event: { payload: Record<string, unknown> }) => void,
+    ) => {
+      if (name === 'browser-download-error') {
+        handlers.push(cb);
+      }
+      return Promise.resolve(() => {});
+    }) as never);
+
+    slice.subscribeDownloadEvents();
+    handlers[0]({
+      payload: {
+        id: '',
+        url: 'blob://local/x.bin',
+        fileName: 'x.bin',
+        reason: 'too large',
+        canRetry: false,
+      },
+    });
+
+    expect(showToast).toHaveBeenCalledWith('Download failed: x.bin', 'error');
+  });
+
+  it('does not toast when the error event matches an existing record', async () => {
+    const showToast = vi.fn();
+    let state = {} as never;
+    const set = (partial: unknown) => {
+      const next =
+        typeof partial === 'function'
+          ? (partial as (s: never) => Record<string, unknown>)(state)
+          : (partial as Record<string, unknown>);
+      state = { ...(state as Record<string, unknown>), ...next } as never;
+    };
+    const get = () => state;
+    const slice = createBrowserDownloadsSlice(set as never, get as never);
+    state = {
+      ...slice,
+      isTauri: true,
+      showToast,
+      appInfo: { config: { language: 'en-US' } },
+      downloads: [download({ id: 'd1' })],
+      activeDownloads: {},
+      browserTabs: [],
+      browserTabsById: {},
+    } as never;
+
+    const handlers: ((event: { payload: Record<string, unknown> }) => void)[] = [];
+    vi.mocked(listen).mockImplementation(((
+      name: string,
+      cb: (event: { payload: Record<string, unknown> }) => void,
+    ) => {
+      if (name === 'browser-download-error') {
+        handlers.push(cb);
+      }
+      return Promise.resolve(() => {});
+    }) as never);
+
+    slice.subscribeDownloadEvents();
+    handlers[0]({
+      payload: {
+        id: 'd1',
+        url: 'blob://local/x.bin',
+        fileName: 'x.bin',
+        reason: 'too large',
+        canRetry: false,
+      },
+    });
+
+    expect(showToast).not.toHaveBeenCalled();
+  });
+});
 
 describe('browserDownloadsSlice — tabStillDownloading', () => {
   it('returns false when there is no source tab', () => {

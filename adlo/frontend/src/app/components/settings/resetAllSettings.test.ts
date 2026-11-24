@@ -13,6 +13,7 @@ function deps(overrides: Partial<ResetAllDeps> = {}): ResetAllDeps {
         changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
         updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
       },
+      resetShareProfile: vi.fn(),
       migrateAtOpen: false,
     },
     dsh: { saveSourceConfig: vi.fn(async () => true) },
@@ -55,6 +56,7 @@ describe('resetAllSettings', () => {
       (k) => seen.push(k),
     );
     expect(d.updatePreferences).toHaveBeenCalledWith(getDefaultPreferences());
+    expect(d.browser.resetShareProfile).toHaveBeenCalled();
     expect(seen).toEqual(['preferences', 'browser', 'dsh', 'network', 'storage']);
     expect(outcome.done).toEqual(['preferences', 'browser', 'dsh', 'network', 'storage']);
     expect(outcome.skipped).toEqual([]);

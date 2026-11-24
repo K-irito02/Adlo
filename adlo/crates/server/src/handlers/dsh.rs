@@ -131,9 +131,51 @@ struct VersionInput {
     select: Option<bool>,
 }
 
-/// POST `/dsh/open` — 拉起 dsh 进程（若已运行返回已有 URL）。返回 `{ url, freedPort }`。
+/// dsh 真实入口 URL 是否携带启动 token（`?token=`）。
+///
+/// 只有从 dsh 进程 stdout 捕获的 `dsh web: <url>` 才带 token；复用一个外部启动、
+/// 未由本宿主捕获 stdout 的实例时只能拿到裸 URL，裸地址会 401（事项 7）。
+fn url_has_launch_token(url: &str) -> bool {
+    url::Url::parse(url).is_ok_and(|parsed| {
+        parsed.query_pairs().any(|(key, value)| key == "token" && !value.is_empty())
+    })
+}
+
+/// 是否需要为认证入口重启：仅「外部启动 + 裸 URL 无 token」需要。纯函数便于
+/// 回归测试；`pre_start` 不经过此判定（不会杀外部进程）。
+fn needs_auth_restart(value: &serde_json::Value) -> bool {
+    value.get("authenticated").and_then(serde_json::Value::as_bool) == Some(false)
+        && value.get("external").and_then(serde_json::Value::as_bool) == Some(true)
+}
+
+/// `/dsh/open` 的单一响应形状，避免 5 处手写字段漂移。
+fn open_payload(
+    url: &str,
+    freed_port: bool,
+    authenticated: bool,
+    external: bool,
+) -> serde_json::Value {
+    serde_json::json!({
+        "url": url,
+        "freedPort": freed_port,
+        "authenticated": authenticated,
+        "external": external,
+    })
+}
+
+/// POST `/dsh/open` — 拉起 dsh 进程（若已运行复用其 URL；外部实例无 token 时重启一次）。
+/// 返回 `{ url, freedPort, authenticated, external, restartedForAuth? }`。
+///
+/// 用户动作入口：若复用到的外部实例没有可用的启动 token（裸 URL 必 401），
+/// 走既有 `/dsh/restart` 语义重启一次以捕获带 token 的真实入口。`pre_start`
+/// 不经过这里，因此应用启动不会主动杀掉用户的外部 dsh。
 pub async fn open(State(state): State<ServerState>) -> impl IntoResponse {
-    let result = run_open(
+    let result = open_with_authenticated_url(&state).await;
+    ipc::to_response(result)
+}
+
+async fn open_with_authenticated_url(state: &ServerState) -> Result<serde_json::Value, AppError> {
+    let mut value = run_open(
         state.dsh_state.clone(),
         state.dsh_starting.clone(),
         state.dsh_start_lock.clone(),
@@ -141,8 +183,51 @@ pub async fn open(State(state): State<ServerState>) -> impl IntoResponse {
         state.storage.paths(),
         state.dsh_source_cache.clone(),
     )
-    .await;
-    ipc::to_response(result)
+    .await?;
+
+    if needs_auth_restart(&value) {
+        tracing::info!(
+            "dsh::run_open: reused an external instance without a launch token; restarting to capture an authenticated URL"
+        );
+        // 机会性升级：重启失败不应把仍可能可打开的实例判成整体失败，回退原始
+        // URL。失败可能发生在两步：① 识别占用者失败（进程仍在，页面会显示 dsh
+        // 自己的 401 指引）；② 先杀了残留 dsh 但新进程未起来（原 URL 已无服务，
+        // 浏览器显示连接错误）。两种情况都用 restartedForAuth 标记「尝试过」。
+        let restarted = match run_restart(state).await {
+            Ok(restarted) => restarted,
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "dsh::run_open: auth restart failed; returning the originally detected URL"
+                );
+                value["restartedForAuth"] = serde_json::Value::Bool(true);
+                return Ok(value);
+            },
+        };
+        let url = restarted
+            .get("url")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        if !url.is_empty() {
+            let restarted_authenticated = restarted
+                .get("authenticated")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or_else(|| url_has_launch_token(&url));
+            let restarted_external =
+                restarted.get("external").and_then(serde_json::Value::as_bool).unwrap_or(false);
+            let mut payload =
+                open_payload(&url, false, restarted_authenticated, restarted_external);
+            payload["restartedForAuth"] = serde_json::Value::Bool(true);
+            return Ok(payload);
+        }
+        // `run_restart` 也可能返回 `{restarted:false,url:null}`（run_open 折成 NotFound）：
+        // 同样标记尝试过，并保留原始 URL 交给调用方展示。
+        value["restartedForAuth"] = serde_json::Value::Bool(true);
+        return Ok(value);
+    }
+
+    Ok(value)
 }
 
 /// 端口是否已被占用：尝试绑定 127.0.0.1:port，成功（可绑）即视为空闲。
@@ -384,6 +469,9 @@ fn dsh_web_args(patch: &Path) -> Vec<String> {
         "web".to_string(),
         "--patch".to_string(),
         patch.to_string_lossy().into_owned(),
+        // dsh 0.2.x 没有 `--print-url` CLI 开关（传了会 `unknown option` 直接退出）；
+        // `web-app` 的 `printUrl` 默认 true，配合下面的 `--no-open` 会打印带
+        // process token 的入口 URL，由宿主从 stdout 捕获（事项 7）。
         "--no-open".to_string(),
     ]
 }
@@ -423,7 +511,7 @@ async fn run_open(
             elapsed_ms = start_time.elapsed().as_millis(),
             "dsh::run_open: fast path - already running"
         );
-        return Ok(serde_json::json!({ "url": managed.url, "freedPort": false }));
+        return Ok(open_payload(&managed.url, false, url_has_launch_token(&managed.url), false));
     }
 
     // 串行化启动：free_stale + spawn 持独立锁，close/revert/uninstall 不被阻塞。
@@ -443,7 +531,7 @@ async fn run_open(
             elapsed_ms = start_time.elapsed().as_millis(),
             "dsh::run_open: acquired lock - already running"
         );
-        return Ok(serde_json::json!({ "url": managed.url, "freedPort": false }));
+        return Ok(open_payload(&managed.url, false, url_has_launch_token(&managed.url), false));
     }
 
     // 固定 dsh 默认端口：若被残留 dsh 占用则先释放（用户选择"仅杀 dsh 残留进程"）。
@@ -548,7 +636,9 @@ async fn run_open(
             tracing::info!(?url, ?port, "dsh::run_open: reusing running instance");
             // 已有进程运行中，直接返回 URL。不写入 dsh_guard（进程非我们启动，无法持有 Child）。
             // close 操作对复用的进程无意义（我们没有 Child handle），保持原样即可。
-            return Ok(serde_json::json!({ "url": url, "freedPort": freed }));
+            // `external=true`：复用外部实例，URL 可能缺少启动 token（`authenticated=false`），
+            // 由 `/dsh/open` 用户动作路径决定是否重启换取认证入口（事项 7）。
+            return Ok(open_payload(&url, freed, url_has_launch_token(&url), true));
         },
         adl_harness_version::DshSource::System { info } => {
             tracing::info!(path = %info.path.display(), version = ?info.version, "dsh::run_open: using system dsh");
@@ -579,7 +669,7 @@ async fn run_open(
     let url = hp.url.clone();
     *guard = Some(ManagedDsh { process: hp, version: spawn_version, source: spawn_source });
     tracing::info!(total_elapsed_ms = start_time.elapsed().as_millis(), "dsh::run_open: completed");
-    Ok(serde_json::json!({ "url": url, "freedPort": freed }))
+    Ok(open_payload(&url, freed, url_has_launch_token(&url), false))
 }
 
 /// Pre-start dsh in background. Called from `serve()` after server is ready.
@@ -798,6 +888,8 @@ async fn run_restart(state: &ServerState) -> Result<serde_json::Value, AppError>
         Ok(value) => Ok(serde_json::json!({
             "restarted": true,
             "url": value.get("url").cloned(),
+            "authenticated": value.get("authenticated").cloned(),
+            "external": value.get("external").cloned(),
         })),
         Err(AppError::NotFound(_)) => Ok(serde_json::json!({ "restarted": false, "url": null })),
         Err(e) => Err(e),
@@ -1314,6 +1406,32 @@ mod tests {
         assert!(args.windows(2).any(|w| w == ["--profile", "web"]));
         assert!(args.windows(2).any(|w| w == ["--patch", "/tmp/loopback.patch.yml"]));
         assert_eq!(args.last().map(String::as_str), Some("--no-open"));
+    }
+
+    #[test]
+    fn url_has_launch_token_detects_non_empty_token_query() {
+        assert!(url_has_launch_token("http://127.0.0.1:3080/?token=abc"));
+        assert!(url_has_launch_token("http://127.0.0.1:3080/?foo=1&token=abc&bar=2"));
+        assert!(!url_has_launch_token("http://127.0.0.1:3080/"));
+        assert!(!url_has_launch_token("http://127.0.0.1:3080/?token="));
+        assert!(!url_has_launch_token("not a url"));
+    }
+
+    #[test]
+    fn needs_auth_restart_only_for_external_unauthenticated_payloads() {
+        assert!(needs_auth_restart(&serde_json::json!({
+            "authenticated": false,
+            "external": true,
+        })));
+        assert!(!needs_auth_restart(&serde_json::json!({
+            "authenticated": true,
+            "external": true,
+        })));
+        assert!(!needs_auth_restart(&serde_json::json!({
+            "authenticated": false,
+            "external": false,
+        })));
+        assert!(!needs_auth_restart(&serde_json::json!({ "url": "x" })));
     }
 
     #[test]

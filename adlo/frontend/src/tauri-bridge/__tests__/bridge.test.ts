@@ -241,6 +241,38 @@ describe('createTauriBridge system-capability domains stay on Tauri', () => {
       agentInterceptEnabled: undefined,
     });
   });
+
+  it('browser.createForTab forwards shareProfile/referrer/initialSize payload keys', async () => {
+    mockInvoke.mockResolvedValue(okResult('tab-3'));
+    const bridge = createTauriBridge('http://127.0.0.1:9999');
+    await bridge.browser.createForTab(
+      't3',
+      'https://example.com',
+      'dark',
+      'center',
+      ['https://a.test'],
+      true,
+      [],
+      [],
+      false,
+      'https://source.test/',
+      { width: 800, height: 600 },
+    );
+
+    expect(mockInvoke).toHaveBeenCalledWith('browser_create_for_tab', {
+      tabId: 't3',
+      url: 'https://example.com',
+      colorScheme: 'dark',
+      location: 'center',
+      agentOrigins: ['https://a.test'],
+      agentInterceptEnabled: true,
+      agentSiteRules: [],
+      agentSiteOverrides: [],
+      shareProfile: false,
+      referrer: 'https://source.test/',
+      initialSize: { width: 800, height: 600 },
+    });
+  });
 });
 
 describe('createTauriBridge storage domain', () => {

@@ -52,6 +52,8 @@ windows = { version = "0.61", features = [
   "Win32_System_Com",
   "Win32_System_Com_StructuredStorage",
   "Win32_System_Variant",
+  # adl-server sidecar: Windows job object with KILL_ON_JOB_CLOSE (orphan safety net)
+  "Win32_System_JobObjects",
   "Win32_Storage_EnhancedStorage",
   # 诊断 example（src-tauri/examples/smtc-probe.rs）：读取系统媒体会话归属
   "Media_Control",

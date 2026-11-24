@@ -78,6 +78,7 @@ describe('useWebViewLifecycle fresh consumption', () => {
         'https://example.com/a.zip',
         'light',
         'panel',
+        undefined,
       );
     });
   });

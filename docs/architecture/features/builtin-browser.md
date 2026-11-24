@@ -113,3 +113,19 @@
 - [browser-navigation-mode-toggle-2026-06-20.md](../../knowledge-base/browser/navigation/browser-navigation-mode-toggle-2026-06-20.md) — 导航模式切换 + 自动刷新修复
 - [browser-url-sync-fix-2026-06-04.md](../../knowledge-base/browser/navigation/browser-url-sync-fix-2026-06-04.md) — 地址栏 URL 同步
 - [webview2-udf-environment-conflict-2026-11-12.md](../../knowledge-base/browser/navigation/webview2-udf-environment-conflict-2026-11-12.md) — WebView2 同一 UDF 环境参数必须逐字一致（0x8007139F）
+
+## 2026-11-24 增量（共享 profile、中心标签与下载/生命周期）
+
+| 能力 | 契约 |
+|------|------|
+| 共享浏览配置文件 | 设置「浏览器 → 共享浏览配置文件」默认开：中心与右侧面板共用默认 UDF；关闭后中心回到独立 UDF（ADR 0001 修订版）。标签在创建时快照该选择，挂起重建/重启恢复沿用；设置切换只影响此后新建标签。静默取元数据始终独立 UDF。 |
+| 中心/面板标签 | 中心与面板共用一个 WebView 池；中心非活动且不在池中的浏览器标签显示 `is-suspended`（与面板 evicted 同口径）。入口页打开 DSH 时新建标签就地转换、不新增中心标签；复用已在中心的 dsh 标签只聚焦并移除入口页。 |
+| DSH 认证入口 | `/dsh/open` 复用「外部启动且裸 URL 无 token」的实例时重启一次以捕获认证 URL；失败回退原 URL 并标记 `restartedForAuth`。`pre_start` 不触发重启。 |
+| 新标签与 referrer | `target=_blank`/`<area>`/修饰键点击经 postMessage 带 referrer（默认策略同源完整 URL、跨源 origin；遵守 `rel`/`referrerpolicy`/meta/降级）；前端一次性消费并在关闭标签时清理。原生 `NewWindowRequested` 与浏览器模式不携带。 |
+| 地址栏 | 带 scheme 的输入只做完整 URL 精确匹配（忽略末尾 `/`），不做历史前缀匹配；无 scheme 的 host/IP 仍保留历史补全。 |
+| blob 下载 | 显式 `<a download>` 的 `blob:` 链接全站接管，经 postMessage 交给宿主落盘；64 MiB 原始字节上限、文件名净化/截断（basename、255 字符、保留扩展名）、失败 toast、`source_tab_id` 挂起保护。 |
+| 画布背景 | 注入背景只作用于 `about:` 文档；真实页面保持浏览器默认白色画布。WebView2 预首帧由 `SetDefaultBackgroundColor` + Profile 色板承担，画布取中性色（暗 `#e0e0e0` / 亮 `#f2f2f2`），不跟随应用主题。 |
+| sidecar 生命周期 | `adl-server` 由 Windows Job Object（`KILL_ON_JOB_CLOSE`）接管，父进程被强杀时由系统终止；正常退出由 `RunEvent::Exit`/`ExitRequested` 调 `terminate()`。 |
+| file:// 崩溃防线 | 浏览器/静默 WebView 不注册 wry IPC handler；注入脚本只在 http(s) 文档发宿主消息；标题回填同样加协议守卫。重新 vendor 由 `src-tauri` 源码断言兜底。 |
+
+> 详细根因与失败迭代见 [browser-embedding-hardening-2026-11-24.md](../../knowledge-base/browser/browser-embedding-hardening-2026-11-24.md)。

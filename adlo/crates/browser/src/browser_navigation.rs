@@ -8,21 +8,27 @@ use url::Url;
 /// file I/O.
 pub const INIT_SCRIPT: &str = include_str!("init_script.js");
 
-/// Generate an initialization script with a hardcoded background color based on
-/// the color scheme. This avoids relying on `prefers-color-scheme` media query
-/// which may return stale values during the `about:blank` phase (before
-/// `SetPreferredColorScheme` is applied via Profile API).
+/// Generate an initialization script with a hardcoded canvas background color
+/// based on the color scheme, applied **only to `about:` documents**.
 ///
-/// The background color is set via inline style on `document.documentElement`
-/// before the page's CSS loads, preventing theme flash.
+/// Why not apply it to real pages: WebView2's pre-first-paint background is
+/// already handled by `SetDefaultBackgroundColor` plus the Profile
+/// `PreferredColorScheme`. A persistent inline background on
+/// `document.documentElement` overrides the browser's default white canvas, so
+/// pages without their own background (plain/local HTML, unstyled exports)
+/// render dark while keeping the UA default black text — unreadable and
+/// different from Edge/Chrome. Real pages therefore keep normal web semantics;
+/// only the offscreen creation document (and other `about:` documents) gets the
+/// neutral canvas color.
 pub fn init_script_with_background(color_scheme: &str) -> String {
-    // Color values must match `theme_to_rgb` in webview2_background.rs
+    // Neutral browser-canvas colors; must match `theme_to_rgb` in
+    // webview2_background.rs. They are intentionally not the app theme color.
     let bg = match color_scheme {
-        "light" => "#f8f8f8",
-        _ => "#141414",
+        "light" => "#f2f2f2",
+        _ => "#e0e0e0",
     };
     format!(
-        "(function() {{ try {{ document.documentElement.style.backgroundColor = '{bg}'; }} catch(e) {{}} }})();\n{INIT_SCRIPT}"
+        "(function() {{ try {{ if (location.protocol === 'about:') {{ document.documentElement.style.backgroundColor = '{bg}'; }} }} catch(e) {{}} }})();\n{INIT_SCRIPT}"
     )
 }
 
@@ -69,4 +75,22 @@ pub fn resolve_url(raw: &str) -> Result<Url, AppError> {
         }
     }
     Err(AppError::InvalidInput(format!("Cannot parse URL: {}", trimmed)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn background_is_limited_to_about_documents() {
+        let dark = init_script_with_background("dark");
+        assert!(dark.contains("location.protocol === 'about:'"));
+        assert!(dark.contains("#e0e0e0"));
+        let guard = dark.find("location.protocol === 'about:'").unwrap();
+        let assignment = dark.find("document.documentElement.style.backgroundColor").unwrap();
+        assert!(guard < assignment);
+
+        let light = init_script_with_background("light");
+        assert!(light.contains("#f2f2f2"));
+    }
 }

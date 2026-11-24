@@ -230,6 +230,11 @@ export const browserZh = {
   browserSuspendWhitelistEnabled: '启用挂起白名单',
   browserSuspendWhitelistEnabledDesc:
     '开启后，下方名单中的站点标签不受挂起时长影响（闲置与内存压力挂起均豁免）',
+  browserShareProfileTitle: '浏览配置文件',
+  browserShareProfile: '共享浏览配置文件',
+  browserShareProfileDesc:
+    '开启后，右侧浏览器面板标签与中心浏览器标签共用一个浏览配置文件，仅对新建标签生效。关闭后，右侧浏览器面板标签与中心浏览器标签分别使用独立配置。',
+  browserShareProfileDesktopOnly: '仅桌面模式可用。',
   browserSuspendWhitelist: '挂起白名单',
   browserSuspendWhitelistDesc: '名单中的站点标签永不被挂起，按整站匹配（不含路径与参数）',
   browserSuspendWhitelistEmpty: '暂无豁免站点，点击“添加”新增',
@@ -272,6 +277,7 @@ export const browserZh = {
   browserDownloadUnknownSize: '未知大小',
   browserDownloadCompletedAt: '完成于 {time}',
   browserDownloadFailedReason: '失败原因：{reason}',
+  browserDownloadBlobFailedToast: '下载失败：{name}',
   // 下载暂停确认对话框
   browserDownloadPauseDialogTitle: '此服务器不支持暂停',
   browserDownloadPauseDialogDesc: '当前下载的服务器不支持断点续传。暂停后将从头开始下载。',

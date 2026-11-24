@@ -98,7 +98,7 @@ describe('CenterEntryPage', () => {
     expect(center).toMatchObject({ kind: 'terminal', refId: null });
   });
 
-  it('点击「打开 deepseek harness」成功后移除 launcher 标签（显示新建的 dsh 浏览器中心标签）', async () => {
+  it('点击「打开 deepseek harness」成功后把入口页标签就地转为 dsh 浏览器标签（不新增中心标签）', async () => {
     const open = vi.fn(async () => ({
       ok: true,
       data: { url: 'http://127.0.0.1:3080', freedPort: false },
@@ -109,19 +109,22 @@ describe('CenterEntryPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /deepseek harness/i }));
 
     await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(1));
-    // launcher 标签在 openDsh 成功后被异步移除；等待该状态落地再做断言。
-    await vi.waitFor(() =>
-      expect(useAppStore.getState().centerTabs.some((c) => c.id === 'c1')).toBe(false),
-    );
+    await vi.waitFor(() => {
+      const center = useAppStore.getState().centerTabs.find((c) => c.id === 'c1');
+      expect(center?.kind).toBe('browser');
+    });
     const s = useAppStore.getState();
     // 新建的普通浏览器标签位于中心，URL 为 dsh URL（不再带任何 dsh 专属标记）。
     const dshTab = s.browserTabs.find((tab) => tab.url === 'http://127.0.0.1:3080');
     expect(dshTab).toBeTruthy();
     expect(dshTab?.location).toBe('center');
-    expect(s.centerTabs.some((c) => c.kind === 'browser' && c.refId === dshTab?.id)).toBe(true);
+    // 入口页标签就地在原位转为 browser，中心标签数量不变（避免打开瞬间重排闪烁）。
+    expect(s.centerTabs).toHaveLength(1);
+    expect(s.centerTabs[0]).toMatchObject({ id: 'c1', kind: 'browser', refId: dshTab?.id });
+    expect(s.centerActiveTabId).toBe('c1');
   });
 
-  it('freedPort=true 时报 DSH_FREED_PORT 信息卡并移除入口页标签', async () => {
+  it('freedPort=true 时报 DSH_FREED_PORT 信息卡并把入口页就地转为浏览器标签', async () => {
     const open = vi.fn(async () => ({
       ok: true,
       data: { url: 'http://127.0.0.1:3080', freedPort: true },
@@ -138,9 +141,42 @@ describe('CenterEntryPage', () => {
           .errorToasts.some((e) => e.code === 'DSH_FREED_PORT' && e.scope === 'dsh'),
       ).toBe(true);
     });
-    await vi.waitFor(() =>
-      expect(useAppStore.getState().centerTabs.some((c) => c.id === 'c1')).toBe(false),
-    );
+    await vi.waitFor(() => {
+      const center = useAppStore.getState().centerTabs.find((c) => c.id === 'c1');
+      expect(center?.kind).toBe('browser');
+    });
+  });
+
+  it('复用已在中心的 dsh 标签时只聚焦它并移除入口页', async () => {
+    const open = vi.fn(async () => ({
+      ok: true,
+      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+    }));
+    (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
+    useAppStore.setState({
+      centerTabs: [
+        { id: 'c1', kind: 'launcher', refId: null, createdAt: 1 },
+        { id: 'c2', kind: 'browser', refId: 'bt1', createdAt: 2 },
+      ],
+      centerActiveTabId: 'c1',
+      browserTabs: [
+        { id: 'bt1', url: 'http://127.0.0.1:3080', title: 'dsh', location: 'center' },
+      ] as never,
+      browserTabsById: {
+        bt1: { id: 'bt1', url: 'http://127.0.0.1:3080', title: 'dsh', location: 'center' },
+      } as never,
+      browserActiveTabId: 'bt1',
+    });
+
+    renderLauncher();
+    fireEvent.click(screen.getByRole('button', { name: /deepseek harness/i }));
+
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().centerTabs.some((c) => c.id === 'c1')).toBe(false);
+    });
+    const s = useAppStore.getState();
+    expect(s.centerTabs).toEqual([expect.objectContaining({ id: 'c2', refId: 'bt1' })]);
+    expect(s.centerActiveTabId).toBe('c2');
   });
 
   it('openDsh 失败（返回 null）时保留入口页标签', async () => {

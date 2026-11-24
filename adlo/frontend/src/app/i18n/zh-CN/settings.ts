@@ -203,7 +203,7 @@ export const settingsZh = {
   // 文案中的 15 分钟/自动保存与 DEFAULT_BROWSER_SUSPEND_MS / DEFAULT_DOWNLOAD_MODE
   // 同源，改产品默认时同步此处（L-8）。
   browserGroupResetMessage:
-    '挂起时长（恢复 15 分钟）、下载模式（恢复自动保存）、默认下载路径（恢复系统默认并关闭自动迁移）将一起恢复为默认值。',
+    '挂起时长（恢复 15 分钟）、挂起白名单（关闭并清空）、共享浏览配置文件（恢复开启）、下载模式（恢复自动保存）、默认下载路径（恢复系统默认并关闭自动迁移）将一起恢复为默认值。',
   browserGroupResetMigrateOnNote:
     '当前已开启「更改路径时自动迁移文件」：恢复路径时旧路径下的全部文件会先搬到系统默认路径，全部成功后删除旧路径目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）；若中途失败：已搬走的文件在新路径、其余仍在旧路径，设置不切换，可重试。',
   storageDownloadMigrateFailed: '迁移文件失败：{error}',

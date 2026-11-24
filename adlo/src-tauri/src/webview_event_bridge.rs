@@ -42,10 +42,48 @@ impl WebView2EventBridge for TauriWebView2EventBridge {
         );
     }
 
-    fn emit_open_new_tab(&self, tab_id: &str, url: &str) {
+    fn emit_open_new_tab(&self, tab_id: &str, url: &str, referrer: Option<&str>) {
         let _ = self.app.emit(
             "digital-life://browser-open-new-tab",
-            serde_json::json!({ "tabId": tab_id, "url": url }),
+            serde_json::json!({ "tabId": tab_id, "url": url, "referrer": referrer }),
+        );
+    }
+
+    fn save_blob(&self, tab_id: &str, file_name: &str, data_base64: &str) {
+        let app = self.app.clone();
+        let tab_id = tab_id.to_string();
+        let file_name = file_name.to_string();
+        let data_base64 = data_base64.to_string();
+        tauri::async_runtime::spawn(async move {
+            let Some(state) = app.try_state::<crate::state::AppState>() else {
+                tracing::warn!("[ADL-DL] save_blob: AppState not found");
+                return;
+            };
+            if let Err(e) = crate::commands::download_commands::save_blob_download(
+                &app,
+                &state,
+                file_name,
+                data_base64,
+                Some(tab_id),
+            )
+            .await
+            {
+                tracing::warn!(error = %e, "[ADL-DL] save_blob failed");
+            }
+        });
+    }
+
+    fn save_blob_failed(&self, tab_id: &str, file_name: &str) {
+        let _ = self.app.emit(
+            "browser-download-error",
+            serde_json::json!({
+                "id": "",
+                "url": format!("blob://local/{file_name}"),
+                "fileName": file_name,
+                "reason": "blob download failed in page",
+                "canRetry": false,
+                "source_tab_id": tab_id,
+            }),
         );
     }
 

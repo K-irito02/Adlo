@@ -221,7 +221,10 @@ async function sendPreferencePatch(
     set({ appInfo: result.data.info });
     // Agent-site link interception is baked into live WebViews via an injected
     // prefix; refresh it whenever the whitelist/enable flag changed so already
-    // loaded agent pages pick up the new settings (Tauri only; no-op elsewhere).
+    // loaded agent pages pick up the new click rules immediately. The
+    // `window.open` rewrite and SPA nav-guard are installed at document load,
+    // so those two paths only change after the tab is reloaded (Tauri only;
+    // no-op elsewhere).
     if (
       patch.agentLinkIntercept !== undefined ||
       patch.agentSiteWhitelist !== undefined ||

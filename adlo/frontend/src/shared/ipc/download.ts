@@ -50,6 +50,8 @@ export interface DownloadProgressPayload {
 export interface DownloadErrorPayload {
   id: string;
   url: string;
+  /** Present for failures that have no download record (blob save rejects). */
+  fileName?: string;
   reason: string;
   canRetry: boolean;
   source_tab_id?: string;

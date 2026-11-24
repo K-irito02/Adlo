@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createStore } from 'zustand';
-import { createDshActions } from '../dshActions';
+import { createDshActions, shouldRefreshDshTab } from '../dshActions';
 import type { DshOpenResult } from '../../../../shared/ipc/dsh';
 
 /** dshActions 依赖的最小 store 表面（其余动作字段以 unknown 桩代） */
@@ -14,7 +14,7 @@ interface DshTestStore {
   siblingWebviewNonce: number;
   bumpSiblingWebviewNonce: () => void;
   fetchDshVersionStatus: () => Promise<boolean>;
-  openDsh: () => Promise<DshOpenResult | null>;
+  openDsh: (options?: { centerTabId?: string }) => Promise<DshOpenResult | null>;
   restartDsh: () => Promise<{ restarted: boolean; url: string | null; failed: boolean }>;
   updateDsh: () => Promise<boolean>;
   versionTaskCancelRequested: boolean;
@@ -35,6 +35,9 @@ interface DshTestStore {
   browserCloseTab: (tabId: string) => void;
   centerShowBrowserTab: (browserTabId: string) => void;
   centerSelectTab: (centerTabId: string) => void;
+  centerUpdateTab: (centerTabId: string, patch: { kind?: string; refId?: string | null }) => void;
+  browserSetLocation: (tabId: string, location: 'panel' | 'center') => void;
+  clampPanelActiveTab: () => void;
   sourceStatus: { config: { version_source: string } } | null;
   setDshSourceStatus: (status: unknown) => void;
   dshLastUrl: string | null;
@@ -113,6 +116,15 @@ function makeStore() {
           };
         }),
       centerSelectTab: (centerTabId) => set({ centerActiveTabId: centerTabId }),
+      centerUpdateTab: (tabId: string, patch: { kind?: string; refId?: string | null }) =>
+        set((s) => ({
+          centerTabs: s.centerTabs.map((c) => (c.id === tabId ? { ...c, ...patch } : c)),
+        })),
+      browserSetLocation: (tabId: string, location: 'panel' | 'center') =>
+        set((s) => ({
+          browserTabs: s.browserTabs.map((t) => (t.id === tabId ? { ...t, location } : t)),
+        })),
+      clampPanelActiveTab: () => {},
       versionTaskCancelRequested: false,
       setVersionTaskCancelRequested: (requested) => set({ versionTaskCancelRequested: requested }),
       sourceStatus: null,
@@ -160,6 +172,31 @@ describe('dshActions.openDsh', () => {
     expect(
       store.getState().centerTabs.some((c) => c.kind === 'browser' && c.refId === tab.id),
     ).toBe(true);
+  });
+
+  it('入口页标签存在时新 dsh 标签就地绑定到该 launcher（不新增中心标签）', async () => {
+    vi.stubGlobal('digitalLife', {
+      dsh: {
+        open: vi.fn(async () => ({
+          ok: true,
+          data: { url: 'http://127.0.0.1:3080/?token=abc', freedPort: false },
+        })),
+      },
+    });
+    const store = makeStore();
+    store.setState({
+      centerTabs: [{ id: 'c1', kind: 'launcher', refId: null } as never],
+      centerActiveTabId: 'c1',
+    });
+
+    await store.getState().openDsh({ centerTabId: 'c1' });
+
+    const s = store.getState();
+    const browserTab = s.browserTabs[0];
+    expect(browserTab?.location).toBe('center');
+    expect(s.centerTabs).toHaveLength(1);
+    expect(s.centerTabs[0]).toMatchObject({ id: 'c1', kind: 'browser', refId: browserTab?.id });
+    expect(s.centerActiveTabId).toBe('c1');
   });
 
   it('成功但 data 为空时回落 url:null,freedPort:false（仍创建中心标签）', async () => {
@@ -217,6 +254,32 @@ describe('dshActions.openDsh', () => {
     expect(store.getState().centerActiveTabId).toBe(store.getState().centerTabs[0].id);
   });
 
+  it('已有标签的入口 URL 变化时更新并导航（token 刷新）', async () => {
+    const navigateTab = vi.fn(async () => {});
+    vi.stubGlobal('digitalLife', {
+      dsh: {
+        open: vi.fn(async () => ({
+          ok: true,
+          data: {
+            url: 'http://127.0.0.1:3080/?token=new',
+            freedPort: false,
+            authenticated: true,
+          },
+        })),
+      },
+      browser: { navigateTab },
+    });
+    const store = makeStore();
+    store.getState().browserOpenTab('http://127.0.0.1:3080/', 'dsh');
+    const id = store.getState().browserActiveTabId;
+
+    await store.getState().openDsh();
+
+    expect(store.getState().browserTabs).toHaveLength(1);
+    expect(store.getState().browserTabs[0].url).toBe('http://127.0.0.1:3080/?token=new');
+    expect(navigateTab).toHaveBeenCalledWith(id, 'http://127.0.0.1:3080/?token=new');
+  });
+
   it('端口不同（同 host）的本地标签不被误复用，而是新建 dsh 标签', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: true,
@@ -253,23 +316,78 @@ describe('dshActions.openDsh', () => {
     expect(store.getState().browserTabs.find((t) => t.id === id)?.location).toBe('center');
   });
 
-  it('同 origin 的子路径标签也被复用（SPA 路由后不重复开标签）', async () => {
+  it('复用面板标签时把入口页就地绑定为 browser（不新增中心标签）', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: true,
       data: { url: 'http://127.0.0.1:3080', freedPort: false },
     });
     const store = makeStore();
+    store.getState().browserOpenTab('http://127.0.0.1:3080', 'dsh');
+    const existingId = store.getState().browserActiveTabId;
+    store.setState({
+      centerTabs: [{ id: 'entry1', kind: 'launcher', refId: null }],
+      centerActiveTabId: 'entry1',
+    });
+    const centerCountBefore = store.getState().centerTabs.length;
+
+    const result = await store.getState().openDsh({ centerTabId: 'entry1' });
+
+    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    expect(store.getState().browserTabs).toHaveLength(1);
+    expect(store.getState().centerTabs).toHaveLength(centerCountBefore);
+    expect(store.getState().centerTabs.find((t) => t.id === 'entry1')).toMatchObject({
+      kind: 'browser',
+      refId: existingId,
+    });
+  });
+
+  it('同 origin 的子路径标签也被复用且不被拽回入口 URL（SPA 路由保留）', async () => {
+    const navigateTab = vi.fn();
+    vi.stubGlobal('digitalLife', {
+      dsh: {
+        open: vi.fn(async () => ({
+          ok: true,
+          data: { url: 'http://127.0.0.1:3080/?token=new', freedPort: false },
+        })),
+      },
+      browser: { navigateTab },
+    });
+    const store = makeStore();
     store.getState().browserOpenTab('http://127.0.0.1:3080/chat/123', 'dsh');
     const id = store.getState().browserActiveTabId;
 
-    const result = await store.getState().openDsh();
+    await store.getState().openDsh();
 
-    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
-    // 复用同 origin 的子路径标签，不新建。
+    // 复用同 origin 的子路径标签，不新建，也不重置用户当前 SPA 路由。
     expect(store.getState().browserTabs).toHaveLength(1);
-    expect(store.getState().browserTabs.find((t) => t.id === id)?.location).toBe('center');
+    expect(store.getState().browserTabs.find((t) => t.id === id)?.url).toBe(
+      'http://127.0.0.1:3080/chat/123',
+    );
+    expect(navigateTab).not.toHaveBeenCalled();
   });
 
+  it('裸根路径在拿到 token 后会被刷新（认证入口修复）', async () => {
+    const navigateTab = vi.fn(async () => {});
+    vi.stubGlobal('digitalLife', {
+      dsh: {
+        open: vi.fn(async () => ({
+          ok: true,
+          data: { url: 'http://127.0.0.1:3080/?token=new', freedPort: false },
+        })),
+      },
+      browser: { navigateTab },
+    });
+    const store = makeStore();
+    store.getState().browserOpenTab('http://127.0.0.1:3080/', 'dsh');
+    const id = store.getState().browserActiveTabId;
+
+    await store.getState().openDsh();
+
+    expect(store.getState().browserTabs.find((t) => t.id === id)?.url).toBe(
+      'http://127.0.0.1:3080/?token=new',
+    );
+    expect(navigateTab).toHaveBeenCalledWith(id, 'http://127.0.0.1:3080/?token=new');
+  });
   it('并发调用（快速双击）只拉起一次且只创建一个标签', async () => {
     let resolveOpen!: (value: unknown) => void;
     const open = vi.fn(
@@ -550,5 +668,35 @@ describe('dshActions.cancelVersionTask', () => {
     const result = await store.getState().cancelVersionTask();
     expect(result).toBe(false);
     expect(store.getState().versionTaskCancelRequested).toBe(false);
+  });
+});
+
+describe('shouldRefreshDshTab', () => {
+  it('refreshes a bare entry root when a token becomes available', () => {
+    expect(shouldRefreshDshTab('http://127.0.0.1:3080/', 'http://127.0.0.1:3080/?token=new')).toBe(
+      true,
+    );
+  });
+
+  it('refreshes an entry root with a stale token', () => {
+    expect(
+      shouldRefreshDshTab('http://127.0.0.1:3080/?token=old', 'http://127.0.0.1:3080/?token=new'),
+    ).toBe(true);
+  });
+
+  it('preserves SPA subpaths and same/absent tokens', () => {
+    expect(
+      shouldRefreshDshTab('http://127.0.0.1:3080/chat/123', 'http://127.0.0.1:3080/?token=new'),
+    ).toBe(false);
+    expect(
+      shouldRefreshDshTab('http://127.0.0.1:3080/?token=new', 'http://127.0.0.1:3080/?token=new'),
+    ).toBe(false);
+    expect(shouldRefreshDshTab('http://127.0.0.1:3080/', 'http://127.0.0.1:3080/')).toBe(false);
+  });
+
+  it('ignores other origins', () => {
+    expect(shouldRefreshDshTab('http://127.0.0.1:3081/', 'http://127.0.0.1:3080/?token=x')).toBe(
+      false,
+    );
   });
 });

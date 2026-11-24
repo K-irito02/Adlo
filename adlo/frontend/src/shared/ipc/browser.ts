@@ -44,11 +44,18 @@ export interface BrowserMediaStatePayload {
   duration: number;
 }
 
-/** 页面内新窗口请求（`target="_blank"` / `window.open`）的发起标签与目标 URL。 */
+/** 页面内新窗口请求（`target="_blank"` / 修饰键点击 / 原生 `window.open`）的发起标签与目标 URL。 */
 export interface BrowserNewTabRequest {
   /** 发起请求的浏览器标签 id（前端据此决定开在中心还是右侧面板）。 */
   tabId: string;
   url: string;
+  /**
+   * 发起页面的 referrer（用于新标签首次导航的 `Referer` 头）：默认策略下同源为
+   * 去 fragment 的完整 URL、跨源为 origin；`rel="noreferrer"` / 等价
+   * `referrerpolicy` / HTTPS→HTTP 降级时为缺省（`null`，按无 referrer 处理）。
+   * 原生 `NewWindowRequested` 路径与浏览器模式也不携带该字段。
+   */
+  referrer?: string | null;
 }
 
 /** 系统卡片按钮 → 标签页内媒体元素（仅桌面端）。 */
@@ -66,7 +73,10 @@ export interface BrowserBridge {
     tabId: string,
     url: string,
     colorScheme?: 'light' | 'dark',
-    /** 宿主分组：Tauri 按此选择 WebView2 用户数据目录（UDF 隔离主题回退）；缺省按面板处理。 */
+    /**
+     * 宿主分组：Tauri 据此选择 WebView2 用户数据目录。默认共享（中心与面板同 UDF）；
+     * 关闭「共享浏览配置文件」后中心走独立 UDF（ADR 0001 修订版）。缺省按面板处理。
+     */
     location?: 'panel' | 'center',
     /** 智能体站点白名单 origin 列表（注入 WebView2 链接拦截；缺省不拦截）。 */
     agentOrigins?: string[],
@@ -76,6 +86,18 @@ export interface BrowserBridge {
     agentSiteRules?: AgentSiteRule[],
     /** 按 origin 的 agent-site 规则覆盖。 */
     agentSiteOverrides?: AgentSiteOverride[],
+    /** 面板与中心是否共用一个浏览配置文件（仅 Tauri 桌面生效；缺省按共享处理）。 */
+    shareProfile?: boolean,
+    /**
+     * 新标签首次导航的 `Referer` 值（默认策略下同源完整 URL / 跨源 origin；
+     * 缺省不设置）。仅桌面 WebView2 生效，浏览器模式/非 Windows 无对应能力。
+     */
+    referrer?: string | null,
+    /**
+     * 初始视口尺寸（CSS px）。WebView 先在屏外以该尺寸创建/加载，再揭示到最终
+     * 位置，避免页面按默认 800×600 布局后二次 resize 导致的重排闪烁。
+     */
+    initialSize?: { width: number; height: number },
   ) => Promise<string | null>;
   // 注：非 Tauri 宿主（mock/preview/http）当前忽略 location（无原生 WebView2/UDF
   // 概念），签名保留以便将来按宿主分区前端缓存时直接复用。

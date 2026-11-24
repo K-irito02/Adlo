@@ -244,6 +244,11 @@ export const browserEn = {
   browserSuspendWhitelistEnabled: 'Enable suspend whitelist',
   browserSuspendWhitelistEnabledDesc:
     'When on, tabs of listed sites are never suspended (exempt from both idle and memory-pressure suspend)',
+  browserShareProfileTitle: 'Browsing profile',
+  browserShareProfile: 'Share browsing profile',
+  browserShareProfileDesc:
+    'When on, the right panel browser tabs and the center browser tabs share one browsing profile. This applies to new tabs only. When off, the right panel browser tabs and the center browser tabs use separate profiles.',
+  browserShareProfileDesktopOnly: 'Desktop mode only.',
   browserSuspendWhitelist: 'Suspend whitelist',
   browserSuspendWhitelistDesc: 'Tabs of listed sites are never suspended, matched by site origin',
   browserSuspendWhitelistEmpty: 'No exempt sites yet, click Add to add',
@@ -286,6 +291,7 @@ export const browserEn = {
   browserDownloadUnknownSize: 'Unknown size',
   browserDownloadCompletedAt: 'Completed at {time}',
   browserDownloadFailedReason: 'Reason: {reason}',
+  browserDownloadBlobFailedToast: 'Download failed: {name}',
   // Download pause confirmation dialog
   browserDownloadPauseDialogTitle: 'Server does not support pause',
   browserDownloadPauseDialogDesc:

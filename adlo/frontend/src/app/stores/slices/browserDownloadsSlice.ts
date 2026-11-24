@@ -14,6 +14,9 @@ import type {
 import type { IpcResult } from '@adlo/kernel';
 import { buildTabsById } from './browserFoldersUtils';
 import { DEFAULT_DOWNLOAD_MODE } from '@shared/defaultPreferences';
+import { browserZh } from '../../i18n/zh-CN/browser';
+import { browserEn } from '../../i18n/en-US/browser';
+import { resolveAppLanguage } from '../../i18n/resolveLanguage';
 
 /**
  * Whether a tab still has at least one active (in_progress) download after a
@@ -422,6 +425,17 @@ export const createBrowserDownloadsSlice = (
         return;
       }
       const payload = event.payload;
+      // Blob-save failures have no download record (empty id): surface them as
+      // a toast instead of silently matching nothing.
+      const hasRecord = get().downloads.some((d) => d.id === payload.id);
+      if (!hasRecord && payload.fileName) {
+        const locale = resolveAppLanguage(get().appInfo?.config?.language);
+        const template =
+          locale === 'en-US'
+            ? browserEn.browserDownloadBlobFailedToast
+            : browserZh.browserDownloadBlobFailedToast;
+        get().showToast(template.replace('{name}', payload.fileName), 'error');
+      }
       set((state) => {
         const { [payload.id]: _removed, ...rest } = state.activeDownloads;
         // Find the download record to get source_tab_id

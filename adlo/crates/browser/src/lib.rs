@@ -15,11 +15,13 @@ mod page_meta_service;
 mod site_meta_cache;
 mod webview2_audio;
 mod webview2_background;
+mod webview2_challenge;
 mod webview2_cleanup;
 mod webview2_download;
 mod webview2_favicon;
 mod webview2_history;
 mod webview2_message;
+mod webview2_navigation;
 mod webview2_postmessage;
 mod webview2_profile;
 mod webview2_title;
@@ -51,3 +53,5 @@ pub use webview2_history::{can_go_back_webview2, can_go_forward_webview2};
 
 #[cfg(windows)]
 pub use webview2_background::{navigate_core, set_default_background_color};
+#[cfg(windows)]
+pub use webview2_navigation::navigate_core_with_referrer;
