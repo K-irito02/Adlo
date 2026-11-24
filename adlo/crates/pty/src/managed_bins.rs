@@ -198,8 +198,10 @@ mod tests {
     #[test]
     fn no_inherited_path_keeps_only_managed_dirs() {
         let dirs = vec![PathBuf::from("managed/a"), PathBuf::from("managed/b")];
-        let path = terminal_path_from(&dirs, Some(&OsString::new())).expect("path");
-        let parts: Vec<PathBuf> = std::env::split_paths(&path).collect();
+        let from_empty = terminal_path_from(&dirs, Some(&OsString::new())).expect("path");
+        let from_none = terminal_path_from(&dirs, None).expect("path");
+        assert_eq!(from_none, from_empty);
+        let parts: Vec<PathBuf> = std::env::split_paths(&from_empty).collect();
         assert_eq!(parts, dirs);
     }
 

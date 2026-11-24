@@ -233,14 +233,19 @@ mod tests {
         crate::managed_bins::set_managed_state(vec![PathBuf::from(r"C:\managed\shim")], Vec::new());
         let env = terminal_env("pwsh");
         crate::managed_bins::set_managed_state(Vec::new(), Vec::new());
-        assert!(
-            std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).count() > 1,
-            "test host PATH needs several entries to be meaningful"
-        );
+        // 单条目宿主 PATH 无法复现“整体加引号”的失败；跳过而不是把环境前置条件写成断言。
+        if std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).count() <= 1 {
+            eprintln!("skip: host PATH has a single entry; quoting regression cannot be exercised");
+            return;
+        }
         let (_, path) =
             env.iter().find(|(key, _)| key.eq_ignore_ascii_case("PATH")).expect("PATH injected");
         let text = path.to_string_lossy();
         assert!(!text.contains('"'), "PATH must stay quoteless: {text}");
-        assert!(text.contains(r"C:\managed\shim"), "managed dir must lead PATH: {text}");
+        assert_eq!(
+            std::env::split_paths(path).next().as_deref(),
+            Some(std::path::Path::new(r"C:\managed\shim")),
+            "managed dir must lead PATH: {text}"
+        );
     }
 }
