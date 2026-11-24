@@ -7,13 +7,21 @@
  * Usage (from the repo root or `adlo/`):
  *   pnpm run worktree:disk                              # report all worktrees
  *   pnpm run worktree:disk -- --current                 # only this worktree
+ *   pnpm run worktree:disk -- --only main,slot-1        # named worktrees only
  *   pnpm run worktree:disk -- --clean                   # delete target/ + node_modules/
+ *   pnpm run worktree:disk -- --only main --clean       # clean named worktrees
  *   pnpm run worktree:disk -- --clean --keep-node-modules
  *   pnpm run worktree:disk -- --clean --dry-run
  *   pnpm run worktree:disk -- --clean --include-instance-state
  *
+ * `--only` exists so a session can clean a worktree it does not own without
+ * `cd`-ing into it (the skill forbids entering another session's worktree).
+ *
  * Dev instance state (`<adlo>/.adl-instance/`) is preserved by default. A legacy
- * `target/adl-instance/` is migrated there before `target/` is removed.
+ * `target/adl-instance/` is migrated there before `target/` is removed. Every
+ * real clean appends one line to `adlo/.adl-instance/clean-events.jsonl`, and
+ * the report's `cleaned` column surfaces it, so the next session knows the tree
+ * is a cold build.
  *
  * Implementation note: `describeWorktree` is the only recursive scan; cleaning
  * reuses its sizes so a `--clean` run walks each tree once.
@@ -25,11 +33,12 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { findLockedDevExecutables } from "./dev-instance.mjs";
 import { INSTANCE_STATE_DIRNAME } from "./instance-id.mjs";
-import { listWorktrees } from "./worktree-registry.mjs";
+import { formatAge, listWorktrees } from "./worktree-registry.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];
+const CLEAN_LOG_FILENAME = "clean-events.jsonl";
 
 export function formatBytes(bytes) {
   let value = Number(bytes) || 0;
@@ -42,9 +51,16 @@ export function formatBytes(bytes) {
   return `${value.toFixed(digits)} ${BYTE_UNITS[unit]}`;
 }
 
+/** Signed variant for free-space deltas (`+105.2 GB`, `-512 MB`, `0 B`). */
+export function formatDelta(bytes) {
+  const sign = bytes > 0 ? "+" : bytes < 0 ? "-" : "";
+  return `${sign}${formatBytes(Math.abs(bytes))}`;
+}
+
 export function parseArgs(argv) {
   const options = {
     current: false,
+    only: [],
     clean: false,
     dryRun: false,
     keepNodeModules: false,
@@ -52,9 +68,22 @@ export function parseArgs(argv) {
     force: false,
     help: false,
   };
-  for (const arg of argv) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
     if (arg === "--current") {
       options.current = true;
+    } else if (arg === "--only") {
+      const value = argv[index + 1];
+      if (!value || value.startsWith("--")) {
+        throw new Error("--only needs a value: <branch|dir>[,<...>]");
+      }
+      index += 1;
+      for (const name of value.split(",")) {
+        const trimmed = name.trim();
+        if (trimmed && !options.only.includes(trimmed)) {
+          options.only.push(trimmed);
+        }
+      }
     } else if (arg === "--clean") {
       options.clean = true;
     } else if (arg === "--dry-run") {
@@ -71,7 +100,47 @@ export function parseArgs(argv) {
       throw new Error(`unknown option: ${arg}`);
     }
   }
+  if (options.current && options.only.length > 0) {
+    throw new Error("--current and --only are exclusive; pick one");
+  }
   return options;
+}
+
+/**
+ * Restrict the worktree list to the named branches / directory names / paths.
+ * Empty selection = everything. An unmatched name is an error, never a silent
+ * empty run: cleaning the wrong tree set is unrecoverable.
+ */
+export function selectWorktrees(worktrees, selections = []) {
+  if (selections.length === 0) {
+    return worktrees;
+  }
+  const normalize = (value) =>
+    path
+      .resolve(value)
+      .replace(/[\\/]+$/, "")
+      .toLowerCase();
+  const matches = (worktree, selection) =>
+    (worktree.branch ?? "").toLowerCase() === selection.toLowerCase() ||
+    path.basename(worktree.path).toLowerCase() === selection.toLowerCase() ||
+    normalize(worktree.path) === normalize(selection);
+  const picked = new Set();
+  const unknown = [];
+  for (const selection of selections) {
+    const hits = worktrees.filter((worktree) => matches(worktree, selection));
+    if (hits.length === 0) {
+      unknown.push(selection);
+      continue;
+    }
+    for (const hit of hits) {
+      picked.add(hit);
+    }
+  }
+  if (unknown.length > 0) {
+    const available = worktrees.map((worktree) => worktree.branch ?? worktree.path).join(", ");
+    throw new Error(`unknown worktree selector: ${unknown.join(", ")} (available: ${available})`);
+  }
+  return worktrees.filter((worktree) => picked.has(worktree));
 }
 
 /** Size of a directory tree in bytes/files. Symlinks are not followed. */
@@ -181,6 +250,41 @@ function migrateLegacyState(adlo, target) {
   return true;
 }
 
+export function cleanLogPath(adloPath) {
+  return path.join(adloPath, INSTANCE_STATE_DIRNAME, CLEAN_LOG_FILENAME);
+}
+
+/**
+ * Append one JSONL record of a completed clean. Written after deletion, so
+ * `--include-instance-state` recreates a bare `.adl-instance/` holding only
+ * this log — the dev DB / profile are gone either way, and the trace survives.
+ */
+export function recordCleanEvent(worktreePath, event) {
+  const file = cleanLogPath(path.join(worktreePath, "adlo"));
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.appendFileSync(file, `${JSON.stringify(event)}\n`, "utf8");
+  return file;
+}
+
+/** Latest clean event for a worktree, or null when it has never been cleaned. */
+export function readLastCleanEvent(worktreePath) {
+  let text;
+  try {
+    text = fs.readFileSync(cleanLogPath(path.join(worktreePath, "adlo")), "utf8");
+  } catch {
+    return null;
+  }
+  const line = text.split(/\r?\n/).filter(Boolean).at(-1);
+  if (!line) {
+    return null;
+  }
+  try {
+    return JSON.parse(line);
+  } catch {
+    return null;
+  }
+}
+
 function cleanWorktree(worktreePath, options) {
   const adlo = path.join(worktreePath, "adlo");
   const target = path.join(adlo, "target");
@@ -197,14 +301,22 @@ function cleanWorktree(worktreePath, options) {
 
   const info = describeWorktree(worktreePath);
   const plan = [];
+  const deleted = [];
+  let plannedBytes = 0;
   if (fs.existsSync(target)) {
     plan.push(`target (${formatBytes(info.target.bytes)})`);
+    plannedBytes += info.target.bytes;
+    deleted.push("target");
   }
   if (!options.keepNodeModules && fs.existsSync(nodeModules)) {
     plan.push(`node_modules (${formatBytes(info.nodeModules.bytes)})`);
+    plannedBytes += info.nodeModules.bytes;
+    deleted.push("node_modules");
   }
   if (options.includeInstanceState && fs.existsSync(state)) {
     plan.push(`${INSTANCE_STATE_DIRNAME} (${formatBytes(info.state.bytes)})`);
+    plannedBytes += info.state.bytes;
+    deleted.push(INSTANCE_STATE_DIRNAME);
   }
 
   if (plan.length === 0) {
@@ -216,6 +328,7 @@ function cleanWorktree(worktreePath, options) {
     return { skipped: false };
   }
 
+  const freeBefore = freeBytes(worktreePath);
   try {
     if (!options.includeInstanceState && migrateLegacyState(adlo, target)) {
       console.log(`[worktree:disk] ${label}: migrated legacy target/adl-instance -> .adl-instance`);
@@ -232,7 +345,34 @@ function cleanWorktree(worktreePath, options) {
     return { skipped: true };
   }
 
+  const freeAfter = freeBytes(worktreePath);
+  const freeDelta = freeBefore !== null && freeAfter !== null ? freeAfter - freeBefore : null;
   console.log(`[worktree:disk] cleaned ${label}: ${plan.join(", ")}`);
+  if (freeDelta !== null) {
+    console.log(
+      `[worktree:disk]   free ${formatBytes(freeBefore)} -> ${formatBytes(freeAfter)} (Δ ${formatDelta(freeDelta)})`,
+    );
+  }
+  try {
+    const file = recordCleanEvent(worktreePath, {
+      at: new Date().toISOString(),
+      tree: label,
+      path: worktreePath,
+      branch: info.branch,
+      deleted,
+      plannedBytes,
+      freeBefore,
+      freeAfter,
+      freeDelta,
+      keepNodeModules: options.keepNodeModules,
+      includeInstanceState: options.includeInstanceState,
+    });
+    console.log(
+      `[worktree:disk]   logged ${path.relative(worktreePath, file).split(path.sep).join("/")}`,
+    );
+  } catch (error) {
+    console.error(`[worktree:disk]   clean log failed: ${error.message}`);
+  }
   return { skipped: false };
 }
 
@@ -242,11 +382,14 @@ function printUsage() {
       "Usage: pnpm run worktree:disk -- [options]",
       "",
       "  (no flags)                report every worktree",
+      "  --only <branch|dir>[,…]   restrict report/clean to the named worktrees",
       "  --current                 only the worktree containing the current directory",
       "  --clean                   delete target/ + node_modules/ (dry-run with --dry-run)",
       "  --keep-node-modules       keep node_modules when cleaning",
       "  --include-instance-state  also delete .adl-instance (dev DB + WebView profile)",
       "  --force                   clean even when a dev image is locked",
+      "",
+      `Clean events append to <adlo>/${INSTANCE_STATE_DIRNAME}/${CLEAN_LOG_FILENAME}.`,
     ].join("\n"),
   );
 }
@@ -271,9 +414,15 @@ function main() {
     process.exit(1);
   }
 
-  const worktrees = options.current
-    ? [{ path: toplevel, branch: null, head: null, detached: false }]
-    : listWorktrees(toplevel);
+  let worktrees;
+  try {
+    worktrees = options.current
+      ? [{ path: toplevel, branch: null, head: null, detached: false }]
+      : selectWorktrees(listWorktrees(toplevel), options.only);
+  } catch (error) {
+    console.error(`[worktree:disk] ${error.message}`);
+    process.exit(2);
+  }
 
   if (!options.clean) {
     const free = freeBytes(toplevel);
@@ -282,6 +431,8 @@ function main() {
     }
     const rows = worktrees.map((worktree) => {
       const info = describeWorktree(worktree.path);
+      const lastClean = readLastCleanEvent(worktree.path);
+      const cleanedAt = lastClean?.at ? Date.parse(lastClean.at) : NaN;
       return {
         branch: info.branch,
         dirty: String(info.dirty),
@@ -291,6 +442,7 @@ function main() {
         legacyState: formatBytes(info.legacyState.bytes),
         state: formatBytes(info.state.bytes),
         nodeModules: formatBytes(info.nodeModules.bytes),
+        cleaned: Number.isNaN(cleanedAt) ? "—" : formatAge(Math.max(0, Date.now() - cleanedAt)),
         path: info.path,
       };
     });
@@ -328,13 +480,19 @@ function main() {
       "modules",
       rows.map((row) => row.nodeModules),
     );
+    const cleanedWidth = width(
+      "cleaned",
+      rows.map((row) => row.cleaned),
+    );
 
     console.log(
       `  ${"branch".padEnd(branchWidth)}  ${"dirty".padEnd(dirtyWidth)}  ${"target".padEnd(
         targetWidth,
       )}  ${"debug".padEnd(debugWidth)}  ${"release".padEnd(releaseWidth)}  ${"legacy".padEnd(
         legacyWidth,
-      )}  ${"state".padEnd(stateWidth)}  ${"modules".padEnd(modulesWidth)}  path`,
+      )}  ${"state".padEnd(stateWidth)}  ${"modules".padEnd(modulesWidth)}  ${"cleaned".padEnd(
+        cleanedWidth,
+      )}  path`,
     );
     for (const row of rows) {
       console.log(
@@ -344,7 +502,9 @@ function main() {
           releaseWidth,
         )}  ${row.legacyState.padEnd(legacyWidth)}  ${row.state.padEnd(
           stateWidth,
-        )}  ${row.nodeModules.padEnd(modulesWidth)}  ${row.path}`,
+        )}  ${row.nodeModules.padEnd(modulesWidth)}  ${row.cleaned.padEnd(
+          cleanedWidth,
+        )}  ${row.path}`,
       );
     }
     return;

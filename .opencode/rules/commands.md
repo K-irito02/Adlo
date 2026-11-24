@@ -20,7 +20,7 @@ alwaysApply: false
 | `pnpm run dev:stop` | 停止本工作树的 dev 实例，释放 `target/debug` 构建产物锁 |
 | `pnpm run prototype:serve` | 起原型静态服务（根目录 `adlo/frontend/`，固定 5200 端口，Ctrl+C 退出；不放宽端口） |
 | `pnpm run worktree:env` | 输出并行开发所需的 `[ENV]` 快照（分支 / base / dirty / instance / hooks / graph）；加 `-- --all` 追加 `[WORKTREES]` 全仓对照表 |
-| `pnpm run worktree:disk` | 跨工作树磁盘报告（target / debug / release / `.adl-instance` / node_modules）；`-- --clean` 清产物，`-- --dry-run` 预览 |
+| `pnpm run worktree:disk` | 跨工作树磁盘报告（target / debug / release / `.adl-instance` / node_modules / 上次清理时间）；`-- --only <branch,…> --clean` 点名清产物，`-- --dry-run` 预览，其余开关见 `-- --help` |
 | `pnpm run worktree:sessions` | 会话注册表巡检；`-- --reap --older-than 3d` 把 stale `active` 改为 `paused`（人类运行） |
 | `pnpm run push:both -- <branch…>` | 一次推 `origin` + `gitee`；第二个远程跳过重复 pre-push（同一批 SHA 已过门禁），结束用 `ls-remote` 校验两端 SHA |
 | `pnpm run build` | 构建所有包 |

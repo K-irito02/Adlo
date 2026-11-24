@@ -4,7 +4,17 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { directorySize, formatBytes, parseArgs, removePath } from "./worktree-disk.mjs";
+import {
+  cleanLogPath,
+  directorySize,
+  formatBytes,
+  formatDelta,
+  parseArgs,
+  readLastCleanEvent,
+  recordCleanEvent,
+  removePath,
+  selectWorktrees,
+} from "./worktree-disk.mjs";
 
 test("formatBytes picks a readable unit", () => {
   assert.equal(formatBytes(0), "0 B");
@@ -12,9 +22,16 @@ test("formatBytes picks a readable unit", () => {
   assert.equal(formatBytes(1.25 * 1024 ** 3), "1.3 GB");
 });
 
+test("formatDelta signs reclaimed space", () => {
+  assert.equal(formatDelta(1024 ** 3), "+1.0 GB");
+  assert.equal(formatDelta(-512 * 1024 ** 2), "-512 MB");
+  assert.equal(formatDelta(0), "0 B");
+});
+
 test("parseArgs defaults to a read-only report over all worktrees", () => {
   assert.deepEqual(parseArgs([]), {
     current: false,
+    only: [],
     clean: false,
     dryRun: false,
     keepNodeModules: false,
@@ -24,6 +41,44 @@ test("parseArgs defaults to a read-only report over all worktrees", () => {
   });
   assert.equal(parseArgs(["--clean", "--keep-node-modules"]).keepNodeModules, true);
   assert.throws(() => parseArgs(["--nope"]), /unknown option/);
+});
+
+test("parseArgs collects --only selectors and rejects the --current mix", () => {
+  assert.deepEqual(parseArgs(["--only", "main,slot-1"]).only, ["main", "slot-1"]);
+  assert.deepEqual(parseArgs(["--only", "main", "--only", "slot-2"]).only, ["main", "slot-2"]);
+  assert.deepEqual(parseArgs(["--only", "main, main"]).only, ["main"]);
+  assert.throws(() => parseArgs(["--only"]), /--only needs a value/);
+  assert.throws(() => parseArgs(["--only", "--clean"]), /--only needs a value/);
+  assert.throws(() => parseArgs(["--only", "main", "--current"]), /exclusive/);
+});
+
+test("selectWorktrees picks by branch, directory name, or path", () => {
+  const trees = [
+    { path: "E:/ws", branch: "main" },
+    { path: "E:/ws-worktrees/slot-1", branch: "slot-1" },
+    { path: "E:/ws-worktrees/slot-2", branch: "slot-2" },
+  ];
+  assert.deepEqual(selectWorktrees(trees, []), trees);
+  assert.deepEqual(
+    selectWorktrees(trees, ["main", "slot-1"]).map((tree) => tree.branch),
+    ["main", "slot-1"],
+  );
+  assert.deepEqual(
+    selectWorktrees(trees, ["slot-2"]).map((tree) => tree.branch),
+    ["slot-2"],
+  );
+  assert.deepEqual(
+    selectWorktrees(trees, ["E:/ws-worktrees/slot-2"]).map((tree) => tree.branch),
+    ["slot-2"],
+  );
+  assert.deepEqual(
+    selectWorktrees(trees, ["slot-2", "main"]).map((tree) => tree.branch),
+    ["main", "slot-2"],
+  );
+  assert.throws(
+    () => selectWorktrees(trees, ["nope"]),
+    /unknown worktree selector: nope \(available: main, slot-1, slot-2\)/,
+  );
 });
 
 test("directorySize sums nested files without following symlinks", () => {
@@ -48,4 +103,30 @@ test("removePath removes a tree and reports whether it existed", () => {
   assert.equal(fs.existsSync(victim), false);
   assert.equal(removePath(victim), false);
   fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("clean events append in order and the latest one reads back", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "adl-cleanlog-"));
+  try {
+    assert.equal(readLastCleanEvent(root), null);
+    recordCleanEvent(root, { at: "2026-11-25T00:00:00.000Z", tree: "main", plannedBytes: 10 });
+    recordCleanEvent(root, { at: "2026-11-25T01:00:00.000Z", tree: "slot-1", plannedBytes: 20 });
+    const log = cleanLogPath(path.join(root, "adlo"));
+    assert.equal(fs.readFileSync(log, "utf8").trim().split("\n").length, 2);
+    assert.equal(readLastCleanEvent(root).tree, "slot-1");
+    assert.equal(readLastCleanEvent(root).plannedBytes, 20);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("clean log survives a corrupted last line", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "adl-cleanlog-"));
+  try {
+    recordCleanEvent(root, { at: "2026-11-25T00:00:00.000Z", tree: "main" });
+    fs.appendFileSync(cleanLogPath(path.join(root, "adlo")), "{not json\n", "utf8");
+    assert.equal(readLastCleanEvent(root), null);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

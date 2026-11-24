@@ -112,7 +112,7 @@ CSS 选择器/层叠/布局/主题变更：按 [desktop-ui-verification.md](../.
 - 第三方依赖 `debug=1` + `opt-level=1`；自有 crate 白名单保留 `debug=2`（`.cargo/config.toml`）。
 - **dev 实例状态不在 `target/`**：launcher 登记（`dev-instance.json`）、locator 指针与 adl-server 数据根在 `adlo/.adl-instance/`（gitignored）；**桌面壳数据根与 WebView2 profile 在 `%APPDATA%\<identifier>`**（`com.adlo.app` / `com.adlo.app.<worktree>`，含 `site-meta-cache.db`）。两处都不受 `cargo clean` 影响；旧工作树的 `target/adl-instance/` 会在首次清理时迁移过去。逐路径对照表见 [storage-locations.md](../docs/architecture/core/storage-locations.md#多工作树-dev-实例的磁盘落点排查用)。
 - **清理策略**：`target/debug` 超过 30 GB → `pwsh -NoProfile -File .cargo\clean-target.ps1`（保留 dev 状态；`-WhatIf` 干跑）。脚本先做进程预检，`adlo.exe` / `adl-server.exe` 被占用时退出码 2；确需连 dev 状态一起删，显式加 `-IncludeInstanceState`。
-- **跨工作树**：`pnpm run worktree:disk` 报告各槽 `target` / `.adl-instance` / `node_modules` 体积；`-- --clean` 只清构建产物（进程预检 + 长路径处理）。注册表 stale 会话用 `pnpm run worktree:sessions -- --reap` 收口。
+- **跨工作树**：`pnpm run worktree:disk` 报告各槽 `target` / `.adl-instance` / `node_modules` 体积与 `cleaned`（距上次清理）；`-- --only <branch,…> --clean` 只清理点名的工作树（默认删 `target/` + `node_modules/`、保留 `.adl-instance`，其余开关见 `-- --help`），清理事件追加到 `adlo/.adl-instance/clean-events.jsonl`。注册表 stale 会话用 `pnpm run worktree:sessions -- --reap` 收口。
 - 所有删除均为**永久删除**：不进回收站/垃圾箱。
 
 相关文件：`.cargo/config.toml`（alias `rebuild` = `clean && build`、`prune` = `clean`）。

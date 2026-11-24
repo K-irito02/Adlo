@@ -296,15 +296,17 @@ pnpm --dir "$ROOT/adlo" run check:all
 | 分支已合并   | 保留目录，注册表 `status: merged`                                     |
 | 分支被放弃   | 保留目录，`status: done`，`notes` 写明原因                            |
 | 会话结束     | 只更新注册表，不动目录                                                |
-| 只清产物     | `pnpm --dir adlo run worktree:disk -- --clean`（默认保留 `.adl-instance`） |
+| 只清产物     | `pnpm --dir adlo run worktree:disk -- --only <branch,…> --clean`（默认删 `target/` + `node_modules/`，保留 `.adl-instance`；其余开关见 `-- --help`） |
 | 注册表 stale | `pnpm --dir adlo run worktree:sessions -- --reap --older-than 3d`     |
 
 保留的目的是保住 `target/`、`node_modules/` 与 `adlo/.adl-instance/`（dev 实例 DB / WebView2 profile / locator，已移出 `target`，`cargo clean` 不再误删）。只有三种情况清理：用户明确要求；该工作树无 active 会话且 `target` 超 30 GB；目录已 `prunable`。
 
 ```powershell
 pnpm --dir adlo run worktree:disk                              # 全仓体积报告（先看再删）
+pnpm --dir adlo run worktree:disk -- --only main,slot-1        # 只看点名的工作树
+pnpm --dir adlo run worktree:disk -- --only main,slot-1 --clean --dry-run  # 干跑
+pnpm --dir adlo run worktree:disk -- --only main,slot-1 --clean            # 只清点名的树
 pnpm --dir adlo run worktree:disk -- --current --clean         # 只清当前工作树产物
-pnpm --dir adlo run worktree:disk -- --clean --dry-run         # 跨树清理干跑
 pwsh -NoProfile -File "adlo/.cargo/clean-target.ps1"           # 或：单树 + 30GB 阈值
 pwsh -NoProfile -File "adlo/.cargo/clean-target.ps1" -WhatIf   # 干跑
 git -C "$ROOT" worktree remove "$WT_ROOT/<name>"               # 用户批准后
@@ -314,6 +316,8 @@ Remove-Item -LiteralPath "\\?\$WT_ROOT\<name>" -Recurse -Force # 整删后重跑
 ```
 
 `clean-target.ps1` 先做进程预检（本工作树 `adlo.exe` / `adl-server.exe` 被占用 → 退出码 2），默认保留 `.adl-instance`；要连 dev 状态一起删加 `-IncludeInstanceState`（`worktree:disk` 对应 `--include-instance-state`）。`worktree:disk --clean` 属破坏性操作：按不变量 3，只在用户明确要求或本会话专属工作树内使用。
+
+**清理别的工作树用 `--only`，不要切过去**：用户点名要清不是自己的树（例如主工作树的 `target`）时，在本会话目录执行 `--only <branch,…> --clean`；切到该树目录跑 `--current` 违反 §8.1。每次真实清理在 `<tree>/adlo/.adl-instance/clean-events.jsonl` 追加一行，报告 `cleaned` 列显示距上次清理的时长——某树显示 `just now` 说明下次构建是冷构建。
 
 磁盘预算（实测 2026-10-24：`E:` 余 118 GB）：并发工作树 ≤ 2，单工作树 `target` ≤ 30 GB，新建工作树前余量 ≥ 60 GB。
 

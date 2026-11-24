@@ -157,7 +157,7 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 2. 空间阈值触发全量清理：`target/debug` 超 30 GB → 执行 `clean-target.ps1` 全量 `cargo clean`（不按时间窗口判断）
 3. 手动全清使用 `cargo clean`（或 `cargo prune` 别名 = `clean`）
 4. **dev 状态不随构建清理**：实例 DB / WebView2 profile / locator 在 `adlo/.adl-instance/`（gitignored），`cargo clean` 不碰它；旧工作树的 `target/adl-instance/` 会在清理时迁移。要连状态一起删必须显式 `clean-target.ps1 -IncludeInstanceState`
-5. **跨工作树**：`pnpm --dir adlo run worktree:disk` 报告各槽体积，`-- --clean` 清 `target` + `node_modules`（进程预检、默认保留 `.adl-instance`）；stale 注册表用 `worktree:sessions -- --reap` 收口
+5. **跨工作树**：`pnpm --dir adlo run worktree:disk` 报告各槽体积与 `cleaned`（距上次清理），`-- --only <branch,…> --clean` 只清点名的树（清 `target` + `node_modules`，进程预检、默认保留 `.adl-instance`，其余开关见 `-- --help`；清理事件写入 `adlo/.adl-instance/clean-events.jsonl`）；stale 注册表用 `worktree:sessions -- --reap` 收口
 
 > 上述清理均为**永久删除**：`cargo clean` / `clean-target.ps1` 直接物理删除构建产物，**不进入回收站/垃圾箱**，无需清空回收站。
 
