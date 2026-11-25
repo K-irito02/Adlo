@@ -66,7 +66,7 @@ export const BrowserIframeStack = memo(function BrowserIframeStack() {
     <>
       {!activeTab?.url || !hasActiveTab || activeTab?.url === 'about:blank' ? (
         <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser">
-          <BrowserLandingPage t={t} />
+          <BrowserLandingPage t={t} active={isBrowserVisible} />
         </div>
       ) : (
         <div className="adl-browser-iframe-stack">

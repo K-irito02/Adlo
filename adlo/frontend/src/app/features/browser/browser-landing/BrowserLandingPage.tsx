@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { invokeIpc } from '../../../../tauri-bridge/tauri-shared';
 import { useOpenInCenterAction } from '../useOpenInCenterAction';
 import { BackgroundLayer } from './BackgroundLayer';
+import { LandingVolumeControl } from './LandingVolumeControl';
 import { ShortcutGrid } from './ShortcutGrid';
 import { LocalPortSection } from './LocalPortSection';
 import { AddShortcutDialog } from './AddShortcutDialog';
@@ -25,11 +26,17 @@ interface BrowserLandingPageProps {
    * （`browserOpenTab` 后 `centerShowBrowserTab`）。缺省保持面板行为不变。
    */
   onOpenUrl?: (url: string) => void;
+  /**
+   * 宿主是否可见。右侧面板收起 / 切到非浏览器工具 / 中心被浮层遮挡时为 `false`：
+   * 视频面停止绘制并静音；主视频仍在后台播放，切回来进度连续。
+   */
+  active?: boolean;
 }
 
-export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
+export function BrowserLandingPage({ t, onOpenUrl, active = true }: BrowserLandingPageProps) {
   const {
     browserBgConfig,
+    browserSetBgConfig,
     browserOpenTab,
     browserAddShortcut,
     browserRenameShortcut,
@@ -40,6 +47,7 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
   } = useAppStore(
     useShallow((state) => ({
       browserBgConfig: state.browserBgConfig,
+      browserSetBgConfig: state.browserSetBgConfig,
       browserOpenTab: state.browserOpenTab,
       browserAddShortcut: state.browserAddShortcut,
       browserRenameShortcut: state.browserRenameShortcut,
@@ -411,7 +419,11 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
 
   return (
     <div className="adl-browser-landing">
-      <BackgroundLayer config={browserBgConfig} />
+      <BackgroundLayer
+        config={browserBgConfig}
+        active={active}
+        muted={browserBgConfig.muted ?? true}
+      />
       <div className="adl-browser-landing__content">
         <ShortcutGrid
           t={t}
@@ -443,6 +455,24 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
           {t.browserCustomBg}
         </button>
       </div>
+
+      {browserBgConfig.mode === 'video' && (
+        <LandingVolumeControl
+          volume={browserBgConfig.volume ?? 0}
+          muted={browserBgConfig.muted ?? true}
+          onVolumeChange={(volume) => {
+            browserSetBgConfig({ ...browserBgConfig, volume, muted: volume === 0 });
+          }}
+          onToggleMute={() =>
+            browserSetBgConfig({
+              ...browserBgConfig,
+              muted: !(browserBgConfig.muted ?? true),
+            })
+          }
+          label={t.browserBgVolume}
+          editHint={t.browserBgVolumeEditHint}
+        />
+      )}
 
       <AddShortcutDialog
         open={dialogOpen}

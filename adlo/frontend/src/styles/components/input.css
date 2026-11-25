@@ -29,8 +29,7 @@
 .input:focus-visible,
 .textarea:focus-visible,
 .select:focus-visible {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring);
+  border-color: var(--focus-border);
   outline: 0;
 }
 

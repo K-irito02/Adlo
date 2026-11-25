@@ -193,6 +193,27 @@ html:not(.no-transition) [data-theme] {
   --focus-ring: rgba(37, 99, 235, 0.28);
   --focus-ring-width: 3px;
   --focus-ring-offset: 2px;
+  /* 表单控件聚焦：中性高对比（亮色黑 / 暗色白），不使用品牌蓝。
+     规范见 docs/design-system/foundations/tokens.md。 */
+  --focus-border: #000000;
+
+  /* === 着陆页表面（卡片投影 / 音量胶囊） === */
+  --landing-title-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+  --landing-icon-ring: rgba(255, 255, 255, 0.85);
+  --landing-icon-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  --landing-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9), 0 0 10px rgba(255, 255, 255, 0.7);
+  --landing-label-shadow: 0 1px 2px rgba(255, 255, 255, 0.85);
+  --landing-volume-veil: rgba(255, 255, 255, 0.62);
+  --landing-volume-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  --landing-volume-icon-color: rgba(240, 241, 243, 0.88);
+  --landing-volume-icon-hover-bg: rgba(255, 255, 255, 0.16);
+  --landing-volume-icon-hover-color: #ffffff;
+  --landing-volume-icon-drop: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --landing-volume-percent-color: rgba(0, 0, 0, 0.72);
+  --landing-volume-track: rgba(0, 0, 0, 0.16);
+  --landing-volume-fill: rgba(0, 0, 0, 0.78);
+  --landing-volume-thumb: #111111;
+  --landing-volume-thumb-shadow: 0 1px 4px rgba(255, 255, 255, 0.5);
 
   /* === Shadow System (light) === */
   --shadow-none: none;
@@ -517,6 +538,26 @@ html:not(.no-transition) [data-theme] {
   --focus-ring: rgba(96, 165, 250, 0.35);
   --focus-ring-width: 3px;
   --focus-ring-offset: 2px;
+  /* 表单控件聚焦：中性高对比（暗色白），不使用品牌蓝。 */
+  --focus-border: #ffffff;
+
+  /* === 着陆页表面（卡片投影 / 音量胶囊） === */
+  --landing-title-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  --landing-icon-ring: rgba(255, 255, 255, 0.22);
+  --landing-icon-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  --landing-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 0, 0, 0.45);
+  --landing-label-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  --landing-volume-veil: rgba(20, 22, 26, 0.66);
+  --landing-volume-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  --landing-volume-icon-color: rgba(240, 241, 243, 0.88);
+  --landing-volume-icon-hover-bg: rgba(255, 255, 255, 0.16);
+  --landing-volume-icon-hover-color: #ffffff;
+  --landing-volume-icon-drop: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --landing-volume-percent-color: rgba(255, 255, 255, 0.82);
+  --landing-volume-track: rgba(255, 255, 255, 0.22);
+  --landing-volume-fill: rgba(255, 255, 255, 0.9);
+  --landing-volume-thumb: #ffffff;
+  --landing-volume-thumb-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 
   /* === Shadow System (dark) === */
   --shadow-none: none;

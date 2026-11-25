@@ -1,0 +1,50 @@
+.adl-volume-percent-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 34px;
+  flex-shrink: 0;
+}
+
+.adl-volume-percent {
+  width: 100%;
+  padding: 0 4px;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  font-size: 11px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  text-align: right;
+  cursor: default;
+  user-select: none;
+  transition: background var(--duration-100);
+}
+
+.adl-volume-percent:hover,
+.adl-volume-percent:focus-visible {
+  background: var(--bg-hover);
+  outline: none;
+}
+
+.adl-volume-percent__input {
+  width: 100%;
+  height: 14px;
+  padding: 0 2px;
+  border: 1px solid var(--focus-border);
+  border-radius: 2px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 10px;
+  line-height: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  outline: none;
+}
+
+/* base.css 的 :focus-visible 会设置 border-radius: inherit；用更高优先级固定 2px。 */
+.adl-volume-percent__input:focus,
+.adl-volume-percent__input:focus-visible {
+  border-radius: 2px;
+}

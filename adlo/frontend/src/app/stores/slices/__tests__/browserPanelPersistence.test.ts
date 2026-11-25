@@ -311,7 +311,8 @@ describe('every migrated browser key round-trips through the registry', () => {
       key: 'adl:browser.bgConfig',
       field: 'browserBgConfig',
       legacyKey: 'adl-ui:browser-bg-config',
-      act: (s) => s.browserSetBgConfig({ mode: 'image', fit: 'contain', filePath: '/bg.png' }),
+      act: (s) =>
+        s.browserSetBgConfig({ mode: 'image', fit: 'contain', assetId: 'background-image-seed' }),
     },
     {
       key: 'adl:browser.configuredPorts',
@@ -374,5 +375,123 @@ describe('every migrated browser key round-trips through the registry', () => {
     // 断言真实值，而非"非 undefined"：水合前每条键都会把 fallback 写进 patch，
     // 若解析器静默失败（或走 fallback），这里因 fallback ≠ 写入值而失败。
     expect(patch[field], `${field} must be hydrated`).toEqual(JSON.parse(written as string));
+  });
+
+  it('背景配置新字段完整往返（assetPath/assetId/volume/muted/adjust）', () => {
+    localStorage.setItem(
+      'adl:browser.bgConfig',
+      JSON.stringify({
+        mode: 'video',
+        fit: 'contain',
+        assetPath: 'C:/data/adl-backgrounds/bg-video-a.mp4',
+        assetId: 'background-video-a',
+        fileName: 'a.mp4',
+        volume: 0.35,
+        muted: false,
+        adjust: { scale: 1.6, offsetX: 12.5, offsetY: -8 },
+      }),
+    );
+
+    const patch = restart();
+
+    expect(patch.browserBgConfig).toEqual({
+      mode: 'video',
+      fit: 'contain',
+      assetPath: 'C:/data/adl-backgrounds/bg-video-a.mp4',
+      assetId: 'background-video-a',
+      fileName: 'a.mp4',
+      volume: 0.35,
+      muted: false,
+      adjust: { scale: 1.6, offsetX: 12.5, offsetY: -8 },
+    });
+  });
+
+  it('背景配置读侧规整：custom→cover、音量钳制、非法 adjust 丢弃', () => {
+    localStorage.setItem(
+      'adl:browser.bgConfig',
+      JSON.stringify({
+        mode: 'image',
+        fit: 'custom',
+        assetId: 'background-image-a',
+        volume: 3,
+        adjust: { scale: 'big', offsetX: 0, offsetY: 0 },
+      }),
+    );
+
+    const patch = restart();
+
+    expect(patch.browserBgConfig).toEqual({
+      mode: 'image',
+      fit: 'cover',
+      assetId: 'background-image-a',
+      volume: 1,
+    });
+  });
+
+  it('背景配置读侧把负音量钳制为 0', () => {
+    localStorage.setItem(
+      'adl:browser.bgConfig',
+      JSON.stringify({ mode: 'image', fit: 'cover', assetId: 'background-image-b', volume: -0.2 }),
+    );
+
+    const patch = restart();
+
+    expect(patch.browserBgConfig).toEqual({
+      mode: 'image',
+      fit: 'cover',
+      assetId: 'background-image-b',
+      volume: 0,
+    });
+  });
+
+  it('背景配置读侧保留 adjust 边界值（钳制交给消费端）', () => {
+    localStorage.setItem(
+      'adl:browser.bgConfig',
+      JSON.stringify({
+        mode: 'image',
+        fit: 'contain',
+        assetId: 'background-image-c',
+        adjust: { scale: 0, offsetX: 99, offsetY: -99 },
+      }),
+    );
+
+    const patch = restart();
+
+    expect(patch.browserBgConfig).toEqual({
+      mode: 'image',
+      fit: 'contain',
+      assetId: 'background-image-c',
+      adjust: { scale: 0, offsetX: 99, offsetY: -99 },
+    });
+  });
+
+  it('视频配置读侧把 repeat 归一为 cover（视频没有平铺）', () => {
+    localStorage.setItem(
+      'adl:browser.bgConfig',
+      JSON.stringify({
+        mode: 'video',
+        fit: 'repeat',
+        assetId: 'background-video-a',
+      }),
+    );
+
+    const patch = restart();
+
+    expect(patch.browserBgConfig).toEqual({
+      mode: 'video',
+      fit: 'cover',
+      assetId: 'background-video-a',
+    });
+  });
+
+  it('背景配置 fit 不在白名单时整条丢弃', () => {
+    localStorage.setItem(
+      'adl:browser.bgConfig',
+      JSON.stringify({ mode: 'image', fit: 'stretch', assetId: 'background-image-b' }),
+    );
+
+    const patch = restart();
+
+    expect(patch.browserBgConfig).toEqual({ mode: 'default', fit: 'cover' });
   });
 });

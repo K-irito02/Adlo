@@ -154,6 +154,9 @@ WebView2 的 `PreferredColorScheme` 在同一用户数据目录（UDF）会话�
 ### Divider Strip（分隔线桥接条）
 中心浏览器 WebView2 与右侧面板浏览器 WebView2（面板导航器收起时）零间隙贴边时，两者均为 OS 级子窗口，吃掉右面板 resize handle 命中带。修复是在接缝上架一条 6px 全高透明子 WebView（`adl-divider-strip`），夺回命中权并把拖拽增量回传主窗口；兄弟窗口（重）建经 store `siblingWebviewNonce` 重建回到最上层。显隐只看面板侧不变量（导航器收起 **且** 面板活动 tab 已入池承载可见 WebView，见 `shouldShowStrip`）；排序指纹仅含 z-order 信号（tabId/tab 数/nonce，不含 URL）；面板进入 overlay 态（中心 WebView 已隐藏）时**仍需**条带兜底。
 
+### 着陆页背景与视频舞台
+着陆页的自定义背景以素材托管方式保存：桌面端复制到应用数据目录 `adl-backgrounds/` 并用 asset 协议读取，浏览器端存 IndexedDB + object URL；不使用 data URL，也不设业务层大小上限。视频背景由模块级隐藏主 `<video>` 单一解码，各可见着陆页只有 `<canvas>` 镜像（面板、中心、弹窗预览共用进度与音频）；隐藏时继续播放但静音。决策记录见 [ADR-0036](./docs/adr/0036-background-video-shared-stage.md)。
+
 ### Branded Types（标记类型）
 编译时名义类型（nominal typing）模式，定义在 `frontend/src/shared/branded.ts`。使用 TypeScript `unique symbol` 交叉类型实现零运行时开销的类型安全：
 - `WorkspaceID`、`TerminalSessionID` 等 ID 类型

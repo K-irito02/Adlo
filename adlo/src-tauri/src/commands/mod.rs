@@ -1,4 +1,5 @@
 pub mod app;
+pub mod background_asset;
 pub mod browser;
 pub mod browser_memory;
 pub(crate) mod browser_webview_setup;

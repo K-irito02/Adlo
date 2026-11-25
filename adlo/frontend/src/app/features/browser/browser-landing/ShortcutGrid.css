@@ -13,6 +13,7 @@
   font-weight: 600;
   font-size: 14px;
   color: var(--text-primary);
+  text-shadow: var(--landing-title-shadow);
 }
 
 .adl-shortcut-grid__items {
@@ -41,16 +42,20 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius);
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  background: transparent;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: box-shadow var(--duration-150);
+  transition:
+    background var(--duration-150),
+    border-color var(--duration-150),
+    box-shadow var(--duration-150);
   user-select: none;
 }
 
+/* 图标悬浮：卡片不占底色，仅图标与名称浮在自定义背景上（悬停才给淡底反馈）。 */
 .adl-shortcut-card:hover {
-  box-shadow: var(--shadow-sm);
-  border-color: var(--border-default);
+  background: var(--bg-hover);
+  border-color: var(--border-subtle);
 }
 
 .adl-shortcut-card--drag-over {
@@ -71,6 +76,14 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  transition: transform var(--duration-150);
+  box-shadow:
+    0 0 0 2px var(--landing-icon-ring),
+    var(--landing-icon-shadow);
+}
+
+.adl-shortcut-card:hover .adl-shortcut-card__icon {
+  transform: scale(1.06);
 }
 
 /* 内部复用共享 favicon 组件（BrowserFavicon）：铺满圆形卡片，图标居中。
@@ -95,7 +108,8 @@
 .adl-shortcut-card__name {
   width: 100%;
   font-size: 10px;
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  text-shadow: var(--landing-text-shadow);
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 1;

@@ -32,7 +32,7 @@
 }
 
 .adl-port-config__input:focus {
-  border-color: var(--accent);
+  border-color: var(--focus-border);
 }
 
 .adl-port-config__input::placeholder {

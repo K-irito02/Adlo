@@ -34,6 +34,7 @@ export type {
   BackgroundConfig,
   BackgroundMode,
   BackgroundFit,
+  BackgroundAdjust,
 } from './browserLandingSlice';
 
 function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState> {

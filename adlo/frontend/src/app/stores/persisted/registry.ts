@@ -297,26 +297,63 @@ function readProfileMap(raw: unknown): Record<string, TerminalProfile> | undefin
   return result;
 }
 
-/** 背景配置：mode/fit 必须在白名单内，可选字符串字段按原样保留 */
+/** 自由调整参数：三个字段都必须有限；非法整体丢弃（背景仍按预设渲染）。 */
+function readBackgroundAdjust(raw: unknown): BackgroundConfig['adjust'] {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const record = raw as Record<string, unknown>;
+  const { scale, offsetX, offsetY } = record;
+  if (
+    typeof scale !== 'number' ||
+    !Number.isFinite(scale) ||
+    typeof offsetX !== 'number' ||
+    !Number.isFinite(offsetX) ||
+    typeof offsetY !== 'number' ||
+    !Number.isFinite(offsetY)
+  ) {
+    return undefined;
+  }
+  return { scale, offsetX, offsetY };
+}
+
+/** 背景配置：mode/fit 必须在白名单内；'custom'→cover、视频 repeat→cover、volume 钳制到 0–1，可选字段按类型保留 */
 function readBackgroundConfig(raw: unknown): BackgroundConfig | undefined {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return undefined;
   }
   const record = raw as Record<string, unknown>;
   const mode = record.mode;
-  const fit = record.fit;
   if (!BACKGROUND_MODES.includes(mode as BackgroundMode)) {
     return undefined;
+  }
+  // 自由调整已并入三种填充模式（'custom' 归一为 cover）；视频没有平铺（归一为 cover）。
+  let fit = record.fit === 'custom' ? 'cover' : record.fit;
+  if (mode === 'video' && fit === 'repeat') {
+    fit = 'cover';
   }
   if (!BACKGROUND_FITS.includes(fit as BackgroundFit)) {
     return undefined;
   }
   const result: BackgroundConfig = { mode: mode as BackgroundMode, fit: fit as BackgroundFit };
-  if (typeof record.filePath === 'string') {
-    result.filePath = record.filePath;
+  if (typeof record.assetPath === 'string') {
+    result.assetPath = record.assetPath;
+  }
+  if (typeof record.assetId === 'string') {
+    result.assetId = record.assetId;
   }
   if (typeof record.fileName === 'string') {
     result.fileName = record.fileName;
+  }
+  if (typeof record.volume === 'number' && Number.isFinite(record.volume)) {
+    result.volume = Math.min(1, Math.max(0, record.volume));
+  }
+  if (typeof record.muted === 'boolean') {
+    result.muted = record.muted;
+  }
+  const adjust = readBackgroundAdjust(record.adjust);
+  if (adjust) {
+    result.adjust = adjust;
   }
   return result;
 }

@@ -112,6 +112,20 @@ Strict layering tokens — nothing else may declare arbitrary z-index numbers:
 
 - `--focus-ring-width` (3 px, boosted to 4 px under `prefers-contrast: more`)
 - `--focus-ring` (theme-aware, see `themes.css`)
+- `--focus-border`：表单控件（`input` / `textarea` / `select`）聚焦边线，亮色 `#000000`、暗色 `#ffffff`；不使用品牌蓝。输入类控件只改边线，不叠加 ring（`center.css` 对输入框全局关闭 box-shadow 的既有策略不变）。
+
+## 着陆页表面（2026-11）
+
+自定义背景让卡片/文字的底色不再可控，以下 token 提供「任意背景上都可读」的中性投影与音量控件配色；亮/暗两套值定义在 `themes.css`，`tokens.css` 只提供亮色兜底。组件样式只允许 `var()` 引用。
+
+| Token | 用途 |
+|-------|------|
+| `--landing-title-shadow` | 分区标题（快捷站点 / 本地端口）文字投影 |
+| `--landing-text-shadow` / `--landing-label-shadow` | 卡片名称、端口地址 / 端口标签文字投影 |
+| `--landing-icon-ring` / `--landing-icon-shadow` | 快捷站点图标的 2px 描边与投影（端口状态点不用） |
+| `--landing-volume-veil` / `-shadow` | 右下角音量胶囊展开后的磨砂底色与投影 |
+| `--landing-volume-icon-color` / `-hover-color` / `-hover-bg` / `-icon-drop` | 音量图标常态/悬停色、22px 圆底、投影 |
+| `--landing-volume-percent-color` / `-track` / `-fill` / `-thumb` / `-thumb-shadow` | 百分比文字与 S1 滑杆轨道/填充/圆点 |
 
 ## Button（石墨墨水语义色）
 

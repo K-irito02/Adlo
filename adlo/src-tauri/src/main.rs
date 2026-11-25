@@ -13,7 +13,9 @@ use tracing::info;
 mod adl_server;
 mod app_identity;
 mod commands;
+mod drop_target;
 mod error;
+mod file_drop;
 mod setup;
 mod state;
 mod tauri_webview_handle;
@@ -98,6 +100,19 @@ fn main() {
                 app_identity::apply_window_identity(&window);
                 let _ = window.show();
                 tracing::info!("[ADL-PERF] main window shown after page load");
+
+                #[cfg(target_os = "windows")]
+                {
+                    use std::sync::atomic::{AtomicBool, Ordering};
+                    static DROP_TARGET_INSTALLED: AtomicBool = AtomicBool::new(false);
+                    if !DROP_TARGET_INSTALLED.swap(true, Ordering::SeqCst) {
+                        if let Ok(hwnd) = window.hwnd() {
+                            drop_target::install(webview.app_handle().clone(), hwnd);
+                        } else {
+                            tracing::warn!("[ADL-DROP] failed to resolve main window hwnd");
+                        }
+                    }
+                }
             }
             if !webview.label().starts_with("adl-browser-view") {
                 return;
@@ -221,6 +236,10 @@ fn main() {
             commands::platform::platform_open_path,
             commands::port_scan::browser_scan_ports,
             commands::port_scan::browser_get_port_details,
+            commands::background_asset::browser_pick_background_file,
+            commands::background_asset::browser_import_background_file,
+            commands::background_asset::browser_prune_background_assets,
+            commands::background_asset::browser_take_pending_drop,
             commands::storage::storage_get_status,
             commands::storage::storage_scan_foreign_cmd,
             commands::storage::storage_preflight_cmd,
@@ -234,6 +253,47 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
+            // 窗口级文件拖放：Rust 侧先记下落点并由前端轮询消费，
+            // 避免覆盖层收不到 `tauri://drag-drop` 时拖拽完全失效。
+            if let tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::DragDrop(drag),
+                ..
+            } = &event
+            {
+                if label == "main" {
+                    match drag {
+                        tauri::DragDropEvent::Enter { paths, .. } => {
+                            let paths: Vec<String> = paths
+                                .iter()
+                                .map(|path| path.to_string_lossy().into_owned())
+                                .collect();
+                            tracing::info!(count = paths.len(), "[ADL-DROP] enter");
+                            let _ = app_handle.emit(
+                                "adl:file-drop",
+                                serde_json::json!({ "type": "enter", "paths": paths }),
+                            );
+                        },
+                        tauri::DragDropEvent::Drop { paths, .. } => {
+                            let paths: Vec<String> = paths
+                                .iter()
+                                .map(|path| path.to_string_lossy().into_owned())
+                                .collect();
+                            crate::file_drop::record_drop(&paths);
+                            tracing::info!(count = paths.len(), "[ADL-DROP] drop");
+                            let _ = app_handle.emit(
+                                "adl:file-drop",
+                                serde_json::json!({ "type": "drop", "paths": paths }),
+                            );
+                        },
+                        tauri::DragDropEvent::Leave => {
+                            let _ = app_handle
+                                .emit("adl:file-drop", serde_json::json!({ "type": "leave" }));
+                        },
+                        _ => {},
+                    }
+                }
+            }
             // Explicit graceful cleanup: Job object handles hard kills; this
             // covers normal window close paths that may not drop managed state
             // before the process exits (users reported sidecar residue).

@@ -5,6 +5,7 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "core:event:default",
     "core:window:default",
     "core:webview:allow-internal-toggle-devtools",
     "core:webview:allow-set-webview-zoom",

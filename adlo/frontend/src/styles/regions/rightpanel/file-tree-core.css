@@ -222,13 +222,22 @@
   font-size: 12px;
 }
 
-/* 关闭按钮：绝对定位覆盖在名称之上，不参与布局（不再挤占名称宽度） */
-.adl-multitree--terminal .adl-tool-list__item--terminal-tab > .tooltip-trigger {
+/* 标签操作区：绝对定位覆盖在名称之上，不参与布局（不再挤占名称宽度）。
+   内含「在中间区显示」+「关闭」两个按钮，顺序固定（中间区在左、关闭在右）。 */
+.adl-multitree--terminal .adl-tool-list__item--terminal-tab {
+  --adl-clip-tab-cover: 44px;
+  --adl-clip-tab-blend: 32px;
+}
+
+.adl-multitree--terminal .adl-tool-list__item--terminal-tab > .adl-tool-list__item-actions {
   position: absolute;
   right: 6px;
   top: 50%;
   transform: translateY(-50%);
   z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .adl-multitree--terminal .adl-multitree-entry__empty {

@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark" data-g="G1">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>原型 · 右下角音量（玻璃/无边框）</title>
+    <style>
+      :root {
+        --font: 'Segoe UI', 'Microsoft YaHei UI', system-ui, sans-serif;
+      }
+      [data-theme='dark'] {
+        --fg: #f1f1f1;
+        --fg-soft: rgba(255, 255, 255, 0.74);
+        --veil: rgba(20, 22, 26, 0.66);
+        --veil-soft: rgba(255, 255, 255, 0.08);
+        --veil-hover: rgba(255, 255, 255, 0.18);
+      }
+      [data-theme='light'] {
+        --fg: #161616;
+        --fg-soft: rgba(0, 0, 0, 0.66);
+        --veil: rgba(255, 255, 255, 0.62);
+        --veil-soft: rgba(0, 0, 0, 0.07);
+        --veil-hover: rgba(0, 0, 0, 0.14);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: var(--font);
+        color: var(--fg);
+        background: #0e0f12;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .stage {
+        position: relative;
+        width: min(1180px, 96vw);
+        height: min(700px, 92vh);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+      }
+      .stage::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 18% 26%, rgba(245, 166, 35, 0.9), transparent 46%),
+          radial-gradient(circle at 82% 18%, rgba(124, 92, 255, 0.9), transparent 48%),
+          radial-gradient(circle at 62% 84%, rgba(20, 184, 166, 0.78), transparent 52%),
+          linear-gradient(135deg, #14181f, #232a33 55%, #0e1116);
+      }
+      .stage::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.2);
+      }
+      .hint {
+        position: absolute;
+        z-index: 2;
+        left: 28px;
+        top: 22px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.75);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+      }
+      .note {
+        position: absolute;
+        z-index: 2;
+        left: 28px;
+        top: 52px;
+        max-width: 560px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.42);
+        backdrop-filter: blur(10px);
+        font-size: 12px;
+        line-height: 1.55;
+        color: rgba(255, 255, 255, 0.86);
+      }
+      .footer {
+        position: absolute;
+        z-index: 2;
+        left: 0;
+        right: 0;
+        bottom: 28px;
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.62);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+      }
+
+      /* ── 坐标与原子 ─────────────────────────────────────────── */
+      .corner {
+        position: absolute;
+        right: 20px;
+        bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .capsule {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 6px 8px;
+        border-radius: 999px;
+        opacity: 0;
+        transform: translateY(6px) scale(0.98);
+        pointer-events: none;
+        transition: 120ms ease;
+      }
+      .corner:hover .capsule,
+      .corner:focus-within .capsule,
+      body[data-fixed='1'] .capsule {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+      }
+      .percent {
+        min-width: 0;
+        font-size: 10px;
+        font-variant-numeric: tabular-nums;
+        color: var(--fg-soft);
+        border: none;
+        background: none;
+        cursor: default;
+        user-select: none;
+      }
+      .range {
+        writing-mode: vertical-lr;
+        direction: rtl;
+        width: 18px;
+        height: 96px;
+        accent-color: var(--fg);
+        cursor: pointer;
+      }
+      .trigger {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        color: var(--fg-soft);
+        transition: 120ms ease;
+      }
+      .trigger:hover {
+        color: var(--fg);
+      }
+
+      /* ── G1 磨砂双色 ─────────────────────────────────────────── */
+      [data-g='G1'] .capsule {
+        background: var(--veil);
+        backdrop-filter: blur(18px) saturate(1.15);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+      }
+      [data-g='G1'] .trigger {
+        background: var(--veil-soft);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.26);
+      }
+      [data-g='G1'] .trigger:hover {
+        background: var(--veil-hover);
+      }
+
+      /* ── G2 全透明（图标仅投影） ─────────────────────────────── */
+      [data-g='G2'] .capsule {
+        background: var(--veil);
+        backdrop-filter: blur(14px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+      }
+      [data-g='G2'] .trigger {
+        background: transparent;
+        filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55));
+      }
+      [data-g='G2'] .corner:hover .trigger {
+        background: var(--veil-soft);
+      }
+
+      /* ── G3 双层玻璃（浅底 + 内高光） ────────────────────────── */
+      [data-g='G3'] .capsule {
+        background: var(--veil);
+        backdrop-filter: blur(22px) saturate(1.2);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.22),
+          0 12px 30px rgba(0, 0, 0, 0.3);
+      }
+      [data-g='G3'] .trigger {
+        background: var(--veil-soft);
+        backdrop-filter: blur(18px) saturate(1.25);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.24),
+          0 6px 18px rgba(0, 0, 0, 0.3);
+      }
+      [data-g='G3'] .trigger:hover {
+        background: var(--veil-hover);
+      }
+
+      /* ── G4 竖向渐变条 ───────────────────────────────────────── */
+      [data-g='G4'] .capsule {
+        background: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.16),
+          rgba(20, 20, 20, 0.55)
+        );
+        backdrop-filter: blur(16px);
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32);
+      }
+      [data-g='G4'] .trigger {
+        background: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.2),
+          rgba(255, 255, 255, 0.06)
+        );
+        backdrop-filter: blur(10px);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+      }
+      [data-g='G4'] .trigger:hover {
+        background: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.28),
+          rgba(255, 255, 255, 0.12)
+        );
+      }
+      [data-theme='light'][data-g='G4'] .capsule {
+        background: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.75),
+          rgba(180, 180, 180, 0.55)
+        );
+      }
+      [data-theme='light'][data-g='G4'] .trigger {
+        background: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.9),
+          rgba(200, 200, 200, 0.6)
+        );
+      }
+
+      .bar {
+        position: fixed;
+        z-index: 30;
+        left: 50%;
+        bottom: 14px;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 14px;
+        background: rgba(18, 18, 18, 0.9);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+        color: #ededed;
+        font-size: 12px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .bar button {
+        border: none;
+        background: rgba(255, 255, 255, 0.07);
+        color: #dcdcdc;
+        padding: 5px 9px;
+        border-radius: 8px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .bar button.is-active {
+        background: #ededed;
+        color: #111;
+      }
+      .bar__sep {
+        width: 1px;
+        height: 18px;
+        background: rgba(255, 255, 255, 0.16);
+      }
+      .corner__hitbox {
+        position: absolute;
+        inset: -12px;
+      }
+    </style>
+  </head>
+  <body data-fixed="0">
+    <div class="stage">
+      <div class="hint">新建标签页右下角音量 · 玻璃/透明 · 无边框</div>
+      <div class="note" id="note"></div>
+      <div class="footer"><span>端口扫描配置</span><span>自定义背景</span></div>
+
+      <div class="corner">
+        <div class="capsule">
+          <button class="percent" type="button" data-percent>60%</button>
+          <input class="range" type="range" min="0" max="100" value="60" aria-label="音量" />
+        </div>
+        <button class="trigger" type="button" aria-label="音量">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+        </button>
+        <div class="corner__hitbox" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <div class="bar" role="group" aria-label="原型控制">
+      <span>方案</span>
+      <button data-g-choice="G1">G1 磨砂双色</button>
+      <button data-g-choice="G2">G2 全透明</button>
+      <button data-g-choice="G3">G3 双层玻璃</button>
+      <button data-g-choice="G4">G4 竖向渐变</button>
+      <span class="bar__sep"></span>
+      <button id="fixed-toggle">固定展开</button>
+      <button id="theme-toggle">亮/暗</button>
+    </div>
+
+    <script>
+      const NOTES = {
+        G1: 'G1 磨砂双色：圆形玻璃底 + 深一档胶囊浮层，层次最清楚，仍保持透明感。',
+        G2: 'G2 全透明：图标没有底色，只靠投影浮在背景上；胶囊展开时才出现玻璃底。最轻，但背景很花时图标存在感弱。',
+        G3: 'G3 双层玻璃：胶囊与圆底都带内高光，像两片磨砂玻璃叠加；质感最细腻。',
+        G4: 'G4 竖向渐变：胶囊与圆底用上浅下深的渐变中性色，像“灯柱”；方向感强，适合暗色照片背景。',
+      };
+      const root = document.documentElement;
+      const params = new URLSearchParams(location.search);
+      const initial = ['G1', 'G2', 'G3', 'G4'].includes(params.get('g')) ? params.get('g') : 'G1';
+      root.dataset.g = initial;
+      root.dataset.theme = params.get('theme') === 'light' ? 'light' : 'dark';
+      document.body.dataset.fixed = params.get('fixed') === '1' ? '1' : '0';
+
+      function sync() {
+        document.querySelectorAll('[data-g-choice]').forEach((b) => {
+          b.classList.toggle('is-active', b.dataset.gChoice === root.dataset.g);
+        });
+        document.getElementById('fixed-toggle').classList.toggle(
+          'is-active',
+          document.body.dataset.fixed === '1',
+        );
+        document.getElementById('note').textContent = NOTES[root.dataset.g];
+        const url = new URL(location.href);
+        url.searchParams.set('g', root.dataset.g);
+        url.searchParams.set('theme', root.dataset.theme);
+        url.searchParams.set('fixed', document.body.dataset.fixed);
+        history.replaceState(null, '', url);
+      }
+
+      document.querySelectorAll('[data-g-choice]').forEach((button) => {
+        button.addEventListener('click', () => {
+          root.dataset.g = button.dataset.gChoice;
+          sync();
+        });
+      });
+      document.getElementById('fixed-toggle').addEventListener('click', () => {
+        document.body.dataset.fixed = document.body.dataset.fixed === '1' ? '0' : '1';
+        sync();
+      });
+      document.getElementById('theme-toggle').addEventListener('click', () => {
+        root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+        sync();
+      });
+
+      const range = document.querySelector('.range');
+      const percent = document.querySelector('[data-percent]');
+      range.addEventListener('input', () => {
+        percent.textContent = range.value + '%';
+      });
+      percent.addEventListener('dblclick', () => {
+        const input = document.createElement('input');
+        input.className = 'percent';
+        input.type = 'text';
+        input.value = percent.textContent.replace('%', '');
+        input.style.width = '40px';
+        input.style.border = '1px solid var(--fg)';
+        input.style.borderRadius = '2px';
+        input.style.background = 'var(--veil)';
+        input.style.color = 'var(--fg)';
+        input.style.textAlign = 'right';
+        input.style.outline = 'none';
+        percent.replaceWith(input);
+        input.focus();
+        input.select();
+        input.addEventListener('blur', () => {
+          const next = document.createElement('button');
+          next.className = 'percent';
+          next.type = 'button';
+          next.dataset.percent = '';
+          const value = Math.min(100, Math.max(0, Number(input.value.replace('%', '')) || 0));
+          next.textContent = value + '%';
+          input.replaceWith(next);
+          range.value = String(value);
+          location.reload();
+        });
+      });
+
+      sync();
+    </script>
+  </body>
+</html>

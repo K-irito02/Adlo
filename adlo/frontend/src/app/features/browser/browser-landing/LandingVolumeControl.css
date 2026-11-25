@@ -1,0 +1,118 @@
+.adl-landing-volume {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2;
+}
+
+/* 胶囊：常态 32×32 圆形（透明无底），悬停向上生长把图标包进去。 */
+.adl-landing-volume__capsule {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: none;
+  transition:
+    width 160ms ease,
+    height 160ms ease;
+}
+
+.adl-landing-volume:hover .adl-landing-volume__capsule,
+.adl-landing-volume:has(:focus-visible) .adl-landing-volume__capsule,
+.adl-landing-volume:has(input:focus) .adl-landing-volume__capsule {
+  width: 44px;
+  height: 170px;
+  /* 展开后才出现玻璃底（G1 磨砂双色）。 */
+  background: var(--landing-volume-veil);
+  backdrop-filter: blur(18px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  box-shadow: var(--landing-volume-shadow);
+}
+
+.adl-landing-volume__top,
+.adl-landing-volume__slider {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.adl-landing-volume:hover .adl-landing-volume__top,
+.adl-landing-volume:hover .adl-landing-volume__slider,
+.adl-landing-volume:has(:focus-visible) .adl-landing-volume__top,
+.adl-landing-volume:has(:focus-visible) .adl-landing-volume__slider,
+.adl-landing-volume:has(input:focus) .adl-landing-volume__top,
+.adl-landing-volume:has(input:focus) .adl-landing-volume__slider {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.adl-landing-volume__top {
+  padding: 0;
+  margin-bottom: 2px;
+}
+
+.adl-landing-volume__percent {
+  width: 30px;
+  color: var(--landing-volume-percent-color);
+}
+
+.adl-landing-volume__percent .adl-volume-percent {
+  font-size: 10px;
+  text-align: center;
+}
+
+.adl-landing-volume__slider {
+  margin-bottom: 8px;
+}
+
+/* 图标：常态无底色，恒为灰白色；悬停出现一个更小的圆形灰底。 */
+.adl-landing-volume__trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  color: var(--landing-volume-icon-color);
+  filter: drop-shadow(var(--landing-volume-icon-drop));
+  transition: color var(--duration-100);
+}
+
+.adl-landing-volume__trigger::before {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background var(--duration-100);
+}
+
+.adl-landing-volume__trigger svg {
+  position: relative;
+  z-index: 1;
+}
+
+.adl-landing-volume__trigger:hover,
+.adl-landing-volume__trigger:focus-visible {
+  color: var(--landing-volume-icon-hover-color);
+  outline: none;
+}
+
+.adl-landing-volume__trigger:hover::before,
+.adl-landing-volume__trigger:focus-visible::before {
+  background: var(--landing-volume-icon-hover-bg);
+}

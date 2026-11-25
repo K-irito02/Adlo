@@ -13,6 +13,7 @@
   font-weight: 600;
   font-size: 14px;
   color: var(--text-primary);
+  text-shadow: var(--landing-title-shadow);
 }
 
 .adl-local-port-section__refresh {
@@ -57,16 +58,20 @@
   gap: 8px;
   padding: 8px 14px;
   border-radius: var(--radius);
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  background: transparent;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: box-shadow var(--duration-150);
+  transition:
+    background var(--duration-150),
+    border-color var(--duration-150),
+    box-shadow var(--duration-150);
   user-select: none;
 }
 
+/* 端口条目 hover：与快捷站点一致，透明底 + 淡底反馈（条目本身无图标）。 */
 .adl-local-port-card:hover {
-  box-shadow: var(--shadow-sm);
-  border-color: var(--border-default);
+  background: var(--bg-hover);
+  border-color: var(--border-subtle);
 }
 
 .adl-local-port-card--drag-over {
@@ -90,6 +95,7 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
+  text-shadow: var(--landing-text-shadow);
   max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -98,7 +104,8 @@
 
 .adl-local-port-card__label {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  text-shadow: var(--landing-label-shadow);
   max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;

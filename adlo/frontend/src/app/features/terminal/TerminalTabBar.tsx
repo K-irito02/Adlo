@@ -1,8 +1,9 @@
 import React from 'react';
-import { IconClose } from '@icons';
+import { IconArrowUpLeft, IconClose } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import type { TerminalTabState } from '@stores/slices/terminalSlice';
 import type { CopyDict } from '@i18n';
+import { useAppStore } from '@stores/slicedStore';
 import { TerminalProfileIcon } from './TerminalProfileIcon';
 
 interface TerminalTabBarProps {
@@ -97,19 +98,34 @@ export const TerminalTabBar = React.memo(function TerminalTabBar({
                 <TerminalProfileIcon profile={tab.profile} size={14} />
                 <span className="adl-tool-list__title adl-clip-tab__label">{tab.title}</span>
               </button>
-              <TooltipSimple content={t.close} placement="top">
-                <button
-                  type="button"
-                  className="adl-tool-list__item-close"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCloseTab(tab.id);
-                  }}
-                  aria-label={t.close}
-                >
-                  <IconClose size={12} decorative />
-                </button>
-              </TooltipSimple>
+              <span className="adl-tool-list__item-actions">
+                <TooltipSimple content={t.centerTabShowInCenter} placement="top">
+                  <button
+                    type="button"
+                    className="adl-tool-list__item-close"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      useAppStore.getState().centerShowTerminalTab(tab.id);
+                    }}
+                    aria-label={t.centerTabShowInCenter}
+                  >
+                    <IconArrowUpLeft size={12} decorative />
+                  </button>
+                </TooltipSimple>
+                <TooltipSimple content={t.close} placement="top">
+                  <button
+                    type="button"
+                    className="adl-tool-list__item-close"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCloseTab(tab.id);
+                    }}
+                    aria-label={t.close}
+                  >
+                    <IconClose size={12} decorative />
+                  </button>
+                </TooltipSimple>
+              </span>
             </>
           )}
         </li>

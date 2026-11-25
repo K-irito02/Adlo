@@ -8,9 +8,17 @@ const ctx = vi.hoisted(() => ({
   actions: {} as Record<string, unknown>,
 }));
 
+const landingProbe = vi.hoisted(() => ({ active: null as boolean | null }));
+
 vi.mock('./BrowserPanelStateContext', () => ({ useBrowserPanelState: () => ctx.state }));
 vi.mock('./BrowserPanelActionsContext', () => ({ useBrowserPanelActions: () => ctx.actions }));
 vi.mock('./SafeIframe', () => ({ SafeIframe: () => <iframe title="test-iframe" /> }));
+vi.mock('./browser-landing', () => ({
+  BrowserLandingPage: (props: { active?: boolean }) => {
+    landingProbe.active = props.active ?? null;
+    return <div data-testid="landing" />;
+  },
+}));
 
 import { BrowserIframeStack } from './BrowserIframeStack';
 import { useAppStore } from '@stores/slicedStore';
@@ -73,5 +81,20 @@ describe('BrowserIframeStack embed fallback', () => {
 
     expect(screen.getByTitle('test-iframe')).toBeTruthy();
     expect(screen.queryByText(zhCN.browserCannotOpenEmbedded)).toBeNull();
+  });
+
+  it('把 isBrowserVisible 透传给着陆页（面板收起/切工具时为 false）', () => {
+    const emptyTab = { ...tab(), url: '' };
+    setState({
+      activeTab: emptyTab,
+      browserTabs: [emptyTab],
+      hasActiveTab: true,
+      isBrowserVisible: false,
+    });
+
+    render(<BrowserIframeStack />);
+
+    expect(screen.getByTestId('landing')).toBeTruthy();
+    expect(landingProbe.active).toBe(false);
   });
 });

@@ -585,7 +585,7 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
       >
         {isEmptyUrl ? (
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser">
-            <BrowserLandingPage t={t} onOpenUrl={handleLandingOpenUrl} />
+            <BrowserLandingPage t={t} onOpenUrl={handleLandingOpenUrl} active={!centerObscured} />
           </div>
         ) : showIframe && activeTab?.url ? (
           <ErrorBoundary

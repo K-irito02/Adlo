@@ -32,6 +32,8 @@ alwaysApply: false
 | 禁用 | `:disabled` |
 | 加载中 | `[data-loading="true"]` |
 
+表单聚焦：`input` / `textarea` / `select` 聚焦只改边线为 `var(--focus-border)`（亮色黑 / 暗色白），不使用品牌蓝，也不叠加 focus ring。
+
 ## Surface 交互语义层
 
 表面（Surface）层级的交互态通过语义 token 表达，不依赖透明度微调：

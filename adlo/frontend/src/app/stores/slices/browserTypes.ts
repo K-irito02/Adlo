@@ -106,11 +106,31 @@ export interface LocalPort {
 }
 
 export type BackgroundMode = 'default' | 'image' | 'video';
+/**
+ * 背景填充方式。三种模式都支持在同一区域内自由缩放/平移（`adjust`）；
+ * 不再有独立的「自由调整」模式。
+ */
 export type BackgroundFit = 'cover' | 'contain' | 'repeat';
+
+/** 自由调整参数：`scale` 为 1 表示预设尺寸，`offsetX/Y` 为容器百分比平移。 */
+export interface BackgroundAdjust {
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+}
 
 export interface BackgroundConfig {
   mode: BackgroundMode;
-  filePath?: string;
+  /** 桌面端托管副本的绝对路径（应用数据目录 `adl-backgrounds/`）。 */
+  assetPath?: string;
+  /** 浏览器端 IndexedDB 内的素材键（新导入生成新键；沿用已导入素材时复用旧键）。 */
+  assetId?: string;
   fit: BackgroundFit;
   fileName?: string;
+  /** 视频背景音量（0–1）；缺省按 0 处理（自动播放必须静音起步）。 */
+  volume?: number;
+  /** 视频背景是否静音（默认 true；持久化后切面板回来不会突然出声或失声）。 */
+  muted?: boolean;
+  /** 自由调整参数；缺省为不缩放、不平移。 */
+  adjust?: BackgroundAdjust;
 }

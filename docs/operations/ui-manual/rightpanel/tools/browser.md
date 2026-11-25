@@ -663,21 +663,65 @@ await page.click('.adl-local-port-card', { button: 'right' });
 await page.click('.adl-sidebar-menu__item:has-text("删除")');
 ```
 
-#### 自定义背景
+#### 自定义背景（v2026-11-26 更新）
 
 ```javascript
 // 打开背景设置对话框
 await page.click('button:has-text("自定义背景")');
 
-// 切换模式
-await page.click('button:has-text("图片")');
-await page.click('button:has-text("视频")');
+// 切换模式（默认 / 图片 / 视频）
+await page.click('.adl-bg-settings__mode-btn:has-text("图片")');
+await page.click('.adl-bg-settings__mode-btn:has-text("视频")');
 
-// 选择文件
+// 选择文件（桌面端由系统对话框选取；也可把文件拖到虚线区）
 await page.click('.adl-bg-settings__upload-zone');
+
+// 填充模式（图片三档；视频只有铺满/适应）
+await page.click('.adl-bg-settings__fill-btn:has-text("铺满")');
+
+// 预览区拖拽平移 / 滚轮缩放 / 右上角复位
+await page.click('.adl-bg-settings__preview-reset');
+
+// 视频音量（自定义胶囊：图标 + S1 横向滑杆 + 百分比）
+await page.click('.adl-bg-settings__volume-row .adl-bg-volume__toggle');
 
 // 应用设置
 await page.click('button:has-text("应用")');
+```
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-bg-settings__upload-zone` | 上传虚线区（四角直角、固定最小高度；拖入/点击均可用） |
+| `.adl-bg-settings__preview` | 预览裁剪容器（右上角复位图标；媒体只在该区域变换） |
+| `.adl-bg-settings__preview-reset` | 复位图标按钮（无边框，悬停灰底，原生 `title="复位"`） |
+| `.adl-bg-settings__mode-btn` / `.is-active` | 默认/图片/视频模式切换 |
+| `.adl-bg-settings__fill-btn` / `.is-active` | 铺满/适应/平铺（视频无平铺）；切换会复位自由调整 |
+| `.adl-bg-settings__volume-row` | 视频音量行（位于背景填充上方，标题与控件同一行） |
+| `.adl-bg-volume` / `.adl-bg-volume__toggle` | 弹窗音量胶囊与圆形图标按钮 |
+| `.adl-hslider` | S1 横向滑杆（`role="slider"`，支持拖拽/滚轮/方向键） |
+| `.adl-volume-percent` / `.adl-volume-percent__input` | 百分比（双击输入，输入框 34×14、2px 圆角） |
+
+> 背景文件无业务大小上限；桌面端复制到应用数据目录并由 asset 协议加载，浏览器端存 IndexedDB。
+> 「重置」只清空草稿、不关闭弹窗；点「应用」才落库。
+
+#### 着陆页视频音量（v2026-11-26 新增）
+
+右下角音量控件：常态只显示圆形音量图标（无背景），悬停/聚焦向上展开胶囊（百分比 + 竖向 S1 滑杆），
+图标悬停为 22px 圆形灰底。
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-landing-volume` | 容器（右下角） |
+| `.adl-landing-volume__trigger` | 音量图标按钮（灰白色，亮暗主题一致） |
+| `.adl-landing-volume__capsule` | 胶囊（常态 32×32 透明；悬停 44×170 玻璃底） |
+| `.adl-landing-volume__percent` | 百分比（悬停有底色，双击输入） |
+| `.adl-vslider` | S1 竖向滑杆（`role="slider"`） |
+
+```javascript
+// 悬停展开胶囊并调整音量
+await page.hover('.adl-landing-volume');
+await page.click('.adl-vslider');           // 点击轨道设置比例
+await page.dblclick('.adl-landing-volume__percent'); // 双击百分比输入
 ```
 
 #### 底部工具栏

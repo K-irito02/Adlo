@@ -136,3 +136,16 @@
 |------|------|
 | 落地页右键复制 | 快捷站点右键菜单「复制链接」复制保存的 URL；端口右键菜单「复制链接」复制 `http://{host}:{port}`，「复制PID」按端口实时调用 `browser_get_port_details` 取占用进程 pid（多个以换行分隔），无进程时 toast「未找到占用该端口的进程」。 |
 | 已打开标签页悬停操作 | 右侧面板「已打开标签页」行悬停/聚焦（`:focus-within`）显示「在中心显示」+「关闭」两个图标按钮；前者复用 `IconArrowUpLeft`（与右键菜单同图标）并调用 `centerShowBrowserTab`（移动，不新建）。 |
+
+## 2026-11-26 增量（背景素材、拖放与视频舞台）
+
+| 能力 | 契约 |
+|------|------|
+| 背景素材托管 | 自定义背景的图片/视频不被读成 data URL。桌面端由 Rust 复制到应用数据目录 `adl-backgrounds/`，前端只保存绝对路径并用 Tauri asset 协议流式加载（`assetProtocol.scope` 仅放行该目录，CSP img/media 允许 `http://asset.localhost`）；浏览器端存 IndexedDB Blob + object URL。无文件大小上限。 |
+| 背景选择与清理 | `browser_pick_background_file` 只返回源路径（选完才进入 importing），复制统一走 `browser_import_background_file`；清理延迟 4s，并保留「执行时当前配置」引用的素材，避免切换背景时旧 URL 读不到文件。新的导入/应用会取消上一次待执行的清理；Rust 侧 import 与 prune 共用串行锁，单个素材删除失败只告警并继续。 |
+| 文件拖放 | 桌面端以自有 OLE `IDropTarget` 为唯一原生通道：`drop_target.rs` 在 WebView2 子窗口注册 target（独立 STA 线程 + 消息泵），落点写入短期队列（3s 过期）并广播 `adl:file-drop`；前端 `useDragDropWorkspace` 订阅该事件，`browser_take_pending_drop` 轮询作为事件丢失时的兜底。覆盖层（自定义背景弹窗）先消费，未消费才「打开工作区」。`main.rs` 的 `RunEvent::WindowEvent::DragDrop` 仅在 OLE 注册失败时作为兜底（Windows 上 wry 的 target 已被替换，不会触发）。浏览器模式走 HTML5 drop。 |
+| 视频舞台 | 整个应用只有一个隐藏主 `<video>` 负责解码/进度/音频；每个可见着陆页（面板 / 中心 / 弹窗预览）只渲染 `<canvas>` 镜像（单 rAF，约 30fps）。素材以 `assetPath / assetId` 指纹识别，同一素材的多个 surface 不重复换源，所以弹窗预览与背景进度、音频一致。 |
+| 后台播放与音频仲裁 | 着陆页隐藏（面板收起、切工具、中心切标签、窗口不可见）时主视频继续播放并静音；任一可见面恢复配置音量；surface 注销时重新判定音频，避免后台残留声音。带声自动播放被拒时回退静音播放。 |
+| 填充与自由调整 | 图片支持铺满/适应/平铺（平铺按 33% 宽度重复整图）；视频只有铺满/适应。三种模式共用拖拽平移 + 滚轮缩放 + 右上角复位；媒体在外层裁剪容器内变换，不越界；切换填充模式复位调整。 |
+
+> 详细根因见 [windows-file-drop-2026-11-26.md](../../knowledge-base/tauri-backend/windows-file-drop-2026-11-26.md)。

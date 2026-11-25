@@ -19,6 +19,7 @@ const conf = JSON.parse(
   app?: {
     security?: {
       csp?: string;
+      assetProtocol?: { enable?: boolean; scope?: string[] };
       dangerousDisableAssetCspModification?: boolean | string[];
     };
   };
@@ -72,5 +73,19 @@ describe('Tauri CSP 与运行时样式注入', () => {
     const sources = connectSrc.split(/\s+/);
     expect(sources).toContain('ws:');
     expect(sources).toContain('wss:');
+  });
+
+  it('背景素材走受控 asset 协议（scope 限于应用数据目录的 adl-backgrounds）', () => {
+    // 视频背景按 data URL 持久化会拖慢解码且可能撞 localStorage 配额；
+    // 改为 Rust 复制到应用数据目录 + asset 协议流式加载。scope 必须收窄到该目录。
+    expect(security?.assetProtocol).toEqual({
+      enable: true,
+      scope: ['$APPDATA/adl-backgrounds/**'],
+    });
+    const csp = security?.csp ?? '';
+    const imgSrc = /img-src ([^;]+)/.exec(csp)?.[1] ?? '';
+    const mediaSrc = /media-src ([^;]+)/.exec(csp)?.[1] ?? '';
+    expect(imgSrc.split(/\s+/)).toContain('http://asset.localhost');
+    expect(mediaSrc.split(/\s+/)).toContain('http://asset.localhost');
   });
 });

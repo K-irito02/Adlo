@@ -9,9 +9,17 @@ import type {
   BackgroundMode,
   BackgroundFit,
   BackgroundConfig,
+  BackgroundAdjust,
 } from './browserTypes';
 
-export type { ShortcutSite, LocalPort, BackgroundMode, BackgroundFit, BackgroundConfig };
+export type {
+  ShortcutSite,
+  LocalPort,
+  BackgroundMode,
+  BackgroundFit,
+  BackgroundConfig,
+  BackgroundAdjust,
+};
 
 export interface BrowserLandingSlice {
   browserShortcuts: ShortcutSite[];

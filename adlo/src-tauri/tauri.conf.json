@@ -31,7 +31,11 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http: ws: wss:; worker-src 'self'; img-src 'self' data: blob: https: http:; media-src 'self' data: blob: https: http:; frame-src 'self' https: http:",
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http: ws: wss:; worker-src 'self'; img-src 'self' data: blob: asset: http://asset.localhost https: http:; media-src 'self' data: blob: asset: http://asset.localhost https: http:; frame-src 'self' https: http:",
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPDATA/adl-backgrounds/**"]
+      },
       "dangerousDisableAssetCspModification": ["style-src"]
     },
     "withGlobalTauri": false

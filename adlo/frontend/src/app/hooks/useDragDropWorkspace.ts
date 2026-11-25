@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { isTauriShell } from '../../tauri-bridge';
+import { subscribeChannel } from '../../tauri-bridge/tauri-shared';
+import { forwardNativeFileDrop } from './fileDropRouter';
 
 export function useDragDropWorkspace(actions: {
   openWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }>;
@@ -8,46 +10,26 @@ export function useDragDropWorkspace(actions: {
     if (!isTauriShell()) {
       return;
     }
-    let unlisten: undefined | (() => void);
 
-    void (async () => {
-      try {
-        const mod = await import('@tauri-apps/api/window');
-        const win = mod.getCurrentWindow();
-        unlisten = await (
-          win as unknown as { onDragDropEvent: (cb: (e: unknown) => void) => Promise<() => void> }
-        ).onDragDropEvent((e: unknown) => {
-          const payload = (e as Record<string, unknown>)?.payload ?? e;
-          const pl = payload as Record<string, unknown>;
-          const type =
-            (pl?.type as string | undefined) ??
-            (pl?.event as string | undefined) ??
-            (pl?.kind as string | undefined);
-          if (type !== 'drop') {
-            return;
-          }
-          const paths: string[] =
-            (pl?.paths as string[] | undefined) ??
-            ((pl?.data as Record<string, unknown> | undefined)?.paths as string[] | undefined) ??
-            (pl?.files as string[] | undefined) ??
-            ((pl?.data as Record<string, unknown> | undefined)?.files as string[] | undefined) ??
-            [];
-          const first = Array.isArray(paths) ? paths[0] : undefined;
-          if (first && typeof first === 'string') {
-            void actions.openWorkspace(first);
-          }
-        });
-      } catch {
-        // Best-effort: drag-drop open is only available in Tauri shell.
-      }
-    })();
+    // 原生文件落点的统一主通道：Windows 由自有 OLE target 广播；其它平台由
+    // `main.rs` 的 `RunEvent::WindowEvent::DragDrop` 桥接成同名事件。只订阅这一条，
+    // 避免同一落点同时经 `adl:file-drop` 与 `tauri://drag-drop` 各打开一次。
+    const unsubscribeChannel = subscribeChannel<{ type?: string; paths?: string[] }>(
+      'adl:file-drop',
+      (payload) => {
+        if (payload?.type !== 'drop') {
+          return;
+        }
+        const paths = Array.isArray(payload.paths) ? payload.paths : [];
+        if (paths.length === 0) {
+          return;
+        }
+        forwardNativeFileDrop({ paths }, (path) => void actions.openWorkspace(path));
+      },
+    );
 
     return () => {
-      try {
-        unlisten?.();
-      } catch {
-        /* ignore */
-      }
+      unsubscribeChannel();
     };
   }, [actions, actions.openWorkspace]);
 

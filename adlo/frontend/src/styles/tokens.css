@@ -224,6 +224,26 @@
   /* --- Focus ring (themed in themes.css) --- */
   --focus-ring-width: 3px;
   --focus-ring-offset: 2px;
+  /* 表单聚焦中性色：亮色主题黑边，themes.css 的暗色主题覆盖为白色。 */
+  --focus-border: #000000;
+
+  /* === 着陆页表面（亮色默认值，暗色见 themes.css） === */
+  --landing-title-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+  --landing-icon-ring: rgba(255, 255, 255, 0.85);
+  --landing-icon-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  --landing-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9), 0 0 10px rgba(255, 255, 255, 0.7);
+  --landing-label-shadow: 0 1px 2px rgba(255, 255, 255, 0.85);
+  --landing-volume-veil: rgba(255, 255, 255, 0.62);
+  --landing-volume-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  --landing-volume-icon-color: rgba(240, 241, 243, 0.88);
+  --landing-volume-icon-hover-bg: rgba(255, 255, 255, 0.16);
+  --landing-volume-icon-hover-color: #ffffff;
+  --landing-volume-icon-drop: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --landing-volume-percent-color: rgba(0, 0, 0, 0.72);
+  --landing-volume-track: rgba(0, 0, 0, 0.16);
+  --landing-volume-fill: rgba(0, 0, 0, 0.78);
+  --landing-volume-thumb: #111111;
+  --landing-volume-thumb-shadow: 0 1px 4px rgba(255, 255, 255, 0.5);
 
   /* --- Reduced motion --- */
   --motion-scale: 1;

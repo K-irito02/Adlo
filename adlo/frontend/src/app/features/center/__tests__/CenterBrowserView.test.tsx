@@ -8,6 +8,7 @@ import { browserPool } from '@features/browser/browserPoolSingleton';
 import type { CopyDict } from '@i18n/types';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { ShortcutSite } from '@stores/slices/browserLandingSlice';
+import type * as BrowserLandingModule from '@features/browser/browser-landing';
 
 const embedState = vi.hoisted(() => ({
   blocked: true,
@@ -20,6 +21,19 @@ vi.mock('@features/browser/checkEmbed', () => ({
   isEmbedBlocked: () => embedState.cached,
   checkEmbed: async () => embedState.deferred ?? embedState.blocked,
 }));
+
+const landingProbe = vi.hoisted(() => ({ active: null as boolean | null }));
+
+vi.mock('@features/browser/browser-landing', async (importOriginal) => {
+  const actual = await importOriginal<typeof BrowserLandingModule>();
+  return {
+    ...actual,
+    BrowserLandingPage: (props: Parameters<typeof actual.BrowserLandingPage>[0]) => {
+      landingProbe.active = props.active ?? null;
+      return actual.BrowserLandingPage(props);
+    },
+  };
+});
 
 const t = {
   toolBrowser: 'Browser',
@@ -505,6 +519,32 @@ describe('CenterBrowserView', () => {
       shellBody.remove();
       browserPool.reset();
       useAppStore.setState({ isTauri: false });
+    }
+  });
+
+  it('把 !centerObscured 透传给着陆页（浮层遮挡时 active=false）', async () => {
+    const shellBody = document.createElement('div');
+    shellBody.className = 'adl-shell__body';
+    document.body.appendChild(shellBody);
+    landingProbe.active = null;
+
+    const tab = makeTab('b1', '');
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { b1: tab },
+      browserActiveTabId: 'b1',
+    });
+
+    try {
+      renderView('b1');
+      expect(landingProbe.active).toBe(true);
+
+      await act(async () => {
+        shellBody.classList.add('is-rightpanel-overlay-active');
+      });
+      await waitFor(() => expect(landingProbe.active).toBe(false));
+    } finally {
+      shellBody.remove();
     }
   });
 });

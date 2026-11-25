@@ -106,12 +106,24 @@ pub struct PortDetails {
     pub process_error: Option<String>,
 }
 
+/// Windows 上从无控制台的 GUI 宿主拉起控制台程序时必须屏蔽控制台窗口。
+///
+/// 不设 `CREATE_NO_WINDOW` 时 Windows 会为 `netstat` / `tasklist` 子进程新建控制台，
+/// 表现为用户点「查看详细」时闪一下黑色终端窗口。仓内同一修法见
+/// `crates/server/src/handlers/dsh.rs::hidden_command` 与 `src-tauri/src/adl_server.rs`。
+#[cfg(target_os = "windows")]
+fn hidden_command(program: &str) -> tokio::process::Command {
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let mut command = tokio::process::Command::new(program);
+    command.creation_flags(CREATE_NO_WINDOW);
+    command
+}
+
 #[cfg(target_os = "windows")]
 async fn get_port_process_info(port: u16) -> Result<Vec<PortProcessInfo>, CommandError> {
-    let output =
-        tokio::process::Command::new("netstat").args(["-ano"]).output().await.map_err(|e| {
-            CommandError::from(AppError::Internal(format!("failed to run netstat: {e}")))
-        })?;
+    let output = hidden_command("netstat").args(["-ano"]).output().await.map_err(|e| {
+        CommandError::from(AppError::Internal(format!("failed to run netstat: {e}")))
+    })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut pids = Vec::new();
@@ -130,7 +142,7 @@ async fn get_port_process_info(port: u16) -> Result<Vec<PortProcessInfo>, Comman
 
     let mut processes = Vec::new();
     for pid in &pids {
-        let task_output = tokio::process::Command::new("tasklist")
+        let task_output = hidden_command("tasklist")
             .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
             .output()
             .await;
