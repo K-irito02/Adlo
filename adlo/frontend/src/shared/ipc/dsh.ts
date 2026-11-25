@@ -261,18 +261,8 @@ export interface DshBridge {
  * `/dsh/open` 结果：就绪 URL，或默认端口占用时交回前端确认的占用者信息。
  */
 export interface DshOpenResult {
-  /** `opened`（缺省按 opened 兼容旧后端）/ `port_occupied`。 */
-  status?: 'opened' | 'port_occupied';
+  status: 'opened' | 'port_occupied';
   url: string | null;
-  /** 兼容旧字段：新后端不再静默释放端口，当前为 false。 */
-  freedPort?: boolean;
-  /**
-   * URL 是否携带 dsh 启动 token（`?token=`）。端口占用不再自动重启，
-   * 该字段只在已托管实例上为 true。
-   */
-  authenticated?: boolean;
-  /** 兼容旧字段：外部实例复用已取消，当前为 false。 */
-  external?: boolean;
   /** 端口占用确认框被用户取消（调用方应保持当前页面，不做裸 URL 回退）。 */
   canceled?: boolean;
   /** `status='port_occupied'` 时返回：占用 3080 的进程列表。 */

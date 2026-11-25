@@ -34,7 +34,7 @@ interface UseCenterBrowserAddressSubmitParams {
   setIframeLoadError: Dispatch<SetStateAction<boolean>>;
   setIframeBlockedDetected: Dispatch<SetStateAction<boolean>>;
   validatedUrlsRef: MutableRefObject<Set<string>>;
-  /** 提示文案（本地文件桌面端限制 + 残留端口释放告知）；缺省时不提示。 */
+  /** 提示文案（本地文件桌面端限制 + DSH 恢复/启动提示）；缺省时不提示。 */
   t?: Pick<
     CopyDict,
     'dshRecovering' | 'dshStarting' | 'browserLocalFileDesktopOnly' | 'browserLocalFileUnsupported'
@@ -140,15 +140,14 @@ export function useCenterBrowserAddressSubmit({
     if (routeLocalUrl(finalUrl)?.opener === 'dsh') {
       authed = await resolveDshAuthUrl(finalUrl, t);
       if (submitVersionRef.current !== version) {
+        useAppStore.getState().dismissDshRecoveryToast();
         return;
       }
       if (authed && 'canceled' in authed) {
         return;
       }
       targetUrl = authed?.url ?? finalUrl;
-      if (authed) {
-        useAppStore.getState().dismissDshRecoveryToast();
-      }
+      useAppStore.getState().dismissDshRecoveryToast();
     }
 
     let blocked = false;

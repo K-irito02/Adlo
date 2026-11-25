@@ -384,6 +384,7 @@ alwaysApply: false
 - 同 source 的 toast 替换（同位置）
 - 不同 source 的 toast 垂直堆叠，间距 8px
 - 自动消失后调整位置
+- 加载型变体（`showLoadingToast`，`duration: 0` + 扫光）常驻到调用方 `removeToast`；普通 toast 不替换它，只有新的加载 toast 才替换旧加载 toast
 
 ### 文档
 
@@ -393,7 +394,7 @@ alwaysApply: false
 ### 持久错误通知（Error Toast）
 
 - 文件：[ErrorToast.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/ErrorToast.tsx)、[ToastCard.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/ToastCard.tsx)、[ToastRegion.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/adlo/frontend/src/app/components/ToastRegion.tsx)
-- **与顶部 Toast 区别**：右下角持久渲染，不自动消失，由用户手动关闭/清空；顶部 Toast 自动消失
+- **与顶部 Toast 区别**：右下角持久渲染，不自动消失，由用户手动关闭/清空；顶部 Toast 默认自动消失（加载型变体常驻，由调用方收起）
 - **统一卡片外壳**：ErrorToast 与 FileOpNotice 均复用 `ToastCard` 外壳（tone/icon/title/detail/onDismiss/role/ariaLive 映射）；右下角为**单一固定区域** `ToastRegion`（`.toast-card-region`，portal 到 body），内嵌两个 labeled group（error 组贴边、notice 组在上），避免两个同位固定区域重叠
 - **三级分级**（resolveErrorToastLevel(code, detail) 按 code 语义判定）：
   - error（红 --error-toast-error）：真实失败（STORAGE/MODEL/NETWORK/INTERNAL 等），role="alert" + aria-live="assertive"

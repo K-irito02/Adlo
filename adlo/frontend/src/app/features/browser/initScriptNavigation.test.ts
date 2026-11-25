@@ -182,7 +182,9 @@ describe('init_script.js new-tab interception markers', () => {
 
   it('routes the shell plugin open command to the in-app new-tab channel', () => {
     // Tauri shell 插件的 body 点击处理器把 target=_blank 交给 plugin:shell|open，
-    // 浏览器子 WebView 没有该 capability，invoke 被拒且 preventDefault 已生效，
+    // 浏览器子 WebView 中 browser-remote 只覆盖 https 源（remote.urls: ["https://*"]，
+    // 仅 core:default）；http 页（DSH 的 http://127.0.0.1:3080）没有任何 capability
+    // 覆盖其 remote 源。两处 plugin:shell|open 都被 ACL 拒绝，preventDefault 已生效，
     // 原生新窗口路由无法执行（2026-11-25 DSH 设置弹窗链接无反应）。
     expect(initScript).toContain("cmd === 'plugin:shell|open'");
     expect(initScript).toContain('__adlShellOpenPatched');
@@ -469,6 +471,91 @@ describe('init_script.js agent-link interception', () => {
       true,
     );
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('leaves native <dialog> links to the app open-new-tab route', () => {
+    setAgent([window.location.origin], true);
+    const dialog = document.createElement('dialog');
+    const href = 'https://platform.deepseek.com/usage';
+    const a = document.createElement('a');
+    a.href = href;
+    a.target = '_blank';
+    dialog.appendChild(a);
+    document.body.appendChild(dialog);
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+    a.dispatchEvent(event);
+    dialog.remove();
+
+    // 原生 <dialog> 没有显式 role：按标签名识别为站点 chrome，不能吞进 agent 通道。
+    expect(agentLinks()).toHaveLength(0);
+    expect(posted.some((message) => message.type === 'open-new-tab' && message.url === href)).toBe(
+      true,
+    );
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('ignores aria-modal="false" when classifying site chrome', () => {
+    setAgent([window.location.origin], true);
+    const host = document.createElement('div');
+    host.setAttribute('aria-modal', 'false');
+    const href = 'https://example.com/body-link';
+    const a = document.createElement('a');
+    a.href = href;
+    host.appendChild(a);
+    document.body.appendChild(host);
+    a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+    host.remove();
+
+    // aria-modal="false" 不是 modal chrome；正文链接仍按 agent 内容拦截。
+    expect(agentLinks()).toEqual([{ type: 'adl-agent-link', kind: 'url', url: href }]);
+  });
+
+  it('treats <header> content as site chrome (pins the intentional breadth)', () => {
+    setAgent([window.location.origin], true);
+    const header = document.createElement('header');
+    const a = document.createElement('a');
+    a.href = 'https://example.com/header-link';
+    header.appendChild(a);
+    document.body.appendChild(header);
+    a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+    header.remove();
+
+    // 设计取舍：header/aside/footer 整棵子树都按站点 chrome 处理，避免站点导航被拦截。
+    expect(agentLinks()).toHaveLength(0);
+  });
+
+  it('applies rules whose id collides with Object.prototype members', () => {
+    setAgent([window.location.origin], true);
+    const rule = {
+      id: 'constructor',
+      enabled: true,
+      matchSelector: 'button',
+      attributes: ['data-file-path'],
+      pathPreset: 'fileLike',
+      action: 'file',
+    };
+    setAgentRules([], [{ origin: window.location.origin, siteRules: [rule] }]);
+    clickButtonWithAttrs({ 'data-file-path': 'E:\\ws\\constructor.md' });
+    expect(agentLinks()).toEqual([
+      { type: 'adl-agent-link', kind: 'file', url: 'E:\\ws\\constructor.md' },
+    ]);
+  });
+
+  it('applies a rule whose id is __proto__', () => {
+    setAgent([window.location.origin], true);
+    const protoRule = {
+      id: '__proto__',
+      enabled: true,
+      matchSelector: 'button',
+      attributes: ['data-file-path'],
+      pathPreset: 'fileLike',
+      action: 'file',
+    };
+    setAgentRules([], [{ origin: window.location.origin, siteRules: [protoRule] }]);
+    clickButtonWithAttrs({ 'data-file-path': 'E:\\ws\\proto.md' });
+    expect(agentLinks()).toEqual([
+      { type: 'adl-agent-link', kind: 'file', url: 'E:\\ws\\proto.md' },
+    ]);
   });
 
   it('ignores the Tauri shell plugin auto-open link listener', () => {

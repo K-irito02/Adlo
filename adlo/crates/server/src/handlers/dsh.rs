@@ -132,16 +132,6 @@ struct VersionInput {
     select: Option<bool>,
 }
 
-/// dsh 真实入口 URL 是否携带启动 token（`?token=`）。
-///
-/// 只有从 dsh 进程 stdout 捕获的 `dsh web: <url>` 才带 token；复用一个外部启动、
-/// 未由本宿主捕获 stdout 的实例时只能拿到裸 URL，裸地址会 401（事项 7）。
-fn url_has_launch_token(url: &str) -> bool {
-    url::Url::parse(url).is_ok_and(|parsed| {
-        parsed.query_pairs().any(|(key, value)| key == "token" && !value.is_empty())
-    })
-}
-
 /// `/dsh/open` 的请求体（可选）：`force=true` 表示用户已在确认框里同意
 /// 「结束占用 3080 的进程并重启项目内 DSH」。
 #[derive(serde::Deserialize, Default)]
@@ -152,13 +142,10 @@ struct OpenInput {
 }
 
 /// `/dsh/open` 就绪响应。
-fn opened_payload(url: &str, authenticated: bool) -> serde_json::Value {
+fn opened_payload(url: &str) -> serde_json::Value {
     serde_json::json!({
         "status": "opened",
         "url": url,
-        "authenticated": authenticated,
-        "freedPort": false,
-        "external": false,
     })
 }
 
@@ -167,19 +154,22 @@ fn port_occupied_payload(port: u16, processes: Vec<PortOccupant>) -> serde_json:
     serde_json::json!({
         "status": "port_occupied",
         "url": null,
-        "authenticated": false,
-        "freedPort": false,
-        "external": false,
         "occupant": PortOccupiedInfo { port, processes },
     })
 }
 
-/// 兼容旧客户端：空 body / 非 JSON / 空对象都视为非强制。
+/// 宽松解析：空 body / 非 JSON / 空对象都视为非强制。
 fn parse_open_force(body: &[u8]) -> bool {
     if body.is_empty() {
         return false;
     }
     serde_json::from_slice::<OpenInput>(body).map(|input| input.force).unwrap_or(false)
+}
+
+/// `/dsh/open` 的端口策略：只有用户确认（`force=true`）才结束占用者；
+/// 默认 `Reject` 永不杀进程，把占用者交回前端确认。
+fn policy_for_force(force: bool) -> PortPolicy {
+    if force { PortPolicy::KillOccupants } else { PortPolicy::Reject }
 }
 
 /// POST `/dsh/open` — 拉起 dsh 进程；已托管运行时复用其 URL。
@@ -190,7 +180,7 @@ fn parse_open_force(body: &[u8]) -> bool {
 /// - 端口空闲但托管进程已死：直接重新拉起（前端负责「正在恢复」提示）。
 pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> impl IntoResponse {
     let force = parse_open_force(&body);
-    let policy = if force { PortPolicy::KillOccupants } else { PortPolicy::Reject };
+    let policy = policy_for_force(force);
     let result = run_open(
         state.dsh_state.clone(),
         state.dsh_starting.clone(),
@@ -218,19 +208,19 @@ async fn is_port_occupied(port: u16) -> bool {
 /// 占用默认端口的进程摘要（返回给前端确认框展示）。
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PortOccupant {
-    pub pid: u32,
-    pub name: String,
-    pub cmdline: String,
-    pub is_dsh: bool,
+struct PortOccupant {
+    pid: u32,
+    name: String,
+    cmdline: String,
+    is_dsh: bool,
 }
 
 /// `/dsh/open` 的端口占用负载：前端据此弹确认框，确认后以 `force=true` 重试。
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PortOccupiedInfo {
-    pub port: u16,
-    pub processes: Vec<PortOccupant>,
+struct PortOccupiedInfo {
+    port: u16,
+    processes: Vec<PortOccupant>,
 }
 
 /// 打开 dsh 时对默认端口占用者的处置策略。
@@ -314,11 +304,15 @@ async fn kill_port_occupants(port: u16, only_dsh: bool) -> Result<Vec<u32>, AppE
     }
     let names = occupants
         .iter()
-        .filter(|o| !only_dsh || !o.is_dsh)
         .map(|o| format!("{} (pid {})", o.name, o.pid))
         .collect::<Vec<_>>()
         .join(", ");
-    Err(AppError::Io(format!("dsh default port {port} is in use by another process: {names}")))
+    if names.is_empty() {
+        return Err(AppError::Io(format!(
+            "dsh default port {port} is in use, but the occupying process could not be identified"
+        )));
+    }
+    Err(AppError::Io(format!("dsh default port {port} is in use by: {names}")))
 }
 
 /// 进程命令行是否指向 dsh 残留（@deepseek-ai/dsh 包 / dsh lib bin.js）。
@@ -554,17 +548,17 @@ async fn run_open(
             elapsed_ms = start_time.elapsed().as_millis(),
             "dsh::run_open: fast path - already running"
         );
-        return Ok(opened_payload(&managed.url, url_has_launch_token(&managed.url)));
+        return Ok(opened_payload(&managed.url));
     }
 
-    // 串行化启动：free_stale + spawn 持独立锁，close/revert/uninstall 不被阻塞。
+    // 串行化启动：端口处置 + 来源探测 + spawn 持独立锁，close/revert/uninstall 不被阻塞。
     // 版本目录变更（install/uninstall/reinstall/update）持 version_lock：
     // 此处先取 version_lock 再取 start_lock，与变更路径的嵌套顺序一致
     // （version 外层 → stop 内取 start_lock），无锁序反转；避免 detect 选中
     // 半写入版本并 spawn。快速路径（已运行）不取任何写锁。
     let _version_guard = version_lock.lock().await;
     let _start_guard = start_lock.lock().await;
-    // 拉起中标志（L1）：取锁成功即置位，覆盖来源探测 + free_stale + spawn 全窗口；
+    // 拉起中标志（L1）：取锁成功即置位，覆盖端口处置 + 来源探测 + spawn 全窗口；
     // ReuseRunning / None 路径随各自 early-return 自动复位（Drop），前端短暂骨架可接受。
     let _starting = StartingGuard::arm(&dsh_starting);
     // 持锁复查：同样先 try_wait 收割已退出的托管子进程（与快速路径同一语义），
@@ -574,7 +568,7 @@ async fn run_open(
             elapsed_ms = start_time.elapsed().as_millis(),
             "dsh::run_open: acquired lock - already running"
         );
-        return Ok(opened_payload(&managed.url, url_has_launch_token(&managed.url)));
+        return Ok(opened_payload(&managed.url));
     }
 
     // 默认端口占用处置：先于来源探测，避免把无关服务当作 dsh 候选或误杀。
@@ -612,7 +606,7 @@ async fn run_open(
     let download_config = adl_download_source::load(&paths.root)?;
     tracing::info!(elapsed_ms = config_start.elapsed().as_millis(), "dsh::run_open: config loaded");
 
-    // 智能选择 dsh 来源（在 free_stale 之前，避免误杀用户正在运行的 dsh）
+    // 智能选择 dsh 来源（端口处置之后：默认 Reject 不杀进程，只有强制策略才结束占用者）
     // 优先使用缓存的来源，避免重复检测
     let source = {
         // 先读缓存，提取数据后立即释放锁，避免跨 await 持有 RwLockReadGuard
@@ -681,16 +675,17 @@ async fn run_open(
         }
     };
 
-    // 真正要 spawn 时才需要「拉起中」之外的动作：ReuseRunning / None 在上游
-    // early-return，此处只剩 HostInstalled / System 两个实际拉起分支。
+    // 真正要 spawn 时才需要「拉起中」之外的动作：来源探测完成到此处只剩
+    // HostInstalled / System 两个实际拉起分支；ReuseRunning 的竞态（探测后端口
+    // 又被占用）在下方 match 内单独处置。
     // （_starting 已在取锁成功时置位，覆盖来源探测窗口；此处不再重复 arm。）
 
-    // 固定 dsh 默认端口：若被残留 dsh 占用则先释放（用户选择"仅杀 dsh 残留进程"）。
     let timeout = std::time::Duration::from_secs(60);
     let spawn_start = std::time::Instant::now();
     // 本次 spawn 的来源版本与来源类型（事项 2026-10-20/1：运行中显示真实版本用；
     // 2026-10-22：记录来源使读数能区分「宿主拉起 / 系统安装拉起 / 外部运行」）。
-    // 复用/无来源走上游 early-return，此处不可达。
+    // 来源在此分派：HostInstalled / System 实际拉起；ReuseRunning 处置探测后的
+    // 端口竞态；None 返回 NotFound。
     let (hp, spawn_version, spawn_source) = match source {
         adl_harness_version::DshSource::ReuseRunning { url, port } => {
             // 占用检查与探测之间的竞态：有别的东西刚在 3080 上起来。
@@ -739,7 +734,7 @@ async fn run_open(
     let url = hp.url.clone();
     *guard = Some(ManagedDsh { process: hp, version: spawn_version, source: spawn_source });
     tracing::info!(total_elapsed_ms = start_time.elapsed().as_millis(), "dsh::run_open: completed");
-    Ok(opened_payload(&url, url_has_launch_token(&url)))
+    Ok(opened_payload(&url))
 }
 
 /// Pre-start dsh in background. Called from `serve()` after server is ready.
@@ -967,8 +962,6 @@ async fn run_restart(state: &ServerState) -> Result<serde_json::Value, AppError>
         Ok(value) => Ok(serde_json::json!({
             "restarted": true,
             "url": value.get("url").cloned(),
-            "authenticated": value.get("authenticated").cloned(),
-            "external": value.get("external").cloned(),
         })),
         Err(AppError::NotFound(_)) => Ok(serde_json::json!({ "restarted": false, "url": null })),
         Err(e) => Err(e),
@@ -1488,15 +1481,6 @@ mod tests {
     }
 
     #[test]
-    fn url_has_launch_token_detects_non_empty_token_query() {
-        assert!(url_has_launch_token("http://127.0.0.1:3080/?token=abc"));
-        assert!(url_has_launch_token("http://127.0.0.1:3080/?foo=1&token=abc&bar=2"));
-        assert!(!url_has_launch_token("http://127.0.0.1:3080/"));
-        assert!(!url_has_launch_token("http://127.0.0.1:3080/?token="));
-        assert!(!url_has_launch_token("not a url"));
-    }
-
-    #[test]
     fn process_name_from_cmdline_uses_basename() {
         assert_eq!(
             process_name_from_cmdline(r#""D:\nodejs\node.exe" C:\x\bin.js --flag"#),
@@ -1525,9 +1509,8 @@ mod tests {
 
     #[test]
     fn opened_payload_marks_status_opened() {
-        let payload = opened_payload("http://127.0.0.1:3080/?token=x", true);
+        let payload = opened_payload("http://127.0.0.1:3080/?token=x");
         assert_eq!(payload["status"], "opened");
-        assert_eq!(payload["authenticated"], true);
         assert_eq!(payload["url"], "http://127.0.0.1:3080/?token=x");
     }
 
@@ -1538,6 +1521,12 @@ mod tests {
         assert!(parse_open_force(br#"{"force":true}"#));
         assert!(!parse_open_force(br#"{"force":false}"#));
         assert!(!parse_open_force(b"not json"));
+    }
+
+    #[test]
+    fn default_open_policy_never_kills_port_occupants() {
+        assert_eq!(policy_for_force(false), PortPolicy::Reject);
+        assert_eq!(policy_for_force(true), PortPolicy::KillOccupants);
     }
 
     #[test]

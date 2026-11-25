@@ -25,10 +25,10 @@
 - 判断"是否残留 dsh"用命令行含 `@deepseek-ai/dsh`（正/反斜杠两种写法）或 `\dsh\lib\bin.js` 作标记，避免误杀无关服务。
 
 ### 5. 并发 open 需独立 start-lock
-`spawn_and_wait_ready` 可能阻塞数十秒，不能用状态互斥锁包住（会挡住 close/revert/uninstall）。应加**独立的 `Arc<AsyncMutex<()>>` 启动锁**只串行化 free-stale+spawn；拿锁后二次检查状态（等待期间可能已被并发方启动），锁序严格 `start_lock → dsh_state`，无 ABBA 死锁。
+`spawn_and_wait_ready` 可能阻塞数十秒，不能用状态互斥锁包住（会挡住 close/revert/uninstall）。应加**独立的 `Arc<AsyncMutex<()>>` 启动锁**只串行化端口处置 + 来源探测 + spawn；拿锁后二次检查状态（等待期间可能已被并发方启动），锁序严格 `start_lock → dsh_state`，无 ABBA 死锁。
 
 ### 6. IPC 结构变更要同步三桥与前端类型
-`/dsh/open` 返回从裸 URL 字符串改为 `{url, freedPort}`，需同步：`shared/ipc/dsh.ts` 类型、`httpBridge.ts`、`tauri-bridge/tauri-dsh.ts`（消费 `.url`）、`mock/mock-dsh.ts`、store action 返回值，及新增前端错误卡片 code/i18n 映射（`DSH_FREED_PORT` → info 级）。
+`/dsh/open` 现返回 `{status:'opened', url}`（就绪）或 `{status:'port_occupied', occupant}`（端口被占用，交前端确认）；只有 `force=true` 才结束占用者。需同步：`shared/ipc/dsh.ts` 类型、`httpBridge.ts`、`tauri-bridge/tauri-dsh.ts`（消费 `.url`）、`mock/mock-dsh.ts` 与 store action 返回值。旧的 `{url, freedPort}` / `DSH_FREED_PORT` 提示已删除。
 
 ## 关联
 - 根因进度：`docs/root-cause-resolution/2026-09/progress-2026-09-06-034300.md`

@@ -145,7 +145,7 @@ describe('useBrowserPanelAddressSubmit', () => {
       dsh: {
         open: vi.fn(async () => ({
           ok: true,
-          data: { url: 'http://127.0.0.1:3080/?token=tok123', freedPort: false },
+          data: { status: 'opened', url: 'http://127.0.0.1:3080/?token=tok123' },
         })),
       },
     };
@@ -233,6 +233,127 @@ describe('useBrowserPanelAddressSubmit', () => {
       });
 
       expect(browserNavigatePanelTab).toHaveBeenCalledWith('http://127.0.0.1:3080', undefined);
+    } finally {
+      delete (window as unknown as { digitalLife?: unknown }).digitalLife;
+    }
+  });
+
+  it('DSH 解析被更新提交取代时仍收起恢复 toast', async () => {
+    useAppStore.setState({
+      browserTabs: [],
+      browserTabsById: {},
+      browserActiveTabId: '',
+      browserHistory: [],
+      isTauri: true,
+      dshRecoveryToastId: 'dsh-toast',
+      toasts: [{ id: 'dsh-toast', message: '正在自动恢复…', shimmer: true, duration: 0 }],
+    });
+    let resolveOpen: (value: unknown) => void = () => {};
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      dsh: {
+        open: vi.fn(
+          () =>
+            new Promise((resolve) => {
+              resolveOpen = resolve;
+            }),
+        ),
+      },
+    };
+    const submitVersionRef = { current: 0 };
+    try {
+      const { result } = renderHook(() =>
+        useBrowserPanelAddressSubmit({
+          address: 'http://127.0.0.1:3080',
+          setAddress: vi.fn(),
+          setSearchQueryDisplay: vi.fn(),
+          browserLookupIndex: [],
+          handleNavigationStart: vi.fn(),
+          expectedNavigationUrlRef: { current: null },
+          navigateBrowser: vi.fn(),
+          browserNavigatePanelTab: vi.fn(),
+          setIframeLoadError: vi.fn(),
+          setIframeBlockedDetected: vi.fn(),
+          handlePageMeta: vi.fn(),
+          addressSubmittedForTabRef: { current: '' },
+          submitVersionRef,
+          validatedUrlsRef: { current: new Set<string>() },
+        }),
+      );
+
+      const pending = result.current.submitAddress();
+      await act(async () => {});
+      // 模拟后一次提交推进代际：本次 DSH 解析落定后不得再导航。
+      submitVersionRef.current += 1;
+      await act(async () => {
+        resolveOpen({
+          ok: true,
+          data: { status: 'opened', url: 'http://127.0.0.1:3080/?token=x' },
+        });
+        await pending;
+      });
+
+      expect(useAppStore.getState().dshRecoveryToastId).toBeNull();
+      expect(useAppStore.getState().toasts).toHaveLength(0);
+    } finally {
+      delete (window as unknown as { digitalLife?: unknown }).digitalLife;
+    }
+  });
+
+  it('端口确认被取消时不裸开 3080 且不导航', async () => {
+    useAppStore.setState({
+      browserTabs: [],
+      browserTabsById: {},
+      browserActiveTabId: '',
+      browserHistory: [],
+      isTauri: true,
+      dshPortConflict: null,
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      dsh: {
+        open: vi.fn(async () => ({
+          ok: true,
+          data: {
+            status: 'port_occupied',
+            url: null,
+            occupant: {
+              port: 3080,
+              processes: [{ pid: 42, name: 'node.exe', cmdline: 'node x', isDsh: false }],
+            },
+          },
+        })),
+      },
+    };
+    const browserNavigatePanelTab = vi.fn();
+    const navigateBrowser = vi.fn();
+    try {
+      const { result } = renderHook(() =>
+        useBrowserPanelAddressSubmit({
+          address: 'http://127.0.0.1:3080',
+          setAddress: vi.fn(),
+          setSearchQueryDisplay: vi.fn(),
+          browserLookupIndex: [],
+          handleNavigationStart: vi.fn(),
+          expectedNavigationUrlRef: { current: null },
+          navigateBrowser,
+          browserNavigatePanelTab,
+          setIframeLoadError: vi.fn(),
+          setIframeBlockedDetected: vi.fn(),
+          handlePageMeta: vi.fn(),
+          addressSubmittedForTabRef: { current: '' },
+          submitVersionRef: { current: 0 },
+          validatedUrlsRef: { current: new Set<string>() },
+        }),
+      );
+
+      const pending = result.current.submitAddress();
+      await vi.waitFor(() => expect(useAppStore.getState().dshPortConflict).not.toBeNull());
+      useAppStore.getState().resolveDshPortConflict(false);
+      await act(async () => {
+        await pending;
+      });
+
+      expect(browserNavigatePanelTab).not.toHaveBeenCalled();
+      expect(navigateBrowser).not.toHaveBeenCalled();
     } finally {
       delete (window as unknown as { digitalLife?: unknown }).digitalLife;
     }

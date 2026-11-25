@@ -86,7 +86,7 @@ describe('useBrowserPanelHandlers.handleOpenTabFromTree (regression)', () => {
       dsh: {
         open: vi.fn(async () => ({
           ok: true,
-          data: { url: 'http://127.0.0.1:3080/?token=tree1', freedPort: false },
+          data: { status: 'opened', url: 'http://127.0.0.1:3080/?token=tree1' },
         })),
       },
     };

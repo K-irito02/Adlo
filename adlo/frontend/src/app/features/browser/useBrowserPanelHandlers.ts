@@ -14,7 +14,7 @@ export interface UseBrowserPanelHandlersParams {
   setBrowserNavigateInPlace: (value: boolean) => void;
   getActiveTabId: () => string;
   expectedNavigationUrlRef: ExpectedNavigationRef;
-  /** 全量文案（调用点传入面板 `t`）：仅用于残留端口释放告知，缺省不提示。 */
+  /** 提示文案（DSH 恢复/启动提示）；缺省不提示。 */
   t?: Pick<CopyDict, 'dshRecovering' | 'dshStarting'>;
 }
 

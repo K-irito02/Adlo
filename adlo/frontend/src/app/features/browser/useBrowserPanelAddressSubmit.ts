@@ -27,7 +27,7 @@ interface UseBrowserPanelAddressSubmitParams {
   addressSubmittedForTabRef: MutableRefObject<string>;
   submitVersionRef: MutableRefObject<number>;
   validatedUrlsRef: MutableRefObject<Set<string>>;
-  /** 提示文案（本地文件桌面端限制 + 残留端口释放告知）；缺省时不提示。 */
+  /** 提示文案（本地文件桌面端限制 + DSH 恢复/启动提示）；缺省时不提示。 */
   t?: Pick<
     CopyDict,
     'dshRecovering' | 'dshStarting' | 'browserLocalFileDesktopOnly' | 'browserLocalFileUnsupported'
@@ -138,15 +138,14 @@ export function useBrowserPanelAddressSubmit({
     if (routeLocalUrl(finalUrl)?.opener === 'dsh') {
       authed = await resolveDshAuthUrl(finalUrl, t);
       if (submitVersionRef.current !== version) {
+        useAppStore.getState().dismissDshRecoveryToast();
         return;
       }
       if (authed && 'canceled' in authed) {
         return;
       }
       targetUrl = authed?.url ?? finalUrl;
-      if (authed) {
-        useAppStore.getState().dismissDshRecoveryToast();
-      }
+      useAppStore.getState().dismissDshRecoveryToast();
     }
 
     if (!useAppStore.getState().isTauri) {

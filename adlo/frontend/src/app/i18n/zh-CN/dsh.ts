@@ -12,6 +12,7 @@ export const dshZh = {
   dshPortConflictMessageMulti: '3080 端口正被以下进程使用：',
   dshPortConflictQuestion: '要结束占用并重启应用内的 DeepSeek Harness 吗？',
   dshPortConflictOtherWarning: '其中还有其它程序，结束它们可能会影响正在使用它们的应用。',
+  dshPortConflictUnidentified: '无法识别占用 3080 端口的进程，请手动结束后再试。',
   dshPortConflictWarningSuffix: '',
   dshPortConflictProcess: '{name}（PID {pid}）',
   dshPortConflictConfirm: '结束并重启',

@@ -865,8 +865,8 @@ pub fn resolve_effective_source(
 
 /// dsh 响应指纹：401 鉴权文案，或已鉴权页面的产品标题。
 /// 取舍说明（有意设计）：2xx 要求精确标题串，误判普通页面（旧事故）已消除，
-/// 代价是 dsh 改版标题即漏检；漏检后果可控——调用方会尝试重起并撞端口，
-/// 端口占用路径（free_stale + freedPort 提示）会自愈，不会静默双跑。
+/// 代价是 dsh 改版标题即漏检；漏检后果可控——调用方会尝试重起，
+/// 端口被占用时交前端确认（默认不杀进程），不会静默双跑。
 pub fn is_dsh_http_response(status: u16, body: &str) -> bool {
     (status == 401 && adl_webapp_host::is_auth_required_body(body))
         || ((200..300).contains(&status) && body.contains("DeepSeek Harness"))

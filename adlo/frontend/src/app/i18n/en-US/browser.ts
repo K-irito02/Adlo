@@ -142,6 +142,8 @@ export const browserEn = {
   browserContextCopyLink: 'Copy link',
   browserContextCopyPid: 'Copy PID',
   browserCopyPidNotFound: 'No process found for this port',
+  browserCopyPidUnavailable: 'Unable to get the process using this port',
+  browserCopyFailed: 'Copy failed',
   browserContextDelete: 'Delete',
   browserContextMore: 'More actions',
   browserContextCreateBookmark: 'New bookmark',

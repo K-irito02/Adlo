@@ -26,11 +26,21 @@ describe('toastSlice.showLoadingToast', () => {
     expect(store.getState().toasts).toHaveLength(0);
   });
 
-  it('replaces any previous toast (single-toast channel)', () => {
+  it('普通 toast 不替换正在显示的加载 toast', () => {
+    const store = makeToastStore();
+    const loadingId = store.getState().showLoadingToast('正在自动恢复…', 'warning', 'dsh');
+    store.getState().showToast('操作进行中');
+    const toasts = store.getState().toasts;
+    expect(toasts.map((toast) => toast.message)).toEqual(['正在自动恢复…', '操作进行中']);
+    expect(toasts[0].id).toBe(loadingId);
+  });
+
+  it('再次显示加载 toast 时替换旧的加载 toast，保留普通 toast', () => {
     const store = makeToastStore();
     store.getState().showToast('old');
-    store.getState().showLoadingToast('new');
-    expect(store.getState().toasts).toHaveLength(1);
-    expect(store.getState().toasts[0].message).toBe('new');
+    store.getState().showLoadingToast('first');
+    store.getState().showLoadingToast('second');
+    const toasts = store.getState().toasts;
+    expect(toasts.map((toast) => toast.message)).toEqual(['old', 'second']);
   });
 });

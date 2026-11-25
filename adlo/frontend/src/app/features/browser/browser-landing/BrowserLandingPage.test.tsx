@@ -25,6 +25,8 @@ const t = {
   browserContextCopyLink: '复制链接',
   browserContextCopyPid: '复制PID',
   browserCopyPidNotFound: '未找到占用该端口的进程',
+  browserCopyPidUnavailable: '无法获取占用该端口的进程',
+  browserCopyFailed: '复制失败',
   browserRename: '重命名',
   browserDelete: '删除',
   browserLabelPort: '重命名端口',
@@ -110,7 +112,10 @@ describe('BrowserLandingPage 右键复制', () => {
     useAppStore.setState({ browserLocalPorts: [port] });
     invokeIpc.mockResolvedValue({
       ok: true,
-      data: { processes: [{ pid: 4321, name: 'node.exe', command: 'node dsh' }] },
+      data: {
+        processes: [{ pid: 4321, name: 'node.exe', command: 'node dsh' }],
+        processError: null,
+      },
     });
     const { container } = renderLanding();
     openPortMenu(container);
@@ -120,9 +125,28 @@ describe('BrowserLandingPage 右键复制', () => {
     expect(invokeIpc).toHaveBeenCalledWith('browser_get_port_details', { port: 5173 });
   });
 
+  it('多个占用进程按换行分隔写入剪贴板', async () => {
+    useAppStore.setState({ browserLocalPorts: [port] });
+    invokeIpc.mockResolvedValue({
+      ok: true,
+      data: {
+        processes: [
+          { pid: 4321, name: 'node.exe', command: 'node a' },
+          { pid: 8765, name: 'node.exe', command: 'node b' },
+        ],
+        processError: null,
+      },
+    });
+    const { container } = renderLanding();
+    openPortMenu(container);
+
+    fireEvent.click(screen.getByRole('menuitem', { name: '复制PID' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('4321\n8765'));
+  });
+
   it('端口无占用进程时提示且不写剪贴板', async () => {
     useAppStore.setState({ browserLocalPorts: [port] });
-    invokeIpc.mockResolvedValue({ ok: true, data: { processes: [] } });
+    invokeIpc.mockResolvedValue({ ok: true, data: { processes: [], processError: null } });
     const { container } = renderLanding();
     openPortMenu(container);
 
@@ -131,5 +155,44 @@ describe('BrowserLandingPage 右键复制', () => {
       expect(useAppStore.getState().toasts[0]?.message).toBe('未找到占用该端口的进程'),
     );
     expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it('查询进程失败时提示「无法获取」而不是「未找到」', async () => {
+    useAppStore.setState({ browserLocalPorts: [port] });
+    invokeIpc.mockResolvedValue({ ok: false, error: { code: 'E_IPC', message: 'boom' } });
+    const { container } = renderLanding();
+    openPortMenu(container);
+
+    fireEvent.click(screen.getByRole('menuitem', { name: '复制PID' }));
+    await waitFor(() =>
+      expect(useAppStore.getState().toasts[0]?.message).toBe('无法获取占用该端口的进程'),
+    );
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it('后端取进程信息失败（processError）时同样提示「无法获取」', async () => {
+    useAppStore.setState({ browserLocalPorts: [port] });
+    invokeIpc.mockResolvedValue({
+      ok: true,
+      data: { processes: [], processError: 'access denied' },
+    });
+    const { container } = renderLanding();
+    openPortMenu(container);
+
+    fireEvent.click(screen.getByRole('menuitem', { name: '复制PID' }));
+    await waitFor(() =>
+      expect(useAppStore.getState().toasts[0]?.message).toBe('无法获取占用该端口的进程'),
+    );
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it('剪贴板写入失败时提示复制失败', async () => {
+    useAppStore.setState({ browserShortcuts: [site] });
+    writeText.mockRejectedValueOnce(new Error('denied'));
+    const { container } = renderLanding();
+    openShortcutMenu(container);
+
+    fireEvent.click(screen.getByRole('menuitem', { name: '复制链接' }));
+    await waitFor(() => expect(useAppStore.getState().toasts[0]?.message).toBe('复制失败'));
   });
 });

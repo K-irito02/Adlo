@@ -129,6 +129,7 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
         }
         if (!authed) {
           openFallback(url);
+          useAppStore.getState().dismissDshRecoveryToast();
           return;
         }
         openFallback(authed.url);
@@ -198,23 +199,37 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
 
   /** 右键「复制链接」：快捷站点复制保存的 URL。 */
   const handleCopyShortcutLink = useCallback(() => {
-    if (shortcutMenu.site) {
-      void copyToClipboard(shortcutMenu.site.url);
-    }
+    const site = shortcutMenu.site;
     handleContextMenuClose();
-  }, [shortcutMenu.site, handleContextMenuClose]);
+    if (!site) {
+      return;
+    }
+    void (async () => {
+      const result = await copyToClipboard(site.url);
+      if (!result.ok) {
+        useAppStore.getState().showToast(t.browserCopyFailed, 'warning');
+      }
+    })();
+  }, [shortcutMenu.site, handleContextMenuClose, t]);
 
-  /** 右键「复制链接」：端口复制可访问的完整地址。 */
+  /** 右键「复制链接」：端口复制完整的 `http://{host}:{port}` 地址（不校验监听状态）。 */
   const handleCopyPortLink = useCallback(() => {
-    if (portMenu.port) {
-      void copyToClipboard(`http://${portMenu.port.host}:${portMenu.port.port}`);
-    }
+    const port = portMenu.port;
     handleContextMenuClose();
-  }, [portMenu.port, handleContextMenuClose]);
+    if (!port) {
+      return;
+    }
+    void (async () => {
+      const result = await copyToClipboard(`http://${port.host}:${port.port}`);
+      if (!result.ok) {
+        useAppStore.getState().showToast(t.browserCopyFailed, 'warning');
+      }
+    })();
+  }, [portMenu.port, handleContextMenuClose, t]);
 
   /**
    * 右键「复制PID」：LocalPort 不持久化 pid，按端口实时查询占用进程。
-   * 无进程（未监听/查询失败）时提示，不把空串写进剪贴板。
+   * 查询失败/无权限与「确实没有进程」分开提示，不把空串写进剪贴板。
    */
   const handleCopyPortPid = useCallback(() => {
     const port = portMenu.port;
@@ -223,19 +238,22 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
       return;
     }
     void (async () => {
-      try {
-        const result = await invokeIpc<{ processes: { pid: number }[] }>(
-          'browser_get_port_details',
-          { port: port.port },
-        );
-        const pids = result.ok ? result.data.processes.map((process) => process.pid) : [];
-        if (pids.length === 0) {
-          useAppStore.getState().showToast(t.browserCopyPidNotFound, 'warning');
-          return;
-        }
-        await copyToClipboard(pids.join('\n'));
-      } catch {
+      const result = await invokeIpc<{
+        processes: { pid: number }[];
+        processError: string | null;
+      }>('browser_get_port_details', { port: port.port });
+      if (!result.ok || result.data.processError) {
+        useAppStore.getState().showToast(t.browserCopyPidUnavailable, 'warning');
+        return;
+      }
+      const pids = result.data.processes.map((process) => process.pid);
+      if (pids.length === 0) {
         useAppStore.getState().showToast(t.browserCopyPidNotFound, 'warning');
+        return;
+      }
+      const copied = await copyToClipboard(pids.join('\n'));
+      if (!copied.ok) {
+        useAppStore.getState().showToast(t.browserCopyFailed, 'warning');
       }
     })();
   }, [portMenu.port, handleContextMenuClose, t]);

@@ -213,8 +213,7 @@
 }
 
 .adl-tree-node__row:hover .adl-browser-node__actions,
-.adl-filetree__row:hover .adl-browser-node__actions,
-.adl-filetree__row:focus-within .adl-browser-node__actions {
+.adl-filetree__row:hover .adl-browser-node__actions {
   opacity: 1;
   pointer-events: auto;
 }

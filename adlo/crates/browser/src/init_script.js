@@ -38,9 +38,10 @@
     // baked into the injected prefix (`window.__adlAgentOrigins` /
     // `window.__adlAgentInterceptEnabled`) and read dynamically so click
     // interception picks up `browser_set_agent_intercept` on loaded pages.
-    // The `window.open` rewrite and SPA nav-guard are install-time gates:
-    // enabling them needs a reload, while disabling takes effect immediately
-    // through their runtime checks.
+    // Click interception reads `__adlAgentInterceptEnabled` at event time, so
+    // `browser_set_agent_intercept` applies to already-loaded pages. The
+    // `window.open` rewrite and SPA nav-guard are install-time gates: they are
+    // installed only on agent hosts and need a reload to install or remove.
     function __adlIsAgentHost() {
         try {
             var origins = window.__adlAgentOrigins || [];
@@ -65,12 +66,13 @@
                     role === 'navigation' || role === 'menubar') {
                     return true;
                 }
-                if (node.hasAttribute && (node.hasAttribute('aria-modal') ||
+                if (node.hasAttribute && (node.getAttribute('aria-modal') === 'true' ||
                     node.hasAttribute('data-menu-popup'))) {
                     return true;
                 }
                 var tag = node.tagName;
-                if (tag === 'NAV' || tag === 'HEADER' || tag === 'FOOTER' || tag === 'ASIDE') {
+                if (tag === 'NAV' || tag === 'HEADER' || tag === 'FOOTER' || tag === 'ASIDE' ||
+                    tag === 'DIALOG') {
                     return true;
                 }
                 node = node.parentElement;
@@ -141,11 +143,11 @@
         // 抢占同元素上的站点规则。disabledRuleIds 只作用于全局规则（见下方 global 循环），
         // 站点规则用自己的 enabled 表达开关。
         var merged = [];
-        var seen = {};
+        var seen = Object.create(null);
         function pushRule(rule) {
             if (!rule) return;
             var id = typeof rule.id === 'string' ? rule.id : '';
-            if (id && seen[id]) return;
+            if (id && Object.hasOwn(seen, id)) return;
             if (id) seen[id] = true;
             merged.push(rule);
         }
@@ -442,10 +444,12 @@
 
     // Tauri's shell plugin injects a document.body click handler that sends every
     // `<a target="_blank" href="http(s)://…">` to `plugin:shell|open` and calls
-    // preventDefault(). Browser webviews are not covered by the app capability
-    // (only `main` is) and do not receive functional `__TAURI_INTERNALS__`, so
-    // that click is swallowed before the window new-tab route can run (real user
-    // report 2026-11-25: DSH settings' account/usage/top-up links did nothing).
+    // preventDefault(). `browser-remote` covers only https origins
+    // (`remote.urls: ["https://*"]`, `core:default` only); http pages such as
+    // DSH's `http://127.0.0.1:3080` have no capability covering their remote
+    // origin. Both reject `plugin:shell|open` at the ACL, so the click is
+    // swallowed before the window new-tab route can run (real user report
+    // 2026-11-25: DSH settings' account/usage/top-up links did nothing).
     // Skip that one auto-open listener at registration time; Adlo's own route
     // owns target=_blank links inside its browser webviews. The shell plugin's
     // open command (used by the app's openExternal) is unaffected.
@@ -469,13 +473,8 @@
         } catch (e) {}
     })();
 
-    // Tauri's shell plugin injects a document.body click handler that sends every
-    // `<a target="_blank" href="http(s)://…">` to `plugin:shell|open` and calls
-    // preventDefault(). Browser webviews are not covered by the app capability
-    // (only `main` is) and do not even receive `__TAURI_INTERNALS__`, so the
-    // invoke rejects — and the click dies before the window new-tab route can
-    // run (real user report 2026-11-25: DSH settings' account/usage/top-up links
-    // did nothing). Provide/patch `invoke` so those requests go to our in-app
+    // Belt-and-braces for injectors that register the shell listener before this
+    // script runs: patch `invoke` so `plugin:shell|open` still reaches our in-app
     // new-tab channel; the plugin's preventDefault is then harmless.
     (function __adlPatchShellOpen() {
         function makeInvoke(original) {
@@ -779,8 +778,9 @@
     document.addEventListener('click', __adlAgentClickHandler, true);
     document.addEventListener('auxclick', __adlAgentClickHandler, true);
     
-    // 1. 重写 window.open：仅 agent 站点需要接管链接打开方式；普通站点保留原生。
-    // 安装期判断：开关变更后需重载页面才会安装/移除该重写（点击拦截本身是动态的）。
+    // 1. 重写 window.open：agent 站点只接管下载 URL；其余 http(s) URL 交回
+    //    origOpen（非 http(s) 返回 null）。安装期判断：开关变更后
+    //    需重载页面才会安装/移除该重写（点击拦截本身是动态的）。
     var origOpen = window.open;
     if (__adlIsAgentHost()) {
     window.open = function(url, name, features) {
@@ -826,8 +826,8 @@
             // classified as agent content vs. site chrome. Site chrome uses
             // window.open for login/feedback/payment flows; swallowing those
             // broke real sites (2026-11-25). Delegate to the native new-window
-            // path; anchor clicks in agent content still go through the
-            // rule-based interception above.
+            // path; anchor clicks in agent content still go through the click
+            // interception above.
             console.log('[ADL-DL-JS] window.open: non-download URL, delegating to origOpen:', resolvedUrl);
             __adlSendLog('info', 'window.open: non-download URL delegated to origOpen', { url: resolvedUrl });
             return origOpen.call(window, resolvedUrl, name, features);

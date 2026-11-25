@@ -108,7 +108,7 @@ describe('CenterEntryPage', () => {
   it('点击「打开 deepseek harness」成功后把入口页标签就地转为 dsh 浏览器标签（不新增中心标签）', async () => {
     const open = vi.fn(async () => ({
       ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+      data: { status: 'opened', url: 'http://127.0.0.1:3080' },
     }));
     (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
 
@@ -175,7 +175,7 @@ describe('CenterEntryPage', () => {
   it('复用已在中心的 dsh 标签时只聚焦它并移除入口页', async () => {
     const open = vi.fn(async () => ({
       ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+      data: { status: 'opened', url: 'http://127.0.0.1:3080' },
     }));
     (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
     useAppStore.setState({
@@ -235,7 +235,7 @@ describe('CenterEntryPage', () => {
   it('源状态确认无可用版本时拦截打开并 toast 提示，不调桥不建标签', async () => {
     const open = vi.fn(async () => ({
       ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+      data: { status: 'opened', url: 'http://127.0.0.1:3080' },
     }));
     const getSourceStatus = vi.fn(async () => ({ ok: false, error: { code: 'X', message: 'x' } }));
     (window as unknown as { digitalLife: unknown }).digitalLife = {
@@ -308,7 +308,7 @@ describe('CenterEntryPage', () => {
     expect(useAppStore.getState().centerTabs.find((c) => c.id === 'c1')?.kind).toBe('browser');
 
     // 收尾：放行在途 promise，避免遗留未处理任务。
-    resolveOpen({ ok: true, data: { url: 'http://127.0.0.1:3080', freedPort: false } });
+    resolveOpen({ ok: true, data: { status: 'opened', url: 'http://127.0.0.1:3080' } });
     // 迟到完成后标签仍是用户转换出的 browser（未被误删）。
     await vi.waitFor(() => {
       const center = useAppStore.getState().centerTabs.find((c) => c.id === 'c1');

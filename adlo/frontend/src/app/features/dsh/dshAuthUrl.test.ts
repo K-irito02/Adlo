@@ -51,7 +51,7 @@ describe('resolveDshAuthUrl (事项 2)', () => {
     await expect(resolveDshAuthUrl('http://localhost:3080')).resolves.toBeNull();
   });
 
-  it('端口占用时弹确认框；取消返回 null，确认后以 force=true 重试', async () => {
+  it('端口占用时弹确认框；取消返回 {canceled:true}，确认后以 force=true 重试', async () => {
     const occupant = {
       port: 3080,
       processes: [{ pid: 42, name: 'node.exe', cmdline: 'node dsh', isDsh: true }],

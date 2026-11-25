@@ -135,6 +135,8 @@ export const browserZh = {
   browserContextCopyLink: '复制链接',
   browserContextCopyPid: '复制PID',
   browserCopyPidNotFound: '未找到占用该端口的进程',
+  browserCopyPidUnavailable: '无法获取占用该端口的进程',
+  browserCopyFailed: '复制失败',
   browserContextDelete: '删除',
   browserContextMore: '更多操作',
   browserContextCreateBookmark: '新建书签',

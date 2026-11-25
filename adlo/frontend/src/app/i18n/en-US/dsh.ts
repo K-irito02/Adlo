@@ -13,6 +13,8 @@ export const dshEn = {
   dshPortConflictQuestion: "End it and restart the app's DeepSeek Harness?",
   dshPortConflictOtherWarning:
     'Other programs are also using this port; ending them may affect the apps using them.',
+  dshPortConflictUnidentified:
+    'Could not identify the process using port 3080. Close it manually and try again.',
   dshPortConflictWarningSuffix: ' ',
   dshPortConflictProcess: '{name} (PID {pid})',
   dshPortConflictConfirm: 'End and restart',

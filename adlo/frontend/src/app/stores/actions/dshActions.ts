@@ -78,8 +78,9 @@ let pendingPortConflict: ((accept: boolean) => void) | null = null;
 /** 拉起超过该时长仍未返回时提示「正在恢复」，避免 20 秒静默像没反应。 */
 const RECOVERY_TOAST_DELAY_MS = 1200;
 
-/** 启动/恢复提示文案（缺省不提示，便于测试与浏览器模式）。 */
-type DshRecoveryCopy = Pick<CopyDict, 'dshRecovering' | 'dshStarting'>;
+/** 启动/恢复与端口占用提示文案（缺省不提示，便于测试与浏览器模式）。 */
+type DshRecoveryCopy = Pick<CopyDict, 'dshRecovering' | 'dshStarting'> &
+  Partial<Pick<CopyDict, 'dshPortConflictUnidentified'>>;
 
 /** applyPendingVersionSource 并发重入守卫（StrictMode 双 effect 安全）。 */
 let applyPendingInFlight: Promise<boolean> | null = null;
@@ -163,7 +164,7 @@ async function callDshOpen(
       captureError(get, result.error, SCOPE);
       return null;
     }
-    return result.data ?? { url: null, freedPort: false };
+    return result.data ?? { status: 'opened', url: null };
   } catch (error) {
     // 桥抛错：沿旧语义抛给调用方，同时收起本次已出现的加载 toast。
     if (toastId) {
@@ -178,15 +179,13 @@ async function callDshOpen(
   }
 }
 
-/** 弹全局端口占用确认框，等待用户选择；新请求会先结束旧的等待（按取消处理）。 */
+/** 弹全局端口占用确认框，等待用户选择；由 `resolveDshPortConflict` 解除。 */
 function askDshPortConflict(get: () => StoreState, info: DshPortOccupiedInfo): Promise<boolean> {
   // 需要用户决策，恢复流程暂停；先收起“正在恢复”提示，确认后再重新开始。
   get().dismissDshRecoveryToast();
-  pendingPortConflict?.(false);
   return new Promise<boolean>((resolve) => {
     pendingPortConflict = (accept) => {
       pendingPortConflict = null;
-      get().setDshPortConflict(null);
       resolve(accept);
     };
     get().setDshPortConflict(info);
@@ -202,7 +201,8 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
      * 地址栏、浏览器树）共用本方法，避免只修一处：
      * - 3080 空闲但进程已死：后端直接拉起；超过 1.2s 显示常驻加载 toast。
      * - 3080 被占用：不杀进程，弹全局确认框；用户确认后以 force=true 重试。
-     * @returns 就绪结果（`url` 可空）；用户取消或失败返回 null
+     * @returns 就绪结果（`status` 必填，`url` 可空）；用户取消端口确认返回
+     *   `{ url: null, canceled: true }`；失败返回 null
      * @reads sourceStatus.running（区分首次启动 / 断连恢复文案）
      * @writes dshPortConflict（确认框）、dshRecoveryToastId
      * @see httpBridge.ts → dsh.open (/dsh/open)
@@ -215,10 +215,20 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         clearError(get, SCOPE);
         let data = await callDshOpen(get, false, t);
         if (data?.status === 'port_occupied' && data.occupant) {
+          if (data.occupant.processes.length === 0) {
+            // 识别不到占用者时不能弹空列表确认框（确认后也无从结束）：
+            // 直接提示手动处理，并保持调用方当前位置。
+            const unidentified = t?.dshPortConflictUnidentified;
+            if (unidentified) {
+              get().showToast(unidentified, 'warning');
+            }
+            get().dismissDshRecoveryToast();
+            return { status: 'port_occupied', url: null, canceled: true };
+          }
           const accepted = await askDshPortConflict(get, data.occupant);
           if (!accepted) {
             get().dismissDshRecoveryToast();
-            return { url: null, canceled: true };
+            return { status: 'port_occupied', url: null, canceled: true };
           }
           data = await callDshOpen(get, true, t);
         }
@@ -236,10 +246,8 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
      * accept=true → 待决的 ensure/open 以 force=true 结束占用进程并重启。
      */
     resolveDshPortConflict: (accept: boolean) => {
-      const resolve = pendingPortConflict;
-      pendingPortConflict = null;
       get().setDshPortConflict(null);
-      resolve?.(accept);
+      pendingPortConflict?.(accept);
     },
 
     /**

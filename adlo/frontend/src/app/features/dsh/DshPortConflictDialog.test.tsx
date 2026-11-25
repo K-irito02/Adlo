@@ -60,7 +60,7 @@ describe('DshPortConflictDialog', () => {
     expect(useAppStore.getState().dshPortConflict).toBeNull();
   });
 
-  it('多进程逐行展示，且警告在问句之前', () => {
+  it('多进程逐行展示，且警告在问句之前、列表在问句之前', () => {
     useAppStore.getState().setDshPortConflict({
       port: 3080,
       processes: [dshProcess, { pid: 7, name: 'other.exe', cmdline: 'other', isDsh: false }],
@@ -73,6 +73,18 @@ describe('DshPortConflictDialog', () => {
     expect(items[0].textContent).toContain('node.exe');
     expect(items[1].textContent).toContain('other.exe');
     expect(screen.getByText(/其它程序/)).toBeTruthy();
+
+    // ConfirmDialog 走 portal 挂到 body，从 document 取节点。
+    const question = document.querySelector('.adl-confirm-dialog__question');
+    const details = document.querySelector('.adl-confirm-dialog__details');
+    expect(question).not.toBeNull();
+    expect(details).not.toBeNull();
+    // 阅读顺序：列表 → 警告 + 问句。
+    expect(
+      details!.compareDocumentPosition(question!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const questionText = question!.textContent ?? '';
+    expect(questionText.indexOf('其它程序')).toBeLessThan(questionText.indexOf('要结束占用并重启'));
 
     fireEvent.click(screen.getByRole('button', { name: '取消' }));
     expect(useAppStore.getState().dshPortConflict).toBeNull();
