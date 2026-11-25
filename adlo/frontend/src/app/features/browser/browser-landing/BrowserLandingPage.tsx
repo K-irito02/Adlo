@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import type { CopyDict } from '@i18n';
+import { copyToClipboard, type CopyDict } from '@i18n';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { invokeIpc } from '../../../../tauri-bridge/tauri-shared';
@@ -14,7 +14,7 @@ import { PortConfigDialog } from './PortConfigDialog';
 import type { ShortcutSite, LocalPort } from '@stores/slices/browserSlice';
 import { ContextMenu } from '@components/ContextMenu';
 import { routeLocalUrl } from './localAuthPorts';
-import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
+import { resolveDshAuthUrl } from '@features/dsh/dshAuthUrl';
 import { isDshBusySnap, isDshConfirmedUnusable } from '@features/dsh/dshOpenGuard';
 import './BrowserLandingPage.css';
 
@@ -123,15 +123,17 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
           useAppStore.getState().showToast(t.dshOpenNoVersion, 'warning');
           return;
         }
-        const authed = await resolveDshAuthUrl(url);
-        if (!authed) {
-          openFallback(url);
+        const authed = await resolveDshAuthUrl(url, t);
+        if (authed && 'canceled' in authed) {
           return;
         }
-        if (authed.freedPort) {
-          notifyDshFreedPort(t);
+        if (!authed) {
+          openFallback(url);
+          useAppStore.getState().dismissDshRecoveryToast();
+          return;
         }
         openFallback(authed.url);
+        useAppStore.getState().dismissDshRecoveryToast();
       })();
     },
     [openFallback, t],
@@ -194,6 +196,67 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
     }
     handleContextMenuClose();
   }, [portMenu.port, openUrlInCenter, handleContextMenuClose]);
+
+  /** 右键「复制链接」：快捷站点复制保存的 URL。 */
+  const handleCopyShortcutLink = useCallback(() => {
+    const site = shortcutMenu.site;
+    handleContextMenuClose();
+    if (!site) {
+      return;
+    }
+    void (async () => {
+      const result = await copyToClipboard(site.url);
+      if (!result.ok) {
+        useAppStore.getState().showToast(t.browserCopyFailed, 'warning');
+      }
+    })();
+  }, [shortcutMenu.site, handleContextMenuClose, t]);
+
+  /** 右键「复制链接」：端口复制完整的 `http://{host}:{port}` 地址（不校验监听状态）。 */
+  const handleCopyPortLink = useCallback(() => {
+    const port = portMenu.port;
+    handleContextMenuClose();
+    if (!port) {
+      return;
+    }
+    void (async () => {
+      const result = await copyToClipboard(`http://${port.host}:${port.port}`);
+      if (!result.ok) {
+        useAppStore.getState().showToast(t.browserCopyFailed, 'warning');
+      }
+    })();
+  }, [portMenu.port, handleContextMenuClose, t]);
+
+  /**
+   * 右键「复制PID」：LocalPort 不持久化 pid，按端口实时查询占用进程。
+   * 查询失败/无权限与「确实没有进程」分开提示，不把空串写进剪贴板。
+   */
+  const handleCopyPortPid = useCallback(() => {
+    const port = portMenu.port;
+    handleContextMenuClose();
+    if (!port) {
+      return;
+    }
+    void (async () => {
+      const result = await invokeIpc<{
+        processes: { pid: number }[];
+        processError: string | null;
+      }>('browser_get_port_details', { port: port.port });
+      if (!result.ok || result.data.processError) {
+        useAppStore.getState().showToast(t.browserCopyPidUnavailable, 'warning');
+        return;
+      }
+      const pids = result.data.processes.map((process) => process.pid);
+      if (pids.length === 0) {
+        useAppStore.getState().showToast(t.browserCopyPidNotFound, 'warning');
+        return;
+      }
+      const copied = await copyToClipboard(pids.join('\n'));
+      if (!copied.ok) {
+        useAppStore.getState().showToast(t.browserCopyFailed, 'warning');
+      }
+    })();
+  }, [portMenu.port, handleContextMenuClose, t]);
 
   const handleRenameShortcutFromMenu = useCallback(() => {
     if (shortcutMenu.site) {
@@ -295,6 +358,11 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
       action: handleShowShortcutInCenter,
     },
     {
+      id: 'copy-link',
+      label: t.browserContextCopyLink,
+      action: handleCopyShortcutLink,
+    },
+    {
       id: 'rename',
       label: t.browserRename,
       action: handleRenameShortcutFromMenu,
@@ -312,6 +380,16 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
       id: 'show-in-center',
       label: t.centerTabShowInCenter,
       action: handleShowPortInCenter,
+    },
+    {
+      id: 'copy-link',
+      label: t.browserContextCopyLink,
+      action: handleCopyPortLink,
+    },
+    {
+      id: 'copy-pid',
+      label: t.browserContextCopyPid,
+      action: handleCopyPortPid,
     },
     {
       id: 'rename',

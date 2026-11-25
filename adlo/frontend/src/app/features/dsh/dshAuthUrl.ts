@@ -4,7 +4,6 @@ import { routeLocalUrl } from '@features/browser/browser-landing/localAuthPorts'
 
 export interface DshAuthUrl {
   url: string;
-  freedPort: boolean;
 }
 
 /**
@@ -12,40 +11,35 @@ export interface DshAuthUrl {
  *
  * dsh 0.2.x 起裸 `http://127.0.0.1:3080/` 必 401，必须用进程 stdout 打印的
  * 真实入口 URL（含 `?token=`，首次访问种 cookie）。命中分发表（`routeLocalUrl`）
- * 的 URL 经后端 `/dsh/open` 取真实地址：已托管实例直接复用；外部实例无 token 时
- * 后端会**尝试重启一次**以捕获认证入口。失败时回落原始 URL：外部实例仍在时由
- * dsh 展示 401 指引，已被重启流程终止时由浏览器显示连接错误。
- * 未命中或失败返回 null，调用方按原逻辑裸开。
+ * 的 URL 交给 store 的统一解析器 `ensureDshUrl`：
+ * - 端口空闲但进程已死 → 自动拉起（延迟 1.2s 给「正在恢复」toast）；
+ * - 3080 被占用 → 弹确认框，用户确认后结束占用进程并重启项目内版本。
+ *
+ * 未命中分发表或用户取消/失败返回 null / `{canceled:true}`。
+ *
+ * @param t 恢复提示文案（缺省不提示）
  */
-export async function resolveDshAuthUrl(inputUrl: string): Promise<DshAuthUrl | null> {
+export type DshAuthResolution = DshAuthUrl | { canceled: true } | null;
+
+export async function resolveDshAuthUrl(
+  inputUrl: string,
+  t?: Pick<CopyDict, 'dshRecovering' | 'dshStarting'>,
+): Promise<DshAuthResolution> {
   const routed = routeLocalUrl(inputUrl);
   if (routed?.opener !== 'dsh') {
     return null;
   }
   try {
-    const res = await window.digitalLife.dsh.open();
-    if (!res.ok) {
-      return null;
+    const data = await useAppStore.getState().ensureDshUrl(t);
+    if (data?.canceled) {
+      return { canceled: true };
     }
-    const url = res.data?.url?.trim() ?? '';
+    const url = data?.url?.trim() ?? '';
     if (!url) {
       return null;
     }
-    const freedPort = res.data?.freedPort ?? false;
-    return { url, freedPort };
+    return { url };
   } catch {
     return null;
   }
-}
-
-/**
- * 残留端口释放告知（与入口页 `DSH_FREED_PORT` 卡片同义的 toast 轻量版）。
- * 类型收紧为所需单 key（R1-LOW）：调用方传全量 copy 即满足，缺 key 时直接
- * 跳过，避免 `undefined` 进 toast；禁止硬编码文案。
- */
-export function notifyDshFreedPort(t: Pick<CopyDict, 'dshPortFreed'>) {
-  if (!t.dshPortFreed) {
-    return;
-  }
-  useAppStore.getState().showToast(t.dshPortFreed, 'warning');
 }

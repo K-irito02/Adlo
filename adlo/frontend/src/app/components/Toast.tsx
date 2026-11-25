@@ -7,8 +7,11 @@ export type ToastType = 'success' | 'warning' | 'error';
 interface ToastProps {
   message: string;
   type?: ToastType;
+  /** 自动收起毫秒数；`<= 0` 表示常驻，由调用方 `removeToast` 收起。 */
   duration?: number;
   position?: number;
+  /** 加载型 toast：文字使用项目统一的扫光效果。 */
+  shimmer?: boolean;
   onClose: () => void;
 }
 
@@ -17,7 +20,10 @@ export interface ToastData {
   message: string;
   type?: ToastType;
   source?: string;
+  /** 自动收起毫秒数；`<= 0` 表示常驻（加载型 toast 用）。 */
   duration?: number;
+  /** 加载型 toast：文字扫光（与加载行/按钮忙碌态同一套 keyframes）。 */
+  shimmer?: boolean;
 }
 
 const TOAST_BASE_TOP = 24;
@@ -35,6 +41,7 @@ export function Toast({
   type = 'warning',
   duration = 3000,
   position = 0,
+  shimmer = false,
   onClose,
 }: ToastProps) {
   const [isVisible, setIsVisible] = useState(false);
@@ -46,6 +53,12 @@ export function Toast({
 
   useEffect(() => {
     requestAnimationFrame(() => setIsVisible(true));
+
+    // 加载型 toast（duration<=0）常驻：目标标签页打开后由调用方 removeToast 收起，
+    // 避免「恢复还没完成、提示先消失」或长任务被固定超时截断。
+    if (duration <= 0) {
+      return;
+    }
 
     let hideTimer: ReturnType<typeof setTimeout> | null = null;
     const timer = setTimeout(() => {
@@ -72,7 +85,9 @@ export function Toast({
       aria-live="polite"
     >
       <span className="adl-toast__icon" dangerouslySetInnerHTML={{ __html: iconHtml }} />
-      <span className="adl-toast__message">{message}</span>
+      <span className={`adl-toast__message${shimmer ? ' adl-toast__message--shimmer' : ''}`}>
+        {message}
+      </span>
     </div>,
     document.body,
   );
@@ -112,6 +127,7 @@ export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
           message={toast.message}
           type={toast.type}
           duration={toast.duration}
+          shimmer={toast.shimmer}
           position={positionMap.get(toast.id)}
           onClose={() => onRemove(toast.id)}
         />

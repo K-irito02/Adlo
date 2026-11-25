@@ -1210,7 +1210,8 @@ export function createHttpBridge({
 
     // ── dsh 宿主壳 domain (/dsh/*, crates/server handlers/dsh.rs).
     dsh: {
-      open: () => call<DshOpenResult>(baseUrl, '/dsh/open', POST({})),
+      open: (force?: boolean) =>
+        call<DshOpenResult>(baseUrl, '/dsh/open', POST(force ? { force: true } : {})),
       restart: () => call<DshRestartResult>(baseUrl, '/dsh/restart', POST({})),
       getVersionTask: () => call<DshVersionTaskResult>(baseUrl, '/dsh/version-task', POST({})),
       cancelVersionTask: () => call<boolean>(baseUrl, '/dsh/cancel-version-task', POST({})),

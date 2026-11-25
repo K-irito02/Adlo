@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { CenterEntryPage } from '../CenterEntryPage';
 import { CenterPane } from '@regions/CenterPane';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
 import type { CopyDict } from '@i18n/types';
 import type { DshSourceStatus } from '@shared/ipc/dsh';
+import { dshOpened } from '../../../../test-fixtures/dsh';
 
 // 新建入口页只渲染三入口（dsh 版本管理已移入设置面板「DSH」组）。
 
@@ -18,7 +19,13 @@ const t = {
   centerLauncherOpenDsh: '打开 deepseek harness',
   centerLauncherOpenBrowser: '打开浏览器',
   centerLauncherOpenTerminal: '打开终端',
-  dshPortFreed: '端口已释放并重新启动',
+  dshRecovering: '正在重新启动并打开',
+  dshStarting: '正在启动 DeepSeek Harness',
+  dshPortConflictTitle: '端口被占用',
+  dshPortConflictMessage: '占用进程：{processes}。结束并重启？',
+  dshPortConflictOtherWarning: '包含非 dsh 程序',
+  dshPortConflictConfirm: '结束进程并重启',
+  dshPortConflictCancel: '取消',
   dshOpenFailed: '打开失败',
   dshOpenNoVersion: '暂无可用版本',
   dshVersionBusyRetry: '稍候再试',
@@ -43,6 +50,7 @@ beforeEach(() => {
     toasts: [],
     // 守卫用例会写入 sourceStatus（effective none）；此处复位，避免污染后续用例的守卫判定。
     sourceStatus: null,
+    dshPortConflict: null,
   });
 });
 
@@ -101,7 +109,7 @@ describe('CenterEntryPage', () => {
   it('点击「打开 deepseek harness」成功后把入口页标签就地转为 dsh 浏览器标签（不新增中心标签）', async () => {
     const open = vi.fn(async () => ({
       ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+      data: dshOpened('http://127.0.0.1:3080'),
     }));
     (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
 
@@ -124,33 +132,51 @@ describe('CenterEntryPage', () => {
     expect(s.centerActiveTabId).toBe('c1');
   });
 
-  it('freedPort=true 时报 DSH_FREED_PORT 信息卡并把入口页就地转为浏览器标签', async () => {
-    const open = vi.fn(async () => ({
-      ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: true },
-    }));
+  it('3080 被占用时先弹确认框；确认后以 force=true 重启并转换入口页', async () => {
+    const occupant = {
+      port: 3080,
+      processes: [{ pid: 42, name: 'node.exe', cmdline: 'node dsh', isDsh: true }],
+    };
+    let call = 0;
+    const open = vi.fn(async (force?: boolean) => {
+      call += 1;
+      if (call === 1) {
+        return { ok: true, data: { status: 'port_occupied', url: null, occupant } };
+      }
+      return {
+        ok: true,
+        data: {
+          status: force ? 'opened' : 'port_occupied',
+          url: force ? 'http://127.0.0.1:3080/?token=new' : null,
+        },
+      };
+    });
     (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
 
     renderLauncher();
     fireEvent.click(screen.getByRole('button', { name: /deepseek harness/i }));
 
-    await vi.waitFor(() => {
-      expect(
-        useAppStore
-          .getState()
-          .errorToasts.some((e) => e.code === 'DSH_FREED_PORT' && e.scope === 'dsh'),
-      ).toBe(true);
+    // 用户确认前不杀进程、不建标签。
+    await vi.waitFor(() => expect(useAppStore.getState().dshPortConflict).toEqual(occupant));
+    expect(useAppStore.getState().centerTabs[0].kind).toBe('launcher');
+    expect(useAppStore.getState().browserTabs).toHaveLength(0);
+
+    act(() => {
+      useAppStore.getState().resolveDshPortConflict(true);
     });
+
     await vi.waitFor(() => {
       const center = useAppStore.getState().centerTabs.find((c) => c.id === 'c1');
       expect(center?.kind).toBe('browser');
     });
+    expect(open).toHaveBeenLastCalledWith(true);
+    expect(useAppStore.getState().dshPortConflict).toBeNull();
   });
 
   it('复用已在中心的 dsh 标签时只聚焦它并移除入口页', async () => {
     const open = vi.fn(async () => ({
       ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+      data: dshOpened('http://127.0.0.1:3080'),
     }));
     (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
     useAppStore.setState({
@@ -210,7 +236,7 @@ describe('CenterEntryPage', () => {
   it('源状态确认无可用版本时拦截打开并 toast 提示，不调桥不建标签', async () => {
     const open = vi.fn(async () => ({
       ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+      data: dshOpened('http://127.0.0.1:3080'),
     }));
     const getSourceStatus = vi.fn(async () => ({ ok: false, error: { code: 'X', message: 'x' } }));
     (window as unknown as { digitalLife: unknown }).digitalLife = {
@@ -283,7 +309,7 @@ describe('CenterEntryPage', () => {
     expect(useAppStore.getState().centerTabs.find((c) => c.id === 'c1')?.kind).toBe('browser');
 
     // 收尾：放行在途 promise，避免遗留未处理任务。
-    resolveOpen({ ok: true, data: { url: 'http://127.0.0.1:3080', freedPort: false } });
+    resolveOpen({ ok: true, data: dshOpened('http://127.0.0.1:3080') });
     // 迟到完成后标签仍是用户转换出的 browser（未被误删）。
     await vi.waitFor(() => {
       const center = useAppStore.getState().centerTabs.find((c) => c.id === 'c1');

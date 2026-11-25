@@ -8,7 +8,7 @@ alwaysApply: false
 
 ## 核心规则
 
-修改桌面端 UI 后，必须重新运行应用以验证效果。**主观 UI/UX 验收由用户完成；CSS 选择器、层叠关系、主题 token 或布局变更还必须做机械计算样式验证**：用 `node adlo/scripts/ui-probe.mjs --url <预览地址> --selector <css> --props <属性>` 读取亮暗两套计算值，或使用环境内置 browser 工具的 `getComputedStyle`；不能只靠截图/肉眼。
+修改桌面端 UI 后，必须重新运行应用以验证效果。**主观 UI/UX 验收由用户完成；CSS 选择器、层叠关系、主题 token 或布局变更还必须做机械计算样式验证**：用 `node adlo/scripts/ui-probe.mjs --url <预览地址> --selector <css> --props <属性>` 读取亮暗两套计算值（`--theme light|dark`），涉及动效时加 `--reduced-motion`；或使用环境内置 browser 工具的 `getComputedStyle`；不能只靠截图/肉眼。
 
 ## 适用范围
 
@@ -36,9 +36,9 @@ node adlo/scripts/ui-probe.mjs --url http://127.0.0.1:5174 --eval-when "#app > *
   --props opacity,filter
 ```
 
-亮暗两套用 `--theme light|dark`，窄视口用 `--viewport 720x900`；`--focus <选择器>` 可验证 `:focus-visible` 背景。
+亮暗两套用 `--theme light|dark`，窄视口用 `--viewport 720x900`；`--focus <选择器>` 可验证 `:focus-visible` 背景；`--reduced-motion` 可验证降动效。
 
-把 `is-suspended` 换成目标状态类即可；报告里记录端口与命令，结束后终止预览服务。
+把 `is-suspended` 换成目标状态类即可；报告里记录端口与命令，结束后终止预览服务。亮暗两套与 reduced-motion 各跑一次。
 
 ### 可选自动化冒烟
 

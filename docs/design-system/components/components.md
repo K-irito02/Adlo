@@ -400,8 +400,14 @@ React API: `Toast` and `ToastContainer` from `frontend/src/app/components/Toast.
 - `source` can be any string identifier (e.g. 'browser', 'editor', 'terminal')
 - When a toast is removed, remaining toasts automatically adjust positions
 
-### 持久错误卡片（右下角）
+### 加载型 Toast（常驻 + 文字扫光）
 
+- API：`showLoadingToast(message, type?, source?)`，写入 `duration: 0` + `shimmer: true`。
+- 不自动消失：由调用方在目标完成后 `removeToast(id)`（如 DSH 启动/恢复直到承载标签打开）。
+- 文字复用 `adl-text-shimmer`（`background-clip: text`，2s）；`prefers-reduced-motion: reduce` 下退化为静态 `var(--text-secondary)`（`animation: none`）。
+- 分槽规则：普通 `showToast` 保留加载型 toast；新的 `showLoadingToast` 才替换旧加载 toast。
+
+### 持久错误卡片（右下角）
 `ErrorToast` + `ToastCard` 负责不自动消失的失败提示（如推送/拉取失败），结构为两行：
 
 - **head**：错误图标 + 标题 + 右侧 展开/复制/关闭 图标按钮；

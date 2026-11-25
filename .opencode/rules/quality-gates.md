@@ -45,8 +45,8 @@ alwaysApply: false
 | 场景 | 命令 | 说明 |
 |------|------|------|
 | 日常改动 / 提交前 | `pnpm --dir frontend run check:changed` | 变更文件 lint/format + 类型/契约不变量 + `vitest related` 受影响用例；检测到 Rust 变更时自动追加受影响 crate 的 fmt/clippy/单测（普通 crate `--lib`，bin-only 外壳 `adlo` 跑 `--bins`）；无 `src/` 变更则跳过前端测试 |
-| 修复循环（未提交） | `pnpm --dir frontend run check:changed -- --base HEAD` | 只检查工作区本轮改动；工作区干净且 base=HEAD 时直接失败（防止提交后假绿） |
-| 修复循环（已提交 / checkpoint） | `pnpm --dir frontend run check:changed -- --base merge-base` | 覆盖「分支分叉点..工作区」；`check:review` 默认即此口径 |
+| 修复循环（未提交） | `pnpm --dir frontend run check:changed --base HEAD` | 只检查工作区本轮改动；工作区干净且 base=HEAD 时直接失败（防止提交后假绿） |
+| 修复循环（已提交 / checkpoint） | `pnpm --dir frontend run check:changed --base merge-base` | 覆盖「分支分叉点..工作区」；`check:review` 默认即此口径 |
 | Rust 单 crate | `cargo test -p <crate>` | 手动补跑集成测试或特定过滤用例（`cargo test -p <crate> --tests`） |
 | 桌面-only 交互改动（可选） | `pnpm run e2e:build` → `pnpm run e2e` | opt-in 桌面冒烟（真实窗口/IPC）；**不属于** `check:all`，规则见技能 `desktop-e2e-wdio` |
 | 发布打包 Tauri 前 | `pnpm run check:all` + 双端验证 | **必须先通知用户并获批准**，不得自行执行 |

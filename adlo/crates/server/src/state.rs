@@ -69,9 +69,9 @@ pub struct ServerState {
     /// 本次是否正在拉起 dsh（spawn 进行中）：前端据此在读数位置显示骨架胶囊，
     /// 避免「未知/旧值 → 真实版本」的可见跳变。spawn 结束或失败即复位。
     pub dsh_starting: Arc<AtomicBool>,
-    /// 串行化 dsh 启动（free_stale + spawn）的独立锁：与 `dsh_state` 分离，
+    /// 串行化 dsh 启动（端口处置 + 来源探测 + spawn）的独立锁：与 `dsh_state` 分离，
     /// 使 close/revert/uninstall 在启动期间不被阻塞，同时避免两个并发
-    /// `/dsh/open` 各自 spawn、或第二个的 free-stale 误杀第一个刚起的进程。
+    /// `/dsh/open` 各自 spawn。
     pub dsh_start_lock: Arc<AsyncMutex<()>>,
     /// 串行化版本目录变更（安装/卸载/切换/重装），避免并发写入同一目录。
     pub dsh_version_lock: Arc<AsyncMutex<()>>,

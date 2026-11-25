@@ -81,7 +81,7 @@
 | WebView2 环境 | 同一 UDF 的所有 WebView 必须使用逐字一致的 `WEBVIEW_ADDITIONAL_ARGS`（含 wry 默认 `--disable-features` + `--allow-file-access-from-files`），否则 `0x8007139F`。主窗口、面板、中心、静默、分隔条同源。 |
 | 本地页元数据 | App 根 `useGlobalBrowserMeta` 单点订阅原生 meta 与广播；`file:` 允许更新标签标题且不写 HTTP 元数据缓存；`browser-page-ready` 对 `file:` 放行，本地页加载完成即揭示。 |
 | 系统媒体卡片镜像 | Adlo 关闭 Chromium `MediaSessionService`（其会话归属 `msedgewebview2.exe`，卡片恒「未知应用」），系统卡片由宿主 Rust SMTC 承载。注入脚本 `init_script.js` 把站点 `navigator.mediaSession` 标题与页面媒体元素状态以 `{type:'adl-media'}` postMessage 上报（播放事件即时报，`timeupdate` 约 900ms 节流）；Rust 解析后发 `digital-life://browser-media-state`（`{tabId,title,paused,ended,position,duration}`）。前端 `useBrowserSystemMedia` 把每个标签登记为 `tab:<id>` 媒体源，由 `systemMediaSession` 统一仲裁（本地预览与标签页**同级、无优先级**，多播放源每 3s 轮播，暂停源回退，播放快照 5s / 暂停 5min 过期）；卡片按钮经 `browser_media_control_tab` 注入 `play/pause/stop`。浏览器预览模式该域 `supported:false`（no-op），页面音频仍由 `navigator.mediaSession` 自行接管。 |
-| 页面内新窗口请求 | `target=_blank` / `window.open` 经 `init_script.js` 的 `{type:'open-new-tab'}` postMessage 或 Tauri `on_new_window` 上报；事件载荷带发起标签 `tabId`，前端 `browserOpenNewWindowTab` 按来源宿主落地（中心 → 中心新标签，面板 → 面板新标签），fresh 标记由 store 供两宿主共享。链路见 [browser-link-interception.md](../../knowledge-base/browser/browser-link-interception.md)。 |
+| 页面内新窗口请求 | `target=_blank` / `window.open` 经 `init_script.js` 的 `{type:'open-new-tab'}` postMessage 或 Tauri `on_new_window` 上报；事件载荷带发起标签 `tabId`，前端 `browserOpenNewWindowTab` 按来源宿主落地（中心 → 中心新标签，面板 → 面板新标签），fresh 标记由 store 供两宿主共享。`tauri-plugin-shell` 注入的 body 自动外开监听器在子 WebView 被跳过（子 WebView 无 shell capability，否则 `preventDefault` 会吞掉链接）；智能体站点拦截只作用于正文，站点自身 chrome 不拦截。链路见 [browser-link-interception.md](../../knowledge-base/browser/browser-link-interception.md) / [ADR 0034](../../adr/0034-browser-subwebview-blank-links-own-the-tab.md)。 |
 
 
 
@@ -120,7 +120,7 @@
 |------|------|
 | 共享浏览配置文件 | 设置「浏览器 → 共享浏览配置文件」默认开：中心与右侧面板共用默认 UDF；关闭后中心回到独立 UDF（ADR 0001 修订版）。标签在创建时快照该选择，挂起重建/重启恢复沿用；设置切换只影响此后新建标签。静默取元数据始终独立 UDF。 |
 | 中心/面板标签 | 中心与面板共用一个 WebView 池；中心非活动且不在池中的浏览器标签显示 `is-suspended`（与面板 evicted 同口径）。入口页打开 DSH 时新建标签就地转换、不新增中心标签；复用已在中心的 dsh 标签只聚焦并移除入口页。 |
-| DSH 认证入口 | `/dsh/open` 复用「外部启动且裸 URL 无 token」的实例时重启一次以捕获认证 URL；失败回退原 URL 并标记 `restartedForAuth`。`pre_start` 不触发重启。 |
+| DSH 打开与恢复 | `/dsh/open` 默认不杀任何进程：3080 被占用（含用户外部启动的 dsh）返回 `status=port_occupied` + 占用者列表，前端确认框（说明 → 进程列表 → 警告 + 问句）确认后以 `force=true` 结束占用者并拉起项目内版本；端口空闲但托管进程已死时自动恢复，超过 1.2s 显示扫光加载 toast「正在启动 DeepSeek Harness…」/「正在自动恢复…」，常驻到 DSH 标签打开。全部入口共用 `ensureDshUrl`（[ADR 0035](../../adr/0035-dsh-port-conflict-confirm-and-recovery-toast.md)）。 |
 | 新标签与 referrer | `target=_blank`/`<area>`/修饰键点击经 postMessage 带 referrer（默认策略同源完整 URL、跨源 origin；遵守 `rel`/`referrerpolicy`/meta/降级）；前端一次性消费并在关闭标签时清理。原生 `NewWindowRequested` 与浏览器模式不携带。 |
 | 地址栏 | 带 scheme 的输入只做完整 URL 精确匹配（忽略末尾 `/`），不做历史前缀匹配；无 scheme 的 host/IP 仍保留历史补全。 |
 | blob 下载 | 显式 `<a download>` 的 `blob:` 链接全站接管，经 postMessage 交给宿主落盘；64 MiB 原始字节上限、文件名净化/截断（basename、255 字符、保留扩展名）、失败 toast、`source_tab_id` 挂起保护。 |
@@ -129,3 +129,10 @@
 | file:// 崩溃防线 | 浏览器/静默 WebView 不注册 wry IPC handler；注入脚本只在 http(s) 文档发宿主消息；标题回填同样加协议守卫。重新 vendor 由 `src-tauri` 源码断言兜底。 |
 
 > 详细根因与失败迭代见 [browser-embedding-hardening-2026-11-24.md](../../knowledge-base/browser/browser-embedding-hardening-2026-11-24.md)。
+
+## 2026-11-25 增量（落地页复制与标签悬停操作）
+
+| 能力 | 契约 |
+|------|------|
+| 落地页右键复制 | 快捷站点右键菜单「复制链接」复制保存的 URL；端口右键菜单「复制链接」复制 `http://{host}:{port}`，「复制PID」按端口实时调用 `browser_get_port_details` 取占用进程 pid（多个以换行分隔），无进程时 toast「未找到占用该端口的进程」。 |
+| 已打开标签页悬停操作 | 右侧面板「已打开标签页」行悬停/聚焦（`:focus-within`）显示「在中心显示」+「关闭」两个图标按钮；前者复用 `IconArrowUpLeft`（与右键菜单同图标）并调用 `centerShowBrowserTab`（移动，不新建）。 |

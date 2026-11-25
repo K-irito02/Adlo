@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useDialogFocusTrap } from '@app/hooks/useDialogFocusTrap';
 
@@ -6,6 +6,10 @@ export interface ConfirmDialogProps {
   open: boolean;
   title: string;
   message: string;
+  /** 可选：进程/条目列表等补充信息，渲染在正文与问句之间。 */
+  details?: ReactNode;
+  /** 可选：正文之后的确认问句（放在 details 之后，保持“说明 → 列表 → 问句”的阅读顺序）。 */
+  question?: string;
   confirmLabel: string;
   cancelLabel: string;
   /** 执行中：禁用两键，避免重复触发（不可恢复操作尤其需要）。 */
@@ -27,6 +31,8 @@ export function ConfirmDialog({
   open,
   title,
   message,
+  details,
+  question,
   confirmLabel,
   cancelLabel,
   busy,
@@ -55,6 +61,8 @@ export function ConfirmDialog({
         </div>
         <div className="adl-confirm-dialog__body">
           <p className="adl-confirm-dialog__message">{message}</p>
+          {details}
+          {question && <p className="adl-confirm-dialog__question">{question}</p>}
         </div>
         <div className="adl-confirm-dialog__footer">
           <button

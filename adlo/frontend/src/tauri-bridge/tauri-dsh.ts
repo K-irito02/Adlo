@@ -13,7 +13,7 @@ import type { DshBridge } from '../shared/ipc/dsh';
  */
 export function createTauriDshBridge(httpDsh: DshBridge): DshBridge {
   return {
-    open: () => httpDsh.open(),
+    open: (force) => httpDsh.open(force),
     restart: () => httpDsh.restart(),
     getVersionTask: () => httpDsh.getVersionTask(),
     cancelVersionTask: () => httpDsh.cancelVersionTask(),

@@ -27,6 +27,7 @@
 - 终端子系统文件地图与 PTY 生命周期：[terminal.md](../docs/architecture/features/terminal.md)。
 - 应用更新子系统文件地图：[update.md](../docs/architecture/features/update.md)。
 - 架构概念与文件落点：[CONTEXT.md](../CONTEXT.md)；并行 / 运行：技能 [parallel-branch-development](../.agents/skills/parallel-branch-development/SKILL.md)（唯一真源）；调试见 [调试工具](#调试工具) 与根 [root-cause-to-close](../.agents/skills/root-cause-to-close/SKILL.md)。
+- Tauri capability / internals 排查：[tauri-capability-window-webview-remote.md](../docs/knowledge-base/tauri-backend/tauri-capability-window-webview-remote.md)。
 - 测试计数不在此维护，运行 `pnpm run cargo:test` / `pnpm --dir frontend run test` 获取。
 
 ## 安全边界

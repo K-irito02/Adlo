@@ -150,7 +150,7 @@ agent_created: true
 - **定位范围：** `git diff --name-only` → Rust 按 crate（`cargo test -p <crate>`）、前端按 `__tests__/` 相关文件（`vitest run <file>`）；保持 clippy / tsc 通过（`cargo check` 不单跑，clippy 已覆盖编译）。
 - **默认只跑受影响部分：** 修复后、每轮审查后、收尾均同。全量（`cargo test --workspace` / 前端全量 `test`）仅在变更面广或分级已通过需兜底时、经用户同意后跑；前后端两组放在同一条消息里并行跑。
 - **先单后全：** 迭代期先跑受影响单文件；全量门禁只在落盘与收尾前各跑一次。
-- **已提交后只改文档：** 在 `adlo/` 下运行 `pnpm --dir frontend run check:changed -- --base merge-base --skip-tests`（只跑静态项）；需要含测试时去掉 `--skip-tests`。不带 `--base` 会把整条分支的用例再跑一遍。
+- **已提交后只改文档：** 在 `adlo/` 下运行 `pnpm --dir frontend run check:changed --base merge-base --skip-tests`（只跑静态项）；需要含测试时去掉 `--skip-tests`。不带 `--base` 会把整条分支的用例再跑一遍。
 - **回归用例交付前做删除性推演：** 把修复回退一次，确认用例变红再恢复；进度文件记「回退后：<用例名> 变红」。只有回退证据才算回归保护；没有就按未验证处理。
 - **工具失败：** 只修工具报告的问题；自动修复引入新变更则重跑类型检查；3 次不通过 → 停并报告等指示。
 - **flaky：** 疑似用例连跑 5 次，≤2 败视为 flaky（验收排除并记录），>2 败视为真失败。

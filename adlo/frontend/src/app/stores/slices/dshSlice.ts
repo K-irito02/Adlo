@@ -6,6 +6,7 @@ import type {
   DshVersionSourceMode,
   DshRunningInfo,
   DshSettingsSnapshot,
+  DshPortOccupiedInfo,
 } from '../../../shared/ipc/dsh';
 import type { StoreState } from '../StoreState';
 import { readJson, writeJson } from '../storageHelpers';
@@ -76,6 +77,18 @@ export interface DshSlice {
    */
   dshOpBusy: boolean;
   setDshOpBusy: (busy: boolean) => void;
+  /**
+   * 3080 端口占用待确认（非 null 时全局确认框可见）。打开 dsh 的所有入口共用：
+   * 用户确认前不杀任何进程；确认后由 action 以 `force=true` 重试。
+   */
+  dshPortConflict: DshPortOccupiedInfo | null;
+  setDshPortConflict: (info: DshPortOccupiedInfo | null) => void;
+  /**
+   * 当前「启动/恢复中」toast 的 id（加载型、文字扫光）。目标标签页打开后由
+   * `dismissDshRecoveryToast` 提前收起；null 表示当前没有这类 toast。
+   */
+  dshRecoveryToastId: string | null;
+  setDshRecoveryToastId: (id: string | null) => void;
 }
 
 export const createDshSlice = (
@@ -94,6 +107,8 @@ export const createDshSlice = (
   dshLastUrl: null,
   dshRestarting: false,
   dshOpBusy: false,
+  dshPortConflict: null,
+  dshRecoveryToastId: null,
 
   setDshVersionStatus: (status) => set({ versionStatus: status }),
   setDshVersionCatalog: (catalog) => set({ versionCatalog: catalog }),
@@ -138,4 +153,6 @@ export const createDshSlice = (
   setDshLastUrl: (url) => set({ dshLastUrl: url }),
   setDshRestarting: (restarting) => set({ dshRestarting: restarting }),
   setDshOpBusy: (busy) => set({ dshOpBusy: busy }),
+  setDshPortConflict: (info) => set({ dshPortConflict: info }),
+  setDshRecoveryToastId: (id) => set({ dshRecoveryToastId: id }),
 });

@@ -9,7 +9,7 @@
  *
  * 用法：
  *   node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>]
- *     [--allow-untracked] [--allow-claims] [--exclude-generated] [--include-docs]
+ *     [--allow-untracked] [--allow-claims] [--allow-empty-scopes] [--exclude-generated] [--include-docs]
  * 默认 base = merge-base(origin/HEAD, HEAD)，无远端时 HEAD；out = 仓库根 .review-diffs。
  * `--exclude-generated` 不给生成物写 diff（仍列进 changed-files 与 manifest），
  * 用于动辄数 MB 的生成数据；生成物由对应生成器与漂移门禁负责。
@@ -150,6 +150,7 @@ export function parseArgs(argv) {
     allowUntracked: false,
     allowUnowned: false,
     allowClaims: false,
+    allowEmptyScopes: false,
     excludeGenerated: false,
     includeDocs: false,
     progress: null,
@@ -171,6 +172,10 @@ export function parseArgs(argv) {
     }
     if (arg === "--allow-claims") {
       options.allowClaims = true;
+      continue;
+    }
+    if (arg === "--allow-empty-scopes") {
+      options.allowEmptyScopes = true;
       continue;
     }
     if (arg === "--exclude-generated") {
@@ -505,7 +510,7 @@ function main() {
   }
   if (options.help) {
     console.log(
-      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--progress <file>] [--scopes <json>] [--allow-untracked] [--allow-unowned] [--allow-claims] [--exclude-generated] [--include-docs]",
+      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--progress <file>] [--scopes <json>] [--allow-untracked] [--allow-unowned] [--allow-empty-scopes] [--allow-claims] [--exclude-generated] [--include-docs]",
     );
     return;
   }
@@ -608,6 +613,19 @@ function main() {
         );
         process.exit(1);
       }
+    }
+    const emptyScopes = ownership.entries
+      .filter((entry) => entry.files.length === 0)
+      .map((entry) => entry.scope);
+    if (emptyScopes.length > 0 && !options.allowEmptyScopes) {
+      console.error("[review-snapshot] scope patterns matched no changed files:");
+      for (const scope of emptyScopes) {
+        console.error(`  - ${scope}`);
+      }
+      console.error(
+        "[review-snapshot] fix the scope paths or remove the scope; pass --allow-empty-scopes to override.",
+      );
+      process.exit(1);
     }
   }
 

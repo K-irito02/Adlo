@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createStore } from 'zustand';
 import { createDshActions, shouldRefreshDshTab } from '../dshActions';
+import { createToastSlice } from '../../slices/toastSlice';
 import type { DshOpenResult } from '../../../../shared/ipc/dsh';
 
 /** dshActions 依赖的最小 store 表面（其余动作字段以 unknown 桩代） */
@@ -14,7 +15,24 @@ interface DshTestStore {
   siblingWebviewNonce: number;
   bumpSiblingWebviewNonce: () => void;
   fetchDshVersionStatus: () => Promise<boolean>;
-  openDsh: (options?: { centerTabId?: string }) => Promise<DshOpenResult | null>;
+  openDsh: (options?: {
+    centerTabId?: string;
+    t?: {
+      dshRecovering?: string;
+      dshStarting?: string;
+      dshPortConflictUnidentified?: string;
+    };
+  }) => Promise<DshOpenResult | null>;
+  ensureDshUrl: (t?: {
+    dshRecovering?: string;
+    dshStarting?: string;
+  }) => Promise<DshOpenResult | null>;
+  resolveDshPortConflict: (accept: boolean) => void;
+  dismissDshRecoveryToast: () => void;
+  dshPortConflict: unknown;
+  setDshPortConflict: (info: unknown) => void;
+  dshRecoveryToastId: string | null;
+  setDshRecoveryToastId: (id: string | null) => void;
   restartDsh: () => Promise<{ restarted: boolean; url: string | null; failed: boolean }>;
   updateDsh: () => Promise<boolean>;
   versionTaskCancelRequested: boolean;
@@ -38,7 +56,7 @@ interface DshTestStore {
   centerUpdateTab: (centerTabId: string, patch: { kind?: string; refId?: string | null }) => void;
   browserSetLocation: (tabId: string, location: 'panel' | 'center') => void;
   clampPanelActiveTab: () => void;
-  sourceStatus: { config: { version_source: string } } | null;
+  sourceStatus: { config: { version_source: string }; running?: unknown } | null;
   setDshSourceStatus: (status: unknown) => void;
   dshLastUrl: string | null;
   setDshLastUrl: (url: string | null) => void;
@@ -51,13 +69,22 @@ interface DshTestStore {
   fetchSourceStatus: (silent?: boolean, force?: boolean) => Promise<boolean>;
   applyPendingVersionSource: () => Promise<boolean>;
   showToast: (message: string, type?: string) => string;
+  showLoadingToast: (message: string, type?: string) => string;
+  removeToast: (id: string) => void;
+  clearToasts: () => void;
+  toasts: { id: string; message: string; shimmer?: boolean }[];
 }
+
+const shownToasts: string[] = [];
 
 function makeStore() {
   const store = createStore<DshTestStore>((set, get) => {
     const dshActions = createDshActions(set as never, () => get() as never) as unknown as Pick<
       DshTestStore,
       | 'openDsh'
+      | 'ensureDshUrl'
+      | 'resolveDshPortConflict'
+      | 'dismissDshRecoveryToast'
       | 'restartDsh'
       | 'fetchDshVersionStatus'
       | 'updateDsh'
@@ -129,6 +156,10 @@ function makeStore() {
       setVersionTaskCancelRequested: (requested) => set({ versionTaskCancelRequested: requested }),
       sourceStatus: null,
       setDshSourceStatus: (status) => set({ sourceStatus: status as never }),
+      dshPortConflict: null,
+      setDshPortConflict: (info) => set({ dshPortConflict: info }),
+      dshRecoveryToastId: null,
+      setDshRecoveryToastId: (id) => set({ dshRecoveryToastId: id }),
       dshLastUrl: null,
       setDshLastUrl: (url) => set({ dshLastUrl: url }),
       dshRestarting: false,
@@ -138,29 +169,104 @@ function makeStore() {
       setDshVersionSourceDeferred: () => {},
       saveSourceConfig: async () => true,
       fetchSourceStatus: async () => true,
-      showToast: () => 'toast',
+      ...(() => {
+        const toastSlice = createToastSlice(set as never, get as never);
+        return {
+          toasts: toastSlice.toasts,
+          showToast: (message: string, type?: string) => {
+            shownToasts.push(message);
+            return toastSlice.showToast(message, type as never);
+          },
+          showLoadingToast: (message: string, type?: string) => {
+            shownToasts.push(message);
+            return toastSlice.showLoadingToast(message, type as never);
+          },
+          removeToast: toastSlice.removeToast,
+          clearToasts: toastSlice.clearToasts,
+        };
+      })(),
       ...dshActions,
     } as DshTestStore;
   });
   return store;
 }
 
+describe('dshActions.ensureDshUrl recovery toast', () => {
+  let openMock: ReturnType<typeof vi.fn>;
+  beforeEach(() => {
+    shownToasts.length = 0;
+    openMock = vi.fn();
+    vi.stubGlobal('digitalLife', { dsh: { open: openMock } });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('首次启动超过 1.2s 时显示「正在启动」加载 toast', async () => {
+    vi.useFakeTimers();
+    let resolveOpen: (value: unknown) => void = () => {};
+    openMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveOpen = resolve;
+        }),
+    );
+    const store = makeStore();
+    const promise = store.getState().ensureDshUrl({
+      dshStarting: 'STARTING',
+      dshRecovering: 'RECOVERING',
+    });
+    await vi.advanceTimersByTimeAsync(1400);
+    expect(shownToasts).toEqual(['STARTING']);
+    resolveOpen({ ok: true, data: { url: 'http://127.0.0.1:3080' } });
+    await promise;
+  });
+
+  it('已有运行实例时显示「正在自动恢复」加载 toast', async () => {
+    vi.useFakeTimers();
+    let resolveOpen: (value: unknown) => void = () => {};
+    openMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveOpen = resolve;
+        }),
+    );
+    const store = makeStore();
+    store.setState({
+      sourceStatus: {
+        config: { version_source: 'auto' },
+        running: { url: 'http://127.0.0.1:3080/' },
+      },
+    });
+    const promise = store.getState().ensureDshUrl({
+      dshStarting: 'STARTING',
+      dshRecovering: 'RECOVERING',
+    });
+    await vi.advanceTimersByTimeAsync(1400);
+    expect(shownToasts).toEqual(['RECOVERING']);
+    resolveOpen({ ok: true, data: { url: 'http://127.0.0.1:3080' } });
+    await promise;
+  });
+});
+
 describe('dshActions.openDsh', () => {
   beforeEach(() => {
     vi.stubGlobal('digitalLife', { dsh: { open: vi.fn() } });
   });
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
-  it('成功时映射 {url, freedPort} 并创建普通中心浏览器标签', async () => {
+  it('成功时透传 {status, url} 并创建普通中心浏览器标签', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: true },
+      data: { status: 'opened', url: 'http://127.0.0.1:3080' },
     });
     const store = makeStore();
     const result = await store.getState().openDsh();
-    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: true });
+    expect(result).toEqual({ status: 'opened', url: 'http://127.0.0.1:3080' });
     expect(store.getState().errorToasts).toEqual([]);
 
     // 成功即创建一个**普通**浏览器标签（无任何 dsh 专属标记）并移到中心。
@@ -179,7 +285,7 @@ describe('dshActions.openDsh', () => {
       dsh: {
         open: vi.fn(async () => ({
           ok: true,
-          data: { url: 'http://127.0.0.1:3080/?token=abc', freedPort: false },
+          data: { status: 'opened', url: 'http://127.0.0.1:3080/?token=abc' },
         })),
       },
     });
@@ -199,11 +305,11 @@ describe('dshActions.openDsh', () => {
     expect(s.centerActiveTabId).toBe('c1');
   });
 
-  it('成功但 data 为空时回落 url:null,freedPort:false（仍创建中心标签）', async () => {
+  it('成功但 data 为空时回落 status=opened,url:null（仍创建中心标签）', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({ ok: true, data: null });
     const store = makeStore();
     const result = await store.getState().openDsh();
-    expect(result).toEqual({ url: null, freedPort: false });
+    expect(result).toEqual({ status: 'opened', url: null });
     const tab = store.getState().browserTabs[0];
     expect(tab?.location).toBe('center');
   });
@@ -223,10 +329,93 @@ describe('dshActions.openDsh', () => {
     ]);
   });
 
+  it('用户取消端口确认时返回 null 且不创建标签', async () => {
+    const open = vi.fn(async () => ({
+      ok: true,
+      data: {
+        status: 'port_occupied',
+        url: null,
+        occupant: {
+          port: 3080,
+          processes: [{ pid: 42, name: 'node.exe', cmdline: 'node other', isDsh: false }],
+        },
+      },
+    }));
+    vi.stubGlobal('digitalLife', { dsh: { open } });
+    const store = makeStore();
+
+    const pending = store.getState().openDsh();
+    await vi.waitFor(() => expect(store.getState().dshPortConflict).not.toBeNull());
+    store.getState().resolveDshPortConflict(false);
+
+    await expect(pending).resolves.toBeNull();
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(store.getState().browserTabs).toHaveLength(0);
+    expect(store.getState().centerTabs).toHaveLength(0);
+  });
+
+  it('占用进程无法识别时提示并中止，不弹空确认框', async () => {
+    const open = vi.fn(async () => ({
+      ok: true,
+      data: {
+        status: 'port_occupied',
+        url: null,
+        occupant: { port: 3080, processes: [] },
+      },
+    }));
+    vi.stubGlobal('digitalLife', { dsh: { open } });
+    const store = makeStore();
+
+    const result = await store.getState().openDsh({
+      t: {
+        dshStarting: 'STARTING',
+        dshRecovering: 'RECOVERING',
+        dshPortConflictUnidentified: 'UNIDENTIFIED',
+      },
+    });
+
+    expect(result).toBeNull();
+    expect(shownToasts).toContain('UNIDENTIFIED');
+    expect(store.getState().dshPortConflict).toBeNull();
+    expect(store.getState().browserTabs).toHaveLength(0);
+  });
+
+  it('加载 toast 常驻到 openDsh 结束，普通 toast 不会顶掉它', async () => {
+    vi.useFakeTimers();
+    let resolveOpen: (value: unknown) => void = () => {};
+    const open = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveOpen = resolve;
+        }),
+    );
+    vi.stubGlobal('digitalLife', { dsh: { open } });
+    const store = makeStore();
+
+    const pending = store.getState().openDsh({
+      t: { dshStarting: 'STARTING', dshRecovering: 'RECOVERING' },
+    });
+    await vi.advanceTimersByTimeAsync(1400);
+
+    const loadingId = store.getState().dshRecoveryToastId;
+    expect(loadingId).toBeTruthy();
+    expect(store.getState().toasts.some((toast) => toast.id === loadingId)).toBe(true);
+
+    // 启动期间的 busy 提示不得替换常驻加载 toast。
+    store.getState().showToast('busy');
+    expect(store.getState().toasts.some((toast) => toast.id === loadingId)).toBe(true);
+
+    resolveOpen({ ok: true, data: { status: 'opened', url: 'http://127.0.0.1:3080' } });
+    await pending;
+
+    expect(store.getState().dshRecoveryToastId).toBeNull();
+    expect(store.getState().toasts.some((toast) => toast.shimmer)).toBe(false);
+  });
+
   it('成功后不递增 siblingWebviewNonce（不再创建 dsh 专属视图）', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: true },
+      data: { status: 'opened', url: 'http://127.0.0.1:3080' },
     });
     const store = makeStore();
     store.setState({ isTauri: true });
@@ -237,7 +426,7 @@ describe('dshActions.openDsh', () => {
   it('已有同 URL 的普通标签时聚焦它，不新建标签', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+      data: { status: 'opened', url: 'http://127.0.0.1:3080' },
     });
     const store = makeStore();
     store.getState().browserOpenTab('http://127.0.0.1:3080', 'dsh');
@@ -247,7 +436,7 @@ describe('dshActions.openDsh', () => {
 
     const result = await store.getState().openDsh();
 
-    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    expect(result).toEqual({ status: 'opened', url: 'http://127.0.0.1:3080' });
     expect(store.getState().browserTabs).toHaveLength(1);
     // 不新增中心标签；已有中心标签被重新选中。
     expect(store.getState().centerTabs).toHaveLength(centerCountBefore);
@@ -261,9 +450,8 @@ describe('dshActions.openDsh', () => {
         open: vi.fn(async () => ({
           ok: true,
           data: {
+            status: 'opened',
             url: 'http://127.0.0.1:3080/?token=new',
-            freedPort: false,
-            authenticated: true,
           },
         })),
       },
@@ -283,7 +471,7 @@ describe('dshActions.openDsh', () => {
   it('端口不同（同 host）的本地标签不被误复用，而是新建 dsh 标签', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+      data: { status: 'opened', url: 'http://127.0.0.1:3080' },
     });
     const store = makeStore();
     // 已打开同 host、不同端口的本地标签（如开发服务器 5173）。
@@ -291,7 +479,7 @@ describe('dshActions.openDsh', () => {
 
     const result = await store.getState().openDsh();
 
-    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    expect(result).toEqual({ status: 'opened', url: 'http://127.0.0.1:3080' });
     // 原 5173 标签不被改动；新建了 dsh 标签。
     expect(store.getState().browserTabs).toHaveLength(2);
     expect(store.getState().browserTabs.some((t) => t.url === 'http://127.0.0.1:5173/')).toBe(true);
@@ -301,7 +489,7 @@ describe('dshActions.openDsh', () => {
   it('面板内的同服务标签被复用并移入中心（不新建）', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+      data: { status: 'opened', url: 'http://127.0.0.1:3080' },
     });
     const store = makeStore();
     store.getState().browserOpenTab('http://127.0.0.1:3080', 'dsh');
@@ -310,7 +498,7 @@ describe('dshActions.openDsh', () => {
 
     const result = await store.getState().openDsh();
 
-    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    expect(result).toEqual({ status: 'opened', url: 'http://127.0.0.1:3080' });
     expect(store.getState().browserTabs).toHaveLength(1);
     expect(store.getState().centerTabs).toHaveLength(centerCountBefore + 1);
     expect(store.getState().browserTabs.find((t) => t.id === id)?.location).toBe('center');
@@ -319,7 +507,7 @@ describe('dshActions.openDsh', () => {
   it('复用面板标签时把入口页就地绑定为 browser（不新增中心标签）', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+      data: { status: 'opened', url: 'http://127.0.0.1:3080' },
     });
     const store = makeStore();
     store.getState().browserOpenTab('http://127.0.0.1:3080', 'dsh');
@@ -332,7 +520,7 @@ describe('dshActions.openDsh', () => {
 
     const result = await store.getState().openDsh({ centerTabId: 'entry1' });
 
-    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    expect(result).toEqual({ status: 'opened', url: 'http://127.0.0.1:3080' });
     expect(store.getState().browserTabs).toHaveLength(1);
     expect(store.getState().centerTabs).toHaveLength(centerCountBefore);
     expect(store.getState().centerTabs.find((t) => t.id === 'entry1')).toMatchObject({
@@ -347,7 +535,7 @@ describe('dshActions.openDsh', () => {
       dsh: {
         open: vi.fn(async () => ({
           ok: true,
-          data: { url: 'http://127.0.0.1:3080/?token=new', freedPort: false },
+          data: { status: 'opened', url: 'http://127.0.0.1:3080/?token=new' },
         })),
       },
       browser: { navigateTab },
@@ -372,7 +560,7 @@ describe('dshActions.openDsh', () => {
       dsh: {
         open: vi.fn(async () => ({
           ok: true,
-          data: { url: 'http://127.0.0.1:3080/?token=new', freedPort: false },
+          data: { status: 'opened', url: 'http://127.0.0.1:3080/?token=new' },
         })),
       },
       browser: { navigateTab },
@@ -405,11 +593,11 @@ describe('dshActions.openDsh', () => {
     expect(open).toHaveBeenCalledTimes(1);
     expect(store.getState().browserTabs).toEqual([]);
 
-    resolveOpen({ ok: true, data: { url: 'http://127.0.0.1:3080', freedPort: false } });
+    resolveOpen({ ok: true, data: { status: 'opened', url: 'http://127.0.0.1:3080' } });
     const [r1, r2] = await Promise.all([first, second]);
 
-    expect(r1).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
-    expect(r2).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    expect(r1).toEqual({ status: 'opened', url: 'http://127.0.0.1:3080' });
+    expect(r2).toEqual({ status: 'opened', url: 'http://127.0.0.1:3080' });
     expect(store.getState().browserTabs).toHaveLength(1);
     expect(open).toHaveBeenCalledTimes(1);
   });

@@ -80,7 +80,7 @@ test("parseArgs separates navigation-time and post-load evaluations", () => {
   assert.equal(defaults.evalWhen, "");
 });
 
-test("parseArgs accepts theme, focus, and viewport overrides", () => {
+test("parseArgs accepts theme, focus, viewport and reduced-motion overrides", () => {
   const options = parseArgs([
     "--url",
     "http://x",
@@ -92,14 +92,17 @@ test("parseArgs accepts theme, focus, and viewport overrides", () => {
     ".adl-clipboard__clear",
     "--viewport",
     "720x900",
+    "--reduced-motion",
   ]);
   assert.equal(options.theme, "light");
   assert.equal(options.focus, ".adl-clipboard__clear");
   assert.equal(options.viewport, "720x900");
+  assert.equal(options.reducedMotion, true);
   const defaults = parseArgs(["--url", "http://x", "--selector", ".a"]);
   assert.equal(defaults.theme, "");
   assert.equal(defaults.focus, "");
   assert.equal(defaults.viewport, "");
+  assert.equal(defaults.reducedMotion, false);
 });
 
 test("parseArgs validates theme and viewport values", () => {

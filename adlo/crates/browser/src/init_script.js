@@ -38,9 +38,10 @@
     // baked into the injected prefix (`window.__adlAgentOrigins` /
     // `window.__adlAgentInterceptEnabled`) and read dynamically so click
     // interception picks up `browser_set_agent_intercept` on loaded pages.
-    // The `window.open` rewrite and SPA nav-guard are install-time gates:
-    // enabling them needs a reload, while disabling takes effect immediately
-    // through their runtime checks.
+    // Click interception reads `__adlAgentInterceptEnabled` at event time, so
+    // `browser_set_agent_intercept` applies to already-loaded pages. The
+    // `window.open` rewrite and SPA nav-guard are install-time gates: they are
+    // installed only on agent hosts and need a reload to install or remove.
     function __adlIsAgentHost() {
         try {
             var origins = window.__adlAgentOrigins || [];
@@ -49,6 +50,37 @@
     }
     function __adlSendAgentLink(kind, url) {
         return __adlPostToHost({ type: 'adl-agent-link', kind: kind, url: url });
+    }
+    // Site chrome vs. agent content: the interception exists for links the agent
+    // prints in the conversation body. A whitelisted site's own navigation and
+    // dialogs (settings, account, menus, headers, sidebars) must keep native
+    // browser behavior — otherwise, e.g., DSH's account/usage/top-up links are
+    // swallowed into the agent-link channel and do not open a tab (real user
+    // report 2026-11-25). Detect the common chrome containers by role/semantics.
+    function __adlIsSiteChrome(el) {
+        try {
+            var node = el;
+            while (node && node !== document.body && node.nodeType === 1) {
+                var role = (node.getAttribute && node.getAttribute('role')) || '';
+                if (role === 'dialog' || role === 'alertdialog' || role === 'menu' ||
+                    role === 'navigation' || role === 'menubar') {
+                    return true;
+                }
+                if (node.hasAttribute && (node.getAttribute('aria-modal') === 'true' ||
+                    node.hasAttribute('data-menu-popup'))) {
+                    return true;
+                }
+                var tag = node.tagName;
+                if (tag === 'NAV' || tag === 'HEADER' || tag === 'FOOTER' || tag === 'ASIDE' ||
+                    tag === 'DIALOG') {
+                    return true;
+                }
+                node = node.parentElement;
+            }
+            return false;
+        } catch (e) {
+            return false;
+        }
     }
 
     // 检查是否是有效的网页 URL
@@ -111,11 +143,11 @@
         // 抢占同元素上的站点规则。disabledRuleIds 只作用于全局规则（见下方 global 循环），
         // 站点规则用自己的 enabled 表达开关。
         var merged = [];
-        var seen = {};
+        var seen = Object.create(null);
         function pushRule(rule) {
             if (!rule) return;
             var id = typeof rule.id === 'string' ? rule.id : '';
-            if (id && seen[id]) return;
+            if (id && Object.hasOwn(seen, id)) return;
             if (id) seen[id] = true;
             merged.push(rule);
         }
@@ -409,6 +441,105 @@
         }
         return __adlPostToHost(payload);
     }
+
+    // Tauri's shell plugin injects a document.body click handler that sends every
+    // `<a target="_blank" href="http(s)://…">` to `plugin:shell|open` and calls
+    // preventDefault(). `browser-remote` covers only https origins
+    // (`remote.urls: ["https://*"]`, `core:default` only); http pages such as
+    // DSH's `http://127.0.0.1:3080` have no capability covering their remote
+    // origin. Both reject `plugin:shell|open` at the ACL, so the click is
+    // swallowed before the window new-tab route can run (real user report
+    // 2026-11-25: DSH settings' account/usage/top-up links did nothing).
+    // Skip that one auto-open listener at registration time; Adlo's own route
+    // owns target=_blank links inside its browser webviews. The shell plugin's
+    // open command (used by the app's openExternal) is unaffected.
+    (function __adlBlockShellLinkHandler() {
+        try {
+            var proto = window.EventTarget && window.EventTarget.prototype;
+            if (!proto || proto.addEventListener.__adlShellLinkGuard) return;
+            var originalAdd = proto.addEventListener;
+            var guardedAdd = function(type, listener, options) {
+                try {
+                    if ((type === 'click' || type === 'auxclick') && listener &&
+                        typeof listener === 'function' &&
+                        String(listener).indexOf('plugin:shell|open') !== -1) {
+                        return;
+                    }
+                } catch (e) {}
+                return originalAdd.call(this, type, listener, options);
+            };
+            guardedAdd.__adlShellLinkGuard = true;
+            proto.addEventListener = guardedAdd;
+        } catch (e) {}
+    })();
+
+    // Belt-and-braces for injectors that register the shell listener before this
+    // script runs: patch `invoke` so `plugin:shell|open` still reaches our in-app
+    // new-tab channel; the plugin's preventDefault is then harmless.
+    (function __adlPatchShellOpen() {
+        function makeInvoke(original) {
+            var wrapped = function(cmd, args, options) {
+                try {
+                    if (cmd === 'plugin:shell|open' && args &&
+                        typeof args.path === 'string' && isValidWebUrl(args.path)) {
+                        if (__adlTryOpenNewTab(args.path, '')) {
+                            return Promise.resolve();
+                        }
+                    }
+                } catch (e) {}
+                if (original) {
+                    return original.call(window.__TAURI_INTERNALS__, cmd, args, options);
+                }
+                return Promise.reject(new Error('__adl: no Tauri IPC in this webview'));
+            };
+            wrapped.__adlShellOpenPatched = true;
+            return wrapped;
+        }
+        function patch() {
+            try {
+                var internals = window.__TAURI_INTERNALS__;
+                if (!internals || typeof internals.invoke !== 'function') {
+                    var stub = { invoke: makeInvoke(null) };
+                    try {
+                        Object.defineProperty(window, '__TAURI_INTERNALS__', {
+                            value: stub,
+                            writable: true,
+                            configurable: true,
+                        });
+                    } catch (e) {
+                        window.__TAURI_INTERNALS__ = stub;
+                    }
+                    return !!window.__TAURI_INTERNALS__ &&
+                        !!window.__TAURI_INTERNALS__.invoke.__adlShellOpenPatched;
+                }
+                if (internals.invoke.__adlShellOpenPatched) return true;
+                var wrapped = makeInvoke(internals.invoke);
+                try {
+                    internals.invoke = wrapped;
+                } catch (e) {}
+                if (!internals.invoke.__adlShellOpenPatched) {
+                    try {
+                        Object.defineProperty(internals, 'invoke', {
+                            value: wrapped,
+                            writable: true,
+                            configurable: true,
+                        });
+                    } catch (e) {}
+                }
+                return !!internals.invoke.__adlShellOpenPatched;
+            } catch (e) {
+                return false;
+            }
+        }
+        if (patch()) return;
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', patch, true);
+        }
+        var tries = 0;
+        var timer = setInterval(function() {
+            if (patch() || ++tries >= 20) clearInterval(timer);
+        }, 250);
+    })();
     
     // Compare only origin+pathname (ignore query params & hash) to detect SPA pushState
     function isSamePage(url1, url2) {
@@ -469,7 +600,11 @@
         if (event.defaultPrevented) return;
         // auxclick fires for every non-primary button; only middle opens a tab.
         if (event.type === 'auxclick' && event.button !== 1) return;
-        if (__adlIsAgentHost()) return;
+        // Agent content links are consumed by `__adlAgentClickHandler` (capture).
+        // Site chrome is the exception: those clicks are deliberately left for
+        // this all-sites new-window route so the site's own dialogs/menus behave
+        // like a normal browser.
+        if (__adlIsAgentHost() && !__adlIsSiteChrome(event.target)) return;
         var target = event.target;
         while (target) {
             if ((target.tagName === 'A' || target.tagName === 'AREA') && target.href) {
@@ -523,6 +658,10 @@
             }
             return;
         }
+        // The site's own chrome (settings dialog, account menu, sidebar/header)
+        // is not agent output. Leave it untouched so the all-sites new-window
+        // route can open target="_blank" links normally.
+        if (__adlIsSiteChrome(event.target)) return;
         var target = event.target;
 
         while (target) {
@@ -639,8 +778,9 @@
     document.addEventListener('click', __adlAgentClickHandler, true);
     document.addEventListener('auxclick', __adlAgentClickHandler, true);
     
-    // 1. 重写 window.open：仅 agent 站点需要接管链接打开方式；普通站点保留原生。
-    // 安装期判断：开关变更后需重载页面才会安装/移除该重写（点击拦截本身是动态的）。
+    // 1. 重写 window.open：agent 站点只接管下载 URL；其余 http(s) URL 交回
+    //    origOpen（非 http(s) 返回 null）。安装期判断：开关变更后
+    //    需重载页面才会安装/移除该重写（点击拦截本身是动态的）。
     var origOpen = window.open;
     if (__adlIsAgentHost()) {
     window.open = function(url, name, features) {
@@ -682,9 +822,12 @@
                 window.location.assign(resolvedUrl);
                 return null;
             }
-            if (__adlIsAgentHost() && __adlSendAgentLink('url', resolvedUrl)) {
-                return null;
-            }
+            // Programmatic opens have no DOM context, so they cannot be
+            // classified as agent content vs. site chrome. Site chrome uses
+            // window.open for login/feedback/payment flows; swallowing those
+            // broke real sites (2026-11-25). Delegate to the native new-window
+            // path; anchor clicks in agent content still go through the click
+            // interception above.
             console.log('[ADL-DL-JS] window.open: non-download URL, delegating to origOpen:', resolvedUrl);
             __adlSendLog('info', 'window.open: non-download URL delegated to origOpen', { url: resolvedUrl });
             return origOpen.call(window, resolvedUrl, name, features);

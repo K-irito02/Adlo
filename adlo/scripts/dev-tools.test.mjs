@@ -31,6 +31,7 @@ test("review-snapshot parses base/out/rev and rejects invalid rev", () => {
     allowUntracked: false,
     allowUnowned: false,
     allowClaims: false,
+    allowEmptyScopes: false,
     excludeGenerated: false,
     includeDocs: false,
     progress: null,
@@ -44,6 +45,7 @@ test("review-snapshot parses base/out/rev and rejects invalid rev", () => {
     allowUntracked: false,
     allowUnowned: false,
     allowClaims: false,
+    allowEmptyScopes: false,
     excludeGenerated: false,
     includeDocs: false,
     progress: null,
@@ -57,12 +59,14 @@ test("review-snapshot parses base/out/rev and rejects invalid rev", () => {
     allowUntracked: false,
     allowUnowned: false,
     allowClaims: false,
+    allowEmptyScopes: false,
     excludeGenerated: false,
     includeDocs: false,
     progress: "docs/p.md",
     scopes: null,
   });
   assert.equal(parseReviewArgs(["--include-docs"]).includeDocs, true);
+  assert.equal(parseReviewArgs(["--allow-empty-scopes"]).allowEmptyScopes, true);
   assert.throws(() => parseReviewArgs(["--rev", "0"]), /positive integer/);
   assert.throws(() => parseReviewArgs(["--nope"]), /unknown argument/);
 });

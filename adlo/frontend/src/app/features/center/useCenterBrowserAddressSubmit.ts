@@ -12,7 +12,7 @@ import { routeLocalUrl } from '@features/browser/browser-landing/localAuthPorts'
 import type { CopyDict } from '@i18n';
 import { checkEmbed, isEmbedBlocked } from '@features/browser/checkEmbed';
 import { isSearchQuery, buildSearchUrl, ensureProtocol } from '@features/browser/browserUrlUtils';
-import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
+import { resolveDshAuthUrl, type DshAuthResolution } from '@features/dsh/dshAuthUrl';
 import {
   isLocalFileInput,
   buildLocalFileUrl,
@@ -34,10 +34,10 @@ interface UseCenterBrowserAddressSubmitParams {
   setIframeLoadError: Dispatch<SetStateAction<boolean>>;
   setIframeBlockedDetected: Dispatch<SetStateAction<boolean>>;
   validatedUrlsRef: MutableRefObject<Set<string>>;
-  /** 提示文案（本地文件桌面端限制 + 残留端口释放告知）；缺省时不提示。 */
+  /** 提示文案（本地文件桌面端限制 + DSH 恢复/启动提示）；缺省时不提示。 */
   t?: Pick<
     CopyDict,
-    'dshPortFreed' | 'browserLocalFileDesktopOnly' | 'browserLocalFileUnsupported'
+    'dshRecovering' | 'dshStarting' | 'browserLocalFileDesktopOnly' | 'browserLocalFileUnsupported'
   >;
 }
 
@@ -136,16 +136,18 @@ export function useCenterBrowserAddressSubmit({
     // （含 `?token=`，首次访问种 cookie）。命中则跳过 checkEmbed 预检——
     // HEAD 不带 cookie 会 401 误判为“被拦截”。未命中保持原行为。
     let targetUrl = finalUrl;
-    let authed: { url: string; freedPort: boolean } | null = null;
+    let authed: DshAuthResolution = null;
     if (routeLocalUrl(finalUrl)?.opener === 'dsh') {
-      authed = await resolveDshAuthUrl(finalUrl);
+      authed = await resolveDshAuthUrl(finalUrl, t);
       if (submitVersionRef.current !== version) {
+        useAppStore.getState().dismissDshRecoveryToast();
         return;
       }
-      if (authed?.freedPort && t) {
-        notifyDshFreedPort(t);
+      if (authed && 'canceled' in authed) {
+        return;
       }
       targetUrl = authed?.url ?? finalUrl;
+      useAppStore.getState().dismissDshRecoveryToast();
     }
 
     let blocked = false;

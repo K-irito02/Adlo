@@ -1,6 +1,12 @@
 import type { StoreApi } from 'zustand';
 import type { StoreState } from '../StoreState';
-import type { DshOpenResult, DshSourceConfig, DshTestResult } from '../../../shared/ipc/dsh';
+import type { CopyDict } from '../../i18n/types';
+import type {
+  DshOpenResult,
+  DshPortOccupiedInfo,
+  DshSourceConfig,
+  DshTestResult,
+} from '../../../shared/ipc/dsh';
 import { captureError, clearError } from '../shared';
 const SCOPE = 'dsh';
 
@@ -60,6 +66,22 @@ export function shouldRefreshDshTab(existingUrl: string, entryUrl: string): bool
  */
 let openDshInFlight: Promise<DshOpenResult | null> | null = null;
 
+/**
+ * 仅解析入口 URL 的在途标志（欢迎页/地址栏/浏览器树共用）：
+ * 与 openDsh 共用同一套恢复 + 端口确认逻辑，但不建/不聚焦标签。
+ */
+let dshEnsureInFlight: Promise<DshOpenResult | null> | null = null;
+
+/** 端口占用确认框的待决 Promise（resolve 由 `resolveDshPortConflict` 触发）。 */
+let pendingPortConflict: ((accept: boolean) => void) | null = null;
+
+/** 拉起超过该时长仍未返回时提示「正在恢复」，避免 20 秒静默像没反应。 */
+const RECOVERY_TOAST_DELAY_MS = 1200;
+
+/** 启动/恢复与端口占用提示文案（缺省不提示，便于测试与浏览器模式）。 */
+type DshRecoveryCopy = Pick<CopyDict, 'dshRecovering' | 'dshStarting'> &
+  Partial<Pick<CopyDict, 'dshPortConflictUnidentified'>>;
+
 /** applyPendingVersionSource 并发重入守卫（StrictMode 双 effect 安全）。 */
 let applyPendingInFlight: Promise<boolean> | null = null;
 
@@ -107,8 +129,139 @@ function syncDshTab(get: () => StoreState, url: string): void {
   }
 }
 
+/**
+ * 调用 `/dsh/open`；拉起超过 1.2s 时显示常驻加载 toast（文字扫光）。
+ *
+ * 根据拉起前是否已有运行实例选择文案：
+ * - 首次启动 → 「正在启动 DeepSeek Harness…」
+ * - 断连恢复 → 「正在自动恢复…」
+ * 成功时保留 toast，由目标标签页打开后 `dismissDshRecoveryToast` 收起（常驻、无超时）；
+ * 失败或桥抛错时立即收起，避免残留“正在恢复”提示。
+ */
+async function callDshOpen(
+  get: () => StoreState,
+  force: boolean,
+  t?: DshRecoveryCopy,
+): Promise<DshOpenResult | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let toastId: string | null = null;
+  const wasRunning = get().sourceStatus?.running != null;
+  const message = wasRunning ? t?.dshRecovering : t?.dshStarting;
+  if (message) {
+    timer = setTimeout(() => {
+      toastId = get().showLoadingToast(message, 'warning', SCOPE);
+      get().setDshRecoveryToastId(toastId);
+    }, RECOVERY_TOAST_DELAY_MS);
+  }
+  try {
+    // 桥调用不吞异常：意外抛错沿旧语义抛给调用方（组件兜底 toast）。
+    const result = await window.digitalLife.dsh.open(force);
+    if (!result.ok) {
+      if (toastId) {
+        get().removeToast(toastId);
+        get().setDshRecoveryToastId(null);
+      }
+      captureError(get, result.error, SCOPE);
+      return null;
+    }
+    return result.data ?? { status: 'opened', url: null };
+  } catch (error) {
+    // 桥抛错：沿旧语义抛给调用方，同时收起本次已出现的加载 toast。
+    if (toastId) {
+      get().removeToast(toastId);
+      get().setDshRecoveryToastId(null);
+    }
+    throw error;
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+/** 弹全局端口占用确认框，等待用户选择；由 `resolveDshPortConflict` 解除。 */
+function askDshPortConflict(get: () => StoreState, info: DshPortOccupiedInfo): Promise<boolean> {
+  // 需要用户决策，恢复流程暂停；先收起“正在恢复”提示，确认后再重新开始。
+  get().dismissDshRecoveryToast();
+  return new Promise<boolean>((resolve) => {
+    pendingPortConflict = (accept) => {
+      pendingPortConflict = null;
+      resolve(accept);
+    };
+    get().setDshPortConflict(info);
+  });
+}
+
 export function createDshActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
+    /**
+     * [ensureDshUrl - 解析 dsh 真实入口；包含端口占用确认与恢复提示]
+     *
+     * 所有「打开 dsh」入口（中心入口页、欢迎页快捷站点/本地端口、中心/面板
+     * 地址栏、浏览器树）共用本方法，避免只修一处：
+     * - 3080 空闲但进程已死：后端直接拉起；超过 1.2s 显示常驻加载 toast。
+     * - 3080 被占用：不杀进程，弹全局确认框；用户确认后以 force=true 重试。
+     * @returns 就绪结果（`status` 必填，`url` 可空）；用户取消端口确认返回
+     *   `{ url: null, canceled: true }`；失败返回 null
+     * @reads sourceStatus.running（区分首次启动 / 断连恢复文案）
+     * @writes dshPortConflict（确认框）、dshRecoveryToastId
+     * @see httpBridge.ts → dsh.open (/dsh/open)
+     */
+    ensureDshUrl: async (t?: DshRecoveryCopy): Promise<DshOpenResult | null> => {
+      if (dshEnsureInFlight) {
+        return dshEnsureInFlight;
+      }
+      dshEnsureInFlight = (async () => {
+        clearError(get, SCOPE);
+        let data = await callDshOpen(get, false, t);
+        if (data?.status === 'port_occupied' && data.occupant) {
+          if (data.occupant.processes.length === 0) {
+            // 识别不到占用者时不能弹空列表确认框（确认后也无从结束）：
+            // 直接提示手动处理，并保持调用方当前位置。
+            const unidentified = t?.dshPortConflictUnidentified;
+            if (unidentified) {
+              get().showToast(unidentified, 'warning');
+            }
+            get().dismissDshRecoveryToast();
+            return { status: 'port_occupied', url: null, canceled: true };
+          }
+          const accepted = await askDshPortConflict(get, data.occupant);
+          if (!accepted) {
+            get().dismissDshRecoveryToast();
+            return { status: 'port_occupied', url: null, canceled: true };
+          }
+          data = await callDshOpen(get, true, t);
+        }
+        return data;
+      })();
+      try {
+        return await dshEnsureInFlight;
+      } finally {
+        dshEnsureInFlight = null;
+      }
+    },
+
+    /**
+     * [resolveDshPortConflict - 端口占用确认框结果]
+     * accept=true → 待决的 ensure/open 以 force=true 结束占用进程并重启。
+     */
+    resolveDshPortConflict: (accept: boolean) => {
+      get().setDshPortConflict(null);
+      pendingPortConflict?.(accept);
+    },
+
+    /**
+     * [dismissDshRecoveryToast - 收起启动/恢复中的加载 toast]
+     * 目标标签页已打开（或流程失败/取消）时调用；幂等。
+     */
+    dismissDshRecoveryToast: () => {
+      const id = get().dshRecoveryToastId;
+      if (id) {
+        get().removeToast(id);
+      }
+      get().setDshRecoveryToastId(null);
+    },
+
     /**
      * [openDsh - 确保 dsh 进程就绪，并打开/聚焦一个承载它的普通浏览器标签]
      *
@@ -121,80 +274,83 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
      * 标签、再删除入口页造成的标签条重排/内容尺寸跳变（用户实测的打开瞬间闪烁）。
      * 复用已有 dsh 标签时：标签不在中心且入口页仍是 launcher 也同样就地转换；
      * 标签已在中心则只聚焦它，入口页保持 launcher，由调用方在打开后移除。
-     * @returns 成功返回 `{url, freedPort}`；失败返回 `null` 并已记录全局错误卡片
+     * @returns 成功返回就绪结果；用户取消端口确认或失败返回 null
      * @reads browserSlice.browserTabs, browserSlice.browserActiveTabId, centerTabs
-     * @writes browserSlice.browserTabs/browserActiveTabId, centerTabs
+     * @writes browserSlice.browserTabs/browserActiveTabId, centerTabs, dshPortConflict
      * @see httpBridge.ts → dsh.open (/dsh/open)
      * @see mock-bridge.ts → mockDsh.open
      */
-    openDsh: async (options?: { centerTabId?: string }): Promise<DshOpenResult | null> => {
+    openDsh: async (options?: {
+      centerTabId?: string;
+      t?: DshRecoveryCopy;
+    }): Promise<DshOpenResult | null> => {
       // 并发重入（快速双击）：复用进行中的调用，避免拉起两个进程/创建两个标签。
       if (openDshInFlight) {
         return openDshInFlight;
       }
       openDshInFlight = (async () => {
-        clearError(get, SCOPE);
-        // 桥调用不吞异常：意外抛错沿旧语义抛给调用方（组件兜底 toast），finally 照常复位在途标记。
-        const result = await window.digitalLife.dsh.open();
-        if (!result.ok) {
-          captureError(get, result.error, SCOPE);
-          return null;
-        }
-        const data: DshOpenResult = result.data ?? { url: null, freedPort: false };
-        const url = data.url?.trim() ?? '';
-
-        // 把浏览器标签就地绑定到入口页标签（launcher → browser）：不新增中心标签，
-        // 保持标签条数量与活动标签不变，WebView 只按最终布局挂载一次。
-        const bindToEntryTab = (tabId: string): boolean => {
-          const targetId = options?.centerTabId;
-          if (!targetId) {
-            return false;
+        try {
+          const data = await get().ensureDshUrl(options?.t);
+          if (!data || data.canceled) {
+            return null;
           }
-          const target = get().centerTabs.find((tab) => tab.id === targetId);
-          if (!target || target.kind !== 'launcher') {
-            return false;
-          }
-          get().browserSetLocation(tabId, 'center');
-          get().centerUpdateTab(targetId, { kind: 'browser', refId: tabId });
-          get().centerSelectTab(targetId);
-          get().clampPanelActiveTab();
-          return true;
-        };
+          const url = data.url?.trim() ?? '';
 
-        if (url) {
-          // 记录最近入口（卸载到空后按 origin 同源关残留标签用；token 入口只记到 query 之前）。
-          get().setDshLastUrl(url.split('?')[0]);
-          const existing = get().browserTabs.find((tab) => sameServiceOrigin(tab.url, url));
-          if (existing) {
-            // 同一 origin 但入口 URL 可能变化（重启/重新捕获 token）：只刷新停在
-            // 入口根路径的旧标签（裸根或旧 token），避免把用户在 dsh 内的 SPA 子路径
-            // 拽回入口 URL（事项 7 的刷新只服务于根路径 401）。
-            if (shouldRefreshDshTab(existing.url, url)) {
-              get().browserUpdateTab(existing.id, { url });
-              const bridge = window.digitalLife?.browser;
-              if (bridge?.navigateTab) {
-                void bridge.navigateTab(existing.id, url).catch((e) => {
-                  console.warn('[dsh] navigate existing tab to refreshed URL failed:', e);
-                });
+          // 把浏览器标签就地绑定到入口页标签（launcher → browser）：不新增中心标签，
+          // 保持标签条数量与活动标签不变，WebView 只按最终布局挂载一次。
+          const bindToEntryTab = (tabId: string): boolean => {
+            const targetId = options?.centerTabId;
+            if (!targetId) {
+              return false;
+            }
+            const target = get().centerTabs.find((tab) => tab.id === targetId);
+            if (!target || target.kind !== 'launcher') {
+              return false;
+            }
+            get().browserSetLocation(tabId, 'center');
+            get().centerUpdateTab(targetId, { kind: 'browser', refId: tabId });
+            get().centerSelectTab(targetId);
+            get().clampPanelActiveTab();
+            return true;
+          };
+
+          if (url) {
+            // 记录最近入口（卸载到空后按 origin 同源关残留标签用；token 入口只记到 query 之前）。
+            get().setDshLastUrl(url.split('?')[0]);
+            const existing = get().browserTabs.find((tab) => sameServiceOrigin(tab.url, url));
+            if (existing) {
+              // 同一 origin 但入口 URL 可能变化（重启/重新捕获 token）：只刷新停在
+              // 入口根路径的旧标签（裸根或旧 token），避免把用户在 dsh 内的 SPA 子路径
+              // 拽回入口 URL（事项 7 的刷新只服务于根路径 401）。
+              if (shouldRefreshDshTab(existing.url, url)) {
+                get().browserUpdateTab(existing.id, { url });
+                const bridge = window.digitalLife?.browser;
+                if (bridge?.navigateTab) {
+                  void bridge.navigateTab(existing.id, url).catch((e) => {
+                    console.warn('[dsh] navigate existing tab to refreshed URL failed:', e);
+                  });
+                }
               }
+              const centerTab = get().centerTabs.find(
+                (tab) => tab.kind === 'browser' && tab.refId === existing.id,
+              );
+              if (centerTab) {
+                get().centerSelectTab(centerTab.id);
+              } else if (!bindToEntryTab(existing.id)) {
+                get().centerShowBrowserTab(existing.id);
+              }
+              return data;
             }
-            const centerTab = get().centerTabs.find(
-              (tab) => tab.kind === 'browser' && tab.refId === existing.id,
-            );
-            if (centerTab) {
-              get().centerSelectTab(centerTab.id);
-            } else if (!bindToEntryTab(existing.id)) {
-              get().centerShowBrowserTab(existing.id);
-            }
-            return data;
           }
+          get().browserOpenTab(url);
+          const tabId = get().browserActiveTabId;
+          if (tabId && !bindToEntryTab(tabId)) {
+            get().centerShowBrowserTab(tabId);
+          }
+          return data;
+        } finally {
+          get().dismissDshRecoveryToast();
         }
-        get().browserOpenTab(url);
-        const tabId = get().browserActiveTabId;
-        if (tabId && !bindToEntryTab(tabId)) {
-          get().centerShowBrowserTab(tabId);
-        }
-        return data;
       })();
       try {
         return await openDshInFlight;

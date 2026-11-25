@@ -15,6 +15,7 @@ import type { SearchSlice } from './slices/searchSlice';
 import type { DiagnosticSlice } from './slices/diagnosticSlice';
 import type { ClipboardSlice } from './slices/clipboardSlice';
 import type { DshSlice } from './slices/dshSlice';
+import type { CopyDict } from '../i18n/types';
 import type { EnvSlice } from './slices/envSlice';
 import type { AppUpdateSlice } from './slices/appUpdateSlice';
 import type { ClipboardHistorySlice } from './slices/clipboardHistorySlice';
@@ -382,7 +383,25 @@ interface UtilitiesActions {
 }
 
 interface DshActions {
-  openDsh: (options?: { centerTabId?: string }) => Promise<DshOpenResult | null>;
+  /**
+   * 打开/聚焦 dsh 承载标签。`t` 只用于恢复中的 toast（缺省不提示）。
+   * 3080 被占用时先弹全局确认框，用户取消返回 null。
+   */
+  openDsh: (options?: {
+    centerTabId?: string;
+    t?: Pick<CopyDict, 'dshRecovering' | 'dshStarting'>;
+  }) => Promise<DshOpenResult | null>;
+  /**
+   * 只解析 dsh 真实入口 URL（不建/不聚焦标签），供欢迎页/地址栏/浏览器树等
+   * 「就地打开」入口共用；同样包含端口占用确认与恢复提示。
+   */
+  ensureDshUrl: (
+    t?: Pick<CopyDict, 'dshRecovering' | 'dshStarting'>,
+  ) => Promise<DshOpenResult | null>;
+  /** 端口占用确认框结果：accept=true 时后端以 force 结束占用进程并重启。 */
+  resolveDshPortConflict: (accept: boolean) => void;
+  /** 目标标签页已打开：收起「启动/恢复中」加载 toast。 */
+  dismissDshRecoveryToast: () => void;
   restartDsh: () => Promise<DshRestartResult & { failed: boolean }>;
   fetchVersionTask: () => Promise<void>;
   cancelVersionTask: () => Promise<boolean>;

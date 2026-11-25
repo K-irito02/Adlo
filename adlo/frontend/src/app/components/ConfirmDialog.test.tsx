@@ -47,4 +47,22 @@ describe('ConfirmDialog', () => {
     fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(confirm);
   });
+
+  it('renders optional details before the question', () => {
+    render(
+      <ConfirmDialog
+        {...baseProps}
+        details={
+          <ul>
+            <li>node.exe (PID 42)</li>
+          </ul>
+        }
+        question="End it and restart?"
+      />,
+    );
+    const dialog = screen.getByRole('dialog');
+    const html = dialog.innerHTML;
+    expect(html.indexOf('node.exe (PID 42)')).toBeGreaterThan(-1);
+    expect(html.indexOf('node.exe (PID 42)')).toBeLessThan(html.indexOf('End it and restart?'));
+  });
 });

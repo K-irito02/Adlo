@@ -19,6 +19,11 @@
  *   # 面板内 UI（设置 → 关于）：先点击进入目标面板，再取样式；`text=` 精确匹配可见文本
  *   node scripts/ui-probe.mjs --url <url> --click 'button[aria-label="设置"]' \
  *     --click 'text=关于' --selector '.adl-about__links' --props flex-direction,justify-content
+ *   # 主题 / 动效偏好（亮暗两套与 reduced-motion 取证各跑一次）
+ *   node scripts/ui-probe.mjs --url <url> --theme dark \
+ *     --selector '.adl-toast__message--shimmer' --props color,animation-name
+ *   node scripts/ui-probe.mjs --url <url> --reduced-motion \
+ *     --selector '.adl-toast__message--shimmer' --props animation-name,color
  *
  * 输出：JSON（每个 selector 的计算样式；缺失的 selector 标记 missing）。
  */
@@ -41,13 +46,14 @@ export function parseArgs(argv) {
     prelude: "",
     afterLoad: "",
     evalWhen: "",
+    focus: "",
+    viewport: "",
+    theme: "",
+    reducedMotion: false,
     settle: 300,
     timeout: 60000,
     port: 9333,
     headless: true,
-    theme: "",
-    focus: "",
-    viewport: "",
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -87,6 +93,9 @@ export function parseArgs(argv) {
         break;
       case "--eval-when":
         options.evalWhen = next();
+        break;
+      case "--reduced-motion":
+        options.reducedMotion = true;
         break;
       case "--settle":
         options.settle = Number.parseInt(next(), 10);
@@ -389,6 +398,24 @@ async function main() {
       await evaluate(client, options.afterLoad);
     }
 
+    // 主题与动效偏好：在页面就绪后设置，供亮/暗与 reduced-motion 的样式取证复用。
+    if (options.reducedMotion) {
+      await client.send("Emulation.setEmulatedMedia", {
+        features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+      });
+    }
+    if (options.theme) {
+      await evaluate(
+        client,
+        `(() => {
+          const root = document.documentElement;
+          root.dataset.theme = ${JSON.stringify(options.theme)};
+          root.style.colorScheme = ${JSON.stringify(options.theme)};
+        })()`,
+      );
+      await delay(150);
+    }
+
     // 最后等探测 selector 出现再读样式；hover 目标也必须存在。
     for (const selector of new Set([...options.selectors, options.hover].filter(Boolean))) {
       await waitForSelector(client, selector, options.timeout);
@@ -410,7 +437,19 @@ async function main() {
       buildProbeExpression(options.selectors, options.props, options.pseudo),
     );
     const viewport = await evaluate(client, "({ width: innerWidth, height: innerHeight })");
-    console.log(JSON.stringify({ url: options.url, viewport, results: result }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          url: options.url,
+          theme: options.theme || null,
+          reducedMotion: options.reducedMotion,
+          viewport,
+          results: result,
+        },
+        null,
+        2,
+      ),
+    );
   } finally {
     client?.close();
     killBrowser(child);
