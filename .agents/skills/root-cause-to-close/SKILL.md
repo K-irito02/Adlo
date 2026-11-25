@@ -263,13 +263,18 @@ P3 自动化通过后必须停下，按 §2.2 用 grilling 轮次报告验证结
 **生成快照前门禁：** 每个修复轮跑 `pnpm --dir frontend run check:review`（静态 + Rust fmt/clippy，无 vitest / cargo test）；**仅当本轮所有 scope 零问题、准备进 R2 / 退出 P4 时**跑完整 `check:changed`（含受影响测试）。门禁失败先修，再生成快照，不把门禁可发现的问题交给审查子代理。
 
 ```powershell
-# 在 adlo/ 下执行
-pnpm --dir frontend run check:changed -- --skip-tests   # 中间轮：静态项
-pnpm --dir frontend run check:changed                   # 最终快照：含测试
-pnpm run check:rust:changed                             # 最终快照：Rust 受影响 crate
+# 中间轮（本轮还可能返工）：只跑静态项
+pnpm --dir frontend run check:review
 ```
 
-中间轮只跑静态项；完整测试门禁留给最终快照（实测单次数分钟，连续多轮会白烧；见 `references/review-brief.md`）。最终快照必须跑一次完整门禁。
+**只有本轮已确定零问题（准备进 R2 / 退出 P4）时**，才在生成该快照前跑完整门禁：
+
+```powershell
+pnpm --dir frontend run check:changed      # 含受影响测试
+pnpm run check:rust:changed                # Rust 受影响 crate
+```
+
+中间轮跑完整套件只会白烧数分钟（2026-11-26 实测 4 次完整门禁）；完整测试门禁留给最终快照，这是硬性完成条件。
 
 **门控铁律：**
 
@@ -333,7 +338,11 @@ UI 引入可复用模式或修正规范时，提取标准并更新 `docs/design-
 
 ### 6.1 清理（预授权，无需再问；先用读取确认存在，年龄按 `LastWriteTime`）
 
-- [ ] 两处 `.adl-logs/`（仓库根与 `adlo/`）超 7 天文件。
+- [ ] 两处 `.adl-logs/`（仓库根与 `adlo/`）超 7 天文件。清单用非递归命令（`Get-ChildItem -Recurse` 被 shell 权限拒绝）：
+  ```powershell
+  Get-ChildItem .adl-logs -File | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) -or $_.Name -like 'debug-logs*' } | Remove-Item -Force
+  Get-ChildItem adlo/.adl-logs -File | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) -or $_.Name -like 'adl-server-logs*' -or $_.Name -like 'debug-logs*' } | Remove-Item -Force
+  ```
 - [ ] `debug-logs*.txt`、`debug-logs-browser*.txt`、`adl-server-logs*.txt` 运行残留。
 - [ ] 根 `test-artifacts/` 超 3 天临时文件。
 - [ ] `grep` 确认 `[DBG-` 诊断前缀清零；有残留先删。

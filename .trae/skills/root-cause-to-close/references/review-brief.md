@@ -103,7 +103,7 @@ pnpm --dir frontend run check:changed
 4. **代码注释/i18n 与实现一致性**：只核对代码注释与 i18n 文案；进度文件与设计文档的事实漂移不在 R1/R2 范围（P5 修正），不要据此判「需修复」。不要把手工验证写成自动化测试。
 5. **领域术语**：ADR/CONTEXT 新引入的领域术语是否登记 `GLOSSARY.md`（P5/R2 必查）；新增/修改的注释与文档是否使用了 `_Avoid_` 词（`check:glossary` 覆盖 i18n 与 `docs/operations`、`docs/architecture`，代码注释需人工核对）。
 6. **Rust 导出**：新增 `pub` 是否真有跨 crate 消费方？lib 内部辅助默认 `pub(crate)`；仅测试调用的包装应删除或降级。
-   6.1 **Cargo feature/依赖的隐式类型依赖**：建议删除 Cargo feature 或依赖前，先确认被调用 API 的**参数/返回类型**是否来自该 feature（如 `RegCreateKeyExW` 的 `SECURITY_ATTRIBUTES` 来自 `Win32_Security`）。文本零引用 ≠ 可删；无法确认就写进「记录不修」，或要求删除后以 `cargo clippy` 编译通过为准（2026-11-20 实测：按“零引用”删 feature 直接编译失败）。
+   6.1 **Cargo feature/依赖的隐式类型依赖**：建议删除 Cargo feature 或依赖前，先确认被调用 API 的**参数/返回类型**是否来自该 feature（如 `RegCreateKeyExW` 的 `SECURITY_ATTRIBUTES` 来自 `Win32_Security`）。**宏与构建脚本生成的引用同样不可用文本零引用判死**（`#[implement]` 展开引用 `windows_core::`、`generate_context!` 等；2026-11-26 实测按“零引用”删 `windows-core` 直接编译失败）。无法确认就写进「记录不修」，或要求删除后以 `cargo clippy`/`cargo check` 编译通过为准。
 7. **UI/主题真实渲染**：本轮若有 CSS/主题改动，主代理必须附真实浏览器/WebView 的 `getComputedStyle` 证据（至少当前主题；涉及亮暗 token 时两套都读）。仅有 CSS 文本断言、截图或肉眼判断，视为未验证级联，记为需修复。证据用 `node adlo/scripts/ui-probe.mjs --url <预览地址> --selector <css> --props <计算属性>` 采集（Edge/Chrome CDP，无新依赖；先启动 `dev:preview`），不要为取样式占用 Review 面板。
 8. **注释与文案必须与最终代码逐句相符**：新增/修改的注释或 i18n 文案若含绝对断言（必然 / 总是 / 永远 / 不会 / 不可达 / 唯一 / 所有…都 / 全部…都 / 都会 / 一律），必须能由代码或测试证明，否则要求降级措辞；不许把「意图」写成「事实」。同时回扫本轮被取代的旧流程术语（例如「按需登记」「所有可见列表」）是否仍留在注释/文档里。本仓实测：注释漂移占满了 R1/R2 后半场（3 轮完整审查 + 5 次定向复核全在核注释/文案/计数）。
 9. **测试标题/注释必须与断言一致**：用例名承诺的行为至少有一个会失败的断言；标题写「A 与 B」而只断言 A、写「recovers / 同名 / 删除」却无对应断言，均按「失效文案」记为需修复。删除性推演时先看标题承诺，再看断言是否真能变红。

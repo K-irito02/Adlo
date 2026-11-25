@@ -282,6 +282,10 @@ run('source hygiene', 'node ../scripts/check-source-hygiene.mjs');
 run('css architecture', 'node scripts/check-css-architecture.mjs');
 run('css variables', 'node ../scripts/check-css-vars.mjs');
 run('dead code (changed files only)', 'node scripts/check-dead-code.mjs');
+run(
+  'unsafe safety (changed rust)',
+  `node ../scripts/check-unsafe-safety.mjs --base ${quote(base)}`,
+);
 
 run('typecheck', 'npx tsc --noEmit');
 run('typecheck (dev tooling)', 'npx tsc --noEmit -p dev/tsconfig.json');

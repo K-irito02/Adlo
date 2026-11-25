@@ -11,6 +11,8 @@ const glossaryPath =
     : path.resolve(here, '../../../GLOSSARY.md');
 
 const IMPLEMENTATION_TOKEN = /`[^`]*(\/|\\|::|\.(?:rs|ts|tsx|js|jsx|css|json|toml|sql)\b)[^`]*`/;
+/** 领域词表不承载实现名词；需要引用的实现细节放 ADR/架构文档。 */
+const IMPLEMENTATION_NOUN = /IndexedDB|localStorage|object URL|asset 协议|<video>|<canvas>/i;
 const NUMERIC_COUNT = /\d+\s*个/;
 const ALLOW_MARKER = 'glossary-allow';
 
@@ -73,6 +75,18 @@ lines.forEach((line, index) => {
   }
   if (NUMERIC_COUNT.test(line)) {
     problems.push(`line ${index + 1}: stale-prone numeric count in glossary`);
+  }
+});
+
+// 领域定义只用概念语言；实现名词（存储技术/媒体标签）放 ADR 或架构文档。
+lines.forEach((line, index) => {
+  if (line.startsWith('_Avoid_:') || /^\*\*[^*]+\*\*:/.test(line)) {
+    return;
+  }
+  if (IMPLEMENTATION_NOUN.test(line)) {
+    problems.push(
+      `line ${index + 1}: implementation noun in glossary (use domain wording or move details to docs/adr)`,
+    );
   }
 });
 

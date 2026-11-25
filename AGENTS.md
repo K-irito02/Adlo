@@ -35,7 +35,7 @@
 
 ## 工具选择（Agent）
 
-- **检索用 `grep`，读文本用 `read`**：`grep` 不给上下文行，要看上下文用 `read` 取行段；`Select-String` 已被 shell 权限拦截；`Get-Content` / `cat` 在 GBK 控制台会把 UTF-8 中文打成乱码。
+- **检索用 `grep`，读文本用 `read`**：`grep` 不给上下文行，要看上下文用 `read` 取行段；`Select-String` 与 `Get-ChildItem -Recurse` 已被 shell 权限拦截（列目录用 `glob`、`git ls-files` 或单层 `Get-ChildItem <dir>`）；`Get-Content` / `cat` 在 GBK 控制台会把 UTF-8 中文打成乱码。
 - **文件名检索用 `glob` / `git ls-files`**；`git grep` 不用。
 - **短输出**用工具自带参数（如 `--reporter=dot`）或 `Select-Object -Last`；**长门禁 / 开发服务器**先落盘再读 tail（管道会缓冲到进程退出，看似挂起）。
 - **站点元数据**用 `dump-site-meta`：在 `adlo/` 下运行 `cargo run -p adl-browser --example dump-site-meta -- <数据根> [url] [--missing-favicon]`（免装 sqlite3 CLI）。

@@ -60,6 +60,8 @@ STEP="check:css-vars"
 ( cd "$ROOT/adlo" && node scripts/check-css-vars.mjs )
 STEP="check:dead-code"
 ( cd "$ROOT/adlo/frontend" && pnpm run check:dead-code )
+STEP="check-unsafe-safety"
+( cd "$ROOT/adlo" && node scripts/check-unsafe-safety.mjs )
 STEP="check:vite-config"
 ( cd "$ROOT/adlo/frontend" && pnpm run check:vite-config )
 STEP="check-brand"

@@ -1,9 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  collectAllowedDefinitions,
   collectCssDefinitions,
+  collectCssUsages,
   collectScriptDefinitions,
   findUndefinedVars,
+  findUnusedDefinitions,
   stripCssComments,
 } from "./check-css-vars.mjs";
 
@@ -42,4 +45,41 @@ test("reports undefined vars but accepts fallbacks", () => {
 test("reports the correct line number", () => {
   const violations = findUndefinedVars(`.a {\n  color: var(--missing);\n}`, new Set());
   assert.deepEqual(violations, [{ name: "--missing", line: 2 }]);
+});
+
+test("collectCssUsages counts var() with and without fallback", () => {
+  const used = collectCssUsages(`
+    .a { color: var(--text-primary); }
+    .b { background: var(--bg-hover, transparent); }
+  `);
+  assert.deepEqual([...used].sort(), ["--bg-hover", "--text-primary"]);
+});
+
+test("findUnusedDefinitions flags only new definitions with no consumer", () => {
+  const used = new Set(["--kept"]);
+  const current = `
+    :root {
+      --old: 1;
+      --kept: 2;
+      --dead: 3;
+    }
+  `;
+  const base = `
+    :root {
+      --old: 1;
+    }
+  `;
+  assert.deepEqual(findUnusedDefinitions(current, base, used), ["--dead"]);
+});
+
+test("findUnusedDefinitions treats a new file as all-new and accepts token-allow", () => {
+  const current = `
+    :root {
+      --dead: 1;
+      /* token-allow: exported to third-party theme API */
+      --exported: 2;
+    }
+  `;
+  const allowed = collectAllowedDefinitions(current);
+  assert.deepEqual(findUnusedDefinitions(current, "", new Set(), allowed), ["--dead"]);
 });

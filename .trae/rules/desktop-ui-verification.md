@@ -40,6 +40,8 @@ node adlo/scripts/ui-probe.mjs --url http://127.0.0.1:5174 --eval-when "#app > *
 
 把 `is-suspended` 换成目标状态类即可；报告里记录端口与命令，结束后终止预览服务。亮暗两套与 reduced-motion 各跑一次。
 
+**注入节点要被 `--hover` / `--focus` 命中**：给注入容器加 `position:fixed; right/bottom; z-index:99999`。默认静态定位会被应用外壳盖住，`Input.dispatchMouseEvent` 落在外壳上，`:hover` 永不生效（2026-11-26 实测：音量胶囊停在 32×32，抬高 z-index 后才读到 44×170）。
+
 ### 可选自动化冒烟
 
 桌面-only 交互（标题栏/面板开合、窗口几何、真实 IPC）可先跑 `pnpm run e2e`（命令与前置见 [commands.md](commands.md#测试命令)，流程见技能 `desktop-e2e-wdio`）。**自动化通过 ≠ 视觉验收通过**：仍须按上方清单在真实窗口内人工确认。
