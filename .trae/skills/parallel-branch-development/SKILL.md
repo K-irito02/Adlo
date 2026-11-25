@@ -231,6 +231,7 @@ git -C "$WT" diff --stat "$OLD..<new-branch>" -- `  # 6 依赖是否变化
 | Store          | `frontend/src/app/stores/slices/**`、`frontend/src/app/stores/actions/**`、`frontend/src/app/stores/StoreState.ts`                                                         |
 | i18n           | `frontend/src/app/i18n/zh-CN/**`、`frontend/src/app/i18n/en-US/**`                                                                                                         |
 | 依赖与构建     | `Cargo.toml`、`Cargo.lock`、`package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`src-tauri/tauri.conf.json`、`src-tauri/capabilities/**`                              |
+| 工具脚本       | `scripts/**`、`frontend/scripts/**`、`.husky/**`、`docs/root-cause-to-close/_template.md`                                                                                   |
 | 治理           | 仓库根 `AGENTS.md`、`RULES.md`、`SKILLS.md`、`.agents/rules/**`、本技能（`.agents/skills/parallel-branch-development/SKILL.md`，真源）                                     |
 
 可安全并行：`frontend/src/app/features/<feature>/**`、`frontend/src/app/regions/right-panel/panels/**`（同一文件不可并行）、`frontend/src/styles/regions/**`、`adlo/crates/<单个 crate>/**`、`docs/**`（按文件切）。
@@ -288,6 +289,13 @@ pnpm --dir "$ROOT/adlo" run check:all
 - 合并前主工作树需干净（未提交改动会让 ff 合并被拒）。
 - `--ff-only` 失败 = 已分叉 → 交回主工作树裁决，禁止在分支上 `merge main` 后继续开发。
 - `--ff-only` 到已在分支工作树通过完整门禁的同一提交，不产生语义冲突：主工作树跑 `check:repo` + `worktree:env` 即可。非快进或没有门禁证据时，`check:all` 仍是唯一能发现语义冲突的环节，必须跑。
+- **非快进合并顺序**（`--ff-only` 失败、main 已含其它提交）：
+  1. `git -C "$ROOT" merge --no-ff <branch>`；
+  2. 冲突先解决 `.agents` 源文件，再跑 `pnpm --dir "$ROOT/adlo" run agents:mirror` 同步 `.opencode` / `.trae`；依赖清单有变化时跑 `notices:generate`；
+  3. `git commit` 完成 merge；
+  4. 在 merge commit 上跑 `check:all`（未提交时跑会漏掉 pre-push 以 `origin/main` 为基线的差异检查）；
+  5. 其它工作树 `git -C <slot> merge --ff-only main`；
+  6. 双远程推送用 `pnpm --dir "$ROOT/adlo" run push:both -- main slot-1 slot-2`（第一个远程正常跑门禁，第二个远程同一批 SHA 用受控 `--no-verify`，脚本最后 `ls-remote` 校验两端 SHA）。
 
 ### 5.3 保留与清理
 
@@ -404,7 +412,7 @@ stale `active`（>24h 未更新）用 `pnpm --dir adlo run worktree:sessions -- 
 | R2  | 本地 `main` 已推送到远程        | `git rev-list --left-right --count origin/main...main` 为 `0 0`                              |
 | R3  | 当前工作树分支已推送到远程      | `git rev-list --left-right --count origin/<branch>...<branch>` 为 `0 0`                      |
 
-推送由用户执行或明确批准，agent 永不自动 push。R1–R3 全部满足即判为收尾，执行：
+推送由用户执行或明确批准，agent 永不自动 push。双远程一次推送用 `pnpm --dir adlo run push:both -- <分支…>`（门禁只跑一遍并校验两端 SHA）。R1–R3 全部满足即判为收尾，执行：
 
 ```powershell
 $WT = "$WT_ROOT/<name>"                  # 换成自己的工作树

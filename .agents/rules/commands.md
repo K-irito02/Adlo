@@ -94,6 +94,8 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `pnpm --dir frontend run check:review` | 审查修复轮：静态项 + Rust fmt/clippy（不跑 vitest / cargo test），默认 `--base merge-base`，提交后也能覆盖 |
 | `pnpm --dir frontend run check:changed --base HEAD` | 未提交的修复循环只查本轮改动；已提交/checkpoint 后改用 `--base merge-base`（base=HEAD 且工作区无改动会直接失败） |
 | `pnpm run check:comment-claims` | 新增代码注释里的绝对/计数断言（`唯一`/`总是`/`覆盖 N 个用例`…）；行尾 `claim-allow: <证据>` 放行，`check:changed` 自动执行 |
+| `pnpm run agents:mirror` | 把 `.agents/rules` 同步到 `.opencode/rules` / `.trae/rules`（合并冲突时只改 `.agents` 源，再跑本命令） |
+| `pnpm run check:script-lint` | dev 脚本重复 `case` / 重复对象键检查（`adlo/scripts` 不在前端 ESLint 范围；pre-commit 与 `check:repo` 自动执行） |
 | `pnpm run cargo:test` | Rust 全量测试（内部先 `stage:sidecar`；裸 `cargo test --workspace` 需先 staging） |
 | `cargo test -p <crate>` | Rust 指定 crate 测试 |
 | `cargo test -p <crate> <test_name>` | Rust 按名称过滤测试（限定 crate，避免编译壳层） |

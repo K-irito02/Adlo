@@ -39,6 +39,8 @@ STEP="node --check"
 MJSFILES="$(echo "$STAGED" | grep -E '^adlo/.*\.mjs$' || true)"
 if [ -n "$MJSFILES" ]; then
   echo "$MJSFILES" | xargs -d '\n' -I{} sh -c 'node --check "$1"' _ {}
+  STEP="script lint"
+  ( cd "$ROOT" && echo "$MJSFILES" | xargs -d '\n' node adlo/scripts/check-script-lint.mjs )
 else
   echo "[pre-commit] node --check: no staged .mjs files, skipped"
 fi
@@ -68,6 +70,13 @@ STEP="check-deleted-crates"
 ( cd "$ROOT/adlo" && node scripts/check-deleted-crates.mjs )
 STEP="check-no-new-any"
 ( cd "$ROOT/adlo" && node scripts/check-no-new-any.mjs )
+STEP="notices:check"
+DEPS="$(echo "$STAGED" | grep -E '^adlo/(Cargo\.lock|Cargo\.toml|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml)$|^adlo/frontend/package\.json$' || true)"
+if [ -n "$DEPS" ]; then
+  ( cd "$ROOT/adlo" && pnpm run notices:check )
+else
+  echo "[pre-commit] notices:check: no dependency manifests staged, skipped"
+fi
 STEP="dev tooling tests"
 ( cd "$ROOT/adlo" && node --test "scripts/*.test.mjs" )
 
