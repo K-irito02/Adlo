@@ -24,6 +24,9 @@ function parseArgs(argv) {
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') {
       parsed.help = true;
+    } else if (arg === '--') {
+      // 兼容 `pnpm run <script> -- <args>`：部分 pnpm 版本会把分隔符原样传入。
+      continue;
     } else if (arg === '--skip-tests') {
       parsed.skipTests = true;
     } else if (arg === '--fix') {

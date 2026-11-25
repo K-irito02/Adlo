@@ -92,7 +92,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `pnpm --dir frontend run check:i18n` | 前端 i18n 覆盖检查（CI 门禁） |
 | `pnpm --dir frontend run check:changed` | 受影响范围门禁（前端 + 自动带 Rust 受影响 crate 的 fmt/clippy/test） |
 | `pnpm --dir frontend run check:review` | 审查修复轮：静态项 + Rust fmt/clippy（不跑 vitest / cargo test），`--base HEAD` |
-| `pnpm --dir frontend run check:changed -- --base HEAD` | 修复循环只查本轮改动；最终提交前去掉 `--base` |
+| `pnpm --dir frontend run check:changed --base HEAD` | 修复循环只查本轮改动；最终提交前去掉 `--base` |
 | `pnpm run check:comment-claims` | 新增代码注释里的绝对/计数断言（`唯一`/`总是`/`覆盖 N 个用例`…）；行尾 `claim-allow: <证据>` 放行，`check:changed` 自动执行 |
 | `pnpm run cargo:test` | Rust 全量测试（内部先 `stage:sidecar`；裸 `cargo test --workspace` 需先 staging） |
 | `cargo test -p <crate>` | Rust 指定 crate 测试 |

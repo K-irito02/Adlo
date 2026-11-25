@@ -17,3 +17,4 @@ Lessons learned from Tauri backend development and synchronization fixes.
 - [reqwest-socks-proxy-env-2026-10-29.md](./reqwest-socks-proxy-env-2026-10-29.md) — reqwest 缺 `socks` 特性时 SOCKS 代理 env 下全部出站失败（`unsupported scheme socks5h`，curl/Node 不受影响）；workspace 特性加 `socks` 即修，不回退直连
 - [proxy-auto-fallback-and-registry-timeout-2026-10-30.md](./proxy-auto-fallback-and-registry-timeout-2026-10-30.md) — 代理软件关闭但 `ALL_PROXY` 残留 → 探针/下载统一解析 + Auto 静默直连（手动不回退）+ 探针镜像全局回退 + 错误分类本地化 + OpenCode packument gzip/60s
 - [binary-download-checksum-2026-11-04.md](./binary-download-checksum-2026-11-04.md) — 镜像回退下的二进制完整性：钉死哈希优先于在线清单、官方清单优先、Git SFX fail-closed、清单 15s 短超时、本地 TCP stub 覆盖决策点
+- [tauri-capability-window-webview-remote.md](./tauri-capability-window-webview-remote.md) — 子 WebView 的 `shell|open` 被拒：窗口/WebView 匹配、`remote.urls` 按 scheme 覆盖、`__TAURI_INTERNALS__` 无条件注入三件事分开看；http 页没有 capability 覆盖其 remote 源

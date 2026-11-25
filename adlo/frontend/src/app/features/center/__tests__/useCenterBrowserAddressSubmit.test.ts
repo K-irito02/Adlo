@@ -3,6 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useCenterBrowserAddressSubmit } from '../useCenterBrowserAddressSubmit';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { dshOpened } from '../../../../test-fixtures/dsh';
 
 function makeCenterTab(id: string, url: string): BrowserTabState {
   return {
@@ -42,7 +43,7 @@ describe('useCenterBrowserAddressSubmit 需认证本地端口分流（事项 2�
       dsh: {
         open: vi.fn(async () => ({
           ok: true,
-          data: { status: 'opened', url: 'http://127.0.0.1:3080/?token=center1' },
+          data: dshOpened('http://127.0.0.1:3080/?token=center1'),
         })),
       },
     };
@@ -91,7 +92,7 @@ describe('useCenterBrowserAddressSubmit 需认证本地端口分流（事项 2�
     });
     const open = vi.fn(async () => ({
       ok: true,
-      data: { status: 'opened', url: 'http://127.0.0.1:3080/?token=nope' },
+      data: dshOpened('http://127.0.0.1:3080/?token=nope'),
     }));
     (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
     const navigateTabInPool = vi.fn(async () => {});
@@ -364,7 +365,7 @@ describe('useCenterBrowserAddressSubmit 需认证本地端口分流（事项 2�
 
       resolveOpen({
         ok: true,
-        data: { status: 'opened', url: 'http://127.0.0.1:3080/?token=OLD' },
+        data: dshOpened('http://127.0.0.1:3080/?token=OLD'),
       });
       await act(async () => {
         await pendingA;

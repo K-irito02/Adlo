@@ -4,6 +4,7 @@ import { useBrowserPanelAddressSubmit } from '../useBrowserPanelAddressSubmit';
 import { useAppStore } from '@stores/slicedStore';
 import { checkEmbed, isEmbedBlocked } from '@features/browser/checkEmbed';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { dshOpened } from '../../../../test-fixtures/dsh';
 
 vi.mock('@features/browser/checkEmbed', () => ({
   isEmbedBlocked: vi.fn(() => false),
@@ -145,7 +146,7 @@ describe('useBrowserPanelAddressSubmit', () => {
       dsh: {
         open: vi.fn(async () => ({
           ok: true,
-          data: { status: 'opened', url: 'http://127.0.0.1:3080/?token=tok123' },
+          data: dshOpened('http://127.0.0.1:3080/?token=tok123'),
         })),
       },
     };

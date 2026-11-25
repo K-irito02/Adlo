@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBrowserPanelHandlers } from './useBrowserPanelHandlers';
 import type { ExpectedNavigationRef } from './browserUrlUtils';
+import { dshOpened } from '../../../test-fixtures/dsh';
 
 function setup(browserNavigateInPlace: boolean, activeTabId = 'tab-active') {
   const browserOpenTab = vi.fn();
@@ -86,7 +87,7 @@ describe('useBrowserPanelHandlers.handleOpenTabFromTree (regression)', () => {
       dsh: {
         open: vi.fn(async () => ({
           ok: true,
-          data: { status: 'opened', url: 'http://127.0.0.1:3080/?token=tree1' },
+          data: dshOpened('http://127.0.0.1:3080/?token=tree1'),
         })),
       },
     };

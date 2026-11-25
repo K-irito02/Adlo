@@ -80,6 +80,27 @@ test("parseArgs separates navigation-time and post-load evaluations", () => {
   assert.equal(defaults.evalWhen, "");
 });
 
+test("parseArgs accepts theme and reduced-motion overrides", () => {
+  const options = parseArgs([
+    "--url",
+    "http://x",
+    "--selector",
+    ".a",
+    "--theme",
+    "dark",
+    "--reduced-motion",
+  ]);
+  assert.equal(options.theme, "dark");
+  assert.equal(options.reducedMotion, true);
+  const defaults = parseArgs(["--url", "http://x", "--selector", ".a"]);
+  assert.equal(defaults.theme, "");
+  assert.equal(defaults.reducedMotion, false);
+  assert.throws(
+    () => parseArgs(["--url", "http://x", "--selector", ".a", "--theme", "sepia"]),
+    /--theme must be light or dark/,
+  );
+});
+
 test("parseArgs rejects missing url / selectors / unknown flags", () => {
   assert.throws(() => parseArgs(["--selector", ".a"]), /--url is required/);
   assert.throws(() => parseArgs(["--url", "http://x"]), /at least one --selector/);
