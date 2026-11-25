@@ -49,8 +49,13 @@ function currentBranch(repoRoot) {
   return branch;
 }
 
+/** `pnpm run <script> -- <args>` 会把分隔符原样传入；忽略它。 */
+export function parseTargets(argv) {
+  return argv.filter((arg) => arg !== "--");
+}
+
 function main() {
-  const branches = process.argv.slice(2);
+  const branches = parseTargets(process.argv.slice(2));
   const implRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const repoRoot = capture(["rev-parse", "--show-toplevel"], implRoot);
   const targets = branches.length > 0 ? branches : [currentBranch(repoRoot)];
@@ -93,4 +98,8 @@ function main() {
   }
 }
 
-main();
+const isMain =
+  process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+if (isMain) {
+  main();
+}
