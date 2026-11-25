@@ -108,8 +108,8 @@ export function parseArgs(argv) {
 
 /**
  * Restrict the worktree list to the named branches / directory names / paths.
- * Empty selection = everything. An unmatched name is an error, never a silent
- * empty run: cleaning the wrong tree set is unrecoverable.
+ * Empty selection = everything. An unmatched name is an error rather than a
+ * silent empty run: cleaning the wrong tree set is unrecoverable.
  */
 export function selectWorktrees(worktrees, selections = []) {
   if (selections.length === 0) {
@@ -266,7 +266,7 @@ export function recordCleanEvent(worktreePath, event) {
   return file;
 }
 
-/** Latest clean event for a worktree, or null when it has never been cleaned. */
+/** Latest clean event for a worktree; null when no clean event has been recorded. */
 export function readLastCleanEvent(worktreePath) {
   let text;
   try {
