@@ -25,6 +25,21 @@ export async function invokeIpc<T>(
   }
 }
 
+/**
+ * 把 `IpcResult` 的失败转成异常。
+ *
+ * `Promise<void>` 形态的桥接方法没有错误通道，若直接 `.then(() => undefined)`
+ * 就把业务错误（权限、标签页 WebView 尚未创建等）吞成“点了没反应”。需要让调用
+ * 方感知失败的入口经此解包：成功返回 data，失败 throw 带 `code` 的 Error，供
+ * 上层按错误码给出具体提示。
+ */
+export function requireIpcOk<T>(result: IpcResult<T>): T | undefined {
+  if (!result.ok) {
+    throw Object.assign(new Error(result.error.message), { code: result.error.code });
+  }
+  return result.data;
+}
+
 export function subscribeChannel<T>(eventName: string, listener: (payload: T) => void): () => void {
   let active = true;
   let ul: UnlistenFn | undefined;

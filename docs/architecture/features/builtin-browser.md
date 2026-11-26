@@ -90,9 +90,23 @@
 | 限制 | 影响范围 |
 |------|----------|
 | iframe 受 `X-Frame-Options` 限制 | 浏览器预览模式约 80% 网站无法内嵌显示 |
-| Cookie/登录态不支持 | 全局限制，需要登录的网站无法正常交互 |
-| DevTools 未集成 | 未实现 |
-| Cookie/缓存治理未实现 | 未实现 |
+| Cookie/登录态不支持 | 全局限制，需要登录的网站无法正常交互（清理能力已实现，见下） |
+| 无法按 origin 清 HTTP 缓存 | Chromium/WebView2 不提供该能力（CDP storage type 枚举里没有 HTTP cache）；「清除本站缓存」只清站点数据缓存（Cache Storage / Service Worker / IndexedDB / LocalStorage 等），HTTP 缓存只能全局清 |
+| DevTools 不能做开关 | WebView2 的 `is_devtools_open` 恒 false、`close_devtools` 为空实现；菜单项为「打开开发者工具」（独立窗口） |
+
+## 2026-11 增量（更多操作菜单与开发者工具）
+
+| 能力 | 契约 |
+|------|------|
+| 开发者工具 | 新增 `browser_open_devtools(tabId)`，按 tab 从共享 WebView 池解析 `adl-browser-view-{tabId}` 并打开**该标签页**的 DevTools（独立窗口）。中心与右侧面板共用 hook，按 tabId 定位，天然一致；不复用 Tauri `internal_toggle_devtools`（无 label 时命中应用壳，且 release 未注册） |
+| 发布版 inspector 边界 | `devtools` feature 进 `default`；补丁运行时对未显式设置的 WebView 回落 `unwrap_or(true)`，因此应用壳窗口、静默 WebView、分隔条 WebView 都显式 `.devtools(false)`，仅可见标签页开 inspector。应用壳在 debug/release 都不开放 inspector |
+| 强制刷新 | CDP `Page.reload{ignoreCache}`；派发失败尝试普通刷新并记 warn，不对外宣称「已忽略缓存」 |
+| Cookie 清理 | 「清除本站 Cookie」= `CookieManager.GetCookies("")` 全量快照 + host（含父域）域名过滤 + 逐条 `DeleteCookie`；「清除全部 Cookie」= `Network.clearBrowserCookies`。父域 cookie 被删会连带影响同父域兄弟子域 |
+| 缓存清理 | 「清除本站缓存」= `Storage.clearDataForOrigin`（`cache_storage,service_workers,indexeddb,local_storage,file_systems,websql,shader_cache`，**排除 cookies**）；「清除全部缓存」= `Network.clearBrowserCache` |
+| 清理后重载 | 四项清理（本站/全部 × Cookie/缓存）都在各自的完成回调里对当前标签发一次 `Page.reload{ignoreCache}`，只重载该标签，不触碰另一宿主前台标签与所有后台标签；重载未发出时回执错误，不报成功 |
+| 完成回执 | 平台层在 CDP/CookieManager 回调中经 `CleanupDone` 回传真实结果；命令层 `await_cleanup`（`spawn_blocking` + 20s 超时）等回执后才返回，失败/超时经 `IpcResult` 让前端提示错误，不再「发出即成功」 |
+| 菜单收敛 | 删除「复制网址」（地址栏已有复制按钮）与「清除历史」（历史面板自带删除入口）；Cookie 两项相邻、缓存两项相邻，组间一条分隔线；桌面专属项在预览模式禁用并在 hint 中说明 |
+| 相关决策 | [ADR 0038](../../adr/0038-browser-menu-devtools-and-cleanup-scope.md) |
 
 ## 经验教训（已迁移至 knowledge-base）
 

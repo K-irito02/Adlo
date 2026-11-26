@@ -74,8 +74,17 @@ windows = { version = "0.61", features = [
 ] }
 
 [features]
-default = ["custom-protocol"]
+# `devtools` 进 default：发布构建也要能“为浏览器标签页打开 DevTools”（菜单「打开开发者工具」）。
+# 该 feature 让补丁运行时把**每个** WebView 的 `devtools` 属性回落为 true
+# （`webview_attributes.devtools.unwrap_or(true)`），所以必须逐处显式关闭不需要
+# 调试面的 WebView：
+#   - 应用壳窗口：`tauri.conf.json` 的 `"devtools": false`（debug / release 都生效；
+#     开发期若需要检查壳 UI，临时把该字段改成 true）
+#   - 静默 WebView、分隔条：builder 上 `.devtools(false)`
+# 可见标签 WebView 上的 `.devtools(true)` 只是把这个默认值显式写出来，不是开关本身。
+default = ["custom-protocol", "devtools"]
 custom-protocol = ["tauri/custom-protocol"]
+devtools = ["tauri/devtools"]
 # Enables the embedded WebDriver server used by `e2e/` (WDIO Tauri service).
 # The plugin only starts when the test runner sets TAURI_WEBDRIVER_PORT.
 e2e = ["dep:tauri-plugin-wdio-webdriver", "dep:tauri-plugin-wdio"]

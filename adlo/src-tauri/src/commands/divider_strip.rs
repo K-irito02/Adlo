@@ -63,6 +63,9 @@ pub async fn divider_strip_show(
             )
             .transparent(true)
             .focused(false)
+            // 带 `devtools` feature 的构建里，未显式设置的 WebView 默认开启
+            // inspector；分隔条只是拖拽控制面，显式关掉，不留调试面。
+            .devtools(false)
             .initialization_script(config_script)
             // Same WebView2 environment options as the main/panel webviews: they
             // share the default user data directory, and mismatched options make

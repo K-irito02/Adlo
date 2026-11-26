@@ -935,8 +935,15 @@ export function createHttpBridge({
       mediaControlTab: () => Promise.resolve(),
       setBrowserColorScheme: () => Promise.resolve(),
       setZoom: () => Promise.resolve(),
+      // 原生 WebView 专属能力：浏览器模式没有可调试/可清理的 WebView。菜单项在
+      // 预览模式下已禁用，这里与相邻方法一样保持 no-op（不抛错，避免误触发
+      // 未捕获拒绝）。
+      hardReloadTab: () => Promise.resolve(),
+      openDevtools: () => Promise.resolve(),
+      clearSiteCookies: () => Promise.resolve(),
       clearCookies: () => Promise.resolve(),
       clearCache: () => Promise.resolve(),
+      clearSiteCache: () => Promise.resolve(),
     },
     pty: {
       create: () => taskNotSupported<{ sessionId: string }>('pty.create'),

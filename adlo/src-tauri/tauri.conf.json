@@ -27,6 +27,7 @@
         "resizable": true,
         "fullscreen": false,
         "visible": false,
+        "devtools": false,
         "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,MediaSessionService --allow-file-access-from-files"
       }
     ],

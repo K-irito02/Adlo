@@ -34,6 +34,10 @@ pub fn sanitize_strip_bounds(bounds: &Bounds) -> Option<Bounds> {
     })
 }
 
+/// 清理类操作的完成回执：CDP / CookieManager 都是异步的，命令层必须据此判断
+/// 成败，而不是「发出即成功」。`Err(msg)` 表示平台侧明确失败。
+pub type CleanupDone = std::sync::mpsc::Sender<Result<(), String>>;
+
 pub trait WebViewHandle: Send + Sync {
     fn navigate(&self, url: &str) -> Result<(), AppError>;
     fn close(&self) -> Result<(), AppError>;
@@ -44,8 +48,31 @@ pub trait WebViewHandle: Send + Sync {
     fn show(&self) -> Result<(), AppError>;
     fn set_zoom(&self, factor: f64) -> Result<(), AppError>;
     fn mute(&self, muted: bool) -> Result<(), AppError>;
-    fn clear_cookies(&self) -> Result<(), AppError>;
-    fn clear_cache(&self) -> Result<(), AppError>;
+    /// 「清除全部 Cookie」：清空全局 Cookie 罐，完成后重载本 WebView。
+    fn clear_cookies(&self, done: CleanupDone) -> Result<(), AppError>;
+    /// 「清除本站 Cookie」：按当前文档 host 删除该站点的 cookie，完成后重载本
+    /// WebView（[`Self::clear_cookies`] 是全局版本）。
+    fn clear_site_cookies(&self, done: CleanupDone) -> Result<(), AppError>;
+    /// 「清除全部缓存」：清空全局 HTTP 缓存，然后重载本 WebView。
+    ///
+    /// 重载只作用于本 WebView 对应的标签页，因此不会重载其它标签（含另一个
+    /// 宿主正在显示的那个）。
+    fn clear_cache_and_reload(&self, done: CleanupDone) -> Result<(), AppError>;
+    /// 「清除本站缓存」：清掉本 WebView 当前 origin 的站点数据（离线包 /
+    /// Service Worker / 本地库 / 草稿，不含 Cookie），然后重载本 WebView。
+    fn clear_site_cache(&self, done: CleanupDone) -> Result<(), AppError>;
+    /// Reload the current document bypassing the HTTP cache（「强制刷新」）。
+    ///
+    /// 当前实现：WebView2 后端经 CDP `Page.reload{ignoreCache}`；CDP 派发失败时
+    /// 尝试普通刷新并记 warn，调用方拿到 `Ok`（不宣称“已忽略缓存”）。非 WebView2
+    /// 后端退化为普通刷新（`location.reload()`）并记 warn，同样返回 `Ok`。
+    fn hard_reload(&self) -> Result<(), AppError>;
+    /// Open the platform DevTools window **of this WebView**.
+    ///
+    /// 与 Tauri 内置的 `internal_toggle_devtools` 不同：后者不传 label 时作用于
+    /// 发起 invoke 的 webview（即应用壳）。标签页页面在子 WebView 里，需按 label
+    /// 定位，因此不能复用它。
+    fn open_devtools(&self) -> Result<(), AppError>;
     /// Navigate back in the WebView's native history stack.
     ///
     /// Implemented via the platform's native history API (ICoreWebView2::GoBack)

@@ -8,7 +8,7 @@ use crate::browser_pool::BrowserPool;
 use crate::download_manager::DownloadManager;
 use crate::page_meta_service::PageMetaService;
 use crate::site_meta_cache::SiteMetaCacheStore;
-use crate::webview_handle::{Bounds, WebView2EventBridge, WebViewHandle};
+use crate::webview_handle::{Bounds, CleanupDone, WebView2EventBridge, WebViewHandle};
 use crate::webview2_background::normalize_color_scheme;
 
 pub const BROWSER_WEBVIEW_LABEL: &str = "adl-browser-view";
@@ -277,6 +277,50 @@ impl BrowserManager {
         })
     }
 
+    /// 「强制刷新」：尽力忽略 HTTP 缓存重新加载该标签页（失败时按平台约定退化）。
+    ///
+    /// 与 `reload_tab`（软刷新）区分开：菜单 hint 写的是「忽略本地缓存重新请求」，
+    /// 由平台侧的 `Page.reload{ignoreCache}` 兑现。
+    pub fn hard_reload_tab(&self, tab_id: &str) -> Result<(), AppError> {
+        tracing::info!(tab_id, "hard_reload_tab");
+        Self::require_handle(self.try_handle(tab_id)?, tab_id)?.hard_reload()
+    }
+
+    /// 为指定标签页打开它自己的 DevTools 窗口。
+    ///
+    /// 必须按 tab 定位：中心与右侧面板共用同一个 WebView 池，标签页 WebView 的
+    /// label 是 `adl-browser-view-{tab_id}`；由调用方（应用壳）直接 toggle 只会
+    /// 调试到应用壳自身。
+    pub fn open_devtools_for_tab(&self, tab_id: &str) -> Result<(), AppError> {
+        tracing::info!(tab_id, "open_devtools_for_tab");
+        Self::require_handle(self.try_handle(tab_id)?, tab_id)?.open_devtools()
+    }
+
+    /// 清除指定标签页**当前站点**的 Cookie（站点级），完成后由平台层重载该标签。
+    ///
+    /// `done` 是完成回执：cookie 枚举、逐条删除与重载都在异步回调里，命令层必须
+    /// 拿到结果才能决定是否对用户报成功。
+    pub fn clear_site_cookies_for_tab(
+        &self,
+        tab_id: &str,
+        done: CleanupDone,
+    ) -> Result<(), AppError> {
+        tracing::info!(tab_id, "clear_site_cookies_for_tab");
+        Self::require_handle(self.try_handle(tab_id)?, tab_id)?.clear_site_cookies(done)
+    }
+
+    /// 本轮新增的 DevTools / 强制刷新 / 清理动作共用：标签仍停在 iframe 渲染
+    /// （未入池 / 静默预热 / 尚未创建）时返回 `NotFound`，好让上层把“还没准备好”
+    /// 与真正的内部错误区分开。其它历史动作仍走 `with_handle`（返回 `Internal`）。
+    fn require_handle(
+        handle: Option<Arc<dyn WebViewHandle>>,
+        tab_id: &str,
+    ) -> Result<Arc<dyn WebViewHandle>, AppError> {
+        handle.ok_or_else(|| {
+            AppError::NotFound(format!("browser webview for tab {tab_id} is not created yet"))
+        })
+    }
+
     /// 事项 17 路线 A：把系统卡片上的播放/暂停/停止作用到标签页内的媒体元素。
     ///
     /// 身份与口径与注入脚本一致：挑「正在播放优先、其次进度最大」的首选
@@ -386,20 +430,27 @@ impl BrowserManager {
         self.with_handle(tab_id, |handle| handle.mute(muted))
     }
 
-    pub fn clear_cookies_for_tab(&self, tab_id: &str) -> Result<(), AppError> {
-        self.with_handle(tab_id, |handle| {
-            handle.clear_cookies()?;
-            tracing::info!(tab_id = tab_id, "cookies cleared for tab");
-            Ok(())
-        })
+    /// 清除全局 Cookie 罐（同一 profile 的所有标签共享；`tab_id` 只用于定位句柄），
+    /// 完成后由平台层重载该标签。
+    pub fn clear_cookies_for_tab(&self, tab_id: &str, done: CleanupDone) -> Result<(), AppError> {
+        tracing::info!(tab_id = tab_id, "clear_cookies_for_tab");
+        Self::require_handle(self.try_handle(tab_id)?, tab_id)?.clear_cookies(done)
     }
 
-    pub fn clear_cache_for_tab(&self, tab_id: &str) -> Result<(), AppError> {
-        self.with_handle(tab_id, |handle| {
-            handle.clear_cache()?;
-            tracing::info!(tab_id = tab_id, "cache cleared for tab");
-            Ok(())
-        })
+    /// 「清除全部缓存」：全局 HTTP 缓存 + 重载该标签页（只重载它自己）。
+    pub fn clear_cache_for_tab(&self, tab_id: &str, done: CleanupDone) -> Result<(), AppError> {
+        tracing::info!(tab_id = tab_id, "clear_cache_for_tab");
+        Self::require_handle(self.try_handle(tab_id)?, tab_id)?.clear_cache_and_reload(done)
+    }
+
+    /// 「清除本站缓存」：该标签页当前站点的站点数据 + 重载该标签页。
+    pub fn clear_site_cache_for_tab(
+        &self,
+        tab_id: &str,
+        done: CleanupDone,
+    ) -> Result<(), AppError> {
+        tracing::info!(tab_id = tab_id, "clear_site_cache_for_tab");
+        Self::require_handle(self.try_handle(tab_id)?, tab_id)?.clear_site_cache(done)
     }
 
     pub fn set_zoom(&self, tab_id: &str, zoom_factor: f64) -> Result<(), AppError> {

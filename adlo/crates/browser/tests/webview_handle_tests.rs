@@ -1,5 +1,6 @@
 use adl_browser::webview_handle::{
-    Bounds, DIVIDER_STRIP_WIDTH_MAX, DIVIDER_STRIP_WIDTH_MIN, WebViewHandle, sanitize_strip_bounds,
+    Bounds, CleanupDone, DIVIDER_STRIP_WIDTH_MAX, DIVIDER_STRIP_WIDTH_MIN, WebViewHandle,
+    sanitize_strip_bounds,
 };
 
 struct MockHandle {
@@ -34,10 +35,26 @@ impl WebViewHandle for MockHandle {
     fn mute(&self, _muted: bool) -> Result<(), adl_errors::AppError> {
         Ok(())
     }
-    fn clear_cookies(&self) -> Result<(), adl_errors::AppError> {
+    fn clear_cookies(&self, done: CleanupDone) -> Result<(), adl_errors::AppError> {
+        let _ = done.send(Ok(()));
         Ok(())
     }
-    fn clear_cache(&self) -> Result<(), adl_errors::AppError> {
+    fn clear_site_cookies(&self, done: CleanupDone) -> Result<(), adl_errors::AppError> {
+        let _ = done.send(Ok(()));
+        Ok(())
+    }
+    fn clear_cache_and_reload(&self, done: CleanupDone) -> Result<(), adl_errors::AppError> {
+        let _ = done.send(Ok(()));
+        Ok(())
+    }
+    fn clear_site_cache(&self, done: CleanupDone) -> Result<(), adl_errors::AppError> {
+        let _ = done.send(Ok(()));
+        Ok(())
+    }
+    fn hard_reload(&self) -> Result<(), adl_errors::AppError> {
+        Ok(())
+    }
+    fn open_devtools(&self) -> Result<(), adl_errors::AppError> {
         Ok(())
     }
     fn go_back(&self) -> Result<bool, adl_errors::AppError> {
@@ -93,8 +110,23 @@ fn mock_handle_show_zoom() {
 fn mock_handle_mute_clear() {
     let h = MockHandle { id: "clean-test".into() };
     assert!(h.mute(true).is_ok());
-    assert!(h.clear_cookies().is_ok());
-    assert!(h.clear_cache().is_ok());
+
+    // 四个清理动作都必须通过完成回执上报结果（命令层据此决定成功/失败提示）。
+    let (tx, rx) = std::sync::mpsc::channel();
+    assert!(h.clear_cookies(tx).is_ok());
+    assert!(matches!(rx.recv_timeout(std::time::Duration::from_secs(1)), Ok(Ok(()))));
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    assert!(h.clear_site_cookies(tx).is_ok());
+    assert!(matches!(rx.recv_timeout(std::time::Duration::from_secs(1)), Ok(Ok(()))));
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    assert!(h.clear_cache_and_reload(tx).is_ok());
+    assert!(matches!(rx.recv_timeout(std::time::Duration::from_secs(1)), Ok(Ok(()))));
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    assert!(h.clear_site_cache(tx).is_ok());
+    assert!(matches!(rx.recv_timeout(std::time::Duration::from_secs(1)), Ok(Ok(()))));
 }
 
 #[test]

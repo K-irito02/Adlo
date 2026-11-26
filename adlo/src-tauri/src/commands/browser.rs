@@ -1789,22 +1789,107 @@ pub fn browser_set_zoom(
     Ok(ipc(state.browser_manager.set_zoom(&tab_id, zoom_factor)))
 }
 
+/// 等待平台侧清理真正完成后再返回。
+///
+/// CDP 与 `CookieManager` 都是异步的：命令若「发出即返回 Ok」，前端只能按
+/// “已清除”报成功，CDP 失败时就成了假承诺。这里把完成回执等回来（超时上限见
+/// `CLEANUP_TIMEOUT`，清空全局 HTTP 缓存可能耗时十几秒），把真实结果交给前端。
+async fn await_cleanup(
+    rx: std::sync::mpsc::Receiver<Result<(), String>>,
+) -> Result<IpcResult<()>, CommandError> {
+    const CLEANUP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
+    let joined = tauri::async_runtime::spawn_blocking(move || rx.recv_timeout(CLEANUP_TIMEOUT))
+        .await
+        .map_err(|e| CommandError::from(anyhow::anyhow!("cleanup waiter failed: {e}")))?;
+    match joined {
+        Ok(Ok(())) => Ok(ipc::<()>(Ok(()))),
+        Ok(Err(message)) => {
+            tracing::warn!(%message, "browser cleanup reported failure");
+            Ok(ipc::<()>(Err(AppError::Internal(message))))
+        },
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Ok(ipc::<()>(Err(AppError::Timeout(
+            "browser cleanup did not report completion in time".into(),
+        )))),
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Ok(ipc::<()>(Err(
+            AppError::Internal("browser cleanup channel closed before reporting".into()),
+        ))),
+    }
+}
+
 #[tauri::command]
-pub fn browser_clear_cookies(
+pub async fn browser_clear_cookies(
     state: State<'_, AppState>,
     tab_id: String,
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::info!(tab_id = %tab_id, "browser_clear_cookies command invoked");
-    Ok(ipc(state.browser_manager.clear_cookies_for_tab(&tab_id)))
+    let (tx, rx) = std::sync::mpsc::channel();
+    if let Err(e) = state.browser_manager.clear_cookies_for_tab(&tab_id, tx) {
+        return Ok(ipc(Err(e)));
+    }
+    await_cleanup(rx).await
 }
 
+/// 「清除全部缓存」：清空全局 HTTP 缓存，完成后重载**该标签页**（不动其它标签）。
 #[tauri::command]
-pub fn browser_clear_cache(
+pub async fn browser_clear_cache(
     state: State<'_, AppState>,
     tab_id: String,
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::info!(tab_id = %tab_id, "browser_clear_cache command invoked");
-    Ok(ipc(state.browser_manager.clear_cache_for_tab(&tab_id)))
+    let (tx, rx) = std::sync::mpsc::channel();
+    if let Err(e) = state.browser_manager.clear_cache_for_tab(&tab_id, tx) {
+        return Ok(ipc(Err(e)));
+    }
+    await_cleanup(rx).await
+}
+
+/// 「清除本站缓存」：清该标签页当前站点的站点数据（不含 Cookie），完成后重载该标签页。
+#[tauri::command]
+pub async fn browser_clear_site_cache(
+    state: State<'_, AppState>,
+    tab_id: String,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::info!(tab_id = %tab_id, "browser_clear_site_cache command invoked");
+    let (tx, rx) = std::sync::mpsc::channel();
+    if let Err(e) = state.browser_manager.clear_site_cache_for_tab(&tab_id, tx) {
+        return Ok(ipc(Err(e)));
+    }
+    await_cleanup(rx).await
+}
+
+/// 清除指定标签页**当前站点**的 Cookie（站点级；`browser_clear_cookies` 是全局），
+/// 完成后重载该标签。
+#[tauri::command]
+pub async fn browser_clear_site_cookies(
+    state: State<'_, AppState>,
+    tab_id: String,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::info!(tab_id = %tab_id, "browser_clear_site_cookies command invoked");
+    let (tx, rx) = std::sync::mpsc::channel();
+    if let Err(e) = state.browser_manager.clear_site_cookies_for_tab(&tab_id, tx) {
+        return Ok(ipc(Err(e)));
+    }
+    await_cleanup(rx).await
+}
+
+/// 「强制刷新」：忽略 HTTP 缓存重新加载该标签页。
+#[tauri::command]
+pub fn browser_hard_reload_tab(
+    state: State<'_, AppState>,
+    tab_id: String,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::info!(tab_id = %tab_id, "browser_hard_reload_tab command invoked");
+    Ok(ipc(state.browser_manager.hard_reload_tab(&tab_id)))
+}
+
+/// 为标签页打开**它自己的** DevTools 窗口（不是应用壳的）。
+#[tauri::command]
+pub fn browser_open_devtools(
+    state: State<'_, AppState>,
+    tab_id: String,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::info!(tab_id = %tab_id, "browser_open_devtools command invoked");
+    Ok(ipc(state.browser_manager.open_devtools_for_tab(&tab_id)))
 }
 
 /// Canonical User-Agent for outbound HTTP requests that fetch favicon bytes.

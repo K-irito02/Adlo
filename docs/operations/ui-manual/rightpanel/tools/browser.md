@@ -127,8 +127,8 @@ await page.click('button[aria-label="新建标签页"]');
 #### 新建标签（导航器）
 
 ```javascript
-// 在导航器上下文区域点击新建标签按钮
-await page.click('button[aria-label="新建标签"]');
+// 在导航器树目录行上点击「+」按钮（弹 CreateTabDialog）
+await page.click('.adl-browser-entry .adl-icon-btn');
 ```
 
 **新建标签对话框**（v2026-06-09 新增）：
@@ -146,6 +146,24 @@ await page.fill('.adl-prompt-modal__input:first-of-type', 'GitHub');
 await page.fill('.adl-prompt-modal__input:nth-of-type(2)', 'github.com');
 await page.click('button:has-text("新建标签")');
 ```
+
+#### 更多操作菜单（2026-11-27 调整）
+
+工具栏最右侧 `IconMoreVertical` 打开。中心与右侧浏览器面板共用同一份菜单项。
+
+| 分组 | 项目 | 行为 |
+|------|------|------|
+| — | 强制刷新 | 忽略本地缓存重新加载当前标签（CDP `Page.reload{ignoreCache}`） |
+| Cookie | 清除本站 Cookie / 清除全部 Cookie | 前者按域名删除本站 cookie（含父域；同父域兄弟子域会一并退出登录）；后者清空所有站点的 cookie |
+| 缓存 | 清除本站缓存 / 清除全部缓存 | 前者清本站离线数据/草稿（**不含 Cookie**），后者清所有网站的图片/样式缓存 |
+| 清理后重载 | 上述四项 | 清理完成后都会重新加载**当前标签**，不会重载另一个面板或后台标签 |
+| — | 打开开发者工具 | 为当前标签打开独立 DevTools 窗口（显示该网页的 DOM，不是应用自身 UI） |
+| — | 放大 / 缩小 / 重置 | 当前标签缩放，每次 10%，范围 50%–200% |
+| — | 导入书签 / 导出书签 | 书签文件迁移 |
+
+Cookie 两项相邻、缓存两项相邻，两组之间一条分隔线。「复制网址」（地址栏已有复制按钮）与「清除历史」（历史面板自带删除入口）已从菜单移除。
+
+浏览器预览模式没有可调试/可清理的原生 WebView，上述桌面专属项目禁用，悬停提示「仅桌面版支持」。清理类操作没有确认弹窗，操作结果通过 toast 反馈；失败会提示具体原因（如标签尚未以原生窗口加载）。
 
 ### 音频指示器与静音控制（v2026-06-27 新增）
 
@@ -192,8 +210,7 @@ await page.click('.adl-browser-audio-indicator');
 | 触发位置 | 选择器 | 说明 |
 |----------|--------|------|
 | 导航器工具栏（open 模式） | `button[aria-label="新建标签页"]` | 直接打开空白新标签 |
-| 导航器工具栏（tabs 模式） | `button[aria-label="新建标签"]` | 需先选中一个目录，否则 toast 提示 |
-| 树目录悬停按钮 | `.adl-browser-entry .adl-icon-btn[aria-label="新建标签"]` | 目录头部行 hover 时出现的"+"按钮 |
+| 树目录行按钮 | `.adl-browser-entry .adl-icon-btn` | 在该目录下新建标签（弹 `CreateTabDialog`；未选中目录时 toast 提示） |
 
 **取消操作**：点击"取消"按钮、按 Esc 键、或点击遮罩层，均关闭对话框且不创建标签。
 

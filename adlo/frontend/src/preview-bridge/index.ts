@@ -245,8 +245,12 @@ export async function setupPreviewBridge(): Promise<void> {
         audioMonitor.onStateChange(listener),
       setBrowserColorScheme: (_resolvedTheme: 'light' | 'dark') => Promise.resolve(),
       setZoom: (_tabId: string, _zoomFactor: number) => Promise.resolve(),
+      hardReloadTab: (_tabId: string) => Promise.resolve(),
+      openDevtools: (_tabId: string) => Promise.resolve(),
+      clearSiteCookies: (_tabId: string) => Promise.resolve(),
       clearCookies: (_tabId: string) => Promise.resolve(),
       clearCache: (_tabId: string) => Promise.resolve(),
+      clearSiteCache: (_tabId: string) => Promise.resolve(),
     } satisfies BrowserBridge,
     github: preferHttpWhenReachable<GitHubBridge>(
       adlServerBaseUrl,

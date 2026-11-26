@@ -52,6 +52,7 @@
 - [0033 站点元数据改为按需补齐，显式刷新分两段抓取](./0033-on-demand-site-metadata-and-explicit-refresh.md) — 启动零预取；被动条目限速轻量读取；显式刷新先取图标再渲染取标题；静态标题不写回
 - [0034 浏览器子 WebView 的 `target=_blank` 由应用内新标签接管](./0034-browser-subwebview-blank-links-own-the-tab.md) — 跳过 shell 插件的自动外开处理器；智能体拦截只作用于站点正文
 - [0035 DSH 端口占用先确认，断连自动恢复并提示](./0035-dsh-port-conflict-confirm-and-recovery-toast.md) — 不静默杀进程；force 接手；扫光加载 toast 常驻到标签打开；入口共用解析器
+- [0038 浏览器更多操作菜单按标签定位 DevTools、清理站点化、重载只影响当前标签](./0038-browser-menu-devtools-and-cleanup-scope.md) — DevTools 按 tab 定位；发布版逐 WebView 控制 inspector；清理带完成回执；清缓存后只重载该标签
 ## 品牌、工具链与 Git 可视化
 
 - [0013 品牌改名后保留 `adl` 工程前缀](./0013-retain-adl-prefix-after-rename.md)

@@ -118,3 +118,4 @@ WebView 池、iframe 嵌入、覆盖层级与 WebView2 特性。
 | [browser-theme-sync-final-2026-06-29.md](./webview-embed/browser-theme-sync-final-2026-06-29.md) | 浏览器主题同步最终修复 |
 | [divider-strip-dual-host-2026-10-02.md](./webview-embed/divider-strip-dual-host-2026-10-02.md) | 桥接条双宿主化：显隐判据（几何代理 + 池成员复合）、排序指纹去 URL、Rust 全局互斥清除、tooltip 贴边容差 |
 | [webview2-profile-colorscheme-udf-isolation-2026-10-06.md](./webview-embed/webview2-profile-colorscheme-udf-isolation-2026-10-06.md) | PreferredColorScheme 同 UDF 实际全局（#4920）→ 按 UDF 会话隔离 + 后端主题初始化状态位 + 命令入口归一化 |
+| [devtools-and-cleanup-completion-2026-11-27.md](./webview-embed/devtools-and-cleanup-completion-2026-11-27.md) | DevTools 打错 webview（无 label 时命中应用壳）+ release 未注册命令；改为按 tab 定位；CDP/CookieManager 完成回执避免「发出即成功」；清缓存后只重载当前标签 |

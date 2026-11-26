@@ -24,6 +24,7 @@ mod webview2_message;
 mod webview2_navigation;
 mod webview2_postmessage;
 mod webview2_profile;
+mod webview2_reload;
 mod webview2_title;
 pub mod webview_handle;
 
@@ -42,11 +43,14 @@ pub use meta_merge::{
 };
 pub use page_meta_service::PageMetaService;
 pub use site_meta_cache::{SiteMetaCacheEntry, SiteMetaCacheStore, normalize_cache_key};
-pub use webview_handle::{Bounds, EventBridgeRef, WebView2EventBridge, WebViewHandle};
+pub use webview_handle::{Bounds, CleanupDone, EventBridgeRef, WebView2EventBridge, WebViewHandle};
 pub use webview2_audio::{mute_tab, setup_audio_changed_handler};
 pub use webview2_background::{normalize_color_scheme, theme_to_rgb};
-pub use webview2_cleanup::{clear_cache, clear_cookies};
+pub use webview2_cleanup::{
+    clear_cache_and_reload, clear_cookies, clear_site_cookies, clear_site_data_and_reload,
+};
 pub use webview2_profile::set_profile_color_scheme as webview2_set_profile_color_scheme;
+pub use webview2_reload::reload_ignoring_cache;
 
 pub use browser_webview::setup_webview2_handlers;
 pub use webview2_history::{can_go_back_webview2, can_go_forward_webview2};

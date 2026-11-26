@@ -335,7 +335,6 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
   const { zoomLevel, setZoomLevel } = useBrowserZoomState({ activeTabId: activeTab?.id });
   const { browserMenuItems } = useBrowserPanelMenuItems({
     activeTab,
-    hardReload: handleReload,
     zoomLevel,
     setZoomLevel,
     t,

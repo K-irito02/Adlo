@@ -41,3 +41,4 @@
 | 2026-11-25 | [progress-2026-11-25-024000.md](./progress-2026-11-25-024000.md) | DSH 站内设置链接无反应（Tauri shell 插件吞掉子 WebView `_blank` + 智能体全站拦截；ADR 0034）+ 3080 端口占用确认框与断连恢复 toast（ADR 0035）；WebView2 CDP 真机取证 |
 | 2026-11-26 | [progress-2026-11-25-204116.md](./progress-2026-11-25-204116.md) | 落地页收口：端口详情闪窗（CREATE_NO_WINDOW）、表单聚焦中性色、卡片 C 透明悬浮、背景素材 asset 协议/IndexedDB、Windows 文件拖放（OLE target + 事件/队列轮询兜底）、图片视频独立槽与自由调整、终端标签悬停「在中间区显示」、视频音量胶囊与单一解码 canvas 镜像（ADR 0036） |
 | 2026-11-26 | [progress-2026-11-26-080000.md](./progress-2026-11-26-080000.md) | Git 可视化三项：分支标签 `g` 被行盒裁成 `q`（`line-height: normal`）、三个图表时间筛选控件消失（一次性布尔守卫改 per-workspace/移除，控件恢复）、面板打开期间新增工作区不出现（标签顺序 reconcile + 自动跳页）；P4 R1 rev1–rev3 + R2 rev4 零问题 |
+| 2026-11-27 | [progress-2026-11-27-014042.md](./progress-2026-11-27-014042.md) | 浏览器「更多操作」菜单：开发者工具无反应根因（不传 label 命中应用壳 + release 未注册命令）→ 按 tab 定位真实现；强制刷新改 CDP ignoreCache；Cookie/缓存拆本站/全部并带完成回执、清缓存后只重载当前标签；菜单删「复制网址」「清除历史」；ADR 0038；P4 R1 rev1–rev4 + R2 rev4 零问题 |

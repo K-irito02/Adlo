@@ -188,8 +188,28 @@ export interface BrowserBridge {
   setBrowserColorScheme: (resolvedTheme: 'light' | 'dark') => Promise<void>;
   /** Set zoom level for a specific tab's WebView */
   setZoom: (tabId: string, zoomFactor: number) => Promise<void>;
-  /** Clear all cookies for a specific tab's WebView */
+  /** 忽略 HTTP 缓存重新加载该标签页（「强制刷新」；Tauri only） */
+  hardReloadTab: (tabId: string) => Promise<void>;
+  /**
+   * 打开该标签页**自己的** DevTools 窗口（Tauri only）。
+   *
+   * 不能复用 Tauri 内置的 `internal_toggle_devtools`：它在不传 label 时作用于
+   * 发起 invoke 的 webview（应用壳），打不到标签页的子 WebView。
+   */
+  openDevtools: (tabId: string) => Promise<void>;
+  /** 清除该标签页**当前站点**的 Cookie（站点级；Tauri only） */
+  clearSiteCookies: (tabId: string) => Promise<void>;
+  /**
+   * 清除**全局** Cookie 罐（同一 profile 的所有标签页共享，不是“只清当前标签”）
+   *
+   * `tabId` 仅用于定位一个存活的 WebView 句柄来下发清理命令。
+   */
   clearCookies: (tabId: string) => Promise<void>;
-  /** Clear all cache for a specific tab's WebView */
+  /** 清除**全局** HTTP 缓存，完成后重载该标签页（`tabId` 只用于定位句柄） */
   clearCache: (tabId: string) => Promise<void>;
+  /**
+   * 清除该标签页**当前站点**的站点数据（离线包 / Service Worker / 本地库 /
+   * 草稿，不含 Cookie），完成后重载该标签页。Tauri only。
+   */
+  clearSiteCache: (tabId: string) => Promise<void>;
 }

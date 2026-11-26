@@ -1,4 +1,4 @@
-use adl_browser::webview_handle::{Bounds, WebViewHandle};
+use adl_browser::webview_handle::{Bounds, CleanupDone, WebViewHandle};
 use adl_browser::{BrowserManager, BrowserPool, SiteMetaCacheStore};
 use adl_errors::AppError;
 use std::sync::{Arc, Mutex};
@@ -45,10 +45,32 @@ impl WebViewHandle for RecordingHandle {
     fn mute(&self, _muted: bool) -> Result<(), AppError> {
         Ok(())
     }
-    fn clear_cookies(&self) -> Result<(), AppError> {
+    fn clear_cookies(&self, done: CleanupDone) -> Result<(), AppError> {
+        record(&self.calls, format!("clear_cookies:{}", self.id));
+        let _ = done.send(Ok(()));
         Ok(())
     }
-    fn clear_cache(&self) -> Result<(), AppError> {
+    fn clear_site_cookies(&self, done: CleanupDone) -> Result<(), AppError> {
+        record(&self.calls, format!("clear_site_cookies:{}", self.id));
+        let _ = done.send(Ok(()));
+        Ok(())
+    }
+    fn clear_cache_and_reload(&self, done: CleanupDone) -> Result<(), AppError> {
+        record(&self.calls, format!("clear_cache_and_reload:{}", self.id));
+        let _ = done.send(Ok(()));
+        Ok(())
+    }
+    fn clear_site_cache(&self, done: CleanupDone) -> Result<(), AppError> {
+        record(&self.calls, format!("clear_site_cache:{}", self.id));
+        let _ = done.send(Ok(()));
+        Ok(())
+    }
+    fn hard_reload(&self) -> Result<(), AppError> {
+        record(&self.calls, format!("hard_reload:{}", self.id));
+        Ok(())
+    }
+    fn open_devtools(&self) -> Result<(), AppError> {
+        record(&self.calls, format!("open_devtools:{}", self.id));
         Ok(())
     }
     fn go_back(&self) -> Result<bool, AppError> {
@@ -118,6 +140,76 @@ fn activate_tab_only_affects_the_target_tab() {
 
     // 先释放持有 SQLite 连接的 manager，否则 Windows 下目录被占用、remove_dir_all 失败
     // （`let _ =` 会静默吞掉，临时目录残留）。
+    drop(manager);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn tab_scoped_actions_target_only_the_requested_webview() {
+    // 「打开开发者工具」「强制刷新」「清除本站 Cookie」都必须按 tab 定位：
+    // 中心与右侧面板共享同一个 WebView 池，打错 tab 的后果是“点了没反应”
+    // 或者调试到别的页面（历史 bug：命令不带 label 时命中应用壳自身）。
+    let dir = std::env::temp_dir().join(format!("adl-bwm-tab-scoped-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(std::fs::create_dir_all(&dir).is_ok());
+    let store = SiteMetaCacheStore::open(&dir).expect("open site meta cache store");
+    let manager = BrowserManager::new(store);
+
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    for id in ["center-tab", "panel-tab"] {
+        let handle = Arc::new(RecordingHandle { id: id.to_string(), calls: calls.clone() });
+        assert!(manager.create_for_tab(handle, id).is_ok());
+    }
+
+    assert!(manager.open_devtools_for_tab("center-tab").is_ok());
+    assert!(manager.hard_reload_tab("panel-tab").is_ok());
+
+    // 清理类动作用完成回执：命令层靠它判断成败，不能“发出即成功”。
+    let (tx, rx) = std::sync::mpsc::channel();
+    assert!(manager.clear_site_cookies_for_tab("panel-tab", tx).is_ok());
+    assert!(matches!(rx.recv_timeout(std::time::Duration::from_secs(1)), Ok(Ok(()))));
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    assert!(manager.clear_cache_for_tab("center-tab", tx).is_ok());
+    assert!(matches!(rx.recv_timeout(std::time::Duration::from_secs(1)), Ok(Ok(()))));
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    assert!(manager.clear_site_cache_for_tab("panel-tab", tx).is_ok());
+    assert!(matches!(rx.recv_timeout(std::time::Duration::from_secs(1)), Ok(Ok(()))));
+
+    let recorded = calls.lock().expect("calls mutex poisoned").clone();
+    assert_eq!(
+        recorded,
+        vec![
+            "open_devtools:center-tab".to_string(),
+            "hard_reload:panel-tab".to_string(),
+            "clear_site_cookies:panel-tab".to_string(),
+            // 本用例覆盖：三个清理动作只把动作透传到目标 tab 的 handle（下面的
+            // recorded 序列逐 tab 断言），不会串到另一个宿主的标签。
+            "clear_cache_and_reload:center-tab".to_string(),
+            "clear_site_cache:panel-tab".to_string(),
+        ]
+    );
+
+    // 未入池的标签（仍以 iframe 渲染 / 尚未创建）→ NotFound，供前端提示“未就绪”，
+    // 不能笼统按内部错误处理。本轮六个需要 WebView 的入口口径必须一致。
+    let err = manager.open_devtools_for_tab("no-webview").unwrap_err();
+    assert!(matches!(err, AppError::NotFound(_)), "unexpected error: {err:?}");
+    let err = manager.hard_reload_tab("no-webview").unwrap_err();
+    assert!(matches!(err, AppError::NotFound(_)), "unexpected error: {err:?}");
+    let (tx, _rx) = std::sync::mpsc::channel();
+    let err = manager.clear_cookies_for_tab("no-webview", tx).unwrap_err();
+    assert!(matches!(err, AppError::NotFound(_)), "unexpected error: {err:?}");
+    let (tx, _rx) = std::sync::mpsc::channel();
+    let err = manager.clear_site_cookies_for_tab("no-webview", tx).unwrap_err();
+    assert!(matches!(err, AppError::NotFound(_)), "unexpected error: {err:?}");
+    let (tx, _rx) = std::sync::mpsc::channel();
+    let err = manager.clear_cache_for_tab("no-webview", tx).unwrap_err();
+    assert!(matches!(err, AppError::NotFound(_)), "unexpected error: {err:?}");
+    let (tx, _rx) = std::sync::mpsc::channel();
+    let err = manager.clear_site_cache_for_tab("no-webview", tx).unwrap_err();
+    assert!(matches!(err, AppError::NotFound(_)), "unexpected error: {err:?}");
+
     drop(manager);
     let _ = std::fs::remove_dir_all(&dir);
 }

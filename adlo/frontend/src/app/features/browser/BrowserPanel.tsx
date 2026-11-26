@@ -430,7 +430,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const { browserMenuItems } = useBrowserPanelMenuItems({
     activeTab,
-    hardReload: handleReload,
     zoomLevel,
     setZoomLevel,
     t,

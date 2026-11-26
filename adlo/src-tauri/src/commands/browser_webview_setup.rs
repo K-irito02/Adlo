@@ -306,6 +306,11 @@ pub(super) fn build_webview_builder(
         // 消除 WebView2 首帧白闪的机制），避免创建新子 WebView 时共享合成面短暂露出默认色。
         .background_color(tauri::utils::config::Color(r, g, b, 255))
         .initialization_script(init_script)
+        // 可见浏览器标签页需要 web inspector。带 `devtools` feature 的构建里，
+        // 补丁运行时对未显式设置的 WebView 默认开启 inspector，这里显式写 true
+        // 只是为了把该默认值写在发生地；真正需要显式关闭的是应用壳窗口
+        // （`tauri.conf.json`）与静默/分隔条 builder。
+        .devtools(true)
         .additional_browser_args(WEBVIEW_ADDITIONAL_ARGS)
         .on_navigation(move |url| {
             // Skip about:blank — used as the initial URL during WebView creation
@@ -973,6 +978,10 @@ pub(super) fn build_silent_webview_builder(
     );
     let builder = tauri::webview::WebviewBuilder::new(label, tauri::WebviewUrl::External(target))
         .initialization_script(init_script)
+        // 带 `devtools` feature 的构建里，补丁运行时对未显式设置该属性的 WebView
+        // 默认开启 inspector（`webview_attributes.devtools.unwrap_or(true)`）。
+        // 静默 WebView 离屏加载任意第三方页面且用户看不到，显式关掉，不留调试面。
+        .devtools(false)
         .additional_browser_args(WEBVIEW_ADDITIONAL_ARGS);
     if is_silent {
         // Silent webviews: cancel ALL downloads unconditionally.

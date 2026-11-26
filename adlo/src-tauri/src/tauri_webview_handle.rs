@@ -1,4 +1,4 @@
-use adl_browser::webview_handle::{Bounds, WebViewHandle};
+use adl_browser::webview_handle::{Bounds, CleanupDone, WebViewHandle};
 use adl_errors::AppError;
 use tauri::{AppHandle, Manager, Webview};
 
@@ -16,6 +16,30 @@ impl TauriWebViewHandle {
         self.app
             .get_webview(&self.label)
             .ok_or_else(|| AppError::Internal(format!("webview {} not found", self.label)))
+    }
+
+    /// 站点口径取自 WebView 当前文档，而不是前端快照：标签页可能已导航，
+    /// 用旧 URL 推出 origin 会清错站点。返回 `scheme://host[:port]`（无尾斜杠），
+    /// 由调用方按用途补 `/`（CookieManager 要 URI，CDP 要 origin）。
+    #[cfg(windows)]
+    fn current_origin(webview: &Webview) -> Result<String, AppError> {
+        let url = webview.url().map_err(|e| AppError::Internal(e.to_string()))?;
+        let origin = url.origin().ascii_serialization();
+        if origin == "null" {
+            return Err(AppError::InvalidInput("current page has no http(s) origin".into()));
+        }
+        Ok(origin)
+    }
+
+    /// 站点级 Cookie 清理按 **host** 匹配（cookie 的 `Domain` 可以是父域，也可能是
+    /// 子域），因此这里只取主机名，由平台层做域名后缀匹配。
+    #[cfg(windows)]
+    fn current_host(webview: &Webview) -> Result<String, AppError> {
+        let url = webview.url().map_err(|e| AppError::Internal(e.to_string()))?;
+        match url.host_str() {
+            Some(host) if !host.is_empty() => Ok(host.to_string()),
+            _ => Err(AppError::InvalidInput("clear_site_cookies: current page has no host".into())),
+        }
     }
 }
 
@@ -108,40 +132,171 @@ impl WebViewHandle for TauriWebViewHandle {
         Ok(())
     }
 
-    fn clear_cookies(&self) -> Result<(), AppError> {
+    fn clear_cookies(&self, done: CleanupDone) -> Result<(), AppError> {
         #[cfg(windows)]
         {
             let wv = self.webview()?;
-            let _ = wv.with_webview(move |platform_wv| unsafe {
+            // SAFETY: 平台 WebView 句柄由 `with_webview` 在 UI 线程回调中给出，块内只调用
+            // WebView2 COM 接口，不跨线程持有原始指针。
+            wv.with_webview(move |platform_wv| unsafe {
                 let controller = platform_wv.controller();
-                if let Ok(core) = controller.CoreWebView2() {
-                    adl_browser::clear_cookies(&core);
+                match controller.CoreWebView2() {
+                    Ok(core) => {
+                        if let Err(e) = adl_browser::clear_cookies(&core, done.clone()) {
+                            tracing::warn!("clear_cookies dispatch failed: {e}");
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!("CoreWebView2 unavailable: {e}");
+                        let _ = done.send(Err(format!("CoreWebView2: {e}")));
+                    },
                 }
-            });
+            })
+            .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
         }
         #[cfg(not(windows))]
         {
-            adl_browser::clear_cookies();
+            let _ = done;
+            adl_browser::clear_cookies()?;
         }
         Ok(())
     }
 
-    fn clear_cache(&self) -> Result<(), AppError> {
+    fn clear_cache_and_reload(&self, done: CleanupDone) -> Result<(), AppError> {
         #[cfg(windows)]
         {
             let wv = self.webview()?;
-            let _ = wv.with_webview(move |platform_wv| unsafe {
+            // SAFETY: 同上，块内只调用 WebView2 COM 接口。
+            wv.with_webview(move |platform_wv| unsafe {
                 let controller = platform_wv.controller();
-                if let Ok(core) = controller.CoreWebView2() {
-                    adl_browser::clear_cache(&core);
+                match controller.CoreWebView2() {
+                    Ok(core) => {
+                        if let Err(e) = adl_browser::clear_cache_and_reload(&core, done.clone()) {
+                            tracing::warn!("clear_cache_and_reload dispatch failed: {e}");
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!("CoreWebView2 unavailable: {e}");
+                        let _ = done.send(Err(format!("CoreWebView2: {e}")));
+                    },
                 }
-            });
+            })
+            .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
         }
         #[cfg(not(windows))]
         {
-            adl_browser::clear_cache();
+            let _ = done;
+            adl_browser::clear_cache_and_reload()?;
         }
         Ok(())
+    }
+
+    fn clear_site_cache(&self, done: CleanupDone) -> Result<(), AppError> {
+        #[cfg(windows)]
+        {
+            let wv = self.webview()?;
+            let origin = Self::current_origin(&wv)?;
+            // SAFETY: 同上，句柄在 UI 线程回调内有效；`origin` 已是自有字符串。
+            wv.with_webview(move |platform_wv| unsafe {
+                let controller = platform_wv.controller();
+                match controller.CoreWebView2() {
+                    Ok(core) => {
+                        if let Err(e) =
+                            adl_browser::clear_site_data_and_reload(&core, &origin, done.clone())
+                        {
+                            tracing::warn!("clear_site_data_and_reload dispatch failed: {e}");
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!("CoreWebView2 unavailable: {e}");
+                        let _ = done.send(Err(format!("CoreWebView2: {e}")));
+                    },
+                }
+            })
+            .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = done;
+            adl_browser::clear_site_data_and_reload()?;
+        }
+        Ok(())
+    }
+
+    fn clear_site_cookies(&self, done: CleanupDone) -> Result<(), AppError> {
+        #[cfg(windows)]
+        {
+            let wv = self.webview()?;
+            let host = Self::current_host(&wv)?;
+            // SAFETY: 同上，句柄在 UI 线程回调内有效；`host` 已是自有字符串。
+            wv.with_webview(move |platform_wv| unsafe {
+                let controller = platform_wv.controller();
+                match controller.CoreWebView2() {
+                    Ok(core) => {
+                        if let Err(e) = adl_browser::clear_site_cookies(&core, &host, done.clone())
+                        {
+                            tracing::warn!("clear_site_cookies dispatch failed: {e}");
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!("CoreWebView2 unavailable: {e}");
+                        let _ = done.send(Err(format!("CoreWebView2: {e}")));
+                    },
+                }
+            })
+            .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = done;
+            adl_browser::clear_site_cookies()?;
+        }
+        Ok(())
+    }
+
+    fn hard_reload(&self) -> Result<(), AppError> {
+        #[cfg(windows)]
+        {
+            let wv = self.webview()?;
+            // SAFETY: 同上，只发起一次 CDP 调用，不持有原始指针。
+            wv.with_webview(move |platform_wv| unsafe {
+                let controller = platform_wv.controller();
+                match controller.CoreWebView2() {
+                    Ok(core) => {
+                        if let Err(e) = adl_browser::reload_ignoring_cache(&core) {
+                            // 已派发后的失败在 webview2_reload 里退化为普通刷新并记 warn；
+                            // 这里只补一条上下文，调用方拿到的仍是“已请求”。
+                            tracing::warn!("hard_reload degraded: {e}");
+                        }
+                    },
+                    Err(e) => tracing::warn!("CoreWebView2 unavailable: {e}"),
+                }
+            })
+            .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
+        }
+        #[cfg(not(windows))]
+        {
+            // 非 WebView2 后端没有忽略缓存的刷新接口：退化为普通刷新并记 warn，
+            // 不对外宣称“已忽略缓存”。
+            tracing::warn!("hard_reload: cache bypass unsupported on this backend; plain reload");
+            self.webview()?
+                .eval("location.reload()")
+                .map_err(|e| AppError::Internal(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    fn open_devtools(&self) -> Result<(), AppError> {
+        self.webview()?.open_devtools();
+        Ok(())
+    }
+
+    /// 未启用 `devtools` feature 的发布构建：`tauri::Webview::open_devtools`
+    /// 在编译期就不存在，这里返回明确错误，由前端提示，而不是静默无反应。
+    #[cfg(not(any(debug_assertions, feature = "devtools")))]
+    fn open_devtools(&self) -> Result<(), AppError> {
+        Err(AppError::InvalidInput("devtools: this build disabled web inspector".into()))
     }
 
     fn go_back(&self) -> Result<bool, AppError> {

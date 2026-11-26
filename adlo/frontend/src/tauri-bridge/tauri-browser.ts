@@ -7,7 +7,7 @@ import type {
   BrowserNewTabRequest,
 } from '../shared/ipc/browser';
 import type { AgentSiteOverride, AgentSiteRule } from '../shared/ipc-types.generated';
-import { invokeIpc, subscribeChannel } from './tauri-shared';
+import { invokeIpc, requireIpcOk, subscribeChannel } from './tauri-shared';
 
 export function createTauriBrowserBridge(): BrowserBridge {
   return {
@@ -224,11 +224,35 @@ export function createTauriBrowserBridge(): BrowserBridge {
       invokeIpc<void>('browser_set_color_scheme', { colorScheme: resolvedTheme }).then(
         () => undefined,
       ),
+    // 以下各项都是「用户点菜单就要有结果」的动作：失败必须冒泡给调用方
+    // （toast 具体原因），不能退化成“点了没反应”。
     setZoom: (tabId: string, zoomFactor: number) =>
-      invokeIpc<void>('browser_set_zoom', { tabId, zoomFactor }).then(() => undefined),
+      invokeIpc<void>('browser_set_zoom', { tabId, zoomFactor })
+        .then(requireIpcOk)
+        .then(() => undefined),
+    hardReloadTab: (tabId: string) =>
+      invokeIpc<void>('browser_hard_reload_tab', { tabId })
+        .then(requireIpcOk)
+        .then(() => undefined),
+    openDevtools: (tabId: string) =>
+      invokeIpc<void>('browser_open_devtools', { tabId })
+        .then(requireIpcOk)
+        .then(() => undefined),
+    clearSiteCookies: (tabId: string) =>
+      invokeIpc<void>('browser_clear_site_cookies', { tabId })
+        .then(requireIpcOk)
+        .then(() => undefined),
     clearCookies: (tabId: string) =>
-      invokeIpc<void>('browser_clear_cookies', { tabId }).then(() => undefined),
+      invokeIpc<void>('browser_clear_cookies', { tabId })
+        .then(requireIpcOk)
+        .then(() => undefined),
     clearCache: (tabId: string) =>
-      invokeIpc<void>('browser_clear_cache', { tabId }).then(() => undefined),
+      invokeIpc<void>('browser_clear_cache', { tabId })
+        .then(requireIpcOk)
+        .then(() => undefined),
+    clearSiteCache: (tabId: string) =>
+      invokeIpc<void>('browser_clear_site_cache', { tabId })
+        .then(requireIpcOk)
+        .then(() => undefined),
   };
 }
