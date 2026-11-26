@@ -86,6 +86,7 @@ CSS 选择器/层叠/布局/主题变更：按 [desktop-ui-verification.md](../.
 | 自动写入   | `.adl-logs/`（debug 构建）；Tauri 桌面壳 `debug-logs*.txt`、浏览器模式 `debug-logs-browser*.txt` |
 | 后端命令   | `src-tauri/src/commands/app.rs` → `write_debug_logs_to_project`                                  |
 | 日志检索   | `pnpm run log:tail -- --file <path> --grep <regex> [--tail 80]`（UTF-8 安全，替代被禁的 `Select-String`） |
+| 持久化状态 | `node scripts/read-webview-state.mjs --identifier <id> --key <localStorage 键>`（只读解码 WebView2 localStorage；落点见 [storage-locations.md](../docs/architecture/core/storage-locations.md)） |
 | 网络预检   | `pnpm run probe:net`（长操作前确认 Gitee/GitHub 的 API 与 git 端点可达） |
 | 浏览器后端 | `frontend/dev/previewWorkspaceService/`（`logging.ts` → `writeDebugLogs`）                       |
 

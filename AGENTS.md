@@ -31,7 +31,7 @@
 
 ## 问题排查与调试
 
-**先定位根本原因，再修复**；无法定位时用调试手段代替猜测。全流程用 [root-cause-to-close](.agents/skills/root-cause-to-close/SKILL.md) 技能。调试工具见 [adlo/AGENTS.md#调试工具](./adlo/AGENTS.md#调试工具)，排查规范见 [dev-rules.md](.agents/rules/dev-rules.md#问题排查规范)。
+**先定位根本原因，再修复**；无法定位时用调试手段代替猜测。全流程用 [root-cause-to-close](.agents/skills/root-cause-to-close/SKILL.md) 技能。调试工具见 [adlo/AGENTS.md#调试工具](./adlo/AGENTS.md#调试工具)，排查规范见 [dev-rules.md](.agents/rules/dev-rules.md#问题排查规范)。排查具体功能前先读 [docs/knowledge-base/README.md](./docs/knowledge-base/README.md) 下对应域（如 Git 可视化 → `code-quality/git-vis-charts/`）；桌面壳 UI 的持久化状态（localStorage）用 `adlo/scripts/read-webview-state.mjs` 只读读取。
 
 ## 工具选择（Agent）
 

@@ -16,10 +16,13 @@
 | 实例登记（端口 / serverUrl / pid） | `<worktree>/adlo/.adl-instance/dev-instance.json` |
 | locator 指针（使用实例隔离时） | `<worktree>/adlo/.adl-instance/storage-locator.json`（经 `ADL_STORAGE_LOCATOR_PATH` 注入；不存在时按默认根解析） |
 | adl-server（预览 / `serve:server`）数据根 | `<worktree>/adlo/.adl-instance/ad-server-data/`（`data.db`、`tree-cache.db`、`harnesses/`、`clipboard/`、`env-hosted/`） |
-| 桌面壳数据根 | `%APPDATA%\<identifier>\`（`data.db`、`downloads.db`、`site-meta-cache.db`、`tree-cache.db`、`config/`、`webview/`、`adl-backgrounds/`）——WebView2 profile、站点元数据库与着陆页背景素材都在这里 |
+| 桌面壳数据根 | `%APPDATA%\<identifier>\`（`data.db`、`downloads.db`、`site-meta-cache.db`、`tree-cache.db`、`config/`、`webview/`、`adl-backgrounds/`）——站点元数据库与着陆页背景素材在这里；`webview/` 只存子 WebView 的 profile |
+| 主窗口 WebView2 用户数据（应用 UI 的 localStorage / IndexedDB） | `%LOCALAPPDATA%\<identifier>\EBWebView\`（`Default\Local Storage\leveldb` 等）——Tauri 默认 UDF，未显式设置 `data_directory` |
+| 子 WebView 用户数据（内置浏览器标签 / 静默页） | `%APPDATA%\<identifier>\webview\<sub>\`——由 `webview_data_directory()` 显式指定，仅 browser 宿主使用 |
 | 运行日志 | `<worktree>/.adl-logs/`（壳层与 adl-server 同名文件，`terminal-logs*.txt` / `adl-server-logs*.txt`） |
 
 站点元数据（网站图标 / 标题）排查：`cargo run -p adl-browser --example dump-site-meta -- "%APPDATA%\<identifier>" [url]`；只读批量查询可用 Node 22 的 `node:sqlite`（`DatabaseSync(..., { readOnly: true })`）直接读 `site-meta-cache.db`。
+桌面壳 localStorage / IndexedDB 排查（UI 偏好、按工作区隔离的视图状态）：`node adlo/scripts/read-webview-state.mjs --identifier com.adlo.app[.<worktree 后缀>] [--key <键>] [--list]`；默认按 `%LOCALAPPDATA%\<identifier>\EBWebView` 解析，`--profile` 可显式指向其它 WebView2 用户数据目录。
 - **已知行为**：补丁快照路径为 adl-server 的 `storage.paths().snapshot_dir`；默认目录外的旧快照不自动迁移，需手动移动（Plan B 只处理用户发起的路径变更）。
 
 ## 启动期存储迁移（Plan B）

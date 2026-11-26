@@ -30,8 +30,16 @@ else
 fi
 
 # 2) staged 可格式化文件：lint-staged + Prettier 自动修复后重新暂存（只动暂存文件）
+# 直调本地二进制而不是 `pnpm exec`：pnpm 在 git 钩子进程树里会偶发打不开自己的
+# SQLite 状态库（`unable to open database file`），使任何提交都失败。
+# 暂存文件不在 lint-staged glob 内时整步跳过，避免空跑。
 STEP="lint-staged"
-( cd "$ROOT" && pnpm exec lint-staged )
+FORMATTABLE="$(echo "$STAGED" | grep -E '^adlo/frontend/|^adlo/scripts/.*\.mjs$' || true)"
+if [ -n "$FORMATTABLE" ]; then
+  ( cd "$ROOT" && node node_modules/lint-staged/bin/lint-staged.js )
+else
+  echo "[pre-commit] lint-staged: no matching staged files, skipped"
+fi
 echo "[pre-commit] 提示：编辑源码/文档请用 edit/write 工具；禁止 shell 批量改写（见 .agents/rules/shell-encoding.md）"
 
 # 3) staged 脚本语法（dev tooling 在 eslint/tsc 范围外，pre-push 只在推送时查）
