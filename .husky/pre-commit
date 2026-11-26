@@ -58,20 +58,23 @@ STEP="worktree session"
 ( cd "$ROOT" && node adlo/scripts/worktree-session.mjs check )
 
 # 5) 仓库不变量（秒级）：i18n 对等、术语表、死代码、vite 配置冒烟、dev tooling 单测、删除 crate 术语
+# 脚本用 `node --run` 而不是 `pnpm run`：pnpm 在钩子进程树里会偶发打不开自己的 SQLite
+# 状态库（`unable to open database file`），与脚本本身无关；Node 22+ 内置脚本运行器
+# 只读 package.json 的 scripts，不会触碰 pnpm 状态。
 STEP="check:i18n"
-( cd "$ROOT/adlo/frontend" && pnpm run check:i18n )
+( cd "$ROOT/adlo/frontend" && node --run check:i18n )
 STEP="check:i18n:orphans"
-( cd "$ROOT/adlo/frontend" && pnpm run check:i18n:orphans:changed )
+( cd "$ROOT/adlo/frontend" && node --run check:i18n:orphans:changed )
 STEP="check:glossary"
-( cd "$ROOT/adlo/frontend" && pnpm run check:glossary )
+( cd "$ROOT/adlo/frontend" && node --run check:glossary )
 STEP="check:css-vars"
 ( cd "$ROOT/adlo" && node scripts/check-css-vars.mjs )
 STEP="check:dead-code"
-( cd "$ROOT/adlo/frontend" && pnpm run check:dead-code )
+( cd "$ROOT/adlo/frontend" && node --run check:dead-code )
 STEP="check-unsafe-safety"
 ( cd "$ROOT/adlo" && node scripts/check-unsafe-safety.mjs )
 STEP="check:vite-config"
-( cd "$ROOT/adlo/frontend" && pnpm run check:vite-config )
+( cd "$ROOT/adlo/frontend" && node --run check:vite-config )
 STEP="check-brand"
 ( cd "$ROOT/adlo" && node scripts/check-brand.mjs )
 STEP="check-stale-terms"
@@ -83,7 +86,7 @@ STEP="check-no-new-any"
 STEP="notices:check"
 DEPS="$(echo "$STAGED" | grep -E '^adlo/(Cargo\.lock|Cargo\.toml|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml)$|^adlo/frontend/package\.json$' || true)"
 if [ -n "$DEPS" ]; then
-  ( cd "$ROOT/adlo" && pnpm run notices:check )
+  ( cd "$ROOT/adlo" && node --run notices:check )
 else
   echo "[pre-commit] notices:check: no dependency manifests staged, skipped"
 fi
