@@ -46,7 +46,8 @@ describe('useChartData time range initialization', () => {
     resetGitVisState('workspace_7114785d');
 
     const { result } = renderHook(() => useChartData(CHART_IDS.COMMIT_TIMELINE));
-    expect(result.current.timeRange).toEqual(defaultTimeRange());
+    const firstWorkspaceRange = result.current.timeRange;
+    expect(firstWorkspaceRange).toEqual(defaultTimeRange());
 
     act(() => {
       useAppStore.getState().setActiveWorkspaceTab('workspace_8b3a686f');
@@ -56,7 +57,21 @@ describe('useChartData time range initialization', () => {
     act(() => {
       useAppStore.getState().setActiveWorkspaceTab('workspace_7114785d');
     });
-    // Switching back keeps the already initialized range for the first tab.
+    // Switching back keeps the stored range instead of replacing it with a new one.
+    expect(result.current.timeRange).toBe(firstWorkspaceRange);
+  });
+
+  it('initializes again when a workspace re-appears after its ranges were cleared', () => {
+    resetGitVisState('workspace_7114785d');
+
+    const { result } = renderHook(() => useChartData(CHART_IDS.FILE_HOTSPOTS));
+    expect(result.current.timeRange).toEqual(defaultTimeRange());
+
+    // Removing the workspace prunes its git-vis slot; re-adding the same folder
+    // reuses the same id, so the default range must be re-created.
+    act(() => {
+      useAppStore.getState().clearWorkspaceGitVisData('workspace_7114785d');
+    });
     expect(result.current.timeRange).toEqual(defaultTimeRange());
   });
 });

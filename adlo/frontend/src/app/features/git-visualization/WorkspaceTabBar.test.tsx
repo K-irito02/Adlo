@@ -127,32 +127,73 @@ describe('WorkspaceTabBar', () => {
     expect(container.textContent).not.toContain('Hidden Downloads');
   });
 
-  it('shows a workspace added after mount without unmounting the view', async () => {
-    const { container, rerender } = render(<WorkspaceTabBar rightExtra={<i>v1</i>} />);
-    expect(container.querySelectorAll('.adl-workspace-tab__tab').length).toBe(27);
-
-    mockRecentWorkspaces = [
-      ...mockRecentWorkspaces,
-      {
-        id: 'workspace-new',
-        name: 'New Workspace',
-        rootPath: '/path/workspace-new',
-        path: '/path/workspace-new',
-        lastOpenedAt: Date.now(),
-        isPinned: false,
-        pinnedOrder: 0,
-        unpinnedOrder: 27,
-        removedFromSidebar: false,
-        available: true,
-      },
-    ];
-    // `React.memo` skips a rerender with identical props; bump rightExtra so the
-    // tab bar actually recomputes (in the app the store subscription drives it).
-    rerender(<WorkspaceTabBar rightExtra={<i>v2</i>} />);
-
-    await waitFor(() => {
-      expect(container.querySelectorAll('.adl-workspace-tab__tab').length).toBe(28);
+  it('stays on the first page when the workspace list is hydrated after mount', async () => {
+    const originalFn = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = vi.fn(function (this: HTMLElement) {
+      if (this.classList?.contains('adl-workspace-tab__container')) {
+        return { width: 520, height: 32, top: 0, left: 0, right: 520, bottom: 32 } as DOMRect;
+      }
+      return originalFn.call(this);
     });
-    expect(container.textContent).toContain('New Workspace');
+    const originalWorkspaces = mockRecentWorkspaces;
+
+    try {
+      // The panel mounts before bootstrap() fills recentWorkspaces.
+      mockRecentWorkspaces = [];
+      const { container, rerender } = render(<WorkspaceTabBar rightExtra={<i>v1</i>} />);
+
+      mockRecentWorkspaces = originalWorkspaces;
+      rerender(<WorkspaceTabBar rightExtra={<i>v2</i>} />);
+
+      await waitFor(() => {
+        expect(container.textContent).toContain('Workspace 1');
+      });
+      // The initial hydration is not a user "add": page 0 must stay visible.
+      expect(container.textContent).not.toContain('Workspace 27');
+    } finally {
+      mockRecentWorkspaces = originalWorkspaces;
+      HTMLElement.prototype.getBoundingClientRect = originalFn;
+    }
+  });
+
+  it('shows a workspace added after mount, paging to its tab', async () => {
+    const originalFn = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = vi.fn(function (this: HTMLElement) {
+      if (this.classList?.contains('adl-workspace-tab__container')) {
+        // 520px → 4 tabs per page, so the new (last) tab is off the first page.
+        return { width: 520, height: 32, top: 0, left: 0, right: 520, bottom: 32 } as DOMRect;
+      }
+      return originalFn.call(this);
+    });
+
+    try {
+      const { container, rerender } = render(<WorkspaceTabBar rightExtra={<i>v1</i>} />);
+      expect(container.textContent).not.toContain('New Workspace');
+
+      mockRecentWorkspaces = [
+        ...mockRecentWorkspaces,
+        {
+          id: 'workspace-new',
+          name: 'New Workspace',
+          rootPath: '/path/workspace-new',
+          path: '/path/workspace-new',
+          lastOpenedAt: Date.now(),
+          isPinned: false,
+          pinnedOrder: 0,
+          unpinnedOrder: 27,
+          removedFromSidebar: false,
+          available: true,
+        },
+      ];
+      // `React.memo` skips a rerender with identical props; bump rightExtra so the
+      // tab bar actually recomputes (in the app the store subscription drives it).
+      rerender(<WorkspaceTabBar rightExtra={<i>v2</i>} />);
+
+      await waitFor(() => {
+        expect(container.textContent).toContain('New Workspace');
+      });
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = originalFn;
+    }
   });
 });

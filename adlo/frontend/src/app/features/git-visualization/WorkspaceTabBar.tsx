@@ -78,6 +78,36 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar({
     setPage((p) => Math.min(p, totalPages - 1));
   }, [totalPages]);
 
+  // A workspace added after mount lands on the last page; follow it so the tab is
+  // actually visible instead of requiring the user to page forward.
+  const previousVisibleIdsRef = useRef<string[]>(workspaceTabs.map((t) => t.id));
+  useEffect(() => {
+    const previousIds = previousVisibleIdsRef.current;
+    const currentIds = workspaceTabs.map((t) => t.id);
+    previousVisibleIdsRef.current = currentIds;
+    // The first population comes from the async bootstrap of the workspace list,
+    // not from the user adding a workspace — do not page to its tail.
+    if (previousIds.length === 0) {
+      return;
+    }
+    const added = currentIds.filter((id) => !previousIds.includes(id));
+    if (added.length === 0) {
+      return;
+    }
+    const addedIndex = tabOrder.indexOf(added[added.length - 1]);
+    if (addedIndex < 0) {
+      return;
+    }
+    // Compute per-page from the live width: `visibleTabs` state may still hold the
+    // pre-update count within this effect flush.
+    const width = containerRef.current?.getBoundingClientRect().width ?? 0;
+    const perPage =
+      width === 0
+        ? workspaceTabs.length
+        : Math.max(1, Math.floor((width + TAB_GAP) / (TAB_WIDTH + TAB_GAP)));
+    setPage(Math.floor(addedIndex / Math.max(1, perPage)));
+  }, [workspaceTabs, tabOrder]);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) {

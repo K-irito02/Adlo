@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { CHART_IDS } from '../chartIds';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
@@ -33,20 +33,14 @@ export function useChartData(chartId: string): {
   const chartTimeRange = wsTimeRange?.[chartId];
 
   const timeRange = chartTimeRange;
-  // Guard against re-writing the same workspace on every render. A plain boolean
-  // guard stopped ALL re-initialization, which dropped the default range for any
-  // workspace the active tab resolved to after the first one — the chart's
-  // TimeRangeSelector then did not render.
-  const initializedWorkspaceRef = useRef<string | null>(null);
-
+  // Convergent by construction: this writes only while the active workspace has
+  // no stored range for this chart, and the write makes `chartTimeRange` present,
+  // so the effect cannot re-fire in a loop. A workspace whose ranges were cleared
+  // (removed and re-added with the same path hash) is initialized again.
   useEffect(() => {
     if (!TIME_RANGE_CHARTS.has(chartId) || chartTimeRange || !activeWorkspaceTab) {
       return;
     }
-    if (initializedWorkspaceRef.current === activeWorkspaceTab) {
-      return;
-    }
-    initializedWorkspaceRef.current = activeWorkspaceTab;
     setGitVisTimeRange(activeWorkspaceTab, chartId, defaultTimeRange());
   }, [chartId, chartTimeRange, activeWorkspaceTab, setGitVisTimeRange]);
   const setTimeRange = useCallback(

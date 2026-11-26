@@ -40,3 +40,4 @@
 | 2026-11-25 | [progress-2026-11-24-214722.md](./progress-2026-11-24-214722.md) | 托管终端 PATH 引号根因（split/join + 失败回退）、剪贴板捕获恢复（park 保活 + 全链路日志）、500 条保留上限、面板/查看器交互与 Markdown 排版对齐；P4 R1 terminal rev1–rev2 + backend rev1–rev3 + UI rev1–rev3，R2 3 路 rev3 零问题 |
 | 2026-11-25 | [progress-2026-11-25-024000.md](./progress-2026-11-25-024000.md) | DSH 站内设置链接无反应（Tauri shell 插件吞掉子 WebView `_blank` + 智能体全站拦截；ADR 0034）+ 3080 端口占用确认框与断连恢复 toast（ADR 0035）；WebView2 CDP 真机取证 |
 | 2026-11-26 | [progress-2026-11-25-204116.md](./progress-2026-11-25-204116.md) | 落地页收口：端口详情闪窗（CREATE_NO_WINDOW）、表单聚焦中性色、卡片 C 透明悬浮、背景素材 asset 协议/IndexedDB、Windows 文件拖放（OLE target + 事件/队列轮询兜底）、图片视频独立槽与自由调整、终端标签悬停「在中间区显示」、视频音量胶囊与单一解码 canvas 镜像（ADR 0036） |
+| 2026-11-26 | [progress-2026-11-26-080000.md](./progress-2026-11-26-080000.md) | Git 可视化三项：分支标签 `g` 被行盒裁成 `q`（`line-height: normal`）、三个图表时间筛选控件消失（一次性布尔守卫改 per-workspace/移除，控件恢复）、面板打开期间新增工作区不出现（标签顺序 reconcile + 自动跳页）；P4 R1 rev1–rev3 + R2 rev4 零问题 |

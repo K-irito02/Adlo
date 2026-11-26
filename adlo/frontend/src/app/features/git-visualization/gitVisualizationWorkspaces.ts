@@ -16,7 +16,7 @@ export function visibleGitWorkspaces(workspaces: RecentWorkspaceEntry[]): Recent
  * - 按可见清单顺序追加新出现的工作区（新增/重新显示）；
  * - 丢弃已不存在或已隐藏的 id。
  *
- * 无变化时返回原引用，避免 useMemo / state 无谓更新。
+ * 无变化时返回原引用，避免下游 useMemo 重复计算。
  */
 export function reconcileTabOrder(order: string[], visibleIds: string[]): string[] {
   const visible = new Set(visibleIds);

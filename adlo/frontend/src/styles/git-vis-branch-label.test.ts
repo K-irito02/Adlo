@@ -9,10 +9,12 @@ import { exactRuleBody } from './testing/cssRules';
  * 标签按钮（`BranchGraph.tsx`）为紧凑胶囊设了 `line-height: 1`；该值会继承到
  * `.adl-branch-graph__label-text`。文字 span 又用 `overflow: hidden` 做单行省略，
  * 于是 1em（11px）的行盒比字体 ascent+descent（实测 12px）矮 1px，把 "g" 的下伸部
- * 裁掉，显示成 "q"。真实浏览器实测：before clientHeight=11 / glyphBottom=11.5（裁切），
- * after（line-height: normal）clientHeight=12 / glyphBottom=12（完整）。
+ * 裁掉，显示成 "q"。用同款字体与行盒的复刻页在真实浏览器实测：before
+ * clientHeight=11 / glyphBottom=11.5（越界 0.5px），after（line-height: normal）
+ * clientHeight=12 / glyphBottom=12（未越界）。
  *
- * 删除性推演：删掉下面这条 `line-height: normal`，本用例变红。
+ * 删除性推演：删掉 `regions/rightpanel/git-visualization.css` 里本规则内的
+ * `line-height: normal`，本用例变红。
  */
 const css = readFileSync(
   new URL('./regions/rightpanel/git-visualization.css', import.meta.url),
