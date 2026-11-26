@@ -17,6 +17,7 @@
     "worktree:session": "node ./scripts/worktree-session.mjs",
     "skills:audit": "node ./scripts/skills-sync.mjs audit",
     "skills:apply": "node ./scripts/skills-sync.mjs apply",
+    "skills:restore": "node ./scripts/skills-sync.mjs restore",
     "skills:mirror": "node ./scripts/skills-sync.mjs mirror",
     "skills:lock": "node ./scripts/skills-sync.mjs lock",
     "skills:docs": "node ./scripts/skills-sync.mjs docs",

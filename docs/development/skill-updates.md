@@ -11,7 +11,7 @@
 | 命令 | 作用 |
 |------|------|
 | `skills:audit` | 浅克隆上游到临时缓存，逐技能比较文件差异与 overlay 状态 |
-| `skills:apply -- --all` | 从上游刷新技能，应用本地 overlay，然后依次 mirror / lock / docs / verify |
+| `skills:apply -- --all` | 从上游刷新**已安装**技能，应用本地 overlay，然后依次 mirror / lock / docs / verify；缺失目录不会被补装，那要用 `skills:restore` |
 | `skills:mirror -- --all` | 把 `.agents/skills` 同步到两个镜像；`--check` 只比对 |
 | `skills:lock` | 用上游 `git rev-parse HEAD:<skillPath>` 刷新 lock 哈希；`--check` 只报告漂移 |
 | `skills:docs` | 刷新 `SKILLS.md` 的计数、§4 标题、调用名与缺失行；`--check` 只报告 |
@@ -19,6 +19,16 @@
 | `skills:update` | `apply --all` 的快捷入口（含 mirror / lock / docs / verify） |
 
 通用选项：`--skill <name>`（可重复/逗号分隔）、`--all`、`--dry-run`、`--check`、`--prune`、`--batch-size <n>`、`--pause-ms <n>`、`--skip-mirror/lock/docs/verify`。
+
+## 入库边界（哪些技能进远程）
+
+远程只保留**项目自建技能**（`SKILLS.md` §4.3，9 个）。第三方技能（Superpowers 15 + Matt Pocock 28 + 其他社区 9）不进远程，真源仍在本机 `.agents/skills/`，随时可从各自上游取回：
+
+- **判定依据**：`.agents/.skill-lock.json` 有记录即第三方；`SKILLS.md` §4.1/§4.2/§4.4 与之一一对应。
+- **忽略范围**：三个技能目录下的同名子目录，`.gitignore` 末尾有逐条清单（每个技能 3 行）。新增第三方技能后要补这 3 行，否则会混进远程。
+- **恢复**：`pnpm --dir adlo run skills:restore`；`setup:worktree` 已内置（`ADL_SKIP_SKILLS_RESTORE=1` 可跳过）。
+  `restore` 以 `SKILLS.md` §4 的行作为“应装清单”，只补缺失目录——lock 里还有历史残留条目，不会因此把早已卸载的技能装回来。
+- **计数口径不变**：`SKILLS.md` 合计仍指“装齐后”的数量（61）；未恢复的 checkout 过不了 `check-agent-dirs`，先 restore 再提交。
 
 ## 典型流程
 
@@ -32,6 +42,12 @@
 - 复制按 `--batch-size`（默认 100 文件）与 `--pause-ms`（默认 10ms）分批，避免一次写入 1600+ 文件导致 watcher / server 重启。
 - 上游 clone 默认在操作系统临时目录（`adlo-skills-cache`），**不要**放进 `adlo/`；需要固定位置时用 `ADL_SKILLS_CACHE` 指向仓库外路径。
 - `taste-skill` 含 1600+ 个资源文件；更新后优先跑 `skills:mirror -- --all --check`，再正式同步。
+- `video-shotcraft` 是**根目录型技能**：上游仓库根即技能根，`skillPath` 记为 `.`。`skills-sync` 的 `listFiles` 在读写两侧都跳过 `.git`，因此 `apply` / `audit` 都能直接处理它（审计结果为 `IDENTICAL`），不需要手工复制。
+
+## 根目录型技能（skillPath 为 `.`）
+
+上游仓库根就是技能根时，`skillPath` 记为 `.`。`listFiles` 在读取上游与读取本地时都跳过 `.git`，因此 `apply` / `sync` 的整目录复制不会把 VCS 元数据带进技能目录，`audit` 也不会因此产生假漂移——这类技能按常规流程处理即可。
+
 
 ## 本地 overlay
 

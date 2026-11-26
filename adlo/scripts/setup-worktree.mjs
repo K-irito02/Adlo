@@ -1,5 +1,5 @@
 /**
- * 工作树一次性初始化：git hooks + CodeGraph 索引。
+ * 工作树一次性初始化：git hooks + CodeGraph 索引 + 第三方技能恢复。
  *
  * 用法（任意工作树、任意槽位）：
  *   pnpm --dir adlo run setup:worktree
@@ -7,6 +7,8 @@
  * - hooks：`core.hooksPath=.husky` 是**仓库级**配置，一处执行即可覆盖所有工作树。
  * - CodeGraph：索引落在 `adlo/.codegraph/`（已 gitignore），**每个工作树各建一份**
  *   （索引内容跟随该工作树的分支与文件，不能跨工作树共用）。
+ * - 第三方技能：`.agents/skills/` 里的第三方技能不入库（见 .gitignore），新克隆
+ *   按 `.agents/.skill-lock.json` 从各自上游恢复；已有目录时跳过。
  */
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -72,6 +74,23 @@ if (existsSync(path.join(implRoot, ".codegraph"))) {
       init.status === 0
         ? "[setup] CodeGraph index ready"
         : "[setup] codegraph init failed; continuing without index",
+    );
+  }
+}
+
+// 3) 第三方技能（工作树级，幂等）
+//    `.gitignore` 只把项目自建技能留在远程；第三方技能按 lock 从上游恢复。
+//    全部就位时 restore 只打印一行、不联网，因此日常新建工作树是零成本。
+if (process.env.ADL_SKIP_SKILLS_RESTORE === "1") {
+  console.log("[setup] skip third-party skill restore (ADL_SKIP_SKILLS_RESTORE=1)");
+} else {
+  const restore = spawnSync(process.execPath, ["scripts/skills-sync.mjs", "restore"], {
+    cwd: implRoot,
+    stdio: "inherit",
+  });
+  if (restore.status !== 0) {
+    console.warn(
+      "[setup] third-party skill restore failed; run `pnpm --dir adlo run skills:restore` when online.",
     );
   }
 }

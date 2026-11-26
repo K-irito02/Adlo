@@ -6,6 +6,7 @@
  * Usage:
  *   pnpm --dir adlo run skills:audit
  *   pnpm --dir adlo run skills:apply -- --all
+ *   pnpm --dir adlo run skills:restore
  *   pnpm --dir adlo run skills:mirror -- --all
  *   pnpm --dir adlo run skills:lock
  *   pnpm --dir adlo run skills:docs -- --check
@@ -86,6 +87,12 @@ function listFiles(root, base = "") {
   for (const entry of fs.readdirSync(path.join(root, base), { withFileTypes: true })) {
     const rel = base ? `${base}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
+      // VCS metadata never belongs to a skill: root-level skill repos carry a
+      // `.git` after cloning, and copying it would both bloat the tree and make
+      // the mirror digest unstable.
+      if (entry.name === ".git") {
+        continue;
+      }
       out.push(...listFiles(root, rel));
     } else {
       out.push(rel);
@@ -309,6 +316,67 @@ async function applyCommand(options) {
   if (!options.skipLock) {
     lockCommand({ ...options, all: false, skills: names });
   }
+  if (!options.skipDocs) {
+    docsCommand({ ...options, check: false });
+  }
+  if (!options.skipVerify) {
+    verifyCommand();
+  }
+}
+
+/**
+ * Restore third-party skills that are absent from this checkout.
+ *
+ * `.gitignore` keeps third-party skills out of the remote (only project-built
+ * skills are committed), so a fresh clone or a new worktree has them missing on
+ * disk. The lock file is the recipe: clone each source repo once into the cache
+ * and copy the declared path back into `.agents/skills/`.
+ */
+async function restoreCommand(options) {
+  const lock = readLock();
+  // The lock keeps a historical record of every skill ever installed; only the
+  // ones listed in SKILLS.md §4 belong to this checkout's expected inventory.
+  const documented = new Set(
+    [...fs.readFileSync(skillsDocPath, "utf8").matchAll(/^\| `([^`]+)` \| `[^`]+` \|/gm)].map(
+      (match) => match[1],
+    ),
+  );
+  const missing = Object.keys(lock.skills ?? {})
+    .filter((name) => documented.has(name))
+    .filter((name) => !fs.existsSync(path.join(agentsRoot, name, "SKILL.md")))
+    .sort();
+
+  if (missing.length === 0) {
+    console.log("[skills:restore] all locked skills already present");
+    return;
+  }
+
+  console.log(`[skills:restore] ${missing.length} skill(s) missing, restoring from upstream...`);
+  const restored = [];
+  for (const name of missing) {
+    const entry = lock.skills[name];
+    try {
+      const cache = ensureCache(entry);
+      const source = path.join(cache, entry.skillPath);
+      if (!fs.existsSync(source)) {
+        console.log(`SKIP ${name}: upstream path missing (${entry.skillPath})`);
+        continue;
+      }
+      const count = await copyDirBatched(source, path.join(agentsRoot, name), options);
+      console.log(`RESTORED ${name} (${count} files)`);
+      if (!options.dryRun) {
+        restored.push(name);
+      }
+    } catch (error) {
+      // A single unreachable repo must not abort the whole restore.
+      console.log(`FAILED ${name}: ${error.message}`);
+    }
+  }
+
+  if (options.dryRun || restored.length === 0) {
+    return;
+  }
+  await mirrorCommand({ ...options, all: false, skills: restored });
   if (!options.skipDocs) {
     docsCommand({ ...options, check: false });
   }
@@ -594,7 +662,8 @@ function printUsage() {
       "",
       "Commands:",
       "  audit    compare .agents/skills with upstream clones",
-      "  apply    refresh selected skills from upstream, then overlays/mirror/lock/docs/verify",
+      "  apply    refresh already-installed skills from upstream (missing ones: use `restore`), then overlays/mirror/lock/docs/verify",
+      "  restore  reinstall locked third-party skills missing from this checkout, then mirror/docs/verify",
       "  mirror   sync .agents/skills to .opencode/skills and .trae/skills",
       "  lock     refresh .agents/.skill-lock.json hashes from upstream",
       "  docs     refresh SKILLS.md counts, call names and missing rows",
@@ -623,6 +692,8 @@ async function main() {
     await auditCommand(options);
   } else if (options.command === "apply") {
     await applyCommand(options);
+  } else if (options.command === "restore") {
+    await restoreCommand(options);
   } else if (options.command === "mirror") {
     await mirrorCommand(options);
   } else if (options.command === "lock") {
