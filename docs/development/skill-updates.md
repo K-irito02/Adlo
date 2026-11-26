@@ -11,7 +11,7 @@
 | 命令 | 作用 |
 |------|------|
 | `skills:audit` | 浅克隆上游到临时缓存，逐技能比较文件差异与 overlay 状态 |
-| `skills:apply -- --all` | 从上游刷新技能，应用本地 overlay，然后依次 mirror / lock / docs / verify |
+| `skills:apply -- --all` | 从上游刷新**已安装**技能，应用本地 overlay，然后依次 mirror / lock / docs / verify；缺失目录不会被补装，那要用 `skills:restore` |
 | `skills:mirror -- --all` | 把 `.agents/skills` 同步到两个镜像；`--check` 只比对 |
 | `skills:lock` | 用上游 `git rev-parse HEAD:<skillPath>` 刷新 lock 哈希；`--check` 只报告漂移 |
 | `skills:docs` | 刷新 `SKILLS.md` 的计数、§4 标题、调用名与缺失行；`--check` 只报告 |

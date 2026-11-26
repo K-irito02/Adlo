@@ -21,10 +21,25 @@ on_exit() {
 trap on_exit EXIT
 
 # 1) staged 前端源码：eslint（plain, no --fix：hook 内不改写文件）
+#    批量用 shell 位置参数而不是 xargs：MSYS 下 sysconf(_SC_ARG_MAX) 偏小时，
+#    xargs 初始化会断言失败（bc_ctl.arg_max >= LINE_MAX），把正常提交卡死。
+#    hook-portability 测试会拦住任何引入 xargs 的改动。
 STEP="eslint"
 LINTABLE="$(echo "$STAGED" | grep -E '^adlo/frontend/.*\.(ts|tsx|js|jsx|mjs|cjs)$' || true)"
 if [ -n "$LINTABLE" ]; then
-  echo "$LINTABLE" | sed 's|^adlo/frontend/||' | ( cd "$ROOT/adlo/frontend" && xargs -d '\n' -n 40 npx eslint --max-warnings 0 --no-warn-ignored )
+  echo "$LINTABLE" | sed 's|^adlo/frontend/||' | (
+    cd "$ROOT/adlo/frontend" || exit 1
+    set --
+    while IFS= read -r FILE; do
+      [ -z "$FILE" ] && continue
+      set -- "$@" "$FILE"
+      if [ "$#" -ge 40 ]; then
+        npx eslint --max-warnings 0 --no-warn-ignored "$@"
+        set --
+      fi
+    done
+    [ "$#" -gt 0 ] && npx eslint --max-warnings 0 --no-warn-ignored "$@"
+  )
 else
   echo "[pre-commit] eslint: no staged frontend sources, skipped"
 fi

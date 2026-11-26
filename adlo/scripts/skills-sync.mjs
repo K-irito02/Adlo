@@ -662,7 +662,7 @@ function printUsage() {
       "",
       "Commands:",
       "  audit    compare .agents/skills with upstream clones",
-      "  apply    refresh selected skills from upstream, then overlays/mirror/lock/docs/verify",
+      "  apply    refresh already-installed skills from upstream (missing ones: use `restore`), then overlays/mirror/lock/docs/verify",
       "  restore  reinstall locked third-party skills missing from this checkout, then mirror/docs/verify",
       "  mirror   sync .agents/skills to .opencode/skills and .trae/skills",
       "  lock     refresh .agents/.skill-lock.json hashes from upstream",

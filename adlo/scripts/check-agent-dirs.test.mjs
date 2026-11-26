@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -147,6 +147,43 @@ test("SKILLS.md counts and summary index match the skill directories", () => {
   const extra = [...indexed].filter((skill) => !skillDirs.includes(skill));
   assert.deepEqual(missing, [], "skills missing from SKILLS.md §4");
   assert.deepEqual(extra, [], "SKILLS.md §4 lists nonexistent skills");
+});
+
+test("third-party skills stay out of git in all three skill trees", () => {
+  const lock = JSON.parse(readFileSync(join(repoRoot, ".agents/.skill-lock.json"), "utf8"));
+  const documented = new Set(
+    [...readDoc("SKILLS.md").matchAll(/^\| `([^`]+)` \|/gm)].map((match) => match[1]),
+  );
+  const candidates = [];
+  for (const name of Object.keys(lock.skills ?? {})) {
+    // lock 里还留着历史条目；只有 SKILLS.md 收录且磁盘存在的才算“已安装”
+    if (!documented.has(name)) continue;
+    if (!existsSync(join(repoRoot, ".agents/skills", name, "SKILL.md"))) continue;
+    for (const tree of [".agents/skills", ".opencode/skills", ".trae/skills"]) {
+      const rel = `${tree}/${name}/SKILL.md`;
+      if (existsSync(join(repoRoot, rel))) {
+        candidates.push(rel);
+      }
+    }
+  }
+  // 全新克隆尚未 restore 时没有第三方技能，本检查无事可做
+  if (candidates.length === 0) {
+    return;
+  }
+
+  const result = spawnSync("git", ["check-ignore", "--stdin"], {
+    cwd: repoRoot,
+    input: candidates.join("\n"),
+    encoding: "utf8",
+  });
+  const ignored = new Set((result.stdout ?? "").split(/\r?\n/).filter(Boolean));
+  const leaking = candidates.filter((rel) => !ignored.has(rel));
+  assert.deepEqual(
+    leaking,
+    [],
+    "third-party skills must stay out of the remote: add `<tree>/<skill>/` for each leaked path " +
+      "to the third-party block at the end of .gitignore",
+  );
 });
 
 test("no tracked files live in nested .agents directories", () => {

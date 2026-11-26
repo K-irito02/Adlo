@@ -28,6 +28,7 @@ alwaysApply: false
 15. **擅自使用蓝色**：提示 / 警醒 / 填充色一律白 / 灰 / 黑中性色，`--accent` 系仅在用户允许时使用（见 `hint-color-usage.md`）。
 16. **并行污染**：两个会话共用同一工作树目录、共享 `CARGO_TARGET_DIR`、或在分支工作树写 `.workbuddy/memory`（见 `parallel-branch-development` 技能）。
 17. **面板作用域计数绕过归属谓词**：面板列表 / 计数 / 徽章必须经 `isPanelTab` 或 `panelTabSelectors` 派生；对全量 `browserTabs` / `terminalTabs` 直接取 `.length` 视为可疑（ESLint 已拦裸 `browserTabs.length` / `terminalTabs.length`，例外必须在 stores 层或豁免文件里说明理由）。
+18. **未经验证的门禁 / 脚本行为写成事实**：文档、注释或提交信息里描述门禁、脚本、工具的行为（「会报 X」「必然失败」「不支持 Y」）时，必须附一条可复现命令或实跑结论；只有推断的，按待验证表述，不写成结论。这类句子比笔误更难发现，且会长期误导后续会话。
 18. **视图/模式命名与术语漂移**：新增或修改的视图、导航模式、枚举值必须与 `GLOSSARY.md` 的视图术语一致；同一类型名不得承载两套值集。典型反例：内部 `'tabs'` 表示「书签目录」、`useBrowserMenus.ts` 与 `useBrowserTabs.ts` 各有一个同名 `BrowserNavigatorMode`。发现即要求重命名或拆分类型，并在必要处补 ADR。
 19. **当前文档的历史叙述**：当前规则 / 架构 / 开发文档只描述当前行为；日期化事故、重构过程、旧做法应放入 `docs/knowledge-base/` 或 `docs/root-cause-to-close/`，不要留在常驻文档里。
 
