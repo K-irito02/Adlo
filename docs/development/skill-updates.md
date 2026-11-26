@@ -42,19 +42,11 @@
 - 复制按 `--batch-size`（默认 100 文件）与 `--pause-ms`（默认 10ms）分批，避免一次写入 1600+ 文件导致 watcher / server 重启。
 - 上游 clone 默认在操作系统临时目录（`adlo-skills-cache`），**不要**放进 `adlo/`；需要固定位置时用 `ADL_SKILLS_CACHE` 指向仓库外路径。
 - `taste-skill` 含 1600+ 个资源文件；更新后优先跑 `skills:mirror -- --all --check`，再正式同步。
-- `video-shotcraft` 是**根目录型技能**：上游仓库根即技能根，`skillPath` 记为 `.`。入库时只排除 `.git`（VCS 元数据，不应进技能目录），`.github` / README 多语言版本保留。因此 `skills:audit` 会对它报 `DIFFERS`（差异全部来自被排除的 `.git` 文件），这不代表本地被污染；更新时按下面「根目录型技能」的手工流程处理，不要直接跑 `skills:apply --skill video-shotcraft`（会把 `.git` 一并复制进技能目录）。
+- `video-shotcraft` 是**根目录型技能**：上游仓库根即技能根，`skillPath` 记为 `.`。`skills-sync` 的 `listFiles` 在读写两侧都跳过 `.git`，因此 `apply` / `audit` 都能直接处理它（审计结果为 `IDENTICAL`），不需要手工复制。
 
 ## 根目录型技能（skillPath 为 `.`）
 
-上游仓库根就是技能根时，`skills:apply` 的整目录复制会把 `.git` 一起带进来，因此改用手工流程：
-
-```bash
-git clone --depth 1 <sourceUrl> /path/to-outside-repo/video-shotcraft
-cp -a /path/to-outside-repo/video-shotcraft/. .agents/skills/video-shotcraft/
-rm -rf .agents/skills/video-shotcraft/.git
-node adlo/scripts/skills-sync.mjs mirror --skill video-shotcraft
-git -C /path/to-outside-repo/video-shotcraft rev-parse "HEAD^{tree}"   # 写回 lock 的 skillFolderHash
-```
+上游仓库根就是技能根时，`skillPath` 记为 `.`。`listFiles` 在读取上游与读取本地时都跳过 `.git`，因此 `apply` / `sync` 的整目录复制不会把 VCS 元数据带进技能目录，`audit` 也不会因此产生假漂移——这类技能按常规流程处理即可。
 
 
 ## 本地 overlay
