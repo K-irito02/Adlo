@@ -778,6 +778,15 @@
       "skillFolderHash": "9e67b6a2c6e73dcb466546531497b2a23cad94d4",
       "installedAt": "2026-11-22T08:10:36.584Z",
       "updatedAt": "2026-11-22T08:10:36.584Z"
+    },
+    "video-shotcraft": {
+      "source": "Vincentwei1021/video-shotcraft",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/Vincentwei1021/video-shotcraft.git",
+      "skillPath": ".",
+      "skillFolderHash": "42cc04c66f55043d3d95d8c3a8950d3ee240f717",
+      "installedAt": "2026-11-26T13:49:07.692Z",
+      "updatedAt": "2026-11-26T13:49:07.692Z"
     }
   },
   "dismissed": {}

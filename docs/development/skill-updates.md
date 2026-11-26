@@ -20,6 +20,16 @@
 
 通用选项：`--skill <name>`（可重复/逗号分隔）、`--all`、`--dry-run`、`--check`、`--prune`、`--batch-size <n>`、`--pause-ms <n>`、`--skip-mirror/lock/docs/verify`。
 
+## 入库边界（哪些技能进远程）
+
+远程只保留**项目自建技能**（`SKILLS.md` §4.3，9 个）。第三方技能（Superpowers 15 + Matt Pocock 28 + 其他社区 9）不进远程，真源仍在本机 `.agents/skills/`，随时可从各自上游取回：
+
+- **判定依据**：`.agents/.skill-lock.json` 有记录即第三方；`SKILLS.md` §4.1/§4.2/§4.4 与之一一对应。
+- **忽略范围**：三个技能目录下的同名子目录，`.gitignore` 末尾有逐条清单（每个技能 3 行）。新增第三方技能后要补这 3 行，否则会混进远程。
+- **恢复**：`pnpm --dir adlo run skills:restore`；`setup:worktree` 已内置（`ADL_SKIP_SKILLS_RESTORE=1` 可跳过）。
+  `restore` 以 `SKILLS.md` §4 的行作为“应装清单”，只补缺失目录——lock 里还有历史残留条目，不会因此把早已卸载的技能装回来。
+- **计数口径不变**：`SKILLS.md` 合计仍指“装齐后”的数量（61）；未恢复的 checkout 过不了 `check-agent-dirs`，先 restore 再提交。
+
 ## 典型流程
 
 1. `pnpm --dir adlo run skills:audit`，确认哪些技能有上游变化、哪些本地 overlay 已应用。
@@ -32,6 +42,20 @@
 - 复制按 `--batch-size`（默认 100 文件）与 `--pause-ms`（默认 10ms）分批，避免一次写入 1600+ 文件导致 watcher / server 重启。
 - 上游 clone 默认在操作系统临时目录（`adlo-skills-cache`），**不要**放进 `adlo/`；需要固定位置时用 `ADL_SKILLS_CACHE` 指向仓库外路径。
 - `taste-skill` 含 1600+ 个资源文件；更新后优先跑 `skills:mirror -- --all --check`，再正式同步。
+- `video-shotcraft` 是**根目录型技能**：上游仓库根即技能根，`skillPath` 记为 `.`。入库时只排除 `.git`（VCS 元数据，不应进技能目录），`.github` / README 多语言版本保留。因此 `skills:audit` 会对它报 `DIFFERS`（差异全部来自被排除的 `.git` 文件），这不代表本地被污染；更新时按下面「根目录型技能」的手工流程处理，不要直接跑 `skills:apply --skill video-shotcraft`（会把 `.git` 一并复制进技能目录）。
+
+## 根目录型技能（skillPath 为 `.`）
+
+上游仓库根就是技能根时，`skills:apply` 的整目录复制会把 `.git` 一起带进来，因此改用手工流程：
+
+```bash
+git clone --depth 1 <sourceUrl> /path/to-outside-repo/video-shotcraft
+cp -a /path/to-outside-repo/video-shotcraft/. .agents/skills/video-shotcraft/
+rm -rf .agents/skills/video-shotcraft/.git
+node adlo/scripts/skills-sync.mjs mirror --skill video-shotcraft
+git -C /path/to-outside-repo/video-shotcraft rev-parse "HEAD^{tree}"   # 写回 lock 的 skillFolderHash
+```
+
 
 ## 本地 overlay
 

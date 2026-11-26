@@ -15,9 +15,9 @@
 |------|------|------|
 | Superpowers 体系技能 | 来自开源项目 [obra/superpowers](https://github.com/obra/superpowers) 的技能体系，覆盖需求澄清、计划、执行、审查、验证与技能会话诊断等研发全流程 | 15 |
 | Matt Pocock 工程技能 | 来自 [mattpocock/skills](https://github.com/mattpocock/skills)（[aihero.dev](https://www.aihero.dev/skills)）的 engineering / productivity / misc 三个分类，覆盖需求成型、规格与工单、实现、TDD、审查、诊断、域建模、代码库架构，以及会话交接、教学、写作与仓库脚手架 | 28 |
-| 其他社区技能 | 从社区技能仓库安装的技能（来源见 `.agents/.skill-lock.json`），涵盖技能创建、浏览器自动化、UI/UX 设计、MCP 构建与 Google Stitch 设计规范等 | 8 |
+| 其他社区技能 | 从社区技能仓库安装的技能（来源见 `.agents/.skill-lock.json`），涵盖技能创建、浏览器自动化、UI/UX 设计、MCP 构建与 Google Stitch 设计规范等 | 9 |
 | 项目自建技能 | 为本仓库定制的技能，与本项目的治理规则、文档体系、运行方式强绑定 | 9 |
-| **合计** | 数量以 `.agents/skills/` 实际目录为准 | **60** |
+| **合计** | 数量以 `.agents/skills/` 实际目录为准 | **61** |
 
 ### 1.2 使用与维护约定
 
@@ -89,7 +89,7 @@
 | `writing-plans` | `writing-plans` | 已有多步骤任务的规格或需求、在改动代码之前使用，编写实施计划。 |
 | `writing-skills` | `writing-skills` | 创建新技能、编辑已有技能，或在部署前验证技能是否有效时使用。 |
 
-### 4.2 其他社区技能（8）
+### 4.2 其他社区技能（9）
 
 | 技能目录 | 调用名 | 说明 |
 |----------|--------|------|
@@ -101,6 +101,7 @@
 | `stitch-skill` | `stitch-design-taste` | 面向 Google Stitch 的设计规范技能：生成 `DESIGN.md`，用氛围、颜色、字体、组件行为、布局与动效规则约束 Stitch 的界面生成；仅按名调用。 |
 | `taste-skill` | `design-taste-frontend` | 面向公司官网、落地页、作品集与改版的反“AI 味”前端技能（2.5.1）：按业务类型生成完整页面，要求 Node 22+ 与 Chrome/Edge，内置 `gate.mjs` 浏览器检查与 finish gate；含 1630 个资源/脚本文件。 |
 | `ui-ux-pro-max` | `ui-ux-pro-max` | 面向 Web、移动端与桌面的 UI/UX 设计智能：在设计、构建、评审或修复界面时使用，覆盖页面、组件、设计系统、可访问性、交互、响应式布局、字体、配色、图表及特定技术栈的 UI 实现。内置可检索本地数据：80 种风格（51 种启用）、194 套产品配色与推理画像、74 组字体搭配、141 条 UX 准则、105 个图标、17 个 GSAP 预设、25 种图表类型、22 个技术栈。 |
+| `video-shotcraft` | `video-shotcraft` | 用真实页面截图 + Remotion 逐帧代码绘制产品宣传片：124 张镜头配方卡 / 150 个动效、Ink Press 模板、卡点配乐与 Freesound 音效选材，输出 1080p MP4、可编辑 Remotion 工程、Motion Workbench 与剪映草稿；需 Node 22+、ffmpeg 与无头浏览器。 |
 
 ### 4.3 项目自建技能（9）
 

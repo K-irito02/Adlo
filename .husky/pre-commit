@@ -38,9 +38,13 @@ echo "[pre-commit] 提示：编辑源码/文档请用 edit/write 工具；禁止
 STEP="node --check"
 MJSFILES="$(echo "$STAGED" | grep -E '^adlo/.*\.mjs$' || true)"
 if [ -n "$MJSFILES" ]; then
-  echo "$MJSFILES" | xargs -d '\n' -I{} sh -c 'node --check "$1"' _ {}
+  # 不用 xargs：MSYS 下 sysconf(_SC_ARG_MAX) 偏小时，xargs 初始化会断言失败
+  # （bc_ctl.arg_max >= LINE_MAX），钩子在“改了 .mjs”时反而 100% 中断。
+  echo "$MJSFILES" | while IFS= read -r FILE; do
+    [ -n "$FILE" ] && node --check "$FILE"
+  done
   STEP="script lint"
-  ( cd "$ROOT" && echo "$MJSFILES" | xargs -d '\n' node adlo/scripts/check-script-lint.mjs )
+  ( cd "$ROOT" && node adlo/scripts/check-script-lint.mjs $MJSFILES )
 else
   echo "[pre-commit] node --check: no staged .mjs files, skipped"
 fi
