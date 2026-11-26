@@ -186,6 +186,26 @@ test("third-party skills stay out of git in all three skill trees", () => {
   );
 });
 
+test("agent memory stays out of git and stays ignored", () => {
+  const tracked = execFileSync("git", ["ls-files", ".workbuddy/memory"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  })
+    .split("\n")
+    .map((file) => file.trim())
+    .filter(Boolean);
+  assert.deepEqual(
+    tracked,
+    [],
+    ".workbuddy/memory is a per-machine log: keep it untracked (parallel worktrees share these paths)",
+  );
+
+  const ignored = spawnSync("git", ["check-ignore", "-q", ".workbuddy/memory/2099-01-01.md"], {
+    cwd: repoRoot,
+  });
+  assert.equal(ignored.status, 0, ".workbuddy/memory/ must be listed in .gitignore");
+});
+
 test("no tracked files live in nested .agents directories", () => {
   const tracked = execFileSync("git", ["ls-files"], { cwd: repoRoot, encoding: "utf8" })
     .split("\n")
