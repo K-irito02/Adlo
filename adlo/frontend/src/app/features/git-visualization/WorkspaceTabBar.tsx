@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useMouseDragReorder } from './hooks/useMouseDragReorder';
-import { visibleGitWorkspaces } from './gitVisualizationWorkspaces';
+import { reconcileTabOrder, visibleGitWorkspaces } from './gitVisualizationWorkspaces';
 
 const TAB_WIDTH = 120;
 const TAB_GAP = 4;
@@ -36,7 +36,18 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar({
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [visibleTabs, setVisibleTabs] = useState(workspaceTabs.length);
-  const [tabOrder, setTabOrder] = useState(() => workspaceTabs.map((t) => t.id));
+  // User drag order only; the rendered order is reconciled below against the
+  // current visible workspaces so a workspace added while the panel is open
+  // shows up without remounting the view.
+  const [userTabOrder, setUserTabOrder] = useState(() => workspaceTabs.map((t) => t.id));
+  const tabOrder = React.useMemo(
+    () =>
+      reconcileTabOrder(
+        userTabOrder,
+        workspaceTabs.map((t) => t.id),
+      ),
+    [userTabOrder, workspaceTabs],
+  );
 
   const recalc = useCallback(() => {
     const container = containerRef.current;
@@ -88,7 +99,7 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar({
 
   const { draggedId, overId, handleMouseDown } = useMouseDragReorder(
     tabOrder,
-    setTabOrder,
+    setUserTabOrder,
     isOverflowed
       ? {
           containerRef: scrollRef,

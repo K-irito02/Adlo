@@ -9,3 +9,22 @@ import type { RecentWorkspaceEntry } from '@shared/ipc';
 export function visibleGitWorkspaces(workspaces: RecentWorkspaceEntry[]): RecentWorkspaceEntry[] {
   return workspaces.filter((workspace) => !workspace.removedFromSidebar);
 }
+
+/**
+ * 把用户拖拽后的标签顺序与「当前可见工作区」对齐：
+ * - 保留已有 id 的相对顺序；
+ * - 按可见清单顺序追加新出现的工作区（新增/重新显示）；
+ * - 丢弃已不存在或已隐藏的 id。
+ *
+ * 无变化时返回原引用，避免 useMemo / state 无谓更新。
+ */
+export function reconcileTabOrder(order: string[], visibleIds: string[]): string[] {
+  const visible = new Set(visibleIds);
+  const kept = order.filter((id) => visible.has(id));
+  const keptIds = new Set(kept);
+  const added = visibleIds.filter((id) => !keptIds.has(id));
+  if (added.length === 0 && kept.length === order.length) {
+    return order;
+  }
+  return [...kept, ...added];
+}

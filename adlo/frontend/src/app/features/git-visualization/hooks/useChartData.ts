@@ -33,16 +33,21 @@ export function useChartData(chartId: string): {
   const chartTimeRange = wsTimeRange?.[chartId];
 
   const timeRange = chartTimeRange;
-  const initializedRef = useRef(false);
+  // Guard against re-writing the same workspace on every render. A plain boolean
+  // guard stopped ALL re-initialization, which dropped the default range for any
+  // workspace the active tab resolved to after the first one — the chart's
+  // TimeRangeSelector then did not render.
+  const initializedWorkspaceRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (initializedRef.current) {
+    if (!TIME_RANGE_CHARTS.has(chartId) || chartTimeRange || !activeWorkspaceTab) {
       return;
     }
-    if (TIME_RANGE_CHARTS.has(chartId) && !chartTimeRange && activeWorkspaceTab) {
-      initializedRef.current = true;
-      setGitVisTimeRange(activeWorkspaceTab, chartId, defaultTimeRange());
+    if (initializedWorkspaceRef.current === activeWorkspaceTab) {
+      return;
     }
+    initializedWorkspaceRef.current = activeWorkspaceTab;
+    setGitVisTimeRange(activeWorkspaceTab, chartId, defaultTimeRange());
   }, [chartId, chartTimeRange, activeWorkspaceTab, setGitVisTimeRange]);
   const setTimeRange = useCallback(
     (range: TimeRangeState) => setGitVisTimeRange(activeWorkspaceTab, chartId, range),

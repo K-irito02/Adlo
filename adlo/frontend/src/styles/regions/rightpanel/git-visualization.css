@@ -223,6 +223,11 @@
   white-space: nowrap;
   max-width: 130px;
   vertical-align: top;
+  /* The label button sets line-height: 1 for a compact pill. Once inherited here,
+     the 1em line box is shorter than the font's ascent + descent, so `overflow:
+     hidden` clips descenders — "gitee/…" rendered as "qitee/…". `normal` uses the
+     font's own line box, which always contains the full glyph. */
+  line-height: normal;
 }
 
 .adl-author-avatar {

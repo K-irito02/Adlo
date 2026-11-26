@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { WorkspaceTabBar } from './WorkspaceTabBar';
 
 const mockSetActiveWorkspaceTab = vi.fn();
-const mockRecentWorkspaces: {
+let mockRecentWorkspaces: {
   id: string;
   name: string;
   rootPath: string;
@@ -47,12 +47,10 @@ vi.mock('@i18n/useTCopy', () => ({
 afterEach(() => {
   cleanup();
   mockSetActiveWorkspaceTab.mockClear();
-  // 隐藏工作区用例会临时追加条目。
-  for (let index = mockRecentWorkspaces.length - 1; index >= 0; index -= 1) {
-    if (mockRecentWorkspaces[index].removedFromSidebar) {
-      mockRecentWorkspaces.splice(index, 1);
-    }
-  }
+  // 隐藏工作区 / 新增工作区用例会临时追加条目。
+  mockRecentWorkspaces = mockRecentWorkspaces.filter(
+    (workspace) => !workspace.removedFromSidebar && workspace.id !== 'workspace-new',
+  );
 });
 
 describe('WorkspaceTabBar', () => {
@@ -127,5 +125,34 @@ describe('WorkspaceTabBar', () => {
     // 隐藏根不产生标签，也不会改变可见标签的数量。
     expect(container.querySelectorAll('.adl-workspace-tab__tab').length).toBe(27);
     expect(container.textContent).not.toContain('Hidden Downloads');
+  });
+
+  it('shows a workspace added after mount without unmounting the view', async () => {
+    const { container, rerender } = render(<WorkspaceTabBar rightExtra={<i>v1</i>} />);
+    expect(container.querySelectorAll('.adl-workspace-tab__tab').length).toBe(27);
+
+    mockRecentWorkspaces = [
+      ...mockRecentWorkspaces,
+      {
+        id: 'workspace-new',
+        name: 'New Workspace',
+        rootPath: '/path/workspace-new',
+        path: '/path/workspace-new',
+        lastOpenedAt: Date.now(),
+        isPinned: false,
+        pinnedOrder: 0,
+        unpinnedOrder: 27,
+        removedFromSidebar: false,
+        available: true,
+      },
+    ];
+    // `React.memo` skips a rerender with identical props; bump rightExtra so the
+    // tab bar actually recomputes (in the app the store subscription drives it).
+    rerender(<WorkspaceTabBar rightExtra={<i>v2</i>} />);
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('.adl-workspace-tab__tab').length).toBe(28);
+    });
+    expect(container.textContent).toContain('New Workspace');
   });
 });
