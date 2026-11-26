@@ -232,6 +232,6 @@ __pycache__/
 .trae/skills/writing-skills/
 
 # Agent daily memory（每台机器本地的会话日志）
-# 分支工作树共享且被 git 跟踪的记忆目录在并行开发时必然冲突（parallel-branch-development §5.1），
+# 分支工作树共享且被 git 跟踪的记忆目录在并行开发时会冲突（parallel-branch-development §5.1），
 # 因此不入库；文件仍留在本机各工作树的 .workbuddy/memory/ 下。
 .workbuddy/memory/

@@ -87,7 +87,7 @@ function listFiles(root, base = "") {
   for (const entry of fs.readdirSync(path.join(root, base), { withFileTypes: true })) {
     const rel = base ? `${base}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      // VCS metadata never belongs to a skill: root-level skill repos carry a
+      // VCS metadata does not belong to a skill: root-level skill repos carry a
       // `.git` after cloning, and copying it would both bloat the tree and make
       // the mirror digest unstable.
       if (entry.name === ".git") {
@@ -368,7 +368,7 @@ async function restoreCommand(options) {
         restored.push(name);
       }
     } catch (error) {
-      // A single unreachable repo must not abort the whole restore.
+      // A repo that cannot be reached should not abort the whole restore.
       console.log(`FAILED ${name}: ${error.message}`);
     }
   }
