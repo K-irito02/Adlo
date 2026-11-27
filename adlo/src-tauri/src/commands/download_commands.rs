@@ -416,6 +416,89 @@ pub fn download_cancel(
     Ok(ipc(Ok(())))
 }
 
+/// 重新下载：复用原记录（而非新建），在 `tab_id` 标签页导航到原 URL 触发
+/// WebView2 的 `DownloadStarting`，由 `setup_download_handler` 经
+/// `begin_download_record` 命中 pending 后走 `reset_for_redownload` 重置原记录。
+/// 导航失败时清理已登记的 pending，避免后续同名下载被错误归属。
+#[tauri::command]
+pub fn download_redownload(
+    state: State<'_, AppState>,
+    id: String,
+    tab_id: String,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::info!(id = %id, tab_id = %tab_id, "[ADL-DL] download_redownload called");
+
+    let record = state
+        .download_manager
+        .list_downloads()
+        .map_err(map_download_err)?
+        .into_iter()
+        .find(|r| r.id == id)
+        .ok_or_else(|| AppError::NotFound(format!("Record not found: {id}")))?;
+
+    // 正在下载的记录不能"重新下载"（应走 resume），直接拒绝。
+    if record.status == DownloadStatus::InProgress {
+        return Err(map_download_err(
+            "Download is already in progress and cannot be re-downloaded".to_string(),
+        )
+        .into());
+    }
+
+    if !record.url.starts_with("http://") && !record.url.starts_with("https://") {
+        return Err(map_download_err(format!(
+            "Cannot re-download a non-http(s) URL: {}",
+            record.url
+        ))
+        .into());
+    }
+
+    state
+        .download_manager
+        .register_pending_redownload(&record.id, Some(&tab_id), &record.url)
+        .map_err(map_download_err)?;
+
+    if let Err(e) = state.browser_manager.navigate_tab(&tab_id, &record.url) {
+        // 导航失败：清理 pending（精确匹配即消费当前这一条）。
+        let _ = state.download_manager.take_pending_redownload(Some(&tab_id), &record.url);
+        return Err(map_download_err(format!("Failed to navigate tab for re-download: {e}")).into());
+    }
+
+    Ok(ipc(Ok(())))
+}
+
+/// 无活动 tab 时的重新下载回退：只登记 pending（`tab_id=None`），由前端打开
+/// 新标签页导航到原 URL；`begin_download_record` 经唯一 pending 兜底匹配。
+#[tauri::command]
+pub fn download_prepare_redownload(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::info!(id = %id, "[ADL-DL] download_prepare_redownload called");
+
+    let record = state
+        .download_manager
+        .list_downloads()
+        .map_err(map_download_err)?
+        .into_iter()
+        .find(|r| r.id == id)
+        .ok_or_else(|| AppError::NotFound(format!("Record not found: {id}")))?;
+
+    if !record.url.starts_with("http://") && !record.url.starts_with("https://") {
+        return Err(map_download_err(format!(
+            "Cannot re-download a non-http(s) URL: {}",
+            record.url
+        ))
+        .into());
+    }
+
+    state
+        .download_manager
+        .register_pending_redownload(&record.id, None, &record.url)
+        .map_err(map_download_err)?;
+
+    Ok(ipc(Ok(())))
+}
+
 /// 保存页面 blob 下载（WebView2 `save-blob` postMessage 桥接的落盘入口）。
 /// 文件名净化、base64 解码、冲突路径解析与下载记录生命周期都在这里。
 ///

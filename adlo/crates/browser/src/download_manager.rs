@@ -194,6 +194,20 @@ fn cleanup_orphaned_tmp_files(file_path: &str, grace_secs: u64) {
     }
 }
 
+/// How long a pending re-download request stays valid before it is ignored.
+const REDOWNLOAD_PENDING_TTL: std::time::Duration = std::time::Duration::from_secs(15);
+
+/// A pending re-download request awaiting the WebView2 download to actually
+/// start. Registered by the `download_redownload` / `download_prepare_redownload`
+/// commands and consumed by `begin_download_record` once the handler resolves the
+/// final path, so the existing record is reused instead of a new one being created.
+pub(crate) struct PendingRedownload {
+    pub record_id: String,
+    pub tab_id: Option<String>,
+    pub url: String,
+    pub expires_at: Instant,
+}
+
 #[derive(Clone)]
 pub struct DownloadManager {
     db: Database,
@@ -237,6 +251,9 @@ pub struct DownloadManager {
     /// 路径变更串行锁：`change_default_path` 读-迁-写三步非原子，并发调用会交错
     ///（A 读旧 A → B/C 同迁）；UI 侧 busy 互斥承担主要串行化，此处再加实例锁兜底。
     migration_lock: Arc<Mutex<()>>,
+    /// 待处理的重下请求（同一时刻至多一条未过期）。由
+    /// `register_pending_redownload` 写入、`take_pending_redownload` 消费。
+    pending_redownload: Arc<Mutex<Option<PendingRedownload>>>,
 }
 
 #[allow(dead_code)]
@@ -254,6 +271,7 @@ impl DownloadManager {
             range_resume_inflight: Arc::new(Mutex::new(std::collections::HashSet::new())),
             default_dir_override: Arc::new(Mutex::new(None)),
             migration_lock: Arc::new(Mutex::new(())),
+            pending_redownload: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -1029,6 +1047,99 @@ impl DownloadManager {
 
         let _ = fs::create_dir_all(target.parent().unwrap_or(&default_dir));
         self.resolve_conflict_path(target.to_string_lossy().as_ref())
+    }
+
+    /// Register a pending re-download request. At most one unexpired pending may
+    /// exist at a time — a second registration while an unexpired pending is
+    /// still present is rejected so a stale request can never shadow a newer one.
+    pub fn register_pending_redownload(
+        &self,
+        record_id: &str,
+        tab_id: Option<&str>,
+        url: &str,
+    ) -> Result<(), String> {
+        let mut guard = self
+            .pending_redownload
+            .lock()
+            .map_err(|_| "pending_redownload mutex poisoned".to_string())?;
+        if let Some(existing) = guard.as_ref() {
+            if existing.expires_at > Instant::now() {
+                return Err("another re-download is already pending".to_string());
+            }
+        }
+        *guard = Some(PendingRedownload {
+            record_id: record_id.to_string(),
+            tab_id: tab_id.map(|s| s.to_string()),
+            url: url.to_string(),
+            expires_at: Instant::now() + REDOWNLOAD_PENDING_TTL,
+        });
+        Ok(())
+    }
+
+    /// Consume and return the pending re-download record id, if any.
+    ///
+    /// The exact `(tab_id, url)` match wins; otherwise the unique unexpired
+    /// pending is returned as a fallback (covering URL redirects and the
+    /// no-active-tab prepare path). `register_pending_redownload` enforces at
+    /// most one unexpired pending, so "unique" is always satisfied here.
+    /// Expired pendings are dropped and treated as absent.
+    pub fn take_pending_redownload(&self, tab_id: Option<&str>, url: &str) -> Option<String> {
+        let mut guard = self.pending_redownload.lock().ok()?;
+        let pending = guard.as_ref()?;
+
+        if pending.expires_at <= Instant::now() {
+            *guard = None;
+            return None;
+        }
+
+        // Stage 1: exact `(tab_id, url)` match. Stage 2 (fallback): the unique
+        // unexpired pending. Because pending storage is a single slot guarded by
+        // `register_pending_redownload`, both stages resolve to the same pending
+        // id here — the two-stage contract only diverges if storage ever becomes
+        // a multi-entry map.
+        let exact = pending.tab_id.as_deref() == tab_id && pending.url == url;
+        let record_id = pending.record_id.clone();
+        *guard = None;
+        if exact {
+            return Some(record_id);
+        }
+        Some(record_id)
+    }
+
+    /// Reuse an existing download record for a re-download: keep the same id,
+    /// remove any stale `.crdownload` for the new target, and reset every
+    /// per-attempt field so the record reflects a fresh in-progress download.
+    pub fn reset_for_redownload(
+        &self,
+        id: &str,
+        file_path: &str,
+        source_tab_id: Option<&str>,
+    ) -> Result<DownloadRecord, String> {
+        // Drop a stale temp file at the new target so WebView2 starts clean.
+        let temp = format!("{}.crdownload", file_path);
+        if Path::new(&temp).exists() {
+            let _ = fs::remove_file(&temp);
+        }
+
+        let file_name = derive_file_name("", file_path);
+        let conn = self.db.conn().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE download_history SET status = ?1, bytes_received = 0, created_at = ?2, \
+             completed_at = NULL, interrupt_reason = NULL, auto_resume_count = 0, etag = NULL, \
+             last_modified = NULL, file_path = ?3, file_name = ?4, source_tab_id = ?5 \
+             WHERE id = ?6",
+            rusqlite::params![
+                DownloadStatus::InProgress.as_str(),
+                Utc::now().timestamp(),
+                file_path,
+                file_name,
+                source_tab_id,
+                id,
+            ],
+        )
+        .map_err(|e| format!("Failed to reset download record for re-download: {}", e))?;
+
+        self.get_record(id)
     }
 
     pub fn create_download(
@@ -3651,5 +3762,125 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         let _ =
             fs::remove_file(std::env::temp_dir().join("adl-download-mgr-file-states-prefix.db"));
+    }
+
+    #[test]
+    fn reset_for_redownload_reuses_id_and_resets_fields() {
+        let db = temp_db("redownload-reset");
+        let mgr = DownloadManager::new(db.clone());
+        let dir = std::env::temp_dir().join("adl-redownload-reset");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let record = mgr
+            .create_download(
+                "https://example.com/file.zip",
+                dir.join("old-file.zip").to_string_lossy().as_ref(),
+                Some("tab-old".to_string()),
+            )
+            .expect("create should succeed");
+
+        // Seed a completed record with stale per-attempt fields (including a past
+        // created_at) so the reset's field-clearing is observable.
+        {
+            let conn = db.conn().expect("conn");
+            conn.execute(
+                "UPDATE download_history SET status = 'completed', bytes_received = 2048, \
+                 interrupt_reason = 'UserPaused', created_at = 0, completed_at = 123, \
+                 auto_resume_count = 3, etag = '\"etag\"', last_modified = 'Mon, 01 Jan 2024 00:00:00 GMT' \
+                 WHERE id = ?1",
+                rusqlite::params![record.id],
+            )
+            .expect("seed completed state");
+        }
+
+        let new_path_str = dir.join("new-file.zip").to_string_lossy().into_owned();
+        let stale_temp = dir.join("new-file.zip.crdownload");
+        std::fs::write(&stale_temp, b"stale").expect("write stale crdownload");
+
+        let reset = mgr
+            .reset_for_redownload(&record.id, &new_path_str, Some("tab-new"))
+            .expect("reset should succeed");
+
+        assert_eq!(reset.id, record.id, "record id must be reused");
+        assert_eq!(reset.status, DownloadStatus::InProgress);
+        assert_eq!(reset.bytes_received, 0);
+        assert!(reset.created_at > 0, "created_at must be refreshed");
+        assert_eq!(reset.completed_at, None);
+        assert_eq!(reset.interrupt_reason, None);
+        assert_eq!(reset.file_path, new_path_str);
+        assert_eq!(reset.file_name, "new-file.zip");
+        assert_eq!(reset.auto_resume_count, 0);
+        assert_eq!(reset.etag, None);
+        assert_eq!(reset.last_modified, None);
+        assert_eq!(reset.source_tab_id.as_deref(), Some("tab-new"));
+        assert!(!stale_temp.exists(), "stale .crdownload at the new path must be removed");
+
+        let list = mgr.list_downloads().expect("list should succeed");
+        assert_eq!(list.len(), 1, "reuse must not create a second record");
+        assert_eq!(list[0].id, record.id);
+        assert_eq!(list[0].status, DownloadStatus::InProgress);
+
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ =
+            std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-redownload-reset.db"));
+    }
+
+    #[test]
+    fn pending_redownload_is_unique_and_consumed() {
+        let db = temp_db("redownload-pending-unique");
+        let mgr = DownloadManager::new(db);
+        mgr.register_pending_redownload("rec-1", Some("tab-1"), "https://example.com/a.zip")
+            .expect("first register should succeed");
+        let second = mgr.register_pending_redownload("rec-2", None, "https://example.com/b.zip");
+        assert!(second.is_err(), "a second unexpired pending must be rejected");
+
+        let taken = mgr.take_pending_redownload(Some("tab-1"), "https://example.com/a.zip");
+        assert_eq!(taken.as_deref(), Some("rec-1"), "exact match must return the pending id");
+
+        let again = mgr.take_pending_redownload(Some("tab-1"), "https://example.com/a.zip");
+        assert!(again.is_none(), "pending must be consumed after take");
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-redownload-pending-unique.db"),
+        );
+    }
+
+    #[test]
+    fn pending_redownload_expires() {
+        let db = temp_db("redownload-pending-expires");
+        let mgr = DownloadManager::new(db);
+        mgr.register_pending_redownload("rec-1", None, "https://example.com/a.zip")
+            .expect("register should succeed");
+
+        // Inject an expired timestamp directly (same module → private field access).
+        {
+            let mut guard = mgr.pending_redownload.lock().expect("pending mutex");
+            let pending = guard.as_mut().expect("pending should exist");
+            pending.expires_at = Instant::now() - std::time::Duration::from_secs(1);
+        }
+
+        let taken = mgr.take_pending_redownload(None, "https://example.com/a.zip");
+        assert!(taken.is_none(), "expired pending must not be returned");
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-redownload-pending-expires.db"),
+        );
+    }
+
+    #[test]
+    fn pending_redownload_unique_fallback_on_url_mismatch() {
+        let db = temp_db("redownload-pending-fallback");
+        let mgr = DownloadManager::new(db);
+        mgr.register_pending_redownload("rec-1", None, "https://example.com/a.zip")
+            .expect("register should succeed");
+
+        let taken = mgr.take_pending_redownload(Some("tab-9"), "https://example.com/different.zip");
+        assert_eq!(
+            taken.as_deref(),
+            Some("rec-1"),
+            "unique unexpired pending must be returned as fallback on url mismatch"
+        );
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-redownload-pending-fallback.db"),
+        );
     }
 }

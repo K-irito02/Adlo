@@ -5,6 +5,22 @@ use tauri::{AppHandle, Emitter};
 use tauri_plugin_dialog::DialogExt;
 
 use super::download_manager::{DownloadManager, derive_file_name, get_default_download_path};
+use super::download_types::DownloadRecord;
+
+/// Bridge for creating a download record that reuses a pending re-download's
+/// record (reset) instead of always creating a fresh one. Called from
+/// `setup_download_handler` once the Ask/Auto final path is known.
+fn begin_download_record(
+    manager: &DownloadManager,
+    url: &str,
+    final_path: &str,
+    source_tab_id: Option<&str>,
+) -> Result<DownloadRecord, String> {
+    match manager.take_pending_redownload(source_tab_id, url) {
+        Some(record_id) => manager.reset_for_redownload(&record_id, final_path, source_tab_id),
+        None => manager.create_download(url, final_path, source_tab_id.map(|s| s.to_string())),
+    }
+}
 
 pub fn setup_download_handler(
     app_handle: AppHandle,
@@ -161,7 +177,7 @@ pub fn setup_download_handler(
         // cleaned up as a clearly-incomplete temp file.
         *destination = PathBuf::from(format!("{final_path}.crdownload"));
 
-        match manager.create_download(&url, &final_path, source_tab_id.clone()) {
+        match begin_download_record(&manager, &url, &final_path, source_tab_id.as_deref()) {
             Ok(record) => {
                 tracing::debug!(
                     url = &url,
@@ -441,7 +457,7 @@ pub fn create_download_manager(db: adl_storage::Database) -> Arc<DownloadManager
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::download_types::DownloadMode;
+    use crate::download_types::{DownloadMode, DownloadStatus};
 
     fn temp_db(name: &str) -> adl_storage::Database {
         let path = std::env::temp_dir().join(format!("adl-download-handler-{}.db", name));
@@ -460,5 +476,54 @@ mod tests {
         assert_eq!(settings.mode, DownloadMode::Auto);
         let _ =
             std::fs::remove_file(std::env::temp_dir().join("adl-download-handler-manager-arc.db"));
+    }
+
+    #[test]
+    fn begin_download_record_resets_pending() {
+        let db = temp_db("begin-reset");
+        let mgr = create_download_manager(db.clone());
+        let record = mgr
+            .create_download("https://example.com/file.zip", "/tmp/old.zip", None)
+            .expect("create should succeed");
+        mgr.complete_download(&record.id, true, None).expect("complete should succeed");
+        mgr.register_pending_redownload(&record.id, None, "https://example.com/file.zip")
+            .expect("register pending");
+
+        let out = begin_download_record(
+            &mgr,
+            "https://example.com/file.zip",
+            "/tmp/new.zip",
+            Some("tab-1"),
+        )
+        .expect("begin should succeed");
+
+        assert_eq!(out.id, record.id, "pending path must reuse the original record id");
+        assert_eq!(out.file_path, "/tmp/new.zip");
+
+        assert!(
+            mgr.take_pending_redownload(None, "https://example.com/file.zip").is_none(),
+            "pending must be consumed by begin_download_record"
+        );
+
+        let list = mgr.list_downloads().expect("list should succeed");
+        assert_eq!(list.len(), 1, "reuse must not create a second record");
+        let _ =
+            std::fs::remove_file(std::env::temp_dir().join("adl-download-handler-begin-reset.db"));
+    }
+
+    #[test]
+    fn begin_download_record_creates_new_without_pending() {
+        let db = temp_db("begin-create");
+        let mgr = create_download_manager(db);
+        let out = begin_download_record(&mgr, "https://example.com/file.zip", "/tmp/new.zip", None)
+            .expect("begin should succeed");
+        assert_eq!(out.file_path, "/tmp/new.zip");
+        assert_eq!(out.status, DownloadStatus::InProgress);
+
+        let list = mgr.list_downloads().expect("list should succeed");
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].id, out.id);
+        let _ =
+            std::fs::remove_file(std::env::temp_dir().join("adl-download-handler-begin-create.db"));
     }
 }

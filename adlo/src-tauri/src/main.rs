@@ -237,6 +237,8 @@ fn main() {
             commands::download_commands::download_pause,
             commands::download_commands::download_resume,
             commands::download_commands::download_cancel,
+            commands::download_commands::download_redownload,
+            commands::download_commands::download_prepare_redownload,
             commands::platform::workspace_open_in_file_manager,
             commands::platform::platform_open_path,
             commands::port_scan::browser_scan_ports,
