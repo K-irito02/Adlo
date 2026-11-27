@@ -45,12 +45,12 @@
 - Produces: `parseArgs`, `buildPaths`, `runWorker`, `startLogged`, `waitLogged`, `statusLogged`, `tailLogged`.
 - CLI: `run:logged start|wait|status|tail --name <name> -- <command>`.
 
-- [ ] Write tests for argument parsing, log/result paths, tail bounding, worker success/failure exit codes, and missing result behavior.
-- [ ] Run `node --test adlo/scripts/run-logged.test.mjs` and verify failures.
-- [ ] Implement detached worker + result JSON + wait/status/tail commands.
-- [ ] Add `run:logged`, `check:all:log`, `release:build:log`, `wait:logged` package scripts.
-- [ ] Point quality/release docs to logged commands.
-- [ ] Run focused tests and `check:script-lint`.
+- [x] Write tests for argument parsing, log/result paths, tail bounding, worker success/failure exit codes, and missing result behavior.
+- [x] Run `node --test adlo/scripts/run-logged.test.mjs` and verify failures.
+- [x] Implement detached worker + result JSON + wait/status/tail commands.
+- [x] Add `run:logged`, `check:all:log`, `release:build:log`, `wait:logged` package scripts.
+- [x] Point quality/release docs to logged commands.
+- [x] Run focused tests and `check:script-lint`.
 
 ### Task 2: Review report artifact CLI
 
@@ -65,12 +65,12 @@
 - Produces: `createReport`, `validateReport`.
 - CLI: `review:report create <path> --scope <scope> --phase <r1|r2> --rev <n>` and `review:report check <path>`.
 
-- [ ] Write tests for skeleton creation, exact zero line, non-zero counts, malformed counts, missing sections, and missing file.
-- [ ] Run focused tests and verify red.
-- [ ] Implement create/check commands with non-zero exit on invalid artifacts.
-- [ ] Add `review:report` package script.
-- [ ] Update review contract to require artifact check before `check-review-gate`.
-- [ ] Run focused tests.
+- [x] Write tests for skeleton creation, exact zero line, non-zero counts, malformed counts, missing sections, and missing file.
+- [x] Run focused tests and verify red.
+- [x] Implement create/check commands with non-zero exit on invalid artifacts.
+- [x] Add `review:report` package script.
+- [x] Update review contract to require artifact check before `check-review-gate`.
+- [x] Run focused tests.
 
 ### Task 3: Local signed-package automation
 

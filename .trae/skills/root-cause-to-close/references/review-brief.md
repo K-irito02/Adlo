@@ -116,7 +116,7 @@ pnpm --dir frontend run check:changed
 
 **报告前缀由当前阶段决定，不由审查内容决定**：针对 R1 finding 的定向确认仍写 `<scope>-r1-rev<N>-report.md`；只有 `check-review-gate.mjs --phase r2` 通过后，才写 `<scope>-r2-rev<N>-report.md`。把 R1 复核写成 r2 会让门控继续读到 R1 非零（2026-11-22 实测：多花一轮三份确认）。
 
-写入主代理指定的 `.review-diffs/<scope>-r1-rev<N>-report.md`（R2 用 `<scope>-r2-rev<N>-report.md`），包含：
+写入主代理指定的 `.review-diffs/<scope>-r1-rev<N>-report.md`（R2 用 `<scope>-r2-rev<N>-report.md`）。主代理可先用 `pnpm --dir adlo run review:report -- create <path> --scope <scope> --phase <r1|r2> --rev <N>` 生成骨架；子代理只在该文件写入内容。报告必须包含：
 
 ```
 ## 范围
@@ -140,7 +140,7 @@ pnpm --dir frontend run check:changed
 - **复审收敛（rev≥2）**：主表只收「上一轮主表 finding 未关闭」与「本次修复引入的回归 / 契约错误」；更早的 pre-existing low 放「记录不修」（除非会改变行为或事实）。目标是把零问题收敛到修复质量，而不是无限挖历史旁支。
 - **同一 rev 批量修低危项**：R1/R2 的多条 low 在同一轮一次修完，下一轮只对已修项做定向复核；禁止一项一个 rev（2026-11-22 实测：R2 的注释/测试锁类 low 分散修导致 rev2→rev6 五个快照）。
 
-返回消息只给：报告路径 + ≤5 行摘要 + 「需修复项：N」。
+返回消息只给：报告路径 + ≤5 行摘要 + 「需修复项：N」。主代理收到后必须先运行 `pnpm --dir adlo run review:report -- check <报告路径>`，确认文件实际存在、必要章节齐全、结论行合法，再运行 `check-review-gate`；子代理的口头“已写入”不算物证。
 
 ## 7. 不修理由
 

@@ -28,6 +28,7 @@
     "serve:server": "node ./scripts/serve-adl-server.mjs",
     "test:env-path": "cargo test -p adl-server --test env_path_cli",
     "review:snapshot": "node ./scripts/review-snapshot.mjs",
+    "review:report": "node ./scripts/review-report.mjs",
     "check:review-gate": "node ./scripts/check-review-gate.mjs --phase r2",
     "check:rust:changed": "node ./scripts/check-rust-changed.mjs",
     "build": "cargo tauri build",
