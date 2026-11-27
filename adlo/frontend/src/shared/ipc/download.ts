@@ -26,6 +26,19 @@ export interface DownloadFileState {
   error: string | null;
 }
 
+export interface DownloadFileStatesInput {
+  ids: string[];
+}
+
+export interface DownloadRedownloadInput {
+  id: string;
+  tabId: string;
+}
+
+export interface DownloadPrepareRedownloadInput {
+  id: string;
+}
+
 export interface DownloadSettings {
   mode: DownloadMode;
   default_path: string;

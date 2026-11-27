@@ -3,6 +3,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { StoreState } from '../StoreState';
 import type {
   DownloadRecord,
+  DownloadFileState,
   DownloadSettings,
   DownloadProgress,
   DownloadProgressPayload,
@@ -10,6 +11,9 @@ import type {
   DownloadFinishedPayload,
   DownloadIdPayload,
   DownloadPauseResult,
+  DownloadFileStatesInput,
+  DownloadRedownloadInput,
+  DownloadPrepareRedownloadInput,
 } from '@shared/ipc/download';
 import type { IpcResult } from '@adlo/kernel';
 import { buildTabsById } from './browserFoldersUtils';
@@ -54,6 +58,9 @@ export function updateTabsForDownloadState(
  */
 export const DOWNLOAD_REFRESH_FAILED = 'REFRESH_FAILED';
 
+/** Fallback timers for the transient redownloading spinner; keyed by download id. */
+const redownloadTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 export interface BrowserDownloadsSlice {
   downloads: DownloadRecord[];
   downloadSettings: DownloadSettings;
@@ -68,8 +75,14 @@ export interface BrowserDownloadsSlice {
    * 无此标记则无法区分"未知"与"默认"，恢复按钮 fail-open 依赖它。
    */
   downloadSettingsLoaded: boolean;
+  /** 文件系统状态缓存（id → DownloadFileState），由事件/删除动作失效。 */
+  downloadFileStates: Record<string, DownloadFileState>;
+  /** 当前正在“重新下载”流程中的下载 id 集合；15s 超时或动作完成时清理。 */
+  redownloadingIds: ReadonlySet<string>;
 
   fetchDownloads: () => Promise<void>;
+  refreshDownloadFileStates: (ids?: string[]) => Promise<void>;
+  redownloadDownload: (id: string, tabId?: string) => Promise<IpcResult<void>>;
   fetchDownloadSettings: () => Promise<boolean>;
   fetchSystemDefaultDownloadPath: () => Promise<void>;
   updateDownloadSettings: (
@@ -103,6 +116,8 @@ export const createBrowserDownloadsSlice = (
   isLoadingDownloads: false,
   isLoadingSettings: false,
   downloadSettingsLoaded: false,
+  downloadFileStates: {},
+  redownloadingIds: new Set<string>(),
 
   fetchDownloads: async () => {
     set({ isLoadingDownloads: true });
@@ -115,6 +130,89 @@ export const createBrowserDownloadsSlice = (
       // 非 Tauri 环境无该通道：保持空列表（与 fetchSystemDefaultDownloadPath 同口径）。
     } finally {
       set({ isLoadingDownloads: false });
+    }
+  },
+
+  refreshDownloadFileStates: async (ids?: string[]) => {
+    if (!ids || ids.length === 0) {
+      return;
+    }
+    try {
+      const result = await invoke<IpcResult<DownloadFileState[]>>('download_file_states', {
+        ids,
+      } satisfies DownloadFileStatesInput);
+      if (result.ok) {
+        set((state) => {
+          const next = { ...state.downloadFileStates };
+          for (const fs of result.data) {
+            next[fs.id] = fs;
+          }
+          return { downloadFileStates: next };
+        });
+      }
+    } catch {
+      // 非 Tauri 环境无该通道：保持当前缓存。
+    }
+  },
+
+  redownloadDownload: async (id: string, tabId?: string) => {
+    set((state) => {
+      const next = new Set(state.redownloadingIds);
+      next.add(id);
+      return { redownloadingIds: next };
+    });
+
+    const existing = redownloadTimers.get(id);
+    if (existing !== undefined) {
+      clearTimeout(existing);
+    }
+    redownloadTimers.set(
+      id,
+      setTimeout(() => {
+        redownloadTimers.delete(id);
+        set((state) => {
+          const next = new Set(state.redownloadingIds);
+          next.delete(id);
+          return { redownloadingIds: next };
+        });
+      }, 15000),
+    );
+
+    try {
+      let result: IpcResult<void>;
+      if (tabId) {
+        result = await invoke<IpcResult<void>>('download_redownload', {
+          id,
+          tabId,
+        } satisfies DownloadRedownloadInput);
+      } else {
+        result = await invoke<IpcResult<void>>('download_prepare_redownload', {
+          id,
+        } satisfies DownloadPrepareRedownloadInput);
+        if (result.ok) {
+          const record = get().downloads.find((d) => d.id === id);
+          if (record) {
+            get().browserOpenTab(record.url);
+          }
+        }
+      }
+      return result;
+    } catch (e) {
+      return {
+        ok: false as const,
+        error: { code: 'Internal' as const, message: e instanceof Error ? e.message : String(e) },
+      };
+    } finally {
+      const timer = redownloadTimers.get(id);
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        redownloadTimers.delete(id);
+      }
+      set((state) => {
+        const next = new Set(state.redownloadingIds);
+        next.delete(id);
+        return { redownloadingIds: next };
+      });
     }
   },
 
@@ -208,27 +306,41 @@ export const createBrowserDownloadsSlice = (
   },
 
   clearDownloadHistory: async () => {
-    const result = await invoke<IpcResult<void>>('download_clear_history');
+    const result = await invoke<IpcResult<void>>('download_clear_history', {});
     if (result.ok) {
-      set({ downloads: [] });
+      set({ downloads: [], downloadFileStates: {}, redownloadingIds: new Set<string>() });
     }
   },
 
   deleteDownloadFile: async (id: string) => {
     const result = await invoke<IpcResult<void>>('download_delete_file_and_record', { id });
     if (result.ok) {
-      set((state) => ({
-        downloads: state.downloads.filter((d) => d.id !== id),
-      }));
+      set((state) => {
+        const { [id]: _removedFileState, ...nextFileStates } = state.downloadFileStates;
+        const nextRedownloadingIds = new Set(state.redownloadingIds);
+        nextRedownloadingIds.delete(id);
+        return {
+          downloads: state.downloads.filter((d) => d.id !== id),
+          downloadFileStates: nextFileStates,
+          redownloadingIds: nextRedownloadingIds,
+        };
+      });
     }
   },
 
   removeDownloadRecord: async (id: string) => {
     const result = await invoke<IpcResult<void>>('download_remove_record', { id });
     if (result.ok) {
-      set((state) => ({
-        downloads: state.downloads.filter((d) => d.id !== id),
-      }));
+      set((state) => {
+        const { [id]: _removedFileState, ...nextFileStates } = state.downloadFileStates;
+        const nextRedownloadingIds = new Set(state.redownloadingIds);
+        nextRedownloadingIds.delete(id);
+        return {
+          downloads: state.downloads.filter((d) => d.id !== id),
+          downloadFileStates: nextFileStates,
+          redownloadingIds: nextRedownloadingIds,
+        };
+      });
     }
   },
 
@@ -357,8 +469,16 @@ export const createBrowserDownloadsSlice = (
               t.id === record.source_tab_id ? { ...t, isDownloading: true } : t,
             )
           : state.browserTabs;
+        const existingIndex = state.downloads.findIndex((d) => d.id === record.id);
+        const nextDownloads =
+          existingIndex >= 0
+            ? state.downloads.map((d, i) => (i === existingIndex ? record : d))
+            : [record, ...state.downloads];
+        const { [record.id]: _removedFileState, ...nextFileStates } = state.downloadFileStates;
+        const nextRedownloadingIds = new Set(state.redownloadingIds);
+        nextRedownloadingIds.delete(record.id);
         return {
-          downloads: [record, ...state.downloads],
+          downloads: nextDownloads,
           activeDownloads: {
             ...state.activeDownloads,
             [record.id]: {
@@ -370,6 +490,8 @@ export const createBrowserDownloadsSlice = (
           },
           browserTabs: nextTabs,
           browserTabsById: buildTabsById(nextTabs),
+          downloadFileStates: nextFileStates,
+          redownloadingIds: nextRedownloadingIds,
         };
       });
     }).then((unsub) => {
@@ -387,6 +509,7 @@ export const createBrowserDownloadsSlice = (
       const payload = event.payload;
       set((state) => {
         const { [payload.id]: _removed, ...rest } = state.activeDownloads;
+        const { [payload.id]: _removedFileState, ...nextFileStates } = state.downloadFileStates;
         const newStatus = payload.success ? 'completed' : 'failed';
         // Find the download record to get source_tab_id
         const downloadRecord = state.downloads.find((d) => d.id === payload.id);
@@ -410,8 +533,14 @@ export const createBrowserDownloadsSlice = (
           downloads: nextDownloads,
           browserTabs: nextTabs,
           browserTabsById: buildTabsById(nextTabs),
+          downloadFileStates: nextFileStates,
         };
       });
+      if (payload.success) {
+        queueMicrotask(() => {
+          void get().refreshDownloadFileStates([payload.id]);
+        });
+      }
     }).then((unsub) => {
       if (active) {
         unsubs.push(unsub);
@@ -438,6 +567,7 @@ export const createBrowserDownloadsSlice = (
       }
       set((state) => {
         const { [payload.id]: _removed, ...rest } = state.activeDownloads;
+        const { [payload.id]: _removedFileState, ...nextFileStates } = state.downloadFileStates;
         // Find the download record to get source_tab_id
         const downloadRecord = state.downloads.find((d) => d.id === payload.id);
         const sourceTabId = downloadRecord?.source_tab_id;
@@ -457,6 +587,7 @@ export const createBrowserDownloadsSlice = (
           downloads: nextDownloads,
           browserTabs: nextTabs,
           browserTabsById: buildTabsById(nextTabs),
+          downloadFileStates: nextFileStates,
         };
       });
     }).then((unsub) => {
@@ -524,10 +655,12 @@ export const createBrowserDownloadsSlice = (
             : d,
         );
         const nextTabs = updateTabsForDownloadState(state.browserTabs, nextDownloads, sourceTabId);
+        const { [payload.id]: _removedFileState, ...nextFileStates } = state.downloadFileStates;
         return {
           downloads: nextDownloads,
           browserTabs: nextTabs,
           browserTabsById: buildTabsById(nextTabs),
+          downloadFileStates: nextFileStates,
         };
       });
     }).then((unsub) => {
@@ -552,6 +685,7 @@ export const createBrowserDownloadsSlice = (
         const nextTabs = sourceTabId
           ? state.browserTabs.map((t) => (t.id === sourceTabId ? { ...t, isDownloading: true } : t))
           : state.browserTabs;
+        const { [payload.id]: _removedFileState, ...nextFileStates } = state.downloadFileStates;
         return {
           downloads: state.downloads.map((d) =>
             d.id === payload.id
@@ -560,6 +694,7 @@ export const createBrowserDownloadsSlice = (
           ),
           browserTabs: nextTabs,
           browserTabsById: buildTabsById(nextTabs),
+          downloadFileStates: nextFileStates,
         };
       });
     }).then((unsub) => {
@@ -577,6 +712,7 @@ export const createBrowserDownloadsSlice = (
       const payload = event.payload;
       set((state) => {
         const { [payload.id]: _removed, ...rest } = state.activeDownloads;
+        const { [payload.id]: _removedFileState, ...nextFileStates } = state.downloadFileStates;
         // Find the download record to get source_tab_id
         const downloadRecord = state.downloads.find((d) => d.id === payload.id);
         const sourceTabId = downloadRecord?.source_tab_id;
@@ -592,6 +728,7 @@ export const createBrowserDownloadsSlice = (
           downloads: nextDownloads,
           browserTabs: nextTabs,
           browserTabsById: buildTabsById(nextTabs),
+          downloadFileStates: nextFileStates,
         };
       });
     }).then((unsub) => {
