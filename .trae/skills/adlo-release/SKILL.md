@@ -81,22 +81,12 @@ description: 发布 Adlo 桌面应用的新版本——三处版本号同步、G
 ## 只构建不发布（本地签名包）
 
 - 首次本地试用包可以保持当前版本（不 bump）；需要覆盖已安装版本或验证旧→新升级链路时，先 `release:bump X.Y.Z`。
-- 构建：
+- 一条命令完成旧包备份、构建、验签与按提交 SHA 归档：
   ```powershell
-  pnpm --dir adlo run release:build -- --local
+  pnpm --dir adlo run release:build:local
   ```
-  `--local` 在构建后把 exe / sig / SHA256SUMS.txt 复制到**仓库根** `.release/local/v<ver>/`（gitignored，不受 `cargo clean` 影响；不是 `adlo/.release/`），并打印版本、SHA-256 与安装提示。
-- 归档到固定目录（本机约定 `E:/AI-DIGITAL-LIFE/Adlo-builds/`，避免每次翻深层 `.release`）：
-  ```powershell
-  $ver = '0.1.0'                                   # 与 tauri.conf.json 保持一致
-  $sha = git rev-parse --short HEAD
-  $dest = "E:/AI-DIGITAL-LIFE/Adlo-builds/v$ver-$sha"
-  New-Item -ItemType Directory -Force $dest | Out-Null
-  Copy-Item ".release/local/v$ver/*" $dest
-  ```
-  目录名带短 SHA，用于区分「同版本、不同提交」的试用包；归档目录只放安装包 / 签名 / 校验和，不参与更新检查。
-- 构建前移走同版本旧产物；确认 `.exe`/`.sig` 时间戳与 `trusted comment` 里的 `file:`/`timestamp`；**不要跑 `release:verify`**（它读线上清单，未发布必失败且不验签）。
-- 本地验签：`node adlo/scripts/verify-local-signature.mjs <ver>`，期望 `SIGNATURE_OK= true`。
+  命令要求工作区干净；将 bundle 内同版本 exe/sig 与 `.release/local/v<ver>/` 移到 `.release/backups/<timestamp>/`，调用现有 `release:build -- --local`，再运行本地验签，最后归档到 `ADLO_BUILD_ARCHIVE_ROOT`（默认 `E:/AI-DIGITAL-LIFE/Adlo-builds`）下的 `v<ver>-pre-<sha>/`。目录只放安装包 / 签名 / 校验和，不参与更新检查。
+- 单独验签：`pnpm --dir adlo run release:local:verify`，期望 `SIGNATURE_OK= true`。确认 `.exe`/`.sig` 时间戳与 `trusted comment` 里的 `file:`/`timestamp`；**不要跑 `release:verify`**（它读线上清单，未发布必失败且不验签）。
 - 安装冒烟：运行 setup → 关于页版本正确 → 启动应用。未发布时应用内「检查更新」没有线上源，属预期。
 - 数据根：安装版用 `%APPDATA%\com.adlo.app`，与 dev 工作树的 `.adl-instance` 隔离；长期试用前重新添加工作区/书签，或先迁移数据根。
 

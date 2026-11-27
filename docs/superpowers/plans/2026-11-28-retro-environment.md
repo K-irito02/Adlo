@@ -85,12 +85,12 @@
 - Produces: `planArchivePath`, `backupExistingArtifacts`, `archiveLocalPackage`, `summarizePackage`.
 - CLI: `release:build:local` backs up old artifacts, calls existing `release:build -- --local`, verifies signature, archives by `v<ver>-pre-<sha>`.
 
-- [ ] Write temp-root tests for archive naming, backup movement, collision refusal, copied artifact set, and summary fields.
-- [ ] Run focused tests and verify red.
-- [ ] Implement pure filesystem helpers and CLI orchestration around existing release/signature scripts.
-- [ ] Add `release:build:local` and `release:local:verify` package scripts.
-- [ ] Replace manual local-package recipe with the command.
-- [ ] Run focused tests.
+- [x] Write temp-root tests for archive naming, backup movement, collision refusal, copied artifact set, and summary fields.
+- [x] Run focused tests and verify red.
+- [x] Implement pure filesystem helpers and CLI orchestration around existing release/signature scripts.
+- [x] Add `release:build:local` and `release:local:verify` package scripts.
+- [x] Replace manual local-package recipe with the command.
+- [x] Run focused tests.
 
 ### Task 4: Retro session summary CLI
 
