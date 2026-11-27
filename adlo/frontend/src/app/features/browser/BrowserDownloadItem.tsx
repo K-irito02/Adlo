@@ -40,7 +40,8 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
   const isPaused = record.status === 'paused';
   const isCompleted = record.status === 'completed';
   const isMissing = isCompleted && fileState != null && !fileState.exists;
-  const isNonDefault = isCompleted && fileState != null && !fileState.in_default_dir;
+  const isNonDefault =
+    isCompleted && fileState != null && fileState.exists && !fileState.in_default_dir;
 
   const bytesReceived = activeProgress?.bytes_received ?? record.bytes_received;
   const speed = activeProgress?.speed ?? 0;

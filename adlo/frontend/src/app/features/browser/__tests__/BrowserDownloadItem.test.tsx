@@ -239,26 +239,42 @@ describe('BrowserDownloadItem', () => {
     expect(item.classList.contains('adl-download-item--missing')).toBe(true);
     const name = item.querySelector('.adl-download-item__name');
     expect(name).toBeInTheDocument();
-    expect(item.classList.contains('adl-download-item--missing')).toBe(true);
     expect(screen.getByText(mockT.browserDownloadMissingFile)).toBeInTheDocument();
     fireEvent.click(item);
     expect(mockHandleOpenFile).not.toHaveBeenCalled();
   });
 
-  it('renders non-default location badge with full path tooltip', () => {
+  it('renders only missing status when completed file is missing in a non-default path', () => {
     const record = makeRecord({ status: 'completed', file_path: '/elsewhere/file.zip' });
     render(
       <TCopyProvider t={mockT as any} locale="en-US">
         <BrowserDownloadItem
           record={record}
           onContextMenu={mockOnContextMenu}
-          fileState={makeFileState({ in_default_dir: false })}
+          fileState={makeFileState({ exists: false, in_default_dir: false })}
+        />
+      </TCopyProvider>,
+    );
+    expect(screen.getByText(mockT.browserDownloadMissingFile)).toBeInTheDocument();
+    expect(screen.queryByText(mockT.browserDownloadNonDefaultLocation)).not.toBeInTheDocument();
+  });
+
+  it('renders non-default location badge with full path tooltip and still opens file', () => {
+    const record = makeRecord({ status: 'completed', file_path: '/elsewhere/file.zip' });
+    render(
+      <TCopyProvider t={mockT as any} locale="en-US">
+        <BrowserDownloadItem
+          record={record}
+          onContextMenu={mockOnContextMenu}
+          fileState={makeFileState({ exists: true, in_default_dir: false })}
         />
       </TCopyProvider>,
     );
     const badge = screen.getByText(mockT.browserDownloadNonDefaultLocation);
     expect(badge).toBeInTheDocument();
     expect(badge.getAttribute('title')).toBe('/elsewhere/file.zip');
+    fireEvent.click(screen.getByRole('listitem'));
+    expect(mockHandleOpenFile).toHaveBeenCalledWith(record);
   });
 
   it('renders failed status text with reason', () => {
