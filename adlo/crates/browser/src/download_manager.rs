@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Instant, SystemTime};
 
 use chrono::Utc;
+use serde::Serialize;
 use uuid::Uuid;
 
 #[cfg(windows)]
@@ -95,10 +96,6 @@ fn query_operation_state(op: &DownloadOp) -> NativeDownloadState {
 /// directory is not deleted within the grace window (on Windows a still-locked
 /// file fails to delete anyway, leaving a warn log).
 const TMP_ORPHAN_GRACE_SECS: u64 = 30;
-
-/// 迁移复排上限：1 主轮 + 3 并发复排。耗尽仍有残留即报错不切换，
-/// 由调用方 toast 告知用户重试（H4，不再静默保留）。
-const MAX_DRAIN_PASSES: usize = 4;
 
 /// Whether `name` matches WebView2's download staging shape `{GUID}.tmp`
 /// (`GUID` = 8-4-4-4-12 hex digits). The `.tmp` extension is matched
@@ -254,6 +251,17 @@ pub struct DownloadManager {
     /// 待处理的重下请求（同一时刻至多一条未过期）。由
     /// `register_pending_redownload` 写入、`take_pending_redownload` 消费。
     pending_redownload: Arc<Mutex<Option<PendingRedownload>>>,
+}
+
+/// Outcome of a tracked-only default-path migration. `migrated` counts files
+/// actually moved (and whose records were updated), `missing` counts completed
+/// records whose tracked file no longer exists, and `failed` counts candidate
+/// files that could not be moved/updated. Serialized straight to the frontend.
+#[derive(Debug, Clone, Serialize)]
+pub struct DownloadMigrationResult {
+    pub migrated: usize,
+    pub missing: usize,
+    pub failed: usize,
 }
 
 #[allow(dead_code)]
@@ -852,11 +860,20 @@ impl DownloadManager {
         Ok(())
     }
 
-    /// 更改默认下载路径；`migrate` 为 true 时先把旧生效目录下**全部**文件/子目录
-    /// 搬到新生效目录（同名冲突按 `resolve_conflict_path` 改名），全部成功后才删除
-    /// 旧目录并落盘新路径。任一步失败即中止且不更新设置，旧数据尽量保持可恢复。
-    /// 系统自带目录（见 `is_system_protected_dir`）只迁出文件、永不删除目录本体。
-    pub fn change_default_path(&self, new_path: &str, migrate: bool) -> Result<(), String> {
+    /// 更改默认下载路径。`migrate=true` 时执行 tracked-only 迁移：只搬迁
+    /// `download_history` 中 `completed`、文件存在且路径位于旧生效目录下的
+    /// 文件（保留相对子路径、冲突按 `resolve_conflict_path` 改名，并同步记录
+    /// 的 `file_path` / `file_name`）。未追踪文件、缺失文件、`failed` /
+    /// `canceled` 记录以及旧目录之外的路径都不动。
+    ///
+    /// 任何 `in_progress` / `paused` 记录在搬迁前即阻止迁移（`downloads_active`）。
+    /// 设置最后落盘：部分失败时已搬文件/记录保留新路径、设置不切换，返回
+    /// 携带计数的 `Err`，由前端失败后刷新记录路径。
+    pub fn change_default_path(
+        &self,
+        new_path: &str,
+        migrate: bool,
+    ) -> Result<DownloadMigrationResult, String> {
         // 读-迁-写串行化（见 migration_lock 注释）。
         let _migration_guard =
             self.migration_lock.lock().map_err(|_| "migration lock poisoned".to_string())?;
@@ -879,115 +896,187 @@ impl DownloadManager {
             ));
         }
 
-        // 规范化后比较：大小写/分隔符/`..` 别名指向同一目录时不搬（防自迁移自删）。
-        if migrate
-            && old_effective.exists()
-            && normalize_path_key(&old_effective) != normalize_path_key(&new_effective)
-        {
-            let remove_old = !is_system_protected_dir(&old_effective);
-            if !remove_old {
-                tracing::info!(
-                    old = %old_effective.display(),
-                    "download default path is a system directory: migrating files out, keeping the directory itself"
-                );
-            }
-            self.migrate_dir(&old_effective, &new_effective, remove_old)?;
-        }
+        let mut result = DownloadMigrationResult { migrated: 0, missing: 0, failed: 0 };
 
-        self.update_settings(None, Some(normalized.to_string()), None)
-    }
-
-    /// 把 `old` 目录下全部条目搬到 `new`；`remove_old` 为 true 时成功后删除 `old`
-    ///（系统自带目录传 false，只迁出文件、不删目录，防误删 Windows 系统目录）。
-    ///
-    /// 并发兜底（H4）：主轮结束后若旧目录仍有残留（迁移期间写入的新文件），
-    /// 有限次复排（`MAX_DRAIN_PASSES`）继续搬运；耗尽仍非空则报错、设置不切换，
-    /// 由调用方 toast 告知用户重试——不再静默保留。
-    fn migrate_dir(&self, old: &Path, new: &Path, remove_old: bool) -> Result<(), String> {
-        // 规范化后双向包含才拒绝：词法 starts_with 会被大小写/`..`/分隔符别名绕过，
-        // 绕过后 dest 落在源内部会触发递归自复制。
-        let old_key = normalize_path_key(old);
-        let new_key = normalize_path_key(new);
-        if new_key == old_key
-            || Path::new(&new_key).starts_with(&old_key)
-            || Path::new(&old_key).starts_with(&new_key)
-        {
-            return Err(format!(
-                "cannot migrate: paths overlap ({} vs {})",
-                old.display(),
-                new.display()
-            ));
-        }
-
-        fs::create_dir_all(new).map_err(|e| format!("create target dir failed: {e}"))?;
-
-        // enumerate 下标 = 已成功搬运数（前序条目全部成功才会走到当前条目）。
-        let mut moved = 0usize;
-        // 1 主轮 + 有限复排：每轮至少搬走 1 个条目才继续，避免并发写入下空转。
-        for _ in 0..MAX_DRAIN_PASSES {
-            let mut progressed = false;
-            for entry in fs::read_dir(old).map_err(|e| format!("read old dir failed: {e}"))? {
-                let entry = entry.map_err(|e| format!("read old dir entry failed: {e}"))?;
-                let src = entry.path();
-                let mut dest = new.join(entry.file_name());
-                // 目标已存在（并发/历史残留）：改名后再搬，沿用主流程冲突语义。
-                // 注意改名后的 dest 一定是新建；预先存在的 dest 碰都不碰（见下）。
-                let dest_existed = dest.exists();
-                if dest_existed {
-                    dest =
-                        PathBuf::from(self.resolve_conflict_path(dest.to_string_lossy().as_ref()));
-                }
-                if let Err(e) = move_path(&src, &dest) {
-                    // H2 半拷贝清理（跨盘回退中途失败时 dest 内已有部分内容）：
-                    // dest 为本轮新建才删（冲突改名的一定是新建），保证目录级
-                    // "非旧即新"，不留新旧双份；清理失败忽略，保留原始错误。
-                    cleanup_partial_dest(&dest, dest_existed);
-                    // 无 journal 全局回滚（Phase 4 F4 判定：两阶段复制需双倍磁盘且违背搬迁语义）：
-                    // 失败时条目级完整性仍保证（每文件非旧即新、无丢失），错误串携带进度供
-                    // 人工对账；i18n 文案同口径（已搬留新路径/其余留旧路径/设置未切换）。
+        if migrate {
+            let old_key = normalize_path_key(&old_effective);
+            let new_key = normalize_path_key(&new_effective);
+            // 大小写/分隔符/`..` 别名指向同一目录时无需迁移（防自迁移自删）。
+            if old_key != new_key {
+                // 双向包含才拒绝：dest 落在源内部会触发递归自复制；反向包含同样
+                // 拒绝，沿用整目录迁移时期的重叠语义（大小写/`..` 别名也拦）。
+                if Path::new(&new_key).starts_with(&old_key)
+                    || Path::new(&old_key).starts_with(&new_key)
+                {
                     return Err(format!(
-                        "migrate failed after moving {moved} entries ({e}); files already moved stay in the new path, the rest remain in the old path, and settings were not updated"
+                        "cannot migrate: paths overlap ({} vs {})",
+                        old_effective.display(),
+                        new_effective.display()
                     ));
                 }
-                moved += 1;
-                progressed = true;
-            }
-            if !progressed {
-                break;
+                // 有进行中/暂停任务时不搬任何文件（Task 7 已把崩溃残留的
+                // in_progress 回收为 failed，这里只对应真实活跃/用户暂停）。
+                if self.has_active_or_paused_downloads()? {
+                    return Err("downloads_active".to_string());
+                }
+                result = self.migrate_tracked_files(&old_effective, &new_effective)?;
+                // 仅当旧目录（含空子目录）完全清空且非系统保护目录时尽力删除；
+                // 仍有未追踪文件/非空子目录则保留，不算错误。
+                if !is_system_protected_dir(&old_effective) {
+                    remove_empty_dir_tree(&old_effective);
+                }
             }
         }
 
-        if !remove_old {
-            return Ok(());
-        }
-        // 全部已枚举条目搬完才尝试删旧目录；复排耗尽仍非空说明并发写入持续发生，
-        // 报错不切换（调用方 toast），而非静默保留。删除侧异常（复检失败/ACL）仍
-        // 降级为告警并保留目录——文件已全部搬完，让设置照常落盘，避免"已搬未落盘"。
-        match fs::read_dir(old) {
-            Ok(mut entries) => {
-                if entries.next().is_none() {
-                    if let Err(e) = fs::remove_dir(old) {
-                        tracing::warn!(
-                            old = %old.display(),
-                            error = %e,
-                            "old dir was empty but remove failed (concurrent write?); keeping the directory"
-                        );
-                    }
-                    Ok(())
-                } else {
-                    Err("concurrent writes during migrate: old dir still has entries after bounded redrain; settings were not updated"
-                        .to_string())
+        self.update_settings(None, Some(normalized.to_string()), None)?;
+        Ok(result)
+    }
+
+    /// 是否存在任何 `in_progress` / `paused` 记录（阻止迁移）。
+    fn has_active_or_paused_downloads(&self) -> Result<bool, String> {
+        let conn = self.db.conn().map_err(|e| e.to_string())?;
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM download_history WHERE status IN ('in_progress', 'paused')",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|e| format!("Failed to check active downloads: {}", e))?;
+        Ok(count > 0)
+    }
+
+    /// 查询所有 `completed` 记录的 (id, file_path, file_name)（lean query）。
+    fn list_completed_records(&self) -> Result<Vec<(String, String, String)>, String> {
+        let conn = self.db.conn().map_err(|e| e.to_string())?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, file_path, file_name FROM download_history WHERE status = 'completed'",
+            )
+            .map_err(|e| format!("Failed to prepare completed query: {}", e))?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
+            })
+            .map_err(|e| format!("Failed to query completed downloads: {}", e))?
+            .filter_map(|r| r.ok())
+            .collect::<Vec<_>>();
+        Ok(rows)
+    }
+
+    /// 更新单条下载记录的落点（`file_path` + `file_name`）。
+    fn update_download_file_path(
+        &self,
+        id: &str,
+        path: &str,
+        file_name: &str,
+    ) -> Result<(), String> {
+        let conn = self.db.conn().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE download_history SET file_path = ?1, file_name = ?2 WHERE id = ?3",
+            rusqlite::params![path, file_name, id],
+        )
+        .map_err(|e| format!("Failed to update download file path: {}", e))?;
+        Ok(())
+    }
+
+    /// tracked-only 迁移：把旧目录下、有 `completed` 记录且文件存在的记录文件
+    /// 搬到新目录并同步记录。同一物理文件对应多条记录时只搬一次、但全部更新；
+    /// 缺失文件计入 `missing`；搬移失败计入 `failed` 并继续处理其余文件（部分
+    /// 失败不回滚已搬文件）。任一失败返回带计数的 `Err`。
+    fn migrate_tracked_files(
+        &self,
+        old: &Path,
+        new: &Path,
+    ) -> Result<DownloadMigrationResult, String> {
+        let mut result = DownloadMigrationResult { migrated: 0, missing: 0, failed: 0 };
+        let mut first_error: Option<String> = None;
+
+        // 按规范化源路径去重：一条物理文件对应多个记录时只搬一次。
+        // Vec 保持首次出现顺序，结果确定。
+        let mut by_path: Vec<(PathBuf, Vec<(String, String)>)> = Vec::new(); // (src, [(id, old_file_name)])
+        let mut index: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        let mut seen_missing: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+        for (id, file_path, file_name) in self.list_completed_records()? {
+            let src = PathBuf::from(&file_path);
+            // 仅处理位于旧目录下的记录；外部路径（保存对话框/自定义路径）不动。
+            if !is_file_under_dir(&src, old) {
+                continue;
+            }
+            if !src.is_file() {
+                // 缺失文件：按唯一源路径计一次，不修改记录。
+                let key = normalize_path_key(&src);
+                if seen_missing.insert(key) {
+                    result.missing += 1;
                 }
-            },
-            Err(e) => {
-                tracing::warn!(
-                    old = %old.display(),
-                    error = %e,
-                    "re-check old dir failed after migrate; keeping the directory"
-                );
-                Ok(())
-            },
+                continue;
+            }
+            let key = normalize_path_key(&src);
+            match index.get(&key) {
+                Some(&i) => by_path[i].1.push((id, file_name)),
+                None => {
+                    index.insert(key, by_path.len());
+                    by_path.push((src, vec![(id, file_name)]));
+                },
+            }
         }
+
+        for (src, records) in by_path {
+            let rel = match relative_subpath(&src, old) {
+                Some(rel) => rel,
+                None => {
+                    first_error.get_or_insert_with(|| {
+                        format!("cannot derive relative path for {}", src.display())
+                    });
+                    result.failed += 1;
+                    continue;
+                },
+            };
+            let mut dest = new.join(&rel);
+            if let Some(parent) = dest.parent() {
+                if let Err(e) = fs::create_dir_all(parent) {
+                    first_error.get_or_insert_with(|| {
+                        format!("create target dir failed for {}: {e}", dest.display())
+                    });
+                    result.failed += 1;
+                    continue;
+                }
+            }
+            // 目标已存在时按主流程同样的冲突语义改名（预先存在的 dest 不覆盖）。
+            if dest.exists() {
+                dest = PathBuf::from(self.resolve_conflict_path(dest.to_string_lossy().as_ref()));
+            }
+            if let Err(e) = move_path(&src, &dest) {
+                first_error.get_or_insert_with(|| {
+                    format!("move failed ({} -> {}): {e}", src.display(), dest.display())
+                });
+                result.failed += 1;
+                continue;
+            }
+            let dest_str = dest.to_string_lossy().into_owned();
+            let file_name = derive_file_name("", &dest_str);
+            let mut update_failed = false;
+            for (id, _old_file_name) in records {
+                if let Err(e) = self.update_download_file_path(&id, &dest_str, &file_name) {
+                    first_error.get_or_insert_with(|| e.clone());
+                    update_failed = true;
+                }
+            }
+            if update_failed {
+                // 文件已搬到新路径，但至少一条记录没能同步 → 计入失败、保留现场。
+                result.failed += 1;
+            } else {
+                result.migrated += 1;
+            }
+        }
+
+        if let Some(err) = first_error {
+            return Err(format!(
+                "download migration failed: migrated={}, missing={}, failed={} ({})",
+                result.migrated, result.missing, result.failed, err
+            ));
+        }
+        Ok(result)
     }
 
     pub fn check_disk_space(&self, path: &str) -> Result<(), String> {
@@ -2462,15 +2551,50 @@ fn lexical_normalize(path: &Path) -> PathBuf {
     out
 }
 
-/// H2：目录跨盘半拷贝清理。`dest_existed` 为本轮搬运前 `dest` 是否已存在：
-/// 新建的才删（冲突改名的一定是新建），预先存在的碰都不碰。
-/// 跨盘回退（`copy_dir_all` 中途失败）是唯一能产生"部分目标"的路径，
-/// 同卷 rename 要么整体成功要么整体失败，走不到这里——本函数单测覆盖判定逻辑，
-/// 调用点由 code review 锁定。
-fn cleanup_partial_dest(dest: &Path, dest_existed: bool) {
-    if !dest_existed {
-        let _ = fs::remove_dir_all(dest);
+/// `src`（文件）是否位于 `dir` 之内（按规范化键的组件级前缀判定，与
+/// `file_states` 的 `in_default_dir` 同口径——`Downloads2` 不算在 `Downloads` 内）。
+fn is_file_under_dir(src: &Path, dir: &Path) -> bool {
+    let Some(parent) = src.parent() else { return false };
+    let parent_key = normalize_path_key(parent);
+    let dir_key = normalize_path_key(dir);
+    Path::new(&parent_key).starts_with(&dir_key)
+}
+
+/// 计算 `src` 相对 `base` 的子路径：Windows 下记录里存的路径大小写可能与
+/// 当前生效目录不同，`strip_prefix` 失败时按组件级大小写不敏感匹配，并保留
+/// `src` 原本的组件大小写。
+fn relative_subpath(src: &Path, base: &Path) -> Option<PathBuf> {
+    if let Ok(rel) = src.strip_prefix(base) {
+        return Some(rel.to_path_buf());
     }
+    // 大小写别名回退：先经规范化键确认确实前缀匹配，再从 src 自身组件重建。
+    let src_key = normalize_path_key(src);
+    let base_key = normalize_path_key(base);
+    Path::new(&src_key).strip_prefix(Path::new(&base_key)).ok()?;
+    let base_len = base.components().count();
+    let mut rel = PathBuf::new();
+    let mut added = 0usize;
+    for c in src.components().skip(base_len) {
+        rel.push(c.as_os_str());
+        added += 1;
+    }
+    if added == 0 {
+        return None;
+    }
+    Some(rel)
+}
+
+/// 尽力删除一棵已无文件的目录树：先递归清掉空子目录，再删自身；目录内只要
+/// 还有任意文件或非空子目录，`fs::remove_dir` 就会失败并被忽略（安全：绝不
+/// 删除文件）。仅用于 tracked-only 迁移成功后旧目录的收尾。
+fn remove_empty_dir_tree(dir: &Path) {
+    let Ok(entries) = fs::read_dir(dir) else { return };
+    let subdirs: Vec<PathBuf> =
+        entries.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect();
+    for sub in subdirs {
+        remove_empty_dir_tree(&sub);
+    }
+    let _ = fs::remove_dir(dir);
 }
 
 /// `path` 是否落在深保护整棵子树内部（不含精确相等本身）：
@@ -2756,6 +2880,20 @@ mod tests {
         db
     }
 
+    /// Seed a `completed` download record pointing at `file_path` (without going
+    /// through `complete_download`, which would touch the `.crdownload`/size-sync
+    /// paths). Returns the record id.
+    fn seed_completed(db: &Database, mgr: &DownloadManager, url: &str, file_path: &str) -> String {
+        let record = mgr.create_download(url, file_path, None).expect("create record");
+        let conn = db.conn().expect("test db connection should succeed");
+        conn.execute(
+            "UPDATE download_history SET status = 'completed' WHERE id = ?1",
+            rusqlite::params![record.id],
+        )
+        .expect("seed completed status");
+        record.id
+    }
+
     #[test]
     fn available_space_bytes_reports_volume_free_space() {
         let db = temp_db("available-space");
@@ -2937,21 +3075,34 @@ mod tests {
         let _ = std::fs::remove_dir_all(&old);
         let _ = std::fs::remove_dir_all(&new);
         std::fs::create_dir_all(old.join("sub")).unwrap();
-        std::fs::create_dir_all(&new).unwrap();
         std::fs::write(old.join("a.txt"), b"a").unwrap();
         std::fs::write(old.join("sub").join("c.txt"), b"c").unwrap();
-        std::fs::write(new.join("b.txt"), b"b").unwrap();
+        seed_completed(
+            &db,
+            &mgr,
+            "https://example.com/a.txt",
+            old.join("a.txt").to_string_lossy().as_ref(),
+        );
+        seed_completed(
+            &db,
+            &mgr,
+            "https://example.com/sub/c.txt",
+            old.join("sub").join("c.txt").to_string_lossy().as_ref(),
+        );
 
         mgr.change_default_path(old.to_string_lossy().as_ref(), false)
             .expect("point path at old without migrate");
-        mgr.change_default_path(new.to_string_lossy().as_ref(), true)
+        let result = mgr
+            .change_default_path(new.to_string_lossy().as_ref(), true)
             .expect("migrate should succeed");
 
+        assert_eq!(result.migrated, 2);
+        assert_eq!(result.missing, 0);
+        assert_eq!(result.failed, 0);
         assert_eq!(mgr.get_settings().default_path, new.to_string_lossy());
-        assert!(!old.exists(), "old dir must be removed after successful migrate");
+        assert!(!old.exists(), "old dir must be removed after all tracked files migrate");
         assert!(new.join("a.txt").exists());
         assert!(new.join("sub").join("c.txt").exists());
-        assert!(new.join("b.txt").exists());
 
         let _ = std::fs::remove_dir_all(&new);
         // 不清理共享基座 `.adl-dl-tests`：与并行执行的其它迁移测试互删会 flaky（rev3 R2）。
@@ -3054,74 +3205,279 @@ mod tests {
     }
 
     #[test]
-    fn cleanup_partial_dest_removes_only_fresh_dest() {
-        let base = test_workspace("cleanup-guard");
-        let fresh = base.join("fresh");
-        let kept = base.join("kept");
-        let _ = std::fs::remove_dir_all(&base);
-        std::fs::create_dir_all(fresh.join("sub")).unwrap();
-        std::fs::write(fresh.join("sub").join("f.txt"), b"x").unwrap();
-        std::fs::create_dir_all(&kept).unwrap();
-        std::fs::write(kept.join("k.txt"), b"k").unwrap();
-
-        cleanup_partial_dest(&fresh, false);
-        assert!(!fresh.exists(), "fresh partial dest must be removed");
-        cleanup_partial_dest(&kept, true);
-        assert!(kept.join("k.txt").exists(), "pre-existing dest must be kept");
-
-        let _ = std::fs::remove_dir_all(&base);
-    }
-
-    #[test]
-    fn change_default_path_reports_concurrent_writes_without_switching() {
-        // 后台写线程持续加文件：复排耗尽 → 报错且设置不切换；若写线程先停则成功。
-        // 两种结局都合法，断言按分支收敛（设置与目录状态一致）。
-        let db = temp_db("change-path-concurrent");
+    fn change_default_path_moves_only_tracked_completed_files() {
+        let db = temp_db("change-path-tracked");
         let mgr = DownloadManager::new(db.clone());
-        let old = test_workspace("concurrent-old");
-        let new = test_workspace("concurrent-new");
+        let old = test_workspace("tracked-old");
+        let new = test_workspace("tracked-new");
         let _ = std::fs::remove_dir_all(&old);
         let _ = std::fs::remove_dir_all(&new);
         std::fs::create_dir_all(&old).unwrap();
-        for i in 0..20 {
-            std::fs::write(old.join(format!("base-{i}.txt")), b"x").unwrap();
+
+        // tracked completed file (exists) → migrated
+        std::fs::write(old.join("tracked.txt"), b"tracked").unwrap();
+        seed_completed(
+            &db,
+            &mgr,
+            "https://example.com/tracked.txt",
+            old.join("tracked.txt").to_string_lossy().as_ref(),
+        );
+        // untracked file (no record) → stays
+        std::fs::write(old.join("untracked.txt"), b"untracked").unwrap();
+        // failed record (file exists, status != completed) → stays
+        std::fs::write(old.join("failed.txt"), b"failed").unwrap();
+        let failed = mgr
+            .create_download(
+                "https://example.com/failed.txt",
+                old.join("failed.txt").to_string_lossy().as_ref(),
+                None,
+            )
+            .expect("create failed record");
+        {
+            let conn = db.conn().expect("conn");
+            conn.execute(
+                "UPDATE download_history SET status = 'failed' WHERE id = ?1",
+                rusqlite::params![failed.id],
+            )
+            .expect("seed failed status");
         }
-        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("set old");
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let stop_w = stop.clone();
-        let old_w = old.clone();
-        // 节流写（1ms/个、上限 300 个）：既保证复排耗尽时大概率仍有残留（走 Err 分支），
-        // 又把用例耗时压在半秒内；提前写完则走 Ok 分支——两分支断言各自收敛。
-        let writer = std::thread::spawn(move || {
-            for n in 0..300 {
-                if stop_w.load(std::sync::atomic::Ordering::Relaxed) {
-                    break;
-                }
-                let _ = std::fs::write(old_w.join(format!("live-{n}.txt")), b"y");
-                std::thread::sleep(std::time::Duration::from_millis(1));
-            }
-        });
-        let result = mgr.change_default_path(new.to_string_lossy().as_ref(), true);
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        let _ = writer.join();
-        match result {
-            Ok(()) => {
-                assert_eq!(mgr.get_settings().default_path, new.to_string_lossy());
-            },
-            Err(e) => {
-                assert!(e.contains("concurrent"), "unexpected error: {e}");
-                assert_eq!(mgr.get_settings().default_path, old.to_string_lossy());
-            },
-        }
+
+        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("point at old");
+        let result =
+            mgr.change_default_path(new.to_string_lossy().as_ref(), true).expect("migrate");
+
+        assert_eq!(result.migrated, 1);
+        assert_eq!(result.missing, 0);
+        assert_eq!(result.failed, 0);
+
+        assert!(new.join("tracked.txt").exists(), "tracked file must move to new dir");
+        assert!(!old.join("tracked.txt").exists(), "tracked file must leave old dir");
+        assert!(old.join("untracked.txt").exists(), "untracked file must stay in old dir");
+        assert!(old.join("failed.txt").exists(), "failed record file must stay in old dir");
+        assert!(old.exists(), "old dir must remain while it still holds untracked/failed files");
+
         let _ = std::fs::remove_dir_all(&old);
         let _ = std::fs::remove_dir_all(&new);
         let _ = std::fs::remove_file(
-            std::env::temp_dir().join("adl-download-mgr-change-path-concurrent.db"),
+            std::env::temp_dir().join("adl-download-mgr-change-path-tracked.db"),
         );
     }
 
     #[test]
-    fn change_default_path_migrate_resolves_name_conflicts() {
+    fn change_default_path_preserves_nested_relative_paths() {
+        let db = temp_db("change-path-nested");
+        let mgr = DownloadManager::new(db.clone());
+        let old = test_workspace("nested-old");
+        let new = test_workspace("nested-new");
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        std::fs::create_dir_all(old.join("sub")).unwrap();
+
+        std::fs::write(old.join("sub").join("file.txt"), b"nested").unwrap();
+        let id = seed_completed(
+            &db,
+            &mgr,
+            "https://example.com/sub/file.txt",
+            old.join("sub").join("file.txt").to_string_lossy().as_ref(),
+        );
+
+        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("point at old");
+        let result =
+            mgr.change_default_path(new.to_string_lossy().as_ref(), true).expect("migrate");
+
+        assert_eq!(result.migrated, 1);
+        assert!(
+            new.join("sub").join("file.txt").exists(),
+            "nested relative path must be preserved"
+        );
+        let record = mgr.get_record(&id).expect("record must exist");
+        assert_eq!(
+            record.file_path,
+            new.join("sub").join("file.txt").to_string_lossy().into_owned()
+        );
+        assert_eq!(record.file_name, "file.txt");
+
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-change-path-nested.db"),
+        );
+    }
+
+    #[test]
+    fn change_default_path_skips_missing_and_reports_count() {
+        let db = temp_db("change-path-missing");
+        let mgr = DownloadManager::new(db.clone());
+        let old = test_workspace("missing-old");
+        let new = test_workspace("missing-new");
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        std::fs::create_dir_all(&old).unwrap();
+
+        std::fs::write(old.join("present.txt"), b"present").unwrap();
+        seed_completed(
+            &db,
+            &mgr,
+            "https://example.com/present.txt",
+            old.join("present.txt").to_string_lossy().as_ref(),
+        );
+        // Record exists but its file is gone → skipped and counted as missing.
+        seed_completed(
+            &db,
+            &mgr,
+            "https://example.com/missing.txt",
+            old.join("missing.txt").to_string_lossy().as_ref(),
+        );
+
+        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("point at old");
+        let result =
+            mgr.change_default_path(new.to_string_lossy().as_ref(), true).expect("migrate");
+
+        assert_eq!(result.migrated, 1);
+        assert_eq!(result.missing, 1);
+        assert_eq!(result.failed, 0);
+        assert!(new.join("present.txt").exists());
+
+        let missing_record = mgr
+            .list_downloads()
+            .expect("list")
+            .into_iter()
+            .find(|r| r.url == "https://example.com/missing.txt")
+            .expect("missing record should still exist");
+        assert_eq!(
+            missing_record.file_path,
+            old.join("missing.txt").to_string_lossy().into_owned(),
+            "missing record keeps its original (old) path"
+        );
+
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-change-path-missing.db"),
+        );
+    }
+
+    #[test]
+    fn change_default_path_blocks_active_or_paused() {
+        let db = temp_db("change-path-block");
+        let mgr = DownloadManager::new(db.clone());
+        let old = test_workspace("block-old");
+        let new = test_workspace("block-new");
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        std::fs::create_dir_all(&old).unwrap();
+
+        std::fs::write(old.join("tracked.txt"), b"tracked").unwrap();
+        seed_completed(
+            &db,
+            &mgr,
+            "https://example.com/tracked.txt",
+            old.join("tracked.txt").to_string_lossy().as_ref(),
+        );
+        // A live in_progress download (create_download leaves it in_progress).
+        let active = mgr
+            .create_download(
+                "https://example.com/active.bin",
+                old.join("active.bin").to_string_lossy().as_ref(),
+                None,
+            )
+            .expect("create active record");
+
+        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("point at old");
+
+        let err = mgr
+            .change_default_path(new.to_string_lossy().as_ref(), true)
+            .expect_err("in_progress must block migration");
+        assert!(err.contains("downloads_active"), "unexpected error: {err}");
+        assert!(old.join("tracked.txt").exists(), "no file may move while active");
+        assert!(!new.join("tracked.txt").exists());
+
+        // Flip the live record to paused: migration must still be blocked.
+        {
+            let conn = db.conn().expect("conn");
+            conn.execute(
+                "UPDATE download_history SET status = 'paused' WHERE id = ?1",
+                rusqlite::params![active.id],
+            )
+            .expect("seed paused status");
+        }
+        let err = mgr
+            .change_default_path(new.to_string_lossy().as_ref(), true)
+            .expect_err("paused must block migration");
+        assert!(err.contains("downloads_active"), "unexpected error: {err}");
+        assert!(old.join("tracked.txt").exists(), "no file may move while paused");
+        assert_eq!(mgr.get_settings().default_path, old.to_string_lossy());
+
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-change-path-block.db"),
+        );
+    }
+
+    #[test]
+    fn change_default_path_partial_failure_keeps_moved_records() {
+        let db = temp_db("change-path-partial");
+        let mgr = DownloadManager::new(db.clone());
+        let old = test_workspace("partial-old");
+        let new = test_workspace("partial-new");
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::create_dir_all(&new).unwrap();
+
+        // File A: plain file → migrates successfully.
+        std::fs::write(old.join("a.txt"), b"a").unwrap();
+        let a_id = seed_completed(
+            &db,
+            &mgr,
+            "https://example.com/a.txt",
+            old.join("a.txt").to_string_lossy().as_ref(),
+        );
+        // File B: nested under old/sub, but new/sub is a FILE → create_dir_all fails.
+        std::fs::create_dir_all(old.join("sub")).unwrap();
+        std::fs::write(old.join("sub").join("nested.txt"), b"nested").unwrap();
+        let b_id = seed_completed(
+            &db,
+            &mgr,
+            "https://example.com/sub/nested.txt",
+            old.join("sub").join("nested.txt").to_string_lossy().as_ref(),
+        );
+        std::fs::write(new.join("sub"), b"blocker").unwrap();
+
+        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("point at old");
+        let err = mgr
+            .change_default_path(new.to_string_lossy().as_ref(), true)
+            .expect_err("partial failure must return Err");
+
+        // Error carries the counts.
+        assert!(err.contains("migrated=1"), "unexpected error: {err}");
+        assert!(err.contains("failed=1"), "unexpected error: {err}");
+
+        // Settings NOT switched on partial failure.
+        assert_eq!(mgr.get_settings().default_path, old.to_string_lossy());
+
+        // Already-moved record stays at its new path.
+        assert!(new.join("a.txt").exists());
+        assert!(!old.join("a.txt").exists());
+        let a = mgr.get_record(&a_id).expect("record A exists");
+        assert_eq!(a.file_path, new.join("a.txt").to_string_lossy().into_owned());
+
+        // Failed record stays at its old path; its file is untouched.
+        assert!(old.join("sub").join("nested.txt").exists());
+        let b = mgr.get_record(&b_id).expect("record B exists");
+        assert_eq!(b.file_path, old.join("sub").join("nested.txt").to_string_lossy().into_owned());
+        assert!(old.exists(), "old dir stays after partial failure");
+
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-change-path-partial.db"),
+        );
+    }
+
+    #[test]
+    fn change_default_path_updates_conflict_renamed_records() {
         let db = temp_db("change-path-conflict");
         let mgr = DownloadManager::new(db.clone());
         let old = test_workspace("conflict-old");
@@ -3133,10 +3489,21 @@ mod tests {
         std::fs::write(old.join("same.txt"), b"from-old").unwrap();
         std::fs::write(new.join("same.txt"), b"from-new").unwrap();
 
-        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("set old");
-        mgr.change_default_path(new.to_string_lossy().as_ref(), true).expect("migrate");
+        let id = seed_completed(
+            &db,
+            &mgr,
+            "https://example.com/same.txt",
+            old.join("same.txt").to_string_lossy().as_ref(),
+        );
 
-        assert!(!old.exists());
+        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("set old");
+        let result =
+            mgr.change_default_path(new.to_string_lossy().as_ref(), true).expect("migrate");
+
+        assert_eq!(result.migrated, 1);
+        let record = mgr.get_record(&id).expect("record exists");
+        assert_eq!(record.file_name, "same (1).txt");
+        assert_eq!(record.file_path, new.join("same (1).txt").to_string_lossy().into_owned());
         assert_eq!(std::fs::read(new.join("same.txt")).unwrap(), b"from-new");
         assert_eq!(std::fs::read(new.join("same (1).txt")).unwrap(), b"from-old");
 
@@ -3148,9 +3515,9 @@ mod tests {
     }
 
     #[test]
-    fn migrate_dir_resolves_double_collision_without_overwrite() {
-        // 双重冲突：目标已有 same.txt 与 same (1).txt 时，搬运必须落到 same (2).txt，
-        // 不得静默覆盖（H1 回归：resolve_conflict_path 内循环至空闲名）。
+    fn change_default_path_resolves_double_collision_without_overwrite() {
+        // 双重冲突：目标已有 same.txt 与 same (1).txt 时，迁移必须落到 same (2).txt，
+        // 不得静默覆盖，且记录 file_path/file_name 同步到该实际落点。
         let db = temp_db("change-path-double-conflict");
         let mgr = DownloadManager::new(db.clone());
         let old = test_workspace("double-conflict-old");
@@ -3163,11 +3530,22 @@ mod tests {
         std::fs::write(new.join("same.txt"), b"from-new").unwrap();
         std::fs::write(new.join("same (1).txt"), b"from-new-1").unwrap();
 
-        mgr.migrate_dir(&old, &new, true).expect("migrate with double collision");
+        let id = seed_completed(
+            &db,
+            &mgr,
+            "https://example.com/same.txt",
+            old.join("same.txt").to_string_lossy().as_ref(),
+        );
+
+        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("set old");
+        mgr.change_default_path(new.to_string_lossy().as_ref(), true).expect("migrate");
 
         assert_eq!(std::fs::read(new.join("same.txt")).unwrap(), b"from-new");
         assert_eq!(std::fs::read(new.join("same (1).txt")).unwrap(), b"from-new-1");
         assert_eq!(std::fs::read(new.join("same (2).txt")).unwrap(), b"from-old");
+        let record = mgr.get_record(&id).expect("record exists");
+        assert_eq!(record.file_name, "same (2).txt");
+        assert_eq!(record.file_path, new.join("same (2).txt").to_string_lossy().into_owned());
         assert!(!old.exists(), "old dir removed after successful migrate");
 
         let _ = std::fs::remove_dir_all(&new);
@@ -3218,26 +3596,28 @@ mod tests {
     }
 
     #[test]
-    fn migrate_dir_rejects_case_variant_overlap() {
+    fn change_default_path_rejects_case_variant_overlap() {
         // 大小写别名（Windows 不敏感）指向同一目录树时必须拒绝，否则 dest 落在源内部
         // 触发递归自复制。
         #[cfg(windows)]
         {
-            let db = temp_db("migrate-case-overlap");
+            allow_test_paths_unprotected();
+            let db = temp_db("change-path-case-overlap");
             let mgr = DownloadManager::new(db.clone());
             let old = std::env::temp_dir().join("Adl-Dl-Case-Overlap");
             let _ = std::fs::remove_dir_all(&old);
             std::fs::create_dir_all(&old).unwrap();
             std::fs::write(old.join("a.txt"), b"a").unwrap();
             let alt = std::path::PathBuf::from(old.to_string_lossy().to_lowercase());
+            mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("set old");
             let err = mgr
-                .migrate_dir(&old, &alt.join("inner"), true)
+                .change_default_path(alt.join("inner").to_string_lossy().as_ref(), true)
                 .expect_err("case-variant overlap must fail");
             assert!(err.contains("overlap"), "unexpected error: {err}");
             assert!(old.join("a.txt").exists());
             let _ = std::fs::remove_dir_all(&old);
             let _ = std::fs::remove_file(
-                std::env::temp_dir().join("adl-download-mgr-migrate-case-overlap.db"),
+                std::env::temp_dir().join("adl-download-mgr-change-path-case-overlap.db"),
             );
         }
     }
@@ -3255,10 +3635,11 @@ mod tests {
     }
 
     #[test]
-    fn migrate_dir_rejects_dotdot_alias_overlap() {
+    fn change_default_path_rejects_dotdot_alias_overlap() {
         // 目标尚不存在（canonicalize 失败）时 `..` 别名必须经词法归一后参与比较，
-        // 否则 `old\x\..\inner` 词法不重叠、真实重叠 → 条目被搬进旧目录内部（rev2 N1）。
-        let db = temp_db("migrate-dotdot-overlap");
+        // 否则 `old\x\..\inner` 词法不重叠、真实重叠 → 文件被搬进旧目录内部（rev2 N1）。
+        allow_test_paths_unprotected();
+        let db = temp_db("change-path-dotdot-overlap");
         let mgr = DownloadManager::new(db.clone());
         let old = std::env::temp_dir().join("adl-dl-dotdot-old");
         let _ = std::fs::remove_dir_all(&old);
@@ -3266,13 +3647,16 @@ mod tests {
         std::fs::write(old.join("a.txt"), b"a").unwrap();
         // old\does-not-exist\..\inner —— 词法归一后 = old\inner，落在源内部。
         let new = old.join("does-not-exist").join("..").join("inner");
-        let err = mgr.migrate_dir(&old, &new, true).expect_err("dotdot alias overlap must fail");
+        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("set old");
+        let err = mgr
+            .change_default_path(new.to_string_lossy().as_ref(), true)
+            .expect_err("dotdot alias overlap must fail");
         assert!(err.contains("overlap"), "unexpected error: {err}");
         assert!(old.join("a.txt").exists());
 
         let _ = std::fs::remove_dir_all(&old);
         let _ = std::fs::remove_file(
-            std::env::temp_dir().join("adl-download-mgr-migrate-dotdot-overlap.db"),
+            std::env::temp_dir().join("adl-download-mgr-change-path-dotdot-overlap.db"),
         );
     }
 
@@ -3301,32 +3685,6 @@ mod tests {
             let probe = home.join("AppData").join("Local").join("adl-protected-probe");
             assert!(is_system_protected_dir(&probe), "AppData subtree must be protected");
         }
-    }
-
-    #[test]
-    fn migrate_dir_without_remove_old_moves_files_but_keeps_old_dir() {
-        let db = temp_db("migrate-keep-dir");
-        let mgr = DownloadManager::new(db.clone());
-        let old = std::env::temp_dir().join("adl-dl-keepdir-old");
-        let new = std::env::temp_dir().join("adl-dl-keepdir-new");
-        let _ = std::fs::remove_dir_all(&old);
-        let _ = std::fs::remove_dir_all(&new);
-        std::fs::create_dir_all(old.join("sub")).unwrap();
-        std::fs::write(old.join("a.txt"), b"a").unwrap();
-        std::fs::write(old.join("sub").join("c.txt"), b"c").unwrap();
-
-        // 系统目录语义：只迁出文件、不删目录（change_default_path 对受保护目录即走此分支）。
-        mgr.migrate_dir(&old, &new, false).expect("migrate without remove");
-
-        assert!(new.join("a.txt").exists());
-        assert!(new.join("sub").join("c.txt").exists());
-        assert!(old.exists(), "protected old dir must be kept");
-        assert!(std::fs::read_dir(&old).unwrap().next().is_none(), "old dir must be emptied");
-
-        let _ = std::fs::remove_dir_all(&old);
-        let _ = std::fs::remove_dir_all(&new);
-        let _ =
-            std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-migrate-keep-dir.db"));
     }
 
     #[test]

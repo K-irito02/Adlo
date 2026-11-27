@@ -2,7 +2,7 @@ use crate::commands::ipc;
 use crate::commands::platform::{open_file, open_in_os_file_manager, reveal_in_os_file_manager};
 use crate::error::CommandError;
 use crate::state::AppState;
-use adl_browser::download_manager::get_default_download_path;
+use adl_browser::download_manager::{DownloadMigrationResult, get_default_download_path};
 use adl_browser::download_types::{
     DownloadFileState, DownloadMode, DownloadPauseResult, DownloadRecord, DownloadSettings,
     DownloadStatus,
@@ -120,25 +120,26 @@ pub fn download_update_settings(
     Ok(ipc(Ok(())))
 }
 
-/// 更改默认下载路径；`migrate` 为 true 时先把旧路径全部文件搬到新路径，
-/// 全部成功后才删除旧目录并落盘。搬运用 `spawn_blocking` 避免阻塞主线程。
+/// 更改默认下载路径；`migrate` 为 true 时执行 tracked-only 迁移（只搬下载
+/// 记录中的文件并同步落点）。搬运用 `spawn_blocking` 避免阻塞主线程；
+/// 迁移结果（已迁移/缺失/失败计数）随命令返回，前端据此刷新/提示。
 #[tauri::command]
 pub async fn download_change_default_path(
     state: State<'_, AppState>,
     new_path: String,
     migrate: bool,
-) -> Result<IpcResult<()>, CommandError> {
+) -> Result<IpcResult<DownloadMigrationResult>, CommandError> {
     tracing::debug!(
         new_path = %new_path,
         migrate,
         "[ADL-DL] download_change_default_path called"
     );
     let mgr = state.download_manager.clone();
-    tokio::task::spawn_blocking(move || mgr.change_default_path(&new_path, migrate))
+    let result = tokio::task::spawn_blocking(move || mgr.change_default_path(&new_path, migrate))
         .await
         .map_err(|e| map_download_err(format!("download_change_default_path join failed: {e}")))?
         .map_err(map_download_err)?;
-    Ok(ipc(Ok(())))
+    Ok(ipc(Ok(result)))
 }
 
 #[tauri::command]

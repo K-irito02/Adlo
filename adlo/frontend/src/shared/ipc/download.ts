@@ -46,6 +46,14 @@ export interface DownloadSettings {
   auto_migrate_on_path_change: boolean;
 }
 
+/** Outcome of a tracked-only default-path migration: only completed downloads
+ * whose file exists under the old default dir are moved; untracked files stay. */
+export interface DownloadMigrationResult {
+  migrated: number;
+  missing: number;
+  failed: number;
+}
+
 /** Result of a user-initiated pause. The backend reflects the true end state:
  * `paused` if the transfer was actually paused, or `completed` if the transfer
  * had already finished when pause was requested (matches Chrome/Edge). */
