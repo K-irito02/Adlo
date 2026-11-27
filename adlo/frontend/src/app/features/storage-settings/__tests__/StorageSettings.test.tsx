@@ -219,7 +219,10 @@ describe('StorageSettings', () => {
     const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
     const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
     const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
-    const changeDownloadPath = vi.fn(async () => ({ ok: true as const, data: undefined }));
+    const changeDownloadPath = vi.fn(async () => ({
+      ok: true as const,
+      data: { migrated: 0, missing: 0, failed: 0 },
+    }));
     const updateDownloadSettings = vi.fn(async () => ({ ok: true as const, data: undefined }));
     setStoreDownloadSettings('D:/custom-downloads', true);
     useAppStore.setState({ changeDownloadPath, updateDownloadSettings });
@@ -289,7 +292,10 @@ describe('StorageSettings', () => {
     const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
     const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
     const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
-    const changeDownloadPath = vi.fn(async () => ({ ok: true as const, data: undefined }));
+    const changeDownloadPath = vi.fn(async () => ({
+      ok: true as const,
+      data: { migrated: 0, missing: 0, failed: 0 },
+    }));
     const updateDownloadSettings = vi.fn(async () => ({
       ok: false as const,
       error: { code: 'Internal', message: 'boom' },
@@ -537,7 +543,10 @@ describe('StorageSettings', () => {
     const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
     useAppStore.setState({
       updatePreferences: vi.fn(async () => true),
-      changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+      changeDownloadPath: vi.fn(async () => ({
+        ok: true as const,
+        data: { migrated: 0, missing: 0, failed: 0 },
+      })),
       updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
     });
     try {
@@ -644,7 +653,10 @@ describe('StorageSettings', () => {
     const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
     useAppStore.setState({
       updatePreferences: vi.fn(async () => true),
-      changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+      changeDownloadPath: vi.fn(async () => ({
+        ok: true as const,
+        data: { migrated: 0, missing: 0, failed: 0 },
+      })),
       updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
     });
     try {
@@ -800,7 +812,10 @@ describe('StorageSettings', () => {
   it('group reset skips all legs when the core setPaths fails (core-first ordering)', async () => {
     // 核心先行：setPaths 失败即早返，下载搬运等不可逆操作不再执行（closing H-1）。
     const updatePreferences = vi.fn(async () => true);
-    const changeDownloadPath = vi.fn(async () => ({ ok: true as const, data: undefined }));
+    const changeDownloadPath = vi.fn(async () => ({
+      ok: true as const,
+      data: { migrated: 0, missing: 0, failed: 0 },
+    }));
     const updateDownloadSettings = vi.fn(async () => ({ ok: true as const, data: undefined }));
     const setTreeCacheOptions = vi.fn().mockResolvedValue({ ok: true, data: undefined });
     const prevUpdatePreferences = useAppStore.getState().updatePreferences;
@@ -2058,7 +2073,10 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
     try {
       useAppStore.setState({
         updatePreferences: vi.fn(async () => true),
-        changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+        changeDownloadPath: vi.fn(async () => ({
+          ok: true as const,
+          data: { migrated: 0, missing: 0, failed: 0 },
+        })),
         updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
         downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
       });
@@ -2112,7 +2130,10 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
     try {
       useAppStore.setState({
         updatePreferences: vi.fn(async () => true),
-        changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+        changeDownloadPath: vi.fn(async () => ({
+          ok: true as const,
+          data: { migrated: 0, missing: 0, failed: 0 },
+        })),
         updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
         showToast,
         downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
@@ -2512,7 +2533,10 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
     const prevDownload = useAppStore.getState().downloadSettings;
     const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
     const updatePreferences = vi.fn(async () => true);
-    const changeDownloadPath = vi.fn(async () => ({ ok: true as const, data: undefined }));
+    const changeDownloadPath = vi.fn(async () => ({
+      ok: true as const,
+      data: { migrated: 0, missing: 0, failed: 0 },
+    }));
     const updateDownloadSettings = vi.fn(async () => ({ ok: true as const, data: undefined }));
     try {
       useAppStore.setState({

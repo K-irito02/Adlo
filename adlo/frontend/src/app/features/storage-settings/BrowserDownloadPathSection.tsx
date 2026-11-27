@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from '@stores/slicedStore';
-import { DOWNLOAD_REFRESH_FAILED } from '@stores/slices/browserDownloadsSlice';
+import { DOWNLOAD_ACTIVE, DOWNLOAD_REFRESH_FAILED } from '@stores/slices/browserDownloadsSlice';
 import { useTCopy } from '@i18n/useTCopy';
+import { formatT } from '@i18n/formatT';
+import type { IpcResult } from '@shared/ipc';
+import type { DownloadMigrationResult } from '@shared/ipc/download';
 import { ToggleControl } from '@components/settings/SettingsControls';
 import { ManualPathInput } from './StorageCategoryRow';
 
@@ -96,7 +99,41 @@ export function BrowserDownloadPathSection() {
     triggerRef.current = null;
   }, [confirmEnable]);
 
-  /** 刷新失败哨兵（slice 侧 DOWNLOAD_REFRESH_FAILED）：写成功但回读失败时透出，映射专用 toast。 */
+  /**
+   * 路径变更的统一呈现：成功时仅迁移开启才展示 tracked-only 结果（已迁移/缺失），
+   * `downloads_active` 走专用阻止 toast，其余沿用刷新失败 / 迁移失败 / 选取失败分支。
+   */
+  const reportChangeResult = (result: IpcResult<DownloadMigrationResult>) => {
+    if (result.ok) {
+      if (autoMigrate) {
+        showToast(
+          formatT(t, 'storageDownloadMigrateResult', {
+            migrated: result.data.migrated,
+            missing: result.data.missing,
+          }),
+          'success',
+        );
+      }
+      return;
+    }
+    if (result.error.message === DOWNLOAD_ACTIVE) {
+      showToast(t.storageDownloadMigrateBlockedActive, 'error');
+      return;
+    }
+    showToast(
+      result.error.message === DOWNLOAD_REFRESH_FAILED
+        ? t.storageDownloadRefreshFailed
+        : autoMigrate
+          ? formatT(t, 'storageDownloadMigrateFailed', {
+              error: result.error.message ?? t.storageUnknownError,
+            })
+          : formatT(t, 'storagePickFailed', {
+              error: result.error.message ?? t.storageUnknownError,
+            }),
+      'error',
+    );
+  };
+
   const commitPath = async (path: string) => {
     if (busy || isLoadingSettings) {
       return;
@@ -111,22 +148,7 @@ export function BrowserDownloadPathSection() {
     setBusy(true);
     try {
       const result = await changeDownloadPath(target, autoMigrate);
-      if (!result.ok) {
-        showToast(
-          result.error.message === DOWNLOAD_REFRESH_FAILED
-            ? t.storageDownloadRefreshFailed
-            : autoMigrate
-              ? t.storageDownloadMigrateFailed.replace(
-                  '{error}',
-                  result.error.message ?? t.storageUnknownError,
-                )
-              : t.storagePickFailed.replace(
-                  '{error}',
-                  result.error.message ?? t.storageUnknownError,
-                ),
-          'error',
-        );
-      }
+      reportChangeResult(result);
     } finally {
       setBusy(false);
     }
@@ -157,22 +179,7 @@ export function BrowserDownloadPathSection() {
         const target = isSameResolvedPath(picked, systemDefaultDownloadPath) ? '' : picked;
         if (target !== defaultPath) {
           const change = await changeDownloadPath(target, autoMigrate);
-          if (!change.ok) {
-            showToast(
-              change.error.message === DOWNLOAD_REFRESH_FAILED
-                ? t.storageDownloadRefreshFailed
-                : autoMigrate
-                  ? t.storageDownloadMigrateFailed.replace(
-                      '{error}',
-                      change.error.message ?? t.storageUnknownError,
-                    )
-                  : t.storagePickFailed.replace(
-                      '{error}',
-                      change.error.message ?? t.storageUnknownError,
-                    ),
-              'error',
-            );
-          }
+          reportChangeResult(change);
         }
       }
     } finally {

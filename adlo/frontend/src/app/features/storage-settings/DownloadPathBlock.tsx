@@ -38,8 +38,8 @@ export function DownloadPathBlock({
   const [busy, setBusy] = useState(false);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
-  /** 开框时刻的迁移开关快照：文案与执行同源，避免开框后改开关导致"文案一个值、
-   * 行为另一个值"（task4 L-5）。 */
+  /** 开框时刻的迁移开关快照：确认文案、搬运行为与恢复后的结果 toast 三者同源，
+   * 避免开框后改开关导致"文案一个值、行为另一个值"（task4 L-5）。 */
   const migrateAtOpenRef = useRef(false);
 
   const atDefault = isDownloadPathAtDefault(downloadSettings, downloadSettingsLoaded);

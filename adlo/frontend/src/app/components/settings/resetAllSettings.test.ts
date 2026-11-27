@@ -10,7 +10,10 @@ function deps(overrides: Partial<ResetAllDeps> = {}): ResetAllDeps {
       updatePreferences: vi.fn(async () => true),
       updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
       downloadPath: {
-        changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+        changeDownloadPath: vi.fn(async () => ({
+          ok: true as const,
+          data: { migrated: 0, missing: 0, failed: 0 },
+        })),
         updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
       },
       resetShareProfile: vi.fn(),
@@ -33,7 +36,10 @@ function deps(overrides: Partial<ResetAllDeps> = {}): ResetAllDeps {
       })),
       resetTreeCache: vi.fn(async () => true),
       downloadPath: {
-        changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+        changeDownloadPath: vi.fn(async () => ({
+          ok: true as const,
+          data: { migrated: 0, missing: 0, failed: 0 },
+        })),
         updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
       },
     },

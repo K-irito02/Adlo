@@ -4,7 +4,10 @@ import type { DownloadPathResetDeps } from './types';
 
 function deps(overrides: Partial<DownloadPathResetDeps> = {}): DownloadPathResetDeps {
   return {
-    changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+    changeDownloadPath: vi.fn(async () => ({
+      ok: true as const,
+      data: { migrated: 0, missing: 0, failed: 0 },
+    })),
     updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
     ...overrides,
   };

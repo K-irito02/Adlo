@@ -585,3 +585,73 @@ describe('browserDownloadsSlice — redownloadDownload 15s timeout', () => {
     expect(get().redownloadingIds.has('d1')).toBe(false);
   });
 });
+
+describe('browserDownloadsSlice — changeDownloadPath migration result', () => {
+  const migration = { ok: true as const, data: { migrated: 2, missing: 1, failed: 0 } };
+  const records = [download({ id: 'd1', status: 'completed' })];
+  const states = [fileState({ id: 'd1', exists: true, in_default_dir: true })];
+
+  function mockPathChange(outcome: unknown) {
+    mockInvoke.mockImplementation((cmd: string) => {
+      switch (cmd) {
+        case 'download_change_default_path':
+          return Promise.resolve(outcome);
+        case 'download_get_settings':
+          return Promise.resolve({
+            ok: true,
+            data: { mode: 'auto', default_path: 'D:/new', auto_migrate_on_path_change: true },
+          });
+        case 'download_get_default_path':
+          return Promise.resolve({ ok: true, data: 'C:/Users/u/Downloads' });
+        case 'download_list':
+          return Promise.resolve({ ok: true, data: records });
+        case 'download_file_states':
+          return Promise.resolve({ ok: true, data: states });
+        default:
+          return Promise.resolve({ ok: true, data: undefined });
+      }
+    });
+  }
+
+  beforeEach(() => {
+    mockInvoke.mockReset();
+  });
+
+  it('returns migrated/missing counts and refreshes downloads + file states on success', async () => {
+    mockPathChange(migration);
+    const { slice, get } = buildSlice();
+
+    const result = await slice.changeDownloadPath('D:/new', true);
+
+    expect(result).toEqual(migration);
+    expect(mockInvoke).toHaveBeenCalledWith('download_change_default_path', {
+      newPath: 'D:/new',
+      migrate: true,
+    });
+    expect(mockInvoke).toHaveBeenCalledWith('download_list');
+    expect(mockInvoke).toHaveBeenCalledWith('download_file_states', { ids: ['d1'] });
+    expect(get().downloadFileStates['d1']).toEqual(states[0]);
+  });
+
+  it('refreshes downloads + file states when downloads_active blocks migration', async () => {
+    mockPathChange({ ok: false, error: { code: 'Internal', message: 'downloads_active' } });
+    const { slice } = buildSlice();
+
+    const result = await slice.changeDownloadPath('D:/new', true);
+
+    expect(result.ok).toBe(false);
+    expect(mockInvoke).toHaveBeenCalledWith('download_list');
+    expect(mockInvoke).toHaveBeenCalledWith('download_file_states', { ids: ['d1'] });
+  });
+
+  it('refreshes downloads + file states on a generic migration failure', async () => {
+    mockPathChange({ ok: false, error: { code: 'Internal', message: 'boom' } });
+    const { slice } = buildSlice();
+
+    const result = await slice.changeDownloadPath('D:/new', true);
+
+    expect(result.ok).toBe(false);
+    expect(mockInvoke).toHaveBeenCalledWith('download_list');
+    expect(mockInvoke).toHaveBeenCalledWith('download_file_states', { ids: ['d1'] });
+  });
+});

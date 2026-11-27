@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import type { CopyDict } from '../../i18n';
+import { zhCN } from '../../i18n/zh-CN/index';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
 import { BrowserSettings } from './BrowserSettings';
@@ -470,6 +471,15 @@ describe('Browser settings group reset (own confirm dialog)', () => {
     renderBrowser();
     const msg = document.querySelector('.adl-confirm-dialog__message');
     expect(msg?.textContent).not.toContain('browserGroupResetMigrateOnNote');
+  });
+
+  it('renders the tracked-only migration hint in the download path row', () => {
+    setDownload('auto', true);
+    renderBrowser(zhCN);
+    const row = screen.getByTestId('download-migrate-row');
+    expect(row.textContent).toContain('仅迁移下载记录中的文件');
+    expect(row.textContent).toContain('其它文件保留');
+    expect(row.textContent).not.toContain('全部文件');
   });
 
   it('confirm executes profile → suspend → mode → path in order and closes on success', async () => {

@@ -156,19 +156,19 @@ export const settingsZh = {
   storageBrowserDownloadTitle: '浏览器下载路径',
   storageDownloadMigrateLabel: '更改路径时自动迁移文件',
   storageDownloadMigrateHint:
-    '开启后，修改默认下载路径会把旧路径下的全部文件和文件夹一并搬到新路径，全部搬完后才删除旧路径目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）。若中途失败：已搬走的文件会留在新路径，其余仍在旧路径，设置不会切换，可随时重试，不会丢失任何文件。关闭时只切换路径，不搬运任何文件。',
-  storageDownloadMigrateEnableTitle: '开启自动迁移？',
+    '更改默认下载路径时，仅迁移下载记录中的文件；旧目录中的其它文件保留。关闭时只切换路径，不搬运任何文件。',
+  storageDownloadMigrateEnableTitle: '仅迁移下载记录中的文件？',
   storageDownloadMigrateEnableConfirm:
-    '开启「更改路径时自动迁移文件」后，以后每次修改默认下载路径，旧路径下的全部文件和文件夹都会被搬到新路径；只有全部搬运成功，才会删除旧路径目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）。若中途失败：已搬走的文件在新路径、其余仍在旧路径，设置不会切换，可稍后重试；不会丢失或丢弃任何文件。确定要开启吗？',
-  storageDownloadMigrateEnableConfirmBtn: '确认开启',
+    '开启后，每次修改默认下载路径仅迁移下载记录中的文件；旧目录中的其它文件保留，不会被删除。若中途失败：已迁移的文件留在新路径，其余仍在旧路径，设置不会切换，可稍后重试。确定要开启吗？',
+  storageDownloadMigrateEnableConfirmBtn: '确认开启（仅记录文件）',
   storageDownloadResetTitle: '恢复默认下载路径？',
   storageDownloadResetConfirmMigrateOn:
-    '将把默认下载路径恢复为系统默认。当前已开启自动迁移：旧路径下的全部文件会先搬到系统默认路径，全部成功后删除旧路径目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）；若中途失败：已搬走的文件在新路径、其余仍在旧路径，设置不切换，可重试。',
+    '将把默认下载路径恢复为系统默认。当前已开启自动迁移：仅迁移下载记录中的文件到系统默认路径；旧目录中的其它文件保留，不会被删除。若迁移失败：已迁移的文件留在新路径，其余仍在旧路径，设置不会切换，可稍后重试。',
   storageDownloadResetConfirmMigrateOff:
-    '将把默认下载路径恢复为系统默认。当前未开启自动迁移：只切换路径，旧路径中的文件不会被搬运，也不会被删除。',
+    '将把默认下载路径恢复为系统默认。当前未开启自动迁移：只切换路径，不迁移任何文件；旧目录中的其它文件保留，不会被删除。',
   // 路径已是系统默认、仅迁移开关非默认：确认框不提路径恢复（已是默认，事项 10）。
   storageDownloadResetConfirmSwitchOnly:
-    '下载路径已是系统默认，无需变更。当前已开启自动迁移：本次仅将开关恢复为关闭，不涉及文件搬运。',
+    '下载路径已是系统默认，无需变更。当前已开启自动迁移：本次仅将开关恢复为关闭，不涉及文件搬运；旧目录中的其它文件保留。',
   storageDownloadResetConfirmBtn: '恢复默认',
   storageGroupResetTitle: '恢复「存储」全部默认？',
   // 不写死数量：清单按开框时快照逐块过滤——已默认的块整项不出现（事项 10）。
@@ -183,7 +183,7 @@ export const settingsZh = {
   storageGroupResetItemTreeReenable: '工作区树缓存：重新开启，已缓存内容保留；立即生效。',
   storageGroupResetItemTreeTtl: '工作区树缓存：保留时长恢复 15 分钟，已缓存内容保留；立即生效。',
   storageGroupResetItemDownloadMigrateOn:
-    '浏览器默认下载路径：恢复为系统默认；旧路径文件先搬过去，全部成功后才删除旧目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）；自动迁移开关恢复为关闭。',
+    '浏览器默认下载路径：恢复为系统默认；仅迁移下载记录中的文件到系统默认路径，旧目录中的其它文件保留，不会被删除；自动迁移开关恢复为关闭。',
   storageGroupResetItemDownloadMigrateOff:
     '浏览器默认下载路径：恢复为系统默认，只切换路径、不搬文件；自动迁移开关保持关闭。',
   // 路径已是系统默认、仅迁移开关非默认：不提路径恢复（已是默认，事项 10）。
@@ -205,8 +205,11 @@ export const settingsZh = {
   browserGroupResetMessage:
     '挂起时长（恢复 15 分钟）、挂起白名单（关闭并清空）、共享浏览配置文件（恢复开启）、下载模式（恢复自动保存）、默认下载路径（恢复系统默认并关闭自动迁移）将一起恢复为默认值。',
   browserGroupResetMigrateOnNote:
-    '当前已开启「更改路径时自动迁移文件」：恢复路径时旧路径下的全部文件会先搬到系统默认路径，全部成功后删除旧路径目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）；若中途失败：已搬走的文件在新路径、其余仍在旧路径，设置不切换，可重试。',
+    '当前已开启「更改路径时自动迁移文件」：恢复路径时仅迁移下载记录中的文件到系统默认路径；旧目录中的其它文件保留，不会被删除。若迁移失败：已迁移的文件留在新路径，其余仍在旧路径，设置不切换，可重试。',
   storageDownloadMigrateFailed: '迁移文件失败：{error}',
+  // tracked-only 迁移的阻止/结果提示：成功时 failed 恒为 0，部分失败由后端 Err 文案承载。
+  storageDownloadMigrateBlockedActive: '有正在下载或暂停的任务，请先完成或取消后再迁移。',
+  storageDownloadMigrateResult: '已迁移 {migrated} 个下载文件；{missing} 个文件缺失，未迁移。',
   storageDownloadRefreshFailed: '下载设置已保存，但刷新显示失败，请重新打开设置页确认',
   storagePickFailed: '选择目录失败：{error}',
   storageStatusLoading: '正在读取存储状态…',

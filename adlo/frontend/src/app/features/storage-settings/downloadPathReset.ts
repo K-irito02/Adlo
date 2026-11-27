@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
-import { DOWNLOAD_REFRESH_FAILED } from '@stores/slices/browserDownloadsSlice';
+import { DOWNLOAD_ACTIVE, DOWNLOAD_REFRESH_FAILED } from '@stores/slices/browserDownloadsSlice';
 import type { IpcError } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
 import type { DownloadSettings } from '@shared/ipc/download';
@@ -54,6 +54,10 @@ export function downloadResetFailureCopy(
   if (error?.message === DOWNLOAD_REFRESH_FAILED) {
     return t.storageDownloadRefreshFailed;
   }
+  // 进行中/暂停任务阻止迁移：专用文案优先于通用迁移失败（后端哨兵 message）。
+  if (error?.message === DOWNLOAD_ACTIVE) {
+    return t.storageDownloadMigrateBlockedActive;
+  }
   if (failedStep !== 'downloadPath') {
     return t.settingsUpdateFailed;
   }
@@ -86,6 +90,16 @@ export function useDownloadPathReset(): {
         migrate,
       );
       if (result.ok) {
+        // 与路径行提交同源：仅迁移开启且后端有计数时结果 toast（含缺失数）。
+        if (migrate && result.migration) {
+          showToast(
+            formatT(t, 'storageDownloadMigrateResult', {
+              migrated: result.migration.migrated,
+              missing: result.migration.missing,
+            }),
+            'success',
+          );
+        }
         return true;
       }
       showToast(downloadResetFailureCopy(t, result.failedStep, result.error, migrate), 'error');

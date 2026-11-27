@@ -18,5 +18,6 @@ export async function resetDownloadPathToDefault(
   if (!switchResult.ok) {
     return { ok: false, failedStep: 'downloadPathSwitch', error: switchResult.error };
   }
-  return { ok: true };
+  // 迁移计数随成功结果带出，供单块恢复的结果 toast 展示（组级调用方可忽略）。
+  return { ok: true, migration: pathResult.data };
 }

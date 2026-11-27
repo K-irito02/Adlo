@@ -14,6 +14,7 @@ import type {
   DownloadFileStatesInput,
   DownloadRedownloadInput,
   DownloadPrepareRedownloadInput,
+  DownloadMigrationResult,
 } from '@shared/ipc/download';
 import type { IpcResult } from '@adlo/kernel';
 import { buildTabsById } from './browserFoldersUtils';
@@ -58,6 +59,13 @@ export function updateTabsForDownloadState(
  */
 export const DOWNLOAD_REFRESH_FAILED = 'REFRESH_FAILED';
 
+/**
+ * 后端 `download_change_default_path` 在存在进行中/暂停任务时的哨兵 message
+ * （Rust `Err("downloads_active")`）；调用方据此映射专用阻止 toast，
+ * 而不是当作通用迁移失败。
+ */
+export const DOWNLOAD_ACTIVE = 'downloads_active';
+
 /** Fallback timers for the transient redownloading spinner; keyed by download id. */
 const redownloadTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -90,8 +98,14 @@ export interface BrowserDownloadsSlice {
     defaultPath?: string,
     autoMigrate?: boolean,
   ) => Promise<IpcResult<void>>;
-  /** 改默认下载路径；`migrate` 时后端先搬旧路径全部文件，成功后才删旧目录并落盘。 */
-  changeDownloadPath: (newPath: string, migrate: boolean) => Promise<IpcResult<void>>;
+  /**
+   * 改默认下载路径；`migrate` 时后端只搬下载记录中的文件（未追踪文件保留），
+   * 返回迁移计数。无论成败，action 都回读列表与文件状态供 UI 刷新展示。
+   */
+  changeDownloadPath: (
+    newPath: string,
+    migrate: boolean,
+  ) => Promise<IpcResult<DownloadMigrationResult>>;
   clearDownloadHistory: () => Promise<void>;
   deleteDownloadFile: (id: string) => Promise<void>;
   removeDownloadRecord: (id: string) => Promise<void>;
@@ -286,29 +300,36 @@ export const createBrowserDownloadsSlice = (
   },
 
   changeDownloadPath: async (newPath: string, migrate: boolean) => {
+    let result: IpcResult<DownloadMigrationResult>;
     try {
-      const result = await invoke<IpcResult<void>>('download_change_default_path', {
+      result = await invoke<IpcResult<DownloadMigrationResult>>('download_change_default_path', {
         newPath,
         migrate,
       });
       if (result.ok) {
         const fresh = await get().fetchDownloadSettings();
         if (!fresh) {
-          return {
+          result = {
             ok: false as const,
             error: { code: 'Internal' as const, message: DOWNLOAD_REFRESH_FAILED },
           };
+        } else {
+          // 解析默认路径同步刷新，避免重置后输入框依赖挂载旧值（L3）。
+          await get().fetchSystemDefaultDownloadPath();
         }
-        // 解析默认路径同步刷新，避免重置后输入框依赖挂载旧值（L3）。
-        await get().fetchSystemDefaultDownloadPath();
       }
-      return result;
     } catch (e) {
-      return {
+      result = {
         ok: false as const,
         error: { code: 'Internal' as const, message: e instanceof Error ? e.message : String(e) },
       };
     }
+
+    // 成功与失败都回读：部分失败时已搬文件/记录落点已变但设置未切换；被阻止时
+    // 记录路径也可能已由其它流程更新。toast 由调用方按 result/error 决定。
+    await get().fetchDownloads();
+    await get().refreshDownloadFileStates(get().downloads.map((d) => d.id));
+    return result;
   },
 
   clearDownloadHistory: async () => {

@@ -1,13 +1,20 @@
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CopyDict } from '@i18n';
+import type { IpcResult } from '@shared/ipc';
+import type { DownloadMigrationResult } from '@shared/ipc/download';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { BrowserDownloadPathSection } from '../BrowserDownloadPathSection';
 
 const mocks = vi.hoisted(() => ({
   downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
   systemDefaultDownloadPath: '',
-  changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+  changeDownloadPath: vi.fn(
+    async (): Promise<IpcResult<DownloadMigrationResult>> => ({
+      ok: true,
+      data: { migrated: 0, missing: 0, failed: 0 },
+    }),
+  ),
   updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
   fetchSystemDefaultDownloadPath: vi.fn(async () => undefined),
   showToast: vi.fn(),
@@ -55,6 +62,9 @@ vi.mock('@i18n/useTCopy', () => ({
       storageDownloadMigrateEnableConfirm: '开启确认文案',
       storageDownloadMigrateEnableConfirmBtn: '确认开启',
       storageDownloadMigrateFailed: '迁移文件失败：{error}',
+      storageDownloadMigrateResult: '已迁移 {migrated} 个下载文件；{missing} 个文件缺失，未迁移。',
+      storageDownloadMigrateBlockedActive: '有正在下载或暂停的任务，请先完成或取消后再迁移。',
+      storageDownloadRefreshFailed: '下载设置已保存，但刷新显示失败',
       storageCancel: '取消',
       settingsUpdateFailed: '设置更新失败',
     } as unknown as CopyDict,
@@ -252,5 +262,66 @@ describe('BrowserDownloadPathSection', () => {
     const confirmBtn = within(dialog).getByRole('button', { name: '确认开启' });
     expect(confirmBtn.className).toContain('adl-btn--secondary');
     expect(confirmBtn.className).not.toContain('adl-btn--primary');
+  });
+
+  function commitCustomPath(path = 'D:/new') {
+    const input = screen.getByLabelText('默认下载路径') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: path } });
+    fireEvent.blur(input);
+  }
+
+  it('shows the tracked-only result toast with migrated/missing counts after a migration', async () => {
+    mocks.downloadSettings.default_path = 'C:/old';
+    mocks.downloadSettings.auto_migrate_on_path_change = true;
+    mocks.changeDownloadPath.mockResolvedValueOnce({
+      ok: true,
+      data: { migrated: 3, missing: 1, failed: 0 },
+    });
+    renderSection();
+
+    commitCustomPath();
+
+    await waitFor(() => {
+      expect(mocks.showToast).toHaveBeenCalledWith(
+        '已迁移 3 个下载文件；1 个文件缺失，未迁移。',
+        'success',
+      );
+    });
+  });
+
+  it('maps downloads_active to the blocked toast instead of the generic migrate failure', async () => {
+    mocks.downloadSettings.default_path = 'C:/old';
+    mocks.downloadSettings.auto_migrate_on_path_change = true;
+    mocks.changeDownloadPath.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'Internal', message: 'downloads_active' },
+    });
+    renderSection();
+
+    commitCustomPath();
+
+    await waitFor(() => {
+      expect(mocks.showToast).toHaveBeenCalledWith(
+        '有正在下载或暂停的任务，请先完成或取消后再迁移。',
+        'error',
+      );
+    });
+    expect(mocks.showToast).not.toHaveBeenCalledWith('迁移文件失败：downloads_active', 'error');
+  });
+
+  it('keeps the generic migrate-failure toast for other errors', async () => {
+    mocks.downloadSettings.default_path = 'C:/old';
+    mocks.downloadSettings.auto_migrate_on_path_change = true;
+    mocks.changeDownloadPath.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'Internal', message: 'boom' },
+    });
+    renderSection();
+
+    commitCustomPath();
+
+    await waitFor(() => {
+      expect(mocks.showToast).toHaveBeenCalledWith('迁移文件失败：boom', 'error');
+    });
   });
 });
