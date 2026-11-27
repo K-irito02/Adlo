@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
@@ -48,6 +56,7 @@ export function parseArgs(argv) {
     root: arg(argv, "--root", process.env.ADL_LOG_ROOT),
     tail,
     timeoutMs,
+    force: argv.includes("--force"),
     help: false,
   };
 }
@@ -117,12 +126,28 @@ export function runWorker(metaPath) {
   return payload;
 }
 
-export function startLogged({ name, commandText, cwd = process.cwd(), root }) {
+export function startLogged({ name, commandText, cwd = process.cwd(), root, force = false }) {
   const paths = buildPaths(root, name);
-  if (existsSync(paths.metaPath) || existsSync(paths.resultPath) || existsSync(paths.logPath)) {
-    throw new Error(
-      `log target already exists for ${name}; choose a new --name or remove old files`,
-    );
+  const existing = [paths.metaPath, paths.resultPath, paths.logPath].filter((path) =>
+    existsSync(path),
+  );
+  if (existing.length > 0) {
+    if (!force) {
+      throw new Error(`log target already exists for ${name}; pass --force to archive and rerun`);
+    }
+    const meta = readJson(paths.metaPath);
+    if (meta && !readJson(paths.resultPath) && isPidAlive(meta.workerPid)) {
+      throw new Error(`logged job ${name} is still running; wait for it before --force`);
+    }
+    const stamp = new Date()
+      .toISOString()
+      .replace(/[-:]/g, "")
+      .replace(/\.\d{3}Z$/, "");
+    const archiveDir = join(paths.dir, `${name}.previous-${stamp}`);
+    mkdirSync(archiveDir, { recursive: true });
+    for (const source of existing) {
+      renameSync(source, join(archiveDir, source.split(/[\\/]/).at(-1)));
+    }
   }
   mkdirSync(paths.dir, { recursive: true });
   const meta = {
@@ -197,7 +222,7 @@ function printUsage() {
   console.log(
     [
       "Usage: node scripts/run-logged.mjs <start|wait|status|tail> --name <name> [options]",
-      "  start -- <command>     start a detached logged command",
+      "  start [--force] -- <command>  start a detached logged command; --force archives prior evidence",
       "  wait                   wait and print the final tail",
       "  status                 print machine-readable status",
       "  tail --tail <N>        print the last N log lines",

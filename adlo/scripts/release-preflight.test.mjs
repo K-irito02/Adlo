@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { collectPreflight, inspectVersions, resolveSigningConfig } from "./release/preflight.mjs";
 
 function write(path, content) {
@@ -42,9 +44,10 @@ test("reports signing configuration as booleans without exposing secrets", () =>
     );
     assert.equal(configured.keyConfigured, true);
     assert.equal(configured.passwordConfigured, true);
-    assert.equal(configured.keyPath, keyPath);
+    assert.equal(configured.keySource, "default-path");
     assert.equal(JSON.stringify(configured).includes("PRIVATE_KEY_CONTENT"), false);
     assert.equal(JSON.stringify(configured).includes("PASSWORD_VALUE"), false);
+    assert.equal(JSON.stringify(configured).includes(keyPath), false);
 
     const missing = resolveSigningConfig({ USERPROFILE: root }, root);
     assert.equal(missing.keyConfigured, true);
@@ -52,6 +55,38 @@ test("reports signing configuration as booleans without exposing secrets", () =>
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("treats key content as configured without returning it and rejects missing key paths", () => {
+  const content = resolveSigningConfig({
+    TAURI_SIGNING_PRIVATE_KEY: "REVIEW_SENTINEL_KEY_CONTENT",
+  });
+  assert.equal(content.keyConfigured, true);
+  assert.equal(content.keySource, "content");
+  assert.equal(JSON.stringify(content).includes("REVIEW_SENTINEL_KEY_CONTENT"), false);
+
+  const missingPath = resolveSigningConfig({
+    TAURI_SIGNING_PRIVATE_KEY_PATH: "Z:/definitely-missing/adlo.key",
+  });
+  assert.equal(missingPath.keyConfigured, false);
+  assert.equal(missingPath.keySource, "missing");
+});
+
+test("CLI never prints signing key content, path or password sentinels", () => {
+  const script = fileURLToPath(new URL("./release-preflight.mjs", import.meta.url));
+  const result = spawnSync(process.execPath, [script], {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      TAURI_SIGNING_PRIVATE_KEY: "REVIEW_SENTINEL_KEY_CONTENT",
+      TAURI_SIGNING_PRIVATE_KEY_PATH: "REVIEW_SENTINEL_KEY_PATH",
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: "REVIEW_SENTINEL_PASSWORD",
+    },
+  });
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.equal(output.includes("REVIEW_SENTINEL_KEY_CONTENT"), false);
+  assert.equal(output.includes("REVIEW_SENTINEL_KEY_PATH"), false);
+  assert.equal(output.includes("REVIEW_SENTINEL_PASSWORD"), false);
 });
 
 const cleanInput = () => ({

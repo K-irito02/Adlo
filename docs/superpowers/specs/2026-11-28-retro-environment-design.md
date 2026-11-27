@@ -81,7 +81,7 @@
 - 将 bundle 内同版本 exe/sig 和 `.release/local/v<ver>` 移到 `.release/backups/<timestamp>/`。
 - 调用现有 `release.mjs build --local`，保持构建/签名真源不变。
 - 调用现有 `verify-local-signature.mjs`。
-- 归档到 `ADLO_BUILD_ARCHIVE_DIR`（默认 `E:/AI-DIGITAL-LIFE/Adlo-builds`）下 `v<ver>-pre-<sha>/`。
+- 归档到 `ADLO_BUILD_ARCHIVE_ROOT`（默认 `E:/AI-DIGITAL-LIFE/Adlo-builds`）下 `v<ver>-pre-<sha>/`；先写唯一临时目录，再原子发布，并发调用只有一个胜者。
 - 输出版本、SHA、安装包路径、校验和、验签结果、`published=false`。
 
 包脚本增加 `release:build:local` 与 `release:local:verify`。

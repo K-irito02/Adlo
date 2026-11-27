@@ -19,6 +19,7 @@ const fixture = {
       time: { created: 200 },
       tokens: { input: 500, output: 20, reasoning: 5, cache: { read: 10 } },
       content: [
+        { type: "text", text: "REVIEW_SENTINEL_REDACTED_BODY" },
         tool("t1", "shell", 200, 200, 1_200),
         tool("t2", "read", 200, 1_200, 1_700, "error"),
       ],
@@ -60,6 +61,7 @@ test("summarizes messages, tools, durations, errors and token peaks", () => {
   assert.equal(result.errors[0].id, "t2");
   assert.equal(result.tokenPeaks[0].input, 1_500);
   assert.equal(result.slowest[0].id, "t1");
+  assert.equal(JSON.stringify(result).includes("REVIEW_SENTINEL_REDACTED_BODY"), false);
 });
 
 test("detects repeated same-tool runs", () => {

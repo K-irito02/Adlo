@@ -148,10 +148,18 @@
 - Modify: generated `.opencode/` and `.trae/` mirrors via repository scripts.
 - Modify: plan/spec checkboxes as tasks complete.
 
-- [ ] Run all focused script tests, `check:script-lint`, `scripts:format:check`, `check:docs-links`, `check:skills`, `check:context-budget`, `check:repo`.
-- [ ] Confirm three skill/rule trees match.
-- [ ] Commit on `slot-2` with a conventional message.
+- [x] Run all focused script tests, `check:script-lint`, `scripts:format:check`, `check:docs-links`, `check:skills`, `check:context-budget`, `check:repo`.
+- [x] Confirm three skill/rule trees match.
+- [x] Commit on `slot-2` with a conventional message.
 - [ ] Fast-forward `main`, align `slot-1` and `slot-2`.
 - [ ] Run approved `check:all` on merged `main` with logged output.
 - [ ] Push `main slot-1 slot-2` through `push:both` and verify both remote SHAs.
 - [ ] Close the session registry and report final hash/status.
+
+## Final Review Fixes
+
+- [x] F1: preflight returns only signing booleans/source enum; key content/path/password sentinels never appear in CLI output.
+- [x] F2: fixed-name logged commands support `--force`, archive prior evidence, and refuse to replace a running job.
+- [x] F3: local package archive copies into a unique temp directory and publishes with atomic rename; concurrent calls have one winner.
+- [x] F4: added caller-disconnect and redacted-body non-disclosure regression tests.
+- [x] F5: standardized `ADLO_BUILD_ARCHIVE_ROOT` and `$TEMP/adl-logs/<name>.log` documentation.

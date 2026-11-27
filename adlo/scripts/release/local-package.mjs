@@ -1,5 +1,5 @@
-import { copyFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, renameSync, rmSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 
 const VERSION_RE = /^\d+\.\d+\.\d+$/;
 const SHA_RE = /^[0-9a-f]{7,40}$/i;
@@ -38,11 +38,22 @@ export function backupExistingArtifacts({ repoRoot, version, timestamp }) {
   return { backupRoot, moved };
 }
 
-export function archiveLocalPackage({ localDir, archiveRoot, version, sha }) {
-  const archiveDir = planArchivePath({ archiveRoot, version, sha });
+export function publishArchive(tempDir, archiveDir) {
   if (existsSync(archiveDir)) {
     throw new Error(`archive already exists: ${archiveDir}`);
   }
+  try {
+    renameSync(tempDir, archiveDir);
+  } catch (error) {
+    if (existsSync(archiveDir)) {
+      throw new Error(`archive already exists: ${archiveDir}`);
+    }
+    throw error;
+  }
+}
+
+export function archiveLocalPackage({ localDir, archiveRoot, version, sha }) {
+  const archiveDir = planArchivePath({ archiveRoot, version, sha });
   const files = [
     `Adlo_${version}_x64-setup.exe`,
     `Adlo_${version}_x64-setup.exe.sig`,
@@ -53,9 +64,16 @@ export function archiveLocalPackage({ localDir, archiveRoot, version, sha }) {
       throw new Error(`missing local artifact: ${join(localDir, file)}`);
     }
   }
-  mkdirSync(archiveDir, { recursive: true });
-  for (const file of files) {
-    copyFileSync(join(localDir, file), join(archiveDir, file));
+  mkdirSync(dirname(archiveDir), { recursive: true });
+  const tempDir = mkdtempSync(join(dirname(archiveDir), `.${basename(archiveDir)}.tmp-`));
+  try {
+    for (const file of files) {
+      copyFileSync(join(localDir, file), join(tempDir, file));
+    }
+    publishArchive(tempDir, archiveDir);
+  } catch (error) {
+    rmSync(tempDir, { recursive: true, force: true });
+    throw error;
   }
   return { archiveDir, files };
 }

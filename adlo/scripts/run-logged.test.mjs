@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -21,6 +22,7 @@ test("parses start and wait commands", () => {
     root: process.env.ADL_LOG_ROOT ?? undefined,
     tail: 80,
     timeoutMs: 1_800_000,
+    force: false,
     help: false,
   });
   assert.deepEqual(parseArgs(["tail", "--name", "check-all", "--tail", "12"]), {
@@ -31,6 +33,7 @@ test("parses start and wait commands", () => {
     root: process.env.ADL_LOG_ROOT ?? undefined,
     tail: 12,
     timeoutMs: 1_800_000,
+    force: false,
     help: false,
   });
 });
@@ -88,6 +91,55 @@ test("worker preserves non-zero exit codes", () => {
     const result = runWorker(metaPath);
     assert.equal(result.exitCode, 7);
     assert.equal(JSON.parse(readFileSync(join(dir, "fail.json"), "utf8")).exitCode, 7);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("forced rerun archives prior evidence and starts a fresh fixed-name job", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "adl-logged-rerun-"));
+  try {
+    const fixture = join(dir, "job.mjs");
+    writeFileSync(fixture, 'process.stdout.write(process.argv[2] + "\\n");\n');
+    const commandText = `"${process.execPath}" "${fixture}"`;
+    startLogged({ name: "repeat", commandText: `${commandText} first`, cwd: dir, root: dir });
+    await waitLogged({ name: "repeat", root: dir, timeoutMs: 10_000 });
+    assert.match(readFileSync(join(dir, "repeat.log"), "utf8"), /first/);
+
+    startLogged({
+      name: "repeat",
+      commandText: `${commandText} second`,
+      cwd: dir,
+      root: dir,
+      force: true,
+    });
+    await waitLogged({ name: "repeat", root: dir, timeoutMs: 10_000 });
+    assert.match(readFileSync(join(dir, "repeat.log"), "utf8"), /second/);
+    const archived = readdirSync(dir).filter((name) => name.startsWith("repeat.previous-"));
+    assert.equal(archived.length, 1);
+    assert.match(readFileSync(join(dir, archived[0], "repeat.log"), "utf8"), /first/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("worker completes after the short-lived starter process disconnects", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "adl-logged-disconnect-"));
+  try {
+    const job = join(dir, "job.mjs");
+    writeFileSync(job, 'process.stdout.write("survived\\n"); process.exit(5);\n');
+    const runnerUrl = new URL("./run-logged.mjs", import.meta.url).href;
+    const starter = join(dir, "starter.mjs");
+    writeFileSync(
+      starter,
+      `import { startLogged } from ${JSON.stringify(runnerUrl)};\n` +
+        `startLogged({ name: "disconnect", commandText: ${JSON.stringify(`"${process.execPath}" "${job}"`)}, cwd: ${JSON.stringify(dir)}, root: ${JSON.stringify(dir)} });\n`,
+    );
+    const started = spawnSync(process.execPath, [starter], { encoding: "utf8" });
+    assert.equal(started.status, 0, started.stderr);
+    const result = await waitLogged({ name: "disconnect", root: dir, timeoutMs: 10_000 });
+    assert.equal(result.exitCode, 5);
+    assert.match(readFileSync(join(dir, "disconnect.log"), "utf8"), /survived/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

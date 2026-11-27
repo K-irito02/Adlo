@@ -32,13 +32,23 @@ export function inspectVersions(root) {
 
 export function resolveSigningConfig(env, userProfile) {
   const profile = env.USERPROFILE ?? userProfile;
-  const explicitKey = env.TAURI_SIGNING_PRIVATE_KEY || env.TAURI_SIGNING_PRIVATE_KEY_PATH;
   const defaultKey = profile ? join(profile, ".tauri", "adlo.key") : null;
-  const keyPath = explicitKey || defaultKey;
+  let keyConfigured = false;
+  let keySource = "missing";
+  if (env.TAURI_SIGNING_PRIVATE_KEY) {
+    keyConfigured = true;
+    keySource = "content";
+  } else if (env.TAURI_SIGNING_PRIVATE_KEY_PATH) {
+    keyConfigured = existsSync(env.TAURI_SIGNING_PRIVATE_KEY_PATH);
+    keySource = keyConfigured ? "explicit-path" : "missing";
+  } else if (defaultKey && existsSync(defaultKey)) {
+    keyConfigured = true;
+    keySource = "default-path";
+  }
   return {
-    keyConfigured: Boolean(keyPath && (explicitKey || existsSync(keyPath))),
+    keyConfigured,
     passwordConfigured: Boolean(env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD),
-    keyPath,
+    keySource,
   };
 }
 
