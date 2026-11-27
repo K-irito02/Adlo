@@ -123,11 +123,11 @@
 - Produces: `inspectVersions`, `resolveSigningConfig`, `collectPreflight`.
 - CLI: `release:preflight` prints a read-only report and exits non-zero on blockers.
 
-- [ ] Write temp-root tests for three-version consistency, signing config booleans, dirty-tree blockers, archive collision, and secret non-disclosure.
-- [ ] Run focused tests and verify red.
-- [ ] Implement pure inspectors and CLI using Git/PowerShell/disk probes.
-- [ ] Add `release:preflight` package script and invoke it in the release skill.
-- [ ] Run focused tests.
+- [x] Write temp-root tests for three-version consistency, signing config booleans, dirty-tree blockers, archive collision, and secret non-disclosure.
+- [x] Run focused tests and verify red.
+- [x] Implement pure inspectors and CLI using Git/PowerShell/disk probes.
+- [x] Add `release:preflight` package script and invoke it in the release skill.
+- [x] Run focused tests.
 
 ### Task 6: Async testing and reviewer rules
 

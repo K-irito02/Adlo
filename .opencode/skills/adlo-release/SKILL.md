@@ -32,7 +32,7 @@ description: 发布 Adlo 桌面应用的新版本——三处版本号同步、G
 
 ## 正式发布
 
-1. **环境**：`git status --short` 干净、分支正确、`git pull --ff-only`；`dev:stop`；`probe:net`；`gh auth status`；
+1. **环境**：先运行 `pnpm --dir adlo run release:preflight`（只读检查三处版本、Git/双远程、签名配置、磁盘与旧产物）；确认 `git status --short` 干净、分支正确、`git pull --ff-only`；`dev:stop`；`probe:net`；`gh auth status`；
    确认目标 `X.Y.Z`（tag `vX.Y.Z`）。
 2. **tag 预检**：`git ls-remote --tags origin vX.Y.Z` + Gitee「标签」页。已存在且不是本次 HEAD 就先删
    （GitHub `gh release delete vX.Y.Z --cleanup-tag`；Gitee 网页删），否则 `gh release create` 会复用旧 tag。
@@ -83,6 +83,7 @@ description: 发布 Adlo 桌面应用的新版本——三处版本号同步、G
 - 首次本地试用包可以保持当前版本（不 bump）；需要覆盖已安装版本或验证旧→新升级链路时，先 `release:bump X.Y.Z`。
 - 一条命令完成旧包备份、构建、验签与按提交 SHA 归档：
   ```powershell
+  pnpm --dir adlo run release:preflight
   pnpm --dir adlo run release:build:local
   ```
   命令要求工作区干净；将 bundle 内同版本 exe/sig 与 `.release/local/v<ver>/` 移到 `.release/backups/<timestamp>/`，调用现有 `release:build -- --local`，再运行本地验签，最后归档到 `ADLO_BUILD_ARCHIVE_ROOT`（默认 `E:/AI-DIGITAL-LIFE/Adlo-builds`）下的 `v<ver>-pre-<sha>/`。目录只放安装包 / 签名 / 校验和，不参与更新检查。

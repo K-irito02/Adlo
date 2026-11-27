@@ -33,6 +33,7 @@
     "check:rust:changed": "node ./scripts/check-rust-changed.mjs",
     "build": "cargo tauri build",
     "release:bump": "node ./scripts/release.mjs bump",
+    "release:preflight": "node ./scripts/release-preflight.mjs",
     "release:build": "node ./scripts/release.mjs build",
     "release:build:local": "node ./scripts/release-local.mjs",
     "release:local:verify": "node ./scripts/verify-local-signature.mjs",
