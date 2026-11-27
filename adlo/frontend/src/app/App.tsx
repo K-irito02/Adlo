@@ -68,8 +68,8 @@ export function App() {
   // 页面内新窗口请求（target=_blank / window.open）：由 store 按发起标签所在宿主
   // 路由（中心 → 中心标签条，面板 → 面板）；全局只保留这一处订阅。
   // 注：已评估「隐藏 WebView 触发下载、不开标签」方案；WebView2 在非标签/1×1
-  // 触发面上不会发起下载（P0 实测），因此下载仍走新标签，由生命周期在收到下载
-  // 记录后立即结束加载态、下载结束自动关闭标签。
+  // 触发面上不会发起下载（P0 实测）。已覆盖的下载 URL 走当前文档原生下载；未覆盖的
+  // 路径仍保留新标签兜底，由生命周期在收到下载记录后结束加载态、下载结束自动关闭。
   const handleBrowserNewTab = useCallback((request: BrowserNewTabRequest) => {
     useAppStore.getState().browserOpenNewWindowTab(request);
   }, []);

@@ -162,7 +162,7 @@ while (target) {
 ## 附：智能体站点链接拦截（2026-10-18）
 在上述通用拦截之上，为 dsh 等智能体站点正文链接增加了白名单分支（未发布阶段；仅 WebView2 可注入，浏览器模式开关置灰）：
 
-- **注入侧门控**：`window.__adlAgentOrigins`（整站 origin 精确匹配 `location.origin`）+ `window.__adlAgentInterceptEnabled`；仅覆盖 `click` 与 `window.open`，`location.assign/replace` 与 `<area>` 维持原生行为（覆盖语义待产品决策）。
+- **注入侧门控**：`window.__adlAgentOrigins`（整站 origin 精确匹配 `location.origin`）+ `window.__adlAgentInterceptEnabled` 控制智能体站点的 `click` 拦截与 SPA nav-guard；`window.open` 的下载重写独立安装在所有站点，但只接管明确文件扩展名，普通页面链接与非 Web scheme 保持原生语义。
 - **信任模型**：白名单判定只在页面 JS 侧执行，Rust 侧仅做形状 backstop（kind/scheme）；与既有 `open-new-tab` 通道同模型，`postMessage` origin 校验已明确延期。
 - **落点统一**：拦截后走「打开方式」设置（`openUrlByMethod`/`openFileByMethod`），与 Markdown 预览正文链接同链路；白名单偏好为结构化 `{alias?, origin}[]`（Rust `AgentSiteAllowEntry` ↔ TS 同步，禁止兼容旧 `string[]`，见事项 7：陈旧本地 `config.json` 会导致 adl-server 启动期 `load_from` 整体失败并回退 system-only）。
 - **教训**：偏好数据形状升级时，旧形状本地配置是第一启动失败源；未发布阶段虽禁兼容代码，但错误信息必须点名期望形状（`load_from` 已追加 `agent_site_whitelist must be [{origin, alias?}]` 上下文），否则只能靠终端 dying words 定位。

@@ -18,6 +18,14 @@
    - `sanitize_download_file_name`：拒绝空名、`.`/`..`、含 `/`、`\`、控制字符，Windows 下拒绝保留设备名与非法字符，尾部点/空格归一化。
    - 净化后的文件名用于日志与 `browser-download-error` 事件回显，防止注入。
 
+## 2026-11-28 增量：普通站点 `window.open` 下载
+
+- **症状**：第三方产品页点击「立即下载」后，整个 Tauri 应用短暂冻结；真实日志显示下载链接先新建标签，再从 `build_webview_builder` 到 `browser webview created` 出现约 13 秒主线程空窗。
+- **根因**：站点用普通 `window.open(downloadUrl)` 触发下载，但注入脚本的 `window.open` 下载重写当时只安装在智能体站点；普通站点进入 Rust `new_window_handler` → 新标签 → 同步 `window.add_child` 路径。
+- **修复**：`window.open` 下载重写扩展到所有站点，但只接管明确文件扩展名；命中后调用与 `target=_blank` 链接共用的 `__adlTriggerNativeDownload`，在当前 WebView 创建隐藏 iframe，让原生 `DownloadStarting` 接管。`/files/`、`/get/` 等宽松候选仍委托原生新标签，PDF/SVG/媒体等可内联扩展名也不会顶掉当前页面。
+- **边界**：iframe 助手优先挂到 `document.body`，其次 `document.documentElement`；容器缺失或挂载失败时回退导航，不向页面抛异常。30 秒移除 iframe 与 `X-Frame-Options` 限制继续按既有手工验收项观察。
+- **验证**：定向行为测试覆盖普通站点 `.exe`、PDF、宽松路径、body 未就绪、普通页面与非 Web URL；dev Tauri 真机日志显示 `window.open → hidden iframe → DownloadStarting` 约 108 ms，无 `new_window_handler` / 新 WebView，用户确认界面无冻结。
+
 ## 经验教训
 1. **统一管线要看"所有下载类型"打齐**：除 `<a download>` 外，`window.open` 下载、blob URL、相对 URL、`target="_blank"` 扩展名链接都会旁路原生管线。逐类对照 Chrome/Edge 补齐，避免"部分类型仍走旁路"。
 2. **下载链接 `target="_blank"` 与 `new_window_handler DENY` 冲突**：新窗口下载被拒绝会导致下载整体取消；强制 `_self` 后在当前文档触发 DownloadStarting 才真正落盘。
@@ -32,3 +40,4 @@
 - `src-tauri/src/commands/download_commands.rs`
 - `src-tauri/src/commands/browser_webview_setup.rs`（WebView2 DownloadStarting 事件）
 - 测试：`frontend/src/app/features/browser/initScriptNavigation.test.ts`
+- 本轮根因与真机验证：`docs/root-cause-to-close/2026-11/progress-2026-11-27-231334.md`

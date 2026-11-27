@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * C1 回归测试：验证注入到 WebView2 的 `init_script.js` 中的两个纯函数
@@ -304,16 +304,20 @@ describe('init_script.js new-tab interception markers', () => {
     const branchEnd = initScript.indexOf('if (__adlTryOpenNewTab(href', branchStart);
     expect(branchEnd).toBeGreaterThan(branchStart);
     const branch = initScript.slice(branchStart, branchEnd);
+    const helperStart = initScript.indexOf('function __adlTriggerNativeDownload');
+    const helperEnd = initScript.indexOf('// New-window links:', helperStart);
+    const helper = initScript.slice(helperStart, helperEnd);
     expect(branch).toContain('event.preventDefault()');
-    expect(branch).toContain("document.createElement('iframe')");
-    expect(branch).toContain("dlFrame.style.display = 'none'");
-    expect(branch).toContain('dlFrame.src = href');
-    expect(branch).toContain('document.body.appendChild(dlFrame)');
-    expect(branch).toContain('removeChild(dlFrame)');
-    expect(branch).toContain('30000');
+    expect(branch).toContain('__adlTriggerNativeDownload(href)');
+    expect(helper).toContain("document.createElement('iframe')");
+    expect(helper).toContain("dlFrame.style.display = 'none'");
+    expect(helper).toContain('dlFrame.src = url');
+    expect(helper).toContain('document.body || document.documentElement');
+    expect(helper).toContain('container.appendChild(dlFrame)');
+    expect(helper).toContain('removeChild(dlFrame)');
+    expect(helper).toContain('30000');
     expect(branch).not.toContain('window.location.assign');
-    // window.open 的下载路径（含重新下载的 command 路径）经设计批准保留同文档导航。
-    expect(initScript).toContain('window.location.assign(resolvedUrl)');
+    expect(initScript).not.toContain('window.location.assign(resolvedUrl)');
   });
 
   it('delegates window.open(http) to native handling', () => {
@@ -326,20 +330,172 @@ describe('init_script.js new-tab interception markers', () => {
     expect(openRewrite).toContain('origOpen');
   });
 
-  it('resolves relative window.open URLs against the current document (download sites)', () => {
+  it('resolves relative window.open URLs and triggers a hidden download frame', () => {
     // 用户自建网站通过 window.open('/uploads/.../file.exe', '_blank') 触发下载。
     // Chrome/Edge 会先把相对路径解析为完整 URL 再打开；旧实现将相对路径判为
     // invalid URL 返回 null 导致下载不触发。回归断言：window.open 重写必须
-    // 用 new URL(rawUrl, location.href) 解析相对路径，且下载 URL 走同文档
-    // location.assign → 原生 DownloadStarting。
+    // 用 new URL(rawUrl, location.href) 解析相对路径，且下载 URL 走隐藏 iframe
+    // → 原生 DownloadStarting。
     const marker = 'var origOpen = window.open;';
     const openRewrite = initScript.slice(initScript.indexOf(marker), initScript.length);
     expect(openRewrite).toContain('new URL(rawUrl, location.href)');
     expect(openRewrite).toContain("parsed.protocol === 'http:'");
-    expect(openRewrite).toContain('window.location.assign(resolvedUrl)');
+    expect(openRewrite).toContain('__adlIsDownloadExtensionUrl(resolvedUrl)');
+    expect(openRewrite).not.toContain('isDownloadUrl(resolvedUrl)');
+    expect(openRewrite).toContain('__adlTriggerNativeDownload(resolvedUrl)');
     expect(openRewrite).toContain(
-      "__adlSendLog('info', 'window.open: download URL routed to same-document native DownloadStarting'",
+      "__adlSendLog('info', 'window.open: download URL routed to hidden iframe native DownloadStarting'",
     );
+  });
+
+  function loadWindowOpenRewrite(
+    isAgentHost = false,
+    isDownloadExtensionUrl: (value: string) => boolean = (value) => /\.exe(?:[?#]|$)/i.test(value),
+    hasBody = true,
+  ) {
+    const nativeOpen = vi.fn((_url?: string, _name?: string, _features?: string) => ({
+      native: true,
+    }));
+    const assign = vi.fn();
+    const frames: {
+      style: { display: string };
+      src: string;
+      parentNode: unknown;
+    }[] = [];
+    const body = {
+      appendChild(frame: (typeof frames)[number]) {
+        frame.parentNode = body;
+        frames.push(frame);
+      },
+      removeChild(frame: (typeof frames)[number]) {
+        frame.parentNode = null;
+        const index = frames.indexOf(frame);
+        if (index !== -1) {
+          frames.splice(index, 1);
+        }
+      },
+    };
+    const fakeDocument = {
+      body: hasBody ? body : null,
+      documentElement: body,
+      createElement: (tagName: string) => ({
+        tagName,
+        style: { display: '' },
+        src: '',
+        parentNode: null as unknown,
+      }),
+    };
+    const fakeWindow = {
+      open: nativeOpen,
+      location: {
+        href: 'https://weishi.safe.360.cn/product-douyin.html',
+        assign,
+      },
+    };
+    const helperMarker = 'function __adlTriggerNativeDownload';
+    const helperEndMarker = '// New-window links:';
+    const openMarker = 'var origOpen = window.open;';
+    const endMarker = '// 2. 监听表单提交';
+    const helper = initScript.slice(
+      initScript.indexOf(helperMarker),
+      initScript.indexOf(helperEndMarker),
+    );
+    const openBlock = initScript.slice(
+      initScript.indexOf(openMarker),
+      initScript.indexOf(endMarker),
+    );
+    const block = `${helper}\n${openBlock}`;
+    new Function(
+      'window',
+      'location',
+      'document',
+      'isValidWebUrl',
+      '__adlIsDownloadExtensionUrl',
+      '__adlSendLog',
+      '__adlIsAgentHost',
+      block,
+    )(
+      fakeWindow,
+      fakeWindow.location,
+      fakeDocument,
+      (value: string) => /^https?:/i.test(value),
+      isDownloadExtensionUrl,
+      vi.fn(),
+      () => isAgentHost,
+    );
+    return { open: fakeWindow.open, nativeOpen, assign, frames };
+  }
+
+  it('routes normal-site window.open downloads through a hidden current-document frame', () => {
+    const { open, nativeOpen, assign, frames } = loadWindowOpenRewrite(false);
+    const result = open('/package.exe', '_blank');
+
+    expect(result).toBeNull();
+    expect(nativeOpen).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
+    expect(frames).toHaveLength(1);
+    expect(frames[0].style.display).toBe('none');
+    expect(frames[0].src).toBe('https://weishi.safe.360.cn/package.exe');
+  });
+
+  it('triggers window.open downloads before document.body exists', () => {
+    const { open, nativeOpen, assign, frames } = loadWindowOpenRewrite(false, undefined, false);
+    const result = open('/package.exe', '_blank');
+
+    expect(result).toBeNull();
+    expect(nativeOpen).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
+    expect(frames).toHaveLength(1);
+    expect(frames[0].style.display).toBe('none');
+    expect(frames[0].src).toBe('https://weishi.safe.360.cn/package.exe');
+  });
+
+  it('keeps inline-renderable window.open download candidates off the current document', () => {
+    const { open, nativeOpen, assign, frames } = loadWindowOpenRewrite(false, (value) =>
+      /\.pdf(?:[?#]|$)/i.test(value),
+    );
+    const result = open('/brochure.pdf', '_blank');
+
+    expect(result).toBeNull();
+    expect(nativeOpen).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
+    expect(frames).toHaveLength(1);
+    expect(frames[0].style.display).toBe('none');
+    expect(frames[0].src).toBe('https://weishi.safe.360.cn/brochure.pdf');
+  });
+
+  it('delegates loose-path window.open candidates to the native new-tab path', () => {
+    const { open, nativeOpen, assign, frames } = loadWindowOpenRewrite(false);
+    const result = open('/files/help', '_blank');
+
+    expect(result).toEqual({ native: true });
+    expect(nativeOpen).toHaveBeenCalledWith(
+      'https://weishi.safe.360.cn/files/help',
+      '_blank',
+      undefined,
+    );
+    expect(assign).not.toHaveBeenCalled();
+    expect(frames).toHaveLength(0);
+  });
+
+  it('keeps normal-site window.open page links on the native new-tab path', () => {
+    const { open, nativeOpen, assign, frames } = loadWindowOpenRewrite(false);
+    const result = open('https://target.example/page', '_blank');
+
+    expect(result).toEqual({ native: true });
+    expect(nativeOpen).toHaveBeenCalledWith('https://target.example/page', '_blank', undefined);
+    expect(assign).not.toHaveBeenCalled();
+    expect(frames).toHaveLength(0);
+  });
+
+  it('keeps normal-site non-web window.open URLs on the native path', () => {
+    const { open, nativeOpen, assign, frames } = loadWindowOpenRewrite(false);
+    const result = open('mailto:test@example.com', '_blank');
+
+    expect(result).toEqual({ native: true });
+    expect(nativeOpen).toHaveBeenCalledWith('mailto:test@example.com', '_blank', undefined);
+    expect(assign).not.toHaveBeenCalled();
+    expect(frames).toHaveLength(0);
   });
 
   it('normalizes download forms with target=_blank to _self (native DownloadStarting)', () => {

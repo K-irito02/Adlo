@@ -39,9 +39,10 @@
     // `window.__adlAgentInterceptEnabled`) and read dynamically so click
     // interception picks up `browser_set_agent_intercept` on loaded pages.
     // Click interception reads `__adlAgentInterceptEnabled` at event time, so
-    // `browser_set_agent_intercept` applies to already-loaded pages. The
-    // `window.open` rewrite and SPA nav-guard are install-time gates: they are
-    // installed only on agent hosts and need a reload to install or remove.
+    // `browser_set_agent_intercept` applies to already-loaded pages. The SPA
+    // nav-guard is an install-time gate on agent hosts and needs a reload to
+    // install or remove; the `window.open` download rewrite is installed on all
+    // sites.
     function __adlIsAgentHost() {
         try {
             var origins = window.__adlAgentOrigins || [];
@@ -604,6 +605,28 @@
         }
     }, true);
 
+    function __adlTriggerNativeDownload(url) {
+        __adlSendLog('info', 'download link → hidden iframe native DownloadStarting', { href: url });
+        var dlFrame = document.createElement('iframe');
+        dlFrame.style.display = 'none';
+        dlFrame.src = url;
+        var container = document.body || document.documentElement;
+        if (!container) {
+            window.location.assign(url);
+            return;
+        }
+        try {
+            container.appendChild(dlFrame);
+        } catch (e) {
+            __adlSendLog('warn', 'hidden download frame attach failed; falling back to navigation', { href: url, error: String(e) });
+            window.location.assign(url);
+            return;
+        }
+        setTimeout(function() {
+            if (dlFrame.parentNode) dlFrame.parentNode.removeChild(dlFrame);
+        }, 30000);
+    }
+
     // New-window links: WebView2 child webviews may not deliver
     // NewWindowRequested for target="_blank" links, so route only those through
     // the existing postMessage channel (the same path used for modified clicks).
@@ -645,14 +668,7 @@
                             (target.hasAttribute('download') || __adlIsDownloadExtensionUrl(href))) {
                             event.preventDefault();
                             event.stopPropagation();
-                            __adlSendLog('info', 'download link → hidden iframe native DownloadStarting', { href: href });
-                            var dlFrame = document.createElement('iframe');
-                            dlFrame.style.display = 'none';
-                            dlFrame.src = href;
-                            document.body.appendChild(dlFrame);
-                            setTimeout(function() {
-                                if (dlFrame.parentNode) dlFrame.parentNode.removeChild(dlFrame);
-                            }, 30000);
+                            __adlTriggerNativeDownload(href);
                             return;
                         }
                         if (__adlTryOpenNewTab(href, __adlReferrerForLink(target, href))) {
@@ -819,11 +835,11 @@
     document.addEventListener('click', __adlAgentClickHandler, true);
     document.addEventListener('auxclick', __adlAgentClickHandler, true);
     
-    // 1. 重写 window.open：agent 站点只接管下载 URL；其余 http(s) URL 交回
-    //    origOpen（非 http(s) 返回 null）。安装期判断：开关变更后
-    //    需重载页面才会安装/移除该重写（点击拦截本身是动态的）。
+    // 1. 当前实现把 window.open 的下载 URL 接管扩展到所有站点；其余 http(s)
+    //    URL 交回 origOpen。非 http(s) 在普通站点保持原生语义，agent 站点仍返回
+    //    null。下载走当前文档的原生 DownloadStarting，避免为一次下载同步创建子
+    //    WebView 而阻塞 Tauri 主线程。
     var origOpen = window.open;
-    if (__adlIsAgentHost()) {
     window.open = function(url, name, features) {
         var rawUrl = url;
         // Resolve relative / protocol-relative URLs against the current document,
@@ -835,13 +851,15 @@
         if (typeof rawUrl === 'string' && rawUrl) {
             try {
                 var parsed = new URL(rawUrl, location.href);
-                // Only adopt resolved http(s); keep non-navigable schemes
-                // (javascript:, data:, mailto:, ...) untouched so they still return null.
+                // Only adopt resolved http(s); non-navigable schemes are delegated
+                // to the native implementation on normal sites and return null on
+                // agent hosts.
                 if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
                     resolvedUrl = parsed.href;
                 }
             } catch (e) {
-                // Invalid/throwaway URL — keep the original value (falls through to null).
+                // Invalid/throwaway URL — keep the original value; normal sites
+                // delegate to the native implementation, while agent hosts return null.
                 console.log('[ADL-DL-JS] window.open URL parse failed:', rawUrl, e);
                 __adlSendLog('debug', 'window.open URL parse failed', { url: rawUrl });
             }
@@ -850,17 +868,19 @@
         __adlSendLog('info', 'window.open called', { url: rawUrl, resolvedUrl: resolvedUrl, name: name });
 
         if (resolvedUrl && isValidWebUrl(resolvedUrl)) {
-            if (isDownloadUrl(resolvedUrl)) {
+            // Only explicit file extensions are strong enough to replace a
+            // programmatic new-window request; loose /files/ or /get/ paths may
+            // still return ordinary HTML and must keep native new-tab semantics.
+            if (__adlIsDownloadExtensionUrl(resolvedUrl)) {
                 // Download URL (incl. the relative-path case above): do NOT open a
-                // new window. new_window_handler DENYs new windows for download URLs,
-                // and the previous impl proved that cancels the download entirely
-                // (no download_started, no record, no file). Instead navigate the
-                // CURRENT document to the resolved URL -> WebView2 fires native
-                // DownloadStarting (real-time progress + record + default save path),
-                // the identical proven path used by <a download> forced to _self.
-                console.log('[ADL-DL-JS] window.open: download URL -> same-document native DownloadStarting:', resolvedUrl);
-                __adlSendLog('info', 'window.open: download URL routed to same-document native DownloadStarting', { url: resolvedUrl, rawUrl: rawUrl });
-                window.location.assign(resolvedUrl);
+                // new window. Trigger the current WebView's native DownloadStarting
+                // through a hidden frame; when the frame attaches successfully this
+                // keeps inline-renderable responses off the current document. If no
+                // container exists or attachment fails, the helper falls back to
+                // navigation.
+                console.log('[ADL-DL-JS] window.open: download URL -> hidden iframe native DownloadStarting:', resolvedUrl);
+                __adlSendLog('info', 'window.open: download URL routed to hidden iframe native DownloadStarting', { url: resolvedUrl, rawUrl: rawUrl });
+                __adlTriggerNativeDownload(resolvedUrl);
                 return null;
             }
             // Programmatic opens have no DOM context, so they cannot be
@@ -873,11 +893,13 @@
             __adlSendLog('info', 'window.open: non-download URL delegated to origOpen', { url: resolvedUrl });
             return origOpen.call(window, resolvedUrl, name, features);
         }
+        if (!__adlIsAgentHost()) {
+            return origOpen.call(window, rawUrl, name, features);
+        }
         console.log('[ADL-DL-JS] window.open: invalid URL, returning null');
         __adlSendLog('info', 'window.open: invalid URL, returning null', { url: rawUrl, resolvedUrl: resolvedUrl });
         return null;
     };
-    }
     
     // 2. 监听表单提交：统一走原生管线。
     //    http/https 下载 URL 的表单提交不再走 JS 拦截（历史上曾用已删除的
