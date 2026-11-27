@@ -46,6 +46,14 @@ describe("check-review-gate", () => {
     assert.deepEqual(result.failing, [{ scope: "tree-menus", rev: 7 }]);
   });
 
+  it("rejects malformed counts that merely start with zero", () => {
+    for (const conclusion of ["0.5", "0/1", "0abc", "00", "0e0"]) {
+      const result = evaluateR2Gate([report("tree-menus", 7, conclusion)]);
+      assert.equal(result.ok, false, `expected ${conclusion} to fail`);
+      assert.deepEqual(result.failing, [{ scope: "tree-menus", rev: 7 }]);
+    }
+  });
+
   it("ignores older revs when the latest is zero", () => {
     const result = evaluateR2Gate([report("favicon", 6, 3), report("favicon", 7, 0)]);
     assert.equal(result.ok, true);

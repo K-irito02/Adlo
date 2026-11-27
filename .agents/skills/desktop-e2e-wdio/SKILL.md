@@ -156,6 +156,17 @@ jsdom 只能证明「`target=_blank` 下载链接不发 `open-new-tab` 且创建
 | session 显示 `msedge 156` | WebView2 的 UA | 忽略，不代表真在 Edge 里跑 |
 | `--spec` 报找不到文件 | 路径相对 `e2e/`，不是仓库根 | 用 `specs/xxx.spec.ts` |
 | `titlebar toggle never became clickable (startup overlay still on top?)` | 只关了环境向导；随后出现的 harness 向导也是全屏 `adl-confirm-overlay`，盖住标题栏 | 先点 `env-wizard-skip`，再点 `harness-wizard-skip`（`dismissSetupWizards` 已覆盖两者） |
+| 创建 / 导航浏览器子 WebView 后报 `No window could be found`，随后反复等待 5s | WDIO 失去 `main` 窗口句柄，当前子 WebView 不属于原 host 会话 | **立即停止 WDIO 迭代**，不再重复构建 / 改计时；改用 dev Tauri 日志、原生窗口响应监控或用户手动触发取证据 |
+
+### 子 WebView 句柄丢失的硬停止条件
+
+用例一旦创建或导航浏览器子 WebView，随后 WDIO 找不到 `main` 窗口或报 `No window could be found`，即判定当前自动化通道失效。允许保留一次失败输出作为证据，然后停止该用例的 WDIO 重试；不要通过延长超时、循环重建应用或叠加诊断 spec 继续消耗时间。改用以下至少一种证据源，并在进度文件记录切换原因：
+
+- dev Tauri 日志：确认子 WebView 创建 / 导航及前端响应；
+- 原生窗口响应监控：确认主窗口未冻结；
+- 用户手动触发：按编号步骤操作并以用户回复为准。
+
+该停止条件不否定 WDIO 对主窗口常规交互的适用性；它只阻止在已知句柄丢失场景里重复无效尝试。
 
 ## 7. 排障顺序
 

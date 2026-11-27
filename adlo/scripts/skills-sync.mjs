@@ -153,7 +153,7 @@ async function copyDirBatched(src, dest, options) {
   return files.length;
 }
 
-function parseOverlay(text) {
+export function parseOverlay(text) {
   const target = /^target:\s*(.+)$/m.exec(text)?.[1]?.trim();
   const note = /^note:\s*(.+)$/m.exec(text)?.[1]?.trim() ?? "";
   const findMarker = "---FIND---\n";
@@ -188,22 +188,27 @@ function loadOverlays(skill) {
     });
 }
 
+export function applyOverlayText(text, overlay, label = "overlay") {
+  if (text.includes(overlay.replace)) return text;
+  const matches = text.split(overlay.find).length - 1;
+  if (matches !== 1) {
+    throw new Error(`${label}: anchor matched ${matches} times`);
+  }
+  return text.replace(overlay.find, overlay.replace);
+}
+
 function applyOverlay(skill, overlay, options) {
   const file = path.join(agentsRoot, skill, overlay.target);
   const text = fs.readFileSync(file, "utf8").replace(/\r\n/g, "\n");
-  if (text.includes(overlay.replace)) {
-    return "applied";
+  const next = applyOverlayText(
+    text,
+    overlay,
+    `${skill}/${overlay.target}: overlay ${overlay.name}`,
+  );
+  if (!options.dryRun && next !== text) {
+    fs.writeFileSync(file, next, "utf8");
   }
-  const matches = text.split(overlay.find).length - 1;
-  if (matches !== 1) {
-    throw new Error(
-      `${skill}/${overlay.target}: overlay ${overlay.name} anchor matched ${matches} times`,
-    );
-  }
-  if (!options.dryRun) {
-    fs.writeFileSync(file, text.replace(overlay.find, overlay.replace), "utf8");
-  }
-  return options.dryRun ? "would-apply" : "applied";
+  return options.dryRun && next !== text ? "would-apply" : "applied";
 }
 
 function allSkillDirs() {
@@ -707,7 +712,12 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(`[skills-sync] ${error.message}`);
-  process.exit(1);
-});
+const isMain =
+  process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (isMain) {
+  main().catch((error) => {
+    console.error(`[skills-sync] ${error.message}`);
+    process.exit(1);
+  });
+}

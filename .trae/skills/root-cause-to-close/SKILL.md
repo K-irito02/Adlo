@@ -122,7 +122,7 @@ agent_created: true
 
 ### 2.4 日志协议
 
-看 `.adl-logs/` 等被 `.gitignore` 排除的日志，用读取（绝对路径）；搜索遵循 `.gitignore`，会漏掉它们。逐项检查，缺项跳过；`multi` 会话文件按 `LastWriteTime` 取最新；同名覆盖文件直接读；大文件先读尾部 80 行，命中 ERROR 再全文。
+看 `.adl-logs/` 等被 `.gitignore` 排除的日志，用 `pnpm --dir adlo run log:tail -- --file <绝对路径> [--grep <regex>] [--tail 80]`；搜索工具遵循 `.gitignore`，会漏掉它们。逐项检查，缺项跳过；`multi` 会话文件按 `LastWriteTime` 取最新；同名覆盖文件直接读。`log-tail` 默认把每条命中行限制为 800 个字符并保留头尾，避免超长 URL / JSON 撑爆上下文；需要完整单行时显式提高 `--max-line-chars`，不要用无界读取代替。
 
 | 检查项              | 路径                                                                                  |
 | ------------------- | ------------------------------------------------------------------------------------- |
@@ -243,7 +243,7 @@ P3 自动化通过后必须停下，按 §2.2 用 grilling 轮次报告验证结
 **用 merge-base，不用 `origin/HEAD`**：分支落后时后者会把别人已合入 main 的改动算进本次审查。两类都无变更 → 跳过 4c–4e（进度文件记理由），只保留分级测试。
 
 1. `.review-diffs/` 已在 `.gitignore`，P6 删除。**先完成 4c 门禁再生成快照**（格式 / 类型失败发生在快照后会整轮返工）。
-2. **一键快照：** `node adlo/scripts/review-snapshot.mjs --rev <N> [--scopes <json>]`。脚本：解析 base（`merge-base(origin/HEAD, HEAD)`，无远端回退 `HEAD`）→ `git add -N` 未跟踪文件 → 每文件写 `<safe>-rev<N>.diff` → 写 `changed-files-rev<N>.txt` / `commits-rev<N>.txt` / `manifest-rev<N>.md`；空 diff 直接失败。文件数明显多于预期时先核对 base 是否等于本分支分叉点。`--scopes` 生成 `## Scope ownership`，同一文件归入多个 scope 时直接失败。
+2. **一键快照：** `node adlo/scripts/review-snapshot.mjs --rev <N> [--scopes <json|file>]`。脚本：解析 base（`merge-base(origin/HEAD, HEAD)`，无远端回退 `HEAD`）→ `git add -N` 未跟踪文件 → 每文件写 `<safe>-rev<N>.diff` → 写 `changed-files-rev<N>.txt` / `commits-rev<N>.txt` / `manifest-rev<N>.md`；空 diff 直接失败。文件数明显多于预期时先核对 base 是否等于本分支分叉点。`--scopes` 生成 `## Scope ownership`，同一文件归入多个 scope 时直接失败。
    - 手工等价物：`git diff --output=<safe>-rev<N>.diff HEAD -- <file>`——**`--output` 必须在 `--` 之前**（否则被当成 pathspec）。
    - **编码安全：** 落盘 diff 用脚本的 `--output` 或 `edit/write`；PowerShell 管道 / `Out-File` 会把 UTF-8 中文转成 GBK 乱码。
    - **未跟踪文件：** 脚本已 `git add -N`；手工执行必须先做，否则快照漏审。
@@ -356,6 +356,7 @@ UI 引入可复用模式或修正规范时，提取标准并更新 `docs/design-
 ### 6.2 提交
 
 - `git status` 确认只含本轮改动；按 `type(scope): summary` 提交（scope：`core/frontend/rust/stores/browser/terminal/ipc/docs/deps`）。
+- 进度文件只记录本次提交的 subject；最终 hash 在提交完成后的会话总结中报告，不写进正在创建的同一次提交，避免 amend 后 hash 自引用。
 - 不 `push`（由用户执行或明确批准）；不绕过 pre-commit（不用 `--no-verify`）。
 
 ### 6.3 总结（只读进度文件生成）

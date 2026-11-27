@@ -86,14 +86,14 @@ export function matchesScopePattern(file, pattern) {
 }
 
 /**
- * 解析 `--scopes`：接受内联 JSON 或 JSON 文件路径。JSON 形状：
+ * 解析 `--scopes`：已存在的路径优先按 JSON 文件读取，否则按内联 JSON 解析。JSON 形状：
  *   { "<scope>": ["path/exact.ts", "path/dir/**", "path/*.rs"], ... }
  */
 export function parseScopesInput(value, root = repoRoot) {
   const trimmed = value.trim();
+  const scopesPath = path.resolve(root, trimmed);
   let text = trimmed;
-  if (!trimmed.startsWith("{")) {
-    const scopesPath = path.resolve(root, trimmed);
+  if (fs.existsSync(scopesPath)) {
     try {
       text = fs.readFileSync(scopesPath, "utf8");
     } catch (error) {
@@ -541,6 +541,16 @@ function main() {
     return;
   }
 
+  let scopeMap = null;
+  if (options.scopes) {
+    try {
+      scopeMap = parseScopesInput(options.scopes, repoRoot);
+    } catch (error) {
+      console.error(`[review-snapshot] ${error.message}`);
+      process.exit(1);
+    }
+  }
+
   if (options.rev === 1) {
     const progressFile = options.progress
       ? path.resolve(repoRoot, options.progress)
@@ -595,13 +605,6 @@ function main() {
 
   let ownership = null;
   if (options.scopes) {
-    let scopeMap;
-    try {
-      scopeMap = parseScopesInput(options.scopes, repoRoot);
-    } catch (error) {
-      console.error(`[review-snapshot] ${error.message}`);
-      process.exit(1);
-    }
     try {
       ownership = buildScopeOwnership(reviewFiles, scopeMap);
     } catch (error) {

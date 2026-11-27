@@ -46,6 +46,30 @@ test("bounds long UTF-8 log lines by code units", () => {
   assert.ok(content.includes("…"));
 });
 
+test("does not split surrogate pairs at truncation boundaries", () => {
+  const cases = [
+    {
+      line: `${"a".repeat(9)}😀${"b".repeat(20)}`,
+      exact: `${"a".repeat(9)}…${"b".repeat(9)}`,
+    },
+    {
+      line: `${"a".repeat(17)}😀${"b".repeat(8)}`,
+      exact: `${"a".repeat(10)}…${"b".repeat(8)}`,
+    },
+  ];
+
+  for (const { line, exact } of cases) {
+    const result = runLogTail([line], ["--max-line-chars", "20"]);
+    assert.equal(result.status, 0);
+    const outputLine = result.stdout.split(/\r?\n/)[0];
+    const content = outputLine.slice(outputLine.indexOf(":") + 2);
+    assert.ok(content.length <= 20, `expected <= 20 code units, got ${content.length}`);
+    assert.equal(content, exact);
+    assert.equal(Buffer.from(content, "utf8").toString("utf8"), content);
+    assert.ok(!content.includes("\uFFFD"));
+  }
+});
+
 test("defaults to an 800-character bound", () => {
   const result = runLogTail(["x".repeat(1_000)]);
   assert.equal(result.status, 0);

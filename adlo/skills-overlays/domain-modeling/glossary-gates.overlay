@@ -1,13 +1,9 @@
 target: GLOSSARY-FORMAT.md
-note: 本仓库 glossary 门禁适配
+note: 本仓库 glossary 门禁补充规则
 ---FIND---
 - **Group terms under subheadings** when natural clusters emerge. If all terms belong to a single cohesive area, a flat list is fine.
-
-## Single vs multi-context repos
 ---REPLACE---
 - **Group terms under subheadings** when natural clusters emerge. If all terms belong to a single cohesive area, a flat list is fine.
 - **No emphasis in definitions.** 定义正文不要用 `*`/`_` 强调（`check-glossary` 会把正文里的 `*` 判为错误）；标识符、命令、环境变量一律用反引号包裹。
 - **`_Avoid_` 只收领域同义词。** 通用命令/类型名（如 `git status`、`status`）不要收，除非准备给全仓代码加 `glossary-allow`；它们会让 `check:glossary` 在无关代码里报违规。
-
-## Single vs multi-context repos
 ---END---

@@ -1,0 +1,7 @@
+target: GLOSSARY-FORMAT.md
+note: glossary 术语引用规则与检查器一致
+---FIND---
+- **Bold other glossary terms inside a definition.** When a definition mentions another term, write it as `**Order**`, and let the sentence around it say how the two relate.
+---REPLACE---
+- **Reference other glossary terms in plain text or with Markdown links.** This repo's glossary checker rejects emphasis markers inside definition bodies; write `Order` or `[Order](#order)` rather than `**Order**`.
+---END---

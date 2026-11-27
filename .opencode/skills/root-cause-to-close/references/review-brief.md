@@ -20,7 +20,7 @@ pnpm --dir frontend run check:changed
 
 **完整门禁只跑一次**：只有“本轮所有 scope 都零问题、准备进 R2 / 退出 P4”的那个 rev 才跑 `check:changed`；其余 rev 一律 `check:review`。2026-11-22 实测：完整门禁单次 230–237s；2026-11-24 的 13 个 rev 中在多数 rev 重复跑完整门禁，白耗约 30–40 分钟。
 
-- **范围归属**：派发前写一份 `--scopes <json>`（形状见下），快照会生成 `## Scope ownership` 并拒绝同一文件归入多个 scope。启用 `--scopes` 时，**每个 review 文件都必须有 owner**；存在未归属文件时快照直接失败，确有人工例外才用 `--allow-unowned`。每个文件只有一个 owner；其他 scope 只读上下文、不产出 finding。
+- **范围归属**：派发前写一份 `--scopes <json|file>`（可传内联 JSON 或 JSON 文件路径，形状见下），快照会生成 `## Scope ownership` 并拒绝同一文件归入多个 scope。启用 `--scopes` 时，**每个 review 文件都必须有 owner**；存在未归属文件时快照直接失败，确有人工例外才用 `--allow-unowned`。每个文件只有一个 owner；其他 scope 只读上下文、不产出 finding。
   ```json
   {
     "browser-injection": ["adlo/crates/browser/src/init_script.js", "adlo/crates/browser/src/webview2_*.rs"],
@@ -128,7 +128,7 @@ pnpm --dir frontend run check:changed
 - 证据：
 - 建议修复：
 ## 结论
-- 需修复项：N（critical/high/medium/low 各 N）；N=0 写「本轮零问题」
+- 需修复项：N（critical/high/medium/low 各 N）；N=0 也必须写「需修复项：0」，可另附「本轮零问题」说明
 ```
 
 「需修复」= critical/high/medium，或会改变行为/事实的 low（错误注释、失效引用、错误文案）。纯风格、可选优化、已记录理由的保留项不算。**文档类 low（`docs/**`、治理文档、`.agents|.opencode|.trae` 中的事实/措辞/测试标题）不在 R1/R2 范围：不要写进主表，放「记录不修」并注明 P5 处理。**

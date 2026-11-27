@@ -1,0 +1,7 @@
+target: GLOSSARY-FORMAT.md
+note: glossary 定义示例不使用正文强调
+---FIND---
+A person or organization that places an **Order**.
+---REPLACE---
+A person or organization that places an Order.
+---END---

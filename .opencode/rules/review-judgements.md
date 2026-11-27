@@ -31,6 +31,7 @@ alwaysApply: false
 18. **未经验证的门禁 / 脚本行为写成事实**：文档、注释或提交信息里描述门禁、脚本、工具的行为（「会报 X」「必然失败」「不支持 Y」）时，必须附一条可复现命令或实跑结论；只有推断的，按待验证表述，不写成结论。这类句子比笔误更难发现，且会长期误导后续会话。
 18. **视图/模式命名与术语漂移**：新增或修改的视图、导航模式、枚举值必须与 `GLOSSARY.md` 的视图术语一致；同一类型名不得承载两套值集。典型反例：内部 `'tabs'` 表示「书签目录」、`useBrowserMenus.ts` 与 `useBrowserTabs.ts` 各有一个同名 `BrowserNavigatorMode`。发现即要求重命名或拆分类型，并在必要处补 ADR。
 19. **当前文档的历史叙述**：当前规则 / 架构 / 开发文档只描述当前行为；日期化事故、重构过程、旧做法应放入 `docs/knowledge-base/` 或 `docs/root-cause-to-close/`，不要留在常驻文档里。
+20. **ADR 分支 supersession**：后续 ADR 改变既有 ADR 的某个分支时，同一变更必须更新旧 ADR 的 Status / Consequences，并链接 superseded 或例外说明；只在新 ADR 单方面声明不算完成。
 
 ## 检查清单
 
@@ -40,4 +41,5 @@ alwaysApply: false
 - [ ] 功能变更附带红绿测试，且删掉修复后测试会变红。
 - [ ] 视图/模式枚举与 `GLOSSARY.md` 一致，没有同名类型承载不同值集。
 - [ ] 当前文档只描述当前行为；日期化事故/重构/旧做法已归档到 `docs/`。
+- [ ] 后续 ADR 改变旧 ADR 分支时，已同步更新旧 ADR 的 Status / Consequences 与 supersession 链接。
 - [ ] 未执行未经批准的全量门禁或打包命令。

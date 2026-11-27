@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   buildScopeOwnership,
   collectClaimHints,
@@ -258,8 +260,71 @@ test("reads review scopes from a JSON file", () => {
   }
 });
 
+test("resolves repository-relative review scopes files", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adl-review-scopes-"));
+  try {
+    writeFileSync(join(dir, "scopes.json"), JSON.stringify({ browser: ["adlo/crates/**"] }));
+    assert.deepEqual(parseScopesInput("scopes.json", dir), {
+      browser: ["adlo/crates/**"],
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("prefers an existing scopes file even when its name starts with a brace", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adl-review-scopes-"));
+  try {
+    writeFileSync(join(dir, "{scopes}.json"), JSON.stringify({ frontend: ["adlo/frontend/**"] }));
+    assert.deepEqual(parseScopesInput("{scopes}.json", dir), {
+      frontend: ["adlo/frontend/**"],
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("rejects malformed inline review scopes JSON", () => {
   assert.throws(() => parseScopesInput('{"browser":', process.cwd()), /invalid --scopes JSON/);
+});
+
+test("rejects valid JSON that is not a scopes object", () => {
+  for (const value of ["[]", "null", '"text"', "0"]) {
+    assert.throws(() => parseScopesInput(value, process.cwd()), /must be a JSON object/);
+  }
+});
+
+test("CLI validates inline scopes before resolving the base ref", () => {
+  const script = fileURLToPath(new URL("./review-snapshot.mjs", import.meta.url));
+  const result = spawnSync(
+    process.execPath,
+    [script, "--base", "definitely-not-a-ref", "--rev", "2", "--scopes", "[]"],
+    { encoding: "utf8" },
+  );
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /--scopes must be a JSON object/);
+  assert.doesNotMatch(result.stderr, /rev-parse --verify definitely-not-a-ref failed/);
+});
+
+test("CLI accepts inline and file scopes before resolving the base ref", () => {
+  const script = fileURLToPath(new URL("./review-snapshot.mjs", import.meta.url));
+  const dir = mkdtempSync(join(tmpdir(), "adl-review-scopes-"));
+  const file = join(dir, "{scopes}.json");
+  try {
+    writeFileSync(file, JSON.stringify({ browser: ["adlo/crates/**"] }));
+    for (const scopes of [JSON.stringify({ browser: ["adlo/crates/**"] }), file]) {
+      const result = spawnSync(
+        process.execPath,
+        [script, "--base", "definitely-not-a-ref", "--rev", "2", "--scopes", scopes],
+        { encoding: "utf8" },
+      );
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /rev-parse --verify definitely-not-a-ref failed/);
+      assert.doesNotMatch(result.stderr, /failed to read --scopes|invalid --scopes JSON/);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("scope patterns match exact, directory, and glob paths", () => {

@@ -1,7 +1,16 @@
 target: SKILL.md
-note: 接入本仓库的会话证据文档
+note: 接入本仓库的会话证据文档与 OpenCode 脱敏导出入口
 ---FIND---
 2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine. If the user doesn't specify a session, default to the current one.
 ---REPLACE---
 2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine. If the user doesn't specify a session, default to the current one. 本仓库可用的证据来源见 [docs/agents/session-evidence.md](../../../docs/agents/session-evidence.md)；消息转录缺失时按该文档用进度文件 + 审查报告 + 命令输出重建，不要因此阻塞。
+
+   In OpenCode, export the sanitized session transcript instead of querying internal session databases or guessing their schema:
+
+   ```powershell
+   $env:OPENCODE_SESSION_ID
+   opencode session export --sanitize $env:OPENCODE_SESSION_ID
+   ```
+
+   Pass an explicit session ID when reviewing another session. Large stdout may be saved by the harness as a complete output file; use that file rather than rerunning the export or reading raw logs unbounded.
 ---END---

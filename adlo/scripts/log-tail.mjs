@@ -18,6 +18,23 @@ function arg(name, fallback) {
   return index >= 0 ? process.argv[index + 1] : fallback;
 }
 
+function slicePrefix(text, length) {
+  const value = text.slice(0, length);
+  if (length < text.length && /[\uD800-\uDBFF]$/.test(value)) {
+    return value.slice(0, -1);
+  }
+  return value;
+}
+
+function sliceSuffix(text, length) {
+  if (length <= 0) return "";
+  const value = text.slice(-length);
+  if (length < text.length && /^[\uDC00-\uDFFF]/.test(value)) {
+    return value.slice(1);
+  }
+  return value;
+}
+
 function truncateLine(line, maxChars) {
   if (line.length <= maxChars) return line;
   if (maxChars === 1) return "…";
@@ -25,8 +42,8 @@ function truncateLine(line, maxChars) {
   const remaining = maxChars - marker.length;
   const head = Math.ceil(remaining / 2);
   const tail = remaining - head;
-  const suffix = tail > 0 ? line.slice(-tail) : "";
-  return `${line.slice(0, head)}${marker}${suffix}`;
+  const suffix = sliceSuffix(line, tail);
+  return `${slicePrefix(line, head)}${marker}${suffix}`;
 }
 
 const file = arg("--file");

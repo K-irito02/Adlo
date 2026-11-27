@@ -75,4 +75,4 @@
 
 - 审查报告归档：`node adlo/scripts/archive-review-reports.mjs --progress <progress.md>`；`check-review-gate --phase p6` OK
 - 快照 / 临时日志 / 探针产物：已清理项与保留项
-- 提交：`<hash> <subject>`（本地未推送）
+- 提交：`<subject>`（本地未推送；最终 hash 只在会话总结中报告）

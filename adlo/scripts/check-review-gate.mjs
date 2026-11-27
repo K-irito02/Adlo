@@ -23,7 +23,14 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const REPORT_RE = /^(.+)-r1-rev(\d+)-report\.md$/;
 const R2_REPORT_RE = /^(.+)-r2-rev(\d+)-report\.md$/;
-const ZERO_RE = /需修复项\s*[:：]\s*0(?:\D|$)/;
+const CONCLUSION_RE = /^[ \t]*(?:[-*+][ \t]+)?需修复项[ \t]*[:：][ \t]*(.*)$/gmu;
+const ZERO_VALUE_RE = /^0(?:[ \t]*[（(][^\r\n]*[）)])?$/u;
+
+function isZeroReport(text) {
+  const matches = [...text.matchAll(CONCLUSION_RE)];
+  const last = matches.at(-1)?.[1]?.trim() ?? "";
+  return ZERO_VALUE_RE.test(last);
+}
 
 /**
  * P3→P4 用户批准标记（技能门控）：
@@ -121,11 +128,7 @@ function scopeGate(reports) {
   if (reports.length === 0) {
     return { ok: false, scopes: [], failing: [] };
   }
-  const zeroReports = reports.filter((report) => {
-    const matches = [...report.text.matchAll(new RegExp(ZERO_RE.source, "g"))];
-    const last = matches.at(-1)?.[0] ?? "";
-    return ZERO_RE.test(last);
-  });
+  const zeroReports = reports.filter((report) => isZeroReport(report.text));
   const zeroScopes = new Set(zeroReports.map((report) => report.scope));
   return {
     ok: zeroReports.length === reports.length,
