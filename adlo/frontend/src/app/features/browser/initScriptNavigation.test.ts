@@ -198,7 +198,8 @@ describe('init_script.js new-tab interception markers', () => {
     const helperUsage = initScript.indexOf(
       '__adlTryOpenNewTab(href, __adlReferrerForLink(target, href)))',
     );
-    const helperBlock = initScript.slice(helperUsage - 900, helperUsage + 80);
+    const helperStart = initScript.lastIndexOf('function __adlRouteNewWindowEvent', helperUsage);
+    const helperBlock = initScript.slice(helperStart, helperUsage + 80);
     expect(helperBlock).toContain("linkTarget === '_blank'");
     expect(helperBlock).toContain('modifiedClick');
     expect(helperBlock).toContain('ctrlKey');

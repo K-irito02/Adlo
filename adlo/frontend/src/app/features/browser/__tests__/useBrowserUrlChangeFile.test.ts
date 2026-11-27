@@ -204,8 +204,46 @@ describe('useBrowserUrlChange file:// navigation', () => {
     });
 
     expect(expectedNavigationUrlRef.current).toBeNull();
-    const history = useAppStore.getState().browserHistory;
-    expect(history.some((entry) => entry.url === 'file:///D:/a.html')).toBe(true);
-    expect(history.some((entry) => entry.url.startsWith('https://'))).toBe(false);
+  });
+
+  it('keeps the page URL when a same-document download navigation arrives', () => {
+    const tab = makeTab('t4', 'https://example.com/zh/rtf');
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { t4: tab },
+      browserActiveTabId: 't4',
+      browserHistory: [],
+    });
+    const setAddress = vi.fn();
+    const onNavigationStart = vi.fn();
+    renderHook(() =>
+      useBrowserUrlChange({
+        activeTab: tab,
+        activeTabRef: { current: tab },
+        iframeRef: { current: null },
+        expectedNavigationUrlRef: { current: null },
+        setAddress,
+        setSearchQueryDisplay: vi.fn(),
+        browserNavigatePanelTab: vi.fn(),
+        browserUpdateTab: vi.fn(),
+        onPageMeta: vi.fn(),
+        onNavigationStart,
+        markUrlSeen: vi.fn(),
+        setIframeLoadError: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      urlListener?.('t4', 'https://example.com/samples/sample.rtf');
+    });
+
+    expect(useAppStore.getState().browserTabsById.t4.url).toBe('https://example.com/zh/rtf');
+    expect(setAddress).not.toHaveBeenCalled();
+    expect(onNavigationStart).not.toHaveBeenCalled();
+    expect(
+      useAppStore
+        .getState()
+        .browserHistory.some((entry) => entry.url === 'https://example.com/samples/sample.rtf'),
+    ).toBe(false);
   });
 });

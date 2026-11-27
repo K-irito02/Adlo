@@ -6,6 +6,7 @@ import type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShare
 import { bookmarkUrlKey, isRealTitle } from '@utils/browserDisplayUtils';
 import type { BrowserNewTabRequest } from '@shared/ipc/browser';
 import { resolveNewWindowTabHost } from '@features/browser/newWindowTabRouting';
+import { rememberDownloadSource } from '@features/browser/downloadOnlyTabs';
 
 // Re-export the tab state types from the shared leaf module so existing
 // consumers (e.g. tests, browserSlice, browserFoldersUtils) keep working
@@ -179,6 +180,8 @@ export const createBrowserTabsSlice = (
       get().browserSetTabReferrer(newTabId, referrer);
     }
     get().browserMarkTabFresh(newTabId);
+    // 下载链接的新标签：若最终是下载导航，生命周期会把焦点切回来源标签。
+    rememberDownloadSource(newTabId, tabId);
   },
 
   browserSetTabReferrer: (tabId, referrer) =>

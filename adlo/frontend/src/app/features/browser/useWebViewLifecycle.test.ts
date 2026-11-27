@@ -10,9 +10,14 @@ vi.mock('./webViewLifecyclePolicy', () => ({
 }));
 vi.mock('@shared/env', () => ({ isTauriShell: () => true }));
 vi.mock('./useBrowserThemeSync', () => ({ getResolvedTheme: () => 'light' }));
-vi.mock('./browserPoolSingleton', () => ({ shouldHostHideTab: () => true }));
+vi.mock('./browserPoolSingleton', () => ({
+  shouldHostHideTab: () => true,
+  browserPool: { destroyTab: vi.fn().mockResolvedValue(undefined) },
+}));
 
 import { useWebViewLifecycle } from './useWebViewLifecycle';
+import { useAppStore } from '@stores/slicedStore';
+import { rememberDownloadSource, resetDownloadOnlyTabsForTest } from './downloadOnlyTabs';
 
 function tab(id: string, url: string): BrowserTabState {
   return {
@@ -80,6 +85,64 @@ describe('useWebViewLifecycle fresh consumption', () => {
         'panel',
         undefined,
       );
+    });
+  });
+});
+
+describe('download-only tab lifecycle', () => {
+  beforeEach(() => {
+    resetDownloadOnlyTabsForTest();
+    consume.mockReturnValue({ isFresh: true, suppressDownload: false });
+    useAppStore.setState({
+      browserTabs: [],
+      browserTabsById: {},
+      browserActiveTabId: '',
+      centerTabs: [],
+      centerActiveTabId: '',
+      downloads: [],
+    });
+  });
+
+  it('clears the loading gate, returns to the source, and closes on completion', async () => {
+    const source = tab('source', 'https://example.com/');
+    const download = tab('dl', 'https://example.com/package.zip');
+    useAppStore.setState({
+      browserTabs: [source, download],
+      browserTabsById: { source, dl: download },
+      browserActiveTabId: 'dl',
+      centerTabs: [],
+      centerActiveTabId: '',
+      downloads: [
+        {
+          id: 'd1',
+          url: 'https://example.com/package.zip',
+          file_name: 'package.zip',
+          file_path: '',
+          total_bytes: 10,
+          bytes_received: 1,
+          mime_type: null,
+          status: 'in_progress',
+          interrupt_reason: null,
+          created_at: 0,
+          completed_at: null,
+          source_tab_id: 'dl',
+        },
+      ],
+    });
+    rememberDownloadSource('dl', 'source');
+
+    setup(download);
+
+    await waitFor(() => {
+      expect(useAppStore.getState().browserActiveTabId).toBe('source');
+    });
+
+    useAppStore.setState((state) => ({
+      downloads: state.downloads.map((d) => ({ ...d, status: 'completed' as const })),
+    }));
+
+    await waitFor(() => {
+      expect(useAppStore.getState().browserTabs.map((t) => t.id)).toEqual(['source']);
     });
   });
 });

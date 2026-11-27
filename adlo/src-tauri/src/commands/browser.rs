@@ -104,6 +104,7 @@ pub async fn browser_create_for_tab(
             // Off-screen child attachment + WebView2 handler setup — shared with
             // the silent-tab path so both paths keep identical creation semantics.
             let host = location.as_deref().unwrap_or("panel");
+            let attach_started = std::time::Instant::now();
             attach_webview_child(
                 &window,
                 &label,
@@ -114,6 +115,13 @@ pub async fn browser_create_for_tab(
                 false,
                 initial_size,
             )?;
+            // 诊断：WebView2 子窗口创建在真实站点上曾耗时 1.5–4.9s；记录耗时以便
+            // 区分“页面加载慢”与“原生创建慢”（慢创建期间旧标签会保持可见）。
+            tracing::debug!(
+                tab_id = %tab_id,
+                elapsed_ms = attach_started.elapsed().as_millis() as u64,
+                "browser_create_for_tab: child webview attached"
+            );
 
             // Register the webview with BrowserManager BEFORE calling
             // apply_theme_and_navigate_for_platform. This ensures the webview is

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { isTauriShell } from '@shared/env';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { isRevealPending } from './browserRevealGate';
+import { isDownloadOnlyTab } from './downloadOnlyTabs';
 
 interface UseWebViewBoundsOptions {
   webViewDisabled: boolean;
@@ -63,6 +64,10 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
     }
     // 首帧揭示门控：新建 WebView2 在页面就绪前保持屏外，避免空白首帧闪烁。
     if (isRevealPending(tab.id)) {
+      return;
+    }
+    // 下载导航标签始终留在屏外；下载结束会直接关闭标签。
+    if (isDownloadOnlyTab(tab.id)) {
       return;
     }
 

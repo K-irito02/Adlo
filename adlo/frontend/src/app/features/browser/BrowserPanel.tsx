@@ -26,7 +26,6 @@ import { useBrowserDialogs } from './useBrowserDialogs';
 import { useBrowserToast } from './useBrowserToast';
 import { useBrowserPanelHandlers } from './useBrowserPanelHandlers';
 import { useBrowserPanelMetaWiring } from './useBrowserPanelMetaWiring';
-import { useBrowserDownloads } from './useBrowserDownloads';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
 import { buildReswitchedSearch } from './searchEngineReswitch';
 import { shouldApplyEngineReswitch } from './engineReswitchGuard';
@@ -434,8 +433,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setZoomLevel,
     t,
   });
-
-  useBrowserDownloads();
 
   const { submitAddress } = useBrowserPanelAddressSubmit({
     address,

@@ -25,6 +25,7 @@ import { ConflictModal } from './components/ConflictModal';
 import { StartupOverlayWrapper } from './components/StartupOverlayWrapper';
 import { useBrowserAgentLinkSubscription } from './features/browser/useBrowserAgentLinkSubscription';
 import { useBrowserNewTabSubscription } from './features/browser/useBrowserNewTabSubscription';
+import { useBrowserDownloads } from './features/browser/useBrowserDownloads';
 import { useGlobalBrowserMeta } from './features/browser/useGlobalBrowserMeta';
 import { useBrowserSystemMedia } from './features/browser/useBrowserSystemMedia';
 import { DshPortConflictDialog } from './features/dsh/DshPortConflictDialog';
@@ -66,12 +67,18 @@ export function App() {
 
   // 页面内新窗口请求（target=_blank / window.open）：由 store 按发起标签所在宿主
   // 路由（中心 → 中心标签条，面板 → 面板）；全局只保留这一处订阅。
+  // 注：已评估「隐藏 WebView 触发下载、不开标签」方案；WebView2 在非标签/1×1
+  // 触发面上不会发起下载（P0 实测），因此下载仍走新标签，由生命周期在收到下载
+  // 记录后立即结束加载态、下载结束自动关闭标签。
   const handleBrowserNewTab = useCallback((request: BrowserNewTabRequest) => {
     useAppStore.getState().browserOpenNewWindowTab(request);
   }, []);
   useBrowserNewTabSubscription(handleBrowserNewTab);
 
   useGlobalBrowserMeta();
+  // 下载事件订阅属于 App 级能力：中心标签条的下载按钮、A+ 自动关闭下载标签都
+  // 依赖它，不能只在右侧面板挂载浏览器工具时才生效。
+  useBrowserDownloads();
   // 事项 17 路线 A：浏览器标签页的站点媒体 → 系统卡片（与本地预览同级、多源 3s 轮播）。
   useBrowserSystemMedia();
   useAppUpdateWatcher();

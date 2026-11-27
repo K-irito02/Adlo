@@ -17,6 +17,7 @@ import {
   hasViewIdentityParam,
   historyContainerKey,
 } from '@utils/browserDisplayUtils';
+import { isDownloadUrl } from '@utils/downloadUrl';
 
 /**
  * Fallback delay (ms) before treating a navigation as completed when no
@@ -254,6 +255,20 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         ? state.browserTabs.find((t: BrowserTabState) => t.id === tabId)
         : undefined;
       const syncPanelAddress = shouldSyncPanelAddressForTab(eventTab);
+
+      // 同文档下载导航（target=_blank 下载链接 -> window.location.assign）不会提交
+      // 新文档：WebView2 的 DownloadStarting 会中止导航，页面保持原样。保留当前标签
+      // URL / 地址栏 / 历史，避免一次点下载把地址栏改成 .zip 之类的下载地址。
+      // 新下载标签在创建时已预置下载 URL（browserOpenTab），此分支不命中。
+      if (
+        eventTab &&
+        isDownloadUrl(url) &&
+        !!eventTab.url &&
+        eventTab.url !== 'about:blank' &&
+        !isDownloadUrl(eventTab.url)
+      ) {
+        return;
+      }
 
       // 身份键：保留 modal_id 等"页面身份"参数（historyDedupKey 语义），用于历史写入门槛。
       // 刷视频（仅 modal_id 变化）时 normalizedUrl 剥离 modal_id 后恒相等，会误判为"未变化"

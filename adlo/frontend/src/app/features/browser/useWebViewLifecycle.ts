@@ -8,6 +8,16 @@ import { HIDDEN_WEBVIEW_OFFSCREEN_COORD } from './useWebViewVisibility';
 import { consumeFreshAndDecideWebViewCreation } from './webViewLifecyclePolicy';
 import { isLoopbackHttpUrl, waitForLoopbackReachable } from './loopbackReadiness';
 import { clearRevealPending, isRevealPending, markRevealPending } from './browserRevealGate';
+import { closeBrowserTabEverywhere } from './closeBrowserTabEverywhere';
+import {
+  consumeDownloadSource,
+  downloadOnlyTabIds,
+  isDownloadOnlyTab,
+  markDownloadOnlyTab,
+  pruneDownloadOnlyTabs,
+  unmarkDownloadOnlyTab,
+} from './downloadOnlyTabs';
+import { isDownloadUrl } from '@utils/downloadUrl';
 
 /** 首帧揭示门控的兜底上限：页面迟迟不发元数据（或加载失败）时仍按时揭示。 */
 const REVEAL_FALLBACK_MS = 12_000;
@@ -86,6 +96,30 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     }
   }, []);
 
+  /** 把标签的 WebView 移出屏幕并缩到 1×1；归属已迁移到另一宿主时跳过。 */
+  const hideTabWebView = useCallback(
+    (tabId: string) => {
+      if (!isTabInPool(tabId)) {
+        return;
+      }
+      const fresh = useAppStore.getState().browserTabsById[tabId];
+      if (!shouldHostHideTab(hostId, fresh)) {
+        return;
+      }
+      window.digitalLife?.browser
+        ?.setTabBounds(tabId, {
+          x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
+          y: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
+          width: 1,
+          height: 1,
+        })
+        .catch((e) => {
+          console.warn('[useWebViewLifecycle] failed to hide tab WebView:', e);
+        });
+    },
+    [hostId, isTabInPool],
+  );
+
   /**
    * 应用边界并清加载态（**强制揭示**路径：page-ready 或兜底定时器）。
    *
@@ -144,6 +178,76 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     };
   }, []);
 
+  // 下载导航（URL 启发式漏判、仍在新标签里触发 DownloadStarting）：
+  // - 页面从未就绪 → 结束加载态（不等 12s 兜底），不应用边界（不展示空白下载页）；
+  // - 下载进入终止状态 → 自动关闭该标签（Chrome/Edge 的下载后不留空标签语义）。
+  const downloads = useAppStore((s) => s.downloads);
+  const allBrowserTabs = useAppStore((s) => s.browserTabs);
+  useEffect(() => {
+    if (!isTauriShell() || !activeTab?.id || !activeTab.url) {
+      return;
+    }
+    const tabId = activeTab.id;
+    const record = downloads.find((d) => d.source_tab_id === tabId);
+    if (!record) {
+      return;
+    }
+    // 页面已就绪 → 站点内下载（页面保持显示），不标记、不隐藏页面。
+    if (pageReadyRef.current.has(tabId)) {
+      return;
+    }
+    // 仅处理「标签 URL 本身是下载地址」的导航（新窗口下载链接）。普通页面在首帧
+    // 就绪前触发自动下载时，标签 URL 不是下载地址，不能因此把页面藏起来/关掉。
+    if (!isDownloadUrl(activeTab.url)) {
+      return;
+    }
+    markDownloadOnlyTab(tabId);
+    if (isRevealPending(tabId)) {
+      clearRevealPending(tabId);
+      clearRevealTimer(tabId);
+      setLoadingTabId((prev) => (prev === tabId ? null : prev));
+    }
+    // 回到发起下载的页面：下载标签留在后台（保持屏外），不再占用活动视图。
+    const sourceId = consumeDownloadSource(tabId);
+    if (sourceId) {
+      const store = useAppStore.getState();
+      const sourceTab = store.browserTabsById[sourceId];
+      if (sourceTab?.location === 'center') {
+        const centerTab = store.centerTabs.find(
+          (candidate) => candidate.kind === 'browser' && candidate.refId === sourceId,
+        );
+        if (centerTab) {
+          store.centerSelectTab(centerTab.id);
+        }
+      } else if (sourceTab) {
+        store.browserSelectTab(sourceId);
+      }
+    }
+  }, [downloads, activeTab?.id, activeTab?.url, clearRevealTimer]);
+
+  useEffect(() => {
+    if (!isTauriShell()) {
+      return;
+    }
+    for (const tabId of downloadOnlyTabIds()) {
+      const terminal = downloads.find(
+        (d) =>
+          d.source_tab_id === tabId &&
+          (d.status === 'completed' || d.status === 'failed' || d.status === 'canceled'),
+      );
+      if (!terminal) {
+        continue;
+      }
+      unmarkDownloadOnlyTab(tabId);
+      closeBrowserTabEverywhere(tabId);
+    }
+  }, [downloads]);
+
+  // 标签被用户手动关闭时清掉标记，避免集合随会话增长。
+  useEffect(() => {
+    pruneDownloadOnlyTabs(new Set(allBrowserTabs.map((tab) => tab.id)));
+  }, [allBrowserTabs]);
+
   // When active tab changes: create WebView if not in pool, then activate
   useEffect(() => {
     if (!isTauriShell() || webViewDisabled) {
@@ -176,16 +280,7 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
       if (isTabInPool(prevId)) {
         const freshPrev = useAppStore.getState().browserTabsById[prevId];
         if (shouldHostHideTab(hostId, freshPrev)) {
-          window.digitalLife?.browser
-            ?.setTabBounds(prevId, {
-              x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
-              y: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
-              width: 1,
-              height: 1,
-            })
-            .catch((e) => {
-              console.warn('[useWebViewLifecycle] failed to hide previous tab WebView:', e);
-            });
+          hideTabWebView(prevId);
         }
       }
     }
@@ -211,6 +306,14 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
       if (tab?.id) {
         tabUrlMapRef.current.set(tab.id, tab.url);
       }
+      return;
+    }
+
+    // 下载导航标签：WebView 保持屏外（不揭示空白下载页），加载态已由下载效果清除；
+    // 终止后由自动关闭效果回收。绝不能再走 activate/边界，否则会露出空白页并可能
+    // 触发下载中的 WebView2 边界竞态。
+    if (isDownloadOnlyTab(tab.id)) {
+      webViewActiveRef.current = false;
       return;
     }
 
@@ -252,6 +355,7 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
 
           // 默认共享 profile 时中心与面板同一 WebView2 会话；关闭开关后中心走独立
           // UDF。共享模式下不再需要创建期隐藏另一宿主，但主题联动风险由用户选择承担。
+          const createStartedAt = performance.now();
           await createWebViewForTab(
             currentTabId,
             tab.url,
@@ -259,6 +363,25 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
             hostId,
             getInitialViewportSize?.(),
           );
+          if (import.meta.env.DEV) {
+            const elapsed = Math.round(performance.now() - createStartedAt);
+            if (elapsed > 300) {
+              console.warn('[DBG-freeze] create-for-tab slow', {
+                tabId: currentTabId,
+                elapsed,
+              });
+            }
+          }
+
+          // 创建期间可能已切走，或该标签已被下载效果标记为下载标签（A+ 已把焦点
+          // 切回来源页）。此时不要再激活/揭示，WebView 保持屏外直到终止态关闭。
+          if (ac.signal.aborted || activeTabSnapshotRef.current?.id !== currentTabId) {
+            return;
+          }
+          if (isDownloadOnlyTab(currentTabId)) {
+            webViewActiveRef.current = false;
+            return;
+          }
 
           webViewActiveRef.current = true;
           tabUrlMapRef.current.set(currentTabId, tab.url);
@@ -342,6 +465,7 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     updateWebViewBounds,
     overlayActiveRef,
     webViewActiveRef,
+    hideTabWebView,
     revealTab,
     revealNow,
     clearRevealTimer,
@@ -362,22 +486,24 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
       const tab = activeTabSnapshotRef.current;
       if (isTauriShell() && tab?.id && isTabInPool(tab.id)) {
         const fresh = useAppStore.getState().browserTabsById[tab.id];
-        if (!shouldHostHideTab(hostId, fresh)) {
-          return;
+        if (shouldHostHideTab(hostId, fresh)) {
+          window.digitalLife?.browser
+            ?.setTabBounds(tab.id, {
+              x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
+              y: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
+              width: 1,
+              height: 1,
+            })
+            .catch((e) => {
+              console.warn(
+                `[useWebViewLifecycle] failed to hide WebView on unmount (${hostId}):`,
+                e,
+              );
+            });
         }
-        window.digitalLife?.browser
-          ?.setTabBounds(tab.id, {
-            x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
-            y: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
-            width: 1,
-            height: 1,
-          })
-          .catch((e) => {
-            console.warn(`[useWebViewLifecycle] failed to hide WebView on unmount (${hostId}):`, e);
-          });
       }
     };
-  }, [webViewActiveRef, isTabInPool, hostId]);
+  }, [webViewActiveRef, isTabInPool, hostId, hideTabWebView]);
 
   return { loadingTabId };
 }

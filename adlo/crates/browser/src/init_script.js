@@ -292,6 +292,22 @@
         return false;
     }
 
+    /**
+     * 强信号下载判定：只看路径扩展名（含 query / fragment 无关的 pathname）。
+     *
+     * target=_blank 的下载链接改为「当前文档导航」后，误判会把用户正在看的页面
+     * 导航走；因此这里不用 isDownloadUrl 的 /files/ 等宽松路径启发式，只对明确的
+     * 文件扩展名做同文档下载。window.open 路径仍沿用 isDownloadUrl。
+     */
+    function __adlIsDownloadExtensionUrl(url) {
+        if (!url || typeof url !== 'string') return false;
+        try {
+            return DOWNLOAD_EXTENSIONS.test(new URL(url, location.href).pathname.toLowerCase());
+        } catch (e) {
+            return false;
+        }
+    }
+
     // ---- DOWNLOAD INTERCEPTION HELPERS ----
     function __adlArrayBufferToBase64(buffer) {
         var bytes = new Uint8Array(buffer);
@@ -614,6 +630,22 @@
                     var modifiedClick = event.ctrlKey || event.metaKey || event.shiftKey;
                     var middleClick = event.type === 'auxclick' && event.button === 1;
                     if (linkTarget === '_blank' || modifiedClick || middleClick) {
+                        // 下载链接不要新标签：新标签需要现场创建 WebView2 子窗口，
+                        // 实测会占住主线程 1.5–5s（Tauri IPC 排队、右侧面板/文件树
+                        // 点击无响应），并留下一个需要自动关闭的空标签。
+                        // 让当前文档直接导航到下载 URL：WebView2 原生
+                        // DownloadStarting 会接管并中止文档导航，页面保持不动。
+                        // 这与下面 window.open 下载 URL 的同文档路径一致，且已在
+                        // 真实站点验证。仅对明确扩展名/带 download 属性生效，避免
+                        // /files/ 之类的宽松路径把普通页面误导航走。
+                        if (isValidWebUrl(href) &&
+                            (target.hasAttribute('download') || __adlIsDownloadExtensionUrl(href))) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            __adlSendLog('info', 'download link → same-document native DownloadStarting', { href: href });
+                            window.location.assign(href);
+                            return;
+                        }
                         if (__adlTryOpenNewTab(href, __adlReferrerForLink(target, href))) {
                             __adlSendLog('debug', 'new-window link routed', { href: href });
                             event.preventDefault();
