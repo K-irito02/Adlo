@@ -1,12 +1,12 @@
 # 页面内新窗口请求跟随发起标签的宿主落地
 
-**Status**: accepted（2026-11-22）
+**Status**: accepted（2026-11-22；下载分支自 2026-11-27 起以 ADR 0039 为准）
 
-浏览器页面通过 `target=_blank` 或 `window.open` 发起的[新窗口请求](../../GLOSSARY.md#浏览器)由宿主转成新的浏览器标签。旧实现的事件只携带 URL，前端唯一的订阅点固定在右侧面板开标签，导致中心页面里的 B 站站内搜索等操作把新标签开到面板，空间连续性断裂。决定：
+浏览器页面通过 `target=_blank` 或 `window.open` 发起的普通[新窗口请求](../../GLOSSARY.md#浏览器)由宿主转成新的浏览器标签；明确下载请求按 [ADR 0039](./0039-download-card-file-state-and-migration.md) 执行[同文档下载](../../GLOSSARY.md#浏览器)，不适用下述新标签落地规则。旧实现的事件只携带 URL，前端唯一的订阅点固定在右侧面板开标签，导致中心页面里的 B 站站内搜索等操作把新标签开到面板，空间连续性断裂。决定：
 
 1. **事件携带[发起标签](../../GLOSSARY.md#浏览器) id**：注入脚本的 postMessage 路径与 Tauri `on_new_window` 路径都必须带 `tabId`，缺来源的请求按面板兜底。
-2. **按发起标签所在宿主落地**：中心标签发起 → 中心新标签；面板标签发起 → 面板新标签。前端由单一 store action `browserOpenNewWindowTab` 统一路由，App 只保留一处全局订阅，面板不再单独订阅。
-3. **fresh 标记跨宿主共享**：本会话新建标签的 fresh 标记放在 store，由 WebView 生命周期消费；否则中心侧的下载型新标签会被当成重启水合标签而跳过 WebView 创建。
+2. **按发起标签所在宿主落地**：需新建标签的请求中，中心标签发起 → 中心新标签；面板标签发起 → 面板新标签。前端由单一 store action `browserOpenNewWindowTab` 统一路由，App 只保留一处全局订阅，面板不再单独订阅。
+3. **fresh 标记跨宿主共享**：本会话新建标签的 fresh 标记放在 store，由 WebView 生命周期消费；否则中心侧的兜底下载型新标签会被当成重启水合标签而跳过 WebView 创建。
 
 ## Considered Options
 
@@ -18,7 +18,7 @@
 ## Consequences
 
 - `browser-open-new-tab` 的载荷从 `{url}` 变为 `{tabId,url}`，属于跨 Rust/前端契约；新增事件来源必须带发起标签。
-- 下载链接的新窗口也跟随宿主落地；新标签承载触发 `DownloadStarting` 的 WebView，当前不自动关闭。
+- 明确下载信号按 [ADR 0039](./0039-download-card-file-state-and-migration.md) 执行[同文档下载](../../GLOSSARY.md#浏览器)，不再默认新建标签；未覆盖的下载路径仍按本 ADR 跟随宿主落地，并保留新标签兜底。
 - 中心与面板共享同一份 fresh 标记与路由 action；新增宿主时只需扩展 `resolveNewWindowTabHost`。
 
-相关术语：[发起标签](../../GLOSSARY.md#浏览器)、[新窗口请求](../../GLOSSARY.md#浏览器)、[中心](../../GLOSSARY.md#区域与标签)、[面板](../../GLOSSARY.md#区域与标签)。
+相关术语：[发起标签](../../GLOSSARY.md#浏览器)、[新窗口请求](../../GLOSSARY.md#浏览器)、[同文档下载](../../GLOSSARY.md#浏览器)、[中心](../../GLOSSARY.md#区域与标签)、[面板](../../GLOSSARY.md#区域与标签)。
