@@ -163,3 +163,16 @@
 | 填充与自由调整 | 图片支持铺满/适应/平铺（平铺按 33% 宽度重复整图）；视频只有铺满/适应。三种模式共用拖拽平移 + 滚轮缩放 + 右上角复位；媒体在外层裁剪容器内变换，不越界；切换填充模式复位调整。 |
 
 > 详细根因见 [windows-file-drop-2026-11-26.md](../../knowledge-base/tauri-backend/windows-file-drop-2026-11-26.md)。
+
+## 2026-11-27 增量（下载卡片文件状态与路径迁移）
+
+| 能力 | 契约 |
+|------|------|
+| 下载卡片 | 以 `download_history` 为骨架的单列表，按 `created_at DESC` 排序，不再按状态分组；不扫描目录、不混入非 Adlo 文件。工具栏下载按钮的进度环 / 角标仍由 `activeDownloads` 驱动。 |
+| 文件状态 | `download_file_states` 批量 `stat`，只在打开卡片、路径变更完成、窗口重新聚焦（节流）时刷新；`completed` 存在且非默认目录显示「非默认位置」+ 完整路径 tooltip，缺失则变暗 + 删除线 + 不可打开，状态错误原因显示在 tooltip。事件（started / finished / paused / resumed / canceled / error）与移除 / 删除 / 清空历史时失效缓存。 |
+| 同文档下载 | 普通 `target=_blank` 下载链接（带 `download` 属性或明确下载扩展名）在注入脚本里 `preventDefault()` 后经隐藏 iframe 触发当前 WebView 的 `DownloadStarting`，不新建可见标签 / WebView；`useBrowserUrlChange` 抑制地址栏被下载 URL 覆盖。`window.open` 下载 URL 与重新下载仍用 `window.location.assign`。 |
+| 重新下载 | 仅 `completed` 缺失 / `failed` / `canceled` 且 http(s) 可用；单槽 pending（tab / URL / 15s 过期）命中后 `reset_for_redownload` 复用原 id，并更新实际 URL、路径与计时；兜底只允许同 tab（重定向 / 签名 URL）或注册时无 tab。Auto 走当前默认目录 + 冲突改名，Ask 照常弹保存框；失败 `failed`、取消 `canceled`，15s 无 started 则回滚准备态并 toast。 |
+| 路径迁移 | `download_change_default_path` 先拦截 `in_progress` / `paused`，只搬记录内 `completed` 且存在的旧目录下文件，保留相对子路径、冲突改名并同步记录；旧目录其它文件保留，只在完全空且非保护目录时尽力删除。缺失跳过、部分失败带计数报 Err 且设置不切换，前端随后刷新列表。 |
+| 启动期回收 | 无活跃操作的 `in_progress` 行标 `failed / Interrupted`，`paused` 不动；避免崩溃残留行永久阻止迁移。 |
+
+> 决策见 [ADR 0039](../../adr/0039-download-card-file-state-and-migration.md)；根因与验收清单见 [progress-2026-11-27-080441.md](../../root-cause-to-close/2026-11/progress-2026-11-27-080441.md)。
