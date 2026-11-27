@@ -1052,6 +1052,8 @@ impl DownloadManager {
     /// Register a pending re-download request. At most one unexpired pending may
     /// exist at a time — a second registration while an unexpired pending is
     /// still present is rejected so a stale request can never shadow a newer one.
+    ///
+    /// Command-boundary API: called from the `adlo` Tauri command layer.
     pub fn register_pending_redownload(
         &self,
         record_id: &str,
@@ -1083,6 +1085,9 @@ impl DownloadManager {
     /// no-active-tab prepare path). `register_pending_redownload` enforces at
     /// most one unexpired pending, so "unique" is always satisfied here.
     /// Expired pendings are dropped and treated as absent.
+    ///
+    /// Command-boundary API: called from the `adlo` Tauri command layer (to
+    /// clear a pending on navigation failure) and from `begin_download_record`.
     pub fn take_pending_redownload(&self, tab_id: Option<&str>, url: &str) -> Option<String> {
         let mut guard = self.pending_redownload.lock().ok()?;
         let pending = guard.as_ref()?;
@@ -1107,27 +1112,36 @@ impl DownloadManager {
     }
 
     /// Reuse an existing download record for a re-download: keep the same id,
-    /// remove any stale `.crdownload` for the new target, and reset every
-    /// per-attempt field so the record reflects a fresh in-progress download.
+    /// remove any stale `.crdownload` for both the old and new targets, and reset
+    /// every per-attempt field so the record reflects a fresh in-progress download.
     pub fn reset_for_redownload(
         &self,
         id: &str,
         file_path: &str,
         source_tab_id: Option<&str>,
     ) -> Result<DownloadRecord, String> {
-        // Drop a stale temp file at the new target so WebView2 starts clean.
-        let temp = format!("{}.crdownload", file_path);
-        if Path::new(&temp).exists() {
-            let _ = fs::remove_file(&temp);
+        // Drop stale temp files before resetting: the old record's `.crdownload`
+        // (from its previous file_path) and, if the resolved path changed, any
+        // `.crdownload` at the new target too — so WebView2 starts clean in both
+        // cases.
+        let new_temp = format!("{}.crdownload", file_path);
+        if let Ok(previous) = self.get_record(id) {
+            let old_temp = format!("{}.crdownload", previous.file_path);
+            if old_temp != new_temp && Path::new(&old_temp).exists() {
+                let _ = fs::remove_file(&old_temp);
+            }
+        }
+        if Path::new(&new_temp).exists() {
+            let _ = fs::remove_file(&new_temp);
         }
 
         let file_name = derive_file_name("", file_path);
         let conn = self.db.conn().map_err(|e| e.to_string())?;
         conn.execute(
-            "UPDATE download_history SET status = ?1, bytes_received = 0, created_at = ?2, \
-             completed_at = NULL, interrupt_reason = NULL, auto_resume_count = 0, etag = NULL, \
-             last_modified = NULL, file_path = ?3, file_name = ?4, source_tab_id = ?5 \
-             WHERE id = ?6",
+            "UPDATE download_history SET status = ?1, bytes_received = 0, total_bytes = NULL, \
+             created_at = ?2, completed_at = NULL, interrupt_reason = NULL, \
+             auto_resume_count = 0, etag = NULL, last_modified = NULL, file_path = ?3, \
+             file_name = ?4, source_tab_id = ?5 WHERE id = ?6",
             rusqlite::params![
                 DownloadStatus::InProgress.as_str(),
                 Utc::now().timestamp(),
@@ -3786,7 +3800,7 @@ mod tests {
             let conn = db.conn().expect("conn");
             conn.execute(
                 "UPDATE download_history SET status = 'completed', bytes_received = 2048, \
-                 interrupt_reason = 'UserPaused', created_at = 0, completed_at = 123, \
+                 total_bytes = 4096, interrupt_reason = 'UserPaused', created_at = 0, completed_at = 123, \
                  auto_resume_count = 3, etag = '\"etag\"', last_modified = 'Mon, 01 Jan 2024 00:00:00 GMT' \
                  WHERE id = ?1",
                 rusqlite::params![record.id],
@@ -3805,6 +3819,7 @@ mod tests {
         assert_eq!(reset.id, record.id, "record id must be reused");
         assert_eq!(reset.status, DownloadStatus::InProgress);
         assert_eq!(reset.bytes_received, 0);
+        assert_eq!(reset.total_bytes, None, "total_bytes must be cleared on reset");
         assert!(reset.created_at > 0, "created_at must be refreshed");
         assert_eq!(reset.completed_at, None);
         assert_eq!(reset.interrupt_reason, None);
@@ -3824,6 +3839,46 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         let _ =
             std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-redownload-reset.db"));
+    }
+
+    #[test]
+    fn reset_for_redownload_removes_old_crdownload() {
+        let db = temp_db("redownload-old-temp");
+        let mgr = DownloadManager::new(db.clone());
+        let dir = std::env::temp_dir().join("adl-redownload-old-temp");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let old_path = dir.join("old-file.zip");
+        let new_path = dir.join("new-file.zip");
+        let record = mgr
+            .create_download(
+                "https://example.com/file.zip",
+                old_path.to_string_lossy().as_ref(),
+                None,
+            )
+            .expect("create should succeed");
+
+        // Stale `.crdownload` for both the old record path and the new resolved path.
+        std::fs::write(dir.join("old-file.zip.crdownload"), b"old").unwrap();
+        std::fs::write(dir.join("new-file.zip.crdownload"), b"new").unwrap();
+
+        mgr.reset_for_redownload(&record.id, new_path.to_string_lossy().as_ref(), None)
+            .expect("reset should succeed");
+
+        assert!(
+            !dir.join("old-file.zip.crdownload").exists(),
+            "old record .crdownload must be removed"
+        );
+        assert!(
+            !dir.join("new-file.zip.crdownload").exists(),
+            "new target .crdownload must be removed"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-redownload-old-temp.db"),
+        );
     }
 
     #[test]
