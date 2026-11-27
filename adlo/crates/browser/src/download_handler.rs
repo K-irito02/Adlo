@@ -451,7 +451,14 @@ pub fn handle_download_finished(
 }
 
 pub fn create_download_manager(db: adl_storage::Database) -> Arc<DownloadManager> {
-    Arc::new(DownloadManager::new(db))
+    let manager = Arc::new(DownloadManager::new(db));
+    if let Err(e) = manager.reconcile_orphaned_in_progress() {
+        tracing::warn!(
+            error = %e,
+            "[ADL-DL] create_download_manager: failed to reconcile orphaned in-progress records"
+        );
+    }
+    manager
 }
 
 #[cfg(test)]

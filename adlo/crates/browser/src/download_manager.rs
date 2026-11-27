@@ -275,6 +275,21 @@ impl DownloadManager {
         }
     }
 
+    /// Reconcile download records left `in_progress` after a crash or unclean
+    /// shutdown. They cannot be resumed because no live native operation exists,
+    /// so mark them as failed to avoid showing fake progress or blocking path
+    /// migration. Returns the number of rows affected.
+    pub fn reconcile_orphaned_in_progress(&self) -> Result<usize, String> {
+        let conn = self.db.conn().map_err(|e| e.to_string())?;
+        let affected = conn
+            .execute(
+                "UPDATE download_history SET status = 'failed', interrupt_reason = 'Interrupted' WHERE status = 'in_progress'",
+                [],
+            )
+            .map_err(|e| format!("Failed to reconcile orphaned in-progress downloads: {}", e))?;
+        Ok(affected)
+    }
+
     /// 覆盖默认下载目录（来自 StoragePaths.downloads_default_dir）。
     pub fn set_default_dir_override(&self, dir: Option<PathBuf>) {
         if let Ok(mut guard) = self.default_dir_override.lock() {
@@ -2831,6 +2846,44 @@ mod tests {
         let list = mgr.list_downloads().expect("list should succeed");
         assert!(list.is_empty());
         let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-clear.db"));
+    }
+
+    #[test]
+    fn reconcile_marks_in_progress_failed_and_keeps_paused() {
+        let db = temp_db("reconcile");
+        let mgr = DownloadManager::new(db.clone());
+
+        let in_progress = mgr
+            .create_download("https://example.com/a.zip", "/tmp/a.zip", None)
+            .expect("create in_progress should succeed");
+        let paused_record = mgr
+            .create_download("https://example.com/b.zip", "/tmp/b.zip", None)
+            .expect("create paused should succeed");
+
+        let conn = db.conn().expect("test db connection should succeed");
+        conn.execute(
+            "UPDATE download_history SET status = ?1 WHERE id = ?2",
+            rusqlite::params![DownloadStatus::Paused.as_str(), paused_record.id],
+        )
+        .expect("seed paused status should succeed");
+        drop(conn);
+
+        let affected = mgr.reconcile_orphaned_in_progress().expect("reconcile should succeed");
+        assert_eq!(affected, 1, "exactly one in_progress row should be reconciled");
+
+        let recovered = mgr.get_record(&in_progress.id).expect("in_progress record should exist");
+        assert_eq!(recovered.status, DownloadStatus::Failed);
+        assert_eq!(recovered.interrupt_reason.as_deref(), Some("Interrupted"));
+
+        let still_paused = mgr.get_record(&paused_record.id).expect("paused record should exist");
+        assert_eq!(still_paused.status, DownloadStatus::Paused);
+        assert_ne!(
+            still_paused.interrupt_reason.as_deref(),
+            Some("Interrupted"),
+            "paused record must not be touched"
+        );
+
+        let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-reconcile.db"));
     }
 
     #[test]
