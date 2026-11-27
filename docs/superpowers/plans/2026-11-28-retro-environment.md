@@ -104,11 +104,11 @@
 - Produces: `parseSessionExport`, `summarizeSession`.
 - CLI: `retro:summary <export-file> [--since <epoch-ms>]`.
 
-- [ ] Write fixture tests for leading session-ID line, message/tool counts, durations, token peaks, errors, repeated calls, and `--since` filtering.
-- [ ] Run focused tests and verify red.
-- [ ] Implement parser/summarizer without reading redacted body text.
-- [ ] Add `retro:summary` package script and skill pointer.
-- [ ] Run focused tests.
+- [x] Write fixture tests for leading session-ID line, message/tool counts, durations, token peaks, errors, repeated calls, and `--since` filtering.
+- [x] Run focused tests and verify red.
+- [x] Implement parser/summarizer without reading redacted body text.
+- [x] Add `retro:summary` package script and skill pointer.
+- [x] Run focused tests.
 
 ### Task 5: Release preflight CLI
 

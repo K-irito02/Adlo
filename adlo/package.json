@@ -43,6 +43,7 @@
     "notices:inspect": "node ./scripts/generate-third-party-notices.mjs --stats --offline",
     "probe:net": "node ./scripts/net-probe.mjs",
     "log:tail": "node ./scripts/log-tail.mjs",
+    "retro:summary": "node ./scripts/retro-summary.mjs",
     "frontend:dev": "pnpm --dir frontend run dev",
     "frontend:build": "pnpm --dir frontend run build",
     "frontend:typecheck": "pnpm --dir frontend run typecheck",
