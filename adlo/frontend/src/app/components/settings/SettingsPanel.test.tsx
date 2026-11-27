@@ -403,6 +403,10 @@ describe('SettingsPanel shell header', () => {
     renderPanel();
     fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
     await screen.findByText('settingsResetConfirmTitle');
+    await waitFor(() => {
+      const dialog = screen.getByRole('dialog');
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    });
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(updatePreferences).not.toHaveBeenCalled();
     expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();

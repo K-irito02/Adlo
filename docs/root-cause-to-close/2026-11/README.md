@@ -44,3 +44,4 @@
 | 2026-11-27 | [progress-2026-11-27-014042.md](./progress-2026-11-27-014042.md) | 浏览器「更多操作」菜单：开发者工具无反应根因（不传 label 命中应用壳 + release 未注册命令）→ 按 tab 定位真实现；强制刷新改 CDP ignoreCache；Cookie/缓存拆本站/全部并带完成回执、清缓存后只重载当前标签；菜单删「复制网址」「清除历史」；ADR 0038；P4 R1 rev1–rev4 + R2 rev4 零问题 |
 | 2026-11-27 | [progress-2026-11-27-080441.md](./progress-2026-11-27-080441.md) | 下载跳转新标签致加载动画/整窗卡顿/卡片遮挡：根因为下载链接新建 WebView2 占命令管线 → 同文档原生下载 + 隐藏 iframe；下载卡片改为记录骨架 + 瞬时文件状态、复用原 id 重下载、tracked-only 迁移；ADR 0039；P4 R1 rev1–rev2 + R2 rev2–rev3 零问题 |
 | 2026-11-28 | [progress-2026-11-27-231334.md](./progress-2026-11-27-231334.md) | 普通站点 `window.open` 下载未接管导致新建 WebView2 卡顿：全站明确扩展名走隐藏 iframe 原生下载，宽松路径保留新标签；ADR 0039 修订；P4 R1 rev1–rev4 + R2 rev4 零问题，真机无冻结 |
+| 2026-11-28 | [progress-2026-11-28-025523.md](./progress-2026-11-28-025523.md) | SettingsPanel Escape 关闭用例全量高负载偶发失败：标题出现早于 passive effect 安装，测试改为等待焦点进入对话框；R1/R2 rev1 零问题，check:all 589 files / 5645 tests 通过 |
