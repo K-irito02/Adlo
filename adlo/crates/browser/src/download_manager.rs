@@ -1004,7 +1004,7 @@ impl DownloadManager {
                 continue;
             }
             if !src.is_file() {
-                // 缺失文件：按唯一源路径计一次，不修改记录。
+                // 缺失文件：按归一化后的源路径去重计数，不修改记录。
                 let key = normalize_path_key(&src);
                 if seen_missing.insert(key) {
                     result.missing += 1;
@@ -1155,7 +1155,7 @@ impl DownloadManager {
 
     /// Register a pending re-download request. At most one unexpired pending may
     /// exist at a time — a second registration while an unexpired pending is
-    /// still present is rejected so a stale request can never shadow a newer one.
+    /// still present is rejected, leaving the existing pending in place.
     ///
     /// Command-boundary API: called from the `adlo` Tauri command layer.
     pub fn register_pending_redownload(
@@ -1184,10 +1184,10 @@ impl DownloadManager {
 
     /// Consume and return the pending re-download record id, if any.
     ///
-    /// The exact `(tab_id, url)` match wins; otherwise the unique unexpired
+    /// The exact `(tab_id, url)` match wins; otherwise the unexpired
     /// pending is returned as a fallback (covering URL redirects and the
     /// no-active-tab prepare path). `register_pending_redownload` enforces at
-    /// most one unexpired pending, so "unique" is always satisfied here.
+    /// most one unexpired pending, so the fallback sees a single candidate.
     /// Expired pendings are dropped and treated as absent.
     ///
     /// Command-boundary API: called from the `adlo` Tauri command layer (to

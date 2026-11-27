@@ -8,7 +8,7 @@ use super::download_manager::{DownloadManager, derive_file_name, get_default_dow
 use super::download_types::DownloadRecord;
 
 /// Bridge for creating a download record that reuses a pending re-download's
-/// record (reset) instead of always creating a fresh one. Called from
+/// record (reset) when one matches, instead of creating a fresh one. Called from
 /// `setup_download_handler` once the Ask/Auto final path is known.
 fn begin_download_record(
     manager: &DownloadManager,

@@ -468,7 +468,7 @@ pub fn download_redownload(
 }
 
 /// 无活动 tab 时的重新下载回退：只登记 pending（`tab_id=None`），由前端打开
-/// 新标签页导航到原 URL；`begin_download_record` 经唯一 pending 兜底匹配。
+/// 新标签页导航到原 URL；`begin_download_record` 按当前 pending 兜底匹配。
 #[tauri::command]
 pub fn download_prepare_redownload(
     state: State<'_, AppState>,

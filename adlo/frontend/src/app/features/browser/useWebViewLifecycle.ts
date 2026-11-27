@@ -355,7 +355,6 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
 
           // 默认共享 profile 时中心与面板同一 WebView2 会话；关闭开关后中心走独立
           // UDF。共享模式下不再需要创建期隐藏另一宿主，但主题联动风险由用户选择承担。
-          const createStartedAt = performance.now();
           await createWebViewForTab(
             currentTabId,
             tab.url,
@@ -363,15 +362,6 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
             hostId,
             getInitialViewportSize?.(),
           );
-          if (import.meta.env.DEV) {
-            const elapsed = Math.round(performance.now() - createStartedAt);
-            if (elapsed > 300) {
-              console.warn('[DBG-freeze] create-for-tab slow', {
-                tabId: currentTabId,
-                elapsed,
-              });
-            }
-          }
 
           // 创建期间可能已切走，或该标签已被下载效果标记为下载标签（A+ 已把焦点
           // 切回来源页）。此时不要再激活/揭示，WebView 保持屏外直到终止态关闭。

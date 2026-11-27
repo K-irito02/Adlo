@@ -225,7 +225,7 @@ export const settingsEn = {
   browserGroupResetMigrateOnNote:
     '"Migrate files when path changes" is currently on: when the folder is reset, only files recorded in downloads are moved to the system default folder; other files in the old folder are kept and never deleted. If migration fails: files already moved stay in the new folder, the rest stay in the old one, the setting is not switched, and you can retry.',
   storageDownloadMigrateFailed: 'Failed to migrate files: {error}',
-  // tracked-only migration blocked/result copy: on Ok `failed` is always 0; partial failures ride on Err text.
+  // tracked-only migration blocked/result copy: the Ok copy has no failed count; partial failures ride on Err text.
   storageDownloadMigrateBlockedActive:
     'There are active or paused downloads. Finish or cancel them before migrating.',
   storageDownloadMigrateResult:

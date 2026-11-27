@@ -64,10 +64,6 @@ void syncTauriWindowIcon();
 // 关窗兜底：去抖窗口内的 pending 写入在 pagehide / 切后台时同步落盘。
 registerFlushOnPageHide();
 
-if (import.meta.env.DEV) {
-  void import('./app/utils/freezeProbe').then((probe) => probe.installFreezeProbe());
-}
-
 declare global {
   interface Window {
     digitalLife: DigitalLifeBridge;

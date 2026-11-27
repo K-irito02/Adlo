@@ -12,7 +12,7 @@ export function useBrowserDownloads() {
   const lastFocusRefreshRef = useRef<number>(0);
 
   // App 根挂载早于 Tauri bridge 就绪：首轮 isTauri=false 时不能订阅后就不再重试，
-  // 否则下载事件永远进不了 store，工具栏下载按钮不会出现进度环/角标。
+  // 否则这一轮订阅会被跳过，工具栏下载按钮拿不到进度环/角标更新。
   // isTauri 变 true 后重新拉取并订阅（下载菜单打开时还会再 fetch 一次兜底）。
   useEffect(() => {
     if (!isTauri) {
