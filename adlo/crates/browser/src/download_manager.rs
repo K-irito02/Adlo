@@ -1187,7 +1187,8 @@ impl DownloadManager {
     /// The exact `(tab_id, url)` match wins. The fallback only applies to the
     /// SAME tab (a redirect / signed URL change) or to a pending registered
     /// with no tab (the no-active-tab prepare path); a pending owned by a
-    /// different tab is never consumed here. `register_pending_redownload`
+    /// different tab is left in place and reported as no match here.
+    /// `register_pending_redownload`
     /// enforces at most one unexpired pending, so the fallback sees a single
     /// candidate. Expired pendings are dropped and treated as absent.
     ///
@@ -1204,9 +1205,9 @@ impl DownloadManager {
 
         // Stage 1: exact `(tab_id, url)` match. Stage 2 (fallback): the unique
         // unexpired pending, but only for the same tab (redirect / signed URL)
-        // or a pending with no tab (no-active-tab prepare path). A redirect on
-        // one tab must never steal a pending owned by another tab: leave it in
-        // place and report no match. Because pending storage is a single slot
+        // or a pending with no tab (no-active-tab prepare path). When the tab
+        // differs and the pending has a tab, leave it in place and report no
+        // match. Because pending storage is a single slot
         // guarded by `register_pending_redownload`, the two consuming stages
         // resolve to the same pending id here.
         let exact = pending.tab_id.as_deref() == tab_id && pending.url == url;
@@ -4376,17 +4377,10 @@ mod tests {
             .expect("register should succeed");
 
         let other_tab = mgr.take_pending_redownload(Some("tab-2"), "https://example.com/other.zip");
-        assert!(
-            other_tab.is_none(),
-            "fallback must not consume a pending owned by another tab"
-        );
+        assert!(other_tab.is_none(), "fallback must not consume a pending owned by another tab");
 
         let owner = mgr.take_pending_redownload(Some("tab-1"), "https://example.com/a.zip");
-        assert_eq!(
-            owner.as_deref(),
-            Some("rec-1"),
-            "the owning tab can still consume its pending"
-        );
+        assert_eq!(owner.as_deref(), Some("rec-1"), "the owning tab can still consume its pending");
         let _ = std::fs::remove_file(
             std::env::temp_dir().join("adl-download-mgr-redownload-pending-tab-isolation.db"),
         );
