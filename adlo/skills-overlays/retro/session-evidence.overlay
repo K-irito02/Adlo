@@ -12,5 +12,5 @@ note: 接入本仓库的会话证据文档与 OpenCode 脱敏导出入口
    opencode session export --sanitize $env:OPENCODE_SESSION_ID
    ```
 
-   Pass an explicit session ID when reviewing another session. Large stdout may be saved by the harness as a complete output file; use that file rather than rerunning the export or reading raw logs unbounded.
+   Pass an explicit session ID when reviewing another session. Large stdout may be saved by the harness as a complete output file; use that file rather than rerunning the export or reading raw logs unbounded. If the harness saved the export to a file, run `pnpm --dir adlo run retro:summary -- <export-file> [--since <epoch-ms>]` to get message/tool counts, durations, token peaks, errors and repeated-call statistics without reading redacted bodies.
 ---END---
