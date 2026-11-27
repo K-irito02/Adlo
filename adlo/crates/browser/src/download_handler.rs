@@ -17,9 +17,7 @@ fn begin_download_record(
     source_tab_id: Option<&str>,
 ) -> Result<DownloadRecord, String> {
     match manager.take_pending_redownload(source_tab_id, url) {
-        Some(record_id) => {
-            manager.reset_for_redownload(&record_id, url, final_path, source_tab_id)
-        }
+        Some(record_id) => manager.reset_for_redownload(&record_id, url, final_path, source_tab_id),
         None => manager.create_download(url, final_path, source_tab_id.map(|s| s.to_string())),
     }
 }
