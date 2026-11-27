@@ -243,7 +243,7 @@ dev Tauri 重启后，中心（Center）前台浏览器标签的原生 WebView2 
 
 ### 根因
 
-原生 WebView2 创建时位于屏外（`-10000,-10000`），回到屏内的唯一通道是前端 `setTabBounds` 应用容器矩形，该路径受 `overlayActive` 门控。右侧面板早已把开屏纳入判据（`!startupOverlayHidden || …`），而中心的 `computeCenterOverlayActive` 只统计菜单/对话框，未含开屏 → 开屏期间 `overlayActive=false`，页面就绪后把 WebView 摆回屏内。DOM 开屏覆盖层盖不住 OS 级原生子窗口。
+原生 WebView2 创建时位于屏外（`-10000,-10000`），回到屏内的唯一通道是前端 `setTabBounds` 应用容器矩形，该路径受 `overlayActive` 门控。右侧面板早已把开屏纳入判据（`!startupOverlayHidden || …`），而中心的 `computeCenterOverlayActive` 只统计菜单/对话框，未含开屏 → 开屏期间 `overlayActive=false`，页面就绪后把 WebView 摆回屏内。DOM 开屏（HTML 层）盖不住 OS 级原生子窗口。
 
 ### 修复
 

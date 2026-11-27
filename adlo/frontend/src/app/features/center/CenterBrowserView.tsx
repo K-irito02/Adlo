@@ -72,7 +72,7 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
   const recentWorkspaces = useAppStore((s) => s.recentWorkspaces);
   const showToast = useAppStore((s) => s.showToast);
   const isTauri = useAppStore((s) => s.isTauri);
-  // 开屏覆盖层隐藏状态：与右侧面板 `hasOverlayActive` 同口径，开屏期间让原生
+  // 开屏隐藏状态：与右侧面板 `hasOverlayActive` 同口径，开屏期间让原生
   // WebView2 保持离屏（DOM 覆盖层盖不住原生子窗口）。
   const startupOverlayHidden = useAppStore((s) => s.startupOverlayHidden);
   const searchEngines = useAppStore((s) => s.searchEngines);

@@ -4,9 +4,9 @@ export interface CenterOverlayFlags {
   bookmarkDialogOpen: boolean;
   createDirDialogOpen: boolean;
   /**
-   * 开屏覆盖层是否已隐藏。开屏期间整窗被 DOM 覆盖层盖住，但 DOM 盖不住原生
+   * 开屏是否已隐藏。开屏期间整窗被 DOM 覆盖层盖住，但 DOM 盖不住原生
    * WebView2 子窗口 —— 必须与右侧面板 `hasOverlayActive` 同口径把中心 WebView
-   * 移出画面，否则重启后前台标签会在开屏动画阶段直接露出来并遮挡开屏。
+   * 移出画面，否则重启后前台标签会在开屏阶段直接露出来并遮挡开屏。
    */
   startupOverlayHidden: boolean;
   /**

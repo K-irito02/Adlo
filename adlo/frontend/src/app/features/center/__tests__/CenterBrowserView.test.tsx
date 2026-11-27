@@ -145,7 +145,7 @@ describe('CenterBrowserView', () => {
     ).toBe(true);
   });
 
-  it('开屏可见期间把中心 WebView 置为离屏（与右侧面板同口径，不遮挡开屏动画）', () => {
+  it('开屏可见期间把中心 WebView 置为离屏（与右侧面板同口径，不遮挡开屏）', () => {
     const tab = makeTab('b1', 'https://x.test');
     useAppStore.setState({
       browserTabs: [tab],
