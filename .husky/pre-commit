@@ -102,6 +102,20 @@ STEP="check-deleted-crates"
 ( cd "$ROOT/adlo" && node scripts/check-deleted-crates.mjs )
 STEP="check-no-new-any"
 ( cd "$ROOT/adlo" && node scripts/check-no-new-any.mjs )
+# 新增注释里的绝对/计数断言：与 review-snapshot 同一套启发式，提前到提交时拦。
+# 用 merge-base 而不是 origin/HEAD，避免分支落后把已合入 main 的注释算进来。
+STEP="check:comment-claims"
+BASE="$(git merge-base origin/HEAD HEAD 2>/dev/null || git rev-parse HEAD)"
+( cd "$ROOT/adlo" && node scripts/check-comment-claims.mjs --base "$BASE" )
+# staged Rust 源码格式：本仓 rustfmt 门禁原本只在 check:review / pre-push，
+# 修复子代理提交后才发现未格式化会产生额外清理提交（2026-11-27 retro）。
+STEP="cargo fmt"
+RUSTFILES="$(echo "$STAGED" | grep -E '^adlo/(crates|src-tauri)/.*\.rs$' || true)"
+if [ -n "$RUSTFILES" ]; then
+  ( cd "$ROOT/adlo" && cargo fmt --all -- --check )
+else
+  echo "[pre-commit] cargo fmt: no staged Rust sources, skipped"
+fi
 STEP="notices:check"
 DEPS="$(echo "$STAGED" | grep -E '^adlo/(Cargo\.lock|Cargo\.toml|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml)$|^adlo/frontend/package\.json$' || true)"
 if [ -n "$DEPS" ]; then

@@ -80,6 +80,8 @@ pnpm --dir frontend run check:changed
 - 分层：低层 crate 不依赖高层；WebView 不直接触达系统能力。
 - 未发布阶段：不要保留「仅为旧导入路径」的兼容层或无调用方的 `pub` 包装。
 - **依赖既有行为**：若本轮实现依赖某条既有行为，而上游 ADR 对该行为有明文决定，必须核对该 ADR 与代码是否一致（不限于本轮 diff 行）。
+- **跨 IPC 错误哨兵**：Tauri 命令 `Err(CommandError)` 经 `AppError` 的 Display 会带前缀（如 `Internal error: downloads_active`），且 `invoke` reject 的是普通对象而非 `Error`。消费者用 `===` 比对裸哨兵在真实链路永不命中：必须从 plain-object rejection 显式取 `.message` 并用 `includes` 匹配；仅当前端自己生成的 message（如 `REFRESH_FAILED`）可用严格相等。
+- **复用记录开新一轮**：DB 记录被 reset 复用为新一次尝试时，所有被下游当作查找键的字段（url / file_path / tab id 等）必须一并刷新，否则按旧键查找的完成事件、原生 operation 与缓存会失配。
 
 ### 4.1 异步状态变更专项（R1 必查）
 

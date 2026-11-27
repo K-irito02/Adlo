@@ -131,6 +131,18 @@ describe('标题栏面板开关', () => {
 
 设置面板的现状（写之前先确认，别照抄猜出来的 testid）：面板根是 `.adl-settings-panel`，存储卡片有 `[data-testid="storage-locator-card"]`；但**打开设置的入口（`ToolSwitcher`）只有本地化 `aria-label`**。要写设置相关用例，先给入口补一个稳定 `data-testid`，否则只能按文案点击，正好违反上面的选择器规则。
 
+### 真实 WebView2 下载链接验证（补充证据，不进自动套件）
+
+jsdom 只能证明「`target=_blank` 下载链接不发 `open-new-tab` 且创建隐藏 iframe」；真实 `DownloadStarting` 触发、30s 移除 iframe 对大下载的影响、可内联渲染类型是否顶掉当前页，必须在桌面壳里取证据：
+
+1. 在 `adlo/` 下运行 `node e2e/fixtures/download-link-server.mjs`（默认 `http://127.0.0.1:4789/`，`PORT` 可改；用完 Ctrl+C）。
+2. 在应用浏览器标签打开该地址，点页面里的 `download` 链接。
+3. 预期：当前页保持不动、地址栏不被改成 `.bin` 下载地址、无新标签 / 新 WebView 出现。
+4. 打开下载卡片确认新增 `package.bin` 且完成；用 `browser.tauri.execute` 调 `download_list` 复核记录。
+5. 换成 pdf / 媒体扩展名的链接重复第 3 步，验证隐藏 iframe 不顶掉当前页；有 `X-Frame-Options` 的站点另测。
+
+把结果（含日期与是否通过）写进对应进度文件；这是真机补充，不替代用户视觉 / 交互验收。
+
 ## 6. 已知坑（症状 → 根因 → 处理）
 
 | 症状 | 根因 | 处理 |

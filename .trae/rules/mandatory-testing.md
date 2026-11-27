@@ -9,9 +9,9 @@ alwaysApply: true
 
 ## 核心原则
 
-任何代码变更完成后，必须自动触发结束验收流程。验收流程确保所有内部功能代码的完备性、真实性、有效性。**主观 UI/UX 验收由用户自行完成；但 CSS 选择器、层叠关系、主题 token 或布局变更必须做机械计算样式验证（见 [desktop-ui-verification.md](desktop-ui-verification.md) 与 `ui-probe.mjs`）。**
+任何代码变更完成后，必须自动触发结束验收流程。**主观 UI/UX 验收由用户自行完成；但 CSS 选择器、层叠关系、主题 token 或布局变更必须做机械计算样式验证（见 [desktop-ui-verification.md](desktop-ui-verification.md) 与 `ui-probe.mjs`）。**
 
-验收**默认不打开 Tauri 桌面应用**；CSS 变更时启动浏览器预览用 `ui-probe.mjs`（或内置 browser 工具）读目标元素计算样式（亮暗两套），不以肉眼代验证。桌面 E2E 是额外的 opt-in 层（见下方「桌面 E2E（按需）」），不属于默认验收。
+验收**默认不打开 Tauri 桌面应用**；CSS 的计算样式验证见下方专节。桌面 E2E 是额外 opt-in 层，不属于默认验收。
 
 ---
 
@@ -88,6 +88,10 @@ Agent 在触发验收时，先评估变更范围，确定测试层级：
 ├─ ④ 基于真实场景 — 模拟实际使用中的操作流和数据流
 └─ ❌ 禁止：仅为了通过测试而裁剪数据字段、简化逻辑、回避复杂路径
 ```
+
+### 异步拉取后读 store 的用例
+
+effect / action 若先 `await` 拉取数据再读 store（如打开下载卡片先 `fetchDownloads()` 再取 ids 刷新文件状态），必须有一条**冷启动**用例：store 初始为空，拉取完成后断言后续调用使用的是新拉取到的数据。只有「store 已有数据」的温路径用例不算覆盖——渲染快照里的 ids 在拉取前就为空的缺陷不会被温路径发现。
 
 ### 询问机制
 
