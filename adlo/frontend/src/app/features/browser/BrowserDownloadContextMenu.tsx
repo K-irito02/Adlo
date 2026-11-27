@@ -1,8 +1,15 @@
 import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { IconDownload, IconFolderOpen, IconDelete, IconTrash, IconCopy } from '@icons';
+import {
+  IconDownload,
+  IconFolderOpen,
+  IconDelete,
+  IconTrash,
+  IconCopy,
+  IconRefreshCw,
+} from '@icons';
 import { useTCopy } from '@i18n/useTCopy';
-import type { DownloadRecord } from '@shared/ipc/download';
+import type { DownloadRecord, DownloadFileState } from '@shared/ipc/download';
 
 interface BrowserDownloadContextMenuProps {
   record: DownloadRecord | null;
@@ -13,6 +20,11 @@ interface BrowserDownloadContextMenuProps {
   onDeleteFile: (record: DownloadRecord) => void;
   onRemoveRecord: (record: DownloadRecord) => void;
   onCopyLink: (record: DownloadRecord) => void;
+  onRedownload: (record: DownloadRecord) => void;
+  /** File system state, when known, used to detect completed-but-missing files. */
+  fileState?: DownloadFileState;
+  /** Whether the record is currently in the re-download preparing flow. */
+  redownloading?: boolean;
   /** Expose the portal DOM element so the parent can exclude it from outside-click detection. */
   onPortalRef?: (el: HTMLDivElement | null) => void;
 }
@@ -26,6 +38,9 @@ export const BrowserDownloadContextMenu = React.memo(function BrowserDownloadCon
   onDeleteFile,
   onRemoveRecord,
   onCopyLink,
+  onRedownload,
+  fileState,
+  redownloading,
   onPortalRef,
 }: BrowserDownloadContextMenuProps) {
   const { t } = useTCopy();
@@ -87,6 +102,17 @@ export const BrowserDownloadContextMenu = React.memo(function BrowserDownloadCon
     return null;
   }
 
+  const isHttp = /^https?:\/\//i.test(record.url);
+  const showCopyLink = isHttp;
+
+  const isMissingCompleted =
+    record.status === 'completed' && fileState !== undefined && !fileState.exists;
+  const canRedownload =
+    isHttp && (isMissingCompleted || record.status === 'failed' || record.status === 'canceled');
+
+  const showOpenActions = record.status === 'completed' && record.file_path && !isMissingCompleted;
+  const showDeleteFile = record.file_path && !isMissingCompleted;
+
   return createPortal(
     <div
       ref={menuRef}
@@ -99,11 +125,29 @@ export const BrowserDownloadContextMenu = React.memo(function BrowserDownloadCon
       }}
       role="menu"
     >
-      {record.status === 'completed' && record.file_path && (
+      {canRedownload && (
+        <button
+          type="button"
+          className="adl-sidebar-menu__item"
+          role="menuitem"
+          onClick={() => {
+            onRedownload(record);
+            onClose();
+          }}
+          disabled={redownloading}
+        >
+          <span className="adl-sidebar-menu__icon">
+            <IconRefreshCw size={16} decorative />
+          </span>
+          <span>{t.browserDownloadRedownload}</span>
+        </button>
+      )}
+      {showOpenActions && (
         <>
           <button
             type="button"
             className="adl-sidebar-menu__item"
+            role="menuitem"
             onClick={() => {
               onOpenFile(record);
               onClose();
@@ -117,6 +161,7 @@ export const BrowserDownloadContextMenu = React.memo(function BrowserDownloadCon
           <button
             type="button"
             className="adl-sidebar-menu__item"
+            role="menuitem"
             onClick={() => {
               onShowInFolder(record);
               onClose();
@@ -130,23 +175,27 @@ export const BrowserDownloadContextMenu = React.memo(function BrowserDownloadCon
           <div className="adl-sidebar-menu__sep" role="separator" />
         </>
       )}
-      <button
-        type="button"
-        className="adl-sidebar-menu__item"
-        onClick={() => {
-          onCopyLink(record);
-          onClose();
-        }}
-      >
-        <span className="adl-sidebar-menu__icon">
-          <IconCopy size={16} decorative />
-        </span>
-        <span>{t.browserDownloadCopyLink}</span>
-      </button>
+      {showCopyLink && (
+        <button
+          type="button"
+          className="adl-sidebar-menu__item"
+          role="menuitem"
+          onClick={() => {
+            onCopyLink(record);
+            onClose();
+          }}
+        >
+          <span className="adl-sidebar-menu__icon">
+            <IconCopy size={16} decorative />
+          </span>
+          <span>{t.browserDownloadCopyLink}</span>
+        </button>
+      )}
       <div className="adl-sidebar-menu__sep" role="separator" />
       <button
         type="button"
         className="adl-sidebar-menu__item"
+        role="menuitem"
         onClick={() => {
           onRemoveRecord(record);
           onClose();
@@ -157,10 +206,11 @@ export const BrowserDownloadContextMenu = React.memo(function BrowserDownloadCon
         </span>
         <span>{t.browserDownloadRemoveRecord}</span>
       </button>
-      {record.file_path && (
+      {showDeleteFile && (
         <button
           type="button"
           className="adl-sidebar-menu__item is-danger"
+          role="menuitem"
           onClick={() => {
             onDeleteFile(record);
             onClose();

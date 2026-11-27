@@ -7,10 +7,12 @@ import { BrowserDownloadMenu } from './BrowserDownloadMenu';
 
 interface BrowserDownloadButtonProps {
   className?: string;
+  activeTabId?: string;
 }
 
 export const BrowserDownloadButton = React.memo(function BrowserDownloadButton({
   className,
+  activeTabId,
 }: BrowserDownloadButtonProps) {
   const { t } = useTCopy();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -85,7 +87,12 @@ export const BrowserDownloadButton = React.memo(function BrowserDownloadButton({
         </button>
       </TooltipSimple>
       {menuOpen && (
-        <BrowserDownloadMenu onClose={handleClose} menuRef={menuRef} anchorRef={buttonRef} />
+        <BrowserDownloadMenu
+          onClose={handleClose}
+          menuRef={menuRef}
+          anchorRef={buttonRef}
+          activeTabId={activeTabId}
+        />
       )}
     </div>
   );

@@ -549,7 +549,7 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
               <IconSearchEngine size={14} decorative />
             </button>
           </TooltipSimple>
-          <BrowserDownloadButton />
+          <BrowserDownloadButton activeTabId={activeTab?.id} />
           <BrowserMenuDropdown
             menuOpen={browserMenuOpen}
             menuRef={browserMenuRef}

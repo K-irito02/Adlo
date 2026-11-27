@@ -16,12 +16,14 @@ interface BrowserDownloadMenuProps {
   onClose: () => void;
   menuRef: React.RefObject<HTMLDivElement | null>;
   anchorRef: React.RefObject<HTMLButtonElement | null>;
+  activeTabId?: string;
 }
 
 export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
   onClose,
   menuRef,
   anchorRef,
+  activeTabId,
 }: BrowserDownloadMenuProps) {
   const { t } = useTCopy();
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -40,6 +42,8 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
   }, []);
 
   const downloads = useAppStore((s) => s.downloads);
+  const downloadFileStates = useAppStore((s) => s.downloadFileStates);
+  const redownloadingIds = useAppStore((s) => s.redownloadingIds);
   const downloadSettings = useAppStore((s) => s.downloadSettings);
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
   const clearDownloadHistory = useAppStore((s) => s.clearDownloadHistory);
@@ -53,7 +57,8 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
     handleDeleteFile,
     handleRemoveRecord,
     handleCopyLink,
-  } = useDownloadItemActions();
+    handleRedownload,
+  } = useDownloadItemActions(activeTabId);
 
   const autoSave = downloadSettings.mode === DEFAULT_DOWNLOAD_MODE;
 
@@ -239,6 +244,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
               <DownloadGroup
                 label={t.browserDownloadActive}
                 downloads={activeDownloads}
+                redownloadingIds={redownloadingIds}
                 onContextMenu={handleContextMenu}
               />
             </div>
@@ -248,6 +254,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
               <DownloadGroup
                 label={t.browserDownloadPaused}
                 downloads={pausedDownloads}
+                redownloadingIds={redownloadingIds}
                 onContextMenu={handleContextMenu}
               />
             </div>
@@ -257,6 +264,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
               <DownloadGroup
                 label={t.browserDownloadFailed}
                 downloads={failedDownloads}
+                redownloadingIds={redownloadingIds}
                 onContextMenu={handleContextMenu}
               />
             </div>
@@ -266,6 +274,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
               <DownloadGroup
                 label={t.browserDownloadCompleted}
                 downloads={completedDownloads}
+                redownloadingIds={redownloadingIds}
                 onContextMenu={handleContextMenu}
               />
             </div>
@@ -275,6 +284,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
               <DownloadGroup
                 label={t.browserDownloadCanceled}
                 downloads={canceledDownloads}
+                redownloadingIds={redownloadingIds}
                 onContextMenu={handleContextMenu}
               />
             </div>
@@ -317,6 +327,9 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
           onDeleteFile={handleDeleteFile}
           onRemoveRecord={handleRemoveRecord}
           onCopyLink={handleCopyLink}
+          onRedownload={handleRedownload}
+          fileState={downloadFileStates[contextMenu.record.id]}
+          redownloading={redownloadingIds.has(contextMenu.record.id)}
           onPortalRef={handleContextMenuPortalRef}
         />
       )}
@@ -328,17 +341,24 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
 function DownloadGroup({
   label,
   downloads,
+  redownloadingIds,
   onContextMenu,
 }: {
   label: string;
   downloads: DownloadRecord[];
+  redownloadingIds: ReadonlySet<string>;
   onContextMenu: (record: DownloadRecord, position: { x: number; y: number }) => void;
 }) {
   return (
     <div className="adl-download-menu__group">
       <div className="adl-download-menu__group-label">{label}</div>
       {downloads.map((record) => (
-        <BrowserDownloadItem key={record.id} record={record} onContextMenu={onContextMenu} />
+        <BrowserDownloadItem
+          key={record.id}
+          record={record}
+          redownloading={redownloadingIds.has(record.id)}
+          onContextMenu={onContextMenu}
+        />
       ))}
     </div>
   );

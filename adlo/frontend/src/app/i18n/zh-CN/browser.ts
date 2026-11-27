@@ -292,6 +292,8 @@ export const browserZh = {
   browserDownloadDeleteFile: '删除文件',
   browserDownloadRemoveRecord: '移除记录',
   browserDownloadCopyLink: '复制链接',
+  browserDownloadRedownload: '重新下载',
+  browserDownloadPreparing: '正在准备…',
   browserDownloadRetry: '重试',
   browserDownloadCancel: '取消下载',
   browserDownloadPause: '暂停下载',

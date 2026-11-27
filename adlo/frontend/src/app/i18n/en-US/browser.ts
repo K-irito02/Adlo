@@ -304,6 +304,8 @@ export const browserEn = {
   browserDownloadDeleteFile: 'Delete file',
   browserDownloadRemoveRecord: 'Remove record',
   browserDownloadCopyLink: 'Copy link',
+  browserDownloadRedownload: 'Redownload',
+  browserDownloadPreparing: 'Preparing…',
   browserDownloadRetry: 'Retry',
   browserDownloadCancel: 'Cancel download',
   browserDownloadPause: 'Pause download',

@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { IconPause, IconPlay, IconClose, IconMoreVertical } from '@icons';
+import { IconPause, IconPlay, IconClose, IconMoreVertical, IconLoader } from '@icons';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { formatBytes } from '../../../design-system/html';
@@ -11,11 +11,13 @@ import { useDownloadItemActions } from './useDownloadItemActions';
 interface BrowserDownloadItemProps {
   record: DownloadRecord;
   onContextMenu: (record: DownloadRecord, position: { x: number; y: number }) => void;
+  redownloading?: boolean;
 }
 
 export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
   record,
   onContextMenu,
+  redownloading,
 }: BrowserDownloadItemProps) {
   const { t } = useTCopy();
   const itemRef = useRef<HTMLDivElement>(null);
@@ -89,6 +91,9 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
 
   const handleClick = useCallback(
     (_e: React.MouseEvent) => {
+      if (redownloading) {
+        return;
+      }
       const now = Date.now();
       if (now - lastClickTimeRef.current < 300) {
         // 防止重复快速点击
@@ -100,7 +105,7 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
         void handleOpenFile(record);
       }
     },
-    [record, handleOpenFile],
+    [record, handleOpenFile, redownloading],
   );
 
   // Status icons removed per user request - partition titles are sufficient
@@ -126,6 +131,9 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
   })();
 
   const statusText = (() => {
+    if (redownloading) {
+      return t.browserDownloadPreparing;
+    }
     switch (record.status) {
       case 'in_progress':
         return speed > 0 ? t.browserDownloadSpeed.replace('{speed}', formatBytes(speed)) : '';
@@ -230,7 +238,14 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
           )}
           <div className="adl-download-item__meta">
             <span className="adl-download-item__size">{sizeText}</span>
-            {statusText && <span className="adl-download-item__status">{statusText}</span>}
+            {statusText && (
+              <span className="adl-download-item__status">
+                {redownloading && (
+                  <IconLoader size={12} decorative className="adl-download-item__status-spinner" />
+                )}
+                {statusText}
+              </span>
+            )}
             <span className="adl-download-item__date">{dateText}</span>
           </div>
         </div>
