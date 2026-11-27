@@ -3,7 +3,13 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createReport, validateReport, validateReportFile } from "./review-report.mjs";
+import { fileURLToPath } from "node:url";
+import {
+  createReport,
+  resolveReportPath,
+  validateReport,
+  validateReportFile,
+} from "./review-report.mjs";
 
 const validReport = (count = 0) =>
   `## 范围\n\n- test\n\n## 上轮问题关闭情况\n\n- 无\n\n## 新增发现\n\n- 无\n\n## 结论\n\n- 需修复项：${count}\n`;
@@ -33,6 +39,26 @@ test("rejects malformed counts that merely start with zero", () => {
     assert.equal(result.ok, false, `expected ${count} to fail`);
     assert.ok(result.errors.some((error) => error.includes("需修复项")));
   }
+});
+
+test("names the near-miss conclusion line in the error", () => {
+  const result = validateReport(validReport("0（说明）"));
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.errors.some((error) => error.includes("需修复项") && error.includes("0（说明）")),
+    "error should quote the offending line so the fix is obvious",
+  );
+});
+
+test("resolves report paths against the repo root, not the caller cwd", () => {
+  const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
+  assert.equal(
+    resolveReportPath(".review-diffs/scope-r1-rev1-report.md"),
+    join(repoRoot, ".review-diffs", "scope-r1-rev1-report.md"),
+  );
+  // 绝对路径原样保留，供测试与临时目录使用。
+  const absolute = join(tmpdir(), "already-absolute.md");
+  assert.equal(resolveReportPath(absolute), absolute);
 });
 
 test("reports missing required sections", () => {

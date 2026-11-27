@@ -6,7 +6,7 @@ import { parseSplashFreezeAt } from '../splashDebugParams';
  *
  * 事故背景（2026-11-14）：开发态启动后开屏只剩纯黑/纯白底色。原因是
  * `Number(params.get('adl-splash-at'))` 在参数缺失时得到 `0`，钩子据此把所有
- * 开屏动画 `pause()` 在起始态（各入场动画的首帧基本不可见），窗口只剩底色。
+ * 钩子把开屏的全部入场动画 `pause()` 在起始态（各入场动画的首帧基本不可见），窗口只剩底色。
  */
 describe('parseSplashFreezeAt', () => {
   it.each(['', '?', '?foo=bar', '?adl-splash-at=', '?adl-splash-at=%20'])(

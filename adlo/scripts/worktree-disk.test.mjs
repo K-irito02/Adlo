@@ -47,6 +47,13 @@ test("parseArgs collects --only selectors and rejects the --current mix", () => 
   assert.deepEqual(parseArgs(["--only", "main,slot-1"]).only, ["main", "slot-1"]);
   assert.deepEqual(parseArgs(["--only", "main", "--only", "slot-2"]).only, ["main", "slot-2"]);
   assert.deepEqual(parseArgs(["--only", "main, main"]).only, ["main"]);
+  // pnpm 会把 `a,b,c` 转发成单个含空格的参数；空格分隔必须等价于逗号分隔。
+  assert.deepEqual(parseArgs(["--only", "main slot-1 slot-2"]).only, ["main", "slot-1", "slot-2"]);
+  assert.deepEqual(parseArgs(["--only", " main,\tslot-1\nslot-2 "]).only, [
+    "main",
+    "slot-1",
+    "slot-2",
+  ]);
   assert.throws(() => parseArgs(["--only"]), /--only needs a value/);
   assert.throws(() => parseArgs(["--only", "--clean"]), /--only needs a value/);
   assert.throws(() => parseArgs(["--only", "main", "--current"]), /exclusive/);

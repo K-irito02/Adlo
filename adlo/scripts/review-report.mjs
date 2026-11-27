@@ -6,11 +6,19 @@ import { fileURLToPath } from "node:url";
 
 const REQUIRED_SECTIONS = ["范围", "上轮问题关闭情况", "新增发现", "结论"];
 
+/** 仓库根（脚本位于 `adlo/scripts/`）：报告路径统一相对它解析，避免随调用方 cwd 落到 `adlo/.review-diffs`。 */
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+/** 相对路径按仓库根解析，绝对路径原样返回。与 `check-review-gate` 的 `.review-diffs` 口径一致。 */
+export function resolveReportPath(input) {
+  return resolve(REPO_ROOT, input);
+}
+
 export function createReport(path, { scope, phase, rev, force = false }) {
   if (!scope) throw new Error("--scope is required");
   if (!["r1", "r2"].includes(phase)) throw new Error("--phase must be r1 or r2");
   if (!Number.isInteger(rev) || rev <= 0) throw new Error("--rev must be a positive integer");
-  const target = resolve(path);
+  const target = resolveReportPath(path);
   if (existsSync(target) && !force) {
     throw new Error(`report already exists: ${target}`);
   }
@@ -30,13 +38,18 @@ export function validateReport(input) {
   }
   const exactMatches = [...text.matchAll(/^- 需修复项：(0|[1-9]\d*)$/gm)];
   const conclusionLines = text.split("\n").filter((line) => line.includes("需修复项"));
+  const renderLines = () => conclusionLines.map((line) => JSON.stringify(line.trim())).join(", ");
   if (exactMatches.length === 0) {
-    errors.push('missing exact conclusion line: "- 需修复项：N"');
+    errors.push(
+      conclusionLines.length > 0
+        ? `missing exact conclusion line "- 需修复项：N" (found ${conclusionLines.length} line(s) mentioning 需修复项: ${renderLines()})`
+        : 'missing exact conclusion line: "- 需修复项：N"',
+    );
   } else if (exactMatches.length > 1) {
     errors.push("multiple conclusion lines; keep exactly one");
   } else if (conclusionLines.length !== 1) {
     errors.push(
-      "additional 需修复项 lines are not allowed; put severity counts on a separate line",
+      `additional 需修复项 lines are not allowed; keep exactly one conclusion line (found: ${renderLines()})`,
     );
   }
   return {
@@ -47,7 +60,7 @@ export function validateReport(input) {
 }
 
 export function validateReportFile(path) {
-  const target = resolve(path);
+  const target = resolveReportPath(path);
   if (!existsSync(target)) {
     return { ok: false, errors: [`report file not found: ${target}`], count: null };
   }
@@ -86,7 +99,7 @@ function main() {
   if (!options.path) throw new Error("report path is required");
   if (options.command === "create") {
     const text = createReport(options.path, options);
-    console.log(`[review-report] created ${resolve(options.path)}`);
+    console.log(`[review-report] created ${resolveReportPath(options.path)}`);
     const result = validateReport(text);
     if (!result.ok) {
       console.error(result.errors.join("\n"));
@@ -96,11 +109,11 @@ function main() {
   }
   const result = validateReportFile(options.path);
   if (!result.ok) {
-    console.error(`[review-report] invalid ${resolve(options.path)}`);
+    console.error(`[review-report] invalid ${resolveReportPath(options.path)}`);
     for (const error of result.errors) console.error(`- ${error}`);
     process.exit(1);
   }
-  console.log(`[review-report] OK ${resolve(options.path)} (需修复项：${result.count})`);
+  console.log(`[review-report] OK ${resolveReportPath(options.path)} (需修复项：${result.count})`);
 }
 
 const isMain =

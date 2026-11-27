@@ -78,7 +78,9 @@ export function parseArgs(argv) {
         throw new Error("--only needs a value: <branch|dir>[,<...>]");
       }
       index += 1;
-      for (const name of value.split(",")) {
+      // 同时接受逗号与空白分隔：`pnpm run ... -- --only a,b` 经 pnpm 转发后常变成
+      // 单个含空格的参数（`"a b"`），只按逗号拆会报 unknown worktree selector。
+      for (const name of value.split(/[,\s]+/)) {
         const trimmed = name.trim();
         if (trimmed && !options.only.includes(trimmed)) {
           options.only.push(trimmed);
@@ -382,7 +384,7 @@ function printUsage() {
       "Usage: pnpm run worktree:disk -- [options]",
       "",
       "  (no flags)                report every worktree",
-      "  --only <branch|dir>[,…]   restrict report/clean to the named worktrees",
+      "  --only <branch|dir>[,…]   restrict report/clean (comma or space separated)",
       "  --current                 only the worktree containing the current directory",
       "  --clean                   delete target/ + node_modules/ (dry-run with --dry-run)",
       "  --keep-node-modules       keep node_modules when cleaning",

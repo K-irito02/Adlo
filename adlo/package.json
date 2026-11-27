@@ -89,6 +89,7 @@
     "run:logged": "node ./scripts/run-logged.mjs",
     "check:all:log": "node ./scripts/run-logged.mjs start --name check-all --force -- pnpm run check:all",
     "release:build:log": "node ./scripts/run-logged.mjs start --name release-build --force -- pnpm run release:build",
+    "release:build:local:log": "node ./scripts/run-logged.mjs start --name release-build-local --force -- pnpm run release:build:local",
     "wait:logged": "node ./scripts/run-logged.mjs wait"
   },
   "packageManager": "pnpm@11.5.2+sha512.71c631e382066efc25625d5cf029075de07b61b37f6e27350fbd84b1bda5864c8c1967adc280776b45c30a715c0359a3be08fef42d5bb09e2b99029979692916",
