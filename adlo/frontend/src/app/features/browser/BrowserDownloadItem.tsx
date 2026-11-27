@@ -257,7 +257,10 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
           <div className="adl-download-item__meta">
             <span className="adl-download-item__size">{sizeText}</span>
             {statusText && (
-              <span className="adl-download-item__status">
+              <span
+                className="adl-download-item__status"
+                title={isMissing && fileState?.error ? fileState.error : undefined}
+              >
                 {redownloading && (
                   <IconLoader size={12} decorative className="adl-download-item__status-spinner" />
                 )}

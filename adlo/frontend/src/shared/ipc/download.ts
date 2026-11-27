@@ -51,7 +51,6 @@ export interface DownloadSettings {
 export interface DownloadMigrationResult {
   migrated: number;
   missing: number;
-  failed: number;
 }
 
 /** Result of a user-initiated pause. The backend reflects the true end state:

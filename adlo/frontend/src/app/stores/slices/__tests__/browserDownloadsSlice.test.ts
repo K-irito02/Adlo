@@ -12,6 +12,8 @@ import {
   consumeDownloadSource,
   resetDownloadOnlyTabsForTest,
 } from '@features/browser/downloadOnlyTabs';
+import { downloadResetFailureCopy } from '@features/storage-settings/downloadPathReset';
+import { zhCN } from '@i18n/zh-CN/index';
 
 const { mockInvoke } = vi.hoisted(() => ({ mockInvoke: vi.fn() }));
 
@@ -648,7 +650,7 @@ describe('browserDownloadsSlice — redownloadDownload 15s timeout', () => {
 });
 
 describe('browserDownloadsSlice — changeDownloadPath migration result', () => {
-  const migration = { ok: true as const, data: { migrated: 2, missing: 1, failed: 0 } };
+  const migration = { ok: true as const, data: { migrated: 2, missing: 1 } };
   const records = [download({ id: 'd1', status: 'completed' })];
   const states = [fileState({ id: 'd1', exists: true, in_default_dir: true })];
 
@@ -656,7 +658,8 @@ describe('browserDownloadsSlice — changeDownloadPath migration result', () => 
     mockInvoke.mockImplementation((cmd: string) => {
       switch (cmd) {
         case 'download_change_default_path':
-          return Promise.resolve(outcome);
+          // 接受已拒绝的 Promise，用于模拟 Tauri 对 Rust Err 的普通对象拒绝。
+          return outcome instanceof Promise ? outcome : Promise.resolve(outcome);
         case 'download_get_settings':
           return Promise.resolve({
             ok: true,
@@ -695,7 +698,10 @@ describe('browserDownloadsSlice — changeDownloadPath migration result', () => 
   });
 
   it('refreshes downloads + file states when downloads_active blocks migration', async () => {
-    mockPathChange({ ok: false, error: { code: 'Internal', message: 'downloads_active' } });
+    mockPathChange({
+      ok: false,
+      error: { code: 'Internal', message: 'Internal error: downloads_active' },
+    });
     const { slice } = buildSlice();
 
     const result = await slice.changeDownloadPath('D:/new', true);
@@ -703,6 +709,23 @@ describe('browserDownloadsSlice — changeDownloadPath migration result', () => 
     expect(result.ok).toBe(false);
     expect(mockInvoke).toHaveBeenCalledWith('download_list');
     expect(mockInvoke).toHaveBeenCalledWith('download_file_states', { ids: ['d1'] });
+  });
+
+  it('preserves a plain-object rejection message and maps the prefixed sentinel', async () => {
+    const message = 'Internal error: downloads_active';
+    // Tauri rejects a Rust Err with a plain object, not an Error instance.
+    mockPathChange(Promise.reject({ code: 'Internal', message }));
+    const { slice } = buildSlice();
+
+    const result = await slice.changeDownloadPath('D:/new', true);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toBe(message);
+      expect(downloadResetFailureCopy(zhCN, 'downloadPath', result.error, true)).toBe(
+        zhCN.storageDownloadMigrateBlockedActive,
+      );
+    }
   });
 
   it('refreshes downloads + file states on a generic migration failure', async () => {

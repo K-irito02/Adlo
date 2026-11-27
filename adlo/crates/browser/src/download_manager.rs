@@ -1184,11 +1184,12 @@ impl DownloadManager {
 
     /// Consume and return the pending re-download record id, if any.
     ///
-    /// The exact `(tab_id, url)` match wins; otherwise the unexpired
-    /// pending is returned as a fallback (covering URL redirects and the
-    /// no-active-tab prepare path). `register_pending_redownload` enforces at
-    /// most one unexpired pending, so the fallback sees a single candidate.
-    /// Expired pendings are dropped and treated as absent.
+    /// The exact `(tab_id, url)` match wins. The fallback only applies to the
+    /// SAME tab (a redirect / signed URL change) or to a pending registered
+    /// with no tab (the no-active-tab prepare path); a pending owned by a
+    /// different tab is never consumed here. `register_pending_redownload`
+    /// enforces at most one unexpired pending, so the fallback sees a single
+    /// candidate. Expired pendings are dropped and treated as absent.
     ///
     /// Command-boundary API: called from the `adlo` Tauri command layer (to
     /// clear a pending on navigation failure) and from `begin_download_record`.
@@ -1202,25 +1203,30 @@ impl DownloadManager {
         }
 
         // Stage 1: exact `(tab_id, url)` match. Stage 2 (fallback): the unique
-        // unexpired pending. Because pending storage is a single slot guarded by
-        // `register_pending_redownload`, both stages resolve to the same pending
-        // id here — the two-stage contract only diverges if storage ever becomes
-        // a multi-entry map.
+        // unexpired pending, but only for the same tab (redirect / signed URL)
+        // or a pending with no tab (no-active-tab prepare path). A redirect on
+        // one tab must never steal a pending owned by another tab: leave it in
+        // place and report no match. Because pending storage is a single slot
+        // guarded by `register_pending_redownload`, the two consuming stages
+        // resolve to the same pending id here.
         let exact = pending.tab_id.as_deref() == tab_id && pending.url == url;
+        let same_tab = pending.tab_id.is_none() || pending.tab_id.as_deref() == tab_id;
+        if !exact && !same_tab {
+            return None;
+        }
         let record_id = pending.record_id.clone();
         *guard = None;
-        if exact {
-            return Some(record_id);
-        }
         Some(record_id)
     }
 
     /// Reuse an existing download record for a re-download: keep the same id,
-    /// remove any stale `.crdownload` for both the old and new targets, and reset
-    /// every per-attempt field so the record reflects a fresh in-progress download.
+    /// remove any stale `.crdownload` for both the old and new targets, write the
+    /// resolved `url` (which may differ after a redirect), and reset every
+    /// per-attempt field so the record reflects a fresh in-progress download.
     pub fn reset_for_redownload(
         &self,
         id: &str,
+        url: &str,
         file_path: &str,
         source_tab_id: Option<&str>,
     ) -> Result<DownloadRecord, String> {
@@ -1245,13 +1251,14 @@ impl DownloadManager {
             "UPDATE download_history SET status = ?1, bytes_received = 0, total_bytes = NULL, \
              created_at = ?2, completed_at = NULL, interrupt_reason = NULL, \
              auto_resume_count = 0, etag = NULL, last_modified = NULL, file_path = ?3, \
-             file_name = ?4, source_tab_id = ?5 WHERE id = ?6",
+             file_name = ?4, source_tab_id = ?5, url = ?6 WHERE id = ?7",
             rusqlite::params![
                 DownloadStatus::InProgress.as_str(),
                 Utc::now().timestamp(),
                 file_path,
                 file_name,
                 source_tab_id,
+                url,
                 id,
             ],
         )
@@ -4224,10 +4231,16 @@ mod tests {
         std::fs::write(&stale_temp, b"stale").expect("write stale crdownload");
 
         let reset = mgr
-            .reset_for_redownload(&record.id, &new_path_str, Some("tab-new"))
+            .reset_for_redownload(
+                &record.id,
+                "https://example.com/file.zip",
+                &new_path_str,
+                Some("tab-new"),
+            )
             .expect("reset should succeed");
 
         assert_eq!(reset.id, record.id, "record id must be reused");
+        assert_eq!(reset.url, "https://example.com/file.zip");
         assert_eq!(reset.status, DownloadStatus::InProgress);
         assert_eq!(reset.bytes_received, 0);
         assert_eq!(reset.total_bytes, None, "total_bytes must be cleared on reset");
@@ -4274,8 +4287,13 @@ mod tests {
         std::fs::write(dir.join("old-file.zip.crdownload"), b"old").unwrap();
         std::fs::write(dir.join("new-file.zip.crdownload"), b"new").unwrap();
 
-        mgr.reset_for_redownload(&record.id, new_path.to_string_lossy().as_ref(), None)
-            .expect("reset should succeed");
+        mgr.reset_for_redownload(
+            &record.id,
+            "https://example.com/file.zip",
+            new_path.to_string_lossy().as_ref(),
+            None,
+        )
+        .expect("reset should succeed");
 
         assert!(
             !dir.join("old-file.zip.crdownload").exists(),
@@ -4347,6 +4365,30 @@ mod tests {
         );
         let _ = std::fs::remove_file(
             std::env::temp_dir().join("adl-download-mgr-redownload-pending-fallback.db"),
+        );
+    }
+
+    #[test]
+    fn pending_redownload_fallback_does_not_cross_tabs() {
+        let db = temp_db("redownload-pending-tab-isolation");
+        let mgr = DownloadManager::new(db);
+        mgr.register_pending_redownload("rec-1", Some("tab-1"), "https://example.com/a.zip")
+            .expect("register should succeed");
+
+        let other_tab = mgr.take_pending_redownload(Some("tab-2"), "https://example.com/other.zip");
+        assert!(
+            other_tab.is_none(),
+            "fallback must not consume a pending owned by another tab"
+        );
+
+        let owner = mgr.take_pending_redownload(Some("tab-1"), "https://example.com/a.zip");
+        assert_eq!(
+            owner.as_deref(),
+            Some("rec-1"),
+            "the owning tab can still consume its pending"
+        );
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-redownload-pending-tab-isolation.db"),
         );
     }
 }

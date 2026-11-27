@@ -55,7 +55,7 @@ export function downloadResetFailureCopy(
     return t.storageDownloadRefreshFailed;
   }
   // 进行中/暂停任务阻止迁移：专用文案优先于通用迁移失败（后端哨兵 message）。
-  if (error?.message === DOWNLOAD_ACTIVE) {
+  if (error?.message?.includes(DOWNLOAD_ACTIVE)) {
     return t.storageDownloadMigrateBlockedActive;
   }
   if (failedStep !== 'downloadPath') {

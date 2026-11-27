@@ -30,6 +30,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
   const [searchQuery, setSearchQuery] = useState('');
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const [popoverVisible, setPopoverVisible] = useState(false);
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     record: DownloadRecord;
     position: { x: number; y: number };
@@ -116,16 +117,32 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
 
   const hasAnyDownloads = downloads.length > 0;
 
-  // 打开卡片时刷新一次下载列表与文件状态；空依赖保证只响应挂载，
-  // 避免菜单打开期间随 downloads 变化反复拉取。
+  // 打开卡片时拉取一次下载列表；只在挂载时触发，避免菜单打开期间反复拉取。
+  // 冷打开时 store 为空，文件状态刷新须等拉取完成后的那一次渲染（effect B）。
   useEffect(() => {
-    void fetchDownloads();
+    let alive = true;
+    void fetchDownloads().finally(() => {
+      if (alive) {
+        setInitialFetchDone(true);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 拉取完成后，从 hook 读取当时的 downloads 再刷新文件状态；空 store 阶段不刷新。
+  useEffect(() => {
+    if (!initialFetchDone) {
+      return;
+    }
     const ids = downloads.map((d) => d.id);
     if (ids.length > 0) {
       void refreshDownloadFileStates(ids);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialFetchDone]);
 
   useEffect(() => {
     const measure = () => {
@@ -208,6 +225,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
             className="adl-download-menu__toggle"
             role="switch"
             aria-checked={autoSave}
+            aria-label={t.browserDownloadSettingsMode}
             title={autoSave ? t.browserDownloadAutoSave : t.browserDownloadAskSave}
             onClick={handleAutoSaveToggle}
           >

@@ -14,7 +14,7 @@ describe('downloadResetFailureCopy — blocked migration', () => {
         downloadResetFailureCopy(
           dict,
           'downloadPath',
-          { code: 'Internal', message: 'downloads_active' },
+          { code: 'Internal', message: 'Internal error: downloads_active' },
           true,
         ),
       ).toBe(expected);

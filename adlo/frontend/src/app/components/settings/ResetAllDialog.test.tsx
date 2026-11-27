@@ -82,7 +82,7 @@ function makeDeps(overrides: Partial<StorageResetExecuteDeps> = {}): StorageRese
     setPaths: async () => ({ ok: true, restartRequired: false, preflight: OK_PREFLIGHT }),
     resetTreeCache: async () => true,
     downloadPath: {
-      changeDownloadPath: async () => ({ ok: true, data: { migrated: 0, missing: 0, failed: 0 } }),
+      changeDownloadPath: async () => ({ ok: true, data: { migrated: 0, missing: 0 } }),
       updateDownloadSettings: async () => ({ ok: true, data: undefined }),
     },
     ...overrides,

@@ -103,7 +103,7 @@ describe('download-only tab lifecycle', () => {
     });
   });
 
-  it('clears the loading gate, returns to the source, and closes on completion', async () => {
+  it('returns to the source and closes on completion', async () => {
     const source = tab('source', 'https://example.com/');
     const download = tab('dl', 'https://example.com/package.zip');
     useAppStore.setState({

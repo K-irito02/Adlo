@@ -36,6 +36,7 @@ const mockT = {
   browserDownloadTitle: 'Downloads',
   browserDownloadAutoSave: 'Auto-save',
   browserDownloadAskSave: 'Ask each time',
+  browserDownloadSettingsMode: 'Download mode',
   browserDownloadSearch: 'Search downloads',
   browserDownloadNoRecords: 'No downloads yet',
   browserDownloadSettingsTitle: 'Download settings',
@@ -151,8 +152,55 @@ describe('BrowserDownloadMenu', () => {
     renderMenu();
 
     await waitFor(() => expect(fetchDownloads).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(refreshDownloadFileStates).toHaveBeenCalledWith(['dl-1']));
     expect(refreshDownloadFileStates).toHaveBeenCalledTimes(1);
-    expect(refreshDownloadFileStates).toHaveBeenCalledWith(['dl-1']);
+  });
+
+  it('refreshes file states after a cold-open fetch populates the store', async () => {
+    const record = makeRecord({ id: 'cold-1' });
+    const downloads: DownloadRecord[] = [];
+    const refreshDownloadFileStates = vi.fn(() => Promise.resolve());
+    const fetchDownloads = vi.fn(() => {
+      downloads.push(record);
+      return Promise.resolve();
+    });
+
+    vi.mocked(useAppStore).mockImplementation((selector: (state: any) => any) => {
+      return selector(
+        createMockState({
+          downloads,
+          fetchDownloads,
+          refreshDownloadFileStates,
+        }),
+      );
+    });
+
+    renderMenu();
+
+    await waitFor(() => expect(refreshDownloadFileStates).toHaveBeenCalledWith(['cold-1']));
+    expect(refreshDownloadFileStates).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a constant accessible name for the mode switch in auto and ask modes', () => {
+    for (const mode of ['auto', 'ask'] as const) {
+      vi.mocked(useAppStore).mockImplementation((selector: (state: any) => any) => {
+        return selector(
+          createMockState({
+            downloadSettings: {
+              mode,
+              default_path: '/downloads',
+              auto_migrate_on_path_change: false,
+            },
+          }),
+        );
+      });
+
+      const { unmount } = renderMenu();
+      const toggle = screen.getByRole('switch', { hidden: true });
+      expect(toggle).toHaveAttribute('aria-label', mockT.browserDownloadSettingsMode);
+      expect(toggle).toHaveAttribute('aria-checked', mode === 'auto' ? 'true' : 'false');
+      unmount();
+    }
   });
 
   it('renders all records in a flat list sorted by created_at DESC', () => {

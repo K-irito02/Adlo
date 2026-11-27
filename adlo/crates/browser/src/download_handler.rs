@@ -17,7 +17,9 @@ fn begin_download_record(
     source_tab_id: Option<&str>,
 ) -> Result<DownloadRecord, String> {
     match manager.take_pending_redownload(source_tab_id, url) {
-        Some(record_id) => manager.reset_for_redownload(&record_id, final_path, source_tab_id),
+        Some(record_id) => {
+            manager.reset_for_redownload(&record_id, url, final_path, source_tab_id)
+        }
         None => manager.create_download(url, final_path, source_tab_id.map(|s| s.to_string())),
     }
 }
@@ -516,6 +518,39 @@ mod tests {
         assert_eq!(list.len(), 1, "reuse must not create a second record");
         let _ =
             std::fs::remove_file(std::env::temp_dir().join("adl-download-handler-begin-reset.db"));
+    }
+
+    #[test]
+    fn begin_download_record_updates_url_on_redirect_reuse() {
+        let db = temp_db("begin-redirect-url");
+        let mgr = create_download_manager(db.clone());
+        let record = mgr
+            .create_download(
+                "https://example.com/old.zip",
+                "/tmp/old.zip",
+                Some("tab-1".to_string()),
+            )
+            .expect("create should succeed");
+        mgr.complete_download(&record.id, true, None).expect("complete should succeed");
+        mgr.register_pending_redownload(&record.id, Some("tab-1"), "https://example.com/old.zip")
+            .expect("register pending");
+
+        let new_url = "https://cdn.example.com/redirected.zip?sig=abc";
+        let out = begin_download_record(&mgr, new_url, "/tmp/new.zip", Some("tab-1"))
+            .expect("begin should succeed");
+
+        assert_eq!(out.id, record.id, "reuse must keep the original record id");
+        assert_eq!(out.url, new_url, "reused record must carry the resolved URL");
+
+        let list = mgr.list_downloads().expect("list should succeed");
+        assert_eq!(list.len(), 1, "reuse must not create a second record");
+        assert!(
+            list.iter().any(|r| r.id == record.id && r.url == new_url),
+            "list_downloads must expose the updated URL for finish/progress matching"
+        );
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-handler-begin-redirect-url.db"),
+        );
     }
 
     #[test]

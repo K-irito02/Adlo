@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   changeDownloadPath: vi.fn(
     async (): Promise<IpcResult<DownloadMigrationResult>> => ({
       ok: true,
-      data: { migrated: 0, missing: 0, failed: 0 },
+      data: { migrated: 0, missing: 0 },
     }),
   ),
   updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
@@ -275,7 +275,7 @@ describe('BrowserDownloadPathSection', () => {
     mocks.downloadSettings.auto_migrate_on_path_change = true;
     mocks.changeDownloadPath.mockResolvedValueOnce({
       ok: true,
-      data: { migrated: 3, missing: 1, failed: 0 },
+      data: { migrated: 3, missing: 1 },
     });
     renderSection();
 
@@ -294,7 +294,7 @@ describe('BrowserDownloadPathSection', () => {
     mocks.downloadSettings.auto_migrate_on_path_change = true;
     mocks.changeDownloadPath.mockResolvedValueOnce({
       ok: false,
-      error: { code: 'Internal', message: 'downloads_active' },
+      error: { code: 'Internal', message: 'Internal error: downloads_active' },
     });
     renderSection();
 
@@ -306,7 +306,10 @@ describe('BrowserDownloadPathSection', () => {
         'error',
       );
     });
-    expect(mocks.showToast).not.toHaveBeenCalledWith('迁移文件失败：downloads_active', 'error');
+    expect(mocks.showToast).not.toHaveBeenCalledWith(
+      '迁移文件失败：Internal error: downloads_active',
+      'error',
+    );
   });
 
   it('keeps the generic migrate-failure toast for other errors', async () => {

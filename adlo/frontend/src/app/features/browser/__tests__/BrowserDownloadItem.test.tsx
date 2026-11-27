@@ -244,6 +244,23 @@ describe('BrowserDownloadItem', () => {
     expect(mockHandleOpenFile).not.toHaveBeenCalled();
   });
 
+  it('shows the file-state error as a tooltip on a missing row', () => {
+    const record = makeRecord({ status: 'completed' });
+    render(
+      <TCopyProvider t={mockT as any} locale="en-US">
+        <BrowserDownloadItem
+          record={record}
+          onContextMenu={mockOnContextMenu}
+          fileState={makeFileState({ exists: false, error: 'Access denied' })}
+        />
+      </TCopyProvider>,
+    );
+    expect(screen.getByText(mockT.browserDownloadMissingFile)).toHaveAttribute(
+      'title',
+      'Access denied',
+    );
+  });
+
   it('renders only missing status when completed file is missing in a non-default path', () => {
     const record = makeRecord({ status: 'completed', file_path: '/elsewhere/file.zip' });
     render(

@@ -6,7 +6,7 @@ function deps(overrides: Partial<DownloadPathResetDeps> = {}): DownloadPathReset
   return {
     changeDownloadPath: vi.fn(async () => ({
       ok: true as const,
-      data: { migrated: 0, missing: 0, failed: 0 },
+      data: { migrated: 0, missing: 0 },
     })),
     updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
     ...overrides,

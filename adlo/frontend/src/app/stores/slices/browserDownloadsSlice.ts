@@ -62,10 +62,24 @@ export const DOWNLOAD_REFRESH_FAILED = 'REFRESH_FAILED';
 
 /**
  * 后端 `download_change_default_path` 在存在进行中/暂停任务时的哨兵 message
- * （Rust `Err("downloads_active")`）；调用方据此映射专用阻止 toast，
- * 而不是当作通用迁移失败。
+ * （Rust `Err("downloads_active")`）。Tauri 会把 `Err` 拒绝成普通对象，且
+ * `AppError::Internal` 的 Display 带 `Internal error: ` 前缀，实际 message 常为
+ * `Internal error: downloads_active`；调用方须用 `includes` 匹配并映射专用
+ * 阻止 toast，而不是当作通用迁移失败。
  */
 export const DOWNLOAD_ACTIVE = 'downloads_active';
+
+/** Tauri 的 `Err` 拒绝携带普通 `{ code, message }` 对象而非 `Error` 实例；
+ * 保留其 message（含 `Internal error: ` 前缀），否则回退 `String(e)`。 */
+function ipcRejectionMessage(e: unknown): string {
+  if (e instanceof Error) {
+    return e.message;
+  }
+  if (typeof e === 'object' && e !== null && 'message' in e && typeof e.message === 'string') {
+    return e.message;
+  }
+  return String(e);
+}
 
 /** Fallback timers for the transient redownloading spinner; keyed by download id. */
 const redownloadTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -337,7 +351,7 @@ export const createBrowserDownloadsSlice = (
     } catch (e) {
       result = {
         ok: false as const,
-        error: { code: 'Internal' as const, message: e instanceof Error ? e.message : String(e) },
+        error: { code: 'Internal' as const, message: ipcRejectionMessage(e) },
       };
     }
 

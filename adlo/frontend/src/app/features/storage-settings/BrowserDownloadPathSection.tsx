@@ -116,7 +116,7 @@ export function BrowserDownloadPathSection() {
       }
       return;
     }
-    if (result.error.message === DOWNLOAD_ACTIVE) {
+    if (result.error.message?.includes(DOWNLOAD_ACTIVE)) {
       showToast(t.storageDownloadMigrateBlockedActive, 'error');
       return;
     }

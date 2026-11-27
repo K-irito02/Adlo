@@ -256,7 +256,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         : undefined;
       const syncPanelAddress = shouldSyncPanelAddressForTab(eventTab);
 
-      // 同文档下载导航（target=_blank 下载链接 -> window.location.assign）不会提交
+      // 同文档下载导航（window.open 下载 URL / 重新下载 → window.location.assign）不会提交
       // 新文档：WebView2 的 DownloadStarting 会中止导航，页面保持原样。保留当前标签
       // URL / 地址栏 / 历史，避免一次点下载把地址栏改成 .zip 之类的下载地址。
       // 新下载标签在创建时已预置下载 URL（browserOpenTab），此分支不命中。

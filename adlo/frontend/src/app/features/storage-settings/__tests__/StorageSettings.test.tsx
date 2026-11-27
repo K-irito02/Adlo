@@ -221,7 +221,7 @@ describe('StorageSettings', () => {
     const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
     const changeDownloadPath = vi.fn(async () => ({
       ok: true as const,
-      data: { migrated: 0, missing: 0, failed: 0 },
+      data: { migrated: 0, missing: 0 },
     }));
     const updateDownloadSettings = vi.fn(async () => ({ ok: true as const, data: undefined }));
     setStoreDownloadSettings('D:/custom-downloads', true);
@@ -294,7 +294,7 @@ describe('StorageSettings', () => {
     const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
     const changeDownloadPath = vi.fn(async () => ({
       ok: true as const,
-      data: { migrated: 0, missing: 0, failed: 0 },
+      data: { migrated: 0, missing: 0 },
     }));
     const updateDownloadSettings = vi.fn(async () => ({
       ok: false as const,
@@ -545,7 +545,7 @@ describe('StorageSettings', () => {
       updatePreferences: vi.fn(async () => true),
       changeDownloadPath: vi.fn(async () => ({
         ok: true as const,
-        data: { migrated: 0, missing: 0, failed: 0 },
+        data: { migrated: 0, missing: 0 },
       })),
       updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
     });
@@ -655,7 +655,7 @@ describe('StorageSettings', () => {
       updatePreferences: vi.fn(async () => true),
       changeDownloadPath: vi.fn(async () => ({
         ok: true as const,
-        data: { migrated: 0, missing: 0, failed: 0 },
+        data: { migrated: 0, missing: 0 },
       })),
       updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
     });
@@ -814,7 +814,7 @@ describe('StorageSettings', () => {
     const updatePreferences = vi.fn(async () => true);
     const changeDownloadPath = vi.fn(async () => ({
       ok: true as const,
-      data: { migrated: 0, missing: 0, failed: 0 },
+      data: { migrated: 0, missing: 0 },
     }));
     const updateDownloadSettings = vi.fn(async () => ({ ok: true as const, data: undefined }));
     const setTreeCacheOptions = vi.fn().mockResolvedValue({ ok: true, data: undefined });
@@ -2075,7 +2075,7 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
         updatePreferences: vi.fn(async () => true),
         changeDownloadPath: vi.fn(async () => ({
           ok: true as const,
-          data: { migrated: 0, missing: 0, failed: 0 },
+          data: { migrated: 0, missing: 0 },
         })),
         updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
         downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
@@ -2132,7 +2132,7 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
         updatePreferences: vi.fn(async () => true),
         changeDownloadPath: vi.fn(async () => ({
           ok: true as const,
-          data: { migrated: 0, missing: 0, failed: 0 },
+          data: { migrated: 0, missing: 0 },
         })),
         updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
         showToast,
@@ -2535,7 +2535,7 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
     const updatePreferences = vi.fn(async () => true);
     const changeDownloadPath = vi.fn(async () => ({
       ok: true as const,
-      data: { migrated: 0, missing: 0, failed: 0 },
+      data: { migrated: 0, missing: 0 },
     }));
     const updateDownloadSettings = vi.fn(async () => ({ ok: true as const, data: undefined }));
     try {
