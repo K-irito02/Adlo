@@ -86,6 +86,15 @@ pub struct DownloadRecord {
     pub resumable: Option<bool>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct DownloadFileState {
+    pub id: String,
+    pub exists: bool,
+    pub in_default_dir: bool,
+    pub error: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DownloadSettings {
     /// 缺字段时回退产品默认（Auto），与 `from_str` 未知串 fallback 同口径（F5-A）。

@@ -4,7 +4,8 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_browser::download_manager::get_default_download_path;
 use adl_browser::download_types::{
-    DownloadMode, DownloadPauseResult, DownloadRecord, DownloadSettings, DownloadStatus,
+    DownloadFileState, DownloadMode, DownloadPauseResult, DownloadRecord, DownloadSettings,
+    DownloadStatus,
 };
 use adl_errors::AppError;
 use adl_types::IpcResult;
@@ -182,6 +183,19 @@ pub fn download_check_disk_space(
 ) -> Result<IpcResult<()>, CommandError> {
     state.download_manager.check_disk_space(&path).map_err(map_download_err)?;
     Ok(ipc(Ok(())))
+}
+
+#[tauri::command]
+pub async fn download_file_states(
+    state: State<'_, AppState>,
+    ids: Vec<String>,
+) -> Result<IpcResult<Vec<DownloadFileState>>, CommandError> {
+    tracing::debug!(count = ids.len(), "[ADL-DL] download_file_states called");
+    let mgr = state.download_manager.clone();
+    let states = tokio::task::spawn_blocking(move || mgr.file_states(&ids))
+        .await
+        .map_err(|e| map_download_err(format!("download_file_states join failed: {e}")))?;
+    Ok(ipc(Ok(states)))
 }
 
 #[tauri::command]

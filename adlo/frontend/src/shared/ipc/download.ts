@@ -19,6 +19,13 @@ export interface DownloadRecord {
   resumable?: boolean | null;
 }
 
+export interface DownloadFileState {
+  id: string;
+  exists: boolean;
+  in_default_dir: boolean;
+  error: string | null;
+}
+
 export interface DownloadSettings {
   mode: DownloadMode;
   default_path: string;

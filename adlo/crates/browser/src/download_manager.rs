@@ -19,7 +19,8 @@ use tauri::Emitter;
 
 use super::download_range_resume::RangeResumeDownload;
 use super::download_types::{
-    DownloadMode, DownloadProgress, DownloadRecord, DownloadSettings, DownloadStatus, ResumeMode,
+    DownloadFileState, DownloadMode, DownloadProgress, DownloadRecord, DownloadSettings,
+    DownloadStatus, ResumeMode,
 };
 
 /// The native WebView2 download operation handle. Only available on Windows.
@@ -1997,6 +1998,35 @@ impl DownloadManager {
         Ok(())
     }
 
+    pub fn file_states(&self, ids: &[String]) -> Vec<DownloadFileState> {
+        let settings = self.get_settings();
+        let default_dir = self.effective_default_dir(&settings.default_path);
+        let default_key = normalize_path_key(&default_dir);
+
+        ids.iter()
+            .map(|id| match self.get_record(id) {
+                Ok(record) => {
+                    let path = Path::new(&record.file_path);
+                    let exists = path.is_file();
+                    let in_default_dir = path
+                        .parent()
+                        .map(|parent| {
+                            let parent_key = normalize_path_key(parent);
+                            Path::new(&parent_key).starts_with(&default_key)
+                        })
+                        .unwrap_or(false);
+                    DownloadFileState { id: id.clone(), exists, in_default_dir, error: None }
+                },
+                Err(e) => DownloadFileState {
+                    id: id.clone(),
+                    exists: false,
+                    in_default_dir: false,
+                    error: Some(e.to_string()),
+                },
+            })
+            .collect()
+    }
+
     pub fn list_downloads(&self) -> Result<Vec<DownloadRecord>, String> {
         let conn = self.db.conn().map_err(|e| e.to_string())?;
         let mut stmt = conn
@@ -3548,5 +3578,78 @@ mod tests {
         for name in reject {
             assert!(!is_webview2_staging_tmp(name), "should reject {name}");
         }
+    }
+
+    #[test]
+    fn file_states_reports_present_missing_and_non_default() {
+        let db = temp_db("file-states");
+        let mgr = DownloadManager::new(db);
+        let root = test_workspace("file-states-root");
+        let default_dir = root.join("Downloads");
+        let other_dir = root.join("Elsewhere");
+        fs::create_dir_all(&default_dir).unwrap();
+        fs::create_dir_all(&other_dir).unwrap();
+        mgr.set_default_dir_override(Some(default_dir.clone()));
+
+        let present = mgr
+            .create_download(
+                "https://example.com/a.zip",
+                default_dir.join("a.zip").to_string_lossy().as_ref(),
+                None,
+            )
+            .unwrap();
+        fs::write(default_dir.join("a.zip"), b"a").unwrap();
+        let outside = mgr
+            .create_download(
+                "https://example.com/b.zip",
+                other_dir.join("b.zip").to_string_lossy().as_ref(),
+                None,
+            )
+            .unwrap();
+        fs::write(other_dir.join("b.zip"), b"b").unwrap();
+        let missing = mgr
+            .create_download(
+                "https://example.com/c.zip",
+                default_dir.join("c.zip").to_string_lossy().as_ref(),
+                None,
+            )
+            .unwrap();
+
+        let states = mgr.file_states(&[present.id, outside.id, missing.id]);
+        assert!(states[0].exists && states[0].in_default_dir);
+        assert!(states[1].exists && !states[1].in_default_dir);
+        assert!(!states[2].exists);
+
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_file(std::env::temp_dir().join("adl-download-mgr-file-states.db"));
+    }
+
+    #[test]
+    fn file_states_rejects_downloads2_prefix_boundary() {
+        let db = temp_db("file-states-prefix");
+        let mgr = DownloadManager::new(db);
+        let root = test_workspace("file-states-prefix-root");
+        let default_dir = root.join("Downloads");
+        let sibling_dir = root.join("Downloads2");
+        fs::create_dir_all(&default_dir).unwrap();
+        fs::create_dir_all(&sibling_dir).unwrap();
+        mgr.set_default_dir_override(Some(default_dir.clone()));
+
+        let sibling = mgr
+            .create_download(
+                "https://example.com/s.zip",
+                sibling_dir.join("s.zip").to_string_lossy().as_ref(),
+                None,
+            )
+            .unwrap();
+        fs::write(sibling_dir.join("s.zip"), b"s").unwrap();
+
+        let states = mgr.file_states(&[sibling.id]);
+        assert!(states[0].exists, "sibling file must exist");
+        assert!(!states[0].in_default_dir, "Downloads2 must not be treated as inside Downloads");
+
+        let _ = fs::remove_dir_all(&root);
+        let _ =
+            fs::remove_file(std::env::temp_dir().join("adl-download-mgr-file-states-prefix.db"));
     }
 }

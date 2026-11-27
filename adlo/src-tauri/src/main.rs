@@ -229,6 +229,7 @@ fn main() {
             commands::download_commands::download_remove_record,
             commands::download_commands::download_resolve_conflict_path,
             commands::download_commands::download_check_disk_space,
+            commands::download_commands::download_file_states,
             commands::download_commands::download_get_default_path,
             commands::download_commands::download_open_default_folder,
             commands::download_commands::download_open_file,
