@@ -10,6 +10,7 @@ import {
   isGeneratedArtifact,
   matchesScopePattern,
   parseArgs,
+  parseScopesInput,
   safeSnapshotName,
   validateClaimAck,
   writeClaimAckTemplate,
@@ -235,6 +236,30 @@ test("parses --scopes and --allow-unowned", () => {
   assert.equal(options.scopes, "scopes.json");
   assert.equal(options.allowUnowned, true);
   assert.equal(parseArgs(["--rev", "4"]).allowUnowned, false);
+});
+
+test("parses inline review scopes JSON", () => {
+  const value = JSON.stringify({ browser: ["adlo/crates/browser/**"] });
+  assert.deepEqual(parseScopesInput(value, process.cwd()), {
+    browser: ["adlo/crates/browser/**"],
+  });
+});
+
+test("reads review scopes from a JSON file", () => {
+  const dir = mkdtempSync(join(tmpdir(), "adl-review-scopes-"));
+  const file = join(dir, "scopes.json");
+  try {
+    writeFileSync(file, JSON.stringify({ frontend: ["adlo/frontend/**"] }), "utf8");
+    assert.deepEqual(parseScopesInput(file, process.cwd()), {
+      frontend: ["adlo/frontend/**"],
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("rejects malformed inline review scopes JSON", () => {
+  assert.throws(() => parseScopesInput('{"browser":', process.cwd()), /invalid --scopes JSON/);
 });
 
 test("scope patterns match exact, directory, and glob paths", () => {

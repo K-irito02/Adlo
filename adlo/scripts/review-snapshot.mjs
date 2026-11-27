@@ -86,10 +86,36 @@ export function matchesScopePattern(file, pattern) {
 }
 
 /**
- * 从 `--scopes <json>` 构建归属表。JSON 形状：
+ * 解析 `--scopes`：接受内联 JSON 或 JSON 文件路径。JSON 形状：
  *   { "<scope>": ["path/exact.ts", "path/dir/**", "path/*.rs"], ... }
- * 返回每个 scope 命中的文件、重复归属（同一文件命中多个 scope）与未归属文件。
- * 重复归属必须阻断：两个子代理会重复审同一行并互相触发复审。
+ */
+export function parseScopesInput(value, root = repoRoot) {
+  const trimmed = value.trim();
+  let text = trimmed;
+  if (!trimmed.startsWith("{")) {
+    const scopesPath = path.resolve(root, trimmed);
+    try {
+      text = fs.readFileSync(scopesPath, "utf8");
+    } catch (error) {
+      throw new Error(`failed to read --scopes ${scopesPath}: ${error.message}`);
+    }
+  }
+
+  let scopeMap;
+  try {
+    scopeMap = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`invalid --scopes JSON: ${error.message}`);
+  }
+  if (!scopeMap || typeof scopeMap !== "object" || Array.isArray(scopeMap)) {
+    throw new Error("--scopes must be a JSON object mapping scope → paths");
+  }
+  return scopeMap;
+}
+
+/**
+ * 从 scope map 构建归属表。返回每个 scope 命中的文件、重复归属（同一文件命中多个
+ * scope）与未归属文件。重复归属必须阻断：两个子代理会重复审同一行并互相触发复审。
  */
 export function buildScopeOwnership(files, scopeMap) {
   const entries = [];
@@ -510,7 +536,7 @@ function main() {
   }
   if (options.help) {
     console.log(
-      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--progress <file>] [--scopes <json>] [--allow-untracked] [--allow-unowned] [--allow-empty-scopes] [--allow-claims] [--exclude-generated] [--include-docs]",
+      "usage: node scripts/review-snapshot.mjs [--base <ref>] [--out <dir>] [--rev <N>] [--progress <file>] [--scopes <json|file>] [--allow-untracked] [--allow-unowned] [--allow-empty-scopes] [--allow-claims] [--exclude-generated] [--include-docs]",
     );
     return;
   }
@@ -569,16 +595,11 @@ function main() {
 
   let ownership = null;
   if (options.scopes) {
-    const scopesPath = path.resolve(repoRoot, options.scopes);
     let scopeMap;
     try {
-      scopeMap = JSON.parse(fs.readFileSync(scopesPath, "utf8"));
+      scopeMap = parseScopesInput(options.scopes, repoRoot);
     } catch (error) {
-      console.error(`[review-snapshot] failed to read --scopes ${scopesPath}: ${error.message}`);
-      process.exit(1);
-    }
-    if (!scopeMap || typeof scopeMap !== "object" || Array.isArray(scopeMap)) {
-      console.error("[review-snapshot] --scopes must be a JSON object mapping scope → paths");
+      console.error(`[review-snapshot] ${error.message}`);
       process.exit(1);
     }
     try {
