@@ -84,6 +84,15 @@ function ipcRejectionMessage(e: unknown): string {
 /** Fallback timers for the transient redownloading spinner; keyed by download id. */
 const redownloadTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+/** Cancel a pending redownload fallback timer for a record that is going away. */
+function clearRedownloadTimer(id: string): void {
+  const timer = redownloadTimers.get(id);
+  if (timer !== undefined) {
+    clearTimeout(timer);
+    redownloadTimers.delete(id);
+  }
+}
+
 export interface BrowserDownloadsSlice {
   downloads: DownloadRecord[];
   downloadSettings: DownloadSettings;
@@ -191,10 +200,7 @@ export const createBrowserDownloadsSlice = (
       return { redownloadingIds: next };
     });
 
-    const existing = redownloadTimers.get(id);
-    if (existing !== undefined) {
-      clearTimeout(existing);
-    }
+    clearRedownloadTimer(id);
     redownloadTimers.set(
       id,
       setTimeout(() => {
@@ -216,11 +222,7 @@ export const createBrowserDownloadsSlice = (
     );
 
     const clearRedownloading = () => {
-      const timer = redownloadTimers.get(id);
-      if (timer !== undefined) {
-        clearTimeout(timer);
-        redownloadTimers.delete(id);
-      }
+      clearRedownloadTimer(id);
       set((state) => {
         const next = new Set(state.redownloadingIds);
         next.delete(id);
@@ -365,6 +367,9 @@ export const createBrowserDownloadsSlice = (
   clearDownloadHistory: async () => {
     const result = await invoke<IpcResult<void>>('download_clear_history', {});
     if (result.ok) {
+      for (const pendingId of [...redownloadTimers.keys()]) {
+        clearRedownloadTimer(pendingId);
+      }
       set({ downloads: [], downloadFileStates: {}, redownloadingIds: new Set<string>() });
     }
   },
@@ -372,6 +377,7 @@ export const createBrowserDownloadsSlice = (
   deleteDownloadFile: async (id: string) => {
     const result = await invoke<IpcResult<void>>('download_delete_file_and_record', { id });
     if (result.ok) {
+      clearRedownloadTimer(id);
       set((state) => {
         const { [id]: _removedFileState, ...nextFileStates } = state.downloadFileStates;
         const nextRedownloadingIds = new Set(state.redownloadingIds);
@@ -388,6 +394,7 @@ export const createBrowserDownloadsSlice = (
   removeDownloadRecord: async (id: string) => {
     const result = await invoke<IpcResult<void>>('download_remove_record', { id });
     if (result.ok) {
+      clearRedownloadTimer(id);
       set((state) => {
         const { [id]: _removedFileState, ...nextFileStates } = state.downloadFileStates;
         const nextRedownloadingIds = new Set(state.redownloadingIds);

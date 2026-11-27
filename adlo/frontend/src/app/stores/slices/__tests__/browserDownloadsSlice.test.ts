@@ -647,6 +647,44 @@ describe('browserDownloadsSlice — redownloadDownload 15s timeout', () => {
 
     expect(showToast).toHaveBeenCalledWith('Redownload did not start', 'error');
   });
+
+  it('cancels the fallback toast when the record is removed mid-prepare', async () => {
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === 'download_remove_record' ? Promise.resolve({ ok: true }) : new Promise(() => {}),
+    );
+    const showToast = vi.fn();
+    const { slice, get } = buildSlice({
+      showToast,
+      downloads: [download({ id: 'd1' })],
+      appInfo: { config: { language: 'zh-CN' } },
+    });
+
+    void slice.redownloadDownload('d1', 'tab-1');
+    await slice.removeDownloadRecord('d1');
+    await vi.advanceTimersByTimeAsync(15000);
+
+    expect(get().downloads).toHaveLength(0);
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it('cancels all fallback toasts when history is cleared mid-prepare', async () => {
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === 'download_clear_history' ? Promise.resolve({ ok: true }) : new Promise(() => {}),
+    );
+    const showToast = vi.fn();
+    const { slice, get } = buildSlice({
+      showToast,
+      downloads: [download({ id: 'd1' })],
+      appInfo: { config: { language: 'zh-CN' } },
+    });
+
+    void slice.redownloadDownload('d1', 'tab-1');
+    await slice.clearDownloadHistory();
+    await vi.advanceTimersByTimeAsync(15000);
+
+    expect(get().downloads).toHaveLength(0);
+    expect(showToast).not.toHaveBeenCalled();
+  });
 });
 
 describe('browserDownloadsSlice — changeDownloadPath migration result', () => {
