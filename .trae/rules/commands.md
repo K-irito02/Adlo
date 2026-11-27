@@ -150,7 +150,7 @@ pnpm --dir frontend run check:changed -- --skip-tests
 pnpm --dir frontend run check:changed
 ```
 
-- 门禁 / 构建是 5–10 分钟级长命令：用**后台执行 + 输出文件**，再用 `Wait-Process` 等进程结束；不要前台缓冲输出等超时（超时会丢掉全部输出，只剩失败尾巴）。
+- 门禁 / 构建是 5–10 分钟级长命令：统一用 `pnpm run check:all:log` / `pnpm run release:build:log` 启动，再用 `pnpm run wait:logged -- --name check-all`（或 `release-build`）等待并读取尾部；不要前台缓冲输出等超时。底层实现见 `adlo/scripts/run-logged.mjs`，result JSON 保留原始退出码。
 - 只看末尾用 `Select-Object -Last <N>`；**不要**用 `Select-String`/`rg` 过滤命令输出（内容检索一律用 `grep` 工具，见 shell-encoding 规则）。
 - 单次任务里不要把完整门禁跑成每一轮修复的固定动作：中间轮 `--skip-tests`，只在生成审查快照前与提交前跑完整版。
 - **大批量变更先看规模**：一次动上千文件（删除 / 迁移 / 批量 ignore）时先 `git status --porcelain | wc -l`、`git diff --cached --stat | tail -1`；要路径就按前缀过滤（`git diff --cached --name-only -- <dir>`）。直接 `git status` 会打印数千行，把上下文窗口灌满。

@@ -49,7 +49,7 @@ alwaysApply: false
 | 修复循环（已提交 / checkpoint） | `pnpm --dir frontend run check:changed --base merge-base` | 覆盖「分支分叉点..工作区」；`check:review` 默认即此口径 |
 | Rust 单 crate | `cargo test -p <crate>` | 手动补跑集成测试或特定过滤用例（`cargo test -p <crate> --tests`） |
 | 桌面-only 交互改动（可选） | `pnpm run e2e:build` → `pnpm run e2e` | opt-in 桌面冒烟（真实窗口/IPC）；**不属于** `check:all`，规则见技能 `desktop-e2e-wdio` |
-| 发布打包 Tauri 前 | `pnpm run check:all` + 双端验证 | **必须先通知用户并获批准**，不得自行执行 |
+| 发布打包 Tauri 前 | `pnpm run check:all:log` → `pnpm run wait:logged -- --name check-all` + 双端验证 | **必须先通知用户并获批准**，不得自行执行；长命令输出落盘，只读尾部摘要 |
 
 > `check:changed` 检测到 Rust 变更时会调用 `scripts/check-rust-changed.mjs`：`cargo fmt --all -- --check` 总是执行，clippy 与受影响 crate 的单测仅在 Rust 变更时执行（普通 crate 跑 `--lib`；bin-only 的 `src-tauri`/`adlo` 跑 `--bins`，否则 `-p adlo --lib` 会以「no library targets」失败）；`--skip-test` 只用于排查脚本本身。前端解析后的 base 会透传给 Rust 检查；已提交的检查用 `--base merge-base`。
 

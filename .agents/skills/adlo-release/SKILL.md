@@ -55,9 +55,10 @@ description: 发布 Adlo 桌面应用的新版本——三处版本号同步、G
    ```
    **Gitee 必须在 publish 之前有同一 commit**（`git push https://gitee.com/K_irito/Adlo.git main` 或网页同步）；
    顺序反了会用 GitHub 内容覆盖刚写入的 `release/latest.json`。
-7. **构建 + 签名**：
+7. **构建 + 签名**（长命令，输出落盘）：
    ```powershell
-   pnpm --dir adlo run release:build
+   pnpm --dir adlo run release:build:log
+   pnpm --dir adlo run wait:logged -- --name release-build
    ```
    先移走同版本旧产物（脚本只检查存在性，不检查新鲜度）。产物 `Adlo_<ver>_x64-setup.exe` + `.sig`；
    必须看到 `installer hooks verified`；缺 `.sig` 停止发布。本地密码学验签见
