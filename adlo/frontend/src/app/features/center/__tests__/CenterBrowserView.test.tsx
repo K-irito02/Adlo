@@ -9,6 +9,7 @@ import type { CopyDict } from '@i18n/types';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { ShortcutSite } from '@stores/slices/browserLandingSlice';
 import type * as BrowserLandingModule from '@features/browser/browser-landing';
+import type * as BrowserViewHostModule from '@features/browser/useBrowserViewHost';
 
 const embedState = vi.hoisted(() => ({
   blocked: true,
@@ -31,6 +32,21 @@ vi.mock('@features/browser/browser-landing', async (importOriginal) => {
     BrowserLandingPage: (props: Parameters<typeof actual.BrowserLandingPage>[0]) => {
       landingProbe.active = props.active ?? null;
       return actual.BrowserLandingPage(props);
+    },
+  };
+});
+
+// 记录中心宿主每次 render 传给 WebView 驱动 hook 的 overlayActive 决策，
+// 作为「中心原生 WebView2 是否被要求离屏」的观测点（jsdom 无原生子窗口）。
+const hostProbe = vi.hoisted(() => ({ overlayActive: null as boolean | null }));
+
+vi.mock('@features/browser/useBrowserViewHost', async (importOriginal) => {
+  const actual = await importOriginal<typeof BrowserViewHostModule>();
+  return {
+    ...actual,
+    useBrowserViewHost: (options: Parameters<typeof actual.useBrowserViewHost>[0]) => {
+      hostProbe.overlayActive = options.overlayActive;
+      return actual.useBrowserViewHost(options);
     },
   };
 });
@@ -100,7 +116,9 @@ afterEach(() => {
     centerActiveTabId: '',
     browserShortcuts: [],
     browserPendingBookmark: null,
+    startupOverlayHidden: false,
   });
+  hostProbe.overlayActive = null;
 });
 
 describe('CenterBrowserView', () => {
@@ -111,6 +129,7 @@ describe('CenterBrowserView', () => {
         searchEnginePopoverOpen: false,
         bookmarkDialogOpen: false,
         createDirDialogOpen: false,
+        startupOverlayHidden: true,
         addressExpanded: true,
       }),
     ).toBe(false);
@@ -120,9 +139,30 @@ describe('CenterBrowserView', () => {
         searchEnginePopoverOpen: false,
         bookmarkDialogOpen: false,
         createDirDialogOpen: false,
+        startupOverlayHidden: true,
         addressExpanded: true,
       }),
     ).toBe(true);
+  });
+
+  it('开屏可见期间把中心 WebView 置为离屏（与右侧面板同口径，不遮挡开屏动画）', () => {
+    const tab = makeTab('b1', 'https://x.test');
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { b1: tab },
+      browserActiveTabId: 'b1',
+      startupOverlayHidden: false,
+    });
+    renderView('b1');
+
+    // 开屏未结束 → overlay 必须为 true，中心原生 WebView2 保持屏外。
+    expect(hostProbe.overlayActive).toBe(true);
+
+    // 开屏结束 → overlay 转 false，恢复 WebView 正常定位。
+    act(() => {
+      useAppStore.setState({ startupOverlayHidden: true });
+    });
+    expect(hostProbe.overlayActive).toBe(false);
   });
 
   it('渲染地址栏', () => {

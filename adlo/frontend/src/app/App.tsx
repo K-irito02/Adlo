@@ -188,8 +188,8 @@ export function App() {
     return () => clearTimeout(timer);
   }, [t, appReady]);
 
-  // 同步 overlayHidden 到 UI store，供 BrowserPanel 纳入 hasOverlayActive 计算
-  // 确保开屏显示期间 WebView2 保持离屏
+  // 同步 overlayHidden 到 UI store，供右侧面板（hasOverlayActive）与中心浏览器
+  // （computeCenterOverlayActive）纳入 overlay 计算，确保开屏显示期间 WebView2 保持离屏。
   useEffect(() => {
     setStartupOverlayHidden(overlayHidden);
   }, [overlayHidden, setStartupOverlayHidden]);

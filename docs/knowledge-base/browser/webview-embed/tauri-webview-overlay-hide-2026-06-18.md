@@ -234,3 +234,23 @@ if (overlayActiveRef.current) {
 3. **React state path 与 DOM-based path 的守卫隔离** — State-based 路径通过 `overlayActiveRef` 防护的重叠菜单恢复逻辑通过 `hideWebViewRequestedRef` 防护，两者独立但互补。修复前 State-based 路径的 `hideAllWebViews()` 未设置 `hideWebViewRequestedRef`，但此次问题并非由该 gap 导致。保持一致性的选择留待后续评估。
 
 4. **MutationObserver 选择器未覆盖所有 Portal 对话框** — `OVERLAY_SELECTOR` 只包含 `.adl-sidebar-menu, .adl-multitree-entry__menu, .adl-menu__dropdown`，未包含 `.adl-prompt-modal`（书签对话框的 portal 容器类）。虽然本次问题的根因是 rAF 竞态而非选择器缺失，但未来添加新对话框 Portal 时需同步更新选择器列表。
+
+## 2026-11-28 补充：中心宿主遗漏开屏离屏判据
+
+### 问题
+
+dev Tauri 重启后，中心（Center）前台浏览器标签的原生 WebView2 在**开屏**阶段露出并遮挡开屏；右侧面板无此问题。
+
+### 根因
+
+原生 WebView2 创建时位于屏外（`-10000,-10000`），回到屏内的唯一通道是前端 `setTabBounds` 应用容器矩形，该路径受 `overlayActive` 门控。右侧面板早已把开屏纳入判据（`!startupOverlayHidden || …`），而中心的 `computeCenterOverlayActive` 只统计菜单/对话框，未含开屏 → 开屏期间 `overlayActive=false`，页面就绪后把 WebView 摆回屏内。DOM 开屏覆盖层盖不住 OS 级原生子窗口。
+
+### 修复
+
+`computeCenterOverlayActive` 增加 `startupOverlayHidden`，与右侧面板同口径；`CenterBrowserView` 订阅该 store 字段并传入。开屏只并入 `overlayActive`，不改 `isVisible` / `webViewDisabled`（开屏应允许提前在屏外加载，只阻止落位）。
+
+### 经验教训
+
+1. **每个原生子窗口宿主都要各自覆盖「开屏离屏」**：判据按宿主独立计算，新增宿主或新浮层（开屏、面板浮层、桥接条）时逐宿主核对，不要假设一处覆盖全局生效。
+2. **DOM 覆盖层对原生面无效**：任何全屏级 DOM 浮层都必须显式把原生 WebView 移出画面，不能依赖 `z-index`。
+3. **回归用例要锁「宿主收到的 overlayActive」**：从组件公共入口渲染并观测传给 WebView 驱动 hook 的 `overlayActive`，删除修复项时必须变红。
