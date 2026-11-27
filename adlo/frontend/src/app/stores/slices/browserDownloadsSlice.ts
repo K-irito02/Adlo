@@ -22,6 +22,7 @@ import { DEFAULT_DOWNLOAD_MODE } from '@shared/defaultPreferences';
 import { browserZh } from '../../i18n/zh-CN/browser';
 import { browserEn } from '../../i18n/en-US/browser';
 import { resolveAppLanguage } from '../../i18n/resolveLanguage';
+import { rememberDownloadSource } from '@features/browser/downloadOnlyTabs';
 
 /**
  * Whether a tab still has at least one active (in_progress) download after a
@@ -184,6 +185,14 @@ export const createBrowserDownloadsSlice = (
       id,
       setTimeout(() => {
         redownloadTimers.delete(id);
+        // 与 browser-download-error 相同的语言解析口径：15s 内未等到 started
+        // 事件，回滚准备态并提示用户（设计 §7.3 / 决策 #23）。
+        const locale = resolveAppLanguage(get().appInfo?.config?.language);
+        const message =
+          locale === 'en-US'
+            ? browserEn.browserDownloadRedownloadNotStarted
+            : browserZh.browserDownloadRedownloadNotStarted;
+        get().showToast(message, 'error');
         set((state) => {
           const next = new Set(state.redownloadingIds);
           next.delete(id);
@@ -219,7 +228,14 @@ export const createBrowserDownloadsSlice = (
         if (result.ok) {
           const record = get().downloads.find((d) => d.id === id);
           if (record) {
+            // browserOpenTab 同步把新标签设为活动标签；记下来源供生命周期在下载
+            // 开始后切回焦点（与 browserOpenNewWindowTab 的注册口径一致）。
+            const previousTabId = get().browserActiveTabId;
             get().browserOpenTab(record.url);
+            const newTabId = get().browserActiveTabId;
+            if (previousTabId && newTabId) {
+              rememberDownloadSource(newTabId, previousTabId);
+            }
           }
         }
       }

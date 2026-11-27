@@ -295,9 +295,9 @@
     /**
      * 强信号下载判定：只看路径扩展名（含 query / fragment 无关的 pathname）。
      *
-     * target=_blank 的下载链接改为「当前文档导航」后，误判会把用户正在看的页面
-     * 导航走；因此这里不用 isDownloadUrl 的 /files/ 等宽松路径启发式，只对明确的
-     * 文件扩展名做同文档下载。window.open 路径仍沿用 isDownloadUrl。
+     * target=_blank 的下载链接走隐藏 iframe 导航（不会替换当前页面），但仍要避免把
+     * 普通页面当成下载浪费一次子资源加载；因此这里不用 isDownloadUrl 的 /files/
+     * 等宽松路径启发式，只对明确的文件扩展名生效。window.open 路径仍沿用 isDownloadUrl。
      */
     function __adlIsDownloadExtensionUrl(url) {
         if (!url || typeof url !== 'string') return false;
@@ -633,17 +633,26 @@
                         // 下载链接不要新标签：新标签需要现场创建 WebView2 子窗口，
                         // 实测会占住主线程 1.5–5s（Tauri IPC 排队、右侧面板/文件树
                         // 点击无响应），并留下一个需要自动关闭的空标签。
-                        // 让当前文档直接导航到下载 URL：WebView2 原生
-                        // DownloadStarting 会接管并中止文档导航，页面保持不动。
-                        // 这与下面 window.open 下载 URL 的同文档路径一致，且已在
-                        // 真实站点验证。仅对明确扩展名/带 download 属性生效，避免
-                        // /files/ 之类的宽松路径把普通页面误导航走。
+                        // 在同一个 WebView 里用隐藏 iframe 导航到下载 URL：WebView2
+                        // 原生 DownloadStarting 仍会接管，但当前页面不会被替换
+                        //（pdf/svg/媒体/office 等扩展名可能内联渲染，直接
+                        // location.assign 会把用户正在看的页面导航走，且前端
+                        // isDownloadUrl 会抑制地址栏更新）。重新下载的 command 路径
+                        // 仍故意导航活动标签——该风险已被设计接受，不在此改动。
+                        // 仅对明确扩展名/带 download 属性生效，避免 /files/ 之类的
+                        // 宽松路径把普通页面误当成下载。
                         if (isValidWebUrl(href) &&
                             (target.hasAttribute('download') || __adlIsDownloadExtensionUrl(href))) {
                             event.preventDefault();
                             event.stopPropagation();
-                            __adlSendLog('info', 'download link → same-document native DownloadStarting', { href: href });
-                            window.location.assign(href);
+                            __adlSendLog('info', 'download link → hidden iframe native DownloadStarting', { href: href });
+                            var dlFrame = document.createElement('iframe');
+                            dlFrame.style.display = 'none';
+                            dlFrame.src = href;
+                            document.body.appendChild(dlFrame);
+                            setTimeout(function() {
+                                if (dlFrame.parentNode) dlFrame.parentNode.removeChild(dlFrame);
+                            }, 30000);
                             return;
                         }
                         if (__adlTryOpenNewTab(href, __adlReferrerForLink(target, href))) {

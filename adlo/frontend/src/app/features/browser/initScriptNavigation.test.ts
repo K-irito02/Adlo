@@ -297,6 +297,25 @@ describe('init_script.js new-tab interception markers', () => {
     expect(tail).not.toContain('__startNavGuard');
   });
 
+  it('uses a hidden iframe for target=_blank download links, not window.location.assign', () => {
+    const branchMarker = "(target.hasAttribute('download') || __adlIsDownloadExtensionUrl(href))";
+    const branchStart = initScript.indexOf(branchMarker);
+    expect(branchStart).toBeGreaterThan(-1);
+    const branchEnd = initScript.indexOf('if (__adlTryOpenNewTab(href', branchStart);
+    expect(branchEnd).toBeGreaterThan(branchStart);
+    const branch = initScript.slice(branchStart, branchEnd);
+    expect(branch).toContain('event.preventDefault()');
+    expect(branch).toContain("document.createElement('iframe')");
+    expect(branch).toContain("dlFrame.style.display = 'none'");
+    expect(branch).toContain('dlFrame.src = href');
+    expect(branch).toContain('document.body.appendChild(dlFrame)');
+    expect(branch).toContain('removeChild(dlFrame)');
+    expect(branch).toContain('30000');
+    expect(branch).not.toContain('window.location.assign');
+    // window.open 的下载路径（含重新下载的 command 路径）经设计批准保留同文档导航。
+    expect(initScript).toContain('window.location.assign(resolvedUrl)');
+  });
+
   it('delegates window.open(http) to native handling', () => {
     const marker = 'var origOpen = window.open;';
     const openRewrite = initScript.slice(
@@ -1039,6 +1058,26 @@ describe('init_script.js agent-link interception', () => {
     const msg = posted.find((p) => p.type === 'open-new-tab');
     expect(msg).toMatchObject({ url: 'https://target.example/page' });
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('does not navigate the page for a target=_blank download link (hidden iframe)', () => {
+    setAgent([], false);
+    const a = document.createElement('a');
+    a.href = 'https://target.example/report.pdf';
+    a.target = '_blank';
+    document.body.appendChild(a);
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    a.dispatchEvent(event);
+    const frames = document.querySelectorAll('iframe');
+    expect(event.defaultPrevented).toBe(true);
+    expect(posted.filter((p) => p.type === 'open-new-tab')).toHaveLength(0);
+    expect(frames).toHaveLength(1);
+    expect(frames[0].style.display).toBe('none');
+    expect(frames[0].getAttribute('src')).toBe('https://target.example/report.pdf');
+    a.remove();
+    for (const frame of frames) {
+      frame.remove();
+    }
   });
 
   it('does not open a new tab when the page already cancelled the click', () => {

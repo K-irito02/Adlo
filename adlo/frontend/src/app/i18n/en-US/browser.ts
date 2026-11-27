@@ -303,6 +303,7 @@ export const browserEn = {
   browserDownloadRemoveRecord: 'Remove record',
   browserDownloadCopyLink: 'Copy link',
   browserDownloadRedownload: 'Redownload',
+  browserDownloadRedownloadNotStarted: 'Redownload did not start',
   browserDownloadPreparing: 'Preparing…',
   browserDownloadMissingFile: 'File missing',
   browserDownloadNonDefaultLocation: 'Non-default location',

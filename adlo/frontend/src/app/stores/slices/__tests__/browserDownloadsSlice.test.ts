@@ -8,6 +8,10 @@ import {
 import type { DownloadRecord, DownloadFileState } from '@shared/ipc/download';
 import type { BrowserTabState } from '../browserTypes';
 import type { StoreState } from '../../StoreState';
+import {
+  consumeDownloadSource,
+  resetDownloadOnlyTabsForTest,
+} from '@features/browser/downloadOnlyTabs';
 
 const { mockInvoke } = vi.hoisted(() => ({ mockInvoke: vi.fn() }));
 
@@ -548,6 +552,43 @@ describe('browserDownloadsSlice — redownloadDownload', () => {
     expect(get().redownloadingIds.has('d1')).toBe(false);
   });
 
+  it('without tabId remembers the source tab for the fallback new tab', async () => {
+    resetDownloadOnlyTabsForTest();
+    mockInvoke.mockResolvedValue({ ok: true, data: undefined });
+    const record = download({ id: 'd1', url: 'https://example.com/file.zip' });
+    const { slice, get } = buildSlice({
+      downloads: [record],
+      browserActiveTabId: 'source-tab',
+      browserOpenTab: vi.fn(() => {
+        // The real store sets the new tab active synchronously inside browserOpenTab.
+        get().browserActiveTabId = 'new-tab';
+      }),
+    });
+
+    const result = await slice.redownloadDownload('d1');
+
+    expect(result.ok).toBe(true);
+    expect(get().browserOpenTab).toHaveBeenCalledWith('https://example.com/file.zip');
+    expect(consumeDownloadSource('new-tab')).toBe('source-tab');
+  });
+
+  it('without tabId skips source registration when no active tab is available', async () => {
+    resetDownloadOnlyTabsForTest();
+    mockInvoke.mockResolvedValue({ ok: true, data: undefined });
+    const record = download({ id: 'd1', url: 'https://example.com/file.zip' });
+    const { slice, get } = buildSlice({
+      downloads: [record],
+      browserActiveTabId: '',
+      browserOpenTab: vi.fn(() => {
+        (get() as { browserActiveTabId: string }).browserActiveTabId = '';
+      }),
+    });
+
+    await slice.redownloadDownload('d1');
+
+    expect(consumeDownloadSource('new-tab')).toBeUndefined();
+  });
+
   it('without tabId clears redownloadingIds immediately when prepare fails', async () => {
     mockInvoke.mockResolvedValue({ ok: false, error: { code: 'Internal', message: 'nope' } });
     const record = download({ id: 'd1', url: 'https://example.com/file.zip' });
@@ -573,9 +614,13 @@ describe('browserDownloadsSlice — redownloadDownload 15s timeout', () => {
     vi.useRealTimers();
   });
 
-  it('clears redownloadingIds if the command never resolves within 15s', async () => {
+  it('clears redownloadingIds and toasts if the command never resolves within 15s', async () => {
     mockInvoke.mockImplementation(() => new Promise(() => {}));
-    const { slice, get } = buildSlice();
+    const showToast = vi.fn();
+    const { slice, get } = buildSlice({
+      showToast,
+      appInfo: { config: { language: 'zh-CN' } },
+    });
 
     void slice.redownloadDownload('d1', 'tab-1');
     expect(get().redownloadingIds.has('d1')).toBe(true);
@@ -583,6 +628,22 @@ describe('browserDownloadsSlice — redownloadDownload 15s timeout', () => {
     await vi.advanceTimersByTimeAsync(15000);
 
     expect(get().redownloadingIds.has('d1')).toBe(false);
+    expect(showToast).toHaveBeenCalledTimes(1);
+    expect(showToast).toHaveBeenCalledWith('重新下载未开始', 'error');
+  });
+
+  it('uses the English timeout toast for an en-US locale', async () => {
+    mockInvoke.mockImplementation(() => new Promise(() => {}));
+    const showToast = vi.fn();
+    const { slice } = buildSlice({
+      showToast,
+      appInfo: { config: { language: 'en-US' } },
+    });
+
+    void slice.redownloadDownload('d1', 'tab-1');
+    await vi.advanceTimersByTimeAsync(15000);
+
+    expect(showToast).toHaveBeenCalledWith('Redownload did not start', 'error');
   });
 });
 
