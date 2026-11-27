@@ -153,8 +153,8 @@
 - [x] Commit on `slot-2` with a conventional message.
 - [x] Fast-forward `main`, align `slot-1` and `slot-2`.
 - [x] Run approved `check:all` on merged `main` with logged output.
-- [ ] Push `main slot-1 slot-2` through `push:both` and verify both remote SHAs.
-- [ ] Close the session registry and report final hash/status.
+- [x] Push `main slot-1 slot-2` through `push:both` and verify both remote SHAs.
+- [x] Close the session registry and report final hash/status.
 
 ## Final Review Fixes
 
