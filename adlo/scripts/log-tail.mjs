@@ -18,9 +18,22 @@ function arg(name, fallback) {
   return index >= 0 ? process.argv[index + 1] : fallback;
 }
 
+function truncateLine(line, maxChars) {
+  if (line.length <= maxChars) return line;
+  if (maxChars === 1) return "…";
+  const marker = "…";
+  const remaining = maxChars - marker.length;
+  const head = Math.ceil(remaining / 2);
+  const tail = remaining - head;
+  const suffix = tail > 0 ? line.slice(-tail) : "";
+  return `${line.slice(0, head)}${marker}${suffix}`;
+}
+
 const file = arg("--file");
 if (!file) {
-  console.error("usage: node scripts/log-tail.mjs --file <path> [--grep <regex>] [--tail 80]");
+  console.error(
+    "usage: node scripts/log-tail.mjs --file <path> [--grep <regex>] [--tail 80] [--max-line-chars 800]",
+  );
   process.exit(1);
 }
 
@@ -28,6 +41,12 @@ const pattern = arg("--grep");
 const tail = Number(arg("--tail", "80"));
 if (!Number.isFinite(tail) || tail <= 0) {
   console.error("--tail must be a positive number");
+  process.exit(1);
+}
+
+const maxLineChars = Number(arg("--max-line-chars", "800"));
+if (!Number.isInteger(maxLineChars) || maxLineChars <= 0) {
+  console.error("--max-line-chars must be a positive integer");
   process.exit(1);
 }
 
@@ -52,7 +71,7 @@ lines.forEach((line, index) => {
 });
 
 for (const item of matched.slice(-tail)) {
-  console.log(`${item.index}: ${item.line}`);
+  console.log(`${item.index}: ${truncateLine(item.line, maxLineChars)}`);
 }
 console.log(
   `[log-tail] ${file} (${(size / 1024).toFixed(1)} KiB, ${lines.length} lines) → ${matched.length} matched, showing ${Math.min(matched.length, tail)}`,
