@@ -3,7 +3,7 @@ import { IconPause, IconPlay, IconClose, IconMoreVertical, IconLoader } from '@i
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { formatBytes } from '../../../design-system/html';
-import type { DownloadRecord } from '@shared/ipc/download';
+import type { DownloadRecord, DownloadFileState } from '@shared/ipc/download';
 import { BrowserDownloadPauseDialog } from './BrowserDownloadPauseDialog';
 import { FileIcon } from '@shared/file-icon';
 import { useDownloadItemActions } from './useDownloadItemActions';
@@ -12,12 +12,14 @@ interface BrowserDownloadItemProps {
   record: DownloadRecord;
   onContextMenu: (record: DownloadRecord, position: { x: number; y: number }) => void;
   redownloading?: boolean;
+  fileState?: DownloadFileState;
 }
 
 export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
   record,
   onContextMenu,
   redownloading,
+  fileState,
 }: BrowserDownloadItemProps) {
   const { t } = useTCopy();
   const itemRef = useRef<HTMLDivElement>(null);
@@ -36,6 +38,9 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
   const activeProgress = activeDownloads[record.id];
   const isActive = record.status === 'in_progress';
   const isPaused = record.status === 'paused';
+  const isCompleted = record.status === 'completed';
+  const isMissing = isCompleted && fileState != null && !fileState.exists;
+  const isNonDefault = isCompleted && fileState != null && !fileState.in_default_dir;
 
   const bytesReceived = activeProgress?.bytes_received ?? record.bytes_received;
   const speed = activeProgress?.speed ?? 0;
@@ -91,7 +96,7 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
 
   const handleClick = useCallback(
     (_e: React.MouseEvent) => {
-      if (redownloading) {
+      if (redownloading || isMissing) {
         return;
       }
       const now = Date.now();
@@ -105,10 +110,10 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
         void handleOpenFile(record);
       }
     },
-    [record, handleOpenFile, redownloading],
+    [record, handleOpenFile, redownloading, isMissing],
   );
 
-  // Status icons removed per user request - partition titles are sufficient
+  // Status text is rendered in the meta row instead of grouped headings.
 
   const formatDate = (timestamp: number) => {
     // 后端返回的是秒级时间戳，需要转换为毫秒级
@@ -134,6 +139,9 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
     if (redownloading) {
       return t.browserDownloadPreparing;
     }
+    if (isMissing) {
+      return t.browserDownloadMissingFile;
+    }
     switch (record.status) {
       case 'in_progress':
         return speed > 0 ? t.browserDownloadSpeed.replace('{speed}', formatBytes(speed)) : '';
@@ -141,6 +149,10 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
         return record.interrupt_reason
           ? t.browserDownloadFailedReason.replace('{reason}', record.interrupt_reason)
           : t.browserDownloadFailed;
+      case 'paused':
+        return t.browserDownloadPaused;
+      case 'canceled':
+        return t.browserDownloadCanceled;
       default:
         return '';
     }
@@ -154,7 +166,7 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
     <>
       <div
         ref={itemRef}
-        className="adl-download-item"
+        className={`adl-download-item${isMissing ? ' adl-download-item--missing' : ''}`}
         onContextMenu={handleContextMenu}
         onClick={handleClick}
         role="listitem"
@@ -170,6 +182,11 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
             <span className="adl-download-item__name" title={record.file_name}>
               {record.file_name}
             </span>
+            {isNonDefault && (
+              <span className="adl-download-item__location-badge" title={record.file_path}>
+                {t.browserDownloadNonDefaultLocation}
+              </span>
+            )}
             <div className="adl-download-item__actions">
               {isActive && (
                 <button

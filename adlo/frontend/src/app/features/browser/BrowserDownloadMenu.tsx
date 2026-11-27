@@ -100,24 +100,8 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
     );
   }, [downloads, searchQuery]);
 
-  const activeDownloads = useMemo(
-    () => filteredDownloads.filter((d) => d.status === 'in_progress'),
-    [filteredDownloads],
-  );
-  const pausedDownloads = useMemo(
-    () => filteredDownloads.filter((d) => d.status === 'paused'),
-    [filteredDownloads],
-  );
-  const failedDownloads = useMemo(
-    () => filteredDownloads.filter((d) => d.status === 'failed'),
-    [filteredDownloads],
-  );
-  const completedDownloads = useMemo(
-    () => filteredDownloads.filter((d) => d.status === 'completed'),
-    [filteredDownloads],
-  );
-  const canceledDownloads = useMemo(
-    () => filteredDownloads.filter((d) => d.status === 'canceled'),
+  const sortedDownloads = useMemo(
+    () => [...filteredDownloads].sort((a, b) => b.created_at - a.created_at),
     [filteredDownloads],
   );
 
@@ -239,57 +223,16 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
         </div>
       ) : (
         <div className="adl-download-menu__list">
-          {activeDownloads.length > 0 && (
-            <div>
-              <DownloadGroup
-                label={t.browserDownloadActive}
-                downloads={activeDownloads}
-                redownloadingIds={redownloadingIds}
-                onContextMenu={handleContextMenu}
-              />
-            </div>
-          )}
-          {pausedDownloads.length > 0 && (
-            <div>
-              <DownloadGroup
-                label={t.browserDownloadPaused}
-                downloads={pausedDownloads}
-                redownloadingIds={redownloadingIds}
-                onContextMenu={handleContextMenu}
-              />
-            </div>
-          )}
-          {failedDownloads.length > 0 && (
-            <div>
-              <DownloadGroup
-                label={t.browserDownloadFailed}
-                downloads={failedDownloads}
-                redownloadingIds={redownloadingIds}
-                onContextMenu={handleContextMenu}
-              />
-            </div>
-          )}
-          {completedDownloads.length > 0 && (
-            <div>
-              <DownloadGroup
-                label={t.browserDownloadCompleted}
-                downloads={completedDownloads}
-                redownloadingIds={redownloadingIds}
-                onContextMenu={handleContextMenu}
-              />
-            </div>
-          )}
-          {canceledDownloads.length > 0 && (
-            <div>
-              <DownloadGroup
-                label={t.browserDownloadCanceled}
-                downloads={canceledDownloads}
-                redownloadingIds={redownloadingIds}
-                onContextMenu={handleContextMenu}
-              />
-            </div>
-          )}
-          {filteredDownloads.length === 0 && searchQuery && (
+          {sortedDownloads.map((record) => (
+            <BrowserDownloadItem
+              key={record.id}
+              record={record}
+              redownloading={redownloadingIds.has(record.id)}
+              fileState={downloadFileStates[record.id]}
+              onContextMenu={handleContextMenu}
+            />
+          ))}
+          {sortedDownloads.length === 0 && searchQuery && (
             <div className="adl-download-menu__no-results">{t.browserNoSearchResults}</div>
           )}
         </div>
@@ -337,29 +280,3 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
     document.body,
   );
 });
-
-function DownloadGroup({
-  label,
-  downloads,
-  redownloadingIds,
-  onContextMenu,
-}: {
-  label: string;
-  downloads: DownloadRecord[];
-  redownloadingIds: ReadonlySet<string>;
-  onContextMenu: (record: DownloadRecord, position: { x: number; y: number }) => void;
-}) {
-  return (
-    <div className="adl-download-menu__group">
-      <div className="adl-download-menu__group-label">{label}</div>
-      {downloads.map((record) => (
-        <BrowserDownloadItem
-          key={record.id}
-          record={record}
-          redownloading={redownloadingIds.has(record.id)}
-          onContextMenu={onContextMenu}
-        />
-      ))}
-    </div>
-  );
-}

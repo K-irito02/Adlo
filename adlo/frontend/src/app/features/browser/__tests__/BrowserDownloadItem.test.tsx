@@ -2,11 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { TCopyProvider } from '../../../i18n/TCopyContext';
 import { BrowserDownloadItem } from '../BrowserDownloadItem';
-import type { DownloadRecord } from '@shared/ipc/download';
+import type { DownloadRecord, DownloadFileState } from '@shared/ipc/download';
 import { useAppStore } from '@stores/slicedStore';
 
 vi.mock('@stores/slicedStore', () => ({
   useAppStore: vi.fn(),
+}));
+
+const mockHandleOpenFile = vi.fn();
+vi.mock('../useDownloadItemActions', () => ({
+  useDownloadItemActions: vi.fn(() => ({
+    handleOpenFile: mockHandleOpenFile,
+  })),
 }));
 
 const mockT = {
@@ -17,6 +24,11 @@ const mockT = {
   browserDownloadOf: ' of ',
   browserDownloadFailed: 'Failed',
   browserDownloadFailedReason: 'Failed: {reason}',
+  browserDownloadMissingFile: 'File missing',
+  browserDownloadNonDefaultLocation: 'Non-default location',
+  browserDownloadCanceled: 'Canceled',
+  browserDownloadPaused: 'Paused',
+  browserDownloadPreparing: 'Preparing…',
   browserDownloadPauseDialogTitle: 'Server does not support pause',
   browserDownloadPauseDialogDesc:
     'The server hosting this download does not support resuming. Pausing will restart the download from the beginning.',
@@ -40,6 +52,16 @@ function makeRecord(overrides: Partial<DownloadRecord> = {}): DownloadRecord {
     completed_at: null,
     source_tab_id: null,
     resumable: null,
+    ...overrides,
+  };
+}
+
+function makeFileState(overrides: Partial<DownloadFileState> = {}): DownloadFileState {
+  return {
+    id: 'dl-1',
+    exists: true,
+    in_default_dir: true,
+    error: null,
     ...overrides,
   };
 }
@@ -200,5 +222,85 @@ describe('BrowserDownloadItem', () => {
       </TCopyProvider>,
     );
     expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+  });
+
+  it('renders completed file as missing and disables open when exists is false', () => {
+    const record = makeRecord({ status: 'completed', file_path: '/downloads/file.zip' });
+    render(
+      <TCopyProvider t={mockT as any} locale="en-US">
+        <BrowserDownloadItem
+          record={record}
+          onContextMenu={mockOnContextMenu}
+          fileState={makeFileState({ exists: false })}
+        />
+      </TCopyProvider>,
+    );
+    const item = screen.getByRole('listitem');
+    expect(item.classList.contains('adl-download-item--missing')).toBe(true);
+    const name = item.querySelector('.adl-download-item__name');
+    expect(name).toBeInTheDocument();
+    expect(item.classList.contains('adl-download-item--missing')).toBe(true);
+    expect(screen.getByText(mockT.browserDownloadMissingFile)).toBeInTheDocument();
+    fireEvent.click(item);
+    expect(mockHandleOpenFile).not.toHaveBeenCalled();
+  });
+
+  it('renders non-default location badge with full path tooltip', () => {
+    const record = makeRecord({ status: 'completed', file_path: '/elsewhere/file.zip' });
+    render(
+      <TCopyProvider t={mockT as any} locale="en-US">
+        <BrowserDownloadItem
+          record={record}
+          onContextMenu={mockOnContextMenu}
+          fileState={makeFileState({ in_default_dir: false })}
+        />
+      </TCopyProvider>,
+    );
+    const badge = screen.getByText(mockT.browserDownloadNonDefaultLocation);
+    expect(badge).toBeInTheDocument();
+    expect(badge.getAttribute('title')).toBe('/elsewhere/file.zip');
+  });
+
+  it('renders failed status text with reason', () => {
+    const record = makeRecord({
+      status: 'failed',
+      interrupt_reason: 'network error',
+    });
+    render(
+      <TCopyProvider t={mockT as any} locale="en-US">
+        <BrowserDownloadItem record={record} onContextMenu={mockOnContextMenu} />
+      </TCopyProvider>,
+    );
+    expect(screen.getByText('Failed: network error')).toBeInTheDocument();
+  });
+
+  it('renders canceled status text', () => {
+    const record = makeRecord({ status: 'canceled' });
+    render(
+      <TCopyProvider t={mockT as any} locale="en-US">
+        <BrowserDownloadItem record={record} onContextMenu={mockOnContextMenu} />
+      </TCopyProvider>,
+    );
+    expect(screen.getByText(mockT.browserDownloadCanceled)).toBeInTheDocument();
+  });
+
+  it('renders paused status text', () => {
+    const record = makeRecord({ status: 'paused' });
+    render(
+      <TCopyProvider t={mockT as any} locale="en-US">
+        <BrowserDownloadItem record={record} onContextMenu={mockOnContextMenu} />
+      </TCopyProvider>,
+    );
+    expect(screen.getByText(mockT.browserDownloadPaused)).toBeInTheDocument();
+  });
+
+  it('renders preparing status text when redownloading', () => {
+    const record = makeRecord({ status: 'failed' });
+    render(
+      <TCopyProvider t={mockT as any} locale="en-US">
+        <BrowserDownloadItem record={record} onContextMenu={mockOnContextMenu} redownloading />
+      </TCopyProvider>,
+    );
+    expect(screen.getByText(mockT.browserDownloadPreparing)).toBeInTheDocument();
   });
 });
