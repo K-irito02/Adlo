@@ -502,18 +502,23 @@ describe('browserDownloadsSlice — redownloadDownload', () => {
     vi.useRealTimers();
   });
 
-  it('with tabId invokes download_redownload and clears redownloadingIds on success', async () => {
+  it('with tabId invokes download_redownload and keeps redownloadingIds until started', async () => {
     mockInvoke.mockResolvedValue({ ok: true, data: undefined });
-    const { slice, get } = buildSlice();
+    const { slice, get, handlers } = buildSlice();
 
     const result = await slice.redownloadDownload('d1', 'tab-1');
 
     expect(result.ok).toBe(true);
     expect(mockInvoke).toHaveBeenCalledWith('download_redownload', { id: 'd1', tabId: 'tab-1' });
+    expect(get().redownloadingIds.has('d1')).toBe(true);
+
+    slice.subscribeDownloadEvents();
+    handlers['browser-download-started']?.[0]({ payload: download({ id: 'd1' }) });
+
     expect(get().redownloadingIds.has('d1')).toBe(false);
   });
 
-  it('with tabId clears redownloadingIds on invoke failure', async () => {
+  it('with tabId clears redownloadingIds immediately on invoke failure', async () => {
     mockInvoke.mockResolvedValue({ ok: false, error: { code: 'Internal', message: 'nope' } });
     const { slice, get } = buildSlice();
 
@@ -523,10 +528,10 @@ describe('browserDownloadsSlice — redownloadDownload', () => {
     expect(get().redownloadingIds.has('d1')).toBe(false);
   });
 
-  it('without tabId invokes download_prepare_redownload and opens the original url', async () => {
+  it('without tabId invokes download_prepare_redownload, opens url, and keeps redownloadingIds until started', async () => {
     mockInvoke.mockResolvedValue({ ok: true, data: undefined });
     const record = download({ id: 'd1', url: 'https://example.com/file.zip' });
-    const { slice, get } = buildSlice({
+    const { slice, get, handlers } = buildSlice({
       downloads: [record],
     });
 
@@ -535,9 +540,15 @@ describe('browserDownloadsSlice — redownloadDownload', () => {
     expect(result.ok).toBe(true);
     expect(mockInvoke).toHaveBeenCalledWith('download_prepare_redownload', { id: 'd1' });
     expect(get().browserOpenTab).toHaveBeenCalledWith('https://example.com/file.zip');
+    expect(get().redownloadingIds.has('d1')).toBe(true);
+
+    slice.subscribeDownloadEvents();
+    handlers['browser-download-started']?.[0]({ payload: download({ id: 'd1' }) });
+
+    expect(get().redownloadingIds.has('d1')).toBe(false);
   });
 
-  it('without tabId does not open a tab when prepare fails', async () => {
+  it('without tabId clears redownloadingIds immediately when prepare fails', async () => {
     mockInvoke.mockResolvedValue({ ok: false, error: { code: 'Internal', message: 'nope' } });
     const record = download({ id: 'd1', url: 'https://example.com/file.zip' });
     const { slice, get } = buildSlice({
@@ -548,6 +559,7 @@ describe('browserDownloadsSlice — redownloadDownload', () => {
 
     expect(result.ok).toBe(false);
     expect(get().browserOpenTab).not.toHaveBeenCalled();
+    expect(get().redownloadingIds.has('d1')).toBe(false);
   });
 });
 

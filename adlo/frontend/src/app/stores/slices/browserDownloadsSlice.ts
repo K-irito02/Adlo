@@ -178,6 +178,19 @@ export const createBrowserDownloadsSlice = (
       }, 15000),
     );
 
+    const clearRedownloading = () => {
+      const timer = redownloadTimers.get(id);
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        redownloadTimers.delete(id);
+      }
+      set((state) => {
+        const next = new Set(state.redownloadingIds);
+        next.delete(id);
+        return { redownloadingIds: next };
+      });
+    };
+
     try {
       let result: IpcResult<void>;
       if (tabId) {
@@ -196,23 +209,16 @@ export const createBrowserDownloadsSlice = (
           }
         }
       }
+      if (!result.ok) {
+        clearRedownloading();
+      }
       return result;
     } catch (e) {
+      clearRedownloading();
       return {
         ok: false as const,
         error: { code: 'Internal' as const, message: e instanceof Error ? e.message : String(e) },
       };
-    } finally {
-      const timer = redownloadTimers.get(id);
-      if (timer !== undefined) {
-        clearTimeout(timer);
-        redownloadTimers.delete(id);
-      }
-      set((state) => {
-        const next = new Set(state.redownloadingIds);
-        next.delete(id);
-        return { redownloadingIds: next };
-      });
     }
   },
 
@@ -462,6 +468,11 @@ export const createBrowserDownloadsSlice = (
         return;
       }
       const record = event.payload;
+      const timer = redownloadTimers.get(record.id);
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        redownloadTimers.delete(record.id);
+      }
       set((state) => {
         // Update the source tab's isDownloading flag
         const nextTabs = record.source_tab_id
