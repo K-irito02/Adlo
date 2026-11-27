@@ -262,14 +262,18 @@ describe('BackgroundSettingsDialog', () => {
     renderDialog();
 
     await waitFor(() => expect(screen.getByTestId('video-canvas-mirror')).toBeTruthy());
-    fireEvent.wheel(document.querySelector('.adl-bg-settings__preview')!, { deltaY: -200 });
-    const slider = screen.getByRole('slider', { name: '音量' });
-    fireEvent.keyDown(slider, { key: 'ArrowUp' });
+    // 滚轮监听是 preview 上的原生非 passive 事件，装在草稿就绪后的 effect 里。
+    // 等待缩放实际变化再断言，避免重负载下 DOM 已渲染但 effect 尚未附加时拿到种子值 1.5。
+    await waitFor(() => {
+      fireEvent.wheel(document.querySelector('.adl-bg-settings__preview')!, { deltaY: -200 });
+      expect(canvasProbe.adjust?.scale).toBeGreaterThan(1.5);
+    });
+    fireEvent.keyDown(screen.getByRole('slider', { name: '音量' }), { key: 'ArrowUp' });
 
     expect(document.querySelector('.adl-bg-settings__preview')).not.toBeNull();
     expect(screen.getByTestId('video-canvas-mirror')).toBeTruthy();
     expect(screen.getByRole('slider', { name: '音量' })).toBeTruthy();
-    // 滚轮后的缩放不是种子值 1.5；调音量不得把它重置回种子值。
+    // 调音量不得把缩放重置回种子值。
     expect(canvasProbe.adjust?.scale).toBeGreaterThan(1.5);
     expect(canvasProbe.fit).toBe('cover');
     expect(useAppStore.getState().browserBgConfig.volume).toBeCloseTo(0.45);
