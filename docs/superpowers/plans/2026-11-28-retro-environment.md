@@ -151,8 +151,8 @@
 - [x] Run all focused script tests, `check:script-lint`, `scripts:format:check`, `check:docs-links`, `check:skills`, `check:context-budget`, `check:repo`.
 - [x] Confirm three skill/rule trees match.
 - [x] Commit on `slot-2` with a conventional message.
-- [ ] Fast-forward `main`, align `slot-1` and `slot-2`.
-- [ ] Run approved `check:all` on merged `main` with logged output.
+- [x] Fast-forward `main`, align `slot-1` and `slot-2`.
+- [x] Run approved `check:all` on merged `main` with logged output.
 - [ ] Push `main slot-1 slot-2` through `push:both` and verify both remote SHAs.
 - [ ] Close the session registry and report final hash/status.
 
