@@ -138,9 +138,9 @@
 **Interfaces:**
 - Produces: documented content-readiness vs behavior-readiness contract and reviewer checklist item.
 
-- [ ] Rewrite async rendering guidance with the two readiness classes and Escape/listener example.
-- [ ] Add reviewer checklist item requiring observable effect/listener readiness.
-- [ ] Run `check:docs-links`, `check:skills`, `check:context-budget`.
+- [x] Rewrite async rendering guidance with the two readiness classes and Escape/listener example.
+- [x] Add reviewer checklist item requiring observable effect/listener readiness.
+- [x] Run `check:docs-links`, `check:skills`, `check:context-budget`.
 
 ### Task 7: Mirrors, verification, commit, integration
 

@@ -262,9 +262,9 @@ ESLint/Clippy 的 `--fix` 自动修复和任何人工修复必须遵守以下约
 
 > 不要只凭 jsdom 断言：禁用且已聚焦的元素在真实 Chromium / WebView2 会把焦点交给 `<body>`；需要不可重复点击时用 `aria-disabled` + `pointer-events:none`。
 
-### 异步渲染断言（等内容，不等容器）
+### 异步渲染与行为就绪
 
-`render` 返回后容器即存在，但数据（快照/轮询/测量）尚未落定：以容器存在（`querySelector` 非空、`toBeTruthy`）作为 `waitFor` 同步点是竞态——单文件跑必过，并发跑偶发红。同步点必须落在**可见内容**上（`findByText` / `findByRole` / 业务文案 `getByText`）。
+同步点分两类：**内容就绪**用 `findByText` / `findByRole` / 业务文案；**行为就绪**必须等焦点进入、按钮启用或 store 状态落定。标题或容器出现只证明内容就绪。例：`ResetAllDialog` 标题出现后立即发 Escape 可能早于 listener effect；先等焦点进入 `role=dialog`。单文件绿、全量红时优先查此竞态。
 
 ### 设置卡片行律收边锁
 
