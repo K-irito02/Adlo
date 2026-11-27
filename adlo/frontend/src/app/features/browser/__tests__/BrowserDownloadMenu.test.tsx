@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { TCopyProvider } from '../../../i18n/TCopyContext';
 import { BrowserDownloadMenu } from '../BrowserDownloadMenu';
 import type { DownloadRecord, DownloadFileState } from '@shared/ipc/download';
@@ -78,6 +78,31 @@ function makeFileState(overrides: Partial<DownloadFileState> = {}): DownloadFile
   };
 }
 
+function createMockState(overrides: Record<string, unknown> = {}) {
+  return {
+    downloads: [],
+    downloadFileStates: {},
+    redownloadingIds: new Set<string>(),
+    activeDownloads: {},
+    pauseDownload: vi.fn(),
+    resumeDownload: vi.fn(),
+    cancelDownload: vi.fn(),
+    fetchDownloads: vi.fn(() => Promise.resolve()),
+    refreshDownloadFileStates: vi.fn(() => Promise.resolve()),
+    downloadSettings: {
+      mode: 'auto',
+      default_path: '/downloads',
+      auto_migrate_on_path_change: false,
+    },
+    updateDownloadSettings: vi.fn(() => Promise.resolve({ ok: true })),
+    clearDownloadHistory: vi.fn(() => Promise.resolve()),
+    setActiveSettingsGroup: vi.fn(),
+    navigateRightTool: vi.fn(),
+    showToast: vi.fn(),
+    ...overrides,
+  };
+}
+
 describe('BrowserDownloadMenu', () => {
   const mockOnClose = vi.fn();
   const menuRef = { current: document.createElement('div') };
@@ -86,26 +111,7 @@ describe('BrowserDownloadMenu', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useAppStore).mockImplementation((selector: (state: any) => any) => {
-      const state = {
-        downloads: [],
-        downloadFileStates: {},
-        redownloadingIds: new Set<string>(),
-        activeDownloads: {},
-        pauseDownload: vi.fn(),
-        resumeDownload: vi.fn(),
-        cancelDownload: vi.fn(),
-        downloadSettings: {
-          mode: 'auto',
-          default_path: '/downloads',
-          auto_migrate_on_path_change: false,
-        },
-        updateDownloadSettings: vi.fn(() => Promise.resolve({ ok: true })),
-        clearDownloadHistory: vi.fn(() => Promise.resolve()),
-        setActiveSettingsGroup: vi.fn(),
-        navigateRightTool: vi.fn(),
-        showToast: vi.fn(),
-      };
-      return selector(state);
+      return selector(createMockState());
     });
   });
 
@@ -127,6 +133,28 @@ describe('BrowserDownloadMenu', () => {
     expect(screen.getByText(mockT.browserDownloadNoRecords)).toBeInTheDocument();
   });
 
+  it('refreshes downloads and file states when opened', async () => {
+    const fetchDownloads = vi.fn(() => Promise.resolve());
+    const refreshDownloadFileStates = vi.fn(() => Promise.resolve());
+    const record = makeRecord({ id: 'dl-1' });
+
+    vi.mocked(useAppStore).mockImplementation((selector: (state: any) => any) => {
+      return selector(
+        createMockState({
+          downloads: [record],
+          fetchDownloads,
+          refreshDownloadFileStates,
+        }),
+      );
+    });
+
+    renderMenu();
+
+    await waitFor(() => expect(fetchDownloads).toHaveBeenCalledTimes(1));
+    expect(refreshDownloadFileStates).toHaveBeenCalledTimes(1);
+    expect(refreshDownloadFileStates).toHaveBeenCalledWith(['dl-1']);
+  });
+
   it('renders all records in a flat list sorted by created_at DESC', () => {
     const older = makeRecord({ id: 'older', file_name: 'older.zip', created_at: 1000 });
     const newer = makeRecord({ id: 'newer', file_name: 'newer.zip', created_at: 3000 });
@@ -138,30 +166,16 @@ describe('BrowserDownloadMenu', () => {
     });
 
     vi.mocked(useAppStore).mockImplementation((selector: (state: any) => any) => {
-      const state = {
-        downloads: [older, newer, middle],
-        downloadFileStates: {
-          older: makeFileState({ id: 'older' }),
-          newer: makeFileState({ id: 'newer' }),
-          middle: makeFileState({ id: 'middle' }),
-        },
-        redownloadingIds: new Set<string>(),
-        activeDownloads: {},
-        pauseDownload: vi.fn(),
-        resumeDownload: vi.fn(),
-        cancelDownload: vi.fn(),
-        downloadSettings: {
-          mode: 'auto',
-          default_path: '/downloads',
-          auto_migrate_on_path_change: false,
-        },
-        updateDownloadSettings: vi.fn(() => Promise.resolve({ ok: true })),
-        clearDownloadHistory: vi.fn(() => Promise.resolve()),
-        setActiveSettingsGroup: vi.fn(),
-        navigateRightTool: vi.fn(),
-        showToast: vi.fn(),
-      };
-      return selector(state);
+      return selector(
+        createMockState({
+          downloads: [older, newer, middle],
+          downloadFileStates: {
+            older: makeFileState({ id: 'older' }),
+            newer: makeFileState({ id: 'newer' }),
+            middle: makeFileState({ id: 'middle' }),
+          },
+        }),
+      );
     });
 
     renderMenu();
@@ -205,26 +219,9 @@ describe('BrowserDownloadMenu', () => {
     });
 
     vi.mocked(useAppStore).mockImplementation((selector: (state: any) => any) => {
-      const state = {
-        downloads: [active, paused, failed, completed, canceled],
-        downloadFileStates: {},
-        redownloadingIds: new Set<string>(),
-        activeDownloads: {},
-        pauseDownload: vi.fn(),
-        resumeDownload: vi.fn(),
-        cancelDownload: vi.fn(),
-        downloadSettings: {
-          mode: 'auto',
-          default_path: '/downloads',
-          auto_migrate_on_path_change: false,
-        },
-        updateDownloadSettings: vi.fn(() => Promise.resolve({ ok: true })),
-        clearDownloadHistory: vi.fn(() => Promise.resolve()),
-        setActiveSettingsGroup: vi.fn(),
-        navigateRightTool: vi.fn(),
-        showToast: vi.fn(),
-      };
-      return selector(state);
+      return selector(
+        createMockState({ downloads: [active, paused, failed, completed, canceled] }),
+      );
     });
 
     renderMenu();

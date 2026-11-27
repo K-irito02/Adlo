@@ -50,6 +50,8 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
   const navigateRightTool = useAppStore((s) => s.navigateRightTool);
   const showToast = useAppStore((s) => s.showToast);
+  const fetchDownloads = useAppStore((s) => s.fetchDownloads);
+  const refreshDownloadFileStates = useAppStore((s) => s.refreshDownloadFileStates);
 
   const {
     handleOpenFile,
@@ -113,6 +115,17 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
   );
 
   const hasAnyDownloads = downloads.length > 0;
+
+  // 打开卡片时刷新一次下载列表与文件状态；空依赖保证只响应挂载，
+  // 避免菜单打开期间随 downloads 变化反复拉取。
+  useEffect(() => {
+    void fetchDownloads();
+    const ids = downloads.map((d) => d.id);
+    if (ids.length > 0) {
+      void refreshDownloadFileStates(ids);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const measure = () => {
